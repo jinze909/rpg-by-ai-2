@@ -329,9 +329,10 @@ namespace Starfall
                 if(!int.TryParse(action.Substring("storm_oldstory_".Length),out region) ||
                     region<1||region>3 || save.room!=region ||
                     StormPolicy(region)==0)return true;
-                foreach(WorldObject resident in Map.objects)
-                    if(resident.kind=="witnessnpc"+region)
-                    {TalkWitness(resident);break;}
+                WorldObject resident=Map.objects==null?null:Array.Find(Map.objects,
+                    candidate=>candidate!=null&&candidate.kind=="witnessnpc"+region);
+                if(resident==null||!HasPhysicalInteractionReach(resident))return true;
+                TalkWitness(resident);
                 return true;
             }
             if(action.StartsWith("storm_relief_"))
@@ -339,9 +340,11 @@ namespace Starfall
                 int region;
                 if(!int.TryParse(action.Substring("storm_relief_".Length),out region) ||
                     region<1||region>3 || save.room!=region ||
-                    StormPolicy(region)==0 || Has("storm_relief_"+region) ||
-                    (Position-StormPoint(region,"witnessnpc"+region)).Length>2.2f)
+                    StormPolicy(region)==0 || Has("storm_relief_"+region))
                     return true;
+                WorldObject witness=Map.objects==null?null:Array.Find(Map.objects,
+                    candidate=>candidate!=null&&candidate.kind=="witnessnpc"+region);
+                if(witness==null||!HasPhysicalInteractionReach(witness))return true;
                 if(save.inventory==null || save.inventory.Length<=6 || save.inventory[6]<=0)
                 {
                     Notify("没有热汤。回余烬镇旅店补充后再来。",
@@ -366,7 +369,7 @@ namespace Starfall
             if(action=="storm_begin")
             {
                 if(!StormReady || Has("storm_started") || save.room!=0 ||
-                    (Position-StormPoint(0,"stormcouncil")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(StormPoint(0,"stormcouncil")))return true;
                 Flag("storm_started");TrackQuest("storm_commons");
                 RecordMoment("第六章：战后第一次星雨逼近，莉雅让三地居民真正决定自己需要怎样分配八单位公共储备。",
                     "Chapter Six: the first storm arrives. Lyra trusts three regions to share eight units of civic reserves according to their actual needs.");
@@ -383,7 +386,7 @@ namespace Starfall
                     !Has("storm_started") || Has("storm_complete") ||
                     !Has("afterlight_done_"+region) ||
                     !Has("afterlight_steward_"+region) ||
-                    (Position-StormPoint(region,"stormrelay"+region)).Length>2.2f ||
+                    !HasPhysicalInteractionReach(StormPoint(region,"stormrelay"+region)) ||
                     StormPolicy(region)!=0)return true;
                 bool shelter=p[3]=="shelter";if(!shelter&&p[3]!="grid")return true;
                 int needed=shelter?3:2;
@@ -416,7 +419,7 @@ namespace Starfall
                 if(!StormReady || !Has("storm_started") || StormAllocations!=3 ||
                     Has("storm_tuned") || stormTuning || Dying || practicing ||
                     save.room!=0 || !SafeTravel ||
-                    (Position-StormPoint(0,"stormcouncil")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(StormPoint(0,"stormcouncil")))return true;
                 stormTuning=true;stormTuneStep=0;stormTuneTime=95;stormPulse=3.5f;
                 revision++;sound="quest";TrackQuest("storm_commons");
                 Notify("95秒实地调谐已开始。严格按镇内三处星灯的顺序操作，电弧可以闪避。",
@@ -426,7 +429,7 @@ namespace Starfall
             if(action=="storm_abort")
             {
                 if(stormTuning && save.room==0 &&
-                    (Position-StormPoint(0,"stormcouncil")).Length<2.2f)
+                    HasPhysicalInteractionReach(StormPoint(0,"stormcouncil")))
                 {
                     ResetStormTransient();revision++;
                     Notify("本次实地调谐已取消。三地的选择和材料成果全部保留。",
@@ -439,7 +442,7 @@ namespace Starfall
                 int n;
                 if(!int.TryParse(action.Substring("storm_node_".Length),out n) ||
                     n<1||n>3 || !stormTuning || save.room!=0 ||
-                    (Position-StormPoint(0,"stormnode"+n)).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(StormPoint(0,"stormnode"+n)))return true;
                 if(n!=StormNextNode)
                 {
                     save.energy=Math.Max(0,save.energy-12);
@@ -469,7 +472,7 @@ namespace Starfall
             {
                 if(!StormReady || !Has("storm_started") || !Has("storm_tuned") ||
                     StormAllocations!=3 || Has("storm_complete") || save.room!=0 ||
-                    (Position-StormPoint(0,"stormcouncil")).Length>2.2f)return true;
+                    !HasPhysicalInteractionReach(StormPoint(0,"stormcouncil")))return true;
                 Flag("storm_complete");
                 CreditCoins(110);CreditShards(3);CreditSkillPoints(1);
                 AddXp(110);revision++;sound="reward";

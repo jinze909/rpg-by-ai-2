@@ -225,6 +225,17 @@ namespace Starfall.Tests
                     g.StormReliefCount==region-1,
                     "Real civilian aid cannot occur without an actual purchased or cooked stew");
                 g.save.inventory[6]=1;
+                Point outside=StandableOutsideTalkReach(g,witness);
+                g.save.x=outside.x;g.save.y=outside.y;
+                g.Talk(witness);
+                int remoteRelief=Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_relief_"+region);
+                Check(remoteRelief>=0,
+                    "The witness menu keeps its real relief choice available for submission-time validation");
+                g.Choose(remoteRelief);
+                Check(!g.Has("storm_relief_"+region) && g.save.inventory[6]==1,
+                    "A remote relief choice cannot consume a real meal or award humanitarian credit");
+                g.save.x=witness.x;g.save.y=witness.y;
                 Action(g,witness.kind,"storm_relief_"+region);
                 Check(g.Has("storm_relief_"+region) &&
                     g.save.inventory[6]==0 && g.StormReliefCount==region,
@@ -237,6 +248,22 @@ namespace Starfall.Tests
                     "A completed local relief action neither repeats its reward nor hides older witness testimony");
                 int oldStory=Array.FindIndex(g.conversation.choices,c=>
                     c.action=="storm_oldstory_"+region);
+                g.Close();
+                outside=StandableOutsideTalkReach(g,witness);
+                g.save.x=outside.x;g.save.y=outside.y;
+                g.Talk(witness);
+                int remoteStory=Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_oldstory_"+region);
+                Check(remoteStory>=0,
+                    "The distant witness menu retains its earlier story option for validation");
+                g.Choose(remoteStory);
+                Check(g.mode=="world",
+                    "A remote story option cannot open the witness's follow-up conversation");
+                g.save.x=witness.x;g.save.y=witness.y;
+                g.Talk(witness);
+                oldStory=Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="storm_oldstory_"+region);
+                Check(oldStory>=0,"The witness's original story remains available at physical reach");
                 g.Choose(oldStory);
                 Check(g.mode=="dialog" &&
                     (Array.FindIndex(g.conversation.choices,c=>
