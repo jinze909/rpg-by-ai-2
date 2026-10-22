@@ -2000,8 +2000,37 @@ namespace Starfall
             }
             if (action.StartsWith("report_"))
             {
-                string kind = action == "report_mira" ? "captain" : action == "report_ivo" ? "tinker" : "keeper";
-                foreach (WorldObject o in Map.objects) if (o.kind == kind) { Talk(o); break; }
+                string kind = action == "report_mira" ? "captain" :
+                    action == "report_ivo" ? "tinker" : "keeper";
+                string allowedPrefix = action == "report_mira" ? "harbor_report" :
+                    action == "report_ivo" ? "desert" : "mountain";
+                foreach (WorldObject o in Map.objects)
+                {
+                    if (o.kind != kind) continue;
+                    Talk(o);
+                    if (mode == "dialog" && conversation != null &&
+                        conversationSource == o)
+                    {
+                        // The altar's report option is an intentional shortcut.
+                        // Do not expose unrelated companion actions remotely.
+                        List<Choice> choices = new List<Choice>();
+                        bool foundReport = false;
+                        foreach (Choice choice in conversation.choices)
+                        {
+                            if (choice.action == "close" ||
+                                choice.action.StartsWith(allowedPrefix))
+                            {
+                                choices.Add(choice);
+                                if (choice.action.StartsWith(allowedPrefix))
+                                    foundReport = true;
+                            }
+                        }
+                        conversation.choices = choices.ToArray();
+                        if (foundReport && !conversationSourceWasReachable)
+                            authorizedRemoteDialogueActionPrefix = allowedPrefix;
+                    }
+                    break;
+                }
                 return true;
             }
             if (action == "expboss")

@@ -785,6 +785,7 @@ namespace Starfall.Tests
             camp.save.room = 5; camp.enemies.Clear();
             camp.save.projects[1] = 1;
             camp.save.health = 37; camp.save.energy = 29; camp.save.totalTime = 123f;
+            camp.save.tea = 1;
             WorldObject fire = Object(camp, "campfire");
             remote = StandableOutsideTalkReach(camp, fire);
             camp.save.x = remote.x; camp.save.y = remote.y;
@@ -797,6 +798,16 @@ namespace Starfall.Tests
                 camp.save.totalTime == 123f && camp.mode == "world" &&
                 camp.toast.Contains("走近"),
                 "A remote campfire cannot heal, refill energy or advance rest time");
+            camp.Talk(fire);
+            int drink = Array.FindIndex(camp.conversation.choices,
+                choice => choice.action == "drinktea");
+            Check(drink >= 0, "The campfire retains its ordinary drink-tea choice");
+            int teaBefore = camp.save.tea;
+            camp.Choose(drink);
+            Check(camp.save.tea == teaBefore && camp.mode == "world" &&
+                camp.toast.Contains("走近"),
+                "A remote campfire cannot consume tea or grant its warming benefit");
+
             camp.Talk(fire);
             int companions = Array.FindIndex(camp.conversation.choices,
                 choice => choice.action == "companions");
@@ -875,6 +886,51 @@ namespace Starfall.Tests
                 council.save.shards == beforeShards && council.save.skillPoints == beforePoints &&
                 council.mode == "world" && council.toast.Contains("走近"),
                 "A remote council cannot settle governance or award its permanent rewards");
+
+            var directReport = Fresh(data);
+            directReport.save.room = 5; directReport.enemies.Clear();
+            directReport.save.flags.Add("gate_5");
+            directReport.save.flags.Add("boss_5");
+            WorldObject captain = Object(directReport, "captain");
+            remote = StandableOutsideTalkReach(directReport, captain);
+            directReport.save.x = remote.x; directReport.save.y = remote.y;
+            directReport.Talk(captain);
+            int remoteReport = Array.FindIndex(directReport.conversation.choices,
+                choice => choice.action == "harbor_report");
+            Check(remoteReport >= 0, "A distant captain can display the authored report dialogue");
+            directReport.Choose(remoteReport);
+            Check(!directReport.Has("harbor_report") &&
+                !directReport.Has("companion_0") && directReport.mode == "world" &&
+                directReport.toast.Contains("走近"),
+                "A direct remote captain dialogue cannot submit a report or recruit Mira");
+
+            var reportShortcut = Fresh(data);
+            reportShortcut.save.room = 5; reportShortcut.enemies.Clear();
+            reportShortcut.save.flags.Add("gate_5");
+            reportShortcut.save.flags.Add("boss_5");
+            WorldObject altar = Object(reportShortcut, "expAltar");
+            Check(PlaceWithinTalkReach(reportShortcut, altar),
+                "The completed harbor altar retains a reachable report shortcut");
+            reportShortcut.Talk(altar);
+            int report = Array.FindIndex(reportShortcut.conversation.choices,
+                choice => choice.action == "report_mira");
+            Check(report >= 0, "The altar exposes its authored regional-report shortcut");
+            reportShortcut.Choose(report);
+            Check(reportShortcut.mode == "dialog" &&
+                reportShortcut.conversation != null,
+                "The altar shortcut opens Mira's follow-up report dialogue");
+            int fileReport = Array.FindIndex(reportShortcut.conversation.choices,
+                choice => choice.action == "harbor_report");
+            int unrelated = Array.FindIndex(reportShortcut.conversation.choices,
+                choice => choice.action == "personal0" || choice.action == "gift0" ||
+                    choice.action == "join0");
+            Check(fileReport >= 0 && unrelated < 0,
+                "The remote report shortcut exposes only its intended report action and close");
+            reportShortcut.Choose(fileReport);
+            Check(reportShortcut.Has("harbor_report") &&
+                reportShortcut.Has("companion_0") && reportShortcut.Has("relic_0") &&
+                reportShortcut.mode == "world",
+                "The one-shot report shortcut still files its report and grants authored rewards");
         }
 
     }

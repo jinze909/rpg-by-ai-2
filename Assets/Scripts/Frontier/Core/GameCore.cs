@@ -43,6 +43,9 @@ namespace Starfall
         // Choices opened from a reachable world object must be revalidated when
         // submitted; leaving its reach cannot turn an old modal into remote action.
         private bool conversationSourceWasReachable;
+        // A report shortcut intentionally opens a remote companion dialogue, but
+        // only its one authored report action may be committed from that dialogue.
+        private string authorizedRemoteDialogueActionPrefix;
         // A choice may open a second dialogue. Carry the original source only
         // through that dispatch, and only attach it if no new source was chosen.
         private WorldObject pendingDialogueSource;
@@ -177,6 +180,7 @@ namespace Starfall
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
+            authorizedRemoteDialogueActionPrefix = null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
@@ -217,7 +221,8 @@ namespace Starfall
         public void Close()
         {
             conversation = null; conversationSource = null;
-            conversationSourceWasReachable = false; mode = "world";
+            conversationSourceWasReachable = false;
+            authorizedRemoteDialogueActionPrefix = null; mode = "world";
         }
         public bool Blocked(float x, float y)
         {
@@ -2169,6 +2174,7 @@ namespace Starfall
 
         public void Talk(WorldObject o)
         {
+            authorizedRemoteDialogueActionPrefix = null;
             // A stale reference from a previous room must never impersonate
             // an interactable at coincident coordinates in the current map.
             if (!IsObjectPresent(o) || IsObjectFromAnotherMap(o)) return;
@@ -2519,52 +2525,23 @@ namespace Starfall
                 RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
-        private static bool RequiresWorldSourceReach(string action)
-        {
-            if (string.IsNullOrEmpty(action)) return false;
-            // Base campaign choices that commit travel, resources or progression.
-            if (action.StartsWith("goto") || action == "routes" ||
-                action == "rest" || action == "scout" || action == "engine" ||
-                action == "plant" || action == "harvest" || action == "seeds" ||
-                action == "upgrade" || action == "bow" || action == "staff" ||
-                action == "cook" || action == "buymeal" || action == "buywood" ||
-                action == "fish" || action == "deliver" ||
-                action.StartsWith("ally") || action == "boss" ||
-                action.StartsWith("ending") || action == "epilogue" ||
-                action == "continue" || action == "swordlesson_start" ||
-                action == "swordlesson_veteran_start") return true;
-
-            // Expansion dialogues contain meaningful choices whose handlers
-            // validate mission state but did not all validate the dialogue source.
-            return action == "exp_begin" || action == "camp" ||
-                action == "companions" || action == "parley" ||
-                action.StartsWith("pledge") ||
-                action.StartsWith("rescue") || action.StartsWith("relay") ||
-                action == "holdtide" || action == "harbor_report" ||
-                action.StartsWith("desert") || action.StartsWith("mountain") ||
-                action.StartsWith("report_") || action == "expboss" ||
-                action.StartsWith("warm:") || action == "tea" ||
-                action == "fieldrest" || action == "race" ||
-                action.StartsWith("personal") || action.StartsWith("gift") ||
-                action.StartsWith("join") || action.StartsWith("covenant") ||
-                action == "council_epilogue" ||
-                action.StartsWith("abyssStart") || action == "abyssLeave" ||
-                action == "abyssBank" || action.StartsWith("boon");
-        }
 
         public void Choose(int index)
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // Specialized handlers keep their own target checks. This shared
-            // guard also covers source-bound choices without local contact checks.
-            // System-owned dialogs have no world source and remain unaffected.
+            // A world dialogue may be read remotely, but every state-changing
+            // choice requires a real source interaction. This applies to all
+            // current and future story modules, not an action-name allowlist.
+            // The sole exception is a one-shot, filtered regional-report shortcut.
+            bool authorizedRemoteChoice =
+                !String.IsNullOrEmpty(authorizedRemoteDialogueActionPrefix) &&
+                action.StartsWith(authorizedRemoteDialogueActionPrefix);
             if (conversationSource != null && action != "close" &&
                 ((conversationSourceWasReachable &&
                   !HasPhysicalInteractionReach(conversationSource)) ||
-                 (RequiresWorldSourceReach(action) &&
-                  !conversationSourceWasReachable)))
+                 (!conversationSourceWasReachable && !authorizedRemoteChoice)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();

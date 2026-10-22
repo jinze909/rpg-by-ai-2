@@ -49,31 +49,9 @@ namespace Starfall.Tests
         }
         private static bool ChoiceNeedsPhysicalSource(string action)
         {
-            if (string.IsNullOrEmpty(action)) return false;
-            return action.StartsWith("goto") || action == "routes" ||
-                action == "rest" || action == "scout" || action == "engine" ||
-                action == "plant" || action == "harvest" || action == "seeds" ||
-                action == "upgrade" || action == "bow" || action == "staff" ||
-                action == "cook" || action == "buymeal" || action == "buywood" ||
-                action == "fish" || action == "deliver" || action.StartsWith("ally") ||
-                action == "boss" || action.StartsWith("ending") ||
-                action == "epilogue" || action == "continue" ||
-                action == "swordlesson_start" ||
-                action == "swordlesson_veteran_start" ||
-                action == "exp_begin" || action == "camp" ||
-                action == "companions" || action == "parley" ||
-                action.StartsWith("pledge") ||
-                action.StartsWith("rescue") || action.StartsWith("relay") ||
-                action == "holdtide" || action == "harbor_report" ||
-                action.StartsWith("desert") || action.StartsWith("mountain") ||
-                action.StartsWith("report_") || action == "expboss" ||
-                action.StartsWith("warm:") || action == "tea" ||
-                action == "fieldrest" || action == "race" ||
-                action.StartsWith("personal") || action.StartsWith("gift") ||
-                action.StartsWith("join") || action.StartsWith("covenant") ||
-                action == "council_epilogue" ||
-                action.StartsWith("abyssStart") || action == "abyssLeave" ||
-                action == "abyssBank" || action.StartsWith("boon");
+            // Successful test actions must begin from a genuine interaction point.
+            // "close" remains available remotely and needs no setup.
+            return !string.IsNullOrEmpty(action) && action != "close";
         }
         private static bool ImmediateWorldObjectNeedsReach(string kind, string action)
         {
