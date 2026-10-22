@@ -2164,7 +2164,9 @@ namespace Starfall.Tests
             for (int id = 6; id <= 8; id++)
             {
                 g.Enter(id - 5); g.enemies.Clear();
-                g.Talk(Object(g, "history" + id));
+                WorldObject letter = Object(g, "history" + id);
+                g.save.x = letter.x; g.save.y = letter.y;
+                g.Talk(letter);
                 Check(g.conversation.choices.Length == 1, "Original lore has its original reading before chart unlock");
                 g.Close();
             }

@@ -1859,7 +1859,14 @@ namespace Starfall
             }
             if (kind == "expAltar") { ExpansionAltar(o); return true; }
             if (kind == "council") { CouncilConversation(); return true; }
-            if (kind.StartsWith("history")) { ReadHistory(int.Parse(kind.Substring(7))); return true; }
+            if (kind.StartsWith("history"))
+            {
+                int historyId;
+                if (!int.TryParse(kind.Substring(7), out historyId)) return true;
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                ReadHistory(historyId);
+                return true;
+            }
             if (kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
             { TalkAbyssFarGallery(o); return true; }
             if (kind == "abyssCache" || kind == "abyssSurvey")

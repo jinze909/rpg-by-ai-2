@@ -12,6 +12,10 @@ namespace Starfall
             int id;
             if (!int.TryParse(o.kind.Substring(7), out id) || id < 6 || id > 8 ||
                 !Has("survey_complete")) return false;
+            // Reading the letter grants first-read coins/shards. Keep the
+            // chart-unlocked path behind the same live reach check as the
+            // pre-chart history path in TalkExpansion.
+            if (!EnsurePhysicalInteractionReach(o)) return true;
             ReadHistory(id);
             if (!Has("dispatch_" + id))
             {

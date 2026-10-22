@@ -639,6 +639,49 @@ namespace Starfall.Tests
                 field.mode == "world" && field.toast.Contains("走近"),
                 "A distant archive reference cannot record or collect its one-time treasure");
 
+            WorldObject letter = Array.Find(field.Map.objects,
+                candidate => candidate.kind == "history6");
+            Check(letter != null, "The original roadwarden letter remains in the forest");
+            Point remoteLetter = StandableOutsideTalkReach(field, letter);
+            field.save.x = remoteLetter.x; field.save.y = remoteLetter.y;
+            int letterCoins = field.save.coins, letterShards = field.save.shards;
+            field.Talk(letter);
+            Check(!field.Has("history_6") && field.save.coins == letterCoins &&
+                field.save.shards == letterShards && field.mode == "world" &&
+                field.toast.Contains("走近"),
+                "A remote first reading cannot claim a letter's one-time archive rewards");
+            Check(PlaceWithinTalkReach(field, letter),
+                "The original letter has a valid physical reading position");
+            field.Talk(letter);
+            Check(field.Has("history_6") && field.save.coins == letterCoins + 10 &&
+                field.save.shards == letterShards + 2,
+                "Reading the letter at its real location grants its original reward");
+            field.Close();
+
+            // Once the chart is unlocked, the cipher-specific path must enforce
+            // the same physical source check before it calls ReadHistory.
+            field.save.flags.Add("survey_1");
+            field.save.flags.Add("survey_2");
+            field.save.flags.Add("survey_3");
+            field.save.flags.Add("survey_complete");
+            field.save.flags.Remove("history_6");
+            remoteLetter = StandableOutsideTalkReach(field, letter);
+            field.save.x = remoteLetter.x; field.save.y = remoteLetter.y;
+            letterCoins = field.save.coins; letterShards = field.save.shards;
+            field.Talk(letter);
+            Check(!field.Has("history_6") && field.save.coins == letterCoins &&
+                field.save.shards == letterShards && field.mode == "world" &&
+                field.toast.Contains("走近"),
+                "An unlocked cipher cannot remotely claim first-read rewards");
+            Check(PlaceWithinTalkReach(field, letter),
+                "The unlocked cipher retains a reachable letter source");
+            field.Talk(letter);
+            Check(field.Has("history_6") && field.save.coins == letterCoins + 10 &&
+                field.save.shards == letterShards + 2 &&
+                Array.Exists(field.conversation.choices,
+                    choice => choice.action == "dispatch_open_6"),
+                "A nearby unlocked letter remains readable and offers its cipher");
+
             Point[] offsets = {
                 new Point(-1,0), new Point(1,0), new Point(0,-1),
                 new Point(0,1), new Point(-1,-1), new Point(-1,1),
