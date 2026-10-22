@@ -1878,6 +1878,7 @@ namespace Starfall.Tests
             g.save.x = 30; g.save.y = 14; g.save.cold = 60;
             g.Tick(.05f, new Point());
             Check(g.save.cold > 60, "Highland cold still accumulates outside shelter and braziers");
+            g.save.x=heater.x;g.save.y=heater.y;
             Check(g.Has("fieldstation_complete") && g.GetQuest("stations").complete &&
                 g.save.coins == oldCoins + 54 && g.save.shards == oldShards + 6 &&
                 g.save.skillPoints == oldPoints + 1 && g.save.tea >= 2,
