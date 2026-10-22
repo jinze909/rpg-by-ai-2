@@ -3029,7 +3029,14 @@ public static class RuntimeCombatInputChecks
         Check(g.CompanionHoldingPosition&&g.companionCooldown<=0,
             "Releasing a hold gesture cannot also dispatch the tap command");
         g.ToggleCompanionHold();
-        Check(!g.CompanionHoldingPosition,"The test returns the companion to normal follow before dialogue gating");
+        Check(!g.CompanionHoldingPosition,"The test returns the companion to normal follow before context gating");
+        g.mode="companions";
+        Input.held.Add(rb);Input.keys.Add(rb);Update(app);
+        for(int i=0;i<24;i++)Update(app);
+        Check(!g.CompanionHoldingPosition&&g.companionCooldown<=0&&
+            g.mode!="world",
+            "RB held in a menu remains menu navigation and cannot toggle the world hold order");
+        Input.held.Remove(rb);Update(app);
         g.mode="dialog";
         Input.held.Add(rb);Input.keys.Add(rb);Update(app);
         for(int i=0;i<24;i++)Update(app);
