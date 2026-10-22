@@ -1888,7 +1888,7 @@ namespace Starfall.Tests
             Check(g.conversation != null &&
                 !Array.Exists(g.conversation.choices, choice => choice.action == "fieldstation_repair_7"),
                 "Finished shelter offers information, not duplicate construction");
-            g.Close(); g.PrepareSave();
+            g.Close(); g.save.x=30;g.save.y=14; g.PrepareSave();
             var restored = new GameCore(data, CloneSave(g.save)); restored.Start();
             Check(restored.GetQuest("stations").complete && restored.Has("fieldstation_7") &&
                 restored.save.coins == coins && restored.save.skillPoints == skills &&
