@@ -3565,6 +3565,14 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 GameCore g=new GameCore(data);g.save.room=room;
+                // This test deliberately visits every authored region. Preserve
+                // the real v2 unlock prerequisites so reloading the shelter save
+                // keeps the player in that region instead of safe-respawning
+                // them to Emberfall and then trying to talk to a stale object.
+                g.save.stage = room <= 4 ? Math.Max(0, room - 1) : 1;
+                if (room == 5) g.save.flags.Add("exp_intro");
+                if (room == 6) g.save.flags.Add("harbor_report");
+                if (room == 7) g.save.flags.Add("desert_report");
                 MapData m=data.maps[room];
                 WorldObject[] sites=new WorldObject[3];
                 for(int i=0;i<3;i++)
@@ -3613,6 +3621,8 @@ namespace Starfall.Tests
                     g.save.cold==15&&g.save.health>g.save.maxHealth-50,
                     "Timber-fed warm shelter restores real player stats");
                 GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.room==room,
+                    "Authorized shelter save reloads into the same reachable region");
                 Check(loaded.save.version==2&&loaded.FarShelterBuilt(room)&&
                     loaded.save.coins==coins+22,
                     "Old save v2 persists the actual field puzzle and construction");
