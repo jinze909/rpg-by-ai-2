@@ -2033,6 +2033,12 @@ namespace Starfall
         {
             if (o == null) return false;
             MapData current = Map;
+            // Fast-path the overwhelmingly common case. Nearest() checks every
+            // object in the active map; scanning every other region first would
+            // multiply that interaction cost by the entire campaign size.
+            if (current != null && current.objects != null)
+                foreach (WorldObject candidate in current.objects)
+                    if (System.Object.ReferenceEquals(candidate, o)) return false;
             foreach (MapData other in data.maps)
             {
                 if (other == null || System.Object.ReferenceEquals(other, current) ||
