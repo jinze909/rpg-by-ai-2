@@ -2971,6 +2971,37 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS actual Y keyboard companion guard/follow uses walkable stock waypoint");
     }
 
+    private static void LivePKeyHoldsAndReleasesPhysicalCompanion(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;
+        g.Enter(0);g.mode="world";g.enemies.Clear();g.projectiles.Clear();
+        g.save.flags.Add("companion_0");
+        g.SelectCompanion(0);
+        Check(g.save.companion==0&&g.CanStand(g.companionPosition),
+            "The P input test begins with a real selected companion on valid terrain");
+
+        Input.keys.Add(KeyCode.P);Update(app);
+        Check(g.CompanionHoldingPosition,
+            "The production FrontierRuntime.Update maps keyboard P to a physical hold order");
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(command=>command.Contains("HOLD")),
+            "The actual production world renderer labels the hold anchor");
+        Input.keys.Add(KeyCode.P);Update(app);
+        Check(!g.CompanionHoldingPosition,
+            "A second P input resumes following through the production input path");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(command=>command.Contains("HOLD")),
+            "The hold marker disappears after following resumes");
+
+        g.mode="dialog";
+        Input.keys.Add(KeyCode.P);Update(app);
+        Check(!g.CompanionHoldingPosition,
+            "P cannot issue a hold order through a paused dialogue input context");
+        Console.WriteLine("PASS P hold/follow input, world anchor marker and dialogue gating in production runtime");
+    }
+
     private static void LiveXKeyPatchCannotRepairRemoteOrTwice(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -3275,7 +3306,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
