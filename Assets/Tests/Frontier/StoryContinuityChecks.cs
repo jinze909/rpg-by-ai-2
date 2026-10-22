@@ -569,6 +569,7 @@ namespace Starfall.Tests
                 "Reading the dynamic world-response panel never issues rewards");
             g.Close(); g.save.stage = 3; g.Enter(3); g.enemies.Clear();
             WorldObject compass = Object(g, "archiveecho");
+            g.save.x=compass.x;g.save.y=compass.y;
             // Both pre-fight and cleared versions must explain that this
             // is an old machine protocol rather than the surveyor's ghost.
             g.save.flags.Remove("archive_echo_complete");

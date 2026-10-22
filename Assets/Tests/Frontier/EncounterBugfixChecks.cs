@@ -1381,6 +1381,8 @@ namespace Starfall.Tests
             foreach(int region in new[] { 1, 2, 3 })
                 atlas.save.flags.Add("archive_fragment_" + region);
             int originalXp = atlas.save.xp;
+            WorldObject keeper = Object(atlas, "archivekeeper");
+            atlas.save.x = keeper.x; atlas.save.y = keeper.y;
             Action(atlas, "archivekeeper", "archive_complete");
             Check(atlas.Has("archive_complete") &&
                 atlas.save.coins == 999999 && atlas.save.skillPoints == 99 &&
