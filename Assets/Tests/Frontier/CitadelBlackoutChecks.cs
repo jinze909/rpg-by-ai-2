@@ -79,6 +79,15 @@ namespace Starfall.Tests
             Check(g.BlackoutRescued==7 && g.BlackoutTime>0,
                 "All three rescue routes finish the 180-second playable climax");
             int money=g.save.coins;
+            g.Talk(shelter);
+            int staleComplete=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_complete");
+            Check(staleComplete>=0,"The reachable shelter offers final publication after all three deliveries");
+            Point outsideShelter=StandableOutsidePhysicalRadius(g,shelter,2.2001f);
+            g.save.x=outsideShelter.x;g.save.y=outsideShelter.y;
+            g.Choose(staleComplete);g.Close();
+            Check(g.BlackoutActive&&!g.Has("blackout_complete")&&g.save.coins==money,
+                "A stale final-publication choice cannot end the mission or pay rewards remotely");
+            g.save.x=shelter.x;g.save.y=shelter.y;
             Action(g,shelter.kind,"blackout_complete");
             Check(g.Has("blackout_complete") && !g.BlackoutActive &&
                 g.save.coins==money+80 && g.BlackoutCount==0,
@@ -87,6 +96,61 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_complete")<0,
                 "Completed main rescue cannot be replayed for additional rewards");
             g.Close();
+        }
+
+        public static void BlackoutStoryActionsRequireCurrentPhysicalReach(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.flags.Add("triad_complete");
+            g.Enter(4);g.enemies.Clear();g.invulnerable=500;
+            WorldObject shelter=Object(g,"blackoutshelter"),
+                citizen=Object(g,"blackoutcivilian1");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Point outsideShelter=StandableOutsidePhysicalRadius(g,shelter,2.2001f);
+            g.save.x=outsideShelter.x;g.save.y=outsideShelter.y;
+            g.Talk(shelter);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot open the blackout mission outside physical reach");
+            g.Close();
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.Talk(shelter);
+            int staleStart=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_start");
+            Check(staleStart>=0,"A reachable shelter offers the actual evacuation start");
+            g.save.x=outsideShelter.x;g.save.y=outsideShelter.y;
+            g.Choose(staleStart);g.Close();
+            Check(!g.BlackoutActive&&!g.Has("blackout_started"),
+                "A stale start choice cannot launch the timed rescue remotely");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_start");
+            Point outsideCitizen=StandableOutsidePhysicalRadius(g,citizen,2.2001f);
+            g.save.x=outsideCitizen.x;g.save.y=outsideCitizen.y;
+            g.Talk(citizen);
+            Check(g.mode!="dialog",
+                "A direct Talk cannot offer a civilian pickup outside physical reach");
+            g.Close();
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            g.Talk(citizen);
+            int stalePick=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_pick_1");
+            Check(stalePick>=0,"A reachable citizen offers the real escort action");
+            float energyBeforeStalePick=g.save.energy;
+            g.save.x=outsideCitizen.x;g.save.y=outsideCitizen.y;
+            g.Choose(stalePick);g.Close();
+            Check(g.BlackoutFollowing==0&&g.save.energy==energyBeforeStalePick,
+                "A stale pickup choice cannot start an escort or consume resources remotely");
+            g.save.x=citizen.x;g.save.y=citizen.y;
+            Action(g,citizen.kind,"blackout_pick_1");
+            Check(g.BlackoutFollowing==1,"Returning to the citizen starts a real escort");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            g.Talk(shelter);
+            int staleAbort=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_abort");
+            Check(staleAbort>=0,"The shelter offers explicit abort while the civilian is still away");
+            g.save.x=outsideShelter.x;g.save.y=outsideShelter.y;
+            g.Choose(staleAbort);g.Close();
+            Check(g.BlackoutActive&&g.BlackoutFollowing==1&&!g.Has("blackout_complete"),
+                "A stale abort choice cannot remotely erase a live escort");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            Action(g,shelter.kind,"blackout_abort");
+            Check(!g.BlackoutActive&&!g.Has("blackout_complete"),
+                "A reachable shelter can safely end the failed attempt without claiming a rescue");
         }
 
         public static void BlackoutCeasefireRequiresActualPublicSafetyAndAlliedSupport(Campaign data)
@@ -114,7 +178,15 @@ namespace Starfall.Tests
             Check(Array.Exists(g.conversation.choices,c=>c.action=="blackout_ceasefire") &&
                 Array.Exists(g.conversation.choices,c=>c.action=="boss"),
                 "Local peace becomes an actual choice while the original warden boss route remains available");
-            g.Close();
+            int staleCeasefire=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_ceasefire");
+            Point outsideShrine=StandableOutsidePhysicalRadius(g,shrine,2.2001f);
+            int coinsBeforeStaleCeasefire=g.save.coins;
+            g.save.x=outsideShrine.x;g.save.y=outsideShrine.y;
+            g.Choose(staleCeasefire);g.Close();
+            Check(!g.Has("blackout_peace")&&!g.Has("warden_stood_down")&&
+                g.save.coins==coinsBeforeStaleCeasefire,
+                "A stale ceasefire choice cannot publish peace or award rewards from outside the shrine");
+            g.save.x=shrine.x;g.save.y=shrine.y;
             Action(g,"shrine","blackout_ceasefire");
             Check(g.Has("boss_4") && g.Has("warden_stood_down") &&
                 g.Has("blackout_peace") && g.save.ending==0 &&
@@ -289,6 +361,18 @@ namespace Starfall.Tests
             Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
                 c=>c.action=="blackout_deliver_1"),
                 "A living civilian genuinely inside the public lamps may be handed over");
+            int staleDelivery=Array.FindIndex(g.conversation.choices,c=>c.action=="blackout_deliver_1");
+            Point outsideShelter=StandableOutsidePhysicalRadius(g,shelter,2.2001f);
+            g.save.x=outsideShelter.x;g.save.y=outsideShelter.y;
+            g.Choose(staleDelivery);g.Close();
+            Check(g.BlackoutFollowing==1&&g.BlackoutRescued==0,
+                "A stale handover choice cannot register a civilian after the hero leaves the shelter");
+            g.save.x=shelter.x;g.save.y=shelter.y;
+            posField.SetValue(g,new Point(shelter.x+.9f,shelter.y));
+            g.Talk(shelter);
+            Check(g.conversation!=null&&Array.Exists(g.conversation.choices,
+                c=>c.action=="blackout_deliver_1"),
+                "Returning to the physically reachable shelter restores the delivery action");
             g.Close();
             choose.Invoke(g,new object[]{"blackout_deliver_1"});
             Check(g.BlackoutFollowing==0&&g.BlackoutRescued==1&&

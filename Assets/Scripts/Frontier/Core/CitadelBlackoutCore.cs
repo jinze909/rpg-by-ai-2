@@ -57,6 +57,7 @@ namespace Starfall
         {
             bool shelter=o.kind=="blackoutshelter";
             if(!shelter && !o.kind.StartsWith("blackoutcivilian"))return false;
+            if(!PhysicalRefugeReach(new Point(o.x,o.y),2.2001f))return true;
             if(save.room!=4)return true;
             if(shelter)
             {
@@ -157,7 +158,7 @@ namespace Starfall
             if(action=="blackout_abort")
             {
                 if(blackoutActive && save.room==4 &&
-                    (Position-BlackoutPoint("blackoutshelter")).Length<2.2f)
+                    PhysicalRefugeReach(BlackoutPoint("blackoutshelter"),2.2001f))
                 {ResetBlackout();revision++;Notify("本轮救援结束。居民安全记录未伪造；可从避难所重试。",
                     "Attempt ended. No fake civilian rescues were filed; retry at the shelter.");}
                 return true;
@@ -166,7 +167,7 @@ namespace Starfall
             {
                 if(!BlackoutEligible || Has("blackout_complete") || blackoutActive ||
                     practicing || Dying || !SafeTravel || FieldWorkPreventsRest ||
-                    (Position-BlackoutPoint("blackoutshelter")).Length>2.2f)return true;
+                    !PhysicalRefugeReach(BlackoutPoint("blackoutshelter"),2.2001f))return true;
                 blackoutActive=true;blackoutTime=180;blackoutPulse=3.5f;
                 blackoutSurgeTime=0;blackoutPulseIndex=0;
                 blackoutFollowing=blackoutRescued=0;
@@ -184,9 +185,9 @@ namespace Starfall
                 bool ward=action.StartsWith("blackout_ward_");
                 int id;
                 if(!int.TryParse(action.Substring(ward?14:14),out id)||
-                    id<1||id>3||!blackoutActive||blackoutFollowing!=0||
+                    id<1||id>3||!blackoutActive||save.room!=4||blackoutFollowing!=0||
                     BlackoutCitizenSaved(id)||
-                    (Position-BlackoutPoint("blackoutcivilian"+id)).Length>2.2f)
+                    !PhysicalRefugeReach(BlackoutPoint("blackoutcivilian"+id),2.2001f))
                     return true;
                 if(ward&&save.energy<25)
                 {
@@ -212,7 +213,8 @@ namespace Starfall
             {
                 int id;
                 if(!int.TryParse(action.Substring(17),out id) || id!=blackoutFollowing ||
-                    !blackoutActive || (Position-BlackoutPoint("blackoutshelter")).Length>2.2f ||
+                    !blackoutActive || save.room!=4 ||
+                    !PhysicalRefugeReach(BlackoutPoint("blackoutshelter"),2.2001f) ||
                     !BlackoutFollowerAtShelter)return true;
                 blackoutRescued|=1<<(id-1);
                 blackoutFollowing=0;blackoutFollowerHealth=0;
@@ -224,9 +226,9 @@ namespace Starfall
             }
             if(action=="blackout_complete")
             {
-                if(!blackoutActive || blackoutFollowing!=0 || blackoutRescued!=7 ||
+                if(!blackoutActive || save.room!=4 || blackoutFollowing!=0 || blackoutRescued!=7 ||
                     Has("blackout_complete") ||
-                    (Position-BlackoutPoint("blackoutshelter")).Length>2.2f)return true;
+                    !PhysicalRefugeReach(BlackoutPoint("blackoutshelter"),2.2001f))return true;
                 ResetBlackout();
                 Flag("blackout_complete");CreditCoins(80);CreditShards(3);
                 AddXp(90);revision++;sound="reward";
@@ -238,7 +240,8 @@ namespace Starfall
             }
             if(action=="blackout_ceasefire")
             {
-                if(!LocalCeasefireEligible || blackoutActive || enemies.Exists(e=>e.boss))return true;
+                if(!LocalCeasefireEligible || blackoutActive || enemies.Exists(e=>e.boss) ||
+                    !PhysicalRefugeReach(ObjectPoint(4,"shrine",new Point(-100,-100)),2.2001f))return true;
                 // Identical irreversible ending gate as the original covenant parley,
                 // but earned by real evacuation plus signed testimonies and all allies.
                 enemies.Clear();projectiles.Clear();hazards.Clear();
