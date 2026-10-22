@@ -2029,18 +2029,29 @@ namespace Starfall
                 objective-(objective-Position).Normalized*.55f:Position;
             return ClearAttackPath(Position,contact);
         }
-        private bool IsCurrentMapObject(WorldObject o)
+        private bool IsObjectFromAnotherMap(WorldObject o)
         {
             if (o == null) return false;
             MapData current = Map;
-            if (current == null || current.objects == null) return false;
-            foreach (WorldObject candidate in current.objects)
-                if (System.Object.ReferenceEquals(candidate, o)) return true;
+            foreach (MapData other in data.maps)
+            {
+                if (other == null || System.Object.ReferenceEquals(other, current) ||
+                    other.objects == null) continue;
+                foreach (WorldObject candidate in other.objects)
+                    if (System.Object.ReferenceEquals(candidate, o)) return true;
+            }
+            // The abyss is a separately streamed MapData, outside data.maps.
+            if (abyssMap != null && !System.Object.ReferenceEquals(abyssMap, current) &&
+                abyssMap.objects != null)
+                foreach (WorldObject candidate in abyssMap.objects)
+                    if (System.Object.ReferenceEquals(candidate, o)) return true;
+            // Some valid interactions use transient, runtime-authored objects
+            // (and test fixtures); absence from a map is not proof of staleness.
             return false;
         }
         private bool HasPhysicalInteractionReach(WorldObject o)
         {
-            if(o==null||!IsObjectPresent(o)||!IsCurrentMapObject(o))return false;
+            if(o==null||!IsObjectPresent(o)||IsObjectFromAnotherMap(o))return false;
             return HasPhysicalInteractionReach(new Point(o.x,o.y));
         }
         public WorldObject Nearest()
@@ -2144,7 +2155,7 @@ namespace Starfall
         {
             // A stale reference from a previous room must never impersonate
             // an interactable at coincident coordinates in the current map.
-            if (!IsObjectPresent(o) || !IsCurrentMapObject(o)) return;
+            if (!IsObjectPresent(o) || IsObjectFromAnotherMap(o)) return;
             if (practicing) { Notify("先完成或结束训练，再与居民交谈。", "Finish or end practice before talking to residents."); return; }
             Conversation previousConversation = conversation;
             conversationSource = o;
