@@ -271,14 +271,21 @@ namespace Starfall.Tests
                 "The optional post-citadel story cannot begin before the guardian is defeated");
             g.Close(); g.save.flags.Add("boss_4");
             Action(g, "commonswitness", "commons_accept");
-            g.Enter(4); g.enemies.Clear();
+            g.Enter(4); g.Close(); g.enemies.Clear();
             WorldObject first = Object(g,"commonsrelay1");
             g.save.x = 3; g.save.y = 14;
             g.Talk(first);
+            Check(g.mode!="dialog",
+                "Direct Talk cannot open a remote citadel console through the world map");
+            g.save.x=first.x;g.save.y=first.y;
+            g.Talk(first);
             int remote = Array.FindIndex(g.conversation.choices,c=>c.action=="commons_activate_1");
             Check(remote >= 0, "The authored first circuit offers the actual player action");
-            g.Choose(remote);
-            Check(g.CommonsRelayRoom == 0, "Stored distant dialogue cannot activate real world defense");
+            Point outside=StandableOutsideTalkReach(g,first);
+            g.save.x=outside.x;g.save.y=outside.y;
+            g.Choose(remote);g.Close();
+            Check(g.CommonsRelayRoom == 0,
+                "Stored stale dialogue cannot activate real world defense outside current physical reach");
             CommonsActivate(g,1);
             int coins = g.save.coins;
             g.Enter(0);

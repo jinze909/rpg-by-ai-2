@@ -105,6 +105,7 @@ namespace Starfall
         {
             if (o.kind == "commonswitness")
             {
+                if (!HasPhysicalInteractionReach(o)) return true;
                 if (save.room != 0) return true;
                 if (!Has("boss_4"))
                 {
@@ -139,6 +140,7 @@ namespace Starfall
                 return true;
             }
             if (!o.kind.StartsWith("commonsrelay")) return false;
+            if (!HasPhysicalInteractionReach(o)) return true;
             int step;
             if (!int.TryParse(o.kind.Substring("commonsrelay".Length), out step) ||
                 step < 1 || step > 3 || save.room != 4) return true;
@@ -197,7 +199,7 @@ namespace Starfall
             {
                 if (save.room == 0 && Has("boss_4") &&
                     !Has("commons_relay_started") &&
-                    (Position - ObjectPoint(0, "commonswitness", new Point(-100, -100))).Length <= 2.2f)
+                    HasPhysicalInteractionReach(ObjectPoint(0, "commonswitness", new Point(-100, -100))))
                 {
                     Flag("commons_relay_started"); TrackQuest("commons_relay");
                     Notify("新委托：堡垒公共信标。前往堡垒西侧重连粮道线路。",
@@ -210,7 +212,7 @@ namespace Starfall
             if (action == "commons_withdraw")
             {
                 if (commonsRelayRoom == 4 && save.room == 4 &&
-                    (Position - CommonsRelayPoint(commonsRelayStep)).Length <= 2.2f)
+                    HasPhysicalInteractionReach(CommonsRelayPoint(commonsRelayStep)))
                 {
                     ResetCommonsRelayTrial(); revision++;
                     Notify("已安全撤销本轮调度。重连进度可以重新开始，既有故事与奖励不丢失。",
@@ -222,7 +224,7 @@ namespace Starfall
             {
                 if (save.room == 0 && Has("commons_relay_sealed") &&
                     !Has("commons_relay_complete") &&
-                    (Position - ObjectPoint(0, "commonswitness", new Point(-100, -100))).Length <= 2.2f)
+                    HasPhysicalInteractionReach(ObjectPoint(0, "commonswitness", new Point(-100, -100))))
                 {
                     Flag("commons_relay_complete"); CreditCoins(80);
                     CreditSkillPoints(1); AddXp(90); sound = "reward"; revision++;
@@ -241,7 +243,7 @@ namespace Starfall
                 Dying || practicing || racing || reliefMissionRoom != 0 ||
                 RootHarmonyRoom != 0 || atlasEchoRoom != 0 ||
                 roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
-                (Position - CommonsRelayPoint(step)).Length > 2.2f) return true;
+                !HasPhysicalInteractionReach(CommonsRelayPoint(step))) return true;
             if (commonsRelayRoom == 0)
             {
                 if (step != 1 || !SafeTravel) return true;
