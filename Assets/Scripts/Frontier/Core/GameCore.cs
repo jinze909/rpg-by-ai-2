@@ -2067,7 +2067,11 @@ namespace Starfall
             if (objects == null) return null;
             foreach(WorldObject o in objects)
             {
-                if(!HasPhysicalInteractionReach(o))continue;
+                // This array is already the active map's authoritative object
+                // list, so avoid a second full-map identity scan for every
+                // candidate during the per-frame interaction prompt update.
+                if(!IsObjectPresent(o) ||
+                    !HasPhysicalInteractionReach(new Point(o.x,o.y)))continue;
                 float d=(Position-new Point(o.x,o.y)).Length;
                 if(d<distance){distance=d;best=o;}
             }
