@@ -3002,6 +3002,43 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS P hold/follow input, world anchor marker and dialogue gating in production runtime");
     }
 
+    private static void LiveRBButtonTapAndHoldCompanionOrders(FrontierRuntime app)
+    {
+        KeyCode rb=KeyCode.JoystickButton5;
+        Prepare(app,2);
+        var g=app.Game;g.Enter(0);g.mode="world";g.enemies.Clear();g.projectiles.Clear();
+        g.save.flags.Add("companion_2");g.SelectCompanion(2);
+        Check(g.save.companion==2,"RB gesture test selects a real unlocked companion");
+        Input.held.Add(rb);Input.keys.Add(rb);Update(app);
+        Check(g.companionAction==null&&g.companionCooldown<=0,
+            "RB press waits for tap/hold classification rather than dispatching immediately");
+        Input.held.Remove(rb);Update(app);
+        Check(g.companionAction!=null&&g.companionAction.kind=="command"&&
+            g.companionCooldown>17.8f,
+            "A short RB tap dispatches exactly one actual companion command");
+
+        Prepare(app,2);
+        g=app.Game;g.Enter(0);g.mode="world";g.enemies.Clear();g.projectiles.Clear();
+        g.save.flags.Add("companion_2");g.SelectCompanion(2);
+        Input.held.Add(rb);Input.keys.Add(rb);Update(app);
+        for(int i=0;i<24;i++)Update(app);
+        Check(g.CompanionHoldingPosition&&g.companionAction==null&&
+            g.companionCooldown<=0,
+            "Holding RB toggles the real physical anchor without spending a command cooldown");
+        Input.held.Remove(rb);Update(app);
+        Check(g.CompanionHoldingPosition&&g.companionCooldown<=0,
+            "Releasing a hold gesture cannot also dispatch the tap command");
+        g.ToggleCompanionHold();
+        Check(!g.CompanionHoldingPosition,"The test returns the companion to normal follow before dialogue gating");
+        g.mode="dialog";
+        Input.held.Add(rb);Input.keys.Add(rb);Update(app);
+        for(int i=0;i<24;i++)Update(app);
+        Check(!g.CompanionHoldingPosition&&g.companionCooldown<=0,
+            "A held RB gesture outside world mode cannot issue a companion order");
+        Input.held.Remove(rb);Update(app);
+        Console.WriteLine("PASS RB tap command, long-press physical hold/follow and dialogue cancellation in production runtime");
+    }
+
     private static void LiveXKeyPatchCannotRepairRemoteOrTwice(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -3306,7 +3343,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
