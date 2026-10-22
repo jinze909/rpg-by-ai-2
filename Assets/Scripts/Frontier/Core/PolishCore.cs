@@ -452,7 +452,27 @@ namespace Starfall
                         if (found && clearance <= bestClearance) continue;
                         safest = candidate; bestClearance = clearance; found = true;
                     }
-                    if (found) { save.x = safest.x; save.y = safest.y; }
+                    // A future terrain edit may close every cardinal/diagonal
+                    // approach. The beacon tile itself is validated as walkable
+                    // by the campaign's map checks, so use it as a last-resort
+                    // landing rather than silently leaving the hero at Enter()'s
+                    // unrelated spawn (which may not be walkable after map edits).
+                    if (!found && CanStand(anchor))
+                    {
+                        safest = anchor;
+                        found = true;
+                    }
+                    if (found)
+                    {
+                        save.x = safest.x;
+                        save.y = safest.y;
+                    }
+                    else if (!CanStand(Position))
+                    {
+                        Notify("信标附近没有可通行的落点，请返回旅店后重试。",
+                            "No walkable landing is available near this beacon. Return to the inn and try again.");
+                        return true;
+                    }
                     break;
                 }
                 Notify("巡路信号接通。你抵达了已恢复的信标。", "Road signal connected. You arrive beside a restored beacon.");
