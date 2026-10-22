@@ -1012,15 +1012,23 @@ namespace Starfall
                 if(foe==null || foe.hp<=0)continue;
                 Point delta=foe.Position-companionPosition;
                 float squared=delta.x*delta.x+delta.y*delta.y;
+                // Most foes cannot be selected by this companion. Reject
+                // distant targets before tracing their hero-threat geometry.
+                if(squared>=7f*7f)continue;
                 bool saboteur=OuterPatrolActive&&
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
-                bool heroStrike=!saboteur&&
-                    CompanionCommittedHeroStrike(foe);
-                int priority=saboteur?
-                    (OuterPatrolUncoveredStockStrike(foe)?0:1):
-                    heroStrike?2:3;
-                if(squared>=7f*7f || priority>bestPriority)
-                    continue;
+                int priority;
+                if(saboteur)
+                    priority=OuterPatrolUncoveredStockStrike(foe)?0:1;
+                else
+                {
+                    // Once an objective strike/saboteur already wins, no
+                    // ordinary enemy can beat its priority; avoid extra
+                    // projectile sweeps on every simulation tick.
+                    if(bestPriority<2)continue;
+                    priority=CompanionCommittedHeroStrike(foe)?2:3;
+                }
+                if(priority>bestPriority)continue;
                 // Preserve raw deadlines, including an overdue stock strike.
                 // For equally urgent hero strikes, the nearer valid shot is
                 // the deterministic tie-breaker; ordinary foes remain nearest-first.

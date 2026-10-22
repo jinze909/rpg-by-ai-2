@@ -1363,6 +1363,33 @@ namespace Starfall.Tests
             stale.targetingReliefCivilian=true;
             Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),ordinary),
                 "An enemy committed to a rescue civilian cannot masquerade as an attack on the hero");
+
+            control.enemies.Clear();
+            control.enemies.Add(ordinary);
+            var melee=new Enemy(99125,0,14.4f,10.88f,10000f)
+                {state=1,timer=.3f,windupDuration=.65f,
+                 target=control.Position,facing=new Point(1,0)};
+            Check(control.CanStand(melee.Position),
+                "The melee threat begins on valid terrain");
+            control.enemies.Add(melee);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),melee),
+                "A real melee windup inside its forward strike arc outranks the nearer idle enemy");
+            melee.Face(new Point(-1,0));
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),ordinary),
+                "A melee windup facing away from the hero does not receive false threat priority");
+
+            control.enemies.Clear();
+            control.enemies.Add(ordinary);
+            var archer=new Enemy(99126,1,14.4f,10.88f,10000f)
+                {state=1,timer=.3f,windupDuration=.65f,
+                 target=control.Position,facing=new Point(1,0)};
+            control.enemies.Add(archer);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),archer),
+                "A real archer windup whose physical arrow lane still intersects the hero is prioritized");
+            archer.target=new Point(14.4f,13.8f);
+            archer.Face(new Point(0,1));
+            Check(System.Object.ReferenceEquals(nearest.Invoke(control,null),ordinary),
+                "An archer aimed at an old off-hero point does not receive false threat priority");
         }
 
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
