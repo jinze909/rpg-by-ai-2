@@ -974,7 +974,9 @@ namespace Starfall.Tests
                 "The same practice option works after live physical reach is restored");
 
             var scoutGame = Fresh(data);
-            scoutGame.save.room = 1;
+            // The returned scout is authored in Emberfall (room 0), not in
+            // Thornwood where the original rescue encounter takes place.
+            scoutGame.save.room = 0;
             scoutGame.save.flags.Add("scout_saved");
             WorldObject returnedScout = Object(scoutGame, "returnscout");
             remote = StandableOutsideTalkReach(scoutGame, returnedScout);
