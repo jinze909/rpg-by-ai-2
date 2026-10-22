@@ -461,5 +461,43 @@ namespace Starfall.Tests
                 "A fresh in-range dialogue still resolves the rescue and one-time reward");
         }
 
+        public static void StaleChainedDialogueChoicesCannotContinueRemotely(Campaign data)
+        {
+            var g = Fresh(data);
+            WorldObject chronicle = Object(g, "worldchronicle");
+            g.save.x = chronicle.x; g.save.y = chronicle.y;
+            Check(g.CanStand(g.Position),
+                "The public chronicle's interaction foot is walkable");
+
+            g.Talk(chronicle);
+            int section = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "story_section_origins");
+            Check(section >= 0, "The chronicle opens its real section menu");
+            g.Choose(section);
+            Check(g.mode == "dialog" && g.conversation != null,
+                "Choosing a section opens its follow-up menu");
+            int page = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "story_read_origin");
+            Check(page >= 0, "The unlocked origin page is available in the section");
+
+            Point outside = StandableOutsideTalkReach(g, chronicle);
+            g.save.x = outside.x; g.save.y = outside.y;
+            g.Choose(page);
+            Check(g.mode == "world" && g.conversation == null &&
+                g.toast.Contains("交互范围"),
+                "A chained menu cannot continue reading after leaving its physical source");
+
+            g.save.x = chronicle.x; g.save.y = chronicle.y;
+            g.Talk(chronicle);
+            section = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "story_section_origins");
+            g.Choose(section);
+            page = Array.FindIndex(g.conversation.choices,
+                choice => choice.action == "story_read_origin");
+            g.Choose(page);
+            Check(g.mode == "dialog" && g.conversation != null,
+                "The same multi-page chronicle works normally while the player remains in reach");
+        }
+
     }
 }

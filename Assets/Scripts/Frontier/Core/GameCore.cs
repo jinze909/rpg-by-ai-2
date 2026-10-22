@@ -43,6 +43,10 @@ namespace Starfall
         // Choices opened from a reachable world object must be revalidated when
         // submitted; leaving its reach cannot turn an old modal into remote action.
         private bool conversationSourceWasReachable;
+        // A choice may open a second dialogue. Carry the original source only
+        // through that dispatch, and only attach it if no new source was chosen.
+        private WorldObject pendingDialogueSource;
+        private bool pendingDialogueSourceWasReachable;
         private Point dashDirection;
         private int enemyId;
 
@@ -172,7 +176,9 @@ namespace Starfall
             sounds.Clear(); lastSound = "";
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; conversationSource = null;
-            conversationSourceWasReachable = false; runeProgress = 0;
+            conversationSourceWasReachable = false;
+            pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
+            runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
@@ -196,7 +202,18 @@ namespace Starfall
         }
         public void Notify(string zh, string en) { toast = L(zh, en); toastTime = 4; }
         private void Dialog(string speaker, string en, string text, string textEn, params Choice[] choices)
-        { conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog"; }
+        {
+            // Keep source-bound validation alive across multi-page menus such as
+            // the public chronicle. A newly selected world object takes priority.
+            if (conversationSource == null && pendingDialogueSourceWasReachable &&
+                pendingDialogueSource != null &&
+                HasPhysicalInteractionReach(pendingDialogueSource))
+            {
+                conversationSource = pendingDialogueSource;
+                conversationSourceWasReachable = true;
+            }
+            conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog";
+        }
         public void Close()
         {
             conversation = null; conversationSource = null;
@@ -2459,7 +2476,22 @@ namespace Starfall
                     "You left interaction range. Return to the target and talk again.");
                 return;
             }
-            string action = conversation.choices[index].action; Close();
+            WorldObject selectedSource = conversationSource;
+            bool selectedSourceWasReachable = conversationSourceWasReachable;
+            string action = conversation.choices[index].action;
+            Close();
+            pendingDialogueSource = selectedSource;
+            pendingDialogueSourceWasReachable = selectedSourceWasReachable;
+            try { ChooseCore(action); }
+            finally
+            {
+                pendingDialogueSource = null;
+                pendingDialogueSourceWasReachable = false;
+            }
+        }
+
+        private void ChooseCore(string action)
+        {
             if (ChooseSwordLesson(action)) return;
             if (ChooseFrostSignal(action)) return;
             if (ChooseMineConvoy(action)) return;
