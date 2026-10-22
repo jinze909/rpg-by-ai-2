@@ -37,9 +37,16 @@ namespace Starfall.Tests
             }
             throw new Exception("No standable regression point beyond radius "+radius+" for "+o.id);
         }
+        private static void TalkNear(GameCore g, string kind)
+        {
+            WorldObject target = Object(g, kind);
+            if (!PlaceWithinTalkReach(g, target))
+                throw new Exception("No reachable test position for " + target.id);
+            g.Talk(target);
+        }
         private static void Action(GameCore g, string kind, string action)
         {
-            g.Talk(Object(g, kind));
+            TalkNear(g, kind);
             Check(g.mode == "dialog", "Expected dialogue at " + kind);
             for (int i = 0; i < g.conversation.choices.Length; i++)
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
@@ -513,7 +520,7 @@ namespace Starfall.Tests
             Action(g, "forge", "bow"); Check(g.Has("weapon_1") && g.save.weapon == 1, "Craft a bow");
             int after = g.save.inventory[0]; Action(g, "forge", "bow"); Check(g.save.inventory[0] == after, "Re-equipping a crafted weapon must be free");
             g.save.inventory[2] = 20; Action(g, "garden", "ally1");
-            int coins = g.save.coins; g.Talk(Object(g, "garden"));
+            int coins = g.save.coins; TalkNear(g, "garden");
             foreach (var c in g.conversation.choices) Check(c.action != "ally1", "Completed quest cannot reward twice");
             Check(g.save.coins == coins && g.Allies == 1 && g.save.skillPoints == 1, "Commission rewards");
             g.Learn(1); Check(g.save.skillPoints == 0 && g.save.maxHealth == 152, "Talent allocation");
@@ -543,13 +550,13 @@ namespace Starfall.Tests
         public static void GatesAndGathering(Campaign data)
         {
             var g = Fresh(data); g.Enter(3); Check(g.save.room == 0, "Locked routes must remain locked");
-            g.Enter(1); g.Talk(Object(g, "scout")); Check(!g.GateOpen, "Scout cannot open the gate before the rescue"); g.Close();
+            g.Enter(1); TalkNear(g, "scout"); Check(!g.GateOpen, "Scout cannot open the gate before the rescue"); g.Close();
             int herbs = g.save.inventory[2]; var node = Object(g, "herb"); g.Talk(node); g.Talk(node); Check(g.save.inventory[2] == herbs + 3, "A resource node yields once per rest");
             g.save.kills[1] = 4; Action(g, "scout", "scout"); Check(g.GateOpen, "Rescue opens forest gate");
-            g.save.stage = 1; g.Enter(2); g.Talk(Object(g, "rune2")); Check(g.runeProgress == 0, "Wrong rune resets puzzle");
-            g.Talk(Object(g, "rune0")); g.Talk(Object(g, "rune2")); g.Talk(Object(g, "rune1")); Check(g.GateOpen, "Correct rune order opens ruins");
+            g.save.stage = 1; g.Enter(2); TalkNear(g, "rune2"); Check(g.runeProgress == 0, "Wrong rune resets puzzle");
+            TalkNear(g, "rune0"); TalkNear(g, "rune2"); TalkNear(g, "rune1"); Check(g.GateOpen, "Correct rune order opens ruins");
             g.save.stage = 2; g.Enter(3); g.save.inventory[4] = 0; Action(g, "engine", "engine"); Check(!g.GateOpen, "Mine repair requires parts");
-            g.Talk(Object(g, "ore")); Action(g, "engine", "engine"); Check(g.GateOpen && g.save.inventory[4] == 0, "Gathered parts repair elevator");
+            TalkNear(g, "ore"); Action(g, "engine", "engine"); Check(g.GateOpen && g.save.inventory[4] == 0, "Gathered parts repair elevator");
             for (int room = 0; room < 5; room++)
             {
                 g.save.stage = 3; g.save.flags.Add("seal_" + room); g.Enter(room);
@@ -686,8 +693,8 @@ namespace Starfall.Tests
                 g.Enter(room); Check(g.save.room == room, "Chapter route unlock");
                 Combat(g, false);
                 if (room == 1) Action(g, "scout", "scout");
-                if (room == 2) { g.Talk(Object(g, "rune0")); g.Talk(Object(g, "rune2")); g.Talk(Object(g, "rune1")); }
-                if (room == 3) { g.Talk(Object(g, "ore")); Action(g, "engine", "engine"); }
+                if (room == 2) { TalkNear(g, "rune0"); TalkNear(g, "rune2"); TalkNear(g, "rune1"); }
+                if (room == 3) { TalkNear(g, "ore"); Action(g, "engine", "engine"); }
                 Check(g.GateOpen, "Chapter gate");
                 AwaitArenaOpening(g); // Hit stop pauses the same opening clock; wait for actual collision.
                 // The original direct test teleport (28,10) places the
@@ -714,10 +721,10 @@ namespace Starfall.Tests
             // Complete the optional commissions after the campaign and verify the earned alternative.
             g.save.inventory[2] += 6; g.save.inventory[3] += 3; g.save.inventory[4] += 5;
             Action(g, "garden", "ally1"); Action(g, "fish", "ally2"); Action(g, "forge", "ally3");
-            g.Enter(4); g.Talk(Object(g, "shrine")); endingChoice = -1;
+            g.Enter(4); TalkNear(g, "shrine"); endingChoice = -1;
             for (int i = 0; i < g.conversation.choices.Length; i++) if (g.conversation.choices[i].action == "ending3") endingChoice = i;
             Check(endingChoice >= 0, "Three allies unlock the alternative ending"); g.Choose(endingChoice); Check(g.save.ending == 3, "Third ending");
-            g.Close(); g.Talk(Object(g, "shrine"));
+            g.Close(); TalkNear(g, "shrine");
             for (int i = 0; i < g.conversation.choices.Length; i++) if (g.conversation.choices[i].action == "ending2") { g.Choose(i); break; }
             Check(g.save.ending == 2, "Second ending");
         }

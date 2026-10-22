@@ -2542,9 +2542,10 @@ namespace Starfall
             // This shared gate covers only the base world menu, whose generic
             // choices otherwise had no initial-reach requirement.
             if (conversationSource != null && action != "close" &&
-                RequiresBaseWorldChoiceReach(action) &&
-                (!conversationSourceWasReachable ||
-                 !HasPhysicalInteractionReach(conversationSource)))
+                ((conversationSourceWasReachable &&
+                  !HasPhysicalInteractionReach(conversationSource)) ||
+                 (RequiresBaseWorldChoiceReach(action) &&
+                  !conversationSourceWasReachable)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();
