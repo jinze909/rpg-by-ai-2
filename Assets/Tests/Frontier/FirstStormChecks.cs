@@ -322,8 +322,9 @@ namespace Starfall.Tests
             Check(town.Has("storm_orrin_open") &&
                 !town.Has("storm_orrin_guard") && town.save.ending==1,
                 "Player can explicitly assign the actual remainder to an open public town refuge without replacing their original ending");
-            Check(town.StormBudgetSpent==8&&town.StormBudgetLeft==0,
-                "The signed remainder is counted in the public ledger; no already-allocated power remains available");
+            Check(town.StormBudgetSpent==8&&town.StormBudgetLeft==0&&
+                town.StormOrrinReserve==1,
+                "The signed remainder is counted as committed power, not free reserve");
             town.Talk(shrine);
             Check(!Array.Exists(town.conversation.choices,c=>c.action=="storm_orrin_guard"),
                 "The post-storm civic power allocation cannot be double-spent or reversed to farm rewards");
@@ -356,8 +357,9 @@ namespace Starfall.Tests
             Action(citadel,shrine.kind,"storm_orrin_guard");
             Check(citadel.Has("storm_orrin_guard") && !citadel.Has("storm_orrin_open"),
                 "The alternative choice preserves civic backup lighting in the citadel instead of a free duplicate");
-            Check(citadel.StormBudgetSpent==8&&citadel.StormBudgetLeft==0,
-                "The citadel backup-light allocation also consumes the reported remainder exactly once");
+            Check(citadel.StormBudgetSpent==8&&citadel.StormBudgetLeft==0&&
+                citadel.StormOrrinReserve==1,
+                "The citadel allocation consumes the reported remainder while retaining its committed service power");
             WorldObject refuge=Object(citadel,"blackoutshelter");
             citadel.save.x=refuge.x;citadel.save.y=refuge.y;
             citadel.save.health=40;citadel.invulnerable=100;

@@ -1390,9 +1390,15 @@ namespace Starfall
                 !practicing && !racing && save.health>0 &&
                 save.health<save.maxHealth &&
                 NearKind("stormcouncil",3.1f))
+            {
+                // Unallocated reserve and reserve signed to the town refuge
+                // both power this site; a citadel-only allocation does not.
+                float townReserve=StormBudgetLeft+
+                    (Has("storm_orrin_open")?StormOrrinReserve:0);
                 save.health=Math.Min(save.maxHealth,
-                    save.health+dt*(1.2f+StormBudgetLeft*.35f+(StormReliefAll?.75f:0f)+
-                        (Has("storm_orrin_open")?StormBudgetLeft*.55f:0f)));
+                    save.health+dt*(1.2f+townReserve*.35f+(StormReliefAll?.75f:0f)+
+                        (Has("storm_orrin_open")?StormOrrinReserve*.55f:0f)));
+            }
             // The eight defended field caches are living outposts: a local
             // field-medic rest and supply pause, never combat healing or a
             // region-wide passive perk. No new permanent state or save format.
@@ -1436,7 +1442,7 @@ namespace Starfall
                 save.health>0 && save.health<save.maxHealth &&
                 NearKind("blackoutshelter",3.0f))
                 save.health=Math.Min(save.maxHealth,
-                    save.health+dt*(1.1f+StormBudgetLeft*.5f));
+                    save.health+dt*(1.1f+StormOrrinReserve*.5f));
             // The blackout roster creates a working, publicly maintained
             // refuge in the Citadel. Combat and an active evacuation suppress
             // this modest healing; a story reward is not a global regen buff.

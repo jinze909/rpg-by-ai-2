@@ -18,19 +18,29 @@ namespace Starfall
         {
             get { int n=0;for(int i=1;i<=3;i++)if(StormPolicy(i)!=0)n++;return n; }
         }
-        public int StormBudgetSpent
+        private int StormRegionalBudgetSpent
         {
             get
             {
-                // Orrin's post-storm signature commits every remaining unit
-                // to one public destination. The chronicle must not continue
-                // reporting that same signed reserve as unallocated.
-                if(Has("storm_orrin_open")||Has("storm_orrin_guard"))return 8;
                 int n=0;
                 for(int i=1;i<=3;i++)n+=StormPolicy(i)==1?3:StormPolicy(i)==2?2:0;
                 return n;
             }
         }
+        // Once Orrin signs the remainder, those units are committed to a real
+        // service rather than free reserve. Keep their power separately
+        // available to that service while removing them from the unallocated
+        // budget shown to players.
+        public int StormOrrinReserve
+        {
+            get
+            {
+                if(!Has("storm_orrin_open")&&!Has("storm_orrin_guard"))return 0;
+                return Math.Max(0,8-StormRegionalBudgetSpent);
+            }
+        }
+        public int StormBudgetSpent
+        { get { return StormRegionalBudgetSpent+StormOrrinReserve; } }
         public int StormBudgetLeft { get { return Math.Max(0,8-StormBudgetSpent); } }
         public int StormReliefCount
         { get { int n=0;for(int i=1;i<=3;i++)if(Has("storm_relief_"+i))n++;return n; } }
