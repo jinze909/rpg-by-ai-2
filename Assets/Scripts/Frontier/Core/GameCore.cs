@@ -2060,6 +2060,12 @@ namespace Starfall
             if(o==null||!IsObjectPresent(o)||IsObjectFromAnotherMap(o))return false;
             return HasPhysicalInteractionReach(new Point(o.x,o.y));
         }
+        private bool EnsurePhysicalInteractionReach(WorldObject o)
+        {
+            if (HasPhysicalInteractionReach(o)) return true;
+            Notify("请先走近目标再交互。","Move closer to the target before interacting.");
+            return false;
+        }
         public WorldObject Nearest()
         {
             WorldObject best=null;float distance=1.75f;
@@ -2229,8 +2235,16 @@ namespace Starfall
                         "\n\nThe inn displays the new public review process. Any traveler can challenge an overload order without hiding the evidence.":
                         "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):"") + CivicAftercareInnNote(true), CivicAftercareInnChoices()); return;
             }
-            if (kind.StartsWith("portal")) { Enter(int.Parse(kind.Substring(6))); return; }
-            if (kind == "routes") { OpenRoutesMap(); return; }
+            if (kind.StartsWith("portal"))
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return;
+                Enter(int.Parse(kind.Substring(6))); return;
+            }
+            if (kind == "routes")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return;
+                OpenRoutesMap(); return;
+            }
             if (kind == "guild")
             {
                 if (TalkTriadGuild(o)) return;
@@ -2333,6 +2347,7 @@ namespace Starfall
             }
             if (kind.StartsWith("rune"))
             {
+                if (!EnsurePhysicalInteractionReach(o)) return;
                 if (GateOpen) { Notify("三座石碑已经共鸣。", "The tablets are already aligned."); return; }
                 int id = int.Parse(kind.Substring(4)); int[] order = { 0, 2, 1 };
                 if (id == order[runeProgress])
@@ -2351,6 +2366,7 @@ namespace Starfall
             }
             if (kind == "lore")
             {
+                if (!EnsurePhysicalInteractionReach(o)) return;
                 if (save.room > 3) { Notify("堡垒的能源，都来自边境的星核。", "The citadel draws its power from the frontier's cores."); return; }
                 int id = save.room; Flag("lore_" + id); LoreData l = data.lore[id - 1];
                 // Record the region's history even when full, but keep its
@@ -2375,6 +2391,7 @@ namespace Starfall
             }
             if (kind == "herb" || kind == "wood" || kind == "ore")
             {
+                if (!EnsurePhysicalInteractionReach(o)) return;
                 if (Has("node_" + o.id)) { Notify("已经采集过了。回镇休息后资源会更新。", "Already gathered. Rest in town to renew resources."); return; }
                 int item = kind == "herb" ? 2 : kind == "wood" ? 0 : 1;
                 // One-time gathering yields exactly three items (and ore
@@ -2389,6 +2406,7 @@ namespace Starfall
             }
             if (kind == "shrine")
             {
+                if (!EnsurePhysicalInteractionReach(o)) return;
                 if (GateOpen && GateBarrierActive) { Notify("道路正在打开，等屏障消散后再进入祭坛。", "The road is opening; wait for the barrier to dissolve before entering the altar."); return; }
                 if (save.room == 4 && Has("boss_4")) { FinalConversation(); return; }
                 if (!GateOpen) { Notify(GateHint(false), GateHint(true)); return; }
@@ -2501,17 +2519,30 @@ namespace Starfall
                 RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
+        private static bool RequiresBaseWorldChoiceReach(string action)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            return action.StartsWith("goto") || action == "routes" ||
+                action == "rest" || action == "scout" || action == "engine" ||
+                action == "plant" || action == "harvest" || action == "seeds" ||
+                action == "upgrade" || action == "bow" || action == "staff" ||
+                action == "cook" || action == "buymeal" || action == "buywood" ||
+                action == "fish" || action == "deliver" ||
+                action.StartsWith("ally") || action == "boss" ||
+                action.StartsWith("ending") || action == "epilogue" ||
+                action == "continue";
+        }
+
         public void Choose(int index)
         {
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
-            // A world dialogue is not permission to operate a distant object.
-            // The previous gate only rejected sources that were reachable when
-            // opened and then left; a dialogue opened OUTSIDE reach could still
-            // craft, rest, or commit other world actions. Keep Close available
-            // and leave system-owned dialogs (which have no world source) alone.
+            // Specialized quest handlers retain their own contact validation.
+            // This shared gate covers only the base world menu, whose generic
+            // choices otherwise had no initial-reach requirement.
             if (conversationSource != null && action != "close" &&
+                RequiresBaseWorldChoiceReach(action) &&
                 (!conversationSourceWasReachable ||
                  !HasPhysicalInteractionReach(conversationSource)))
             {

@@ -595,5 +595,73 @@ namespace Starfall.Tests
                 "The same staff craft succeeds normally inside genuine physical reach");
         }
 
+        public static void RemoteImmediateWorldInteractionsRequireReach(Campaign data)
+        {
+            var home = Fresh(data);
+            WorldObject portal = Array.Find(home.Map.objects,
+                candidate => candidate.kind == "portal1");
+            Check(portal != null, "The home route retains its authored forest portal");
+            home.Talk(portal);
+            Check(home.save.room == 0 && home.mode == "world" &&
+                home.toast.Contains("走近"),
+                "A remote portal reference cannot transition the player to another region");
+
+            var field = Fresh(data);
+            field.Enter(1);
+            field.enemies.Clear();
+            WorldObject herb = Array.Find(field.Map.objects,
+                candidate => candidate.id == "herb1");
+            WorldObject lore = Array.Find(field.Map.objects,
+                candidate => candidate.id == "cache1");
+            Check(herb != null && lore != null,
+                "The real first-region herb and archive cache remain authored");
+            Point remoteHerb = StandableOutsideTalkReach(field, herb);
+            field.save.x = remoteHerb.x; field.save.y = remoteHerb.y;
+            int herbs = field.save.inventory[2];
+            field.Talk(herb);
+            Check(!field.Has("node_" + herb.id) &&
+                field.save.inventory[2] == herbs &&
+                field.mode == "world" && field.toast.Contains("走近"),
+                "A distant gather-node reference cannot consume the node or award herbs");
+
+            Point remoteLore = StandableOutsideTalkReach(field, lore);
+            field.save.x = remoteLore.x; field.save.y = remoteLore.y;
+            int crystals = field.save.inventory[1];
+            int coins = field.save.coins;
+            field.Talk(lore);
+            Check(!field.Has("lore_1") && !field.Has("treasure_1") &&
+                field.save.inventory[1] == crystals && field.save.coins == coins &&
+                field.mode == "world" && field.toast.Contains("走近"),
+                "A distant archive reference cannot record or collect its one-time treasure");
+
+            Point[] offsets = {
+                new Point(-1,0), new Point(1,0), new Point(0,-1),
+                new Point(0,1), new Point(-1,-1), new Point(-1,1),
+                new Point(1,-1), new Point(1,1), new Point(.5f,0),
+                new Point(-.5f,0), new Point(0,.5f), new Point(0,-.5f)
+            };
+            var reachMethod = typeof(GameCore).GetMethod(
+                "HasPhysicalInteractionReach",
+                System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic,
+                null, new Type[] { typeof(WorldObject) }, null);
+            Check(reachMethod != null,
+                "The same authoritative reach predicate remains available to runtime and tests");
+            bool nearHerb = false;
+            foreach (Point offset in offsets)
+            {
+                Point p = new Point(herb.x + offset.x, herb.y + offset.y);
+                if (!field.CanStand(p)) continue;
+                field.save.x = p.x; field.save.y = p.y;
+                if ((bool)reachMethod.Invoke(field, new object[] { herb }))
+                { nearHerb = true; break; }
+            }
+            Check(nearHerb, "The authored herb has a legal physical interaction point");
+            field.Talk(herb);
+            Check(field.Has("node_" + herb.id) &&
+                field.save.inventory[2] == herbs + 3,
+                "The same herb remains collectible at real physical reach");
+        }
+
     }
 }
