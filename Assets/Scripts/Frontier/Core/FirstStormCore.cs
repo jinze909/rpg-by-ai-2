@@ -20,9 +20,18 @@ namespace Starfall
         }
         public int StormBudgetSpent
         {
-            get { int n=0;for(int i=1;i<=3;i++)n+=StormPolicy(i)==1?3:StormPolicy(i)==2?2:0;return n; }
+            get
+            {
+                // Orrin's post-storm signature commits every remaining unit
+                // to one public destination. The chronicle must not continue
+                // reporting that same signed reserve as unallocated.
+                if(Has("storm_orrin_open")||Has("storm_orrin_guard"))return 8;
+                int n=0;
+                for(int i=1;i<=3;i++)n+=StormPolicy(i)==1?3:StormPolicy(i)==2?2:0;
+                return n;
+            }
         }
-        public int StormBudgetLeft { get { return 8-StormBudgetSpent; } }
+        public int StormBudgetLeft { get { return Math.Max(0,8-StormBudgetSpent); } }
         public int StormReliefCount
         { get { int n=0;for(int i=1;i<=3;i++)if(Has("storm_relief_"+i))n++;return n; } }
         public bool StormReliefAll { get { return StormReliefCount==3; } }
