@@ -1791,7 +1791,12 @@ namespace Starfall
                 if (save.stage < 1) { Dialog(o.name, o.en, "我是雾港的信使露恩。先完成你的第一份星核委托，再来找我。有人在等一封永远送不到的回信。", "I am Lune, Mistport's courier. Finish your first core commission, then find me. Someone is waiting for a reply that will never arrive.", C("我会回来", "I will return", "close")); return true; }
                 Dialog(o.name, o.en, "堡垒的水位记录被改过。雾港每一次守灯，都有人从乘客名册上消失；玻璃沙海九年前的供水命令至今还在运行；霜钟高原的钟声则把一场撤离事故压在冰下。\n\n这不是三场互不相干的灾害。星根原本负责让各地共享水与光，现在谁都不知道屏障抽取了多少。先见米拉船长，取得三份原始记录，把所有人的代价放在同一张议事桌上。", "The citadel's tide ledger was altered. Mistport loses names from its manifest whenever the lighthouse surges; the Glass Desert still obeys a water order from nine years ago; Frostchime's bells hide an evacuation beneath the ice.\n\nThese are not separate disasters. Starroot once shared water and light between the regions, and no one knows what the shield has taken. Meet Captain Mira, recover all three original records, and bring their costs to one council table.", C(Has("exp_intro") ? "前往雾港" : "接取远岸来信", Has("exp_intro") ? "Travel to Mistport" : "Accept Letters from Afar", Has("exp_intro") ? "goto5" : "exp_begin"), C("打开建设与委托簿", "Open town projects and contracts", "camp"), C("稍后再来", "Later", "close")); return true;
             }
-            if (kind == "townboard" || kind == "contract") { mode = kind == "contract" ? "bounties" : "camp"; conversation = null; return true; }
+            if (kind == "townboard" || kind == "contract")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                mode = kind == "contract" ? "bounties" : "camp";
+                conversation = null; return true;
+            }
             if (kind == "captain") { CaptainConversation(o); return true; }
             if (kind.StartsWith("castaway"))
             {
@@ -1804,9 +1809,13 @@ namespace Starfall
                 Dialog(o.name, o.en, Has("relay_" + id) ? "灯线已经修好。海上的人能看见返航信号了。" : "旧线路烧断了。用一个零件修复信号塔，灯塔就能重新指引航船。", Has("relay_" + id) ? "The relay is repaired. Ships can see the homeward signal." : "The cable burned out. One part repairs this navigation relay.", C(Has("relay_" + id) ? "继续调查" : "修复 · 零件1", Has("relay_" + id) ? "Continue" : "Repair · 1 part", Has("relay_" + id) ? "close" : "relay" + id), C("稍后再来", "Later", "close")); return true;
             }
             if (kind == "sluice") { Dialog(o.name, o.en, "每 36 秒一轮潮汐：前 22 秒低潮。潮滩退水时可通过。投入两枚星晶，可让闸门保持低潮 90 秒。", "Each 36-second tide has 22 seconds of low water. Shoals open at low tide. Two crystals hold the sluice for 90 seconds.", C("固定低潮 · 星晶2", "Hold low tide · 2 crystals", "holdtide"), C("等待自然退潮", "Wait for the tide", "close")); return true; }
-            if (kind == "manifest") { Flag("manifest_found"); Dialog("被涂改的乘客名册", "The altered manifest", "每次堡垒加压，港口就少一页乘客。名册写着米拉弟弟的名字，但最后一页背面有他的笔迹：我带孩子们去了北岸。\n\n这不是逃走的人写的告别，而是回不来的人留下的路线。把它带给米拉。", "Every shield surge cost a page of passengers. Mira's brother is listed, but his handwriting survives on the back: I took the children to the north bank.\n\nThis was a route, not a farewell. Bring it to Mira.", C("保存名册", "Keep the manifest", "close")); return true; }
+            if (kind == "manifest")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                Flag("manifest_found"); Dialog("被涂改的乘客名册", "The altered manifest", "每次堡垒加压，港口就少一页乘客。名册写着米拉弟弟的名字，但最后一页背面有他的笔迹：我带孩子们去了北岸。\n\n这不是逃走的人写的告别，而是回不来的人留下的路线。把它带给米拉。", "Every shield surge cost a page of passengers. Mira's brother is listed, but his handwriting survives on the back: I took the children to the north bank.\n\nThis was a route, not a farewell. Bring it to Mira.", C("保存名册", "Keep the manifest", "close")); return true; }
             if (kind.StartsWith("mirror"))
             {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
                 int id = int.Parse(kind.Substring(6)); save.mirrors[id] = (save.mirrors[id] + 1) % 4; CheckMirrors(); revision++;
                 Notify("镜 " + (id + 1) + " → " + new[] { "北", "东", "南", "西" }[save.mirrors[id]], "Mirror " + (id + 1) + " → " + new[] { "NORTH", "EAST", "SOUTH", "WEST" }[save.mirrors[id]]); return true;
             }
@@ -1816,6 +1825,7 @@ namespace Starfall
             if (kind == "skiff") { Dialog(o.name, o.en, "沿金色标记依次经过五个风旗，30 秒内返回终点。沙舟竞速时移动和耐力回复更快，热度不再增加。16 秒内完成可获得风行徽章，第一次完成有额外碎片。", "Follow five golden wind flags within 30 seconds. Racing boosts speed and energy recovery, and prevents heat gain. Finish under 16 seconds for a wind badge; the first finish grants extra shards.", C("出发！", "Launch!", "race"), C("先看看路线", "Study the route", "close")); return true; }
             if (kind.StartsWith("bell"))
             {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
                 int id = int.Parse(kind.Substring(4)); save.bells[id] = (save.bells[id] + 1) % 4; CheckBells(); revision++;
                 Notify("钟 " + (id + 1) + "：第 " + (save.bells[id] + 1) + " 音", "Chime " + (id + 1) + ": tone " + (save.bells[id] + 1)); return true;
             }
@@ -1848,7 +1858,11 @@ namespace Starfall
             { TalkAbyssFarGallery(o); return true; }
             if (kind == "abyssCache" || kind == "abyssSurvey")
             { TalkAbyssAnnex(o); return true; }
-            if (kind == "abyssEntry") { OpenAbyssEntrance(); return true; }
+            if (kind == "abyssEntry")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                OpenAbyssEntrance(); return true;
+            }
             if (kind == "abyssExit") { AbyssExitConversation(); return true; }
             if (kind == "abyssGate") { AbyssGateConversation(); return true; }
             return false;

@@ -663,5 +663,94 @@ namespace Starfall.Tests
                 "The same herb remains collectible at real physical reach");
         }
 
+        private static bool PlaceWithinTalkReach(GameCore g, WorldObject o)
+        {
+            var reach = typeof(GameCore).GetMethod(
+                "HasPhysicalInteractionReach",
+                System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic,
+                null, new Type[] { typeof(WorldObject) }, null);
+            if (reach == null) return false;
+            Point[] offsets = {
+                new Point(-1,0), new Point(1,0), new Point(0,-1),
+                new Point(0,1), new Point(-1,-1), new Point(-1,1),
+                new Point(1,-1), new Point(1,1), new Point(.5f,0),
+                new Point(-.5f,0), new Point(0,.5f), new Point(0,-.5f)
+            };
+            foreach (Point offset in offsets)
+            {
+                Point p = new Point(o.x + offset.x, o.y + offset.y);
+                if (!g.CanStand(p)) continue;
+                g.save.x = p.x; g.save.y = p.y;
+                if ((bool)reach.Invoke(g, new object[] { o })) return true;
+            }
+            return false;
+        }
+
+        public static void RemoteSpecializedWorldInteractionsRequireReach(Campaign data)
+        {
+            var g = Fresh(data);
+            g.Enter(1); g.enemies.Clear();
+            g.save.flags.Add("seal_1");
+            WorldObject signal = Array.Find(g.Map.objects,
+                candidate => candidate.kind == "survey1");
+            WorldObject cache = Array.Find(g.Map.objects,
+                candidate => candidate.kind == "cache1");
+            Check(signal != null && cache != null,
+                "The first region retains its original survey signal and sealed supply cache");
+
+            Point remote = StandableOutsideTalkReach(g, signal);
+            g.save.x = remote.x; g.save.y = remote.y;
+            int coins = g.save.coins, shards = g.save.shards;
+            g.Talk(signal);
+            Check(!g.Has("survey_1") && g.save.coins == coins &&
+                g.save.shards == shards && g.mode == "world" &&
+                g.toast.Contains("走近"),
+                "A distant road-signal reference cannot claim its one-time field reward");
+            Check(PlaceWithinTalkReach(g, signal),
+                "The original survey signal has a legal reachable interaction point");
+            g.Talk(signal);
+            Check(g.Has("survey_1") && g.save.coins == coins + 12 &&
+                g.save.shards == shards + 1 && g.mode == "dialog",
+                "The same survey reward is earned normally at physical reach");
+            g.Close();
+
+            remote = StandableOutsideTalkReach(g, cache);
+            g.save.x = remote.x; g.save.y = remote.y;
+            coins = g.save.coins; shards = g.save.shards;
+            int stew = g.save.inventory[6];
+            g.Talk(cache);
+            Check(!g.Has("cache_1") && g.save.coins == coins &&
+                g.save.shards == shards && g.save.inventory[6] == stew &&
+                g.mode == "world" && g.toast.Contains("走近"),
+                "A distant sealed-cache reference cannot claim treasure or mastery");
+            Check(PlaceWithinTalkReach(g, cache),
+                "The original cache has a legal reachable interaction point");
+            g.Talk(cache);
+            Check(g.Has("cache_1") && g.save.coins == coins + 30 &&
+                g.save.shards == shards + 3 &&
+                g.save.inventory[6] == stew + 1 && g.mode == "dialog",
+                "The same sealed cache still grants its authored reward at physical reach");
+            g.Close();
+
+            g.save.flags.Add("harbor_report");
+            g.Enter(6); g.enemies.Clear();
+            WorldObject mirror = Array.Find(g.Map.objects,
+                candidate => candidate.kind == "mirror0");
+            Check(mirror != null, "The desert's first authored mirror remains present");
+            remote = StandableOutsideTalkReach(g, mirror);
+            g.save.x = remote.x; g.save.y = remote.y;
+            int before = g.save.mirrors[0];
+            g.Talk(mirror);
+            Check(g.save.mirrors[0] == before && g.mode == "world" &&
+                g.toast.Contains("走近"),
+                "A distant mirror reference cannot rotate the light puzzle");
+            Check(PlaceWithinTalkReach(g, mirror),
+                "The mirror has a legal reachable interaction point");
+            g.Talk(mirror);
+            Check(g.save.mirrors[0] == (before + 1) % 4,
+                "A nearby mirror still advances exactly one real puzzle state");
+        }
+
     }
 }
