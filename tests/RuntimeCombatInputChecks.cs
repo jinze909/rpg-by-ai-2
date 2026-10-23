@@ -5436,6 +5436,13 @@ public static class RuntimeCombatInputChecks
         Input.keys.Add(KeyCode.Space); Update(app); Call(app, "OnGUI");
         Check((int)typeof(FrontierRuntime).GetField("dialoguePage", Private).GetValue(app) == 1,
             "Space genuinely advances one text page");
+        // Backspace is KeyCode 8 in Unity, not a movement key. Guard
+        // against an accidental alias in the offline key declaration.
+        Check(KeyCode.Backspace != KeyCode.W,
+            "Offline Backspace must not alias the W movement key");
+        Input.keys.Add(KeyCode.W); Update(app); Call(app, "OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialoguePage", Private).GetValue(app) == 1,
+            "Ordinary movement-key presses must never rewind story pages");
         Input.keys.Add(KeyCode.PageUp); Update(app); Call(app, "OnGUI");
         Check((int)typeof(FrontierRuntime).GetField("dialoguePage", Private).GetValue(app) == 0,
             "PageUp returns to the preceding text page");
