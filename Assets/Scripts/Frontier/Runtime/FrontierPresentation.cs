@@ -77,6 +77,17 @@ namespace Starfall
         private bool TideBlocksGuide { get { return Game.save.room == 5 && !Game.LowTide && routeGoal.HasValue && (routeGoal.Value - Game.Position).Length > 1.8f && route.Count == 0; } }
         private bool DialogueChoicesVisible() { return Game.conversation != null && Game.conversation == lastConversation && dialoguePage >= DialogueLayout.Pages(Game.L(Game.conversation.text, Game.conversation.textEn), Game.save.largeText).Count - 1; }
         private void AdvanceDialogue() { if (Game.conversation == null) return; if (lastConversation != Game.conversation) { lastConversation = Game.conversation; dialoguePage = 0; } dialoguePage = Math.Min(DialogueLayout.Pages(Game.L(Game.conversation.text, Game.conversation.textEn), Game.save.largeText).Count - 1, dialoguePage + 1); }
+        private void PreviousDialoguePage()
+        {
+            if (Game == null || Game.mode != "dialog" || Game.conversation == null ||
+                Game.conversation != lastConversation || dialoguePage <= 0) return;
+            // Reading back never dispatches a Choice, alters its page, or
+            // modifies quest progress. Navigation gets a fresh UI scope so
+            // confirm presses from the old page cannot activate new buttons.
+            dialoguePage--;
+            confirmControl = null;
+            navigation.Scope(InputScope());
+        }
         private void Diamond(float x, float y, float r, Color c) { for (int i = -(int)r; i <= (int)r; i++) { float w = r - Math.Abs(i); Box(x - w, y + i, w * 2 + 1, 1, c); } }
         private void DrawNavigation()
         {

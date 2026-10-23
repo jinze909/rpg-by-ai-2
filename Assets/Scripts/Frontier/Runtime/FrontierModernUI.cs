@@ -643,7 +643,21 @@ namespace Starfall
             if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; }
             var pages = DialogueLayout.Pages(Game.L(c.text, c.textEn), Game.save.largeText); dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
             Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, pages[dialoguePage], 19, paper);
-            if (pages.Count > 1) { Text(320, 497, 535, 26, Game.L("对话页 ", "Page ") + (dialoguePage + 1) + "/" + pages.Count + "  ·  " + ControlKey("SPACE / ENTER", "A"), 12, muted); if (Button(879, 494, 272, 34, dialoguePage < pages.Count - 1 ? Game.L("继续阅读", "Read more") : Game.L("重新阅读", "Read again"))) { if (dialoguePage < pages.Count - 1) AdvanceDialogue(); else dialoguePage = 0; } }
+            if (pages.Count > 1)
+            {
+                Text(320, 497, 349, 26, Game.L("对话页 ", "Page ") +
+                    (dialoguePage + 1) + "/" + pages.Count + "  ·  " +
+                    ControlKey("SPACE / ENTER", "A"), 12, muted);
+                // Important testimony can be reread one page at a time,
+                // without cycling through the entire chapter or closing it.
+                if (dialoguePage > 0 && Button(686, 494, 178, 34,
+                    Game.L("上一页 · 退格", "Previous · Bksp")))
+                    PreviousDialoguePage();
+                if (Button(879, 494, 272, 34,
+                    dialoguePage < pages.Count - 1 ?
+                        Game.L("继续阅读", "Read more") : Game.L("重新阅读", "Read again")))
+                { if (dialoguePage < pages.Count - 1) AdvanceDialogue(); else dialoguePage = 0; }
+            }
             if (dialoguePage == pages.Count - 1)
             {
                 int count = c.choices.Length;
