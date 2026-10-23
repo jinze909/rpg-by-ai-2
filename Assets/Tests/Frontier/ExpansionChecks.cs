@@ -1113,7 +1113,7 @@ namespace Starfall.Tests
                     WorldObject gate = Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
                     g.Talk(gate);
                     Check(g.mode=="dialog" &&
-                        g.conversation.zh.Contains("六层证词归档 6/6"),
+                        g.conversation.text.Contains("六层证词归档 6/6"),
                         "Real last-floor gate advertises fully earned archival milestone");
                     int oldShards=g.save.shards, unbanked=g.save.runShards;
                     g.Choose(g.conversation.choices.Length-1);
