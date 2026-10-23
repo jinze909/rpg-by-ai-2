@@ -1299,6 +1299,46 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssFieldTabletRoutePickerChoosesActualReachableRecords(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var tablet=Array.Find(g.Map.objects,o=>o.kind=="abyssSurvey");
+            var cache=Array.Find(g.Map.objects,o=>o.kind=="abyssFarCache");
+            Check(tablet!=null && cache!=null,
+                "A recovered source and optional distant supply record exist in the seeded floor");
+            g.save.x=tablet.x;g.save.y=tablet.y;
+            g.Talk(tablet);
+            int chooser=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList");
+            Check(chooser==2 && g.AbyssTestimonyProgress==1 &&
+                g.conversation.choices[0].action=="close",
+                "An actual collected tablet offers a distinct route picker after normal record and follow actions");
+            g.Choose(chooser);
+            int chooseCache=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTo:"+cache.id);
+            Check(chooseCache>=0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="close",
+                "A deep supply site appears in the dynamically generated reachable route list");
+            int banked=g.save.shards, pending=g.save.runShards;
+            g.Choose(chooseCache);
+            Check(System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,cache) &&
+                (g.NavigationTarget().Value-new Point(cache.x,cache.y)).Length<.001f &&
+                g.save.shards==banked && g.save.runShards==pending,
+                "Player-directed selection overrides automatic nearest-site order without rewards");
+
+            // Source-bound nested menus must not work from across the cave.
+            g.Talk(tablet);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList"));
+            g.save.x=5;g.save.y=14;
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTo:"+cache.id));
+            Check(System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,cache),
+                "Walking away before selecting a nested route cannot authorize a remote objective command");
+        }
+
         public static void AbyssBlockedTestimonyMenusNeverOfferDeadTracking(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);

@@ -2359,6 +2359,9 @@ namespace Starfall
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
             if (action == "abyssTestimonyTrack") { TrackAbyssTestimonyFromGate(); return true; }
             if (action == "abyssTestimonyFollow") { TrackAbyssTestimonyFromRecord(); return true; }
+            if (action == "abyssTestimonyList") { OpenAbyssTestimonyRouteList(); return true; }
+            if (action.StartsWith("abyssTestimonyTo:"))
+            { ChooseAbyssTestimonyRoute(action.Substring("abyssTestimonyTo:".Length)); return true; }
             if (action == "abyssTestimonyUntrack") { StopAbyssTestimonyTrackingAtGate(); return true; }
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
             if (action == "abyssCircuitRoutes") { OpenAbyssCircuitGateRoutes(); return true; }
@@ -2669,6 +2672,9 @@ namespace Starfall
             if (ReachableAbyssTestimonySite() != null)
                 recordChoices.Add(C("追寻下一份巡路证词",
                     "Follow next warden account", "abyssTestimonyFollow"));
+            if (AbyssAvailableTestimonyRoutes > 1)
+                recordChoices.Add(C("选择具体证词地点",
+                    "Choose specific testimony site", "abyssTestimonyList"));
             Dialog(o.name, o.en,
                 cache ?
                     "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +

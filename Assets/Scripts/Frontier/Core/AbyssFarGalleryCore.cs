@@ -466,6 +466,66 @@ namespace Starfall
             }
             ActivateAbyssTestimonyGuidance(next);
         }
+        private bool CanChooseAbyssTestimonyFromRecord()
+        {
+            WorldObject source = pendingDialogueSource;
+            return InAbyss && !Dying && !practicing &&
+                source != null && Map.objects != null &&
+                Array.IndexOf(Map.objects, source) >= 0 &&
+                HasPhysicalInteractionReach(source) &&
+                AbyssTestimonyRecordState(source) == 2;
+        }
+        private int AbyssAvailableTestimonyRoutes
+        {
+            get
+            {
+                if (!InAbyss || Map.objects == null) return 0;
+                int count = 0;
+                foreach (WorldObject site in Map.objects)
+                    if (AbyssTestimonyRecordState(site) == 1 &&
+                        CanNavigateToAbyssTestimony(site)) count++;
+                return count;
+            }
+        }
+        private void OpenAbyssTestimonyRouteList()
+        {
+            if (!CanChooseAbyssTestimonyFromRecord())
+            {
+                Notify("回到已收录的证词石板旁，再选择路线。",
+                    "Return to a recovered field tablet before choosing a route.");
+                return;
+            }
+            var choices = new List<Choice>();
+            foreach (WorldObject site in Map.objects)
+                if (AbyssTestimonyRecordState(site) == 1 &&
+                    CanNavigateToAbyssTestimony(site))
+                    choices.Add(C("前往 " + site.name,
+                        "Follow " + site.en, "abyssTestimonyTo:" + site.id));
+            choices.Add(C("继续当前调查", "Leave routes unchanged", "close"));
+            Dialog("巡路证词 · 路线选择", "Warden testimony · route selector",
+                "从已经连通的现场道路中选择下一处未归档证词。路线只改变指引，不会自动结算战利品。",
+                "Select a reachable, unfiled field record. This changes navigation only; banking remains manual.",
+                choices.ToArray());
+        }
+        private void ChooseAbyssTestimonyRoute(string targetId)
+        {
+            if (!CanChooseAbyssTestimonyFromRecord())
+            {
+                Notify("必须靠近原来的石板，路线选择才会生效。",
+                    "Return to the original tablet to confirm this route.");
+                return;
+            }
+            WorldObject destination = Array.Find(Map.objects,
+                o => o.id == targetId &&
+                    AbyssTestimonyRecordState(o) == 1);
+            if (!CanNavigateToAbyssTestimony(destination))
+            {
+                Notify("该证词路线目前不可到达，请重新选路。",
+                    "That record is no longer reachable. Choose another route.");
+                return;
+            }
+            ActivateAbyssTestimonyGuidance(destination);
+        }
         private void StopAbyssTestimonyTrackingAtGate()
         {
             // Deliberate cancellation requires the same original live gate.
@@ -1022,6 +1082,9 @@ namespace Starfall
             if (ReachableAbyssTestimonySite() != null)
                 recordChoices.Add(C("继续追寻下一份证词",
                     "Follow the next warden account", "abyssTestimonyFollow"));
+            if (AbyssAvailableTestimonyRoutes > 1)
+                recordChoices.Add(C("选择具体证词地点",
+                    "Choose a specific testimony site", "abyssTestimonyList"));
             Dialog(o.name,o.en,zh+(first?
                     "\n\n此层待结算："+(cache?"硬币 +30、碎片 +1。":survey?"经验 +25。":"经验 +20。"):
                     "\n\n该层记录已保存，无法重复领取。"),
