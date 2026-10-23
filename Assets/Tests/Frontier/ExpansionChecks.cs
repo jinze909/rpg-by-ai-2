@@ -1239,6 +1239,77 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void StarrootRouteMenusCountUnvisitedLiveSideSites(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            int[] counts = new int[3];
+            int total = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                counts[i] = g.AbyssCircuitUnvisitedSites(i);
+                total += counts[i];
+            }
+            Check(total == 6,
+                "The six real optional floor-one survey/cache/echo/rootwell world sites have branch assignments");
+            // An existing SaveData v2 flag, not a new UI counter, is the
+            // only authoritative source of a branch's remaining content.
+            g.save.flags.Add("abyss_annex_survey_1");
+            int reduced = 0;
+            for (int i = 0; i < 3; i++)
+                reduced += g.AbyssCircuitUnvisitedSites(i);
+            Check(reduced == total - 1,
+                "Actually recording a real survey immediately removes one route hint");
+
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            WorldObject relay = Array.Find(g.Map.objects,
+                o=>o.kind=="abyssCircuit0");
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.Talk(relay);
+            Check(g.mode=="dialog" && g.conversation.choices.Length==5,
+                "The linked physical relay offers its original five route choices");
+            for (int i=0;i<3;i++)
+            {
+                int sites = g.AbyssCircuitUnvisitedSites(i);
+                Check(g.conversation.choices[i+1].label.Contains("待探索 " + sites) &&
+                    g.conversation.choices[i+1].en.Contains(sites + " sites left"),
+                    "Branch " + i + " labels show actual pending sites, not invented rewards");
+            }
+            g.Close();
+            var gate = Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=30.5f;g.save.y=14.5f;
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            Check(g.mode=="dialog" && g.conversation.choices.Length==4,
+                "The real east gate submenu exposes the same live unvisited counters");
+            for (int i=0;i<3;i++)
+                Check(g.conversation.choices[i].label.Contains("待探索 " +
+                    g.AbyssCircuitUnvisitedSites(i)),
+                    "East gate and field relays derive branch counters from identical world objects");
+            g.Close();g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));
+            Check(reloaded.InAbyss && reloaded.AbyssCircuitComplete,
+                "Optional route hints remain available after a legitimate v2 reload");
+            for (int i=0;i<3;i++)
+                Check(reloaded.AbyssCircuitUnvisitedSites(i)==
+                    g.AbyssCircuitUnvisitedSites(i),
+                    "Every branch's unvisited counter remains stable on v2 reload");
+
+            var deep = Unlocked(data);deep.StartAbyss(0);
+            deep.save.abyssFloor=3;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.NonPublic|BindingFlags.Instance).Invoke(deep,null);
+            int deepTotal=0;
+            for (int i=0;i<3;i++) deepTotal+=deep.AbyssCircuitUnvisitedSites(i);
+            Check(deepTotal==7,
+                "Deep floors add one real unvisited rift ward site to six optional sources");
+            deep.save.flags.Add("abyss_annex_ward_3");
+            int tuned=0;
+            for (int i=0;i<3;i++) tuned+=deep.AbyssCircuitUnvisitedSites(i);
+            Check(tuned==deepTotal-1,
+                "Purchasing the actual deep rift ward removes its site from the live route tally");
+        }
+
         public static void AbyssCircuitTravelNeverRelocatesUnreleasedCombatActions(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

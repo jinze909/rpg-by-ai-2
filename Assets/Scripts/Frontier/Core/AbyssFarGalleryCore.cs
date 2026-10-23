@@ -315,6 +315,62 @@ namespace Starfall
                     HasPhysicalInteractionReach(relay)) return true;
             return false;
         }
+        private string AbyssCircuitOptionalFlag(WorldObject o)
+        {
+            string prefix = null;
+            switch (o.kind)
+            {
+                case "abyssSurvey": prefix = "abyss_annex_survey_"; break;
+                case "abyssCache": prefix = "abyss_annex_cache_"; break;
+                case "abyssFarSurvey": prefix = "abyss_annex_far_survey_"; break;
+                case "abyssFarCache": prefix = "abyss_annex_far_cache_"; break;
+                case "abyssFarEcho": prefix = "abyss_annex_far_echo_"; break;
+                case "abyssRootwell": prefix = "abyss_annex_rootwell_"; break;
+                case "abyssRiftWard": prefix = "abyss_annex_ward_"; break;
+            }
+            return prefix == null ? null : prefix + save.abyssFloor;
+        }
+        public int AbyssCircuitUnvisitedSites(int branch)
+        {
+            if (!InAbyss || branch < 0 || branch > 2 ||
+                Map.objects == null) return 0;
+            WorldObject[] relays = new WorldObject[3];
+            for (int i = 0; i < 3; i++)
+                relays[i] = Array.Find(Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+            if (relays[branch] == null) return 0;
+            int remaining = 0;
+            foreach (WorldObject site in Map.objects)
+            {
+                string flag = AbyssCircuitOptionalFlag(site);
+                if (flag == null || Has(flag)) continue;
+                int nearest = -1;
+                float best = float.MaxValue;
+                for (int i = 0; i < 3; i++)
+                {
+                    if (relays[i] == null) continue;
+                    float dx = site.x - relays[i].x;
+                    float dy = site.y - relays[i].y;
+                    float d2 = dx * dx + dy * dy;
+                    if (d2 < best)
+                    {
+                        nearest = i;
+                        best = d2;
+                    }
+                }
+                if (nearest == branch) remaining++;
+            }
+            return remaining;
+        }
+        private string AbyssCircuitRouteLabel(int branch, bool english)
+        {
+            string name = AbyssCircuitSymbol(branch);
+            int remaining = AbyssCircuitUnvisitedSites(branch);
+            return english ? "Travel to relay " + name +
+                " · " + remaining + " sites left" :
+                "前往信标 " + name + " · 待探索 " + remaining;
+        }
+
         private bool NearLiveAbyssGate()
         {
             if (!InAbyss || Map.objects == null) return false;
@@ -332,9 +388,9 @@ namespace Starfall
             Dialog("星根巡路网络", "Starroot route network",
                 "三座支洞信标已与东门重新联通。选择支洞继续探索；传送不会自动结算本层战利品。",
                 "The three side relays are reconnected to the east gate. Visit a gallery to finish exploring. Travel never banks unbanked loot.",
-                C("前往信标 A", "Travel to relay A", "abyssCircuitTo0"),
-                C("前往信标 B", "Travel to relay B", "abyssCircuitTo1"),
-                C("前往信标 C", "Travel to relay C", "abyssCircuitTo2"),
+                C(AbyssCircuitRouteLabel(0, false), AbyssCircuitRouteLabel(0, true), "abyssCircuitTo0"),
+                C(AbyssCircuitRouteLabel(1, false), AbyssCircuitRouteLabel(1, true), "abyssCircuitTo1"),
+                C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2"),
                 C("返回结算门", "Back to bank menu", "abyssCircuitGateMenu"));
         }
         private void ReopenAbyssCircuitGateMenu()
@@ -411,9 +467,9 @@ namespace Starfall
                     "旧巡路光路已恢复：可直接抵达东侧地脉门，或选择 A / B / C 支洞信标寻找遗漏的补给。只有本层安全时才能使用。传送不会自动结算战利品。",
                     "The roadwarden circuit is restored. Travel to the east gate, or revisit relays A / B / C to find missed supplies. Transfers require a cleared, safe floor and never bank loot.",
                     C("沿光路折返东门", "Travel to east root gate", "abyssCircuitReturn"),
-                    C("前往信标 A", "Travel to relay A", "abyssCircuitTo0"),
-                    C("前往信标 B", "Travel to relay B", "abyssCircuitTo1"),
-                    C("前往信标 C", "Travel to relay C", "abyssCircuitTo2"),
+                    C(AbyssCircuitRouteLabel(0, false), AbyssCircuitRouteLabel(0, true), "abyssCircuitTo0"),
+                    C(AbyssCircuitRouteLabel(1, false), AbyssCircuitRouteLabel(1, true), "abyssCircuitTo1"),
+                    C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2"),
                     C("继续探索", "Keep exploring", "close"));
                 return;
             }
