@@ -2084,6 +2084,49 @@ namespace Starfall
         }
         private string GameItemsZh(int item) { return data.items[item].name; }
         private string GameItemsEn(int item) { return data.items[item].en; }
+
+        // At dangerously high alpine cold the normal cave/quest compass
+        // becomes a survival route. Use the SAME collision-aware BFS as the
+        // actual navigation overlay, ranking by WALKED cells instead of a
+        // misleading straight-line distance through a sealed rock wall.
+        // Already-lit reachable fires outrank unlit ones; if no fire is lit,
+        // a traveler carrying two timber can still find one to ignite.
+        private Point? EmergencyBrazierGuideTarget()
+        {
+            if(save.room!=7 || save.cold<85f || Dying || practicing ||
+                FieldWorkPreventsRest || Map.objects==null ||
+                save.teaUntil>save.totalTime || LitBrazierRefuge ||
+                FrostSignalRefuge || SkywatchRefuge ||
+                SkywatchEchoRefuge || OuterPatrolRefuge ||
+                NearActiveFieldStation(7,FieldStationRefugeRadius(7)))
+                return null;
+            Point? lit=null,unlit=null;
+            int litSteps=int.MaxValue,unlitSteps=int.MaxValue;
+            foreach(WorldObject fire in Map.objects)
+            {
+                if(fire==null || fire.kind!="brazier")continue;
+                bool burning=Has("warm_"+fire.id);
+                if(!burning && save.inventory[0]<2)continue;
+                Point site=new Point(fire.x,fire.y);
+                bool directlyReachable=HasPhysicalInteractionReach(site);
+                List<Point> route=NavigationPath(site);
+                if(!directlyReachable)
+                {
+                    if(route.Count==0)continue;
+                    Point last=route[route.Count-1];
+                    float d=(site-last).Length;
+                    Point contact=d>.55f?
+                        site-(site-last).Normalized*.55f:last;
+                    if(d>=1.75f || !ClearAttackPath(last,contact))continue;
+                }
+                int walked=directlyReachable?0:route.Count;
+                if(burning && walked<litSteps)
+                {lit=site;litSteps=walked;}
+                if(!burning && walked<unlitSteps)
+                {unlit=site;unlitSteps=walked;}
+            }
+            return lit??unlit;
+        }
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
@@ -2107,6 +2150,8 @@ namespace Starfall
                 AbyssTestimonyGuideTarget() ??
                 AbyssCircuitPuzzleTarget() ??
                 AbyssAffordableWardTarget() ?? new Point(31, 14);
+            Point? emergencyFire=EmergencyBrazierGuideTarget();
+            if(emergencyFire.HasValue)return emergencyFire;
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
             if (q.room == save.room) return q.target;
             foreach (var o in Map.objects) if (o.kind == "portal" + q.room) return new Point(o.x, o.y);

@@ -3347,6 +3347,90 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void CriticalAlpineColdGuidesReachablePhysicalBrazier(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=7;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        CallCore(g,"ResetExpansionTransient");
+        var m=g.Map;
+        string[] oldRows=m.rows;WorldObject[] oldObjects=m.objects;
+        Decoration[] oldDecor=m.decor;
+        try
+        {
+            int w=oldRows[0].Length,h=oldRows.Length;
+            Check(w>18&&h>10&&oldObjects.Any(o=>o.kind=="brazier"),
+                "The shipped mountain must be large enough for a physical shelter route");
+            int bx=3,by=5;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+12;x++)row[x]='.';
+                rows[y]=new string(row);
+            }
+            m.rows=rows;m.decor=new Decoration[0];
+            var near=new WorldObject{id="nav_ember_near",kind="brazier",
+                name="Near brazier",en="Near brazier",x=bx+5.5f,y=by+.5f};
+            var far=new WorldObject{id="nav_ember_far",kind="brazier",
+                name="Far brazier",en="Far brazier",x=bx+10.5f,y=by+.5f};
+            m.objects=new[]{near,far};
+            g.save.x=bx+.5f;g.save.y=by+.5f;
+            g.save.teaUntil=0;g.save.totalTime=20f;g.save.cold=88f;
+            g.save.inventory[0]=2;
+            g.save.flags.Add("warm_"+near.id);
+            g.save.flags.Add("warm_"+far.id);
+            Point? target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
+                "Dangerous cold redirects existing compass to closest WALKABLE lit fire");
+            var routed=g.NavigationPath(target.Value);
+            Check(routed.Count>0 &&
+                (routed[routed.Count-1]-target.Value).Length<1.75f,
+                "Current mountain pathfinder generates actual steps to the refuge");
+
+            // A stone-surrounded fire is NOT reachable merely because it is
+            // closer in euclidean space than another genuine route.
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] chars=rows[y].ToCharArray();
+                for(int x=bx+4;x<=bx+6;x++)
+                    if(x==bx+4||x==bx+6||y==by-1||y==by+1)chars[x]='#';
+                rows[y]=new string(chars);
+            }
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(far.x,far.y)).Length<.001f,
+                "A nearby fire sealed in stone loses to the real traversable distant brazier");
+
+            g.save.flags.Remove("warm_"+far.id);
+            g.save.inventory[0]=2;
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(far.x,far.y)).Length<.001f,
+                "Two timber lets the survival compass locate an unlit but affordable safe fire");
+            g.save.inventory[0]=1;
+            target=g.NavigationTarget();
+            Check(!target.HasValue||(target.Value-new Point(far.x,far.y)).Length>.001f,
+                "Without timber the arrow never advertises a cold refuge the player cannot ignite");
+
+            g.save.inventory[0]=2;g.save.flags.Add("warm_"+far.id);
+            g.save.cold=84f;
+            target=g.NavigationTarget();
+            Check(!target.HasValue||(target.Value-new Point(far.x,far.y)).Length>.001f,
+                "Below danger threshold normal tracked quest guidance is restored");
+            g.save.cold=88f;g.save.x=far.x;g.save.y=far.y;
+            Check(g.LitBrazierRefuge &&
+                (!g.NavigationTarget().HasValue||
+                 (g.NavigationTarget().Value-new Point(near.x,near.y)).Length>.001f),
+                "Already sheltered hero gets no stale emergency detour");
+
+            Console.WriteLine("PASS Critical mountain cold routes only to physically reachable, affordable braziers");
+        }
+        finally
+        {
+            m.rows=oldRows;m.objects=oldObjects;m.decor=oldDecor;
+        }
+    }
+
     private static void RealAlpineBrazierRestRequiresSafePhysicalContact(FrontierRuntime app)
     {
         Prepare(app);
@@ -3875,7 +3959,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
