@@ -3470,6 +3470,37 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real chronicle chapter/page B and Escape back hierarchy");
     }
 
+
+    private static void ControllerShouldersPageRealChronicleAndSelectVisibleItem(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;
+        string[] flags={ "witness_started_1", "core_1", "core_2",
+            "core_3", "iron_temper_started", "triad_started",
+            "blackout_started", "boss_4" };
+        foreach(string flag in flags)game.save.flags.Add(flag);
+        CallCore(game,"WorldChronicleSection","campaign");
+        Call(app,"OnGUI");
+        int originalCoins=game.save.coins;
+        Input.keys.Add(KeyCode.JoystickButton5);Update(app);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==1 &&
+            GUI.commands.Exists(s=>s.Contains("Next RB")),
+            "Gamepad RB moves to the second real choice page with a controller-aware hint");
+        Input.keys.Add(KeyCode.JoystickButton4);Update(app);
+        Call(app,"OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==0,
+            "Gamepad LB restores page one instead of switching unrelated menus");
+        Input.keys.Add(KeyCode.JoystickButton5);Update(app);Call(app,"OnGUI");
+        Input.keys.Add(KeyCode.JoystickButton0);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[0].action=="story_read_triad" &&
+            game.save.coins==originalCoins,
+            "Gamepad A selects the first visible entry on page two (absolute index six)");
+        Console.WriteLine("PASS Long real chronicle supports LB/RB paging and gamepad A");
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -3481,7 +3512,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

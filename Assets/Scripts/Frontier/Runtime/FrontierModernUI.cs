@@ -671,11 +671,11 @@ namespace Starfall
                         "/" + DialogueChoicePageCount +
                         Game.L(" · 数字 1–6", " · keys 1–6"), 12, muted);
                     if (Button(684, 682, 221, 34,
-                        Game.L("上一组选项 PgUp", "Previous PgUp"),
+                        Game.L("上一组选项 ", "Previous ") + ControlKey("PgUp", "LB"),
                         false, dialogueChoicePage > 0))
                         MoveDialogueChoicePage(-1);
                     if (Button(920, 682, 231, 34,
-                        Game.L("下一组选项 PgDn", "Next PgDn"),
+                        Game.L("下一组选项 ", "Next ") + ControlKey("PgDn", "RB"),
                         false, dialogueChoicePage < DialogueChoicePageCount - 1))
                         MoveDialogueChoicePage(1);
                 }

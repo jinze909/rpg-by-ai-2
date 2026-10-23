@@ -38,9 +38,11 @@ namespace Starfall
             if (Game.mode == "dialog" && DialogueChoicesVisible() &&
                 DialogueChoicePageCount > 1)
             {
-                if (Input.GetKeyDown(KeyCode.PageUp))
+                // Shoulder buttons navigate long story pages. In dialog
+                // they never command a companion or cycle unrelated menus.
+                if (Input.GetKeyDown(KeyCode.PageUp) || PadDown(4))
                 { MoveDialogueChoicePage(-1); return; }
-                if (Input.GetKeyDown(KeyCode.PageDown))
+                if (Input.GetKeyDown(KeyCode.PageDown) || PadDown(5))
                 { MoveDialogueChoicePage(1); return; }
                 if (Input.GetKeyDown(KeyCode.Home))
                 { MoveDialogueChoicePage(-DialogueChoicePageCount); return; }
