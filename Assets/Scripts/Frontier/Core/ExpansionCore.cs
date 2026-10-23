@@ -558,11 +558,12 @@ namespace Starfall
         // A deliberate "hold position" order remains attached to its real
         // old foot: the route may move the hero without silently cancelling
         // a tactical companion command.
-        private void RejoinCompanionAfterAbyssCircuitTravel(Point oldHero)
+        private void RejoinCompanionAfterAbyssCircuitTravel(
+            Point oldHero, bool explicitRecall = false)
         {
             if (!InAbyss || save.companion < 0 ||
                 CompanionHoldingPosition ||
-                (Position - oldHero).Length < .35f) return;
+                (!explicitRecall && (Position - oldHero).Length < .35f)) return;
             if ((companionPosition - Position).Length <= 2.5f &&
                 Fits(companionPosition)) return;
             Point arrival = CompanionFollowTarget();
@@ -2351,6 +2352,7 @@ namespace Starfall
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
             if (action == "abyssCircuitRoutes") { OpenAbyssCircuitGateRoutes(); return true; }
             if (action == "abyssCircuitGateMenu") { ReopenAbyssCircuitGateMenu(); return true; }
+            if (action == "abyssCircuitRecall") { RecallCompanionViaAbyssCircuit(); return true; }
             if (action == "abyssCircuitReturn") { ReturnViaAbyssCircuit(); return true; }
             if (action == "abyssCircuitTo0") { TravelViaAbyssCircuit(0); return true; }
             if (action == "abyssCircuitTo1") { TravelViaAbyssCircuit(1); return true; }

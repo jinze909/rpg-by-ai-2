@@ -1699,6 +1699,84 @@ namespace Starfall.Tests
                 "The protected final banking gate resumes normal network travel after recovery");
         }
 
+        public static void StarrootCircuitRecallsHeldCompanionOnlyOnExplicitSafeChoice(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            var a=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit0");
+            var c=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit2");
+            var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.mode="world";g.save.x=a.x;g.save.y=a.y;
+            g.SelectCompanion(1);
+            g.companionCooldown=9f;
+            g.ToggleCompanionHold();
+            Point anchor=g.companionPosition;
+            Check(g.CompanionHoldingPosition,"Original companion receives a real hold order");
+            g.Talk(a);g.Choose(3); // Hero travels to relay C.
+            Check((g.companionPosition-anchor).Length<.001f&&
+                g.CompanionHoldingPosition,
+                "The hold remains physical and intact after solo hero transfer");
+            g.Talk(c);
+            Check(g.conversation.choices.Length==6 &&
+                g.conversation.choices[4].action=="abyssCircuitRecall",
+                "A held companion adds exactly one explicit recall choice to relay menu");
+            g.save.x=5;g.save.y=14;g.Choose(4);
+            Check(g.CompanionHoldingPosition &&
+                (g.companionPosition-anchor).Length<.001f,
+                "Old remote menu cannot teleport a held companion to the hero");
+            g.save.x=c.x;g.save.y=c.y;g.Talk(c);
+            int generation=g.companionPresentationGeneration;
+            g.Choose(4);
+            Check(!g.CompanionHoldingPosition &&
+                g.companionPresentationGeneration==generation+1 &&
+                (g.companionPosition-g.Position).Length<4f &&
+                (g.companionPosition-g.Position).Length>.55f &&
+                g.CanStand(g.companionPosition)&&
+                Math.Abs(g.companionCooldown-9f)<.001f &&
+                g.companionMoveTime==0f&&!g.companionMoving,
+                "Explicit relay recall rejoins a real legal foot and rebases gait without skill refresh");
+
+            // Also expose recall at the actual settlement GATE, without
+            // ever moving the hero or automatically banking their loot.
+            g.ToggleCompanionHold();
+            Point heldAtC=g.companionPosition;
+            g.Talk(c);g.Choose(0);
+            Check(g.CompanionHoldingPosition &&
+                (g.companionPosition-heldAtC).Length<.001f &&
+                Math.Abs(g.save.x-30.5f)<.01f,
+                "A second deliberate hold survives a different long route");
+            g.save.runShards=6;g.save.runCoins=17;
+            int banked=g.save.shards;
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            Check(g.conversation.choices.Length==5 &&
+                g.conversation.choices[3].action=="abyssCircuitRecall" &&
+                g.conversation.choices[4].action=="abyssCircuitGateMenu",
+                "Gate submenu offers recall only while a real ally remains stationed");
+            // A hostile that arrives after opening the route UI must still
+            // block both ally recalls and hero transfers at choice-time.
+            g.enemies.Add(new Enemy(938,0,31.5f,14.5f,25f));
+            g.Choose(3);
+            Check(g.CompanionHoldingPosition &&
+                (g.companionPosition-heldAtC).Length<.001f &&
+                g.save.runShards==6,
+                "Combat threat arising after menu-open cannot recall a stationed ally");
+            g.enemies.Clear();
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            g.Choose(3);
+            Check(!g.CompanionHoldingPosition &&
+                (g.companionPosition-g.Position).Length<4f &&
+                g.CanStand(g.companionPosition) &&
+                g.save.runCoins==17&&g.save.runShards==6&&
+                g.save.shards==banked,
+                "Safe gate recall restores formation without creating or banking loot");
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            Check(g.conversation.choices.Length==4 &&
+                g.conversation.choices[3].action=="abyssCircuitGateMenu",
+                "After recall, the extra choice disappears and original route options remain");
+        }
+
         public static void StarrootFastTravelBringsUnheldCompanionWithoutFakeGait(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);

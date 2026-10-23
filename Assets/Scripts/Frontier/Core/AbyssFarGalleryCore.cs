@@ -385,13 +385,20 @@ namespace Starfall
                     "Gate circuit unavailable. Clear every threat and approach the east root gate.");
                 return;
             }
-            Dialog("星根巡路网络", "Starroot route network",
-                "三座支洞信标已与东门重新联通。选择支洞继续探索；传送不会自动结算本层战利品。",
-                "The three side relays are reconnected to the east gate. Visit a gallery to finish exploring. Travel never banks unbanked loot.",
+            var routes = new List<Choice> {
                 C(AbyssCircuitRouteLabel(0, false), AbyssCircuitRouteLabel(0, true), "abyssCircuitTo0"),
                 C(AbyssCircuitRouteLabel(1, false), AbyssCircuitRouteLabel(1, true), "abyssCircuitTo1"),
-                C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2"),
-                C("返回结算门", "Back to bank menu", "abyssCircuitGateMenu"));
+                C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2")
+            };
+            if (CompanionHoldingPosition)
+                routes.Add(C("召回驻守的伙伴", "Recall stationed companion", "abyssCircuitRecall"));
+            routes.Add(C("返回结算门", "Back to bank menu", "abyssCircuitGateMenu"));
+            Dialog("星根巡路网络", "Starroot route network",
+                "三座支洞信标已与东门重新联通。选择支洞继续探索；传送不会自动结算本层战利品。" +
+                    (CompanionHoldingPosition ? " 也可以明确召回驻守的伙伴。" : ""),
+                "The three side relays are reconnected to the east gate. Visit a gallery to finish exploring. Travel never banks unbanked loot." +
+                    (CompanionHoldingPosition ? " You can also recall a stationed companion." : ""),
+                routes.ToArray());
         }
         private void ReopenAbyssCircuitGateMenu()
         {
@@ -436,6 +443,32 @@ namespace Starfall
                     "Reached relay " + AbyssCircuitSymbol(destination) +
                         ". Continue exploring any remaining side-gallery supplies.");
         }
+        private void RecallCompanionViaAbyssCircuit()
+        {
+            if (!AbyssCircuitRouteSafe() ||
+                (!NearLiveAbyssCircuit() && !NearLiveAbyssGate()) ||
+                !CompanionHoldingPosition)
+            {
+                Notify("召回失败：必须靠近安全的光路站点，且确有伙伴在驻守。",
+                    "Recall unavailable. Reach a safe Starroot stop with an ally on hold.");
+                return;
+            }
+            Point landing = CompanionFollowTarget();
+            // An unsafe destination may be viable for the HERO but not a
+            // second full-bodied ally. Never cancel hold and merge sprites.
+            if (!Fits(landing) || (landing-Position).Length < .55f)
+            {
+                Notify("目的地缺少伙伴可站立的位置，驻守指令维持不变。",
+                    "No safe companion foot by this relay. The hold order remains.");
+                return;
+            }
+            ClearCompanionHold();
+            RejoinCompanionAfterAbyssCircuitTravel(Position, true);
+            revision++;
+            sound = "travel";
+            Notify("伙伴已沿星根光路返回队伍，原有技能冷却保持不变。",
+                "Companion recalled through the Starroot route; skill cooldown preserved.");
+        }
         private void ReturnViaAbyssCircuit()
         {
             TravelViaAbyssCircuit(-1);
@@ -465,14 +498,22 @@ namespace Starfall
                         "Circuit linked. Clear enemies and rifts, and finish active attacks or ally commands before traveling.");
                     return;
                 }
-                Dialog(o.name, o.en,
-                    "旧巡路光路已恢复：可直接抵达东侧地脉门，或选择 A / B / C 支洞信标寻找遗漏的补给。只有本层安全时才能使用。传送不会自动结算战利品。",
-                    "The roadwarden circuit is restored. Travel to the east gate, or revisit relays A / B / C to find missed supplies. Transfers require a cleared, safe floor and never bank loot.",
+                var relayChoices = new List<Choice> {
                     C("沿光路折返东门", "Travel to east root gate", "abyssCircuitReturn"),
                     C(AbyssCircuitRouteLabel(0, false), AbyssCircuitRouteLabel(0, true), "abyssCircuitTo0"),
                     C(AbyssCircuitRouteLabel(1, false), AbyssCircuitRouteLabel(1, true), "abyssCircuitTo1"),
-                    C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2"),
-                    C("继续探索", "Keep exploring", "close"));
+                    C(AbyssCircuitRouteLabel(2, false), AbyssCircuitRouteLabel(2, true), "abyssCircuitTo2")
+                };
+                if (CompanionHoldingPosition)
+                    relayChoices.Add(C("召回驻守的伙伴", "Recall stationed companion",
+                        "abyssCircuitRecall"));
+                relayChoices.Add(C("继续探索", "Keep exploring", "close"));
+                Dialog(o.name, o.en,
+                    "旧巡路光路已恢复：可直达东门，或走访 A/B/C 支洞。安全时使用；传送不自动结算。" +
+                        (CompanionHoldingPosition ? " 驻守伙伴可由光路主动召回。" : ""),
+                    "The circuit links the east gate and relays A/B/C. Travel requires a clear floor and never banks loot." +
+                        (CompanionHoldingPosition ? " A stationed ally can be recalled on demand." : ""),
+                    relayChoices.ToArray());
                 return;
             }
             int progress = AbyssCircuitProgress;
