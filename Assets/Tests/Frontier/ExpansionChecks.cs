@@ -1234,6 +1234,40 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void AbyssCircuitIncompleteV2FlagsRecoverWithoutFreeRewards(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.save.flags.Add("abyss_clear_1");
+            g.save.runCoins = 1; g.save.runShards = 1; g.save.runXp = 1;
+            // Simulate a partially written flags list: three step markers
+            // persist, but the final completion transaction did not.
+            for (int step = 0; step < 3; step++)
+                g.save.flags.Add("abyss_annex_circuit_1_" + step);
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && !restored.AbyssCircuitComplete &&
+                restored.AbyssCircuitProgress == 2 &&
+                restored.AbyssCircuitNextNode >= 0 &&
+                restored.AbyssCircuitNextNode <= 2 &&
+                restored.Conditions().Contains("回路 2/3") &&
+                restored.Objective().Contains("信标"),
+                "An interrupted v2 completion never indexes relay four or crashes the HUD");
+            int thirdId = restored.AbyssCircuitNextNode;
+            WorldObject third = Array.Find(restored.Map.objects,
+                o => o.kind == "abyssCircuit" + thirdId);
+            restored.mode = "world";
+            restored.save.x = third.x; restored.save.y = third.y;
+            restored.Talk(third);
+            Check(restored.AbyssCircuitComplete &&
+                restored.save.runCoins == 41 &&
+                restored.save.runShards == 5 &&
+                restored.save.runXp == 31,
+                "Revisiting the actual final relay repairs completion and credits only one normal payout");
+            restored.Talk(third);
+            Check(restored.save.runCoins == 41 && restored.save.runShards == 5,
+                "Repaired legacy circuit cannot be claimed a second time");
+        }
+
         public static void AbyssCircuitSeedPermutationAndResetAreDeterministic(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

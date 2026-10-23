@@ -182,7 +182,11 @@ namespace Starfall
                 if (AbyssCircuitComplete) return 3;
                 int count = 0;
                 while (count < 3 && Has(AbyssCircuitStepFlag(count))) count++;
-                return count;
+                // An interrupted or malformed old v2 flags list may contain
+                // all step marks but not the completion transaction. Do not
+                // index a nonexistent fourth relay from Objective()/HUD.
+                // Requiring the final physical relay again is the safe path.
+                return Math.Min(2, count);
             }
         }
         private int AbyssCircuitTarget(int step)
