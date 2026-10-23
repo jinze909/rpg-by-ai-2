@@ -355,94 +355,126 @@ namespace Starfall
             }
             return false;
         }
-        public void Enter(int room)
+        // One authoritative gate for travel that would reset a protected live mission.
+        // Cancellable trials (field surveys, Root Harmony and skiff races) are
+        // intentionally omitted: leaving cancels their transient progress.
+        private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
-            if (Dying) return;
-            if (CivilianFieldMissionBlocksTravel()) return;
-            // A live mission cannot disappear through a menu, portal or warp.
-            if(CivicConduitActive)
+            if (CivilianFieldMissionBlocksTravel()) return true;
+            if (CivicConduitActive || LastDirectiveWave > 0)
             {
-                Notify("导体仍在堡垒南路通电！完成阀门或回西端控制台明确中止。",
-                    "Conductor active: finish the valves or explicitly abort at the western desk before travel.");
-                return;
+                if (fastTravel)
+                    Notify("先完成现场任务，或在原始控制台明确中止，才能快速回城。",
+                        "Finish or explicitly abort the live Citadel mission at its physical terminal before fast travel.");
+                else if (CivicConduitActive)
+                    Notify("导体仍在堡垒南路通电！完成阀门或回西端控制台明确中止。",
+                        "Conductor active: finish the valves or explicitly abort at the western desk before travel.");
+                else
+                    Notify("堡垒保密终端正在实战或结算，请完成行动或亲自回终端撤销。",
+                        "Citadel security remains active. Finish or withdraw at its terminal before travel.");
+                return true;
             }
-            if(LastDirectiveWave>0)
+            if (stormTuning)
             {
-                Notify("堡垒保密终端正在实战或结算，请完成行动或亲自回终端撤销。",
-                    "Citadel security remains active. Finish or withdraw at its terminal before travel.");
-                return;
+                if (fastTravel)
+                    Notify("公共星灯调谐仍在进行，不能使用快捷回城绕过城市节点。",
+                        "Public lamp tuning is active; finish or cancel before fast travel.");
+                else
+                    Notify("公约星灯正在进行实地调谐，必须完成或返回议事台放弃，不能切换地图。",
+                        "Live civic-grid tuning must finish or be canceled at the council before travel.");
+                return true;
             }
-            // No world travel while carrying live afterlight charge.
-            // The original region, site plan and remote receiver must matter.
-            if(stormTuning)
+            if (afterlightChargeRegion != 0)
             {
-                Notify("公约星灯正在进行实地调谐，必须完成或返回议事台放弃，不能切换地图。",
-                    "Live civic-grid tuning must finish or be canceled at the council before travel.");
-                return;
+                if (fastTravel)
+                    Notify("第五章余光传输中，不能直接快速回城。请到原锚点取消或完成通电。",
+                        "A public afterlight charge is in transit. Finish at the receiver or cancel at the original anchor.");
+                else
+                    Notify("余光输送仍在进行。先走到本地区公共接收台，或返回原锚点主动取消。",
+                        "Afterlight transfer is active. Reach the real receiver or return to the source to cancel before traveling.");
+                return true;
             }
-            if(afterlightChargeRegion!=0)
+            if (AfterlightWatchActive)
             {
-                Notify("余光输送仍在进行。先走到本地区公共接收台，或返回原锚点主动取消。",
-                    "Afterlight transfer is active. Reach the real receiver or return to the source to cancel before traveling.");
-                return;
+                if (fastTravel)
+                    Notify("守护公共储备的战斗尚未结束，请返回接收台撤销或实际完成防卫。",
+                        "Finish civic reserve defense or withdraw at its receiver before returning to town.");
+                else
+                    Notify("公共储备防卫进行中！击退袭击者，或返回原接收台主动终止。",
+                        "Civic reserve defense active. Defeat the attackers or withdraw at the receiver before traveling.");
+                return true;
             }
-            if(AfterlightWatchActive)
-            {
-                Notify("公共储备防卫进行中！击退袭击者，或返回原接收台主动终止。",
-                    "Civic reserve defense active. Defeat the attackers or withdraw at the receiver.");
-                return;
-            }
-            // Portal objects, map routes, scripted choices and travel menus
-            // all reach this method. Preserve an active rescue instead of
-            // silently erasing its civilian on ResetTransient().
             if (blackoutActive)
             {
-                Notify("屏障长夜撤离仍在进行。先把居民送到避难所或明确中止，不能直接换地区。",
-                    "Blackout evacuation is active. Bring your civilians to shelter or abort the mission before traveling.");
-                return;
+                if (fastTravel)
+                    Notify("堡垒居民仍在撤离中。先回避难所完成或取消救援。",
+                        "Citadel evacuation is active. Complete or cancel at the shelter.");
+                else
+                    Notify("屏障长夜撤离仍在进行。先把居民送到避难所或明确中止，不能直接换地区。",
+                        "Blackout evacuation is active. Bring your civilians to shelter or abort the mission before traveling.");
+                return true;
             }
-            if (witnessDefenseRoom!=0)
+            // ReturnToTown historically checks this rescue before its death/room
+            // early-outs; Enter and the Abyss use the complete gate below.
+            if (earlyOnly)
+            {
+                if (reliefMissionRoom != 0)
+                {
+                    Notify("正在护送居民，先返回站台或者取消行动。",
+                        "You are escorting civilians. Return to the station or cancel the rescue first.");
+                    return true;
+                }
+                return false;
+            }
+            if (witnessDefenseRoom != 0)
             {
                 Notify("本章居民证词正在战斗保全中，请击败守卫或在证据台撤出。",
                     "A live testimony-defense is active. Defeat its guards or withdraw at the field seal before traveling.");
-                return;
+                return true;
             }
             if (TriadDefenseActive)
             {
                 Notify("第四章审计守卫仍在行动。先返回中央控制台放弃或击败它。",
                     "Chapter Four security is still active. Defeat it or withdraw at the central console before leaving.");
-                return;
+                return true;
             }
             if (TemperActive)
             {
                 Notify("工房仍在过热运行。先返回锻炉结束或安全停机。",
                     "The foundry is still active. Finish or safely shut it down at the furnace before traveling.");
-                return;
+                return true;
             }
             if (TideSalvageActive)
             {
                 Notify("打捞行动还在进行，先回码头交付或放弃货物。",
                     "Salvage is underway. Deliver or abandon at the dock before traveling.");
-                return;
+                return true;
             }
             if (GlasswindSite != 0)
             {
                 Notify("风脉中继正在争夺中。请封存或返回中继台撤出后再旅行。",
                     "Glasswind relay is contested. Seal or withdraw at its console before traveling.");
-                return;
+                return true;
             }
             if (commonsRelayRoom != 0)
             {
                 Notify("公共信标正在重连。先完成三段线路或返回控制台结束操作。",
                     "Commons Relay is live. Complete its three circuits or withdraw at a console before traveling.");
-                return;
+                return true;
             }
             if (reliefMissionRoom != 0)
             {
                 Notify("正在救援居民。先完成撤离或到避难站明确取消，不能直接切换地区。",
                     "Rescue in progress. Finish the evacuation or cancel it at the station before traveling.");
-                return;
+                return true;
             }
+            return false;
+        }
+
+        public void Enter(int room)
+        {
+            if (Dying) return;
+            if (BlockTravelForProtectedFieldMission(false)) return;
             if (practicing) EndPractice();
             if (room < 0 || room >= data.maps.Length) return;
             if (!CanEnter(room)) { Notify(RouteHint(room, false), RouteHint(room, true)); Close(); return; }
@@ -455,36 +487,7 @@ namespace Starfall
         }
         public void ReturnToTown()
         {
-            if (CivilianFieldMissionBlocksTravel()) return;
-            if(CivicConduitActive||LastDirectiveWave>0)
-            {
-                Notify("先完成现场任务，或在原始控制台明确中止，才能快速回城。",
-                    "Finish or explicitly abort the live Citadel mission at its physical terminal before fast travel.");
-                return;
-            }
-            if(stormTuning)
-            {
-                Notify("公共星灯调谐仍在进行，不能使用快捷回城绕过城市节点。",
-                    "Public lamp tuning is active; finish or cancel before fast travel.");
-                return;
-            }
-            if(afterlightChargeRegion!=0)
-            {
-                Notify("第五章余光传输中，不能直接快速回城。请到原锚点取消或完成通电。",
-                    "A public afterlight charge is in transit. Finish at the receiver or cancel at the original anchor.");
-                return;
-            }
-            if(AfterlightWatchActive)
-            {
-                Notify("守护公共储备的战斗尚未结束，请返回接收台撤销或实际完成防卫。",
-                    "Finish civic reserve defense or withdraw at its receiver before returning to town.");
-                return;
-            }
-            if (blackoutActive)
-            { Notify("堡垒居民仍在撤离中。先回避难所完成或取消救援。",
-                "Citadel evacuation is active. Complete or cancel at the shelter."); return; }
-            if (reliefMissionRoom != 0)
-            { Notify("正在护送居民，先返回站台或者取消行动。", "You are escorting civilians. Return to the station or cancel the rescue first."); return; }
+            if (BlockTravelForProtectedFieldMission(true, true)) return;
             if (Dying) return;
             if (save.room == 0) return;
             if (InAbyss) { AbyssExitConversation(); return; }
@@ -2512,19 +2515,6 @@ namespace Starfall
             invulnerable = dodgeEscapeTime = playerFlash = impactShake = 0;
             perfectDodgeArmed = false; dashOrigin = new Point();
         }
-        // Only these missions are travel-locked. Other timed trials (such as
-        // field surveys, Root Harmony and skiff races) deliberately allow leaving
-        // the map to cancel them without awarding unfinished progress.
-        private bool FieldMissionLocksTravel
-        {
-            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive ||
-                FarCourierActive || CivicResponseActive || CivicConduitActive ||
-                LastDirectiveWave > 0 || stormTuning || afterlightChargeRegion != 0 ||
-                AfterlightWatchActive || blackoutActive || witnessDefenseRoom != 0 ||
-                TriadDefenseActive || TemperActive || TideSalvageActive ||
-                GlasswindSite != 0 || commonsRelayRoom != 0 || reliefMissionRoom != 0; }
-        }
-
         private bool FieldWorkPreventsRest
         {
             get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||

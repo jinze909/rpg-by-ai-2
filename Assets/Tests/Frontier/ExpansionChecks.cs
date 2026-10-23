@@ -790,14 +790,22 @@ namespace Starfall.Tests
             int seed = locked.save.abyssSeed, coins = locked.save.runCoins;
             int shards = locked.save.runShards, xp = locked.save.runXp;
             int revision = locked.revision;
+            locked.Enter(0);
+            Check(locked.save.room == room && (bool)tuning.GetValue(locked) &&
+                locked.toast.Contains("调谐"),
+                "Portal/map travel preserves protected civic-grid tuning and explains the lock");
+            locked.ReturnToTown();
+            Check(locked.save.room == room && (bool)tuning.GetValue(locked) &&
+                locked.toast.Contains("调谐"),
+                "Quick return preserves protected civic-grid tuning and explains the lock");
             locked.StartAbyss(1);
             Check(locked.save.room == room && locked.save.abyssFloor == floor &&
                 locked.save.abyssSeed == seed && locked.save.runCoins == coins &&
                 locked.save.runShards == shards && locked.save.runXp == xp &&
                 (bool)tuning.GetValue(locked) && locked.revision == revision,
                 "Protected civic-grid tuning blocks Abyss entry without mutating the live mission or expedition save");
-            Check(locked.toast.Contains("尚未结束"),
-                "Blocked Abyss entry explains that the protected field mission must be completed or canceled");
+            Check(locked.toast.Contains("调谐"),
+                "Blocked Abyss entry identifies the live civic-grid tuning mission");
 
             var cancelable = Unlocked(data);
             cancelable.Enter(6);
