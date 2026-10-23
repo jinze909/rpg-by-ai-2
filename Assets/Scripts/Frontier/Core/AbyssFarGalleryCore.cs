@@ -643,6 +643,27 @@ namespace Starfall
             }
             ActivateAbyssTestimonyGuidance(destination);
         }
+        private void ClearAbyssTestimonyGuidance()
+        {
+            abyssTestimonyGuideActive = false;
+            abyssTestimonyGuideSite = null;
+            abyssTestimonyGuideFloor = -1;
+            abyssTestimonyGuideMap = null;
+            revision++;
+        }
+        private void StopAbyssTestimonyTrackingAtRecord()
+        {
+            if (!CanChooseAbyssTestimonyFromRecord() ||
+                AbyssTestimonyGuidedSite == null)
+            {
+                Notify("请在已收录的石板旁取消当前证词导航。",
+                    "Stop tracking beside a recovered field record.");
+                return;
+            }
+            ClearAbyssTestimonyGuidance();
+            Notify("已在现场停止证词导航，当前未结算物资保持不变。",
+                "Stopped testimony guidance here. Unbanked rewards are unchanged.");
+        }
         private void StopAbyssTestimonyTrackingAtGate()
         {
             // Deliberate cancellation requires the same original live gate.
@@ -653,11 +674,7 @@ namespace Starfall
                     "Return to the safe east gate to stop tracking.");
                 return;
             }
-            abyssTestimonyGuideActive = false;
-            abyssTestimonyGuideSite = null;
-            abyssTestimonyGuideFloor = -1;
-            abyssTestimonyGuideMap = null;
-            revision++;
+            ClearAbyssTestimonyGuidance();
             Notify("已停止追踪证词。你仍可随时手动结算或重新选择调查。",
                 "Testimony tracking stopped. You may bank or investigate again.");
         }
@@ -1217,6 +1234,9 @@ namespace Starfall
             if (AbyssAvailableTestimonyRoutes > 1)
                 recordChoices.Add(C("选择具体证词地点",
                     "Choose a specific testimony site", "abyssTestimonyList"));
+            if (AbyssTestimonyGuidedSite != null)
+                recordChoices.Add(C("停止追踪证词",
+                    "Stop tracking testimony", "abyssTestimonyStopHere"));
             Dialog(o.name,o.en,zh+(first?
                     "\n\n此层待结算："+(cache?"硬币 +30、碎片 +1。":survey?"经验 +25。":"经验 +20。"):
                     "\n\n该层记录已保存，无法重复领取。"),

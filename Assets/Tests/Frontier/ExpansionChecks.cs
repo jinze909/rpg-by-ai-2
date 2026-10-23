@@ -1303,6 +1303,60 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssRecoveredFieldRecordCanStopActiveRouteWithoutBanking(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var near=Array.Find(g.Map.objects,o=>o.kind=="abyssSurvey");
+            var deep=Array.Find(g.Map.objects,o=>o.kind=="abyssFarSurvey");
+            Check(near!=null && deep!=null,"Real near and deep recovered source objects exist");
+            g.save.x=near.x;g.save.y=near.y;g.Talk(near);
+            int startingPending=g.save.runShards,startingCoins=g.save.coins;
+            int initialStop=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyStopHere");
+            Check(initialStop<0 &&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="abyssTestimonyFollow")>=0,
+                "An untracked field record does not advertise a meaningless cancel");
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyFollow"));
+            WorldObject initialTarget=g.AbyssTestimonyGuidedSite;
+            Check(initialTarget!=null,
+                "Following a real recovered record activates a legitimate next waypoint");
+            g.Talk(near);
+            int stop=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyStopHere");
+            Check(stop>=0 &&
+                g.conversation.choices[0].action=="close",
+                "Original keep action remains while a physical tablet offers route cancellation");
+            g.save.x=5;g.save.y=14;g.Choose(stop);
+            Check(System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,initialTarget),
+                "Stale tablet menu cannot stop a route from across the cavern");
+            g.save.x=near.x;g.save.y=near.y;g.Talk(near);
+            stop=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyStopHere");
+            g.Choose(stop);
+            Check(g.AbyssTestimonyGuidedSite==null &&
+                g.AbyssTestimonyProgress==1 &&
+                g.save.runShards==startingPending &&
+                g.save.coins==startingCoins &&
+                (g.NavigationTarget().Value-new Point(31,14)).Length<.001f,
+                "Field cancellation restores normal exit guidance without consuming proofs or loot");
+            g.Talk(near);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyStopHere")<0,
+                "Stopped route cannot be cancelled a second time");
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyFollow"));
+            Check(g.AbyssTestimonyGuidedSite!=null,
+                "A nearby recovered record can resume the unfinished route normally");
+            g.save.x=deep.x;g.save.y=deep.y;g.Talk(deep);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyStopHere")>=0,
+                "Deep original field records expose the same real cancellation action");
+        }
+
         public static void AbyssAmbientHUDAndFieldMarkersShareShortestReachableTestimony(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
