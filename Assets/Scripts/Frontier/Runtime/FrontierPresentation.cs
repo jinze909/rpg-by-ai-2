@@ -84,11 +84,17 @@ namespace Starfall
             if (Game.SafeTravel && route.Count > 0) for (int i = 0; i < Math.Min(route.Count, 22); i += 2) { Point p = ScreenPoint(route[i]); Box(p.x - 2, p.y - 1, 4, 3, new Color(.94f, .77f, .48f, .55f)); }
             Point goal = ScreenPoint(target.Value);
             int gallery = Game.AbyssCircuitGuidedBranch;
+            int nextRelay = Game.AbyssCircuitGuidedNextRelay;
             string galleryLabel = gallery < 0 ? "" :
                 Game.L("支洞 ", "GALLERY ") + (char)('A' + gallery) +
                 Game.L(" · 待探索 ", " · ") +
                 Game.AbyssCircuitUnvisitedSites(gallery) +
                 Game.L("", " LEFT");
+            string navigationLabel = gallery >= 0 ? galleryLabel :
+                nextRelay >= 0 ?
+                    Game.L("星根信标 ", "STARROOT RELAY ") +
+                    (char)('A' + nextRelay) + " · " +
+                    (Game.AbyssCircuitProgress + 1) + "/3" : "";
             if (goal.x > 34 && goal.x < 978 && goal.y > 132 && goal.y < 675)
             {
                 float bob = Game.save.reducedMotion ? 0 : (float)Math.Sin(clock * 3) * 3;
@@ -96,9 +102,9 @@ namespace Starfall
                 Diamond(goal.x, goal.y - 38 + bob, 3, ink);
                 // The same real world target now names the selected gallery,
                 // rather than masquerading as the player's tracked quest.
-                if (gallery >= 0)
+                if (navigationLabel.Length > 0)
                     Text(goal.x - 105, goal.y > 195 ? goal.y - 65 : goal.y + 16,
-                        210, 22, galleryLabel, 11, gold, TextAnchor.MiddleCenter);
+                        210, 22, navigationLabel, 11, gold, TextAnchor.MiddleCenter);
             }
             else
             {
@@ -109,7 +115,7 @@ namespace Starfall
                 Point edge = center + delta * k;
                 Diamond(edge.x, edge.y, 9, gold);
                 Text(edge.x - 99, edge.y + 13, 198, 40,
-                    gallery >= 0 ? galleryLabel :
+                    navigationLabel.Length > 0 ? navigationLabel :
                     Game.CurrentGuide.room == Game.save.room ?
                         Game.L("任务目标", "OBJECTIVE") : Game.L("区域出口", "REGION EXIT"),
                     11, gold, TextAnchor.MiddleCenter);
