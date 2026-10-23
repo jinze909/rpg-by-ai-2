@@ -3452,10 +3452,28 @@ public static class RuntimeCombatInputChecks
                 "Already shaded hero does not get a stale rescue route");
             Check(g.ShadeCoolsHero(far) && !g.ShadeCoolsHero(near),
                 "Only an exposed, reachable physical canopy cools the hero");
+            // Real world ticks now let a safe explorer recuperate *only*
+            // beneath accessible shade; hostile presence suspends recovery
+            // without removing the passive temperature protection.
+            g.save.health=65;g.save.energy=20;g.save.heat=90;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.health>65&&g.save.energy>20&&g.save.heat<90,
+                "A safe, physically shaded hero regains health/energy while cooling");
+            g.enemies.Add(new Enemy(1419,0,far.x+1,far.y,70f));
+            g.save.health=65;g.save.energy=20;g.save.heat=90;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.health==65&&g.save.energy==20&&g.save.heat<90,
+                "Combat removes shade healing and energy recovery but not physical cooling");
+            g.enemies.Clear();
+            g.racing=true;g.save.health=65;g.save.energy=20;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.health==65&&g.save.energy==20,
+                "Time-critical desert races never mint shelter resources");
+            g.racing=false;
             Set(app,"camera",g.Position);
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(GUI.commands.Exists(c=>c.Contains("SHADE COOLING")),
-                "Production desert renderer shows the actually active cooling shelter");
+            Check(GUI.commands.Exists(c=>c.Contains("SHADE COOLING · REST")),
+                "Production desert renderer shows both real cooling and safe-rest availability");
             g.save.x=cx+.5f;g.save.y=cy+.5f;
             Set(app,"camera",g.Position);
             GUI.commands.Clear();Call(app,"OnGUI");

@@ -1426,7 +1426,9 @@ namespace Starfall
                     Ring(site,3f,cooling?mint:gold,28);
                     if(cooling)
                         Text(p.x-92,p.y-85,184,20,
-                            Game.L("已进入遮阴区","SHADE COOLING"),
+                            Game.CanRestInDesertShade ?
+                                Game.L("树荫恢复中","SHADE COOLING · REST") :
+                                Game.L("已进入遮阴区","SHADE COOLING"),
                             10,mint,TextAnchor.MiddleCenter);
                     else if((Game.Position-site).Length<6f)
                         Text(p.x-92,p.y-85,184,20,

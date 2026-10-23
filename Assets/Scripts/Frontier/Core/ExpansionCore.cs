@@ -1459,6 +1459,14 @@ namespace Starfall
                 PhysicalRefugeReach(new Point(shade.x,shade.y),3f);
         }
 
+        // Source-independent safety gate; proximity and unobstructed terrain
+        // are checked separately by ShadeCoolsHero and NearKind.
+        public bool CanRestInDesertShade
+        {
+            get { return save.room==6 && !Dying && !practicing &&
+                !racing && !FieldWorkPreventsRest && SafeTravel; }
+        }
+
         public bool BrazierWarmsHero(WorldObject brazier)
         {
             return save.room == 7 && !Dying && !practicing &&
@@ -1526,9 +1534,19 @@ namespace Starfall
             // current physical protection, not a global immunity reward.
             bool safeReliefShelter=OuterPatrolRefuge;
             bool tea = save.teaUntil > save.totalTime;
-            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
+            bool activeShade=save.room==6 && NearKind("shade",3f);
+            save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !activeShade &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
                 !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
+            // Both authored desert shade posts are genuine safe respite
+            // sites. Unlike passive cooling, HP/energy restoration cannot
+            // run during combat, racing or an active timed field objective.
+            if(activeShade && CanRestInDesertShade)
+            {
+                if(save.health>0 && save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*.85f);
+                save.energy=Math.Min(100f,save.energy+dt*3.2f);
+            }
             bool brazierWarmth=LitBrazierRefuge;
             if(brazierWarmth)brazierEmberSeconds=2.5f;
             else brazierEmberSeconds=Math.Max(0f,brazierEmberSeconds-dt);
@@ -2415,7 +2433,7 @@ namespace Starfall
                         "Reach the actual unobstructed shade before resting.");
                     return true;
                 }
-                if(Dying || practicing || FieldWorkPreventsRest || !SafeTravel)
+                if(!CanRestInDesertShade)
                 {
                     Notify("战斗或现场任务仍在进行，暂时不能在绿洲休整。",
                         "Finish live combat and fieldwork before using the oasis.");
