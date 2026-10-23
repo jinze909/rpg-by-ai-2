@@ -1414,7 +1414,28 @@ namespace Starfall
                 PropImage(kind.StartsWith("abyss") ? "root" : "altar", 0, p.x - 34, p.y - 68, 68, 79, active ? Color.white : muted);
                 Ring(new Point(o.x, o.y), .6f, active ? mint : muted, 16); return true;
             }
-            if (kind == "shade" || kind == "skiff") return true;
+            if (kind == "shade")
+            {
+                // Trees and canopies retain their existing map decoration.
+                // These cues appear only as heat becomes consequential and
+                // their green state uses the real unobstructed cooling rule.
+                if(Game.save.heat>=65f)
+                {
+                    Point site=new Point(o.x,o.y);
+                    bool cooling=Game.ShadeCoolsHero(o);
+                    Ring(site,3f,cooling?mint:gold,28);
+                    if(cooling)
+                        Text(p.x-92,p.y-85,184,20,
+                            Game.L("已进入遮阴区","SHADE COOLING"),
+                            10,mint,TextAnchor.MiddleCenter);
+                    else if((Game.Position-site).Length<6f)
+                        Text(p.x-92,p.y-85,184,20,
+                            Game.L("前往树荫避暑","ENTER SHADE"),
+                            10,gold,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if (kind == "skiff") return true;
             if (kind == "townboard" || kind == "contract")
             { PropImage("post", 0, p.x - 30, p.y - 66, 60, 70); Text(p.x - 14, p.y - 55, 28, 26, kind == "contract" ? "N" : "B", 16, gold, TextAnchor.MiddleCenter); return true; }
             if (kind == "envoy" || kind == "captain" || kind == "tinker" || kind == "keeper" || kind == "council" || kind.StartsWith("castaway"))

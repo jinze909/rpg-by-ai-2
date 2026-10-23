@@ -1450,6 +1450,15 @@ namespace Starfall
         // A lit alpine brazier is an actual local warm refuge. Shared
         // terrain/line-of-sight checks exclude heat through closed walls,
         // while existing persisted ignition flags remain authoritative.
+        // Authoritative per-object desert shade state for both survival
+        // and production world feedback. A canopy behind stone cannot
+        // advertise a fake cooled area just because its icon is nearby.
+        public bool ShadeCoolsHero(WorldObject shade)
+        {
+            return save.room==6 && shade!=null && shade.kind=="shade" &&
+                PhysicalRefugeReach(new Point(shade.x,shade.y),3f);
+        }
+
         public bool BrazierWarmsHero(WorldObject brazier)
         {
             return save.room == 7 && !Dying && !practicing &&

@@ -3409,7 +3409,19 @@ public static class RuntimeCombatInputChecks
             Check(!g.NavigationTarget().HasValue||
                 (g.NavigationTarget().Value-new Point(near.x,near.y)).Length>.001f,
                 "Already shaded hero does not get a stale rescue route");
-            Console.WriteLine("PASS Production desert heat: safe shade route, sealed-wall exclusion, tea and cooling release");
+            Check(g.ShadeCoolsHero(far) && !g.ShadeCoolsHero(near),
+                "Only an exposed, reachable physical canopy cools the hero");
+            Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("SHADE COOLING")),
+                "Production desert renderer shows the actually active cooling shelter");
+            g.save.x=cx+.5f;g.save.y=cy+.5f;
+            Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!GUI.commands.Exists(c=>c.Contains("SHADE COOLING")) &&
+                !g.ShadeCoolsHero(near),
+                "Sealed nearest canopy never displays a false active shelter");
+            Console.WriteLine("PASS Production desert heat: safe shade navigation, collision-aware world halo and cooling feedback");
         }
         finally
         {
