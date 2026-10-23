@@ -27,6 +27,45 @@ namespace Starfall.Tests
             return -1;
         }
 
+        public static void StoryDialogueRejectsStaleSourceAcrossRoomsAndRemovedNpcs(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject guild=Object(g,"guild");
+            g.save.x=guild.x;g.save.y=guild.y;g.Talk(guild);
+            int recap=StoryChoiceIndex(g,"story_catchup");
+            Check(recap>=0&&g.conversationSource==guild,
+                "Live guild recap binds the original visible guild desk");
+            // Simulate a serialized UI callback racing a scene/room swap.
+            // A story-only choice previously bypassed the ordinary proximity
+            // guard even when its owning NPC lived in another map.
+            g.save.room=1;
+            g.Choose(recap);
+            Check(g.mode=="world"&&g.conversation==null&&
+                g.toast.Contains("Return to the target")==false,
+                "A foreign-room storyteller cannot resurrect a stale dialogue");
+            g.save.room=0;g.save.x=guild.x;g.save.y=guild.y;
+            g.Talk(guild);
+            Check(StoryChoicePresent(g,"story_catchup"),
+                "Player can reopen a fresh dialogue in the correct room");
+            // The same room may remove or replace a temporary NPC. Requiring
+            // a live source prevents old conversation buttons from acting
+            // on a different character whose feet match exactly.
+            WorldObject[] originals=g.Map.objects;
+            try
+            {
+                var without=new System.Collections.Generic.List<WorldObject>(originals);
+                Check(without.Remove(guild),"The original guild NPC is in the real object list");
+                g.Map.objects=without.ToArray();
+                ChooseStoryChoice(g,"story_catchup");
+                Check(g.mode=="world"&&g.conversation==null,
+                    "Detached NPC source closes rather than performing the old choice");
+            }
+            finally { g.Map.objects=originals; }
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                g.conversation.text.Contains("星根"),
+                "Fresh original NPC story choices remain playable after a rejected stale click");
+        }
         public static void LivingStoryGuideConnectsPeopleCausesAndNextStepWithoutChangingProgress(Campaign data)
         {
             var g=Fresh(data);
