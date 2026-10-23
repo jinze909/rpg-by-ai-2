@@ -1300,6 +1300,43 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssTestimonyNavigationUsesLegalAdjacentInteractionFoot(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            WorldObject source=Array.Find(g.Map.objects,
+                o=>o.kind=="abyssSurvey");
+            Check(source!=null,"The original seeded survey tablet exists");
+            string[] oldRows=(string[])g.Map.rows.Clone();
+            int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
+            char[] row=g.Map.rows[sy].ToCharArray();
+            row[sx]='#';g.Map.rows[sy]=new string(row);
+            Check(!g.CanStand(new Point(source.x,source.y)),
+                "This real source tablet now occupies a blocked footprint");
+            Point from=new Point();
+            bool found=false;
+            Point[] directions={new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1)};
+            foreach(Point d in directions)
+            {
+                Point probe=new Point(source.x+d.x,source.y+d.y);
+                if(!g.CanStand(probe))continue;
+                from=probe;found=true;break;
+            }
+            Check(found,"Tablet still has at least one walkable approach tile");
+            g.save.x=from.x;g.save.y=from.y;
+            var method=typeof(GameCore).GetMethod("CanNavigateToAbyssTestimony",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check(method!=null && (bool)method.Invoke(g,new object[]{source}),
+                "A legitimate adjacent interaction route remains available when the object cell itself is solid");
+            g.Talk(source);
+            Check(g.Has("abyss_annex_survey_1") &&
+                g.AbyssTestimonyProgress==1,
+                "Real object interaction consumes its existing proof from that legal neighboring foot");
+            g.Map.rows=oldRows;
+        }
+
         public static void AbyssFieldTabletRoutePickerChoosesActualReachableRecords(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);

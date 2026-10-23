@@ -360,18 +360,58 @@ namespace Starfall
                 return abyssTestimonyGuideSite;
             }
         }
-        // A seeded cavern can put the geometrically nearest clue behind
-        // an impassable wall. Only choose a target for which the production
-        // collision-aware route actually reaches the interaction area.
-        // The search runs at opt-in/collection time, never during every
-        // IMGUI repaint of a valid cached waypoint.
+        // Check arrival at a PHYSICALLY INTERACTABLE foot, not merely
+        // near the object's center. Some authored tablets stand inside
+        // solid scenery: the player reaches them from adjacent ground, not
+        // by occupying the tablet cell. Likewise, a route that ends across
+        // a solid wall must never be described as reachable.
+        // Synchronous BFS uses the same live Fits and shared search stamps
+        // as gameplay pathfinding. Called only for a new route choice or
+        // a collected waypoint; no BFS runs on ordinary IMGUI repaint.
         private bool CanNavigateToAbyssTestimony(WorldObject site)
         {
-            if (site == null || !CanStand(new Point(site.x, site.y)))
-                return false;
+            if (site == null || !InAbyss || Map.rows == null ||
+                Map.rows.Length == 0 || Map.rows[0] == null ||
+                !Finite(site.x) || !Finite(site.y)) return false;
             Point target = new Point(site.x, site.y);
-            return (Position - target).Length <= 1.2f ||
-                NavigationPath(target).Count > 0;
+            if (HasPhysicalInteractionReach(site)) return true;
+            int height = Map.rows.Length, width = Map.rows[0].Length;
+            int sx = (int)Math.Floor(save.x), sy = (int)Math.Floor(save.y);
+            if (sx < 0 || sy < 0 || sx >= width || sy >= height)
+                return false;
+            PreparePathSearch(width * height);
+            int front = 0, back = 0, origin = sy * width + sx;
+            pathQueue[back++] = origin;
+            VisitPath(origin, -1);
+            while (front < back)
+            {
+                int cell = pathQueue[front++];
+                int x = cell % width, y = cell / width;
+                Point foot = cell == origin ? Position :
+                    new Point(x + .5f, y + .5f);
+                Point delta = target - foot;
+                float range = delta.Length;
+                if (Finite(range) && range < 1.75f)
+                {
+                    Point contact = range > .55f ?
+                        target - delta.Normalized * .55f : foot;
+                    if (ClearAttackPath(foot, contact)) return true;
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    int nx = x + guidanceSteps[i, 0];
+                    int ny = y + guidanceSteps[i, 1];
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= height)
+                        continue;
+                    int next = ny * width + nx;
+                    if (PathVisited(next) ||
+                        !Fits(new Point(nx + .5f, ny + .5f)))
+                        continue;
+                    VisitPath(next, cell);
+                    pathQueue[back++] = next;
+                }
+            }
+            return false;
         }
         private WorldObject ReachableAbyssTestimonySite()
         {
