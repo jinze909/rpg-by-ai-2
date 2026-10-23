@@ -1276,6 +1276,20 @@ namespace Starfall
                     decoded ? mint : gold, TextAnchor.MiddleCenter);
                 return true;
             }
+            if (kind == "abyssRiftWard")
+            {
+                Color glow = Game.AbyssWardActive ? mint : gold;
+                PropImage("column", 0, p.x - 32, p.y - 71, 64, 79,
+                    Game.AbyssWardActive ? Color.white : muted);
+                Ring(new Point(o.x, o.y),
+                    Game.AbyssWardActive ? .95f : .6f, glow, 20);
+                Text(p.x - 67, p.y - 95, 134, 24,
+                    Game.AbyssWardActive ?
+                        Game.L("地脉镇流生效", "RIFT WARD ACTIVE") :
+                        Game.L("镇流碑 · E", "WARD PYLON · E"),
+                    11, glow, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind == "abyssRootwell")
             {
                 bool depleted = Game.Has("abyss_annex_rootwell_" + Game.save.abyssFloor);

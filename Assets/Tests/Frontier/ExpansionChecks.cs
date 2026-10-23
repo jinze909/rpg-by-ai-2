@@ -775,6 +775,108 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssRiftWardRequiresExpeditionLootAndActuallyChangesStorms(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            Check(Array.Find(g.Map.objects, o => o.kind == "abyssRiftWard") == null,
+                "Early abyss floors do not display a useless rift pylon");
+            g.save.abyssFloor = 3;
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            regenerate.Invoke(g, null);
+            WorldObject ward = Array.Find(g.Map.objects, o => o.kind == "abyssRiftWard");
+            Check(ward != null && g.CanStand(new Point(ward.x, ward.y)) &&
+                Reachable(g).Contains((int)ward.y * g.Map.rows[0].Length + (int)ward.x),
+                "The ward is a real reachable side-route object on floor three");
+            g.enemies.Clear(); g.hazards.Clear(); g.effects.Clear();
+            g.save.runShards = 3; g.save.shards = 37;
+            int priorRevision = g.revision;
+            g.Talk(ward);
+            Check(g.mode == "world" && !g.AbyssWardActive,
+                "A distant interaction cannot remotely activate the ward");
+            g.save.x = ward.x; g.save.y = ward.y;
+            g.Talk(ward);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 2,
+                "The pylon offers a paid defensive option and a decline");
+            g.save.x = 5; g.save.y = 14;
+            g.Choose(0);
+            Check(g.save.runShards == 3 && !g.AbyssWardActive,
+                "A stale choice cannot activate the pylon after moving away");
+
+            g.save.x = ward.x; g.save.y = ward.y;
+            g.Talk(ward); g.Choose(0);
+            Check(g.AbyssWardActive && g.save.runShards == 0 &&
+                g.save.shards == 37 && g.revision > priorRevision &&
+                g.Conditions().Contains("镇流生效"),
+                "Tuning spends exactly three unbanked shards and updates the HUD");
+            g.Talk(ward);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 1,
+                "The floor's existing pylon cannot be bought again");
+            g.Close();
+            g.save.health = g.save.maxHealth = 9999; g.save.reducedMotion = true;
+            var seen = new HashSet<Hazard>();
+            for (int n = 0; n < 790; n++)
+            {
+                g.Tick(.05f, new Point());
+                foreach (Hazard h in g.hazards)
+                    if (h.kind == "rift") seen.Add(h);
+            }
+            Check(seen.Count == 3,
+                "Ward slows live floor rift births to ten-second intervals");
+            foreach (Hazard h in seen)
+                Check(Math.Abs(h.damage - 6f) < .01f &&
+                    Math.Abs(h.radius - 1.05f) < .01f,
+                    "Ward reduces real warning damage and collision radius");
+            g.save.flags.Add("abyss_clear_3");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.AbyssWardActive &&
+                restored.save.runShards == 0 &&
+                restored.Conditions().Contains("镇流生效"),
+                "The defensive decision survives SaveData v2 reconstruction");
+
+            var noLoot = Unlocked(data); noLoot.StartAbyss(2);
+            noLoot.save.abyssFloor = 3;
+            regenerate.Invoke(noLoot, null);
+            WorldObject unpaid = Array.Find(noLoot.Map.objects,
+                o => o.kind == "abyssRiftWard");
+            noLoot.save.x = unpaid.x; noLoot.save.y = unpaid.y;
+            noLoot.save.runShards = 0; noLoot.save.shards = 200;
+            noLoot.Talk(unpaid); noLoot.Choose(0);
+            Check(!noLoot.AbyssWardActive && noLoot.save.shards == 200,
+                "Pylon cannot spend already banked shards or activate for free");
+        }
+
+        public static void AbyssWardPylonIsSeededAndTraversableOnAllHazardFloors(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            for (int floor = 3; floor <= 6; floor++)
+            for (int seed = 100; seed < 103; seed++)
+            {
+                g.save.abyssFloor = floor;
+                g.save.abyssSeed = seed;
+                regenerate.Invoke(g, null);
+                WorldObject ward = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssRiftWard");
+                Check(ward != null && g.CanStand(new Point(ward.x, ward.y)) &&
+                    Reachable(g).Contains((int)ward.y * g.Map.rows[0].Length + (int)ward.x),
+                    "Every late-floor seeded pylon has a physically traversable location");
+                var recreated = new GameCore(data, CloneSave(g.save));
+                WorldObject replay = Array.Find(recreated.Map.objects,
+                    o => o.kind == "abyssRiftWard");
+                Check(replay != null && replay.x == ward.x && replay.y == ward.y,
+                    "SaveData v2 recreates exact ward positions on each deep floor");
+            }
+            g.save.abyssSeed = int.MaxValue; g.save.abyssFloor = 6;
+            regenerate.Invoke(g, null);
+            WorldObject maxSeed = Array.Find(g.Map.objects,
+                o => o.kind == "abyssRiftWard");
+            Check(maxSeed != null && g.CanStand(new Point(maxSeed.x, maxSeed.y)),
+                "The maximum legal v2 seed does not overflow the ward site index");
+        }
+
         public static void AbyssRootwellSeededRoutesStayReachableAndSaveStable(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

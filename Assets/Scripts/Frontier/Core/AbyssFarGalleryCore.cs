@@ -86,6 +86,64 @@ namespace Starfall
                     "Starroot restores your energy. This floor's charge is spent.");
         }
 
+        // A strategic answer to floor-three-plus rift storms: pay for
+        // sustained mitigation with loot from this SAME unbanked floor.
+        public bool AbyssWardActive
+        {
+            get { return InAbyss && save.abyssFloor >= 3 &&
+                Has("abyss_annex_ward_" + save.abyssFloor); }
+        }
+
+        private WorldObject AbyssWardObject()
+        {
+            if (!InAbyss || save.abyssFloor < 3 || Map.objects == null) return null;
+            return Array.Find(Map.objects, o => o.kind == "abyssRiftWard");
+        }
+
+        private void TalkAbyssWard(WorldObject o)
+        {
+            if (!InAbyss || save.abyssFloor < 3 || Dying || practicing ||
+                !EnsurePhysicalInteractionReach(o)) return;
+            if (AbyssWardActive)
+            {
+                Dialog(o.name, o.en,
+                    "镇流碑已经与本层地脉共振。新的落印间隔延长至10秒，预警更明显，落印范围与伤害也减轻。",
+                    "The ward is tuned for this floor: new rifts arrive every 10 seconds with longer warnings, smaller circles and reduced damage.",
+                    C("继续探索", "Keep exploring", "close"));
+                return;
+            }
+            Dialog(o.name, o.en,
+                "地下巡路人曾用镇流碑保护救援路线。你可以消耗本层待结算碎片3枚，让本层落印从每6秒一次放缓到10秒一次，并减小其伤害与范围。只有这一层有效；原本已存入背包的碎片不会消耗。\\n\\n当前本层碎片：" +
+                    save.runShards + "。",
+                "Roadwardens used this pylon to protect evacuation routes. Trade 3 UNBANKED shards to slow this floor's rift pulses from 6 to 10 seconds, shrink their radius and reduce damage. Resets next floor; banked shards are untouched.\\n\\nCurrent unbanked shards: " +
+                    save.runShards + ".",
+                C("镇流 · 待结算碎片3", "Tune ward · 3 unbanked shards", "abyssWardTune"),
+                C("保留战利品", "Keep the loot", "close"));
+        }
+
+        private void TuneAbyssWard()
+        {
+            if (!InAbyss || save.abyssFloor < 3 || Dying || practicing ||
+                AbyssWardActive || Has("abyss_clear_" + save.abyssFloor)) return;
+            WorldObject ward = AbyssWardObject();
+            if (ward == null || !EnsurePhysicalInteractionReach(ward)) return;
+            if (save.runShards < 3)
+            {
+                Notify("本层未结算碎片不足3枚。可先击败敌人或搜寻支洞补给。",
+                    "You need 3 unbanked shards. Defeat enemies or search the side galleries.");
+                return;
+            }
+            save.runShards -= 3;
+            Flag("abyss_annex_ward_" + save.abyssFloor);
+            // Do not advance a pending telegraph or invent an extra hit.
+            // Newly scheduled floor hazards use the slower ten-second clock.
+            stormTimer = Math.Max(stormTimer, 10f);
+            revision++;
+            sound = "reward";
+            Notify("镇流碑已稳定：本层落印每10秒一次，范围和伤害降低。",
+                "Ward tuned: this floor's rifts arrive every 10 seconds with smaller, weaker strikes.");
+        }
+
         // Extra seeded galleries are optional. All loot is pending until the
         // original root gate banks the floor; exiting or dying loses it.
         private void TalkAbyssFarGallery(WorldObject o)

@@ -236,7 +236,7 @@ namespace Starfall
             companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
             companionPresentationGeneration++;
             companionPosition = CompanionFollowTarget(); companionAttack = 2; companionCooldown = 0;
-            climateTimer = 1; stormTimer = 6;
+            climateTimer = 1; stormTimer = AbyssWardActive ? 10f : 6f;
             heatDangerWarned = coldDangerWarned = false;
             ClearFrost(); ResetFieldStationSurvey();
             combo = 0; comboTimer = riposteTime = 0; perfectDodgeArmed = false; dashOrigin = new Point(); dodgeEscapeTime = 0; previousLowTide = LowTide;
@@ -1668,14 +1668,16 @@ namespace Starfall
                 stormTimer -= dt;
                 while (stormTimer <= .000001f)
                 {
-                    stormTimer += 6f;
+                    stormTimer += AbyssWardActive ? 10f : 6f;
                     // This rift is born during TickExpansion, before
                     // TickExpansion's hazard loop consumes this whole dt.
                     // Compensate for that immediate same-frame decrement
                     // so the player sees the full 1.4-second warning before
                     // the real contact becomes active.
-                    AddHazard(Position, 1.4f, 1.4f + dt,
-                        10 + save.abyssRisk * 4, "rift");
+                    AddHazard(Position, AbyssWardActive ? 1.05f : 1.4f,
+                        (AbyssWardActive ? 1.9f : 1.4f) + dt,
+                        (10 + save.abyssRisk * 4) * (AbyssWardActive ? .6f : 1f),
+                        "rift");
                 }
             }
             tickingHazards.Clear();tickingHazards.AddRange(hazards);
@@ -1790,7 +1792,9 @@ namespace Starfall
                     (int)Math.Ceiling(StormTuneTime) + "s · " +
                     StormTuneStep + "/3  ·  " +
                     L("剩余公共储备 ", "RESERVE LEFT ") + StormBudgetLeft;
-            if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " + L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards;
+            if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " +
+                L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards +
+                (AbyssWardActive ? L(" · 镇流生效", " · RIFT WARD ACTIVE") : "");
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
@@ -2031,6 +2035,8 @@ namespace Starfall
             { TalkAbyssFarGallery(o); return true; }
             if (kind == "abyssRootwell")
             { TalkAbyssRootwell(o); return true; }
+            if (kind == "abyssRiftWard")
+            { TalkAbyssWard(o); return true; }
             if (kind == "abyssCache" || kind == "abyssSurvey")
             { TalkAbyssAnnex(o); return true; }
             if (kind == "abyssEntry")
@@ -2298,6 +2304,7 @@ namespace Starfall
             if (action.StartsWith("join")) { SelectCompanion(int.Parse(action.Substring(4))); return true; }
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
+            if (action == "abyssWardTune") { TuneAbyssWard(); return true; }
             if (action == "abyssRootwellHeal") { UseAbyssRootwell(true); return true; }
             if (action == "abyssRootwellEnergy") { UseAbyssRootwell(false); return true; }
             if (action.StartsWith("abyssStart")) { StartAbyss(int.Parse(action.Substring(10))); return true; }
@@ -2402,6 +2409,10 @@ namespace Starfall
                      (save.energy <= 25 && save.runShards >= 1)))
                     goal += L(" · 探索支洞复苏泉可兑换恢复",
                         " · Seek the side-gallery rootwell for recovery");
+                if (save.abyssFloor >= 3 && enemies.Count > 0 &&
+                    !AbyssWardActive && save.runShards >= 3)
+                    goal += L(" · 分支镇流碑可减轻落印",
+                        " · Side-gallery pylon can tame the rifts");
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)
@@ -2524,6 +2535,26 @@ namespace Starfall
                     new Decoration { kind = "crystal", x = 63, y = 20 },
                     new Decoration { kind = "root", x = 61, y = 26 },
                     new Decoration { kind = "ruin", x = 63, y = 34 } } };
+            // The original seeded map, encounter RNG and reward gate stay
+            // unchanged. The optional ward appears only on hazardous floors;
+            // its site is chosen independently of the enemy RNG stream.
+            if (save.abyssFloor >= 3)
+            {
+                Point[] wardSites = {
+                    new Point(18.5f, 33.5f),
+                    new Point(40.5f, 23.5f),
+                    new Point(60.5f, 17.5f)
+                };
+                Point wardSite = wardSites[(int)(((long)save.abyssSeed +
+                    save.abyssFloor * 11L) % wardSites.Length)];
+                var objects = new List<WorldObject>(abyssMap.objects);
+                objects.Add(new WorldObject {
+                    id = "abyssRiftWard", kind = "abyssRiftWard",
+                    name = "地脉镇流碑", en = "Root Rift Ward Pylon",
+                    x = wardSite.x, y = wardSite.y
+                });
+                abyssMap.objects = objects.ToArray();
+            }
         }
         private void TalkAbyssAnnex(WorldObject o)
         {
