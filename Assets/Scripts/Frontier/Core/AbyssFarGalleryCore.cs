@@ -356,9 +356,41 @@ namespace Starfall
                 if (abyssTestimonyGuideSite == null ||
                     AbyssTestimonyRecordState(abyssTestimonyGuideSite) != 1 ||
                     Array.IndexOf(Map.objects, abyssTestimonyGuideSite) < 0)
-                    abyssTestimonyGuideSite = AbyssTestimonyNextSite;
+                    abyssTestimonyGuideSite = ReachableAbyssTestimonySite();
                 return abyssTestimonyGuideSite;
             }
+        }
+        // A seeded cavern can put the geometrically nearest clue behind
+        // an impassable wall. Only choose a target for which the production
+        // collision-aware route actually reaches the interaction area.
+        // The search runs at opt-in/collection time, never during every
+        // IMGUI repaint of a valid cached waypoint.
+        private bool CanNavigateToAbyssTestimony(WorldObject site)
+        {
+            if (site == null || !CanStand(new Point(site.x, site.y)))
+                return false;
+            Point target = new Point(site.x, site.y);
+            return (Position - target).Length <= 1.2f ||
+                NavigationPath(target).Count > 0;
+        }
+        private WorldObject ReachableAbyssTestimonySite()
+        {
+            WorldObject nearest = AbyssTestimonyNextSite;
+            if (nearest == null || CanNavigateToAbyssTestimony(nearest))
+                return nearest;
+            WorldObject best = null;
+            float bestDistance = float.MaxValue;
+            foreach (WorldObject site in Map.objects)
+            {
+                if (AbyssTestimonyRecordState(site) != 1) continue;
+                float dx = site.x - save.x, dy = site.y - save.y;
+                float distance2 = dx * dx + dy * dy;
+                if (distance2 >= bestDistance ||
+                    !CanNavigateToAbyssTestimony(site)) continue;
+                best = site;
+                bestDistance = distance2;
+            }
+            return best;
         }
         private Point? AbyssTestimonyGuideTarget()
         {
@@ -375,8 +407,14 @@ namespace Starfall
                     "Return to the safe east gate to select testimony guidance.");
                 return;
             }
-            WorldObject next = AbyssTestimonyNextSite;
+            WorldObject next = ReachableAbyssTestimonySite();
             if (next == null)
+            {
+                Notify("没有当前可到达的巡路证词；可清除阻碍后重试。",
+                    "No reachable testimony right now. Clear the blockage and retry.");
+                return;
+            }
+            if (AbyssTestimonyNextSite == null)
             {
                 Notify("本层可回收的证词已全部归档。",
                     "No recoverable testimony remains on this floor.");
@@ -413,8 +451,14 @@ namespace Starfall
                     "Approach a recovered warden record to follow its trail.");
                 return;
             }
-            WorldObject next = AbyssTestimonyNextSite;
+            WorldObject next = ReachableAbyssTestimonySite();
             if (next == null)
+            {
+                Notify("当前没有可安全到达的下一份证词，请先检查洞穴道路。",
+                    "No reachable next account; check the cavern passages.");
+                return;
+            }
+            if (AbyssTestimonyNextSite == null)
             {
                 Notify("本层证词已齐，请到东门手动结算。",
                     "All accounts are filed. Bank manually at the east gate.");

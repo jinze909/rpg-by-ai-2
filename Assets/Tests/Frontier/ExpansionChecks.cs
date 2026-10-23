@@ -1297,6 +1297,54 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssGuidedTestimonySkipsBlockedCaveAndKeepsSaveRewards(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            var gate = Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;
+            WorldObject first=g.AbyssTestimonyNextSite;
+            Check(first!=null && (g.Position - new Point(first.x,first.y)).Length>3f,
+                "Test isolates a genuinely distant seeded-cavern testimony");
+            var map=g.Map;
+            string[] original=(string[])map.rows.Clone();
+            int fx=(int)Math.Floor(first.x),fy=(int)Math.Floor(first.y);
+            for(int dy=-1;dy<=1;dy++)
+            for(int dx=-1;dx<=1;dx++)
+            {
+                if(dx==0&&dy==0)continue;
+                int x=fx+dx,y=fy+dy;
+                if(x<2||y<2||x>=map.rows[0].Length-2||
+                    y>=map.rows.Length-2)continue;
+                char[] row=map.rows[y].ToCharArray();
+                row[x]='#';map.rows[y]=new string(row);
+            }
+            Check(g.NavigationPath(new Point(first.x,first.y)).Count==0,
+                "A genuine wall ring prevents any traversable approach to nearest account");
+            int permanent=g.save.shards,pending=g.save.runShards;
+            g.Talk(gate);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack");
+            Check(action>=0,"Real gate still offers its usual survey action");
+            g.Choose(action);
+            WorldObject guided=g.AbyssTestimonyGuidedSite;
+            Check(guided!=null && !System.Object.ReferenceEquals(guided,first) &&
+                g.AbyssTestimonyRecordState(guided)==1 &&
+                g.NavigationPath(new Point(guided.x,guided.y)).Count>0 &&
+                g.save.shards==permanent && g.save.runShards==pending,
+                "Gate switches from blocked nearest to a physically reachable record without rewards");
+
+            // Reverting the terrain doesn't rewrite the active route.
+            // Keeping this choice stable stops mid-stride oscillation.
+            map.rows=original;
+            Check(System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,guided),
+                "A valid chosen site stays stable even after a passage changes");
+            g.save.x=guided.x;g.save.y=guided.y;g.Talk(guided);g.Close();
+            Check(!System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,guided),
+                "A recovered clue still advances to a fresh, valid next-site waypoint");
+        }
+
         public static void AbyssFieldRecordsCanDirectlyContinueActualTestimonyTrail(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
