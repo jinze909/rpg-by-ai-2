@@ -3351,6 +3351,99 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void ActualCivilianClimateSheltersCannotPassThroughWalls(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        for(int region=5;region<=7;region++)
+        {
+            g.save.room=region;
+            MapData map=g.Map;
+            string[] originalRows=map.rows;
+            WorldObject[] originalObjects=map.objects;
+            Decoration[] originalDecor=map.decor;
+            try
+            {
+                Check(Array.Exists(originalObjects,
+                    o=>o.kind=="fieldstation"+region),
+                    "Shipped rescue map contains its authored weather station");
+                int bx=4,by=6;
+                string[] rows=(string[])originalRows.Clone();
+                for(int y=by-2;y<=by+2;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    for(int x=bx;x<=bx+7;x++)line[x]='.';
+                    rows[y]=new string(line);
+                }
+                map.rows=rows;map.decor=new Decoration[0];
+                WorldObject station=new WorldObject {
+                    id="escort_station_"+region,kind="fieldstation"+region,
+                    x=bx+3,y=by+.5f,name="Shelter",en="Shelter"};
+                WorldObject natural=new WorldObject {
+                    id="escort_natural_"+region,
+                    kind=region==7?"brazier":"shade",
+                    x=bx+3,y=by+.5f,name="Field refuge",en="Field refuge"};
+                map.objects=region==5?new[]{station}:new[]{station,natural};
+                g.reliefMissionRoom=region;g.reliefMissionWave=3;
+                g.reliefFollowerPosition=new Point(bx+.5f,by+.5f);
+                // Rescue shelter belongs to the civilian, not hero.
+                g.save.x=bx+9.5f;g.save.y=by+.5f;
+                g.save.totalTime=25f;g.save.tideHeldUntil=0f;
+                g.save.flags.Add("farshore_relief_"+region);
+                g.save.flags.Add("fieldstation_"+region);
+                if(region==7)g.save.flags.Add("warm_"+natural.id);
+                Check(g.ReliefEscortSheltered,
+                    "Real resident feet on unobstructed ground receive physical climate protection");
+                // Seal the direct lane while preserving both feet and the
+                // station at their original still-close coordinates.
+                char[] rock=rows[by].ToCharArray();
+                rock[bx+1]='#';rows[by]=new string(rock);
+                Check(!g.ReliefEscortSheltered,
+                    "Neither upgraded station nor natural fire/shade can shield a civilian through stone");
+                if(region==5)
+                {
+                    g.save.totalTime=5f;
+                    Check(g.ReliefEscortSheltered,
+                        "Mistport low tide itself remains an authentic environmental shelter");
+                    g.save.totalTime=25f;
+                }
+                rock[bx+1]='.';rows[by]=new string(rock);
+                Check(g.ReliefEscortSheltered,
+                    "Opening the original crossing immediately restores civilian refuge");
+                g.save.flags.Remove("fieldstation_"+region);
+                if(region==5)
+                    Check(!g.ReliefEscortSheltered,
+                        "An unpowered port station cannot protect through an imaginary network");
+                else
+                    Check(g.ReliefEscortSheltered,
+                        "Natural tree shade and actually lit fire remain meaningful without station power");
+                if(region==7)
+                {
+                    g.save.flags.Remove("warm_"+natural.id);
+                    Check(!g.ReliefEscortSheltered,
+                        "Extinguished alpine fire cannot protect a stranded resident");
+                }
+                else if(region==6)
+                {
+                    map.objects=new[]{station};
+                    Check(!g.ReliefEscortSheltered,
+                        "An unpowered desert fieldstation alone is not an oasis");
+                }
+                g.reliefMissionWave=0;
+                Check(!g.ReliefEscortSheltered,
+                    "Survivor refuge ends outside the live return-escort stage");
+            }
+            finally
+            {
+                map.rows=originalRows;map.objects=originalObjects;
+                map.decor=originalDecor;
+            }
+        }
+        Console.WriteLine("PASS Real civilian escort shelters respect survivor feet, living facilities, walls and tides");
+    }
+
     private static void RepairedClimateStationProtectsOnlyItsPhysicalSide(FrontierRuntime app)
     {
         Prepare(app);
@@ -4212,7 +4305,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

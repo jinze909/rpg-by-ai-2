@@ -321,24 +321,48 @@ namespace Starfall
         // Environmental protection follows the survivor's real feet, never
         // the hero's coordinates. Repaired field shelters and the original
         // oasis shade / lit highland braziers are meaningful rescue landmarks.
+        // Survivor climate protection must originate at the CIVILIAN feet.
+        // Reusing the hero's NearKind/PhysicalRefugeReach would make shelter
+        // follow the wrong person; radius alone grants fake warmth/cooling
+        // through sealed rock. The original near-side margin lets residents
+        // take cover behind a wall-mounted field station from its open side.
+        private bool ReliefSurvivorCanReach(Point site,float range)
+        {
+            Point diff=site-reliefFollowerPosition;
+            float distance=diff.Length;
+            if(!Finite(distance)||distance>=range)return false;
+            Point contact=distance>.55f?
+                site-diff.Normalized*.55f:reliefFollowerPosition;
+            return ClearAttackPath(reliefFollowerPosition,contact);
+        }
         private bool ReliefSurvivorSheltered(int region)
         {
-            if (region == 5)
-                return LowTide ||
-                    (reliefFollowerPosition -
-                        ObjectPoint(5, "fieldstation5", new Point(-100, -100))).Length < 4.2f;
-            foreach (WorldObject o in Map.objects)
+            if(reliefMissionRoom!=region || save.room!=region ||
+                reliefMissionWave!=3 || Map.objects==null)return false;
+            // Tide is a real regional environmental refuge even before the
+            // civil station is restored. A dormant station grants nothing.
+            if(region==5 && LowTide)return true;
+            foreach(WorldObject o in Map.objects)
             {
-                Point p = new Point(o.x, o.y);
-                float distance = (p - reliefFollowerPosition).Length;
-                if (o.kind == "fieldstation" + region &&
-                    Has("farshore_relief_" + region) &&
-                    distance < FieldStationRefugeRadius(region)) return true;
-                if (region == 6 && o.kind == "shade" && distance < 3) return true;
-                if (region == 7 && o.kind == "brazier" &&
-                    Has("warm_" + o.id) && distance < 3.5f) return true;
+                if(o==null)continue;
+                Point p=new Point(o.x,o.y);
+                if(o.kind=="fieldstation"+region &&
+                    Has("fieldstation_"+region) &&
+                    Has("farshore_relief_"+region) &&
+                    ReliefSurvivorCanReach(p,region==5?4.2f:
+                        FieldStationRefugeRadius(region)))return true;
+                if(region==6&&o.kind=="shade"&&
+                    ReliefSurvivorCanReach(p,3f))return true;
+                if(region==7&&o.kind=="brazier"&&
+                    Has("warm_"+o.id)&&
+                    ReliefSurvivorCanReach(p,3.5f))return true;
             }
             return false;
+        }
+        public bool ReliefEscortSheltered
+        {
+            get { return ReliefEscortActive && save.room==reliefMissionRoom &&
+                ReliefSurvivorSheltered(reliefMissionRoom); }
         }
         // A tactical rally is an actual field command, not an inventory click
         // or free mission reset. It protects civilians for a short period, once
