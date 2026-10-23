@@ -2103,7 +2103,7 @@ namespace Starfall
             if(CivicResponseActive) return GetQuest("civic_services").target;
             if(CivicConduitActive) return GetQuest("civic_conduit").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
-            if (InAbyss) return new Point(31, 14);
+            if (InAbyss) return AbyssCircuitGuideTarget() ?? new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
             if (q.room == save.room) return q.target;
             foreach (var o in Map.objects) if (o.kind == "portal" + q.room) return new Point(o.x, o.y);

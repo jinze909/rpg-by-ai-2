@@ -1639,6 +1639,63 @@ namespace Starfall.Tests
                 "Purchasing the actual deep rift ward removes its site from the live route tally");
         }
 
+
+        public static void StarrootSelectedRouteGuidesRealUnvisitedSites(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            var gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            Point exit = new Point(31, 14);
+            g.save.x = gate.x; g.save.y = gate.y;
+            Check((g.NavigationTarget().Value - exit).Length < .001f,
+                "Before route selection the original gate remains the waypoint");
+            int branch = -1;
+            for (int i = 0; i < 3; i++)
+                if (g.AbyssCircuitUnvisitedSites(i) >= 2) { branch = i; break; }
+            Check(branch >= 0, "One floor-one branch has at least two real optional sites");
+            int remaining = g.AbyssCircuitUnvisitedSites(branch);
+            g.Talk(gate);
+            g.Choose(g.conversation.choices.Length - 2);
+            g.Choose(branch);
+            Point first = g.NavigationTarget().Value;
+            WorldObject site = Array.Find(g.Map.objects,
+                o => (new Point(o.x, o.y) - first).Length < .001f);
+            Check(site != null && (first - exit).Length > 1f &&
+                g.AbyssCircuitUnvisitedSites(branch) == remaining,
+                "Actual route travel points to a real gallery site without granting any loot");
+            string suffix = site.kind == "abyssSurvey" ? "survey" :
+                site.kind == "abyssCache" ? "cache" :
+                site.kind == "abyssFarSurvey" ? "far_survey" :
+                site.kind == "abyssFarCache" ? "far_cache" :
+                site.kind == "abyssFarEcho" ? "far_echo" :
+                site.kind == "abyssRootwell" ? "rootwell" :
+                site.kind == "abyssRiftWard" ? "ward" : null;
+            Check(suffix != null, "The target has a genuine existing optional-site flag");
+            g.save.flags.Add("abyss_annex_" + suffix + "_1");
+            Check(g.AbyssCircuitUnvisitedSites(branch) == remaining - 1 &&
+                (g.NavigationTarget().Value - first).Length > .001f,
+                "Claiming the site's existing v2 flag reroutes the waypoint immediately");
+            string[] keys = { "survey", "cache", "far_survey", "far_cache",
+                "far_echo", "rootwell", "ward" };
+            foreach (string key in keys)
+                g.save.flags.Add("abyss_annex_" + key + "_1");
+            Check(g.AbyssCircuitUnvisitedSites(branch) == 0 &&
+                (g.NavigationTarget().Value - exit).Length < .001f,
+                "A cleared branch falls back to the original gate, not an invented marker");
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit" + branch);
+            g.Talk(relay); g.Choose(0);
+            Check((g.NavigationTarget().Value - exit).Length < .001f,
+                "Travel back through the actual route clears the local gallery target");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss &&
+                (restored.NavigationTarget().Value - exit).Length < .001f,
+                "Existing v2 flags survive reload; transient guide intent does not persist");
+        }
+
         public static void AbyssCircuitTravelNeverRelocatesUnreleasedCombatActions(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

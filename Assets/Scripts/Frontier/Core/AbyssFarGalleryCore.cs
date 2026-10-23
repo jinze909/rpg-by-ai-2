@@ -331,35 +331,68 @@ namespace Starfall
             }
             return prefix == null ? null : prefix + save.abyssFloor;
         }
+        // Waypoint intent belongs to this visit, not to the saved campaign.
+        private int abyssCircuitGuideBranch = -1, abyssCircuitGuideFloor = -1;
+        private MapData abyssCircuitGuideMap;
+        private WorldObject[] AbyssCircuitRelays()
+        {
+            var relays = new WorldObject[3];
+            for (int i = 0; i < 3; i++)
+                relays[i] = Array.Find(Map.objects, o => o.kind == "abyssCircuit" + i);
+            return relays;
+        }
+        private static int AbyssCircuitNearestRelay(WorldObject site, WorldObject[] relays)
+        {
+            int nearest = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < relays.Length; i++)
+            {
+                if (relays[i] == null) continue;
+                float dx = site.x - relays[i].x, dy = site.y - relays[i].y;
+                float distance = dx * dx + dy * dy;
+                if (distance < best) { nearest = i; best = distance; }
+            }
+            return nearest;
+        }
+        private Point? AbyssCircuitGuideTarget()
+        {
+            if (!InAbyss || !AbyssCircuitComplete ||
+                abyssCircuitGuideBranch < 0 || abyssCircuitGuideBranch > 2 ||
+                abyssCircuitGuideFloor != save.abyssFloor ||
+                !Object.ReferenceEquals(abyssCircuitGuideMap, Map) ||
+                Map.objects == null) return null;
+            WorldObject[] relays = AbyssCircuitRelays();
+            WorldObject origin = relays[abyssCircuitGuideBranch];
+            if (origin == null) return null;
+            WorldObject next = null;
+            float best = float.MaxValue;
+            foreach (WorldObject site in Map.objects)
+            {
+                string flag = AbyssCircuitOptionalFlag(site);
+                if (flag == null || Has(flag) ||
+                    AbyssCircuitNearestRelay(site, relays) != abyssCircuitGuideBranch)
+                    continue;
+                // Stable ordering from the relay prevents mid-walk jitter
+                // between two equally near optional sites.
+                float dx = site.x - origin.x, dy = site.y - origin.y;
+                float distance = dx * dx + dy * dy;
+                if (distance < best) { best = distance; next = site; }
+            }
+            return next == null ? (Point?)null : new Point(next.x, next.y);
+        }
         public int AbyssCircuitUnvisitedSites(int branch)
         {
             if (!InAbyss || branch < 0 || branch > 2 ||
                 Map.objects == null) return 0;
-            WorldObject[] relays = new WorldObject[3];
-            for (int i = 0; i < 3; i++)
-                relays[i] = Array.Find(Map.objects,
-                    o => o.kind == "abyssCircuit" + i);
+            WorldObject[] relays = AbyssCircuitRelays();
             if (relays[branch] == null) return 0;
             int remaining = 0;
             foreach (WorldObject site in Map.objects)
             {
                 string flag = AbyssCircuitOptionalFlag(site);
                 if (flag == null || Has(flag)) continue;
-                int nearest = -1;
-                float best = float.MaxValue;
-                for (int i = 0; i < 3; i++)
-                {
-                    if (relays[i] == null) continue;
-                    float dx = site.x - relays[i].x;
-                    float dy = site.y - relays[i].y;
-                    float d2 = dx * dx + dy * dy;
-                    if (d2 < best)
-                    {
-                        nearest = i;
-                        best = d2;
-                    }
-                }
-                if (nearest == branch) remaining++;
+                if (AbyssCircuitNearestRelay(site, relays) == branch)
+                    remaining++;
             }
             return remaining;
         }
@@ -432,6 +465,11 @@ namespace Starfall
             }
             Point previousHero = Position;
             save.x = arrival.x; save.y = arrival.y;
+            // Choosing a gallery also opts in to its unfinished real sites.
+            // A trip to the east gate restores the original exit guidance.
+            abyssCircuitGuideBranch = destination;
+            abyssCircuitGuideFloor = save.abyssFloor;
+            abyssCircuitGuideMap = Map;
             RejoinCompanionAfterAbyssCircuitTravel(previousHero);
             revision++;
             sound = "travel";

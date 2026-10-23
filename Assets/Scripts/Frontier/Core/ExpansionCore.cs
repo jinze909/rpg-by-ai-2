@@ -229,6 +229,9 @@ namespace Starfall
         }
         private void ResetExpansionTransient()
         {
+            abyssCircuitGuideBranch = -1;
+            abyssCircuitGuideFloor = -1;
+            abyssCircuitGuideMap = null;
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
             ClearCompanionHold();
