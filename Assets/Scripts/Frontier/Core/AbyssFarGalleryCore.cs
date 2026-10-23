@@ -354,6 +354,13 @@ namespace Starfall
             }
             return nearest;
         }
+        // Read-only, live presentation state: hidden after a gallery is
+        // exhausted and never serialized into an existing save slot.
+        public int AbyssCircuitGuidedBranch
+        {
+            get { return AbyssCircuitGuideTarget().HasValue ?
+                abyssCircuitGuideBranch : -1; }
+        }
         private Point? AbyssCircuitGuideTarget()
         {
             if (!InAbyss || !AbyssCircuitComplete ||

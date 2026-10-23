@@ -1660,6 +1660,8 @@ namespace Starfall.Tests
             g.Choose(g.conversation.choices.Length - 2);
             g.Choose(branch);
             Point first = g.NavigationTarget().Value;
+            Check(g.AbyssCircuitGuidedBranch == branch,
+                "The selected physical relay exposes its live branch ID to the world renderer");
             WorldObject site = Array.Find(g.Map.objects,
                 o => (new Point(o.x, o.y) - first).Length < .001f);
             Check(site != null && (first - exit).Length > 1f &&
@@ -1682,6 +1684,7 @@ namespace Starfall.Tests
             foreach (string key in keys)
                 g.save.flags.Add("abyss_annex_" + key + "_1");
             Check(g.AbyssCircuitUnvisitedSites(branch) == 0 &&
+                g.AbyssCircuitGuidedBranch == -1 &&
                 (g.NavigationTarget().Value - exit).Length < .001f,
                 "A cleared branch falls back to the original gate, not an invented marker");
             WorldObject relay = Array.Find(g.Map.objects,
