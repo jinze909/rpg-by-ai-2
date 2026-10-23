@@ -1239,6 +1239,66 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void AbyssCircuitTravelNeverRelocatesUnreleasedCombatActions(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit2");
+            var gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.save.energy=100;g.mode="world";
+            g.Attack(new Point(1,0));
+            Check(g.playerAction != null && !g.playerAction.released,
+                "A true player attack has an unreleased live contact");
+            g.Talk(relay);
+            Check(g.mode == "world" && g.save.x == relay.x,
+                "Active player attack cannot open a free relocation menu");
+            g.playerAction=null;
+            g.companionAction=new ActorAction {
+                kind="command",weapon=0,contact=.2f,duration=.4f
+            };
+            g.Talk(relay);
+            Check(g.mode == "world" && g.save.x == relay.x,
+                "An unreleased companion command cannot travel across the map");
+            g.companionAction=null;
+            g.Talk(relay);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 5,
+                "Finishing all combat contacts unlocks the legitimate completed-circuit routes");
+            // An action may become pending AFTER the route menu was opened;
+            // the choice must revalidate current release state.
+            g.playerAction=new ActorAction {
+                kind="attack",weapon=0,contact=.2f,duration=.4f
+            };
+            g.Choose(0);
+            Check(Math.Abs(g.save.x-relay.x)<.01f &&
+                Math.Abs(g.save.y-relay.y)<.01f &&
+                g.mode=="world",
+                "Choice-time gate check prevents an old menu from moving live windup attacks");
+            g.playerAction=null;
+            g.Talk(relay);g.Choose(0);
+            Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                Math.Abs(g.save.y-14.5f)<.01f,
+                "Once attacks end, the exact same legal route becomes usable");
+            g.playerAction=new ActorAction {
+                kind="attack",weapon=0,contact=.2f,duration=.4f
+            };
+            g.Talk(gate);
+            Check(g.mode=="dialog" &&
+                !Array.Exists(g.conversation.choices,
+                    c=>c.action=="abyssCircuitRoutes"),
+                "The east gate does not advertise a circuit transfer during live combat animation");
+            g.Close();
+            g.playerAction=null;
+            g.Talk(gate);
+            Check(g.mode=="dialog" &&
+                Array.Exists(g.conversation.choices,
+                    c=>c.action=="abyssCircuitRoutes"),
+                "The protected final banking gate resumes normal network travel after recovery");
+        }
+
         public static void CompletedAbyssCircuitAllowsSafeGateToGalleryRoundTrip(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

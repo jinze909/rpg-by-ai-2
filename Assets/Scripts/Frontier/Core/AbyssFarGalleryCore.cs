@@ -295,8 +295,15 @@ namespace Starfall
 
         private bool AbyssCircuitRouteSafe()
         {
+            // A real windup or buffered command belongs to its ORIGINAL
+            // world location. Do not carry a pending sword/staff release,
+            // companion arrow or dodge across thirty tiles and complete it
+            // from a false new origin after the route transfer.
             return InAbyss && AbyssCircuitComplete && !Dying && !practicing &&
                 Has("abyss_clear_" + save.abyssFloor) &&
+                playerAction == null && companionAction == null &&
+                !SkillQueued && !AttackQueued && !DodgeQueued &&
+                !ActionTransitionBlocked &&
                 enemies.Count == 0 && hazards.Count == 0 &&
                 projectiles.Count == 0 && SafeTravel;
         }
@@ -340,8 +347,8 @@ namespace Starfall
             if (!AbyssCircuitRouteSafe() ||
                 (!NearLiveAbyssCircuit() && !NearLiveAbyssGate()))
             {
-                Notify("光路不可用：请靠近已接通信标，并清除敌人、落印和飞行中的攻击。",
-                    "Route unavailable. Reach a linked relay and clear enemies, warnings and flying attacks.");
+                Notify("光路不可用：请靠近信标，结束当前攻击或指令，并清除敌人和落印。",
+                    "Route unavailable. Reach a relay, finish queued attacks or commands, and clear threats.");
                 return;
             }
             if (destination < -1 || destination > 2) return;
@@ -396,8 +403,8 @@ namespace Starfall
                             C("保持回路", "Leave the circuit", "close"));
                         return;
                     }
-                    Notify("回路已接通，但本层敌人或落印仍未平息。清除危险后，信标可送你返回东门。",
-                        "Circuit complete, but hostiles or rift contacts remain. Clear this floor before traveling from a relay.");
+                    Notify("回路已接通。须先清除敌人、落印，并完成正在施放的攻击或同伴指令。",
+                        "Circuit linked. Clear enemies and rifts, and finish active attacks or ally commands before traveling.");
                     return;
                 }
                 Dialog(o.name, o.en,
