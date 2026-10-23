@@ -477,17 +477,25 @@ namespace Starfall
             }
             if(Game.FrostSignalActive)
             {
-                Point screen=ScreenPoint(Game.Position);
-                Color tint=Game.FrostSignalFlame<25?PixelArt.C("#ef826b"):
+                // Before delivery the flame travels on the hero. Once a
+                // real hearth accepts it, the published objective and visual
+                // must remain at the STATION, not follow an empty-handed hero.
+                Point emberFoot=Game.FrostSignalAtHearth?
+                    Game.GetQuest("frost_signal").target:Game.Position;
+                Point screen=ScreenPoint(emberFoot);
+                Color tint=Game.FrostSignalAtHearth?mint:
+                    Game.FrostSignalFlame<25?PixelArt.C("#ef826b"):
                     Game.FrostSignalFlame<50?gold:mint;
-                Ring(Game.Position,.58f,tint,22);
+                Ring(emberFoot,.58f,tint,22);
                 Box(screen.x-10,screen.y-73,20,17,PixelArt.C("#895938"));
                 Box(screen.x-4,screen.y-87,8,15,PixelArt.C("#f2b568"));
                 Bar(screen.x-31,screen.y-94,62,
                     Game.FrostSignalFlame/100f,tint,6);
                 Text(screen.x-78,screen.y-125,156,20,
-                    Game.L("民用余火 ","CIVIC EMBER ")+
-                    Game.FrostSignalTime.ToString("0")+"s",
+                    Game.FrostSignalAtHearth?
+                        Game.L("暖站已接火","HEARTH SECURED"):
+                        Game.L("民用余火 ","CIVIC EMBER ")+
+                            Game.FrostSignalTime.ToString("0")+"s",
                     12,tint,TextAnchor.MiddleCenter);
             }
             if(Game.MineConvoyActive)

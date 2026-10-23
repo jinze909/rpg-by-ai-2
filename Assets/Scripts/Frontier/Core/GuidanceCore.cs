@@ -273,8 +273,11 @@ namespace Starfall
                     FrostSignalActive||q.complete));
                 q.steps.Add(new QuestStep(L("守卫实战与补给抉择","Overcome the middle guards and select supplies"),
                     q.complete||FrostSignalStage>=3));
-                q.steps.Add(new QuestStep(L("送达南方并选择公共用途","Deliver south and choose a civic purpose"),
-                    q.complete));
+                q.steps.Add(new QuestStep(L("将余火安全送达南侧公共暖站",
+                    "Deliver the living ember to the southern public hearth"),
+                    q.complete||FrostSignalAtHearth));
+                q.steps.Add(new QuestStep(L("在暖站决定疗养或巡路服务",
+                    "Commission a clinic or road beacon in person"),q.complete));
                 // Stage 1 means ember in hand: the NEXT objective is the
                 // guard junction. Sending the active HUD marker back to the
                 // western pickup post makes the 100-second timed delivery
@@ -286,6 +289,8 @@ namespace Starfall
                     if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
                 q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):
                     q.complete?L("民用火堆已重燃","Public hearth restored"):
+                    FrostSignalAtHearth?L("余火已安置于南侧暖站。请到现场决定疗养站或巡路灯网。",
+                        "Ember safely deposited. Choose the public clinic or road beacons at the hearth."):
                     FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
                         " · 剩余 "+FrostSignalTime.ToString("0")+" 秒"+
                         (FrostSignalWindbreakTime>0?" · 防风 "+FrostSignalWindbreakTime.ToString("0")+" 秒":""),
