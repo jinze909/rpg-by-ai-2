@@ -2275,6 +2275,12 @@ namespace Starfall
                         "Finish or abandon the field survey before entering the sand-skiff race.");
                     return true;
                 }
+                if (FieldWorkPreventsRest)
+                {
+                    Notify("其它现场行动尚未结束，不能参加沙舟竞速。",
+                        "Finish the active field mission before starting the sand-skiff race.");
+                    return true;
+                }
                 if (save.room == 6) { racing = true; raceTime = 0; raceCheckpoint = 0; Notify("竞速开始：沿金色风旗走！", "Race started: follow the golden flags!"); }
                 return true;
             }

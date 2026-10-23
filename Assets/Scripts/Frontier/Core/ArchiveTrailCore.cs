@@ -387,9 +387,8 @@ namespace Starfall
                 Point site = ObjectPoint(room, "rootcounter" + room, new Point(-100, -100));
                 if (save.room != room || !Has("root_harmony_started") ||
                     RootHarmonyNext() != room || RootHarmonyRoom != 0 ||
-                    !PhysicalRefugeReach(site,2.2001f) || Dying || practicing || racing ||
-                    reliefMissionRoom != 0 || roadTrialRoom != 0 ||
-                    wayfarerEncounterRoom != 0 || atlasEchoRoom != 0) return true;
+                    !PhysicalRefugeReach(site,2.2001f) || Dying || practicing ||
+                    FieldWorkPreventsRest) return true;
                 int answer = room == 1 ? 2 : room == 2 ? 0 : 1;
                 if (note != answer)
                 {

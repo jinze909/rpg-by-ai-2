@@ -390,6 +390,14 @@ namespace Starfall.Tests
                     g.save.x=node.x;g.save.y=node.y;
                 }
                 float energy = g.save.energy;
+                SetOuterPatrolLull(g,region);
+                Check(g.OuterPatrolActive&&g.SafeTravel,
+                    "The counterpoint node is locally safe during an unrelated patrol lull");
+                Action(g,node.kind,"root_harmony_tune_"+region+"_"+right);
+                Check(g.RootHarmonyRoom==0&&!g.enemies.Exists(g.IsRootHarmonyEnemy)&&
+                    Math.Abs(g.save.energy-energy)<.001f,
+                    "Root resonance cannot start its 40-second defense over other fieldwork");
+                ClearOuterPatrolLull(g);
                 Action(g, node.kind, "root_harmony_tune_" + region + "_" + wrong);
                 Check(!g.Has("root_harmony_" + region) &&
                     g.RootHarmonyRoom == 0 && Math.Abs(g.save.energy - (energy - 8)) < .001f,

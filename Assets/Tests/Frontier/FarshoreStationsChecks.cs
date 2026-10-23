@@ -1692,6 +1692,15 @@ namespace Starfall.Tests
                 Action(g, post.kind, "fieldstation_survey_start");
                 Check(g.fieldSurveyRoom==0&&g.fieldSurveyPhase==0,
                     "The timed field survey cannot start over an unrelated patrol lull");
+                if(region==6)
+                {
+                    WorldObject skiff=Object(g,"skiff");
+                    g.save.x=skiff.x;g.save.y=skiff.y;
+                    Action(g,skiff.kind,"race");
+                    Check(!g.racing&&g.fieldSurveyRoom==0,
+                        "The sand-skiff race cannot start while another field mission owns the slot");
+                    g.save.x=post.x;g.save.y=post.y;
+                }
                 ClearOuterPatrolLull(g);
                 Action(g, post.kind, "fieldstation_survey_start");
                 Check(g.fieldSurveyRoom == region && g.fieldSurveyPhase == 1 &&
