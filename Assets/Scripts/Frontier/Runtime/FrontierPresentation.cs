@@ -86,10 +86,13 @@ namespace Starfall
             int gallery = Game.AbyssCircuitGuidedBranch;
             int nextRelay = Game.AbyssCircuitGuidedNextRelay;
             string galleryLabel = gallery < 0 ? "" :
-                Game.L("支洞 ", "GALLERY ") + (char)('A' + gallery) +
-                Game.L(" · 待探索 ", " · ") +
-                Game.AbyssCircuitUnvisitedSites(gallery) +
-                Game.L("", " LEFT");
+                Game.AbyssCircuitGuideNeedsSource ?
+                    Game.L("支洞 ", "GALLERY ") + (char)('A' + gallery) +
+                    Game.L(" · 先找源石板", " · FIND SOURCE") :
+                    Game.L("支洞 ", "GALLERY ") + (char)('A' + gallery) +
+                    Game.L(" · 待探索 ", " · ") +
+                    Game.AbyssCircuitUnvisitedSites(gallery) +
+                    Game.L("", " LEFT");
             string navigationLabel = gallery >= 0 ? galleryLabel :
                 nextRelay >= 0 ?
                     Game.L("星根信标 ", "STARROOT RELAY ") +

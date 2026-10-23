@@ -380,6 +380,31 @@ namespace Starfall
             get { return AbyssCircuitGuideTarget().HasValue ?
                 abyssCircuitGuideBranch : -1; }
         }
+        // A sealed echo is not a discoverable reward until its source
+        // tablet is recorded. If the chosen branch contains only that
+        // echo, guide toward the physically placed prerequisite instead
+        // of directing the hero into a knowingly locked interaction.
+        public bool AbyssCircuitGuideNeedsSource
+        {
+            get
+            {
+                if (!InAbyss || Map.objects == null ||
+                    Has("abyss_annex_far_survey_" + save.abyssFloor))
+                    return false;
+                WorldObject echo = Array.Find(Map.objects,
+                    o => o.kind == "abyssFarEcho");
+                WorldObject source = Array.Find(Map.objects,
+                    o => o.kind == "abyssFarSurvey");
+                if (echo == null || source == null ||
+                    Has("abyss_annex_far_echo_" + save.abyssFloor) ||
+                    AbyssCircuitNearestRelay(echo, AbyssCircuitRelays()) !=
+                        abyssCircuitGuideBranch)
+                    return false;
+                Point? next = AbyssCircuitGuideTarget();
+                return next.HasValue &&
+                    (next.Value - new Point(source.x, source.y)).Length < .001f;
+            }
+        }
         private Point? AbyssCircuitGuideTarget()
         {
             if (!InAbyss || !AbyssCircuitComplete ||
@@ -391,6 +416,7 @@ namespace Starfall
             WorldObject origin = relays[abyssCircuitGuideBranch];
             if (origin == null) return null;
             WorldObject next = null;
+            WorldObject lockedEcho = null;
             float best = float.MaxValue;
             foreach (WorldObject site in Map.objects)
             {
@@ -398,11 +424,28 @@ namespace Starfall
                 if (flag == null || Has(flag) ||
                     AbyssCircuitNearestRelay(site, relays) != abyssCircuitGuideBranch)
                     continue;
+                if (site.kind == "abyssFarEcho" &&
+                    AbyssTestimonyRecordState(site) == 3)
+                {
+                    lockedEcho = site;
+                    continue;
+                }
                 // Stable ordering from the relay prevents mid-walk jitter
                 // between two equally near optional sites.
                 float dx = site.x - origin.x, dy = site.y - origin.y;
                 float distance = dx * dx + dy * dy;
                 if (distance < best) { best = distance; next = site; }
+            }
+            if (next == null && lockedEcho != null)
+            {
+                // The prerequisite may lie in a different gallery. Guide
+                // its actual world position without allowing locked echo
+                // rewards or changing permanent v2 testimony flags.
+                WorldObject source = Array.Find(Map.objects,
+                    o => o.kind == "abyssFarSurvey");
+                if (source != null &&
+                    !Has("abyss_annex_far_survey_" + save.abyssFloor))
+                    next = source;
             }
             return next == null ? (Point?)null : new Point(next.x, next.y);
         }

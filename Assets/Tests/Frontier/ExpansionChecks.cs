@@ -1698,6 +1698,61 @@ namespace Starfall.Tests
                 "Real three-step completion returns to the gate and awards only its existing unbanked loot");
         }
 
+
+        public static void StarrootGalleryGuideResolvesLockedEchoPrerequisite(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            WorldObject echo = Array.Find(g.Map.objects,
+                o => o.kind == "abyssFarEcho");
+            WorldObject source = Array.Find(g.Map.objects,
+                o => o.kind == "abyssFarSurvey");
+            WorldObject gate = Array.Find(g.Map.objects,
+                o => o.kind == "abyssGate");
+            Check(echo != null && source != null &&
+                g.AbyssTestimonyRecordState(echo) == 3,
+                "The real optional echo begins locked behind its actual source tablet");
+
+            string[] others = { "survey", "cache", "far_cache",
+                "rootwell", "ward" };
+            foreach (string key in others)
+                g.save.flags.Add("abyss_annex_" + key + "_1");
+            int branch = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < 3; i++)
+            {
+                WorldObject relay = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+                float dx = relay.x - echo.x, dy = relay.y - echo.y;
+                float length2 = dx * dx + dy * dy;
+                if (length2 < best) { best = length2; branch = i; }
+            }
+            int banked = g.save.shards;
+            int pending = g.save.runShards;
+            g.save.x = gate.x; g.save.y = gate.y;
+            g.Talk(gate); g.Choose(g.conversation.choices.Length - 2);
+            g.Choose(branch);
+            Point target = g.NavigationTarget().Value;
+            Check(g.AbyssCircuitGuideNeedsSource &&
+                (target - new Point(source.x, source.y)).Length < .001f &&
+                (target - new Point(echo.x, echo.y)).Length > .001f &&
+                g.save.shards == banked && g.save.runShards == pending,
+                "Locked echo routes to the physically placed source without granting rewards");
+
+            g.save.flags.Add("abyss_annex_far_survey_1");
+            Check(!g.AbyssCircuitGuideNeedsSource &&
+                (g.NavigationTarget().Value -
+                    new Point(echo.x, echo.y)).Length < .001f &&
+                g.AbyssTestimonyRecordState(echo) == 1,
+                "After actual source progress the live guide returns to now-unlocked echo");
+            g.save.flags.Add("abyss_annex_far_echo_1");
+            Check(g.AbyssCircuitGuidedBranch == -1 &&
+                (g.NavigationTarget().Value - new Point(31, 14)).Length < .001f,
+                "Collecting echo completes the selected branch and restores exit guidance");
+        }
+
         public static void StarrootSelectedRouteGuidesRealUnvisitedSites(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);
