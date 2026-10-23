@@ -54,8 +54,12 @@ namespace Starfall.Tests
             WorldObject desk=Object(g,"surveyDesk");
             g.save.x=desk.x+4;g.save.y=desk.y;
             g.Talk(desk);
-            Check(g.mode!="dialog",
-                "Remote map chart cannot impersonate a nearby talking NPC");
+            Check(g.mode=="dialog"&&
+                StoryChoicePresent(g,"farshore_relief_routes"),
+                "Legacy remote chart reading still exposes the familiar text without authorizing any operation");
+            g.Choose(StoryChoiceIndex(g,"farshore_relief_routes"));
+            Check(g.mode=="world"&&g.conversation==null,
+                "A physically distant chart cannot commit a protected submenu action");
             g.Close();
             g.save.x=desk.x;g.save.y=desk.y;
             g.Talk(desk);

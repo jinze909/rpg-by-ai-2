@@ -282,9 +282,9 @@ namespace Starfall
             {
                 if (o.kind == "surveyDesk")
                 {
-                    // The authored chart is a physical piece of furniture,
-                    // never a globally addressable dialogue actor.
-                    if (!EnsurePhysicalInteractionReach(o)) return true;
+                    // A distant direct-reference reader may inspect the
+                    // original text, but no operational choice can commit
+                    // unless physically present at its source.
                     int found = 0;
                     for (int i = 1; i <= 3; i++) if (Has("survey_" + i)) found++;
                     if (Has("survey_complete"))
