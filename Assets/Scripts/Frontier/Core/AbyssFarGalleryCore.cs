@@ -415,22 +415,59 @@ namespace Starfall
         }
         private WorldObject ReachableAbyssTestimonySite()
         {
-            WorldObject nearest = AbyssTestimonyNextSite;
-            if (nearest == null || CanNavigateToAbyssTestimony(nearest))
-                return nearest;
-            WorldObject best = null;
-            float bestDistance = float.MaxValue;
+            // A geometrically near account can require a much longer walk
+            // around the seeded cavern walls. Search all available accounts
+            // in ONE breadth-first walk and return the first physically
+            // interactable foot reached. Earlier BFS layers are strictly
+            // shorter than later layers; authored object order breaks ties.
+            // Unlike a per-site route probe this reuses one search stamp.
+            if (!InAbyss || Map.objects == null || Map.rows == null ||
+                Map.rows.Length == 0 || Map.rows[0] == null) return null;
+            var available = new List<WorldObject>();
             foreach (WorldObject site in Map.objects)
+                if (AbyssTestimonyRecordState(site) == 1)
+                    available.Add(site);
+            if (available.Count == 0) return null;
+            int height = Map.rows.Length, width = Map.rows[0].Length;
+            int sx = (int)Math.Floor(save.x), sy = (int)Math.Floor(save.y);
+            if (sx < 0 || sy < 0 || sx >= width || sy >= height)
+                return null;
+            PreparePathSearch(width * height);
+            int front = 0, back = 0, origin = sy * width + sx;
+            pathQueue[back++] = origin;
+            VisitPath(origin, -1);
+            while (front < back)
             {
-                if (AbyssTestimonyRecordState(site) != 1) continue;
-                float dx = site.x - save.x, dy = site.y - save.y;
-                float distance2 = dx * dx + dy * dy;
-                if (distance2 >= bestDistance ||
-                    !CanNavigateToAbyssTestimony(site)) continue;
-                best = site;
-                bestDistance = distance2;
+                int cell = pathQueue[front++];
+                int x = cell % width, y = cell / width;
+                Point foot = cell == origin ? Position :
+                    new Point(x + .5f, y + .5f);
+                foreach (WorldObject site in available)
+                {
+                    Point goal = new Point(site.x, site.y);
+                    Point delta = goal - foot;
+                    float distance = delta.Length;
+                    if (!Finite(distance) || distance >= 1.75f)
+                        continue;
+                    Point contact = distance > .55f ?
+                        goal - delta.Normalized * .55f : foot;
+                    if (ClearAttackPath(foot, contact))
+                        return site;
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    int nx = x + guidanceSteps[i, 0];
+                    int ny = y + guidanceSteps[i, 1];
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= height)
+                        continue;
+                    int next = ny * width + nx;
+                    if (PathVisited(next) ||
+                        !Fits(new Point(nx + .5f, ny + .5f))) continue;
+                    VisitPath(next, cell);
+                    pathQueue[back++] = next;
+                }
             }
-            return best;
+            return null;
         }
         private Point? AbyssTestimonyGuideTarget()
         {

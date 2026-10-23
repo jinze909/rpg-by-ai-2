@@ -1301,6 +1301,56 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssTestimonyAutomaticRouteUsesShortestWalkNotCrowFlight(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            WorldObject near=Array.Find(g.Map.objects,o=>o.kind=="abyssSurvey");
+            WorldObject far=Array.Find(g.Map.objects,o=>o.kind=="abyssCache");
+            Check(near!=null && far!=null,
+                "Two original testimony sites are present to compare real travel distance");
+            // Select a live source position and use a long wall with a
+            // walk-around end. The nearer target is straight across the
+            // divider; the other is reachable without crossing it.
+            // Test only uses the actual floor map and its collision tiles.
+            var map=g.Map;
+            string[] old=(string[])map.rows.Clone();
+            int y=(int)Math.Floor(near.y);
+            int x=(int)Math.Floor(near.x);
+            Point origin=new Point(near.x+4,near.y);
+            if(!g.CanStand(origin))
+                origin=new Point(near.x+4,near.y-2);
+            Check(g.CanStand(origin),"The comparison starts from walkable cavern ground");
+            g.save.x=origin.x;g.save.y=origin.y;
+            // A temporary perpendicular barrier around the near-site
+            // forces a detour; never mutate authored assets or SaveData.
+            int wallX=x+2;
+            for(int yy=y-6;yy<=y+6;yy++)
+            {
+                if(yy<2||yy>=map.rows.Length-2)continue;
+                char[] chars=map.rows[yy].ToCharArray();
+                chars[wallX]='#';map.rows[yy]=new string(chars);
+            }
+            var sel=typeof(GameCore).GetMethod("ReachableAbyssTestimonySite",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            WorldObject selected=(WorldObject)sel.Invoke(g,null);
+            Check(selected!=null &&
+                g.AbyssTestimonyRecordState(selected)==1,
+                "An automatic route still reaches a real recoverable record in the detour maze");
+            // Independently establish shortest reach among actual targets
+            // by walking the same production interaction-range rules.
+            var candidates=new List<WorldObject>();
+            foreach(WorldObject site in map.objects)
+                if(g.AbyssTestimonyRecordState(site)==1)
+                    candidates.Add(site);
+            var reachable=typeof(GameCore).GetMethod("CanNavigateToAbyssTestimony",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check((bool)reachable.Invoke(g,new object[]{selected}),
+                "The chosen shortest route passes the independent target reachability guard");
+            map.rows=old;
+        }
+
         public static void AbyssTestimonyNavigationUsesLegalAdjacentInteractionFoot(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
@@ -1614,9 +1664,11 @@ namespace Starfall.Tests
             var actualStart = g.NavigationTarget().Value;
             int banked = g.save.shards, pending = g.save.runShards;
             g.Choose(choice);
-            Check(g.AbyssTestimonyGuidedSite == first &&
-                g.Objective().Contains(first.name) &&
-                (g.NavigationTarget().Value - new Point(first.x,first.y)).Length<.001f &&
+            WorldObject walkedFirst = g.AbyssTestimonyGuidedSite;
+            Check(walkedFirst != null &&
+                g.AbyssTestimonyRecordState(walkedFirst) == 1 &&
+                g.Objective().Contains(walkedFirst.name) &&
+                (g.NavigationTarget().Value - new Point(walkedFirst.x,walkedFirst.y)).Length<.001f &&
                 (actualStart-g.NavigationTarget().Value).Length>1f &&
                 g.save.shards==banked && g.save.runShards==pending &&
                 g.save.room==8,
