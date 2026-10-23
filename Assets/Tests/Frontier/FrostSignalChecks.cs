@@ -519,6 +519,78 @@ namespace Starfall.Tests
                 "Authentic highland clinic remains valid in original v2 save format");
         }
 
+        public static void HighlandEmberBanksRealHearthArrivalBeforeCivicChoice(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=200;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "The actual western post starts a legitimate timed ember trip");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+            Check(g.FrostSignalStage==2&&guards.Count==2,
+                "The original switchyard still requires two real combatants");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Real enemy defeat callback exists");
+            foreach(Enemy guard in guards)
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.Talk(mid);
+            Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                "Two actual kills unlock the unmodified free southbound option");
+            g.save.cold=90;
+            float carrying=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(!g.FrostSignalAtHearth&&g.FrostSignalFlame<carrying,
+                "Cold still consumes the ember until genuinely delivered");
+            var field=typeof(GameCore).GetField("<FrostSignalTime>k__BackingField",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(field!=null,"Actual timed ember state must remain writable by the game");
+            field.SetValue(g,.02f);
+            g.save.x=south.x;g.save.y=south.y;
+            Check(g.CanStand(g.Position),
+                "Southern public hearth is on genuine passable ground");
+            float deliveredQuality=g.FrostSignalFlame;
+            g.Tick(.05f,new Point());
+            Check(g.FrostSignalAtHearth&&g.FrostSignalStage==3&&
+                Math.Abs(g.FrostSignalFlame-deliveredQuality)<.0001f&&
+                Math.Abs(g.FrostSignalTime-.02f)<.0001f&&
+                !g.FrostSignalComplete,
+                "Actual same-side contact banks the ember before the next deadline tick, not the reward");
+            for(int i=0;i<160;i++)g.Tick(.05f,new Point());
+            Check(g.FrostSignalAtHearth&&g.FrostSignalActive&&
+                Math.Abs(g.FrostSignalTime-.02f)<.0001f&&
+                Math.Abs(g.FrostSignalFlame-deliveredQuality)<.0001f,
+                "Deposited ember cannot expire or lose its earned delivery quality while choosing");
+            int coins=g.save.coins;
+            g.Talk(south);
+            g.save.x=west.x;g.save.y=west.y;
+            Check(FrostChoice(g,"frostsignal_clinic")&&
+                g.FrostSignalAtHearth&&!g.FrostSignalComplete&&
+                g.save.coins==coins,
+                "A stale hearth choice cannot publish the reward from the west post");
+            g.save.x=south.x;g.save.y=south.y;g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_guides")&&g.FrostSignalComplete&&
+                g.FrostSignalOutcome==2&&!g.FrostSignalActive&&
+                !g.FrostSignalAtHearth&&
+                g.save.coins==coins+(deliveredQuality>=50?65:55),
+                "A real near-side choice pays the preserved flame quality once");
+            int paid=g.save.coins;
+            g.Talk(south);
+            Check(!FrostChoice(g,"frostsignal_guides")&&g.save.coins==paid,
+                "Completed civic fire cannot be rewarded twice");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FrostSignalComplete&&
+                restored.FrostSignalOutcome==2&&!restored.FrostSignalAtHearth,
+                "Existing v2 saves retain the outcome, never the transient arrival state");
+        }
+
         public static void HighlandEmberWindbreakPaysOnlyAfterCombatAndExpires(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;

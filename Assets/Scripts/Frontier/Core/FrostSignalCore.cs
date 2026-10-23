@@ -10,6 +10,10 @@ namespace Starfall
         public float FrostSignalFlame { get; private set; }
         // Short-lived protection, intentionally absent from v1/v2 SaveData.
         public float FrostSignalWindbreakTime { get; private set; }
+        // Real final-hearth arrival banks the transported fire before the
+        // player chooses its permanent civic use. This is live mission state,
+        // never a new SaveData field or a remotely claimable reward.
+        public bool FrostSignalAtHearth { get; private set; }
         private int frostSignalConfirmedKills;
         private void OnFrostSignalEnemyDefeated(Enemy enemy)
         {
@@ -41,6 +45,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
             FrostSignalStage=0;frostSignalConfirmedKills=0;
+            FrostSignalAtHearth=false;
             FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
         }
         // The authored switchyard positions are preferred, not permission to
@@ -109,6 +114,20 @@ namespace Starfall
             if(!FrostSignalActive)return;
             if(save.room!=7||Dying||practicing)
             {ResetFrostSignal();revision++;return;}
+            // Reaching the real southern public hearth secures the live
+            // fire. On that instant its carried timer and cold loss stop;
+            // the player still must interact on the same physical side to
+            // choose the clinic or road beacon. Unlike simply standing
+            // within a radial marker, PhysicalRefugeReach rejects walls.
+            if(FrostSignalStage==3 && !FrostSignalAtHearth &&
+                FrostSignalTime>0 && FrostSignalFlame>0 &&
+                CanReachFrostSignalPost(FrostSignalPost(3)))
+            {
+                FrostSignalAtHearth=true;revision++;sound="quest";
+                Notify("民用余火已安全送到暖站。请在这里决定建立疗养站还是巡路灯网。",
+                    "Civic ember delivered safely. Choose clinic or road beacons at the hearth.");
+            }
+            if(FrostSignalAtHearth)return;
             if (FrostSignalStage == 2)
             {
                 for (int index = 0; index < 2; index++)
@@ -251,6 +270,7 @@ namespace Starfall
                     FieldWorkPreventsRest||!SafeTravel||
                     !CanReachFrostSignalPost(west))return true;
                 FrostSignalStage=1;FrostSignalTime=100;FrostSignalFlame=85;
+                FrostSignalAtHearth=false;
                 Flag("frostsignal_started");revision++;sound="quest";
                 Notify("火种已领取。沿旧山道前往转折台，击败守卫。",
                     "Ember secured. Walk to the switchyard and defeat the guards.");
