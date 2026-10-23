@@ -192,7 +192,9 @@ namespace Starfall
             else if (Game.mode == "dialog")
             {
                 int count = Game.conversation == null || !DialogueChoicesVisible() ? 0 : Game.conversation.choices.Length;
-                for (int i = 0; i < Math.Min(5, count); i++) if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i))) ChooseDialogue(i);
+                // Six-choice Starroot relays must expose the final "continue"
+                // entry to keyboard users as well as pointer/gamepad users.
+                for (int i = 0; i < Math.Min(6, count); i++) if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i))) ChooseDialogue(i);
             }
             Toggle(KeyCode.I, "inventory"); Toggle(KeyCode.Tab, "journal"); Toggle(KeyCode.K, "talents"); Toggle(KeyCode.M, "map");
             Toggle(KeyCode.B, "camp"); Toggle(KeyCode.C, "companions"); Toggle(KeyCode.G, "loadout"); Toggle(KeyCode.N, "bounties"); Toggle(KeyCode.F1, "help");
