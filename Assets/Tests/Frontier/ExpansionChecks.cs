@@ -1294,6 +1294,51 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void AbyssGateTestimonyTrackingCanBeCancelledAndReenabled(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var gate = Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            int start = Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack");
+            int initialCoins=g.save.coins, initialShards=g.save.shards;
+            g.Choose(start);
+            var tracked=g.AbyssTestimonyGuidedSite;
+            Check(tracked!=null,
+                "Safe gate explicitly activates a real recoverable field record");
+            g.Talk(gate);
+            int stop = Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyUntrack");
+            Check(stop>=0 &&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="abyssTestimonyTrack")<0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssBank",
+                "Live gate offers one toggle rather than hiding the original bank");
+            // Source-distance validation also protects deliberate cancellation.
+            g.save.x=5;g.save.y=14;g.Choose(stop);
+            Check(g.AbyssTestimonyGuidedSite==tracked,
+                "Stale distant menu cannot cancel the current field route");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            stop=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyUntrack");
+            g.Choose(stop);
+            Check(g.AbyssTestimonyGuidedSite==null &&
+                (g.NavigationTarget().Value-new Point(31,14)).Length<.001f &&
+                g.save.room==8 && g.save.coins==initialCoins &&
+                g.save.shards==initialShards && g.AbyssTestimonyProgress==0,
+                "Stopping guidance restores the original exit target without rewards");
+            g.Talk(gate);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack")>=0,
+                "After cancelling, the same physical gate permits a fresh survey");
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack"));
+            Check(g.AbyssTestimonyGuidedSite==tracked,
+                "Player can resume the same unfinished record without resetting proof flags");
+        }
+
         public static void AbyssGateTestimonyTrackingLeadsThroughRealSitesWithoutBanking(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

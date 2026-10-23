@@ -2358,6 +2358,7 @@ namespace Starfall
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
             if (action == "abyssTestimonyTrack") { TrackAbyssTestimonyFromGate(); return true; }
+            if (action == "abyssTestimonyUntrack") { StopAbyssTestimonyTrackingAtGate(); return true; }
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
             if (action == "abyssCircuitRoutes") { OpenAbyssCircuitGateRoutes(); return true; }
             if (action == "abyssCircuitGateMenu") { ReopenAbyssCircuitGateMenu(); return true; }
@@ -2687,10 +2688,17 @@ namespace Starfall
             { choices.Add(C("利刃祝福 · 攻击+15%并深入", "Edge boon · +15% damage and descend", "boon0")); choices.Add(C("泉涌祝福 · 耐力回复+4并深入", "Spring boon · +4 energy regen and descend", "boon1")); choices.Add(C("磐石祝福 · 伤害-12%并深入", "Stone boon · -12% damage taken and descend", "boon2")); }
             WorldObject nextTestimony = AbyssTestimonyNextSite;
             if (nextTestimony != null)
-                choices.Add(C("追踪证词 " + AbyssTestimonyProgress + "/5 · " +
-                    nextTestimony.name,
-                    "Track testimony " + AbyssTestimonyProgress + "/5 · " +
-                    nextTestimony.en, "abyssTestimonyTrack"));
+            {
+                bool tracking = AbyssTestimonyGuidedSite != null;
+                choices.Add(tracking ?
+                    C("停止证词追踪 · 返回普通指引",
+                        "Stop testimony tracking · restore guidance",
+                        "abyssTestimonyUntrack") :
+                    C("追踪证词 " + AbyssTestimonyProgress + "/5 · " +
+                        nextTestimony.name,
+                        "Track testimony " + AbyssTestimonyProgress + "/5 · " +
+                        nextTestimony.en, "abyssTestimonyTrack"));
+            }
             if (AbyssCircuitRouteSafe() && NearLiveAbyssGate())
                 choices.Add(C("重访支洞信标 A/B/C", "Revisit side relays A/B/C", "abyssCircuitRoutes"));
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));

@@ -393,6 +393,24 @@ namespace Starfall
             Notify("已追踪巡路证词：" + next.name + "。东门结算仍须手动选择。",
                 "Tracking testimony: " + next.en + ". Banking remains manual.");
         }
+        private void StopAbyssTestimonyTrackingAtGate()
+        {
+            // Deliberate cancellation requires the same original live gate.
+            // No teleport, extra loot, floor banking or saved flag changes.
+            if (!CanBankFloor() || !NearLiveAbyssGate())
+            {
+                Notify("须站在安全的东侧地脉门旁才能取消追踪。",
+                    "Return to the safe east gate to stop tracking.");
+                return;
+            }
+            abyssTestimonyGuideActive = false;
+            abyssTestimonyGuideSite = null;
+            abyssTestimonyGuideFloor = -1;
+            abyssTestimonyGuideMap = null;
+            revision++;
+            Notify("已停止追踪证词。你仍可随时手动结算或重新选择调查。",
+                "Testimony tracking stopped. You may bank or investigate again.");
+        }
         public int AbyssCircuitGuidedNextRelay
         {
             get { return AbyssCircuitPuzzleTarget().HasValue ?
