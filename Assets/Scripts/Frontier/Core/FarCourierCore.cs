@@ -51,8 +51,14 @@ namespace Starfall
                         if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
                         Point p=authored+new Point(dx,dy);
                         if(!CanStand(p)||(p-Position).Length<2.2f||
+                            // The optional living companion already occupies
+                            // world space beside the courier. Never materialize
+                            // a full-sized hostile in their Sprite/attack foot.
+                            (save.companion>=0 &&
+                             (p-companionPosition).Length<1.25f)||
                             (second&&(p-other).Length<2.6f)||
-                            enemies.Exists(e=>(e.Position-p).Length<1.8f))continue;
+                            enemies.Exists(e=>e.hp>0 &&
+                                (e.Position-p).Length<1.8f))continue;
                         // Even the exact authored tile (radius zero) must be
                         // reachable by a living pursuer. Compass-style
                         // NavigationPath may legally stop on the near side of

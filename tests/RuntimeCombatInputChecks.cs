@@ -3364,6 +3364,66 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveCourierAmbushNeverSpawnsOnCompanion(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] originalRows=map.rows;
+        WorldObject[] oldObjects=map.objects;Decoration[] oldDecor=map.decor;
+        try
+        {
+            string[] rows=(string[])originalRows.Clone();
+            for(int y=49;y<=64;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=106;x<=117;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new WorldObject[0];
+            g.save.x=111.5f;g.save.y=53.5f;
+            g.save.companion=0;
+            g.companionPosition=new Point(111.5f,57.5f);
+            Check(g.CanStand(g.Position)&&g.CanStand(g.companionPosition),
+                "Hero and living companion occupy genuine passable bridge ground");
+            // Invoke the exact live branch used at the real bridge crossing.
+            typeof(GameCore).GetField("courierRoom",Private).SetValue(g,6);
+            typeof(GameCore).GetField("courierRaided",Private).SetValue(g,false);
+            CallCore(g,"SpawnFarCourierRaiders");
+            Check(g.FarCourierRaidersAlive==2,
+                "The actual crossing deploys both physical courier enemies");
+            Enemy first=null,second=null;
+            foreach(Enemy e in g.enemies)
+            {
+                if(e.id==90112)first=e;
+                if(e.id==90113)second=e;
+            }
+            Check(first!=null&&second!=null,
+                "Real crossing retains two distinct mission-owned enemy identities");
+            Check((first.Position-g.companionPosition).Length>=1.25f &&
+                (second.Position-g.companionPosition).Length>=1.25f &&
+                (first.Position-second.Position).Length>=2.6f &&
+                (first.Position-g.Position).Length>=2.2f &&
+                (second.Position-g.Position).Length>=2.2f,
+                "Neither combatant overlaps the live companion, hero, or other raider");
+            Check(g.CanStand(first.Position)&&g.CanStand(second.Position) &&
+                g.NavigationPathFrom(g.Position,first.Position,true).Count>0 &&
+                g.NavigationPathFrom(g.Position,second.Position,true).Count>0,
+                "Both raiders can actually pursue the carrier through real ground");
+            Check(g.effects.Exists(e=>e.courierOwned&&e.kind=="danger") &&
+                !g.FarCourierSecuredInFlight,
+                "A real ambush carries authored danger cues and grants no unearned victory bonus");
+            Console.WriteLine("PASS Live courier bridge ambush spawns two reachable enemies without overlapping the companion");
+        }
+        finally
+        {
+            CallCore(g,"ResetFarCourier");
+            map.rows=originalRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void CourierRaidersRequireReachableLiveSpawn(FrontierRuntime app)
     {
         Prepare(app);
@@ -5160,7 +5220,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
