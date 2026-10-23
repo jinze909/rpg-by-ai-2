@@ -83,9 +83,21 @@ namespace Starfall.Tests
                 g.save.flags.Add("boss_"+room);
                 if(room==6)g.save.flags.Add("mirrors_lit");
                 WorldObject altar=Object(g,"expAltar");
+                WorldObject companion=Object(g,room==5?"captain":room==6?"tinker":"keeper");
                 g.save.x=altar.x;g.save.y=altar.y;
                 Check(g.CanStand(g.Position)&&g.GateOpen,
                     "The actual regional altar is reachable after the guardian falls");
+                QuestGuide relayGuide=g.GetQuest("shore");
+                Check(relayGuide.room==room &&
+                    (relayGuide.target-new Point(altar.x,altar.y)).Length<.01f &&
+                    relayGuide.next.Contains("祭坛"),
+                    "Real tracked farshore quest guides to the closer field relay after the guardian falls");
+                g.save.x=companion.x;g.save.y=companion.y;
+                QuestGuide companionGuide=g.GetQuest("shore");
+                Check((companionGuide.target-new Point(companion.x,companion.y)).Length<.01f &&
+                    companionGuide.next.Contains("同伴"),
+                    "Walking to the original companion keeps the personal handoff as a legitimate live option");
+                g.save.x=altar.x;g.save.y=altar.y;
                 int coins=g.save.coins;
                 g.Talk(altar);
                 string relay=room==5?"report_mira":room==6?"report_ivo":"report_sen";

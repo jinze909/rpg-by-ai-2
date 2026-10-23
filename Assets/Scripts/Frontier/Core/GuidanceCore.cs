@@ -2063,7 +2063,26 @@ namespace Starfall
                     else q.next = L("先与米拉商定港口方案", "Agree on a harbor plan with Mira");
                 }
                 else if (!Has("boss_" + region)) { q.target = new Point(30, 8); q.next = L("前往祭坛挑战地区守护者", "Challenge the regional guardian at the altar"); }
-                else q.next = L("与当地同伴交谈，提交调查", "Speak to the local companion and file the report"); return q;
+                else
+                {
+                    // The same field record can be filed at the cleared altar
+                    // or in person with the original regional companion.
+                    // After a victory the altar is often much closer than
+                    // that companion: guide to the useful nearby handoff
+                    // rather than sending the player unnecessarily across
+                    // the whole room just to finish an earned report.
+                    Point companion=q.target;
+                    Point altar=ObjectPoint(region,"expAltar",new Point(30,8));
+                    bool nearRelay=save.room==region &&
+                        (Position-altar).Length+.3f<(Position-companion).Length;
+                    if(nearRelay)q.target=altar;
+                    q.next=nearRelay?
+                        L("守护者已击败：到祭坛传讯登记证据并选择结果，或亲自找同伴",
+                            "Guardian defeated: file at the altar relay or speak to the companion"):
+                        L("与当地同伴交谈提交调查；也可在已净化的祭坛传讯登记",
+                            "File with the local companion, or use the cleared altar relay");
+                }
+                return q;
             }
             q.title = L("星陨主线", "The Fallen Star"); q.description = L(
                 save.stage == 0 ? "星陨第七天，巡路队失踪，密林里的侦察员仍在等待救援。救回他，找到第一枚星核，同时查清森林为何开始封路。" :
