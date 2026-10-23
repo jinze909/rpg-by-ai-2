@@ -46,7 +46,7 @@ namespace Starfall
                 {
                     zh += "\n\n【已经完成】你在荆棘密林找到了第一枚星核。不要再回头找同一枚。";
                     en += "\n\n[Completed] You recovered the first starcore from Thornwood. There is no need to retrieve it again.";
-                    zh += "\n\n【下一步】把星核交给余烬镇公会的莉雅，再听下一处地区的任务。";
+                    zh += "\n\n【下一步】回到余烬镇公会，把星核交给莉雅，再听下一处地区的任务。";
                     en += "\n\n[Next] Return the starcore to Lyra at Emberfall Guild for your next assignment.";
                 }
                 else
