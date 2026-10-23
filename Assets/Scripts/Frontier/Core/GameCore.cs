@@ -52,9 +52,6 @@ namespace Starfall
         // Choices opened from a reachable world object must be revalidated when
         // submitted; leaving its reach cannot turn an old modal into remote action.
         private bool conversationSourceWasReachable;
-        // A report shortcut intentionally opens a remote companion dialogue, but
-        // only its one authored report action may be committed from that dialogue.
-        private string authorizedRemoteDialogueActionPrefix;
         // A choice may open a second dialogue. Carry the original source only
         // through that dispatch, and only attach it if no new source was chosen.
         private WorldObject pendingDialogueSource;
@@ -200,7 +197,6 @@ namespace Starfall
             conversationSourceWasReachable = false;
             conversationSourceRoom = pendingDialogueSourceRoom = -1;
             conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
-            authorizedRemoteDialogueActionPrefix = null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
@@ -252,7 +248,7 @@ namespace Starfall
             conversationSourceWasReachable = false;
             conversationSourceRoom = -1;
             conversationSourceWasMapObject = false;
-            authorizedRemoteDialogueActionPrefix = null; mode = "world";
+            mode = "world";
         }
         public bool Blocked(float x, float y)
         {
@@ -2243,7 +2239,6 @@ namespace Starfall
 
         public void Talk(WorldObject o)
         {
-            authorizedRemoteDialogueActionPrefix = null;
             // A stale reference from a previous room must never impersonate
             // an interactable at coincident coordinates in the current map.
             if (!IsObjectPresent(o) || IsObjectFromAnotherMap(o)) return;
@@ -2660,9 +2655,6 @@ namespace Starfall
             // For a menu first opened remotely, gate only choices without their own
             // live target validation. Re-check current reach so approaching a source
             // or opening a blocked path restores a legitimate action.
-            bool authorizedRemoteChoice =
-                !String.IsNullOrEmpty(authorizedRemoteDialogueActionPrefix) &&
-                action.StartsWith(authorizedRemoteDialogueActionPrefix);
             bool sourceStillPresent = conversationSource == null ||
                 (conversationSourceRoom == save.room &&
                  IsObjectPresent(conversationSource) &&
@@ -2675,8 +2667,7 @@ namespace Starfall
             if (conversationSource != null && action != "close" &&
                 (!sourceStillPresent ||
                  (conversationSourceWasReachable && !sourceReachableNow) ||
-                 (RequiresWorldSourceReach(action) && !sourceReachableNow &&
-                  !authorizedRemoteChoice)))
+                 (RequiresWorldSourceReach(action) && !sourceReachableNow)))
             {
                 bool initiallyReachable = conversationSourceWasReachable;
                 Close();

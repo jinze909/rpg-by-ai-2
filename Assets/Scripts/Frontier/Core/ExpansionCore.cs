@@ -2346,6 +2346,20 @@ namespace Starfall
             if (enemies.Exists(e => e.boss)) { Notify("挑战已经开始。注意环形与分段攻击预告。", "The challenge is underway. Watch the segmented warning rings."); return; }
             Dialog(CurrentBoss.name, CurrentBoss.en, new[] { "潮壳海兽身上长满了废弃的航标。它吞下废水，再把毒潮吐回港口。避开横向三连潮击，打断它的蓄力。", "玻璃守卫仍在执行九年前的命令。它用纵向光柱封住退路。走出金色警戒区，再击破它的护甲。", "霜钟执事举起权杖：如果他们不再相信钟声，谁来让他们走过冬天？\n\n霜印会跟随你落下。不要站在原地。受伤后它会敲响三面冰钟；向没有蓝色预警的方向撤离。" }[save.room - 5], new[] { "The Tide Maw is covered in broken buoys. It swallows waste and spits poison tides. Dodge its three lateral surges and break its charge.", "The Glass Custodian still obeys a nine-year-old order. Vertical light pillars seal the retreat. Leave their warnings, then break its armor.", "The Frost Prelate raises his staff: If they stop believing in the bells, who gets them through winter?\n\nFrost marks follow you. Keep moving. When wounded, it rings three frost bells; escape through the unmarked direction." }[save.room - 5], C("开始挑战", "Challenge", "expboss"), C("准备一下", "Prepare", "close"));
         }
+        // A permanent regional report belongs only to its genuine local
+        // companion or to the newly cleared altar on that same map.
+        // A stale, cross-map or forged action can never recruit a companion
+        // or award someone else's physical investigation.
+        private bool ValidRegionalReportSource(int region)
+        {
+            WorldObject source=pendingDialogueSource;
+            if(source==null||save.room!=region||!SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||Dying)return false;
+            string companion=region==5?"captain":region==6?"tinker":"keeper";
+            if(source.kind==companion)return true;
+            return source.kind=="expAltar" && GateOpen && !GateBarrierActive &&
+                Has("boss_"+region);
+        }
         private bool ChooseExpansion(string action)
         {
             if (ChooseCivicAftercare(action)) return true;
@@ -2379,20 +2393,20 @@ namespace Starfall
             if (action == "holdtide") { if (save.room == 5 && Spend(0, 2, 0, 0, 0)) { save.tideHeldUntil = save.totalTime + 90; Notify("闸门固定低潮 90 秒。", "Low tide held for 90 seconds."); } return true; }
             if (action == "harbor_report")
             {
-                if (!Has("boss_5") || Has("harbor_report")) return true;
+                if (!ValidRegionalReportSource(5) || !Has("boss_5") || Has("harbor_report")) return true;
                 Flag("harbor_report"); Flag("companion_0"); RewardRelic(0); save.relationships[0] = Math.Max(1, save.relationships[0]); CreditCoins(65); CreditShards(5); save.companion = 0; AddXp(45); revision++;
                 Notify("港口证词已归档。米拉加入，获得回潮瓶；玻璃沙海开放。", "Tide log filed. Mira joins; Tide Flask found. Glass Desert opens."); return true;
             }
             if (action.StartsWith("desert") && action.Length == 7)
             {
-                if (!Has("boss_6") || !Has("mirrors_lit") || Has("desert_report")) return true;
+                if (!ValidRegionalReportSource(6) || !Has("boss_6") || !Has("mirrors_lit") || Has("desert_report")) return true;
                 save.desertChoice = int.Parse(action.Substring(6)); Flag("desert_report"); Flag("companion_1"); RewardRelic(2); save.relationships[1] = Math.Max(1, save.relationships[1]); Reputation(save.desertChoice == 1 ? 2 : 0, 3); Reputation(1, 1); CreditCoins(70); CreditShards(6); AddXp(50); revision++;
                 RecordMoment(save.desertChoice == 1 ? "公开沙海调度，山野议会更支持你。" : "保留沙海机器，守灯会更支持你。", save.desertChoice == 1 ? "Published desert allocations; Assembly trust grew." : "Retained desert machines; Lamplighter trust grew.");
                 Notify("调度日志已归档。伊沃加入，风蚀罗盘入手；霜钟高原开放。", "Allocation log filed. Ivo joins; Wind Compass found. Frostchime opens."); return true;
             }
             if (action.StartsWith("mountain") && action.Length == 9)
             {
-                if (!Has("boss_7") || !Has("gate_7") || Has("mountain_report")) return true;
+                if (!ValidRegionalReportSource(7) || !Has("boss_7") || !Has("gate_7") || Has("mountain_report")) return true;
                 save.mountainChoice = int.Parse(action.Substring(8)); Flag("mountain_report"); Flag("companion_2"); RewardRelic(3); save.relationships[2] = Math.Max(1, save.relationships[2]); Reputation(save.mountainChoice == 1 ? 0 : 2, 3); Reputation(1, 1); CreditCoins(75); CreditShards(6); AddXp(60); revision++;
                 RecordMoment(save.mountainChoice == 1 ? "封存高原记录，守灯会更支持你。" : "公开高原名字，山野议会更支持你。", save.mountainChoice == 1 ? "Sealed mountain records; Lamplighter trust grew." : "Published mountain names; Assembly trust grew.");
                 Notify("高原记录已归档。森加入，断钟片入手；回雾港召开议事会。", "Mountain record filed. Sen joins; Broken Chime found. Convene Mistport's council."); return true;

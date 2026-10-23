@@ -69,6 +69,42 @@ namespace Starfall.Tests
             return false;
         }
 
+        public static void RegionalReportRewardsRequireOriginalPresentSpeaker(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("exp_intro");g.Enter(5);
+            g.enemies.Clear();
+            g.save.flags.Add("gate_5");g.save.flags.Add("boss_5");
+            var altar=Object(g,"expAltar");
+            var captain=Object(g,"captain");
+            int coins=g.save.coins;
+            // A direct callback that never came from a live dialogue must
+            // never perform an official report or recruit a companion.
+            var dispatch=typeof(GameCore).GetMethod("ChooseExpansion",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(dispatch!=null,"Real regional action dispatcher exists");
+            dispatch.Invoke(g,new object[]{"harbor_report"});
+            Check(!g.Has("harbor_report")&&g.save.coins==coins,
+                "Unowned report action cannot mint companion or campaign rewards");
+            g.save.x=altar.x;g.save.y=altar.y;
+            g.Talk(altar);
+            g.Choose(StoryChoiceIndex(g,"report_mira"));
+            int submit=StoryChoiceIndex(g,"harbor_report");
+            g.save.room=6;
+            g.Choose(submit);
+            Check(!g.Has("harbor_report")&&g.save.coins==coins,
+                "An altar menu from another room cannot release a regional reward");
+            g.save.room=5;
+            g.save.x=captain.x;g.save.y=captain.y;
+            g.Talk(captain);
+            Check(StoryChoicePresent(g,"harbor_report"),
+                "The actual companion still offers their normal valid report action");
+            g.Choose(StoryChoiceIndex(g,"harbor_report"));
+            Check(g.Has("harbor_report")&&g.save.coins>coins,
+                "Authentic face-to-face filing preserves the original companion reward");
+        }
+
         public static void ClearedRegionalAltarsFileRealReportsWithoutBorrowingNpcFaces(Campaign data)
         {
             for(int room=5;room<=7;room++)
