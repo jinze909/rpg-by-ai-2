@@ -1797,7 +1797,10 @@ namespace Starfall
                 (AbyssWardActive ? L(" · 镇流生效", " · RIFT WARD ACTIVE") : "") +
                 (save.abyssFloor >= 3 && !Has("abyss_ward_charter_complete") ?
                     L(" · 镇流巡路 ", " · WARD CHARTER ") +
-                        AbyssWardCharterProgress + "/4" : "");
+                        AbyssWardCharterProgress + "/4" : "") +
+                (AbyssCircuitComplete ? L(" · 星根回路已接通", " · STARROOT CIRCUIT LINKED") :
+                    L(" · 回路 ", " · CIRCUIT ") + AbyssCircuitProgress + "/3" +
+                        L(" 下个 ", " NEXT ") + AbyssCircuitSymbol(AbyssCircuitNextNode));
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
@@ -2036,6 +2039,8 @@ namespace Starfall
             }
             if (kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
             { TalkAbyssFarGallery(o); return true; }
+            if (kind.StartsWith("abyssCircuit"))
+            { TalkAbyssCircuit(o); return true; }
             if (kind == "abyssRootwell")
             { TalkAbyssRootwell(o); return true; }
             if (kind == "abyssRiftWard")
@@ -2416,6 +2421,9 @@ namespace Starfall
                     !AbyssWardActive && save.runShards >= 3)
                     goal += L(" · 分支镇流碑可减轻落印",
                         " · Side-gallery pylon can tame the rifts");
+                if (!AbyssCircuitComplete)
+                    goal += L(" · 探索回路信标 " + AbyssCircuitSymbol(AbyssCircuitNextNode),
+                        " · Explore circuit relay " + AbyssCircuitSymbol(AbyssCircuitNextNode));
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)
@@ -2524,6 +2532,9 @@ namespace Starfall
                     new WorldObject { id = "abyssFarSurvey", kind = "abyssFarSurvey", name = "地脉下层残碑", en = "Deep Root Testimony", x = 20.5f, y = 39.5f },
                     new WorldObject { id = "abyssFarCache", kind = "abyssFarCache", name = "洞底失落补给", en = "Lower Gallery Supplies", x = 60.5f, y = 39.5f },
                     new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f },
+                    new WorldObject { id = "abyssCircuit0", kind = "abyssCircuit0", name = "星根回路信标 A", en = "Starroot Relay A", x = 14.5f, y = 29.5f },
+                    new WorldObject { id = "abyssCircuit1", kind = "abyssCircuit1", name = "星根回路信标 B", en = "Starroot Relay B", x = 47.5f, y = 22.5f },
+                    new WorldObject { id = "abyssCircuit2", kind = "abyssCircuit2", name = "星根回路信标 C", en = "Starroot Relay C", x = 58.5f, y = 38.5f },
                     new WorldObject { id = "abyssRootwell", kind = "abyssRootwell", name = "地脉复苏泉", en = "Rootwell Refuge", x = rootwellSite.x, y = rootwellSite.y } },
                 decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
                     new Decoration { kind = "crystal", x = 40, y = 9 },

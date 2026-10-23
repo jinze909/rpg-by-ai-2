@@ -1071,6 +1071,119 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void AbyssStarrootCircuitRequiresThreeRealSeededRelayVisits(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            int width = g.Map.rows[0].Length;
+            var reachable = Reachable(g);
+            WorldObject[] relays = new WorldObject[3];
+            for (int i = 0; i < 3; i++)
+            {
+                relays[i] = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+                Check(relays[i] != null && g.CanStand(
+                    new Point(relays[i].x, relays[i].y)) &&
+                    reachable.Contains((int)relays[i].y * width + (int)relays[i].x),
+                    "Each new starroot relay has a real traversable branch location");
+            }
+            g.enemies.Clear();
+            g.save.runCoins = 5; g.save.runShards = 2; g.save.runXp = 3;
+            g.save.shards = 99; g.save.energy = 100;
+            int first = g.AbyssCircuitNextNode;
+            Check(first >= 0 && first < 3 && g.AbyssCircuitProgress == 0 &&
+                g.Objective().Contains("信标 " + (first == 0 ? "A" : first == 1 ? "B" : "C")),
+                "The main task cue gives the actual first seeded target");
+            g.save.x = 5; g.save.y = 14;
+            g.Talk(relays[first]);
+            Check(g.AbyssCircuitProgress == 0 && g.save.runCoins == 5,
+                "Remote E interaction cannot fake a circuit node visit");
+            int wrong = (first + 1) % 3;
+            g.save.x = relays[wrong].x; g.save.y = relays[wrong].y;
+            g.Talk(relays[wrong]);
+            Check(g.AbyssCircuitProgress == 0 && g.save.energy == 88 &&
+                g.save.runShards == 2,
+                "Wrong seeded relay costs real energy and leaves rewards untouched");
+
+            g.save.x = relays[first].x; g.save.y = relays[first].y;
+            g.Talk(relays[first]);
+            Check(g.AbyssCircuitProgress == 1 && g.AbyssCircuitVisited(first),
+                "The first physically activated relay records progress");
+            g.Talk(relays[first]);
+            Check(g.AbyssCircuitProgress == 1,
+                "Repeated interaction with an already-linked relay is harmless");
+            // Flag-only partial progress must reconstruct in the existing v2
+            // save schema without a new serialized field or new game mode.
+            g.save.flags.Add("abyss_clear_1");
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.AbyssCircuitProgress == 1 &&
+                restored.AbyssCircuitNextNode == g.AbyssCircuitNextNode,
+                "Mid-circuit SaveData v2 reload preserves the exact next seed target");
+            restored.mode = "world";
+            int step1 = restored.AbyssCircuitNextNode;
+            WorldObject second = Array.Find(restored.Map.objects,
+                o => o.kind == "abyssCircuit" + step1);
+            restored.save.x = second.x; restored.save.y = second.y;
+            restored.Talk(second);
+            Check(restored.AbyssCircuitProgress == 2,
+                "Second physical relay continues from the loaded partial path");
+            int step2 = restored.AbyssCircuitNextNode;
+            WorldObject third = Array.Find(restored.Map.objects,
+                o => o.kind == "abyssCircuit" + step2);
+            restored.save.x = third.x; restored.save.y = third.y;
+            restored.Talk(third);
+            Check(restored.AbyssCircuitComplete && restored.AbyssCircuitProgress == 3 &&
+                restored.save.runCoins == 45 && restored.save.runShards == 6 &&
+                restored.save.runXp == 33 && restored.save.shards == 99,
+                "Three correct seeded visits award ONLY pending capped coins, shards and XP");
+            restored.Talk(third);
+            Check(restored.save.runCoins == 45 && restored.save.runShards == 6 &&
+                restored.save.runXp == 33,
+                "The final relay cannot mint duplicate pending treasure");
+
+            // Extracting early must discard the optional loot, just like every
+            // other genuine Abyss branch reward.
+            restored.save.x = 3; restored.save.y = 14;
+            WorldObject exit = Array.Find(restored.Map.objects,
+                o => o.kind == "abyssExit");
+            restored.Talk(exit); restored.Choose(0);
+            Check(!restored.InAbyss && restored.save.runShards == 0 &&
+                restored.save.shards == 99,
+                "Early extraction loses pending circuit earnings, never permanent shards");
+        }
+
+        public static void AbyssCircuitSeedPermutationAndResetAreDeterministic(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var starts = new HashSet<int>();
+            for (int seed = 100; seed < 106; seed++)
+            {
+                g.save.abyssSeed = seed;
+                regenerate.Invoke(g, null);
+                starts.Add(g.AbyssCircuitNextNode);
+                Check(g.AbyssCircuitProgress == 0,
+                    "Changing the seed does not grant unsolved circuit progress");
+                int a = g.AbyssCircuitNextNode;
+                // Each valid seed defines a genuine permutation: targets
+                // exhaust A/B/C exactly once without repetition.
+                g.save.flags.Add("abyss_annex_circuit_1_0");
+                int b = g.AbyssCircuitNextNode;
+                g.save.flags.Add("abyss_annex_circuit_1_1");
+                int c = g.AbyssCircuitNextNode;
+                Check(a != b && a != c && b != c,
+                    "Each seeded circuit has three distinct relay targets");
+                g.save.flags.Remove("abyss_annex_circuit_1_0");
+                g.save.flags.Remove("abyss_annex_circuit_1_1");
+            }
+            Check(starts.Count == 3, "Six seed variants distribute starting nodes across all three caves");
+            g.save.abyssSeed = int.MaxValue;
+            regenerate.Invoke(g, null);
+            Check(g.AbyssCircuitNextNode >= 0 && g.AbyssCircuitNextNode <= 2,
+                "A maximum legal legacy seed cannot overflow the circuit permutation");
+        }
+
         public static void AbyssRootwellTradesPendingLootForSurvival(Campaign data)
         {
             var g = Unlocked(data);

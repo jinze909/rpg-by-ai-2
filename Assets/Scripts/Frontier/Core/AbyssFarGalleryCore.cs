@@ -155,6 +155,118 @@ namespace Starfall
                 "Ward tuned: this floor's rifts arrive every 10 seconds with smaller, weaker strikes.");
         }
 
+        // Three distant, physically visited starroot relays form an optional
+        // real route puzzle. Progress and one-time rewards live in EXISTING
+        // SaveData v2 flags; no new serialized fields or transient shortcuts.
+        private static readonly int[,] AbyssCircuitOrders = {
+            { 0, 1, 2 }, { 0, 2, 1 }, { 1, 0, 2 },
+            { 1, 2, 0 }, { 2, 0, 1 }, { 2, 1, 0 }
+        };
+        private string AbyssCircuitStepFlag(int step)
+        {
+            return "abyss_annex_circuit_" + save.abyssFloor + "_" + step;
+        }
+        private string AbyssCircuitFinishFlag
+        {
+            get { return "abyss_annex_circuit_complete_" + save.abyssFloor; }
+        }
+        public bool AbyssCircuitComplete
+        {
+            get { return InAbyss && Has(AbyssCircuitFinishFlag); }
+        }
+        public int AbyssCircuitProgress
+        {
+            get
+            {
+                if (!InAbyss) return 0;
+                if (AbyssCircuitComplete) return 3;
+                int count = 0;
+                while (count < 3 && Has(AbyssCircuitStepFlag(count))) count++;
+                return count;
+            }
+        }
+        private int AbyssCircuitTarget(int step)
+        {
+            // Long arithmetic preserves every valid positive v2 seed.
+            int variation = (int)(((long)save.abyssSeed +
+                save.abyssFloor * 13L) % 6L);
+            return AbyssCircuitOrders[variation, step];
+        }
+        public int AbyssCircuitNextNode
+        {
+            get { return InAbyss && !AbyssCircuitComplete ?
+                AbyssCircuitTarget(AbyssCircuitProgress) : -1; }
+        }
+        private static string AbyssCircuitSymbol(int node)
+        {
+            return node == 0 ? "A" : node == 1 ? "B" : "C";
+        }
+        public bool AbyssCircuitVisited(int node)
+        {
+            if (!InAbyss || node < 0 || node > 2) return false;
+            for (int i = 0; i < AbyssCircuitProgress; i++)
+                if (AbyssCircuitTarget(i) == node) return true;
+            return false;
+        }
+        private void TalkAbyssCircuit(WorldObject o)
+        {
+            if (!InAbyss || Dying || practicing ||
+                !EnsurePhysicalInteractionReach(o)) return;
+            int node;
+            if (!int.TryParse(o.kind.Substring("abyssCircuit".Length),
+                out node) || node < 0 || node > 2) return;
+            if (AbyssCircuitComplete)
+            {
+                Notify("三个信标已完成调谐。本层回路战利品已登记，等待东门结算。",
+                    "All three relays are aligned. Their loot awaits banking at the east gate.");
+                return;
+            }
+            int progress = AbyssCircuitProgress;
+            int expected = AbyssCircuitTarget(progress);
+            if (AbyssCircuitVisited(node))
+            {
+                Notify("这处信标已经接入回路。下一处为 " +
+                    AbyssCircuitSymbol(expected) + "。",
+                    "This relay is already connected. Seek node " +
+                    AbyssCircuitSymbol(expected) + " next.");
+                return;
+            }
+            if (node != expected)
+            {
+                for (int i = 0; i < 3; i++)
+                    save.flags.Remove(AbyssCircuitStepFlag(i));
+                save.energy = Math.Max(0, save.energy - 12);
+                effects.Add(new Effect("spark", new Point(o.x, o.y), .45f));
+                revision++;
+                Notify("接线顺序错误：回路断开，损失12耐力。重新从 " +
+                    AbyssCircuitSymbol(AbyssCircuitTarget(0)) + " 开始。",
+                    "Wrong relay order: circuit reset, -12 energy. Restart at " +
+                    AbyssCircuitSymbol(AbyssCircuitTarget(0)) + ".");
+                return;
+            }
+            Flag(AbyssCircuitStepFlag(progress));
+            effects.Add(new Effect("spark", new Point(o.x, o.y), .6f));
+            sound = "reward";
+            if (progress < 2)
+            {
+                Notify("星根回路 " + (progress + 1) + "/3 已接通。下一信标：" +
+                    AbyssCircuitSymbol(AbyssCircuitTarget(progress + 1)) + "。",
+                    "Starroot circuit " + (progress + 1) +
+                    "/3 connected. Next relay: " +
+                    AbyssCircuitSymbol(AbyssCircuitTarget(progress + 1)) + ".");
+                return;
+            }
+            Flag(AbyssCircuitFinishFlag);
+            // Same saturating, UNBANKED balances as ordinary side galleries.
+            // Death or extraction still discards rewards until floor banking.
+            save.runCoins = CappedReward(save.runCoins, 40, 9999);
+            save.runShards = CappedReward(save.runShards, 4, 9999);
+            save.runXp = CappedReward(save.runXp, 30, 9999);
+            revision++;
+            Notify("三处星根回路恢复了巡路灯！本层待结算：硬币40、碎片4、经验30。",
+                "Three starroot relays light the road! Unbanked: 40 coins, 4 shards, 30 XP.");
+        }
+
         // Extra seeded galleries are optional. All loot is pending until the
         // original root gate banks the floor; exiting or dying loses it.
         private void TalkAbyssFarGallery(WorldObject o)

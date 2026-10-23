@@ -1276,6 +1276,25 @@ namespace Starfall
                     decoded ? mint : gold, TextAnchor.MiddleCenter);
                 return true;
             }
+            if (kind.StartsWith("abyssCircuit"))
+            {
+                int node;
+                if (!int.TryParse(kind.Substring("abyssCircuit".Length), out node) ||
+                    node < 0 || node > 2) return true;
+                bool visited = Game.AbyssCircuitVisited(node);
+                bool next = Game.AbyssCircuitNextNode == node;
+                Color light = visited || Game.AbyssCircuitComplete ? mint :
+                    next ? gold : muted;
+                PropImage("lamp", 0, p.x - 26, p.y - 61, 52, 70,
+                    visited || next ? Color.white : muted);
+                Ring(new Point(o.x, o.y),
+                    next ? .9f : .48f, light, 16);
+                Text(p.x - 46, p.y - 91, 92, 23,
+                    (node == 0 ? "A" : node == 1 ? "B" : "C") +
+                    (visited ? " ✓" : next ? " · E" : " · ?"),
+                    14, light, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind == "abyssRiftWard")
             {
                 Color glow = Game.AbyssWardActive ? mint : gold;
