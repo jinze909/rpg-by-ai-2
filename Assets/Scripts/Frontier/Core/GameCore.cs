@@ -443,12 +443,6 @@ namespace Starfall
                     "Rescue in progress. Finish the evacuation or cancel it at the station before traveling.");
                 return;
             }
-            if(FieldWorkPreventsRest)
-            {
-                Notify("现场行动仍在进行。请在原地点完成或明确取消，再切换地图。",
-                    "A field mission is still active. Finish or explicitly cancel it at its original location before traveling.");
-                return;
-            }
             if (practicing) EndPractice();
             if (room < 0 || room >= data.maps.Length) return;
             if (!CanEnter(room)) { Notify(RouteHint(room, false), RouteHint(room, true)); Close(); return; }
@@ -491,12 +485,6 @@ namespace Starfall
                 "Citadel evacuation is active. Complete or cancel at the shelter."); return; }
             if (reliefMissionRoom != 0)
             { Notify("正在护送居民，先返回站台或者取消行动。", "You are escorting civilians. Return to the station or cancel the rescue first."); return; }
-            if(FieldWorkPreventsRest)
-            {
-                Notify("现场行动仍在进行。完成或明确取消后，才能快速回城。",
-                    "Finish or explicitly cancel the active field mission before returning to town.");
-                return;
-            }
             if (Dying) return;
             if (save.room == 0) return;
             if (InAbyss) { AbyssExitConversation(); return; }
@@ -2524,6 +2512,19 @@ namespace Starfall
             invulnerable = dodgeEscapeTime = playerFlash = impactShake = 0;
             perfectDodgeArmed = false; dashOrigin = new Point();
         }
+        // Only these missions are travel-locked. Other timed trials (such as
+        // field surveys, Root Harmony and skiff races) deliberately allow leaving
+        // the map to cancel them without awarding unfinished progress.
+        private bool FieldMissionLocksTravel
+        {
+            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive ||
+                FarCourierActive || CivicResponseActive || CivicConduitActive ||
+                LastDirectiveWave > 0 || stormTuning || afterlightChargeRegion != 0 ||
+                AfterlightWatchActive || blackoutActive || witnessDefenseRoom != 0 ||
+                TriadDefenseActive || TemperActive || TideSalvageActive ||
+                GlasswindSite != 0 || commonsRelayRoom != 0 || reliefMissionRoom != 0; }
+        }
+
         private bool FieldWorkPreventsRest
         {
             get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||

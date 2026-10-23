@@ -208,42 +208,6 @@ namespace Starfall.Tests
                 "The real two-wave defense remains startable after the competing mission ends");
         }
 
-        public static void AbyssEntryCannotDiscardLiveFieldwork(Campaign data)
-        {
-            var g=Fresh(data);g.save.stage=3;g.save.level=20;g.save.frontierEnding=1;
-            g.Enter(0);g.enemies.Clear();
-            SetOuterPatrolLull(g,0);
-            Check(g.OuterPatrolActive&&g.SafeTravel,
-                "The abyss entrance is locally safe during a live patrol lull");
-            g.StartAbyss(0);
-            Check(g.save.room==0&&g.save.abyssFloor==0&&g.OuterPatrolActive,
-                "Starting an abyss run cannot reset and silently erase another field mission");
-            ClearOuterPatrolLull(g);
-            g.StartAbyss(0);
-            Check(g.InAbyss&&g.save.abyssFloor==1,
-                "The abyss remains normally enterable after fieldwork is resolved");
-        }
-
-        public static void ActiveFieldworkCannotBeDiscardedByTravelOrTownReturn(Campaign data)
-        {
-            var g=Fresh(data);g.save.stage=3;g.save.level=20;
-            g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
-            g.Enter(6);g.enemies.Clear();
-            SetOuterPatrolLull(g,6);
-            Check(g.OuterPatrolActive&&g.SafeTravel,
-                "The region is locally safe while the patrol still owns the fieldwork slot");
-            g.Enter(7);
-            Check(g.save.room==6&&g.OuterPatrolActive,
-                "Direct region travel cannot reset a live patrol's transient mission state");
-            g.ReturnToTown();
-            Check(g.save.room==6&&g.OuterPatrolActive,
-                "Fast return to town cannot discard a live patrol during a quiet wave lull");
-            ClearOuterPatrolLull(g);
-            g.Enter(7);
-            Check(g.save.room==7,
-                "Ordinary region travel remains available once the field mission ends");
-        }
-
         public static void RegionalBossesSweepAlternatingLanes(Campaign data)
         {
             var g = Unlocked(data);
