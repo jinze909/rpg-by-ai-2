@@ -547,6 +547,30 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(!g.FrostSignalAtHearth&&g.FrostSignalFlame<carrying,
                 "Cold still consumes the ember until genuinely delivered");
+            // Physical proximity alone is not delivery. A newly sealed
+            // stone wall can separate an apparently near carrier from the
+            // actual public hearth; neither warmth nor credits cross it.
+            MapData map=g.Map;string[] originalRows=map.rows;
+            try
+            {
+                string[] rows=(string[])originalRows.Clone();
+                int sy=(int)Math.Floor(south.y);
+                int barrier=(int)Math.Floor(south.x)+1;
+                char[] stone=rows[sy].ToCharArray();
+                stone[barrier]='#';rows[sy]=new string(stone);
+                map.rows=rows;
+                g.save.x=south.x+1.75f;g.save.y=south.y;
+                Check(g.CanStand(g.Position)&&
+                    (g.Position-new Point(south.x,south.y)).Length<1.8f &&
+                    g.Blocked(barrier+.5f,sy+.5f),
+                    "Ember carrier stands safely near, but beyond, a solid hearth partition");
+                float unsafeQuality=g.FrostSignalFlame;
+                g.Tick(.05f,new Point());
+                Check(!g.FrostSignalAtHearth&&
+                    g.FrostSignalFlame<unsafeQuality,
+                    "A locked wall prevents false delivery and the exposed flame keeps burning");
+            }
+            finally { map.rows=originalRows; }
             var field=typeof(GameCore).GetField("<FrostSignalTime>k__BackingField",
                 System.Reflection.BindingFlags.NonPublic|
                 System.Reflection.BindingFlags.Instance);

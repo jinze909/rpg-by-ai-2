@@ -3371,6 +3371,11 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         var g=app.Game;g.save.english=true;g.save.room=7;g.mode="world";
+        // The actual highland public quest only unlocks after the desert
+        // report and its existing guardian: otherwise GetQuest correctly
+        // displays the locked objective instead of the active handoff.
+        g.save.flags.Add("desert_report");
+        g.save.flags.Add("boss_7");
         g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
         WorldObject hearth=null;
         foreach(WorldObject o in g.Map.objects)
