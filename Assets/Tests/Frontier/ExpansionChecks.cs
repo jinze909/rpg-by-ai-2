@@ -775,6 +775,70 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssWardExtractionAndReentryCannotMintCharter(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            g.save.abyssFloor = 6; regenerate.Invoke(g, null);
+            for (int floor = 3; floor <= 6; floor++)
+                g.save.flags.Add("abyss_annex_ward_" + floor);
+            g.enemies.Clear();
+            g.save.runShards = 9;
+            g.save.x = 3; g.save.y = 14;
+            WorldObject exit = Array.Find(g.Map.objects, o => o.kind == "abyssExit");
+            int skills = g.save.skillPoints, shards = g.save.shards;
+            g.Talk(exit);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 2,
+                "Early-extraction fixture opens the real leave-or-stay dialogue");
+            g.Choose(0);
+            Check(!g.InAbyss && !g.Has("abyss_ward_charter_complete") &&
+                g.save.skillPoints == skills && g.save.shards == shards &&
+                g.save.runShards == 0,
+                "Leaving a perfect-but-UNBANKED sixth floor forfeits its charter reward");
+
+            var restored = Unlocked(data); restored.StartAbyss(1);
+            restored.save.abyssFloor = 3;
+            regenerate.Invoke(restored, null);
+            WorldObject ward = Array.Find(restored.Map.objects,
+                o => o.kind == "abyssRiftWard");
+            restored.enemies.Clear(); restored.save.x = ward.x; restored.save.y = ward.y;
+            restored.save.runShards = 3;
+            restored.Talk(ward); restored.Choose(0);
+            Check(restored.AbyssWardActive, "The physical ward was purchased before saving");
+            // Clearing the floor preserves legitimate unbanked state when
+            // reconstructing this v2 snapshot without an enemy roster.
+            restored.save.flags.Add("abyss_clear_3");
+            restored.PrepareSave();
+            var reloaded = new GameCore(data, CloneSave(restored.save));
+            var field = typeof(GameCore).GetField("stormTimer",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(reloaded.AbyssWardActive &&
+                Math.Abs((float)field.GetValue(reloaded) - 10f) < .001f,
+                "Reloaded ward initializes its own TEN-second clock, not an unwarded six");
+            reloaded.hazards.Clear(); reloaded.effects.Clear();
+            reloaded.save.flags.Remove("abyss_clear_3");
+            reloaded.save.health = reloaded.save.maxHealth = 9999;
+            reloaded.save.reducedMotion = true;
+            for (int i = 0; i < 130; i++) reloaded.Tick(.05f, new Point());
+            Check(reloaded.hazards.Find(h => h.kind == "rift") == null,
+                "No too-early rift is generated after the loaded six-second mark");
+            for (int i = 0; i < 80; i++) reloaded.Tick(.05f, new Point());
+            Check(reloaded.hazards.Find(h => h.kind == "rift") != null,
+                "The ward resumes real rift spawning after ten seconds on reload");
+
+            var gate = Unlocked(data); gate.StartAbyss(0);
+            gate.save.abyssFloor = 6; regenerate.Invoke(gate, null);
+            gate.enemies.Clear(); gate.save.x = 31; gate.save.y = 14;
+            WorldObject finalGate = Array.Find(gate.Map.objects,
+                o => o.kind == "abyssGate");
+            gate.Talk(finalGate);
+            Check(gate.mode == "dialog" &&
+                gate.conversation.text.Contains("\\n\\n镇流巡路") &&
+                gate.conversation.textEn.Contains("\\n\\nWard charter"),
+                "Ward charter progress renders as real separate paragraphs in both languages");
+        }
+
         public static void AbyssFourFloorWardCharterPaysOnlyOnLegitimateFinalBank(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

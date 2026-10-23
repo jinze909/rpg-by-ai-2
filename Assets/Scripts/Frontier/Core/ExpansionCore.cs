@@ -2601,11 +2601,11 @@ namespace Starfall
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));
             string charterZh = save.abyssFloor >= 3 &&
                 !Has("abyss_ward_charter_complete") ?
-                "\\n\\n镇流巡路 " + AbyssWardCharterProgress +
+                "\n\n镇流巡路 " + AbyssWardCharterProgress +
                     "/4：连续在第3至6层调谐镇流碑，并安全结算第6层，可永久获得技能点1与碎片8。" : "";
             string charterEn = save.abyssFloor >= 3 &&
                 !Has("abyss_ward_charter_complete") ?
-                "\\n\\nWard charter " + AbyssWardCharterProgress +
+                "\n\nWard charter " + AbyssWardCharterProgress +
                     "/4: tune pylons on floors 3–6 and bank floor six for a permanent skill point and 8 shards." : "";
             Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn, choices.ToArray());
         }
