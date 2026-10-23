@@ -3458,6 +3458,30 @@ public static class RuntimeCombatInputChecks
                 (route[route.Count-1]-target.Value).Length<1.75f,
                 "Survival detour has an actual playable navigation path");
 
+            // A hero CAN walk around this sealed loop, but the living
+            // civilian trapped inside cannot. The emergency arrow must NOT
+            // point toward a refuge reachable by the wrong actor only.
+            string[] beforeCivilianWall=(string[])rows.Clone();
+            g.reliefFollowerPosition=new Point(bx+2.5f,by+.5f);
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx+1;x<=bx+3;x++)
+                    if(x==bx+1||x==bx+3||y==by-1||y==by+1)
+                        row[x]='#';
+                rows[y]=new string(row);
+            }
+            Check(g.NavigationPath(new Point(natural.x,natural.y)).Count>0 &&
+                g.NavigationPathFrom(g.reliefFollowerPosition,
+                    new Point(natural.x,natural.y)).Count==0,
+                "Adversarial test traps only the real escorted survivor, never the hero");
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-
+                new Point(returnStation.x,returnStation.y)).Length<.001f,
+                "Unreachable civilian refuge cannot steal critical escort navigation");
+            for(int y=by-1;y<=by+1;y++)rows[y]=beforeCivilianWall[y];
+            g.reliefFollowerPosition=g.Position;
+
             // One sealed shade cannot steal the arrow from the reachable
             // rescue station even if much closer by Euclidean distance.
             for(int y=by-1;y<=by+1;y++)

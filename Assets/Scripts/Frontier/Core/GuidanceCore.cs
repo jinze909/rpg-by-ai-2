@@ -2212,9 +2212,33 @@ namespace Starfall
                     if(d>=1.75f||!ClearAttackPath(end,contact))
                         continue;
                 }
-                int steps=near?0:route.Count;
-                // A huge optional detour can consume the remaining rescue
-                // clock; the mandatory return station remains the fallback.
+                int heroSteps=near?0:route.Count;
+                // A destination the hero can reach may be across a sealed
+                // barricade from the actual rescue civilian. The survivor
+                // must have a genuine independently walkable route; never
+                // route a near-failing escort into an impossible detour.
+                Point survivor=reliefFollowerPosition;
+                float gap=(site-survivor).Length;
+                Point survivorContact=gap>.55f?
+                    site-(site-survivor).Normalized*.55f:survivor;
+                bool survivorNear=gap<1.75f &&
+                    ClearAttackPath(survivor,survivorContact);
+                int civilianSteps=0;
+                if(!survivorNear)
+                {
+                    List<Point> civilianRoute=NavigationPathFrom(survivor,site);
+                    if(civilianRoute.Count==0)continue;
+                    Point end=civilianRoute[civilianRoute.Count-1];
+                    float remaining=(site-end).Length;
+                    Point contact=remaining>.55f?
+                        site-(site-end).Normalized*.55f:end;
+                    if(remaining>=1.75f ||
+                        !ClearAttackPath(end,contact))continue;
+                    civilianSteps=civilianRoute.Count;
+                }
+                // Count the longer REAL walk, not only the hero's optimistic
+                // route. A vast civilian detour burns the timed rescue clock.
+                int steps=Math.Max(heroSteps,civilianSteps);
                 if(steps>20 || steps>=bestWalk)continue;
                 bestWalk=steps;best=site;
             }
