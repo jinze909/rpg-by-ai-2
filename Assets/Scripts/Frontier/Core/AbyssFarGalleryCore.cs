@@ -308,9 +308,37 @@ namespace Starfall
                     HasPhysicalInteractionReach(relay)) return true;
             return false;
         }
+        private bool NearLiveAbyssGate()
+        {
+            if (!InAbyss || Map.objects == null) return false;
+            WorldObject gate = Array.Find(Map.objects, o => o.kind == "abyssGate");
+            return gate != null && HasPhysicalInteractionReach(gate);
+        }
+        private void OpenAbyssCircuitGateRoutes()
+        {
+            if (!AbyssCircuitRouteSafe() || !NearLiveAbyssGate())
+            {
+                Notify("东门光路不可用：须清除本层敌人和落印，并站在地脉门旁。",
+                    "Gate circuit unavailable. Clear every threat and approach the east root gate.");
+                return;
+            }
+            Dialog("星根巡路网络", "Starroot route network",
+                "三座支洞信标已与东门重新联通。选择支洞继续探索；传送不会自动结算本层战利品。",
+                "The three side relays are reconnected to the east gate. Visit a gallery to finish exploring. Travel never banks unbanked loot.",
+                C("前往信标 A", "Travel to relay A", "abyssCircuitTo0"),
+                C("前往信标 B", "Travel to relay B", "abyssCircuitTo1"),
+                C("前往信标 C", "Travel to relay C", "abyssCircuitTo2"),
+                C("返回结算门", "Back to bank menu", "abyssCircuitGateMenu"));
+        }
+        private void ReopenAbyssCircuitGateMenu()
+        {
+            if (AbyssCircuitRouteSafe() && NearLiveAbyssGate())
+                AbyssGateConversation();
+        }
         private void TravelViaAbyssCircuit(int destination)
         {
-            if (!AbyssCircuitRouteSafe() || !NearLiveAbyssCircuit())
+            if (!AbyssCircuitRouteSafe() ||
+                (!NearLiveAbyssCircuit() && !NearLiveAbyssGate()))
             {
                 Notify("光路不可用：请靠近已接通信标，并清除敌人、落印和飞行中的攻击。",
                     "Route unavailable. Reach a linked relay and clear enemies, warnings and flying attacks.");

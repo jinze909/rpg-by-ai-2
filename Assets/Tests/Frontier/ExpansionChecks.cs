@@ -1239,6 +1239,80 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void CompletedAbyssCircuitAllowsSafeGateToGalleryRoundTrip(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.save.runCoins = 43; g.save.runShards = 11;
+            g.save.runXp = 24;
+            int coins = g.save.coins, shards = g.save.shards;
+            var gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            WorldObject[] relays = new WorldObject[3];
+            for (int i=0;i<3;i++)
+                relays[i] = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+            g.save.x=30.5f;g.save.y=14.5f;
+            g.Talk(gate);
+            Check(g.mode == "dialog" &&
+                g.conversation.choices[g.conversation.choices.Length-2].action ==
+                    "abyssCircuitRoutes" &&
+                g.conversation.choices[g.conversation.choices.Length-1].action ==
+                    "abyssBank",
+                "Original bank action stays LAST when east gate exposes extra circuit route");
+            g.Choose(g.conversation.choices.Length-2);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 4 &&
+                g.conversation.choices[0].action == "abyssCircuitTo0" &&
+                g.conversation.choices[3].action == "abyssCircuitGateMenu",
+                "East gate opens a physically sourced three-destination route sub-menu");
+            g.save.x=5;g.save.y=14;
+            g.Choose(2);
+            Check(g.save.x == 5 && g.save.y == 14 &&
+                g.save.runShards == 11,
+                "Leaving the gate revokes its route sub-menu and prevents remote transfer");
+
+            for (int destination=0;destination<3;destination++)
+            {
+                g.save.x=30.5f;g.save.y=14.5f;g.Talk(gate);
+                g.Choose(g.conversation.choices.Length-2);
+                g.Choose(destination);
+                Check(g.save.room == 8 &&
+                    Math.Abs(g.save.x-relays[destination].x)<.01f &&
+                    Math.Abs(g.save.y-relays[destination].y)<.01f &&
+                    g.save.runCoins == 43 && g.save.runShards == 11 &&
+                    g.save.runXp == 24 && g.save.coins == coins &&
+                    g.save.shards == shards,
+                    "The real east gate reaches gallery " + destination +
+                    " while preserving unbanked and permanent economy");
+                g.Talk(relays[destination]);g.Choose(0);
+                Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                    Math.Abs(g.save.y-14.5f)<.01f,
+                    "Route from gallery " + destination +
+                    " returns to the same original settlement gate");
+            }
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            // A hostile can enter after the player has opened the route UI.
+            // Re-evaluate threat state when they actually choose the stop.
+            var enemy = new Enemy(910, 0, 31.5f,14.5f,28f);
+            g.enemies.Add(enemy);
+            g.Choose(0);
+            Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                g.save.runShards == 11,
+                "A newly spawned enemy blocks travel even from an already-open gate route menu");
+            g.enemies.Clear();
+            g.Talk(gate);g.Choose(g.conversation.choices.Length-2);
+            g.Choose(3);
+            Check(g.mode == "dialog" &&
+                g.conversation.choices[g.conversation.choices.Length-1].action ==
+                    "abyssBank",
+                "Route sub-menu returns safely to the original settlement dialogue");
+            g.Choose(g.conversation.choices.Length-1);
+            Check(g.save.room==0 && g.save.shards==shards+11 &&
+                g.save.coins==coins+43,
+                "Only the original east gate bank action makes final loot permanent");
+        }
+
         public static void ClearedAbyssCircuitRoutesAmongPhysicalRelaysWithoutBanking(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(2);

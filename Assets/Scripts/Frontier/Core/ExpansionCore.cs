@@ -2315,6 +2315,8 @@ namespace Starfall
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
+            if (action == "abyssCircuitRoutes") { OpenAbyssCircuitGateRoutes(); return true; }
+            if (action == "abyssCircuitGateMenu") { ReopenAbyssCircuitGateMenu(); return true; }
             if (action == "abyssCircuitReturn") { ReturnViaAbyssCircuit(); return true; }
             if (action == "abyssCircuitTo0") { TravelViaAbyssCircuit(0); return true; }
             if (action == "abyssCircuitTo1") { TravelViaAbyssCircuit(1); return true; }
@@ -2616,6 +2618,8 @@ namespace Starfall
             List<Choice> choices = new List<Choice>();
             if (save.abyssFloor < 6)
             { choices.Add(C("利刃祝福 · 攻击+15%并深入", "Edge boon · +15% damage and descend", "boon0")); choices.Add(C("泉涌祝福 · 耐力回复+4并深入", "Spring boon · +4 energy regen and descend", "boon1")); choices.Add(C("磐石祝福 · 伤害-12%并深入", "Stone boon · -12% damage taken and descend", "boon2")); }
+            if (AbyssCircuitRouteSafe() && NearLiveAbyssGate())
+                choices.Add(C("重访支洞信标 A/B/C", "Revisit side relays A/B/C", "abyssCircuitRoutes"));
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));
             string charterZh = save.abyssFloor >= 3 &&
                 !Has("abyss_ward_charter_complete") ?
