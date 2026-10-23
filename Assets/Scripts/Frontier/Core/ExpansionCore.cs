@@ -2388,7 +2388,22 @@ namespace Starfall
         private string ExpansionObjective()
         {
             if (save.room == 9) return L("休息、备好热汤，或从南门返回余烬镇。", "Rest, prepare stew, or return to Emberfall through the south door.");
-            if (InAbyss) return enemies.Count > 0 ? L("清理本层敌人 · 小心地脉落印，东门可结算", "Clear this floor · avoid rift marks; bank at the east gate") : L("到东侧地脉门，选择祝福或安全撤离。", "Choose a blessing or extract at the east gate.");
+            if (InAbyss)
+            {
+                string goal = enemies.Count > 0 ?
+                    L("清理本层敌人 · 小心地脉落印，东门可结算",
+                        "Clear this floor · avoid rift marks; bank at the east gate") :
+                    L("到东侧地脉门，选择祝福或安全撤离。",
+                        "Choose a blessing or extract at the east gate.");
+                // An optional healing route matters most when the player can
+                // actually afford it from this floor's still-unbanked earnings.
+                if (!Has("abyss_annex_rootwell_" + save.abyssFloor) &&
+                    ((save.health <= save.maxHealth * .5f && save.runShards >= 2) ||
+                     (save.energy <= 25 && save.runShards >= 1)))
+                    goal += L(" · 东侧支洞复苏泉可兑换恢复",
+                        " · East gallery rootwell offers recovery");
+                return goal;
+            }
             if (save.room >= 5 && save.room <= 7)
             {
                 if (!GateOpen) return ExpansionGateHint(save.english);

@@ -34,9 +34,9 @@ namespace Starfall
                 return;
             }
             Dialog(o.name, o.en,
-                "旧巡路人将地脉改成公共避难泉。这里的能量并非免费：你可以拿尚未结算的碎片交换疗伤，或者恢复施法与闪避的耐力。每层只能选择一次。\\n\\n本层待结算碎片：" +
+                "旧巡路人将地脉改成公共避难泉。这里的能量并非免费：你可以拿尚未结算的碎片交换疗伤，或者恢复施法与闪避的耐力。每层只能选择一次。\n\n本层待结算碎片：" +
                     save.runShards + "。永久存入背包的碎片不会被扣除。",
-                "Old roadwardens turned this starroot into a public refuge. Spend UNBANKED shards to heal or replenish energy. Choose once per floor; permanent banked shards are never spent.\\n\\nUnbanked shards: " +
+                "Old roadwardens turned this starroot into a public refuge. Spend UNBANKED shards to heal or replenish energy. Choose once per floor; permanent banked shards are never spent.\n\nUnbanked shards: " +
                     save.runShards + ".",
                 C("疗伤 · 碎片2 · 回复40%最大生命",
                     "Mend wounds · 2 shards · heal 40% max HP", "abyssRootwellHeal"),

@@ -790,6 +790,8 @@ namespace Starfall.Tests
             g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
             g.save.health = 20; g.save.energy = 25;
             g.save.runShards = 3; g.save.shards = 40;
+            Check(g.Objective().Contains("复苏泉"),
+                "Low-health delvers with pending shards see the optional rootwell route");
             int coins = g.save.coins, revision = g.revision;
             float health = g.save.health;
             g.Talk(well);
@@ -820,9 +822,16 @@ namespace Starfall.Tests
             Check(g.mode == "dialog" && g.conversation.choices.Length == 1,
                 "An exhausted font cannot be purchased again on the same floor");
             g.Close();
+            Check(!g.Objective().Contains("复苏泉"),
+                "The optional rootwell hint disappears after its charge is spent");
+            // Real enemy-clear progression sets this flag at the final kill;
+            // an empty unfinished floor intentionally invalidates unbanked
+            // loot when reconstructed and cannot model a legitimate save.
+            g.save.flags.Add("abyss_clear_1");
             g.PrepareSave();
             var restored = new GameCore(data, CloneSave(g.save));
-            Check(restored.InAbyss && restored.Has("abyss_annex_rootwell_1") &&
+            Check(restored.InAbyss && restored.Has("abyss_clear_1") &&
+                restored.Has("abyss_annex_rootwell_1") &&
                 restored.save.runShards == 1 &&
                 Math.Abs(restored.save.health - g.save.health) < .001f,
                 "SaveData v2 restores spent charge and precisely bankable rewards");
