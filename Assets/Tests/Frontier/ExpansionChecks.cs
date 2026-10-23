@@ -1071,6 +1071,47 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void AbyssTestimonyCompassFollowsRealUnvisitedSources(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.save.x=5;g.save.y=14;
+            WorldObject near = g.AbyssTestimonyNextSite;
+            Check(near != null && near.kind == "abyssSurvey" &&
+                g.Objective().Contains(near.name),
+                "The actual closest unsolved record appears in the mission guidance");
+            WorldObject farEcho = Array.Find(g.Map.objects,
+                o => o.kind == "abyssFarEcho");
+            g.save.x = farEcho.x;g.save.y = farEcho.y;
+            Check(g.AbyssTestimonyNextSite != farEcho,
+                "An inaccessible echo transcript is never suggested before finding its source");
+            g.save.flags.Add("abyss_annex_far_survey_1");
+            Check(g.AbyssTestimonyNextSite == farEcho,
+                "Decoding the source tablet unlocks the real echo as a compass candidate");
+            g.save.flags.Add("abyss_annex_far_echo_1");
+            Check(g.AbyssTestimonyNextSite != farEcho,
+                "A collected echo is immediately removed from compass targets");
+            g.save.flags.Add("abyss_annex_survey_1");
+            g.save.flags.Add("abyss_annex_cache_1");
+            g.save.flags.Add("abyss_annex_far_cache_1");
+            Check(g.AbyssTestimonyProgress == 5,
+                "The compass reads all five existing v2 proofs");
+            g.save.flags.Add("abyss_annex_testimony_complete_1");
+            Check(g.AbyssTestimonyNextSite == null,
+                "Completed testimony trail never points to a nonexistent bonus target");
+            g.enemies.Clear();g.save.flags.Add("abyss_clear_1");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.AbyssTestimonyNextSite == null &&
+                restored.AbyssTestimonySealed,
+                "SaveData v2 reload preserves completed compass targeting");
+            restored.save.abyssFloor=2;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic).Invoke(restored,null);
+            Check(restored.AbyssTestimonyNextSite != null &&
+                restored.AbyssTestimonyProgress == 0,
+                "A new seeded floor regenerates useful next-site navigation");
+        }
+
         public static void AbyssTestimonyTrailRequiresFivePhysicalRecordsAndBanksOnlyAtGate(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

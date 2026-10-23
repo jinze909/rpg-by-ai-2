@@ -615,6 +615,21 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
+            // Overlay a genuine reachable target onto the existing
+            // environment prop render: do not replace its sprite/asset.
+            if (Game.InAbyss &&
+                (kind == "abyssSurvey" || kind == "abyssCache" ||
+                 kind == "abyssFarSurvey" || kind == "abyssFarCache" ||
+                 kind == "abyssFarEcho") &&
+                System.Object.ReferenceEquals(Game.AbyssTestimonyNextSite,o))
+            {
+                Ring(new Point(o.x,o.y),.86f,gold,20);
+                Text(p.x-66,p.y-97,132,21,
+                    Game.L("证词目标 · E","TESTIMONY · E"),
+                    11,gold,TextAnchor.MiddleCenter);
+                // Returning false keeps the established production base
+                // object renderer instead of shrinking its art fidelity.
+            }
             if(kind=="frostsignal")
             {
                 int stage=0;

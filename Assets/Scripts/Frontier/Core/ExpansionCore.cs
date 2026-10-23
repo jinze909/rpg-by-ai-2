@@ -2434,8 +2434,14 @@ namespace Starfall
                     goal += L(" · 探索回路信标 " + AbyssCircuitSymbol(AbyssCircuitNextNode),
                         " · Explore circuit relay " + AbyssCircuitSymbol(AbyssCircuitNextNode));
                 if (!AbyssTestimonySealed)
+                {
+                    WorldObject nextRecord = AbyssTestimonyNextSite;
                     goal += L(" · 巡路证词 " + AbyssTestimonyProgress + "/5",
                         " · Warden testimonies " + AbyssTestimonyProgress + "/5");
+                    if (nextRecord != null)
+                        goal += L("：下个 " + nextRecord.name,
+                            ": next " + nextRecord.en);
+                }
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)

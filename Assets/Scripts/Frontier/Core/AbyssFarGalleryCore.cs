@@ -551,6 +551,44 @@ namespace Starfall
                 return count;
             }
         }
+        // Dynamic in-world route guidance. Choose the closest UNSOLVED
+        // physically placed record rather than inventing a map waypoint.
+        // The echo stone is withheld until its source tablet was found.
+        public WorldObject AbyssTestimonyNextSite
+        {
+            get
+            {
+                if (!InAbyss || Map.objects == null ||
+                    AbyssTestimonySealed) return null;
+                WorldObject closest = null;
+                float nearest = float.MaxValue;
+                foreach (WorldObject candidate in Map.objects)
+                {
+                    switch (candidate.kind)
+                    {
+                        case "abyssSurvey":
+                        case "abyssCache":
+                        case "abyssFarSurvey":
+                        case "abyssFarCache":
+                        case "abyssFarEcho": break;
+                        default: continue;
+                    }
+                    if (candidate.kind == "abyssFarEcho" &&
+                        !Has("abyss_annex_far_survey_" + save.abyssFloor))
+                        continue;
+                    string flag = AbyssCircuitOptionalFlag(candidate);
+                    if (flag == null || Has(flag)) continue;
+                    float dx = candidate.x-save.x, dy = candidate.y-save.y;
+                    float range2 = dx*dx + dy*dy;
+                    if (range2 < nearest)
+                    {
+                        nearest=range2;
+                        closest=candidate;
+                    }
+                }
+                return closest;
+            }
+        }
         public bool AbyssTestimonySealed
         {
             get { return InAbyss &&
