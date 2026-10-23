@@ -392,6 +392,12 @@ namespace Starfall
                         "Complete or cancel your parcel or tide salvage before starting civilian service.");
                     return true;
                 }
+                if(FieldWorkPreventsRest)
+                {
+                    Notify("其它现场行动尚未结束，不能启动居民医疗或守路任务。",
+                        "Finish the active field mission before starting civilian medical delivery or road defense.");
+                    return true;
+                }
                 if(!SafeTravel)return true;
                 int type=CivicSupplyClinic(save.room)?1:2;
                 if(type==2)
