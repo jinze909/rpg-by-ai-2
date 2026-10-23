@@ -104,6 +104,29 @@ namespace Starfall.Tests
                 "Book and NPC cannot swap their dialogue speakers on a focus change");
         }
 
+
+        public static void RescueActorAtSurveyMarkerOverridesPropButNotNeighborNpc(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.room=6;
+            WorldObject marker=Object(g,"receiver");
+            g.reliefMissionRoom=6;g.reliefMissionWave=1;
+            g.reliefFollowerPosition=new Point(marker.x,marker.y);
+            g.save.x=marker.x;g.save.y=marker.y;
+            Check(g.CanStand(g.Position)&&g.Nearest()==marker,
+                "Authoritative field survey marker is also a real visible interaction target");
+            Check(g.ReliefCivilianIsInteractionTarget(marker),
+                "A real civilian overlapping its authored survey marker owns that E interaction");
+            g.Interact();
+            Check(g.conversation!=null&&
+                g.conversation.speaker=="平民紧急集结点",
+                "Rescue wave-one command cannot turn into the marker's unrelated dialogue");
+            g.Close();
+            g.reliefMissionWave=3;
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker=="获救居民",
+                "Physical civilian at the same source receives the escort dialogue after the second wave");
+        }
+
         public static void ReliefFieldGuardCannotStealNearestNpcDialogue(Campaign data)
         {
             var g=Fresh(data);g.save.room=5;

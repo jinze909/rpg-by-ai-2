@@ -2149,8 +2149,16 @@ namespace Starfall
                 return false;
             if(nearby==null)return true;
             float other=(Position-new Point(nearby.x,nearby.y)).Length;
-            // On a near tie prefer the actual visibly prompted map NPC,
-            // rather than silently switching to a different speaker.
+            // The civilian is deliberately staged at the SAME physical
+            // location as a regional survey landmark (relay1, receiver,
+            // bell2). That original map prop remains valid for exploration,
+            // but must not steal an actual rescue actor's E menu on contact.
+            bool sharedMissionMarker=save.room>=5&&save.room<=7 &&
+                nearby.kind==FieldSurveyLandmarks[save.room-5] &&
+                (new Point(nearby.x,nearby.y)-reliefFollowerPosition).Length<.35f;
+            if(sharedMissionMarker && d<.9f)return true;
+            // If a real NPC is closer, never substitute the survivor.
+            // This rule applies in all three mission waves equally.
             return d<other-.1f;
         }
         public void Interact()
