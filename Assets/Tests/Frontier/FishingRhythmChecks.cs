@@ -80,5 +80,45 @@ namespace Starfall.Tests
             Check(game.save.inventory[3] == fish,
                 "Exiting a fishing game voluntarily cannot claim incomplete catches");
         }
+
+        public static void FishingBiteCueFiresOnlyOnRealSimulationBoundary(Campaign data)
+        {
+            var game = Fresh(data);
+            Action(game, "fish", "fish");
+            game.sounds.Clear();
+            Check(Array.IndexOf(AudioSynthesis.Events, "fishBite") >= 0,
+                "Real FrontierAudio will build the new bite sound during scene startup");
+            float[] cue = AudioSynthesis.Event("fishBite");
+            Check(cue.Length > AudioSynthesis.Rate / 8 &&
+                cue.Length < AudioSynthesis.Rate / 2,
+                "The original synthesized water cue is a brief valid live audio clip");
+            float peak = 0;
+            foreach(float sample in cue)
+            {
+                Check(!float.IsNaN(sample) && !float.IsInfinity(sample),
+                    "Bite samples must remain finite for Unity AudioClip.SetData");
+                peak = Math.Max(peak, Math.Abs(sample));
+            }
+            Check(peak > .03f && peak < .9f,
+                "The water-plop sound is audible without clipping");
+            for(int i=0;i<10;i++)game.Tick(.02f,new Point());
+            Check(game.sounds.Count==0 && !game.FishLineReady,
+                "No early water cue before a real bite is ready");
+            for(int i=0;i<10;i++)game.Tick(.02f,new Point());
+            Check(game.FishLineReady && game.sounds.Count==1 &&
+                game.sounds.Peek()=="fishBite",
+                "At first simulated bite exactly one real water cue is queued");
+            for(int i=0;i<100;i++)game.Tick(.02f,new Point());
+            Check(game.sounds.Count==1,
+                "Waiting in the ready state does not spam new audio each frame");
+            game.FishHit();
+            int accepted=game.fishHits+game.fishMisses;
+            Check(accepted==1 && !game.FishLineReady,
+                "A resolved bite enters the next transient cooldown");
+            game.sounds.Clear();
+            for(int i=0;i<30;i++)game.Tick(.02f,new Point());
+            Check(game.sounds.Count==1 && game.sounds.Peek()=="fishBite",
+                "Next actual bite emits a fresh cue without altering the reward state");
+        }
     }
 }

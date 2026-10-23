@@ -606,7 +606,12 @@ namespace Starfall
                 // The fish moves its bite lane while the player's float
                 // swings with increasing tempo. Nothing else in the world
                 // simulates during the minigame, as before.
+                float previousFishTime = fishTime;
                 fishTime += dt;
+                // A real bite is heard once at the readiness boundary,
+                // not every frame the green window remains available.
+                if (previousFishTime < fishNextBiteAt && fishTime >= fishNextBiteAt)
+                    sound = "fishBite";
                 fishCursor = .5f + .5f * (float)Math.Sin(
                     fishTime * (2.5f + fishHits * .35f + fishMisses * .08f));
                 return;

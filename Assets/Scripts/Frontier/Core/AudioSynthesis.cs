@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -43,6 +43,7 @@ namespace Starfall
         public static float[] Event(string name)
         {
             if (name == "step") return Footstep("grass", 0);
+            if (name == "fishBite") return FishBite();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -55,6 +56,27 @@ namespace Starfall
                 phase += 2 * Math.PI * f / Rate; double noise = name == "hit" || name == "attack" || name == "step" ? (random.NextDouble() * 2 - 1) * .18 : 0;
                 if (name == "slam" || name == "arrow") noise = (random.NextDouble() * 2 - 1) * .2;
                 wave[i] = (float)((Math.Sin(phase) * .36 + noise) * (1 - t) * Math.Min(1, t * 30));
+            }
+            return wave;
+        }
+        // Distinctive, deterministic water plop: a descending air bubble
+        // wrapped in filtered ripples. Synthesized at runtime, with no asset
+        // import, scene changes or external audio dependencies.
+        private static float[] FishBite()
+        {
+            float[] wave = new float[(int)(Rate * .24f)];
+            var random = new Random(8123);
+            double bubblePhase = 0, filteredWater = 0;
+            for (int i = 0; i < wave.Length; i++)
+            {
+                double seconds = i / (double)Rate;
+                double progress = i / (double)wave.Length;
+                filteredWater += ((random.NextDouble() * 2 - 1) - filteredWater) * .095;
+                double pitch = 710 - 440 * progress;
+                bubblePhase += 2 * Math.PI * pitch / Rate;
+                double envelope = Math.Min(1, seconds * 90) *
+                    Math.Exp(-seconds * 17) * Math.Min(1, (.24 - seconds) * 90);
+                wave[i] = (float)((Math.Sin(bubblePhase) * .34 + filteredWater * .22) * envelope);
             }
             return wave;
         }
