@@ -1336,7 +1336,7 @@ namespace Starfall.Tests
                 Check(g.Has("abyss_clear_1") && g.AbyssTestimonyProgress==i+1,
                     "Physical testimony interaction advances one real SaveData v2 proof");
                 g.Close();
-                Check(!Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,target),
+                Check(!System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,target),
                     "A recorded field site immediately leaves the compass");
             }
             Check(g.AbyssTestimonySealed && g.AbyssTestimonyGuidedSite==null &&
