@@ -3342,6 +3342,35 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveTunedAbyssPylonShowsPhysicalShelterAndExit(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;game.save.english=true;
+        game.save.frontierEnding=1;game.StartAbyss(0);
+        game.save.abyssFloor=3;
+        CallCore(game,"GenerateAbyss");
+        game.enemies.Clear();game.hazards.Clear();game.projectiles.Clear();
+        var ward=Array.Find(game.Map.objects,o=>o.kind=="abyssRiftWard");
+        Check(ward!=null,"Production ward is placed in the live third-floor game map");
+        game.save.x=ward.x;game.save.y=ward.y;game.save.runShards=3;
+        game.Talk(ward);game.Choose(0);
+        Check(game.AbyssWardShelter && game.save.runShards==0,
+            "Actual physical interaction purchases and activates the shelter");
+        Set(app,"camera",game.Position);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("PYLON SHELTER ACTIVE")),
+            "Real world GUI announces the defensive area when hero stands beside the tuned pylon");
+        game.save.x=ward.x+3;game.save.y=ward.y;
+        Check(!game.AbyssWardShelter,"Leaving the 1.6-tile shelter radius disables the effect");
+        Set(app,"camera",game.Position);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("ENTER GREEN SHELTER")) &&
+            !GUI.commands.Exists(c=>c.Contains("PYLON SHELTER ACTIVE")),
+            "World field label switches to directional shelter guidance outside the physical aura");
+        Console.WriteLine("PASS Production Abyss pylon GUI presents real shelter enter and exit states");
+    }
+
     private static void LiveAbyssRouteMenusBackToGateWithoutBanking(FrontierRuntime app)
     {
         Prepare(app);
@@ -3601,7 +3630,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

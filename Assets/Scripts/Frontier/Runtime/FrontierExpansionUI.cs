@@ -1358,11 +1358,16 @@ namespace Starfall
                     Game.AbyssWardActive ? Color.white : muted);
                 Ring(new Point(o.x, o.y),
                     Game.AbyssWardActive ? 1.6f : .6f, glow, 20);
-                Text(p.x - 67, p.y - 95, 134, 24,
+                // The green radius is real shelter geography, not a
+                // decorative light. Communicate entry/exit directly in the
+                // production field-object label for all three professions.
+                Text(p.x - 97, p.y - 95, 194, 24,
+                    Game.AbyssWardShelter ?
+                        Game.L("镇流庇护 · 已进入", "PYLON SHELTER ACTIVE") :
                     Game.AbyssWardActive ?
-                        Game.L("地脉镇流生效", "RIFT WARD ACTIVE") :
+                        Game.L("靠近绿圈可避落印", "ENTER GREEN SHELTER") :
                         Game.L("镇流碑 · E", "WARD PYLON · E"),
-                    11, glow, TextAnchor.MiddleCenter);
+                    10, glow, TextAnchor.MiddleCenter);
                 return true;
             }
             if (kind == "abyssRootwell")
