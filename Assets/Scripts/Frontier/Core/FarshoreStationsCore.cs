@@ -154,6 +154,13 @@ namespace Starfall
         }
         public float reliefHurryTime;
         private bool reliefHurryUsed;
+        private float reliefEvadeCooldown;
+        public bool ReliefEscortEvadeAvailable
+        {
+            get { return ReliefEscortActive && !Dying &&
+                save.energy>=15 && reliefEvadeCooldown<=0f &&
+                ReliefEscortUnderAttack; }
+        }
         public bool ReliefEscortHurryAvailable
         {
             get { return ReliefEscortActive && !reliefHurryUsed &&
@@ -210,6 +217,7 @@ namespace Starfall
             reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
             reliefHurryTime = 0; reliefHurryUsed = false;
+            reliefEvadeCooldown = 0;
             reliefClimateKitTime = 0; reliefClimateKitUsed = false;
         }
         private void CaptureReliefCheckpoint()
@@ -533,6 +541,8 @@ namespace Starfall
                 reliefWardTime = Math.Max(0, reliefWardTime - dt);
             if (reliefHurryTime > 0)
                 reliefHurryTime = Math.Max(0, reliefHurryTime - dt);
+            if (reliefEvadeCooldown > 0)
+                reliefEvadeCooldown = Math.Max(0, reliefEvadeCooldown - dt);
             if (reliefClimateKitTime > 0)
                 reliefClimateKitTime = Math.Max(0, reliefClimateKitTime - dt);
             if (reliefMissionTime <= 0)
@@ -776,6 +786,9 @@ namespace Starfall
             if (ReliefEscortHurryAvailable)
                 options.Add(C("紧急赶路 · 耐力15",
                     "Hurry to shelter · 15 energy", "relief_hurry"));
+            if (ReliefEscortEvadeAvailable)
+                options.Add(C("躲开袭击 · 耐力15",
+                    "Evade incoming strike · 15 energy", "relief_evasive_step"));
             if (ReliefClimateKitAvailable)
                 options.Add(C("展开临时气候防护 · 星晶碎片1",
                     "Deploy weather canopy · 1 shard", "relief_climate_kit"));
@@ -795,7 +808,8 @@ namespace Starfall
         {
             if (action != "relief_wait" && action != "relief_follow" &&
                 action != "relief_treat" && action != "relief_escort_guard" &&
-                action != "relief_hurry" && action != "relief_climate_kit") return false;
+                action != "relief_hurry" && action != "relief_climate_kit" &&
+                action != "relief_evasive_step") return false;
             if (!ReliefEscortActive || (Position - reliefFollowerPosition).Length > 1.7f ||
                 !ClearAttackPath(Position,reliefFollowerPosition))
                 return true;
@@ -808,6 +822,56 @@ namespace Starfall
             {
                 reliefFollowerWaiting = false;
                 Notify("居民重新跟随你。", "The civilian resumes following you.");
+            }
+            else if (action == "relief_evasive_step")
+            {
+                // Only an actual committed strike can warrant a one-tile
+                // command dash. SweepActor checks the whole movement; the
+                // hero cannot order a dodge across rock, closed gates, or
+                // an unreachable NPC dialogue. Energy is charged only after
+                // a real relocation, without granting invulnerability.
+                if(!ReliefEscortEvadeAvailable)return true;
+                Point start=reliefFollowerPosition;
+                Point[] offsets={
+                    new Point(1,0),new Point(-1,0),
+                    new Point(0,1),new Point(0,-1),
+                    new Point(1,1).Normalized,new Point(-1,1).Normalized,
+                    new Point(1,-1).Normalized,new Point(-1,-1).Normalized
+                };
+                Point best=start;
+                float bestScore=float.NegativeInfinity;
+                foreach(Point direction in offsets)
+                {
+                    Point desired=start+direction*1.1f;
+                    if(!CanStand(desired) ||
+                        !ClearAttackPath(start,desired))continue;
+                    Point candidate=SweepActor(start,direction*1.1f);
+                    if((candidate-start).Length<.7f)continue;
+                    float score=float.MaxValue;
+                    foreach(Enemy e in enemies)
+                        if(e.hp>0 && e.state==1 &&
+                            e.targetingReliefCivilian)
+                            score=Math.Min(score,(candidate-e.target).Length);
+                    if(score>bestScore)
+                    {best=candidate;bestScore=score;}
+                }
+                if((best-start).Length<.7f)
+                {
+                    Notify("四周通路封闭，居民无法执行侧移；没有消耗耐力。",
+                        "No open path for civilian evasion. No energy spent.");
+                    return true;
+                }
+                save.energy-=15;reliefEvadeCooldown=3.5f;
+                reliefFollowerPosition=best;
+                reliefFollowerWalkDistance+=(best-start).Length;
+                reliefFollowerMoving=true;
+                if(Math.Abs(best.x-start.x)>.015f)
+                    reliefFollowerFacingLeft=best.x<start.x;
+                effects.Add(new Effect("discover",best,.45f) {
+                    reliefMissionOwned=true });
+                sound="dash";revision++;
+                Notify("居民沿开放的道路闪避！不能免疫仍会命中的攻击。",
+                    "Civilian dodged onto open ground! This does not block all attacks.");
             }
             else if (action == "relief_climate_kit")
             {
