@@ -3341,6 +3341,51 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveAbyssRouteMenusBackToGateWithoutBanking(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;game.save.frontierEnding=1;
+        game.StartAbyss(0);
+        game.enemies.Clear();game.hazards.Clear();game.projectiles.Clear();
+        game.save.flags.Add("abyss_clear_1");
+        game.save.flags.Add("abyss_annex_circuit_complete_1");
+        game.save.runCoins=23;game.save.runShards=5;
+        var gate=Array.Find(game.Map.objects,o=>o.kind=="abyssGate");
+        game.save.x=gate.x;game.save.y=gate.y;
+        int beforeCoins=game.save.coins,beforeShards=game.save.shards;
+        game.Talk(gate);
+        game.Choose(Array.FindIndex(game.conversation.choices,
+            c=>c.action=="abyssTestimonyList"));
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[game.conversation.choices.Length-1].action=="abyssTestimonyGateMenu",
+            "Actual testimony survey is a sourced child of the east gate");
+        Input.keys.Add(KeyCode.Escape);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[game.conversation.choices.Length-1].action=="abyssBank",
+            "Escape returns from real testimony planner to its banking menu");
+        game.Choose(Array.FindIndex(game.conversation.choices,
+            c=>c.action=="abyssCircuitRoutes"));
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[game.conversation.choices.Length-1].action=="abyssCircuitGateMenu",
+            "Actual relay network is another sourced child of the east gate");
+        Input.keys.Add(KeyCode.JoystickButton1);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[game.conversation.choices.Length-1].action=="abyssBank" &&
+            game.save.coins==beforeCoins && game.save.shards==beforeShards &&
+            game.save.runCoins==23 && game.save.runShards==5,
+            "Gamepad B returns to banking without committing either pending reward");
+        game.Choose(Array.FindIndex(game.conversation.choices,
+            c=>c.action=="abyssTestimonyList"));
+        game.save.x=5;game.save.y=14;
+        Input.keys.Add(KeyCode.Escape);Update(app);
+        Check(game.mode=="world" && game.InAbyss &&
+            game.save.runShards==5 && game.save.coins==beforeCoins,
+            "Leaving a source before pressing Back cannot teleport to a stale gate interaction");
+        Console.WriteLine("PASS Real Abyss gate testimony/circuit Esc and gamepad B back hierarchy");
+    }
+
     private static void LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage(FrontierRuntime app)
     {
         Prepare(app);
@@ -3556,7 +3601,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

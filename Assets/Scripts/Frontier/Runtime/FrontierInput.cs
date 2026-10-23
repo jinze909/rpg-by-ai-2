@@ -82,6 +82,7 @@ namespace Starfall
                 // archive. The canonical GameCore.Choose handler still
                 // rechecks story gating; no quest or save state is forged.
                 int chapter = -1, directory = -1;
+                int rootGateBack = -1;
                 Choice[] choices = Game.conversation.choices;
                 for (int i = 0; i < choices.Length; i++)
                 {
@@ -89,10 +90,22 @@ namespace Starfall
                         chapter = i;
                     if (choices[i].action == "story_menu")
                         directory = i;
+                    if (choices[i].action == "abyssTestimonyGateMenu" ||
+                        choices[i].action == "abyssCircuitGateMenu")
+                        rootGateBack = i;
                 }
                 if (directory >= 0)
                 {
                     ChooseDialogue(chapter >= 0 ? chapter : directory);
+                    return;
+                }
+                // Route selection is a real child of the east banking gate.
+                // B/Escape navigates back using the SAME physical source
+                // checks as clicking its own "Back to bank" option. It
+                // must never bank loot or resurrect a stale remote menu.
+                if (rootGateBack >= 0)
+                {
+                    ChooseDialogue(rootGateBack);
                     return;
                 }
             }
