@@ -1295,6 +1295,49 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssSixChoiceGateKeepsBankAndCircuitTransfersAfterSurvey(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.save.runCoins=24;g.save.runShards=7;
+            int coins=g.save.coins,shards=g.save.shards;
+            var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            var relay=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit1");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            Check(g.conversation.choices.Length==6 &&
+                g.conversation.choices[3].action=="abyssTestimonyTrack" &&
+                g.conversation.choices[4].action=="abyssCircuitRoutes" &&
+                g.conversation.choices[5].action=="abyssBank",
+                "Real cleared-floor dialog exposes six distinct safe actions: blessings, testimony, routes and bank");
+            g.Choose(3);
+            Check(g.AbyssTestimonyGuidedSite!=null && g.save.shards==shards,
+                "Choice four deliberately starts fieldwork without settlement");
+            g.Talk(gate);
+            g.Choose(4);
+            Check(g.mode=="dialog" &&
+                g.conversation.choices[1].action=="abyssCircuitTo1",
+                "Six-choice gate still opens the original physical circuit network");
+            g.Choose(1);
+            Check(Math.Abs(g.save.x-relay.x)<.01f &&
+                Math.Abs(g.save.y-relay.y)<.01f &&
+                g.AbyssTestimonyGuidedSite==null &&
+                g.save.runShards==7 && g.save.shards==shards,
+                "Explicit relay travel supersedes testimony intent without awarding loot");
+            g.Talk(relay);
+            g.Choose(0);
+            Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                Math.Abs(g.save.y-14.5f)<.01f,
+                "Return via the real relay circuit reaches the unchanged east gate");
+            g.Talk(gate);
+            g.Choose(g.conversation.choices.Length-1);
+            Check(g.save.room==0 && g.save.coins==coins+24 &&
+                g.save.shards==shards+7,
+                "After both optional routes the original final choice is the only bank");
+        }
+
         public static void AbyssGateTestimonyTrackingCanBeCancelledAndReenabled(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);
