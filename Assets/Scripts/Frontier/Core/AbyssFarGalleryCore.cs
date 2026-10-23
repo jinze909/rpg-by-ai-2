@@ -422,7 +422,9 @@ namespace Starfall
                     "The starroot route destination is blocked by terrain.");
                 return;
             }
+            Point previousHero = Position;
             save.x = arrival.x; save.y = arrival.y;
+            RejoinCompanionAfterAbyssCircuitTravel(previousHero);
             revision++;
             sound = "travel";
             Notify(stop == null ?

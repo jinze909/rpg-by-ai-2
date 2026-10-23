@@ -551,6 +551,39 @@ namespace Starfall
             return startSquared<clearance*clearance&&projection<=.00001f;
         }
 
+        // Same-floor Starroot transfers are deliberate fast travel for the
+        // entire party, not an ordinary multi-tile footstep. An unheld ally
+        // follows the HERO's new legal formation slot without walking for
+        // 30+ tiles from the old gallery or animating a giant false stride.
+        // A deliberate "hold position" order remains attached to its real
+        // old foot: the route may move the hero without silently cancelling
+        // a tactical companion command.
+        private void RejoinCompanionAfterAbyssCircuitTravel(Point oldHero)
+        {
+            if (!InAbyss || save.companion < 0 ||
+                CompanionHoldingPosition ||
+                (Position - oldHero).Length < .35f) return;
+            if ((companionPosition - Position).Length <= 2.5f &&
+                Fits(companionPosition)) return;
+            Point arrival = CompanionFollowTarget();
+            // Fully blocked corridors can have a safe hero foot but no
+            // distinct ally-sized foot. Keep the existing ally intact
+            // rather than visually merging two bodies at the same tile.
+            if (!Fits(arrival) ||
+                (arrival-Position).Length < .55f) return;
+            ClearCompanionFollowRoute();
+            ClearCompanionCornerPlan();
+            companionAutoTarget = null;
+            companionPosition = arrival;
+            companionMoveTime = 0f;
+            companionMoving = false;
+            companionAim = aim.Length > .001f ?
+                aim.Normalized : new Point(1,0);
+            // Force the formal full-body gait owner to begin from the new
+            // planted foot; preserve actual skill/attack cooldowns.
+            companionPresentationGeneration++;
+        }
+
         private void ClearCompanionFollowRoute()
         {
             companionFollowRoute.Clear();

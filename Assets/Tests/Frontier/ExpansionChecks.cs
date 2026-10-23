@@ -1699,6 +1699,82 @@ namespace Starfall.Tests
                 "The protected final banking gate resumes normal network travel after recovery");
         }
 
+        public static void StarrootFastTravelBringsUnheldCompanionWithoutFakeGait(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            var a=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit0");
+            var b=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit1");
+            var c=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit2");
+            Check(a!=null&&b!=null&&c!=null,
+                "Party co-travel uses actual three world-placed relay stops");
+            g.mode="world";g.save.x=a.x;g.save.y=a.y;
+            g.SelectCompanion(0);
+            Check(g.save.companion==0 &&
+                (g.companionPosition-g.Position).Length<4f,
+                "Recruited companion begins in the real original formation");
+            g.companionCooldown=8f;
+            g.companionMoveTime=7.2f;
+            g.companionMoving=true;
+            int generation=g.companionPresentationGeneration;
+            g.Talk(a);g.Choose(3); // The third branch destination is C.
+            Check(Math.Abs(g.save.x-c.x)<.01f &&
+                Math.Abs(g.save.y-c.y)<.01f &&
+                g.CanStand(g.companionPosition) &&
+                (g.companionPosition-g.Position).Length>.55f &&
+                (g.companionPosition-g.Position).Length<4f,
+                "Relay A->C physically rejoins the companion at the new safe hero foot");
+            Check(g.companionPresentationGeneration==generation+1 &&
+                g.companionMoveTime==0f && !g.companionMoving &&
+                Math.Abs(g.companionCooldown-8f)<.001f,
+                "Fast party transfer rebases genuine full-body gait without refreshing skills");
+
+            // Explicit companion hold is a real player order: the hero may
+            // still travel, but the planted ally must NOT get dragged away.
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,
+                "A party member can receive a physical hold order at relay C");
+            Point holdFoot=g.companionPosition;
+            int holdGeneration=g.companionPresentationGeneration;
+            g.Talk(c);g.Choose(2); // C->B
+            Check(Math.Abs(g.save.x-b.x)<.01f &&
+                Math.Abs(g.save.y-b.y)<.01f &&
+                (g.companionPosition-holdFoot).Length<.001f &&
+                g.CompanionHoldingPosition &&
+                g.companionPresentationGeneration==holdGeneration,
+                "Fast travel preserves deliberate hold and original planted companion gait");
+            g.ToggleCompanionHold();
+            Check(!g.CompanionHoldingPosition,
+                "Explicit resume-follow cancels the held stance");
+            g.Talk(b);g.Choose(1); // B->A
+            Check(Math.Abs(g.save.x-a.x)<.01f &&
+                (g.companionPosition-g.Position).Length<4f &&
+                g.companionPresentationGeneration==holdGeneration+1 &&
+                g.companionMoveTime==0f,
+                "Next legal long transfer rejoins a formerly stationed party member");
+
+            // Companions are optional. Fast travel must not fabricate a
+            // body or advance the animation generation without an ally.
+            g.SelectCompanion(-1);
+            Check(g.save.companion==-1,"Companion can be dismissed normally");
+            int soloGeneration=g.companionPresentationGeneration;
+            g.Talk(a);g.Choose(0);
+            Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                g.companionPresentationGeneration==soloGeneration,
+                "Solo relay transfer preserves no-companion presentation state");
+            g.SelectCompanion(2);
+            Check(g.save.companion==2,"The party can choose another valid ally");
+            g.save.runShards=4;
+            g.PrepareSave();
+            var restored = new GameCore(data,CloneSave(g.save));
+            Check(restored.InAbyss && restored.save.companion==2 &&
+                (restored.companionPosition-restored.Position).Length<4f &&
+                restored.save.runShards==4,
+                "SaveData v2 reload puts the chosen ally beside the real arrival without changing loot");
+        }
+
         public static void CompletedAbyssCircuitAllowsSafeGateToGalleryRoundTrip(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);
