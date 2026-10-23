@@ -5241,9 +5241,12 @@ public static class RuntimeCombatInputChecks
         // The final entry is the real chapter-back action, not a duplicate.
         Input.keys.Add((KeyCode)((int)KeyCode.Alpha1+count-13));
         Update(app);
-        Check(game.mode=="dialog"&&game.conversation.choices.Length==5 &&
-            game.conversation.choices[0].action=="story_section_origins",
-            "Last-page numeric shortcut opens the real parent chronicle safely");
+        Check(game.mode=="dialog"&&game.conversation.choices.Length==8 &&
+            game.conversation.choices[0].action=="story_section_origins" &&
+            game.conversation.choices[1].action=="story_section_campaign" &&
+            game.conversation.choices[4].action=="story_catchup" &&
+            game.conversation.choices[7].action=="close",
+            "Last-page numeric shortcut returns to the canonical four chapters plus new readable story guides");
         Console.WriteLine("PASS Three-page late chronicle pointer, Home/End and real final back action");
     }
 

@@ -139,13 +139,16 @@ namespace Starfall
             Dialog("边境编年册", "Frontier Chronicle",
                 "封面是一条横跨星根与河流的细线。卷首写道：\n\n“壁垒留住的是昨夜，路能带来明天。任何被牺牲的人，都应该先有说话的机会。”\n\n册中只有你亲眼见证、或已取得记录的篇章会逐渐展开。",
                 "An ink line runs from roots to rivers across the cover. Its first words read:\n\n“A wall can keep last night. A road can bring tomorrow. Those asked to pay deserve to speak first.”\n\nOnly accounts you have witnessed or recovered are available.",
-                StoryChoice("现在剧情进展到哪里？", "Story so far and next steps", "story_catchup"),
-                StoryChoice("人物关系一览", "Who is everyone?", "story_people"),
-                StoryChoice("看懂星根与星核", "Explain the key terms", "story_terms"),
+                // Keep the original four chapter entries at the same
+                // keyboard/controller positions. Context guides are extra
+                // options, never an accidental remapping of old buttons.
                 StoryChoice("世界与年代", "Origins and timeline", "story_section_origins"),
                 StoryChoice("星核四章", "Four starcore chapters", "story_section_campaign"),
                 StoryChoice("远岸与证词", "Farshore and testimony", "story_section_farshore"),
                 StoryChoice("归乡支线与尾声", "Homeward stories and aftermath", "story_section_after"),
+                StoryChoice("现在剧情进展到哪里？", "Story so far and next steps", "story_catchup"),
+                StoryChoice("人物关系一览", "Who is everyone?", "story_people"),
+                StoryChoice("看懂星根与星核", "Explain the key terms", "story_terms"),
                 StoryChoice("合上编年册", "Close the chronicle", "close"));
         }
         private bool StoryUnlocked(string page)
