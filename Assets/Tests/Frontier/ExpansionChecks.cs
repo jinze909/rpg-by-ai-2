@@ -804,6 +804,22 @@ namespace Starfall.Tests
             }
             Check(positions.Count == 3,
                 "Three successive deterministic seeds place the rootwell in distinct reachable branches");
+            // The v2 sanitizer permits the full positive signed seed range.
+            // An overflowed negative remainder must never produce a bogus
+            // rootwell index or break a deep legacy expedition.
+            g.save.abyssSeed = int.MaxValue;
+            g.save.abyssFloor = 6;
+            regenerate.Invoke(g, null);
+            WorldObject extreme = Array.Find(g.Map.objects, o => o.kind == "abyssRootwell");
+            Check(extreme != null && g.CanStand(new Point(extreme.x, extreme.y)) &&
+                Reachable(g).Contains((int)extreme.y * g.Map.rows[0].Length + (int)extreme.x),
+                "Maximum legal v2 seed still places a reachable final-floor rootwell");
+            GameCore extremeReload = new GameCore(data, CloneSave(g.save));
+            WorldObject extremeRestored = Array.Find(extremeReload.Map.objects,
+                o => o.kind == "abyssRootwell");
+            Check(extremeRestored != null && extremeRestored.x == extreme.x &&
+                extremeRestored.y == extreme.y,
+                "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
         public static void AbyssRootwellTradesPendingLootForSurvival(Campaign data)

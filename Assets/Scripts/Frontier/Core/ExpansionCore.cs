@@ -2497,8 +2497,12 @@ namespace Starfall
                 new Point(47.5f, 23.5f), // eastern lower gallery
                 new Point(20.5f, 30.5f)  // southern branch
             };
+            // Signed 32-bit seeds from v2 saves can approach Int32.MaxValue.
+            // Compute the new site index in 64-bit space; a wrapped negative
+            // modulo would otherwise index outside this valid site array.
             Point rootwellSite = rootwellSites[
-                (save.abyssSeed + save.abyssFloor * 17) % rootwellSites.Length];
+                (int)(((long)save.abyssSeed + save.abyssFloor * 17L) %
+                    rootwellSites.Length)];
             abyssMap = new MapData { id = 8, name = "地脉深渊 · 第" + save.abyssFloor + "层", en = "ROOT ABYSS · FLOOR " + save.abyssFloor, color = save.abyssFloor % 2 == 0 ? "#4f576c" : "#425b5c", subtitle = "越深入，越要决定带什么回来。", suben = "Every descent asks what you will carry home.", spawnX = 5, spawnY = 14, rows = strings,
                 objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 },
                     new WorldObject { id = "abyssSideSurvey", kind = "abyssSurvey", name = "地脉旧拓片", en = "Root Warden's Lost Rubbing", x = 12.5f, y = 28.5f },
