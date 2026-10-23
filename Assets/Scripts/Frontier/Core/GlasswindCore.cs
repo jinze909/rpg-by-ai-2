@@ -217,7 +217,7 @@ namespace Starfall
                 if(!int.TryParse(action.Substring("glasswind_start_".Length),out site) ||
                     site<1 || site>3 || save.room!=6 || !Has("glasswind_started") ||
                     Has("glasswind_"+site) || GlasswindSite!=0 || Dying ||
-                    practicing || racing || !SafeTravel ||
+                    practicing || racing || FieldWorkPreventsRest || !SafeTravel ||
                     !PhysicalRefugeReach(GlasswindPoint(site),2.2001f))return true;
                 GlasswindSite=site;GlasswindTime=95;GlasswindCharge=0;
                 glasswindSurgeTimer=2.5f;glasswindSurgeCycle=0;

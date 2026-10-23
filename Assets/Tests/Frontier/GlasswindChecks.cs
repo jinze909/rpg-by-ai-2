@@ -423,6 +423,16 @@ namespace Starfall.Tests
             Check(g.Has("glasswind_started") && g.save.trackedQuest=="glasswind",
                 "The physical NPC starts the actual tracked quest");
             g.Enter(6);g.enemies.Clear();g.invulnerable=250;
+            WorldObject firstRelay=Object(g,"glasswindrelay1");
+            g.save.x=firstRelay.x;g.save.y=firstRelay.y;
+            SetOuterPatrolLull(g,6);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "A deferred patrol lull has no nearby enemies but still owns the fieldwork slot");
+            Action(g,firstRelay.kind,"glasswind_start_1");
+            Check(g.GlasswindTime==0&&g.GlasswindWave==0&&
+                !g.enemies.Exists(g.IsGlasswindEnemy),
+                "A relay challenge cannot start over an active patrol lull");
+            ClearOuterPatrolLull(g);
             int initialCoins=g.save.coins,initialShards=g.save.shards,
                 normalKills=g.save.kills[6];
             for(int site=1;site<=3;site++)

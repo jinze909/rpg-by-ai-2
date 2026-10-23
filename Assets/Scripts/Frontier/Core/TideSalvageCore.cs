@@ -199,7 +199,7 @@ namespace Starfall
                 }
                 if(save.room!=5 || !Has("harbor_report") ||
                     Has("tide_salvage_complete") || TideSalvageActive ||
-                    Dying || practicing || racing || fieldSurveyRoom!=0 || reliefMissionRoom!=0 ||
+                    Dying || practicing || racing || FieldWorkPreventsRest || fieldSurveyRoom!=0 || reliefMissionRoom!=0 ||
                     GlasswindSite!=0 || commonsRelayRoom!=0 ||
                     !LowTide || !SafeTravel ||
                     (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)

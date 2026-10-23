@@ -67,6 +67,13 @@ namespace Starfall.Tests
                 "The new observatory exists on real accessible Frostchime ground");
             int coins=g.save.coins, shards=g.save.shards, talent=g.save.skillPoints;
             int kills=g.save.kills[4];
+            SetOuterPatrolLull(g,7);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The observatory has no nearby threats during the patrol lull");
+            Action(g,"skyobservatory","skywatch_start");
+            Check(g.SkywatchRoom==0&&!g.enemies.Exists(g.IsSkywatchEnemy),
+                "The timed observatory boss cannot overlap an active patrol");
+            ClearOuterPatrolLull(g);
             Action(g,"skyobservatory","skywatch_start");
             Enemy boss=g.enemies.Find(g.IsSkywatchEnemy);
             Check(g.SkywatchRoom==7 && boss!=null && boss.maxHp==240 &&

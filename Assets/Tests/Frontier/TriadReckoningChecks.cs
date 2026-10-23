@@ -125,6 +125,13 @@ namespace Starfall.Tests
             g.Enter(4);g.enemies.Clear();
             WorldObject nexus=Object(g,"triadnexus");
             g.save.x=nexus.x;g.save.y=nexus.y;
+            SetOuterPatrolLull(g,4);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The audit nexus is locally safe during an active patrol lull");
+            Action(g,"triadnexus","triad_defense_start");
+            Check(!g.TriadDefenseActive&&!g.enemies.Exists(g.IsTriadEnemy),
+                "The timed audit boss cannot overlap another live patrol");
+            ClearOuterPatrolLull(g);
             Action(g,"triadnexus","triad_defense_start");
             Check(g.TriadDefenseActive,"Core audit starts only after real field evidence");
             foreach(Enemy e in g.enemies.FindAll(g.IsTriadEnemy))

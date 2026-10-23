@@ -379,7 +379,7 @@ namespace Starfall
             {
                 if (save.room!=7 || !SkywatchReady() ||
                     Has("skywatch_defeated") || SkywatchRoom!=0 ||
-                    Dying || practicing || !SafeTravel ||
+                    Dying || practicing || FieldWorkPreventsRest || !SafeTravel ||
                     (Position-ObjectPoint(7,"skyobservatory",new Point(-100,-100))).Length>2.2f)
                     return true;
                 Point spawn=new Point(27.5f,15.5f);

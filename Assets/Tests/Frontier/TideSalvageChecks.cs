@@ -31,6 +31,13 @@ namespace Starfall.Tests
                 "No new expedition can bypass a real high tide at the dock");
             g.Close();
             g.save.totalTime=0;
+            SetOuterPatrolLull(g,5);
+            Check(g.OuterPatrolActive&&g.SafeTravel&&g.LowTide,
+                "The dock is safe to approach during a live patrol lull");
+            Action(g,"tidedock","tide_salvage_start");
+            Check(!g.TideSalvageActive&&g.TideSalvageTime==0,
+                "Tide salvage cannot overlap a different active patrol");
+            ClearOuterPatrolLull(g);
             Action(g,"tidedock","tide_salvage_start");
             Check(g.TideSalvageActive && g.TideSalvagePhase==1 &&
                 g.TideSalvageTime>=99 && g.save.trackedQuest=="tide_salvage",

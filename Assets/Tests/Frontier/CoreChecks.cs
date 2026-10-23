@@ -106,6 +106,25 @@ namespace Starfall.Tests
                 if (g.conversation.choices[i].action == action) { g.Choose(i); return; }
             throw new Exception("Missing action " + action);
         }
+        private static void SetOuterPatrolLull(GameCore g, int room)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var activeRoom=typeof(GameCore).GetField("outerPatrolRoom",flags);
+            var time=typeof(GameCore).GetField("outerPatrolTime",flags);
+            var stock=typeof(GameCore).GetField("outerPatrolStock",flags);
+            if(activeRoom==null||time==null||stock==null)
+                throw new Exception("Outer-patrol transient state fields are missing");
+            activeRoom.SetValue(g,room);time.SetValue(g,60f);stock.SetValue(g,100f);
+        }
+        private static void ClearOuterPatrolLull(GameCore g)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            typeof(GameCore).GetField("outerPatrolRoom",flags).SetValue(g,-1);
+            typeof(GameCore).GetField("outerPatrolTime",flags).SetValue(g,0f);
+            typeof(GameCore).GetField("outerPatrolStock",flags).SetValue(g,0f);
+        }
         public static void QueuedDodgeCancelsOnRealSealedFooting(Campaign data)
         {
             MapData original=data.maps[0];

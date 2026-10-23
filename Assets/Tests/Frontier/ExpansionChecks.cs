@@ -142,6 +142,25 @@ namespace Starfall.Tests
                 "A physically reachable lower-gallery cache retains its intended reward");
         }
 
+        public static void CivicConduitCannotOverlapActiveFieldwork(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            g.save.inventory[4]=1;
+            g.Enter(4);g.enemies.Clear();
+            WorldObject master=Object(g,"civicconduitmaster");
+            g.save.x=master.x;g.save.y=master.y;
+            SetOuterPatrolLull(g,4);
+            Check(g.OuterPatrolActive&&g.SafeTravel&&g.LastDirectiveComplete&&
+                g.LastDirectiveChoice==1,
+                "The western conductor is available during a locally safe patrol lull");
+            Action(g,master.kind,"civic_conduit_start");
+            Check(!g.CivicConduitActive&&g.save.inventory[4]==1,
+                "The timed civic conductor cannot overlap patrol fieldwork or consume its fuse");
+            ClearOuterPatrolLull(g);
+        }
+
         public static void RegionalBossesSweepAlternatingLanes(Campaign data)
         {
             var g = Unlocked(data);

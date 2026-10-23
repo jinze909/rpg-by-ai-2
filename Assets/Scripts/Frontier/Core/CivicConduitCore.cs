@@ -244,7 +244,7 @@ namespace Starfall
             {
                 if(!nearMaster||CivicConduitComplete||CivicConduitActive||
                     FarCourierActive||CivicResponseActive||TideSalvageActive||
-                    !SafeTravel)return true;
+                    FieldWorkPreventsRest||!SafeTravel)return true;
                 if(!Has("civic_conduit_started"))
                 {
                     if(save.inventory[4]<1)

@@ -248,7 +248,7 @@ namespace Starfall
             {
                 if(save.room!=4 || !TriadEligible || !Has("triad_started") ||
                     TriadEvidence!=3 || TriadDefenseActive || Has("triad_defense_clear") ||
-                    Has("boss_4") || practicing || Dying || !SafeTravel ||
+                    Has("boss_4") || practicing || Dying || FieldWorkPreventsRest || !SafeTravel ||
                     commonsRelayRoom!=0 || RootHarmonyRoom!=0 ||
                     atlasEchoRoom!=0 || reliefMissionRoom!=0 ||
                     (Position-TriadPoint("triadnexus")).Length>2.2f)return true;

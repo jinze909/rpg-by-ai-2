@@ -41,6 +41,13 @@ namespace Starfall.Tests
             Check(g.AtlasEchoRoom == 0 && !g.enemies.Exists(e => e.id == 83001),
                 "Nearby live patrols block the optional encounter");
             g.enemies.Clear();
+            SetOuterPatrolLull(g,3);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The atlas arena is clear locally while a patrol still owns the fieldwork slot");
+            Action(g,compass.kind,"archive_echo_start");
+            Check(g.AtlasEchoRoom==0&&!g.enemies.Exists(e=>e.id==83001),
+                "The atlas echo cannot start over a live patrol lull");
+            ClearOuterPatrolLull(g);
             int coins = g.save.coins, shards = g.save.shards, kills = g.save.kills[3];
             g.save.maxHealth = 2000; g.save.health = 2000;
             Action(g, compass.kind, "archive_echo_start");
