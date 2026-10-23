@@ -1211,8 +1211,9 @@ namespace Starfall.Tests
             g.Close();
             g.hazards.Clear();
             g.Talk(relay);
-            Check(g.mode == "dialog" && g.conversation.choices.Length == 2,
-                "A cleared linked relay actually offers a return-to-gate route");
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 5 &&
+                g.conversation.choices[0].action == "abyssCircuitReturn",
+                "A cleared relay offers the east gate and three live branch destinations");
 
             g.save.x = 5; g.save.y = 14;
             g.Choose(0);
@@ -1236,6 +1237,70 @@ namespace Starfall.Tests
             g.Choose(g.conversation.choices.Length - 1);
             Check(g.save.room == 0 && g.save.shards == initialShards + 7,
                 "All pending shards bank only after personally using the root gate");
+        }
+
+        public static void ClearedAbyssCircuitRoutesAmongPhysicalRelaysWithoutBanking(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(2);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.save.runShards = 8; g.save.runCoins = 31; g.save.runXp = 27;
+            int coins = g.save.coins, shards = g.save.shards;
+            WorldObject[] relays = new WorldObject[3];
+            for (int i = 0; i < 3; i++)
+            {
+                relays[i] = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+                Check(relays[i] != null &&
+                    g.CanStand(new Point(relays[i].x, relays[i].y)),
+                    "Branch destination " + i + " is a real standable world object");
+            }
+            g.save.x = relays[0].x; g.save.y = relays[0].y;
+            g.Talk(relays[0]);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 5,
+                "Completed safe circuit exposes all three navigable branches and the gate");
+
+            g.save.x = 5; g.save.y = 14; g.Choose(3);
+            Check(g.save.x == 5 && g.save.y == 14 &&
+                g.save.runShards == 8,
+                "A remote stale destination choice cannot teleport the hero");
+            for (int target = 0; target < 3; target++)
+            {
+                int from = (target + 2) % 3;
+                g.save.x = relays[from].x; g.save.y = relays[from].y;
+                g.Talk(relays[from]); g.Choose(target + 1);
+                Check(g.save.room == 8 &&
+                    Math.Abs(g.save.x-relays[target].x) < .01f &&
+                    Math.Abs(g.save.y-relays[target].y) < .01f &&
+                    g.save.runShards == 8 && g.save.runCoins == 31 &&
+                    g.save.runXp == 27 && g.save.shards == shards &&
+                    g.save.coins == coins,
+                    "Travel to branch " + target +
+                    " preserves room, all pending loot and permanent economy");
+            }
+            g.save.x = relays[0].x; g.save.y = relays[0].y;
+            g.Talk(relays[0]); g.Choose(2);
+            Check(Math.Abs(g.save.x-relays[1].x)<.01f,
+                "The middle relay remains a repeatable physical destination");
+            g.projectiles.Add(new Projectile {
+                friendly = false, position = new Point(relays[1].x,relays[1].y),
+                velocity = new Point(1,0), life = 1, damage = 5
+            });
+            g.Talk(relays[1]);
+            Check(g.mode == "world" &&
+                Math.Abs(g.save.x-relays[1].x)<.01f,
+                "Hostile projectiles block both the branch network and the gate route");
+            g.projectiles.Clear();
+            g.Talk(relays[1]); g.Choose(0);
+            Check(Math.Abs(g.save.x-30.5f)<.01f &&
+                Math.Abs(g.save.y-14.5f)<.01f &&
+                g.save.shards == shards && g.save.runShards == 8,
+                "A linked relay still takes the hero to the real gate without banking");
+            var gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            g.Talk(gate); g.Choose(g.conversation.choices.Length-1);
+            Check(g.save.room == 0 && g.save.shards == shards + 8,
+                "Only the original gate banking transaction makes circuit loot permanent");
         }
 
         public static void CompletedAbyssCircuitCanGroundOnlyLocalRiftsForPendingLoot(Campaign data)

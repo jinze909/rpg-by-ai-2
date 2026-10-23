@@ -2316,6 +2316,9 @@ namespace Starfall
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
             if (action == "abyssCircuitReturn") { ReturnViaAbyssCircuit(); return true; }
+            if (action == "abyssCircuitTo0") { TravelViaAbyssCircuit(0); return true; }
+            if (action == "abyssCircuitTo1") { TravelViaAbyssCircuit(1); return true; }
+            if (action == "abyssCircuitTo2") { TravelViaAbyssCircuit(2); return true; }
             if (action == "abyssWardTune") { TuneAbyssWard(); return true; }
             if (action == "abyssRootwellHeal") { UseAbyssRootwell(true); return true; }
             if (action == "abyssRootwellEnergy") { UseAbyssRootwell(false); return true; }

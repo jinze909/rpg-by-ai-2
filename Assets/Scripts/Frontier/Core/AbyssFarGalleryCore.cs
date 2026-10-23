@@ -308,28 +308,44 @@ namespace Starfall
                     HasPhysicalInteractionReach(relay)) return true;
             return false;
         }
-        private void ReturnViaAbyssCircuit()
+        private void TravelViaAbyssCircuit(int destination)
         {
             if (!AbyssCircuitRouteSafe() || !NearLiveAbyssCircuit())
             {
-                Notify("折返光路不可用：请靠近已接通信标，并清除敌人、落印和飞行中的攻击。",
-                    "Route unavailable. Reach a linked relay and clear all enemies, warnings and flying attacks.");
+                Notify("光路不可用：请靠近已接通信标，并清除敌人、落印和飞行中的攻击。",
+                    "Route unavailable. Reach a linked relay and clear enemies, warnings and flying attacks.");
                 return;
             }
-            Point arrival = new Point(30.5f, 14.5f);
+            if (destination < -1 || destination > 2) return;
+            WorldObject stop = destination < 0 ? null :
+                Array.Find(Map.objects, o => o.kind == "abyssCircuit" + destination);
+            if (destination >= 0 && stop == null) return;
+            Point arrival = stop == null ? new Point(30.5f, 14.5f) :
+                new Point(stop.x, stop.y);
+            // The destination must still be a real, free tile on THIS map.
+            // Never re-enter the region, clear enemies, grant loot or start a
+            // new save slot just to perform a cleared-floor route transfer.
             if (!CanStand(arrival))
             {
-                Notify("地脉门前的落脚处暂时无法抵达。",
-                    "The safe arrival point by the root gate is blocked.");
+                Notify("光路目的地暂时被地形阻断。",
+                    "The starroot route destination is blocked by terrain.");
                 return;
             }
-            // This is same-floor movement, NOT a new expedition or settlement:
-            // do not call Enter/ResetTransient/BankFloor or mutate v2 rewards.
             save.x = arrival.x; save.y = arrival.y;
             revision++;
             sound = "travel";
-            Notify("顺着三处星根光路返回东门。战利品仍需手动结算。",
-                "Returned to the east root gate. Bank your loot manually.");
+            Notify(stop == null ?
+                    "沿星根光路抵达东门。战利品仍须手动结算。" :
+                    "沿星根光路抵达信标 " + AbyssCircuitSymbol(destination) +
+                        "。可继续搜寻尚未领取的支洞补给。",
+                stop == null ?
+                    "Reached the east gate. Bank rewards manually." :
+                    "Reached relay " + AbyssCircuitSymbol(destination) +
+                        ". Continue exploring any remaining side-gallery supplies.");
+        }
+        private void ReturnViaAbyssCircuit()
+        {
+            TravelViaAbyssCircuit(-1);
         }
 
         private void TalkAbyssCircuit(WorldObject o)
@@ -357,9 +373,12 @@ namespace Starfall
                     return;
                 }
                 Dialog(o.name, o.en,
-                    "星根回路已恢复旧时的巡路轨道。东侧地脉门在回应三个信标。现在可以安全折返，但战利品仍须在东门手动结算。",
-                    "The three relays have reconnected the old evacuation route. You can return safely to the east root gate; unbanked rewards must still be settled there.",
-                    C("沿光路折返东门", "Take the starroot route to the east gate", "abyssCircuitReturn"),
+                    "旧巡路光路已恢复：可直接抵达东侧地脉门，或选择 A / B / C 支洞信标寻找遗漏的补给。只有本层安全时才能使用。传送不会自动结算战利品。",
+                    "The roadwarden circuit is restored. Travel to the east gate, or revisit relays A / B / C to find missed supplies. Transfers require a cleared, safe floor and never bank loot.",
+                    C("沿光路折返东门", "Travel to east root gate", "abyssCircuitReturn"),
+                    C("前往信标 A", "Travel to relay A", "abyssCircuitTo0"),
+                    C("前往信标 B", "Travel to relay B", "abyssCircuitTo1"),
+                    C("前往信标 C", "Travel to relay C", "abyssCircuitTo2"),
                     C("继续探索", "Keep exploring", "close"));
                 return;
             }
