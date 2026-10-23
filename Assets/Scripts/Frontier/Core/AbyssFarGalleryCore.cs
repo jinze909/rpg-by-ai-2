@@ -129,6 +129,20 @@ namespace Starfall
             return Array.Find(Map.objects, o => o.kind == "abyssRiftWard");
         }
 
+        // Existing minimap/path and world-edge arrow can lead to an
+        // AFFORDABLE, unfinished tactical refuge. An explicit testimony or
+        // circuit guide always takes precedence in NavigationTarget().
+        // Never steal the banking route after combat or after tuning.
+        private Point? AbyssAffordableWardTarget()
+        {
+            if (!InAbyss || Dying || practicing ||
+                save.abyssFloor < 3 || save.runShards < 3 ||
+                AbyssWardActive || Has("abyss_clear_" + save.abyssFloor) ||
+                enemies == null || enemies.Count == 0) return null;
+            WorldObject ward = AbyssWardObject();
+            return ward == null ? (Point?)null : new Point(ward.x, ward.y);
+        }
+
         private void TalkAbyssWard(WorldObject o)
         {
             if (!InAbyss || save.abyssFloor < 3 || Dying || practicing ||

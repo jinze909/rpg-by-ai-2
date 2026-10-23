@@ -3344,6 +3344,50 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveAffordableWardUsesActualCaveNavigation(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;
+        g.save.frontierEnding=1;g.StartAbyss(0);
+        g.save.abyssFloor=3;CallCore(g,"GenerateAbyss");
+        g.enemies.Clear();g.enemies.Add(new Enemy(998,0,20,20,100));
+        var ward=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+        Check(ward!=null,"A real deep-cave ward must exist for navigation");
+        Point site=new Point(ward.x,ward.y),gate=new Point(31,14);
+        g.save.x=5;g.save.y=14;
+        g.save.runShards=2;
+        Check((g.NavigationTarget().Value-gate).Length<.001f,
+            "One shard short cannot divert the normal banking compass");
+        g.save.runShards=3;
+        Point? objective=g.NavigationTarget();
+        Check(objective.HasValue&&(objective.Value-site).Length<.001f,
+            "The existing live minimap and world compass target the affordable physical pylon");
+        var path=g.NavigationPath(objective.Value);
+        Check(path.Count>0&&(path[path.Count-1]-site).Length<=1.21f,
+            "Existing collision-aware cave route really reaches the chosen pylon");
+
+        // Combat resolution and tuning must release the optional target.
+        g.enemies.Clear();
+        Check((g.NavigationTarget().Value-gate).Length<.001f,
+            "Once enemies are cleared, a refuge must not override the reward gate");
+        g.enemies.Add(new Enemy(999,0,20,20,100));
+        g.save.x=ward.x;g.save.y=ward.y;
+        g.Talk(ward);g.Choose(0);
+        Check(g.AbyssWardActive&&g.save.runShards==0&&
+            (g.NavigationTarget().Value-gate).Length<.001f,
+            "Real pylon tuning consumes only current-floor loot and restores the original gate route");
+
+        // A second floor does not inherit the previous floor's sanctuary.
+        g.save.abyssFloor=4;CallCore(g,"GenerateAbyss");
+        g.save.runShards=3;
+        var next=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+        Check(next!=null&&!g.AbyssWardActive&&
+            (g.NavigationTarget().Value-new Point(next.x,next.y)).Length<.001f,
+            "Next floor gets its own discoverable, independently paid ward");
+        Console.WriteLine("PASS Existing cave minimap and world arrow guide to affordable physical wards, then release the route");
+    }
+
     private static void LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact(FrontierRuntime app)
     {
         Prepare(app);
@@ -3691,7 +3735,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
