@@ -2127,6 +2127,43 @@ namespace Starfall
             }
             return lit??unlit;
         }
+
+        // Heat survival uses the actual two authored desert shelters, not
+        // quest flags or a straight-line arrow through solid dunes. Player
+        // quest tracking is unchanged: this is an urgent, reversible override
+        // while exposed to dangerous desert heat.
+        private Point? EmergencyShadeGuideTarget()
+        {
+            if(save.room!=6 || save.heat<85f || Dying || practicing ||
+                racing || FieldWorkPreventsRest || Map.objects==null ||
+                save.teaUntil>save.totalTime || NearKind("shade",3f) ||
+                NearActiveFieldStation(6,FieldStationRefugeRadius(6)) ||
+                GlasswindRefuge || OuterPatrolRefuge)
+                return null;
+            Point? nearest=null;
+            int walkingSteps=int.MaxValue;
+            foreach(WorldObject shade in Map.objects)
+            {
+                if(shade==null || shade.kind!="shade")continue;
+                Point site=new Point(shade.x,shade.y);
+                bool near=HasPhysicalInteractionReach(site);
+                List<Point> route=NavigationPath(site);
+                if(!near)
+                {
+                    if(route.Count==0)continue;
+                    Point end=route[route.Count-1];
+                    float d=(site-end).Length;
+                    Point contact=d>.55f?
+                        site-(site-end).Normalized*.55f:end;
+                    if(d>=1.75f || !ClearAttackPath(end,contact))
+                        continue;
+                }
+                int distance=near?0:route.Count;
+                if(distance<walkingSteps)
+                {walkingSteps=distance;nearest=site;}
+            }
+            return nearest;
+        }
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
@@ -2152,6 +2189,8 @@ namespace Starfall
                 AbyssAffordableWardTarget() ?? new Point(31, 14);
             Point? emergencyFire=EmergencyBrazierGuideTarget();
             if(emergencyFire.HasValue)return emergencyFire;
+            Point? emergencyShade=EmergencyShadeGuideTarget();
+            if(emergencyShade.HasValue)return emergencyShade;
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
             if (q.room == save.room) return q.target;
             foreach (var o in Map.objects) if (o.kind == "portal" + q.room) return new Point(o.x, o.y);

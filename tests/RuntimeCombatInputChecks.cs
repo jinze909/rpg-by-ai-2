@@ -3348,6 +3348,76 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void CriticalDesertHeatGuidesActualReachableShade(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        CallCore(g,"ResetExpansionTransient");
+        MapData map=g.Map;string[] originalRows=map.rows;
+        WorldObject[] originalObjects=map.objects;
+        Decoration[] originalDecor=map.decor;
+        try
+        {
+            Check(Array.FindAll(originalObjects,o=>o.kind=="shade").Length>=2,
+                "The production Glass Desert actually contains two independently drawn shade posts");
+            int cx=3,cy=5;
+            string[] open=(string[])originalRows.Clone();
+            for(int y=cy-2;y<=cy+2;y++)
+            {
+                char[] row=open[y].ToCharArray();
+                for(int x=cx;x<=cx+12;x++)row[x]='.';
+                open[y]=new string(row);
+            }
+            map.rows=open;map.decor=new Decoration[0];
+            var near=new WorldObject{kind="shade",id="heat_near",
+                name="Oasis canopy",en="Oasis canopy",x=cx+5.5f,y=cy+.5f};
+            var far=new WorldObject{kind="shade",id="heat_far",
+                name="Desert canopy",en="Desert canopy",x=cx+10.5f,y=cy+.5f};
+            map.objects=new[]{near,far};
+            g.save.x=cx+.5f;g.save.y=cy+.5f;
+            g.save.heat=90;g.save.teaUntil=0;g.save.totalTime=20;
+            Point? target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
+                "Dangerous desert heat picks the nearest reachable authored-type shade");
+            List<Point> path=g.NavigationPath(target.Value);
+            Check(path.Count>0&&(path[path.Count-1]-target.Value).Length<1.75f,
+                "Existing minmap/compass uses a real traversable path to cooling shade");
+
+            // Stone enclosure makes the apparently nearer shade unreachable.
+            for(int y=cy-1;y<=cy+1;y++)
+            {
+                char[] cells=open[y].ToCharArray();
+                for(int x=cx+4;x<=cx+6;x++)
+                    if(x==cx+4||x==cx+6||y==cy-1||y==cy+1)cells[x]='#';
+                open[y]=new string(cells);
+            }
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(far.x,far.y)).Length<.001f,
+                "A sealed near canopy never beats a genuinely accessible distant shade");
+
+            g.save.teaUntil=g.save.totalTime+20;
+            target=g.NavigationTarget();
+            Check(!target.HasValue||(target.Value-new Point(far.x,far.y)).Length>.001f,
+                "Active heat-protective tea restores ordinary tracked quest guidance");
+            g.save.teaUntil=0;g.save.heat=84;
+            target=g.NavigationTarget();
+            Check(!target.HasValue||(target.Value-new Point(far.x,far.y)).Length>.001f,
+                "Once cooled below danger, the compass releases the emergency route");
+            g.save.heat=90;g.save.x=far.x;g.save.y=far.y;
+            Check(!g.NavigationTarget().HasValue||
+                (g.NavigationTarget().Value-new Point(near.x,near.y)).Length>.001f,
+                "Already shaded hero does not get a stale rescue route");
+            Console.WriteLine("PASS Production desert heat: safe shade route, sealed-wall exclusion, tea and cooling release");
+        }
+        finally
+        {
+            map.rows=originalRows;map.objects=originalObjects;
+            map.decor=originalDecor;
+        }
+    }
+
     private static void CriticalAlpineColdGuidesReachablePhysicalBrazier(FrontierRuntime app)
     {
         Prepare(app);
@@ -3959,7 +4029,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
