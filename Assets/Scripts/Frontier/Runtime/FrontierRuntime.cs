@@ -376,10 +376,12 @@ namespace Starfall
         {
             if(Game.mode!="world"){cameraSkippedTerrain=false;return;}
             Point before=camera;
-            float follow=Game.save.reducedMotion?1:1-Mathf.Exp(-Math.Max(0,dt)*12);
             Point target=CameraTarget();
-            camera=new Point(Mathf.Lerp(camera.x,target.x,follow),
-                Mathf.Lerp(camera.y,target.y,follow));
+            // Snap actual room-scale travel immediately. The same pure
+            // shared rule remains smooth during ordinary movement, and the
+            // existing streaming jump detection below prewarms the new view.
+            camera=WorldStreaming.FollowCamera(before,target,dt,
+                Game.save.reducedMotion);
             // A long ridge shortcut, fast-travel jump or accessibility snap
             // must never reveal an empty mid-screen tile waiting for a fade.
             cameraSkippedTerrain=Game.save.reducedMotion||

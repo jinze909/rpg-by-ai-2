@@ -1152,6 +1152,39 @@ namespace Starfall.Tests
                 "Early extraction loses pending circuit earnings, never permanent shards");
         }
 
+        public static void LongAbyssCircuitReturnSnapsCameraWithoutBreakingWalkingSmoothing(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.enemies.Clear(); g.save.flags.Add("abyss_clear_1");
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit2");
+            g.save.x = relay.x; g.save.y = relay.y;
+            Point before = g.Position;
+            g.Talk(relay); g.Choose(0);
+            Point target = g.Position;
+            Check(WorldStreaming.LargeCameraJump(
+                target.x-before.x,target.y-before.y),
+                "Real long-gallery circuit return is classified as a room-scale camera jump");
+            Point teleported = WorldStreaming.FollowCamera(before,target,.016f,false);
+            Check(teleported.x == target.x && teleported.y == target.y &&
+                WorldStreaming.LargeCameraJump(
+                    teleported.x-before.x,teleported.y-before.y),
+                "Production camera reaches the hero instantly and triggers terrain prewarm on teleport");
+            Point beforeWalk = new Point(12,12);
+            Point nextWalk = new Point(13,12.5f);
+            Point smooth = WorldStreaming.FollowCamera(beforeWalk,nextWalk,.016f,false);
+            Check(smooth.x > beforeWalk.x && smooth.x < nextWalk.x &&
+                smooth.y > beforeWalk.y && smooth.y < nextWalk.y,
+                "Normal walking still uses progressive 12Hz exponential camera tracking");
+            Point still = WorldStreaming.FollowCamera(beforeWalk,nextWalk,0,false);
+            Check(still.x == beforeWalk.x && still.y == beforeWalk.y,
+                "A paused zero-delta frame does not drift the camera");
+            Point accessibility = WorldStreaming.FollowCamera(beforeWalk,nextWalk,.016f,true);
+            Check(accessibility.x == nextWalk.x && accessibility.y == nextWalk.y,
+                "Reduced-motion camera retains immediate accessibility tracking");
+        }
+
         public static void AbyssCircuitRouteRequiresClearedFloorAndPhysicalRelay(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

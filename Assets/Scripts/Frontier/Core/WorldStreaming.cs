@@ -51,6 +51,19 @@ namespace Starfall
             // visible immediately instead of fading missing actors on arrival.
             return tilesX*tilesX+tilesY*tilesY>=64f;
         }
+        public static Point FollowCamera(Point current,Point target,
+            float dt,bool reducedMotion)
+        {
+            // Return routes and other genuine room-scale teleports must not
+            // leave the hero outside the viewport while the Unity camera
+            // eases across thirty old map tiles. Ordinary movement still
+            // receives the original frame-rate-independent smoothing.
+            if(reducedMotion||LargeCameraJump(
+                target.x-current.x,target.y-current.y))return target;
+            float follow=1f-(float)Math.Exp(-Math.Max(0f,dt)*12f);
+            return new Point(current.x+(target.x-current.x)*follow,
+                current.y+(target.y-current.y)*follow);
+        }
         public static float PreviewScale(int width,int height,float maxWidth,float maxHeight)
         {
             if(width<=0||height<=0||maxWidth<=0||maxHeight<=0)return 0f;
