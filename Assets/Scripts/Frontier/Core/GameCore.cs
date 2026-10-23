@@ -2185,7 +2185,16 @@ namespace Starfall
             Conversation previousConversation = conversation;
             conversationSource = o;
             conversationSourceWasReachable = HasPhysicalInteractionReach(o);
-            try { TalkCore(o); }
+            try
+            {
+                TalkCore(o);
+                // Keep every authored quest branch/choice intact, while
+                // letting two familiar, in-world speakers explain the chain
+                // of events in plain language at any stage of the journey.
+                if (mode == "dialog" && conversation != previousConversation &&
+                    (o.kind == "guild" || o.kind == "innGuest"))
+                    AppendStoryBridgeChoice();
+            }
             finally
             {
                 // Immediate interactions (runes, notes, etc.) must not leave a

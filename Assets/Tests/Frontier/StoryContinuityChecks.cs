@@ -27,6 +27,64 @@ namespace Starfall.Tests
             return -1;
         }
 
+        public static void LivingStoryGuideConnectsPeopleCausesAndNextStepWithoutChangingProgress(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject guild=Object(g,"guild");
+            g.save.x=guild.x;g.save.y=guild.y;
+            g.Talk(guild);
+            Check(StoryChoicePresent(g,"story_catchup"),
+                "Lyra can explain the whole narrative without removing original quest choices");
+            int flags=g.save.flags.Count,coins=g.save.coins;
+            ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("荆棘密林") &&
+                !g.conversation.text.Contains("【厄洛】") &&
+                StoryChoicePresent(g,"story_people") &&
+                StoryChoicePresent(g,"story_terms"),
+                "New players get simple, spoiler-conscious explanations and their real next destination");
+            ChooseStoryChoice(g,"story_people");
+            Check(g.conversation.text.Contains("【杏】") &&
+                !g.conversation.text.Contains("【厄洛】") &&
+                !g.conversation.text.Contains("【莫芽】"),
+                "People only appear in the guide after their original introduction");
+            ChooseStoryChoice(g,"story_catchup");
+            ChooseStoryChoice(g,"story_terms");
+            Check(g.conversation.text.Contains("【星核】") &&
+                g.conversation.text.Contains("【星晶】") &&
+                g.conversation.text.Contains("【屏障】"),
+                "World jargon is explained through in-world dialogue rather than a new lore flag");
+            Check(g.save.flags.Count==flags&&g.save.coins==coins,
+                "Story explanations do not alter rewards or quest progress");
+            g.Close();
+            g.save.flags.Add("core_1");
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("交给莉雅"),
+                "Recovered but undelivered starcore gives the correct practical handoff direction");
+            g.Close();
+            g.save.stage=3;g.save.frontierEnding=2;
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("厄洛"),
+                "Citadel tension is explained only when the campaign has reached it");
+            g.Close();
+            g.save.ending=1;
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("余光重建"),
+                "Post-ending explanation points to rebuilding, rather than resetting the ending");
+            g.Close();
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("storm_complete");
+            g.save.flags.Add("hearing_complete");
+            g.save.flags.Add("roadcharter_complete");
+            g.save.flags.Add("civic_conduit_complete");
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("巡路复核"),
+                "Late chapter connections identify the actually remaining local work");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.save.ending==1&&
+                loaded.Has("civic_conduit_complete"),
+                "Restyled story conversations remain compatible with existing v2 progress");
+        }
         public static void ChronicleMenusFollowOneCanonicalPageSequence(Campaign data)
         {
             var g = Fresh(data);
