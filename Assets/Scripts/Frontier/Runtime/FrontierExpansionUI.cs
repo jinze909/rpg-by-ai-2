@@ -1357,7 +1357,7 @@ namespace Starfall
                 PropImage("column", 0, p.x - 32, p.y - 71, 64, 79,
                     Game.AbyssWardActive ? Color.white : muted);
                 Ring(new Point(o.x, o.y),
-                    Game.AbyssWardActive ? .95f : .6f, glow, 20);
+                    Game.AbyssWardActive ? 1.6f : .6f, glow, 20);
                 Text(p.x - 67, p.y - 95, 134, 24,
                     Game.AbyssWardActive ?
                         Game.L("地脉镇流生效", "RIFT WARD ACTIVE") :

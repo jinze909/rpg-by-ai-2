@@ -997,6 +997,71 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void TunedAbyssPylonSheltersFromWorldStormButNotBossStrike(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.save.abyssFloor=3;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(g,null);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var ward=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+            Check(ward!=null,"A real floor-three pylon can provide physical shelter");
+            g.save.health=g.save.maxHealth=1000;
+            g.save.x=ward.x;g.save.y=ward.y;
+            g.save.runShards=3;
+            g.Talk(ward);g.Choose(0);
+            Check(g.AbyssWardShelter && g.Conditions().Contains("镇流庇护"),
+                "Purchased pylon protects a nearby player and publishes live HUD feedback");
+
+            // Wait for the ACTUAL tuned ten-second world clock and contact,
+            // not a synthetic damage call.
+            Hazard ambient=null;
+            for(int i=0;i<225 && ambient==null;i++)
+            {
+                g.Tick(.05f,new Point());
+                ambient=g.hazards.Find(h=>h.abyssStormOwned);
+            }
+            Check(ambient!=null && ambient.timer>0 &&
+                ambient.kind=="rift","Tuned floor still spawns real scheduled storms");
+            float shieldedHealth=g.save.health;
+            for(int i=0;i<48;i++)g.Tick(.05f,new Point());
+            Check(!g.hazards.Contains(ambient) &&
+                Math.Abs(g.save.health-shieldedHealth)<.001f,
+                "A real periodic storm resolves harmlessly within the nearby ward sanctuary");
+
+            // The very same sanctuary must NOT intercept a Boss warning.
+            var boss=new Enemy(917,3,29,9,100,true);
+            boss.target=g.Position;
+            typeof(GameCore).GetMethod("BossExpansionAttack",
+                BindingFlags.Instance|BindingFlags.NonPublic)
+                .Invoke(g,new object[]{boss});
+            Hazard bossRift=g.hazards.Find(h=>h.kind=="rift"&&!h.abyssStormOwned);
+            Check(bossRift!=null && !bossRift.abyssStormOwned,
+                "Real Boss attack remains separate from ambient storms");
+            g.invulnerable=0;
+            float beforeBoss=g.save.health;
+            for(int i=0;i<40;i++)g.Tick(.05f,new Point());
+            Check(g.save.health<beforeBoss && !g.hazards.Contains(bossRift),
+                "Boss contact still hurts when the player shelters at a tuned ward");
+
+            g.save.x=30.5f;g.save.y=14.5f;g.invulnerable=0;
+            Check(!g.AbyssWardShelter &&
+                !g.Conditions().Contains("镇流庇护"),
+                "Moving away removes only the proximity shelter, not the paid floor upgrade");
+            ambient=null;
+            for(int i=0;i<235 && ambient==null;i++)
+            {
+                g.Tick(.05f,new Point());
+                ambient=g.hazards.Find(h=>h.abyssStormOwned);
+            }
+            Check(ambient!=null,"Leaving the pylon still exposes real later storms");
+            float exposedHealth=g.save.health;
+            for(int i=0;i<48;i++)g.Tick(.05f,new Point());
+            Check(g.save.health<exposedHealth,
+                "Unshielded periodic rift once again deals the original physical damage");
+        }
+
         public static void AbyssWardPurchaseGroundsOnlyActualAmbientWarnings(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);

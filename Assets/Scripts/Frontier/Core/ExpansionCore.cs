@@ -1737,7 +1737,10 @@ namespace Starfall
                 if (Dying) break;
                 h.timer -= dt;
                 if (h.timer > 0) continue;
-                hazards.Remove(h); effects.Add(new Effect("danger", h.position, .45f) {
+                hazards.Remove(h);
+                bool wardSheltered = h.abyssStormOwned && AbyssWardShelter;
+                effects.Add(new Effect(wardSheltered ? "spark" : "danger",
+                    h.position, .45f) {
                     radius = h.radius, variant = HazardTheme(h),
                     rootHarmonyOwned = h.rootHarmonyOwned,
                     commonsRelayOwned = h.commonsRelayOwned,
@@ -1749,7 +1752,13 @@ namespace Starfall
                 // contract as hostile slam/area and mage explosions. A
                 // closing gate must shelter the player rather than letting
                 // a delayed ring deal damage through solid world geometry.
-                if ((Position-h.position).Length < h.radius &&
+                if (wardSheltered)
+                {
+                    // The shelter catches only an ambient storm pulse. Do
+                    // not grant a fake dodge counter for a ward-absorbed hit.
+                    sound = "guard";
+                }
+                else if ((Position-h.position).Length < h.radius &&
                     ClearAttackPath(h.position,Position))
                     Hurt(AbyssRiftContactDamage(h),"area",
                         (Position-h.position).Normalized);
@@ -1851,6 +1860,7 @@ namespace Starfall
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " +
                 L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards +
                 (AbyssWardActive ? L(" · 镇流生效", " · RIFT WARD ACTIVE") : "") +
+                (AbyssWardShelter ? L(" · 镇流庇护", " · PYLON SHELTER") : "") +
                 (save.abyssFloor >= 3 && !Has("abyss_ward_charter_complete") ?
                     L(" · 镇流巡路 ", " · WARD CHARTER ") +
                         AbyssWardCharterProgress + "/4" : "") +
