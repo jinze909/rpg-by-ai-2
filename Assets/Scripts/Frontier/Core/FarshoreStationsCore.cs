@@ -292,7 +292,7 @@ namespace Starfall
             int region = save.room;
             if (region < 5 || region > 7 || reliefMissionRoom != 0 ||
                 !Has("farshore_relief_" + region) || !Has("fieldstation_survey_" + region) ||
-                fieldSurveyRoom != 0 || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
+                FieldWorkPreventsRest || fieldSurveyRoom != 0 || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
                 atlasEchoRoom != 0 || practicing || Dying || racing || !CanEnter(region)) return;
             Point post = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
             if (!PhysicalRefugeReach(post,2.2001f)) return;

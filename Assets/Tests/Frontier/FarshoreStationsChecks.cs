@@ -129,6 +129,27 @@ namespace Starfall.Tests
                 "A nearby station can explicitly cancel the active field survey");
         }
 
+        public static void CivilianRescueCannotOverlapUnrelatedFieldwork(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"exp_intro","harbor_report","desert_report",
+                "fieldstation_6","fieldstation_survey_6","farshore_relief_6"})
+                g.save.flags.Add(flag);
+            g.save.frontierEnding=2;g.Enter(6);g.enemies.Clear();
+            WorldObject station=Object(g,"fieldstation6");
+            g.save.x=station.x;g.save.y=station.y;
+            SetOuterPatrolLull(g,6);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The station is locally safe while another patrol remains active");
+            StartCivilianRescueViaRealDialogue(g,station);
+            Check(g.reliefMissionRoom==0&&!g.ReliefEscortActive,
+                "Civilian evacuation cannot start or spawn a follower during unrelated fieldwork");
+            ClearOuterPatrolLull(g);
+            StartCivilianRescueViaRealDialogue(g,station);
+            Check(g.reliefMissionRoom==6,
+                "The same physically reachable station can start evacuation once fieldwork ends");
+        }
+
         public static void RescueCivilianWaitFollowAndOneUseAidArePlayable(Campaign data)
         {
             var g = Fresh(data); g.save.stage = 3; g.save.level = 10;

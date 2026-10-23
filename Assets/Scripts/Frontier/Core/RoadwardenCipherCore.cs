@@ -276,7 +276,7 @@ namespace Starfall
             int region;
             if (!int.TryParse(action.Substring(17), out region) || region < 1 || region > 3 ||
                 save.room != region || !Has("dispatch_complete") || !Has("survey_" + region) ||
-                roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
+                FieldWorkPreventsRest || roadTrialRoom != 0 || wayfarerEncounterRoom != 0 ||
                 atlasEchoRoom != 0 || practicing || Dying)
                 return true;
             Point beacon = ObjectPoint(region, "survey" + region, new Point(-100, -100));

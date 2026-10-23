@@ -437,7 +437,7 @@ namespace Starfall
             {
                 if(!StormReady || !Has("storm_started") || StormAllocations!=3 ||
                     Has("storm_tuned") || stormTuning || Dying || practicing ||
-                    save.room!=0 || !SafeTravel ||
+                    save.room!=0 || FieldWorkPreventsRest || !SafeTravel ||
                     !HasPhysicalInteractionReach(StormPoint(0,"stormcouncil")))return true;
                 stormTuning=true;stormTuneStep=0;stormTuneTime=95;stormPulse=3.5f;
                 revision++;sound="quest";TrackQuest("storm_commons");

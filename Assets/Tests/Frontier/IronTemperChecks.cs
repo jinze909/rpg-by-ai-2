@@ -34,6 +34,13 @@ namespace Starfall.Tests
             g.save.x=furnace.x;g.save.y=furnace.y;
             g.enemies.Clear();g.invulnerable=120;
             int initialCoins=g.save.coins,oldKills=g.save.kills[3];
+            SetOuterPatrolLull(g,3);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The foundry is locally safe while an unrelated patrol still owns fieldwork");
+            Action(g,"ironfoundry","iron_temper_start");
+            Check(!g.TemperActive&&!g.enemies.Exists(g.IsTemperEnemy),
+                "The timed forge cannot start or spawn guards over an active patrol lull");
+            ClearOuterPatrolLull(g);
             Action(g,"ironfoundry","iron_temper_start");
             Check(g.TemperActive && g.TemperStage==1 &&
                 g.TemperTime>=109 && g.TemperPressure>=17 &&

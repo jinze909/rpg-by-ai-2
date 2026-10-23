@@ -186,6 +186,28 @@ namespace Starfall.Tests
                 "The directive's real first wave remains available once the other fieldwork ends");
         }
 
+        public static void RoadwardenDefenseCannotOverlapUnrelatedFieldwork(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"dispatch_complete","survey_1"})
+                g.save.flags.Add(flag);
+            g.Enter(1);g.enemies.Clear();
+            WorldObject beacon=Object(g,"survey1");
+            g.save.x=beacon.x;g.save.y=beacon.y;
+            SetOuterPatrolLull(g,1);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The beacon is locally safe during an active patrol lull");
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialRoom==0&&
+                !g.enemies.Exists(e=>e.id>=81000&&e.id<81100),
+                "A roadwarden defense cannot spawn a wave over unrelated fieldwork");
+            ClearOuterPatrolLull(g);
+            Action(g,beacon.kind,"road_trial_start_1");
+            Check(g.RoadwardenTrialRoom==1&&
+                g.enemies.FindAll(e=>e.id>=81000&&e.id<81100).Count==2,
+                "The real two-wave defense remains startable after the competing mission ends");
+        }
+
         public static void RegionalBossesSweepAlternatingLanes(Campaign data)
         {
             var g = Unlocked(data);

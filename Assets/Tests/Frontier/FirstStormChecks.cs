@@ -130,6 +130,13 @@ namespace Starfall.Tests
                 WorldObject council=Object(g,"stormcouncil");
                 g.save.x=council.x;g.save.y=council.y;
                 int initialCoins=g.save.coins,initialShards=g.save.shards;
+                SetOuterPatrolLull(g,0);
+                Check(g.OuterPatrolActive&&g.SafeTravel,
+                    "The council is locally safe while an unrelated patrol still owns the fieldwork slot");
+                Action(g,council.kind,"storm_tune_start");
+                Check(!g.StormTuning&&!g.Has("storm_tuned"),
+                    "The 95-second public-grid calibration cannot overlap an active patrol lull");
+                ClearOuterPatrolLull(g);
                 Action(g,council.kind,"storm_tune_start");
                 Check(g.StormTuning && g.StormTuneTime>94 &&
                     g.StormTuneStep==0 && g.StormBudgetSpent==7,

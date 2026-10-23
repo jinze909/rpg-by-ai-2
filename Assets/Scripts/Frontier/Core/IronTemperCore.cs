@@ -156,7 +156,7 @@ namespace Starfall
             {
                 if(save.room!=3 || !Has("boss_3") || TemperActive ||
                     Has("iron_temper_complete") || practicing || Dying ||
-                    !SafeTravel || reliefMissionRoom!=0 || atlasEchoRoom!=0 ||
+                    FieldWorkPreventsRest || !SafeTravel || reliefMissionRoom!=0 || atlasEchoRoom!=0 ||
                     RootHarmonyRoom!=0 || roadTrialRoom!=0 ||
                     wayfarerEncounterRoom!=0 ||
                     (Position-TemperPoint("ironfoundry")).Length>2.2f ||
