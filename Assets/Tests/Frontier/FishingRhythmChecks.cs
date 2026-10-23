@@ -120,5 +120,29 @@ namespace Starfall.Tests
             Check(game.sounds.Count==1 && game.sounds.Peek()=="fishBite",
                 "Next actual bite emits a fresh cue without altering the reward state");
         }
+
+        public static void ReducedMotionFishingKeepsReadableSteadyBite(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.reducedMotion=true;
+            Action(game,"fish","fish");
+            Check(game.mode=="fish"&&Math.Abs(game.FishTarget-.5f)<.0001f,
+                "Accessibility mode anchors the bite target at the original center");
+            float initial=game.fishCursor;
+            for(int i=0;i<90;i++)game.Tick(.02f,new Point());
+            Check(Math.Abs(game.FishTarget-.5f)<.0001f &&
+                Math.Abs(game.fishCursor-initial)>.1f,
+                "Reduced motion removes moving-target drift without removing the timed float challenge");
+            ReachFishingBite(game,true);game.FishHit();
+            Check(game.fishHits==1&&!game.FishLineReady &&
+                Math.Abs(game.FishTarget-.5f)<.0001f,
+                "A real first hook still obeys cooldown and keeps the steady accessibility target");
+            for(int i=0;i<2;i++)
+            {
+                ReachFishingBite(game,true);game.FishHit();
+            }
+            Check(game.mode=="world" && game.save.inventory[3]==1,
+                "Three independent reduced-motion bites earn the same original fish reward");
+        }
     }
 }

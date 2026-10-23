@@ -700,8 +700,11 @@ namespace Starfall
         private void DrawFishing()
         {
             Window(Game.L("湖畔垂钓", "Fishing by the lake"),
-                Game.L("鱼口会移动。等鱼咬钩，再在绿色区域收线 · E / 空格",
-                    "The bite zone drifts. Wait for the bite, then reel in teal · E / Space"));
+                Game.save.reducedMotion ?
+                    Game.L("低动态模式：鱼口固定。等鱼咬钩，再在绿色区域收线 · E / 空格",
+                        "Reduced motion: steady bite zone. Wait for the bite, then reel · E / Space") :
+                    Game.L("鱼口会移动。等鱼咬钩，再在绿色区域收线 · E / 空格",
+                        "The bite zone drifts. Wait for the bite, then reel in teal · E / Space"));
             Card(279, 179, 938, 510); Icon("fish", 667, 202, 134);
             Text(307, 361, 875, 41,
                 Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " +
@@ -713,8 +716,11 @@ namespace Starfall
                 Game.FishLineReady ? mint : muted);
             Box(335 + Game.fishCursor * 826 - 3, 425, 6, 60, gold);
             Text(321, 510, 849, 30,
-                Game.FishLineReady ? Game.L("鱼已咬钩！瞄准移动的绿色区域。",
-                    "Fish on! Time the moving teal window.") :
+                Game.FishLineReady ? (Game.save.reducedMotion ?
+                    Game.L("鱼已咬钩！对准固定的绿色区域。",
+                        "Fish on! Reel inside the steady teal window.") :
+                    Game.L("鱼已咬钩！瞄准移动的绿色区域。",
+                        "Fish on! Time the moving teal window.")) :
                     Game.L("等待鱼再次咬钩……", "Waiting for the next bite..."),
                 16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
             Text(321, 548, 849, 44,

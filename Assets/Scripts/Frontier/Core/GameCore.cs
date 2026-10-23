@@ -34,8 +34,9 @@ namespace Starfall
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
         private float fishNextBiteAt;
-        public float FishTarget { get { return .5f + .16f * (float)Math.Sin(
-            fishTime * .67f + fishHits * 2.1f - fishMisses * .8f); } }
+        public float FishTarget { get { return save != null && save.reducedMotion ? .5f :
+            .5f + .16f * (float)Math.Sin(fishTime * .67f +
+                fishHits * 2.1f - fishMisses * .8f); } }
         public float FishWindowRadius { get { return .18f - fishHits * .022f; } }
         public bool FishLineReady { get { return mode == "fish" && fishTime >= fishNextBiteAt; } }
         private string currentMode = "title";
