@@ -1659,7 +1659,7 @@ namespace Starfall.Tests
             int first = g.AbyssCircuitNextNode;
             int mistake = (first + 1) % 3;
             g.save.x = relays[mistake].x; g.save.y = relays[mistake].y;
-            int startingEnergy = g.save.energy;
+            float startingEnergy = g.save.energy;
             g.Talk(relays[mistake]);
             Check(g.AbyssCircuitProgress == 0 &&
                 g.AbyssCircuitGuidedNextRelay == first &&
