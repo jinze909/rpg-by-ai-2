@@ -1316,6 +1316,7 @@ namespace Starfall.Tests
             int banked = g.save.shards, pending = g.save.runShards;
             g.Choose(choice);
             Check(g.AbyssTestimonyGuidedSite == first &&
+                g.Objective().Contains(first.name) &&
                 (g.NavigationTarget().Value - new Point(first.x,first.y)).Length<.001f &&
                 (actualStart-g.NavigationTarget().Value).Length>1f &&
                 g.save.shards==banked && g.save.runShards==pending &&
@@ -1339,6 +1340,7 @@ namespace Starfall.Tests
                     "A recorded field site immediately leaves the compass");
             }
             Check(g.AbyssTestimonySealed && g.AbyssTestimonyGuidedSite==null &&
+                !g.Objective().Contains("正在追踪巡路证词") &&
                 (g.NavigationTarget().Value-new Point(31,14)).Length<.001f &&
                 g.save.shards==banked && g.save.room==8,
                 "Complete five-site investigation returns navigation to real banking gate");

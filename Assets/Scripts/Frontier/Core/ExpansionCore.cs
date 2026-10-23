@@ -2459,9 +2459,15 @@ namespace Starfall
             if (save.room == 9) return L("休息、备好热汤，或从南门返回余烬镇。", "Rest, prepare stew, or return to Emberfall through the south door.");
             if (InAbyss)
             {
+                WorldObject guidedTestimony = AbyssTestimonyGuidedSite;
                 string goal = enemies.Count > 0 ?
                     L("清理本层敌人 · 小心地脉落印，东门可结算",
                         "Clear this floor · avoid rift marks; bank at the east gate") :
+                    guidedTestimony != null ?
+                        L("正在追踪巡路证词 " + (AbyssTestimonyProgress + 1) +
+                            "/5：" + guidedTestimony.name + "，尚未结算战利品。",
+                          "Tracking warden account " + (AbyssTestimonyProgress + 1) +
+                            "/5: " + guidedTestimony.en + ". Loot is still unbanked.") :
                     L("到东侧地脉门，选择祝福或安全撤离。",
                         "Choose a blessing or extract at the east gate.");
                 // An optional healing route matters most when the player can

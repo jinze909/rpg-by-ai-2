@@ -85,6 +85,7 @@ namespace Starfall
             Point goal = ScreenPoint(target.Value);
             int gallery = Game.AbyssCircuitGuidedBranch;
             int nextRelay = Game.AbyssCircuitGuidedNextRelay;
+            WorldObject guidedRecord = Game.AbyssTestimonyGuidedSite;
             string galleryLabel = gallery < 0 ? "" :
                 Game.AbyssCircuitGuideNeedsSource ?
                     Game.L("支洞 ", "GALLERY ") + (char)('A' + gallery) +
@@ -94,6 +95,9 @@ namespace Starfall
                     Game.AbyssCircuitUnvisitedSites(gallery) +
                     Game.L("", " LEFT");
             string navigationLabel = gallery >= 0 ? galleryLabel :
+                guidedRecord != null ?
+                    Game.L("巡路证词 ", "WARDEN ACCOUNT ") +
+                    (Game.AbyssTestimonyProgress + 1) + "/5" :
                 nextRelay >= 0 ?
                     Game.L("星根信标 ", "STARROOT RELAY ") +
                     (char)('A' + nextRelay) + " · " +

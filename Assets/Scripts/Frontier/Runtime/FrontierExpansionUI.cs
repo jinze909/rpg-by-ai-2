@@ -622,8 +622,11 @@ namespace Starfall
             int recordState = Game.AbyssTestimonyRecordState(o);
             if (recordState != 0)
             {
-                bool closest = System.Object.ReferenceEquals(
-                    Game.AbyssTestimonyNextSite,o);
+                WorldObject selectedRecord = Game.AbyssTestimonyGuidedSite;
+                bool selected = System.Object.ReferenceEquals(selectedRecord, o);
+                bool closest = selectedRecord == null ?
+                    System.Object.ReferenceEquals(Game.AbyssTestimonyNextSite,o) :
+                    selected;
                 if (recordState == 2)
                 {
                     Ring(new Point(o.x,o.y),.47f,mint,14);
@@ -644,6 +647,7 @@ namespace Starfall
                     Ring(new Point(o.x,o.y),closest?.86f:.58f,
                         marker,closest?20:16);
                     Text(p.x-66,p.y-97,132,21,
+                        selected ? Game.L("追踪证词 · E","TRACKED · E") :
                         closest ? Game.L("证词目标 · E","TESTIMONY · E") :
                             Game.L("待归档证词","UNFILED ACCOUNT"),
                         11,marker,TextAnchor.MiddleCenter);
