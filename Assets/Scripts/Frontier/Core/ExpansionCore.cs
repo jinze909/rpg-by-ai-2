@@ -2136,7 +2136,7 @@ namespace Starfall
                 int id = int.Parse(kind.Substring(4)); save.bells[id] = (save.bells[id] + 1) % 4; CheckBells(); revision++;
                 Notify("钟 " + (id + 1) + "：第 " + (save.bells[id] + 1) + " 音", "Chime " + (id + 1) + ": tone " + (save.bells[id] + 1)); return true;
             }
-            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。在无遮蔽的暖圈内可以驱寒；离开后余温维持2.5秒。脱离战斗和现场任务后才能缓慢恢复生命和耐力，隔着石墙无法取暖。" : "木材两份能点燃火盆，形成可接近的暖圈。脱离战斗后还可缓慢疗伤回气。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Its unobstructed warmth drives out cold; carried embers hold chill at bay for 2.5 seconds after leaving. Health and energy recover only when safe and free of active fieldwork. Walls block the refuge." : "Two timber light a brazier and create a physical warm refuge. Rest outside combat to recover health and energy. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
+            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。在无遮蔽的暖圈内可以驱寒；离开后余温维持2.5秒。脱离战斗和现场任务后可缓慢恢复，也可主动休整12秒恢复部分生命与耐力。隔着石墙无法取暖。" : "木材两份能点燃火盆，形成可接近的暖圈。脱离战斗后还可缓慢疗伤回气。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Its unobstructed warmth drives out cold; carried embers hold chill at bay for 2.5 seconds. When safe, rest for 12 seconds to restore some health and energy. Walls block the refuge." : "Two timber light a brazier and create a physical warm refuge. Rest outside combat to recover health and energy. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "靠火盆短暂休整" : "点火 · 木材2", Has("warm_" + o.id) ? "Rest beside the brazier" : "Light · 2 timber", Has("warm_" + o.id) ? "brazierRest:" + o.id : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
             if (kind == "keeper") { KeeperConversation(o); return true; }
             if (kind == "campfire")
             {
@@ -2382,6 +2382,43 @@ namespace Starfall
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true)); save.health = save.maxHealth; save.energy = 100; revision++; return true;
             }
             if (action.StartsWith("warm:")) { string id = action.Substring(5); if (save.room == 7 && !Has("warm_" + id) && Spend(2, 0, 0, 0, 0)) Flag("warm_" + id); return true; }
+            if (action.StartsWith("brazierRest:"))
+            {
+                string id=action.Substring("brazierRest:".Length);
+                // Never trust a stale or spoofed conversation. The source
+                // must be the same still-present live mountain fire and the
+                // hero must physically reach the burning object NOW.
+                WorldObject source=pendingDialogueSource;
+                bool authentic=save.room==7 && source!=null &&
+                    source.kind=="brazier" && source.id==id &&
+                    HasPhysicalInteractionReach(source) &&
+                    BrazierWarmsHero(source);
+                if(!authentic)
+                {
+                    Notify("火盆不在可接近的暖圈内，请靠近已点燃的火盆。",
+                        "Reach a lit, unobstructed brazier before resting.");
+                    return true;
+                }
+                if(Dying || practicing || FieldWorkPreventsRest || !SafeTravel)
+                {
+                    Notify("战斗或现场任务尚未结束，无法在火盆旁跳过时间。",
+                        "Active combat or fieldwork prevents a time-skipping rest.");
+                    return true;
+                }
+                // Real time passes, including tide and transient projectile
+                // expiry. Unlike the inn this is a modest alpine field stop,
+                // not a full heal or a global resource fountain.
+                ResolveRestTimeSkip(12f);
+                save.cold=Math.Max(0f,save.cold-48f);
+                save.health=Math.Min(save.maxHealth,save.health+18f);
+                save.energy=Math.Min(100f,save.energy+26f);
+                brazierEmberSeconds=2.5f;
+                effects.Add(new Effect("heal",Position,.7f));
+                sound="reward";revision++;
+                Notify("已在火盆旁短暂休整：驱散寒意，恢复部分生命与耐力。",
+                    "Brief brazier rest: cold eased and health and energy partially restored.");
+                return true;
+            }
             if (action == "tea")
             {
                 if (save.tea >= 999)

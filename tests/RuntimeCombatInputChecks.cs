@@ -3346,6 +3346,56 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void RealAlpineBrazierRestRequiresSafePhysicalContact(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=7;
+        g.mode="world";g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+        WorldObject fire=Array.Find(g.Map.objects,o=>o.kind=="brazier");
+        Check(fire!=null,"Existing mountain contains real camp braziers");
+        g.save.x=fire.x;g.save.y=fire.y;
+        g.save.flags.Add("warm_"+fire.id);
+        g.save.totalTime=37f;g.save.cold=85f;g.save.health=60f;g.save.energy=14f;
+        g.Talk(fire);
+        Check(g.mode=="dialog"&&g.conversation.choices.Length>0&&
+            g.conversation.choices[0].action=="brazierRest:"+fire.id,
+            "Lit production-world brazier offers a real player-selectable rest");
+        g.Choose(0);
+        Check(g.mode=="world"&&Math.Abs(g.save.totalTime-49f)<.001f&&
+            Math.Abs(g.save.cold-37f)<.001f&&
+            Math.Abs(g.save.health-78f)<.001f&&
+            Math.Abs(g.save.energy-40f)<.001f,
+            "Real 12-second safe rest skips world time and restores capped partial resources");
+        Check(g.BrazierEmberSeconds>2f,
+            "Physical rest also refreshes only the transient departing warmth");
+        float later=g.save.totalTime;
+        g.Talk(fire);
+        g.save.x=fire.x+9;g.save.y=fire.y;
+        g.Choose(0);
+        Check(g.save.totalTime==later&&
+            g.save.health==78f&&g.save.energy==40f,
+            "Stale conversation cannot rest or heal remotely after hero walks away");
+        g.save.x=fire.x;g.save.y=fire.y;
+        g.enemies.Add(new Enemy(933,0,fire.x+1,fire.y,90f));
+        g.Talk(fire);g.Choose(0);
+        Check(g.save.totalTime==later&&g.save.health==78f&&
+            g.save.energy==40f,
+            "Nearby live enemy prevents a fraudulent time skip");
+        g.enemies.Clear();
+        g.racing=true;
+        g.Talk(fire);g.Choose(0);
+        Check(g.save.totalTime==later&&g.save.health==78f&&
+            g.save.energy==40f,
+            "Ongoing timed field activities cannot be bypassed by a mountain rest");
+        g.racing=false;
+        g.save.flags.Remove("warm_"+fire.id);
+        g.Talk(fire);
+        Check(g.conversation.choices[0].action=="warm:"+fire.id,
+            "Unlit brazier still requires the original two-timber ignition");
+        Console.WriteLine("PASS Real mountain brazier dialogue: safe timed rest, physical reach, active combat and event isolation");
+    }
+
     private static void LitAlpineBraziersGivePhysicalSafeRest(FrontierRuntime app)
     {
         Prepare(app);
@@ -3825,7 +3875,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
