@@ -2516,6 +2516,8 @@ namespace Starfall
         {
             get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
+                // The 90-second out-and-back station survey does not tick during a rest time skip.
+                fieldSurveyRoom != 0 ||
                 TideSalvageActive || FloodReliefActive || LastDirectiveWave > 0 || CivicConduitActive ||
                 // A lull between scripted enemy waves is not a break in the
                 // physical trial. Resting there would skip its capture clock,

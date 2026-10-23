@@ -1677,6 +1677,19 @@ namespace Starfall.Tests
                 // out-and-back survey without the player deliberately canceling.
                 int otherRegion = region == 5 ? 6 : 5;
                 float surveyTimeBefore = g.fieldSurveyTime;
+                if (region == 6)
+                {
+                    int oldWaystation = g.save.projects[1];
+                    g.save.projects[1] = 1;
+                    TalkNear(g, "campfire");
+                    Check(g.mode == "dialog" &&
+                        !Array.Exists(g.conversation.choices, c => c.action == "fieldrest") &&
+                        g.fieldSurveyRoom == region &&
+                        Math.Abs(g.fieldSurveyTime - surveyTimeBefore) < .001f,
+                        "An active 90-second survey blocks camp rest instead of pausing its deadline");
+                    g.Close();
+                    g.save.projects[1] = oldWaystation;
+                }
                 Action(g, post.kind, "fieldstation_to_" + otherRegion);
                 Check(g.save.room == region && g.fieldSurveyRoom == region &&
                     g.fieldSurveyPhase == 1 && g.fieldSurveyTime == surveyTimeBefore,
