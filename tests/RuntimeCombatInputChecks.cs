@@ -3428,6 +3428,48 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Three-page late chronicle pointer, Home/End and real final back action");
     }
 
+
+    private static void ChronicleBackReturnsThroughActualUnlockedChapters(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        string[] flags={ "witness_started_1", "core_1", "core_2",
+            "core_3", "iron_temper_started", "triad_started",
+            "blackout_started", "boss_4" };
+        foreach(string flag in flags)game.save.flags.Add(flag);
+        CallCore(game,"WorldChronicleSection","campaign");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        int originalShards=game.save.shards;
+        int originalCoins=game.save.coins;
+        Input.keys.Add(KeyCode.PageDown);Update(app);Call(app,"OnGUI");
+        Check(game.mode=="dialog" && game.conversation.choices.Length==9,
+            "Late chapter directory remains a genuine paginated interaction");
+        Input.keys.Add(KeyCode.JoystickButton1);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[0].action=="story_section_origins",
+            "Controller B returns from the real campaign section to chronicle index");
+        game.Choose(1); // Reopen the original campaign section.
+        Check(game.mode=="dialog" && game.conversation.choices.Length==9,
+            "Backtracking never clears the actual unlocked story chapters");
+        game.Choose(0); // Read a real unlocked chapter.
+        Check(game.mode=="dialog" &&
+            Array.Exists(game.conversation.choices,c=>c.action=="story_section_campaign"),
+            "The chronicle page offers its existing chapter parent");
+        Input.keys.Add(KeyCode.Escape);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[0].action=="story_read_testimonies",
+            "Escape from a story page returns to its original chapter menu");
+        Input.keys.Add(KeyCode.JoystickButton1);Update(app);
+        Check(game.mode=="dialog" &&
+            game.conversation.choices[0].action=="story_section_origins",
+            "Controller B from a chapter climbs one level, never silently exits");
+        Input.keys.Add(KeyCode.Escape);Update(app);
+        Check(game.mode=="world" && game.save.shards==originalShards &&
+            game.save.coins==originalCoins,
+            "Escape from the top-level archive closes normally without rewards or save mutations");
+        Console.WriteLine("PASS Real chronicle chapter/page B and Escape back hierarchy");
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -3439,7 +3481,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

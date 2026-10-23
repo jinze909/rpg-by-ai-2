@@ -72,6 +72,28 @@ namespace Starfall
             if (Game.mode == "saves") { Game.mode = "pause"; return; }
             if (Game.mode == "pause" && settingsParent == "title") { Game.mode = "title"; settingsParent = "world"; return; }
             if (Game.mode == "dialog" && dialogParent != null) { string parent = dialogParent; dialogParent = null; Game.Close(); OpenMenu(parent); return; }
+            if (Game.mode == "dialog" && Game.conversation != null)
+            {
+                // The chronicle is a real three-level reader. B/Escape backs
+                // from a page into its chapter, then into the directory,
+                // instead of discarding 15 unlocked choices and exiting the
+                // archive. The canonical GameCore.Choose handler still
+                // rechecks story gating; no quest or save state is forged.
+                int chapter = -1, directory = -1;
+                Choice[] choices = Game.conversation.choices;
+                for (int i = 0; i < choices.Length; i++)
+                {
+                    if (choices[i].action.StartsWith("story_section_"))
+                        chapter = i;
+                    if (choices[i].action == "story_menu")
+                        directory = i;
+                }
+                if (directory >= 0)
+                {
+                    ChooseDialogue(chapter >= 0 ? chapter : directory);
+                    return;
+                }
+            }
             Game.Close(); Save();
         }
         private void ChooseDialogue(int i)
