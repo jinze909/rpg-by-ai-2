@@ -3340,6 +3340,48 @@ public static class RuntimeCombatInputChecks
     }
 
 
+
+    private static void LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;
+        game.save.frontierEnding=1;
+        game.StartAbyss(0);
+        Check(game.InAbyss,"Real expedition starts using the existing campaign unlock");
+        game.enemies.Clear();game.hazards.Clear();game.projectiles.Clear();
+        game.save.flags.Add("abyss_clear_1");
+        game.save.flags.Add("abyss_annex_circuit_complete_1");
+        game.save.runCoins=19;game.save.runShards=7;
+        var gate=Array.Find(game.Map.objects,o=>o.kind=="abyssGate");
+        Check(gate!=null,"Production east banking gate is physically placed");
+        game.save.x=gate.x;game.save.y=gate.y;
+        int savedCoins=game.save.coins,savedShards=game.save.shards;
+        game.Talk(gate);
+        Check(game.mode=="dialog" && game.conversation.choices.Length==7 &&
+            game.conversation.choices[6].action=="abyssBank",
+            "Seven live choices place banking on page two, after boons, tracking and route networks");
+        GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        int pages=DialogueLayout.Pages(game.conversation.textEn,
+            game.save.largeText).Count;
+        for(int p=1;p<pages;p++)Call(app,"AdvanceDialogue");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539&&b.rect.y<670).Count==6,
+            "First live gate page draws six actual production buttons");
+        Input.keys.Add(KeyCode.PageDown);Update(app);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==1 &&
+            GUI.buttonCalls.FindAll(b=>b.rect.y>=539&&b.rect.y<670).Count==1,
+            "PageDown exposes just the seventh actual gate choice inside the dialog card");
+        Input.keys.Add(KeyCode.Alpha1);Update(app);
+        Check(!game.InAbyss && game.save.room==0 &&
+            game.save.coins==savedCoins+19 &&
+            game.save.shards>=savedShards+7 &&
+            game.save.runCoins==0 && game.save.runShards==0,
+            "Page-two keyboard key 1 banks exactly once and returns to town, rather than activating a hidden boon");
+        Console.WriteLine("PASS Real seven-option Abyss gate page-two keyboard banking");
+    }
+
     private static void LateChronicleChoicePagesRemainPlayable(FrontierRuntime app)
     {
         Prepare(app);
@@ -3514,7 +3556,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
