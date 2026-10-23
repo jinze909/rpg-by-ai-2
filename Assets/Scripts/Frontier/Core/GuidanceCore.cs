@@ -2104,6 +2104,7 @@ namespace Starfall
             if(CivicConduitActive) return GetQuest("civic_conduit").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return AbyssCircuitGuideTarget() ??
+                AbyssTestimonyGuideTarget() ??
                 AbyssCircuitPuzzleTarget() ?? new Point(31, 14);
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
             if (q.room == save.room) return q.target;

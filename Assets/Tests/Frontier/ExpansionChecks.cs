@@ -881,9 +881,11 @@ namespace Starfall.Tests
                     g.save.x = 31; g.save.y = 14;
                     WorldObject gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
                     g.Talk(gate);
-                    Check(g.mode == "dialog" && g.conversation.choices.Length == 1,
-                        "The sixth-floor gate exposes the real final banking choice");
-                    g.Choose(0);
+                    Check(g.mode == "dialog" &&
+                        g.conversation.choices[g.conversation.choices.Length-1].action ==
+                            "abyssBank",
+                        "The sixth-floor gate keeps the final banking choice available");
+                    g.Choose(g.conversation.choices.Length-1);
                 }
             }
             Check(g.save.room == 0 && g.Has("abyss_ward_charter_complete") &&
@@ -1289,6 +1291,90 @@ namespace Starfall.Tests
             Check(!partial.AbyssTestimonyLegacyComplete &&
                 partial.save.skillPoints==previous,
                 "Five completed floors and an unfinished sixth cannot claim the permanent archive");
+        }
+
+
+        public static void AbyssGateTestimonyTrackingLeadsThroughRealSitesWithoutBanking(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            WorldObject gate = Array.Find(g.Map.objects,
+                o => o.kind == "abyssGate");
+            Check(gate != null && g.AbyssTestimonyProgress == 0 &&
+                g.AbyssTestimonyNextSite != null,
+                "A fresh floor contains the five genuine field records");
+            g.save.x = gate.x; g.save.y = gate.y;
+            g.Talk(gate);
+            int choice = Array.FindIndex(g.conversation.choices,
+                c => c.action == "abyssTestimonyTrack");
+            Check(choice >= 0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action ==
+                    "abyssBank",
+                "East gate offers explicit exploration before its original banking option");
+            var first = g.AbyssTestimonyNextSite;
+            var actualStart = g.NavigationTarget().Value;
+            int banked = g.save.shards, pending = g.save.runShards;
+            g.Choose(choice);
+            Check(g.AbyssTestimonyGuidedSite == first &&
+                (g.NavigationTarget().Value - new Point(first.x,first.y)).Length<.001f &&
+                (actualStart-g.NavigationTarget().Value).Length>1f &&
+                g.save.shards==banked && g.save.runShards==pending &&
+                g.save.room==8,
+                "Explicit gate choice changes only live objective, never location or loot");
+
+            // Follow the actual physical five-record chain; the echo unlock
+            // remains governed by its southern source testimony.
+            for (int i=0;i<5;i++)
+            {
+                WorldObject target=g.AbyssTestimonyGuidedSite;
+                Check(target!=null && g.AbyssTestimonyRecordState(target)==1 &&
+                    (g.NavigationTarget().Value-new Point(target.x,target.y)).Length<.001f,
+                    "Compass remains pinned to the valid currently recoverable object");
+                g.save.x=target.x;g.save.y=target.y;
+                g.Talk(target);
+                Check(g.Has("abyss_clear_1") && g.AbyssTestimonyProgress==i+1,
+                    "Physical testimony interaction advances one real SaveData v2 proof");
+                g.Close();
+                Check(!Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,target),
+                    "A recorded field site immediately leaves the compass");
+            }
+            Check(g.AbyssTestimonySealed && g.AbyssTestimonyGuidedSite==null &&
+                (g.NavigationTarget().Value-new Point(31,14)).Length<.001f &&
+                g.save.shards==banked && g.save.room==8,
+                "Complete five-site investigation returns navigation to real banking gate");
+
+            g.PrepareSave();
+            var restored = new GameCore(data,CloneSave(g.save));
+            Check(restored.AbyssTestimonySealed &&
+                restored.AbyssTestimonyGuidedSite==null &&
+                (restored.NavigationTarget().Value-new Point(31,14)).Length<.001f,
+                "Existing save format remembers proofs, not temporary compass intent");
+        }
+
+        public static void AbyssTestimonyTrackingRejectsStaleGateAndResetsOnFloorChange(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack");
+            g.save.x=5;g.save.y=14;g.Choose(index);
+            Check(g.AbyssTestimonyGuidedSite==null &&
+                (g.NavigationTarget().Value-new Point(31,14)).Length<.001f,
+                "Walking away before menu confirmation cannot activate remote tracking");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTrack"));
+            Check(g.AbyssTestimonyGuidedSite!=null,
+                "Tracking legitimately activates at a physically reachable gate");
+            g.save.abyssFloor=2;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(g,null);
+            Check(g.AbyssTestimonyGuidedSite==null &&
+                g.save.abyssFloor==2 &&
+                (g.NavigationTarget().Value-new Point(31,14)).Length<.001f,
+                "Floor transition cannot reuse a stale physical testimony or marker");
         }
 
         public static void AbyssTestimonyCompassFollowsRealUnvisitedSources(Campaign data)

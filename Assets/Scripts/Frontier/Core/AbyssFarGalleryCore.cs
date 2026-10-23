@@ -337,6 +337,62 @@ namespace Starfall
         // Speaking to an unfinished relay opts in to puzzle guidance;
         // existing persisted step flags also resume mid-circuit on reload.
         private bool abyssCircuitPuzzleGuideActive;
+        // Opt-in route to the next physically recoverable testimony. The
+        // player's selected world objective is transient, not SaveData v2.
+        // Keep the same record until it is actually collected: choosing the
+        // nearest site every frame would make the compass flip mid-walk.
+        private bool abyssTestimonyGuideActive;
+        private int abyssTestimonyGuideFloor = -1;
+        private MapData abyssTestimonyGuideMap;
+        private WorldObject abyssTestimonyGuideSite;
+        public WorldObject AbyssTestimonyGuidedSite
+        {
+            get
+            {
+                if (!abyssTestimonyGuideActive || !InAbyss ||
+                    abyssTestimonyGuideFloor != save.abyssFloor ||
+                    !Object.ReferenceEquals(abyssTestimonyGuideMap, Map))
+                    return null;
+                if (abyssTestimonyGuideSite == null ||
+                    AbyssTestimonyRecordState(abyssTestimonyGuideSite) != 1 ||
+                    Array.IndexOf(Map.objects, abyssTestimonyGuideSite) < 0)
+                    abyssTestimonyGuideSite = AbyssTestimonyNextSite;
+                return abyssTestimonyGuideSite;
+            }
+        }
+        private Point? AbyssTestimonyGuideTarget()
+        {
+            WorldObject next = AbyssTestimonyGuidedSite;
+            return next == null ? (Point?)null : new Point(next.x, next.y);
+        }
+        private void TrackAbyssTestimonyFromGate()
+        {
+            // A saved/stale gate dialogue cannot remotely command guidance.
+            // Tracking changes no encounter, save flag, reward or location.
+            if (!CanBankFloor() || !NearLiveAbyssGate())
+            {
+                Notify("请靠近安全的东侧地脉门重新选择证词路线。",
+                    "Return to the safe east gate to select testimony guidance.");
+                return;
+            }
+            WorldObject next = AbyssTestimonyNextSite;
+            if (next == null)
+            {
+                Notify("本层可回收的证词已全部归档。",
+                    "No recoverable testimony remains on this floor.");
+                return;
+            }
+            abyssTestimonyGuideActive = true;
+            abyssTestimonyGuideFloor = save.abyssFloor;
+            abyssTestimonyGuideMap = Map;
+            abyssTestimonyGuideSite = next;
+            abyssCircuitGuideBranch = -1;
+            abyssCircuitGuideFloor = -1;
+            abyssCircuitGuideMap = null;
+            revision++;
+            Notify("已追踪巡路证词：" + next.name + "。东门结算仍须手动选择。",
+                "Tracking testimony: " + next.en + ". Banking remains manual.");
+        }
         public int AbyssCircuitGuidedNextRelay
         {
             get { return AbyssCircuitPuzzleTarget().HasValue ?
@@ -537,6 +593,8 @@ namespace Starfall
             // Choosing a gallery also opts in to its unfinished real sites.
             // A trip to the east gate restores the original exit guidance.
             abyssCircuitGuideBranch = destination;
+            abyssTestimonyGuideActive = false;
+            abyssTestimonyGuideSite = null;
             abyssCircuitGuideFloor = save.abyssFloor;
             abyssCircuitGuideMap = Map;
             RejoinCompanionAfterAbyssCircuitTravel(previousHero);
