@@ -364,6 +364,24 @@ namespace Starfall
             get { return ReliefEscortActive && save.room==reliefMissionRoom &&
                 ReliefSurvivorSheltered(reliefMissionRoom); }
         }
+        // Waiting at a genuinely reachable shelter is a tactical decision
+        // during the timed rescue, not an indefinite healing cheat. Every
+        // second spent here consumes the same dwindling mission timer.
+        // Enemy patrols within four tiles or a committed civilian warning
+        // prevent the faster calm recovery, even with a green field canopy.
+        public bool ReliefEscortSecureStop
+        {
+            get
+            {
+                if(!ReliefEscortSheltered || !reliefFollowerWaiting ||
+                    ReliefEscortUnderAttack || Dying)return false;
+                foreach(Enemy enemy in enemies)
+                    if(enemy.hp>0 &&
+                        (enemy.Position-reliefFollowerPosition).Length<4f)
+                        return false;
+                return true;
+            }
+        }
         // A tactical rally is an actual field command, not an inventory click
         // or free mission reset. It protects civilians for a short period, once
         // per wave, using the hero's existing combat energy.
@@ -651,7 +669,8 @@ namespace Starfall
             // and unsafe tides erode it gradually. This is separate from
             // direct raider pressure and cannot exceed the original 100 max.
             if (ReliefSurvivorSheltered(region))
-                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety + dt * 1.4f);
+                reliefFollowerSafety = Math.Min(100, reliefFollowerSafety +
+                    dt * (ReliefEscortSecureStop ? 3.4f : 1.4f));
             else if (reliefClimateKitTime <= 0)
                 reliefFollowerSafety = Math.Max(0, reliefFollowerSafety -
                     dt * (region == 5 ? 1f : 1.5f));

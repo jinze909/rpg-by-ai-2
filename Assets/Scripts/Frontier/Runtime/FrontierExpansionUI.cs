@@ -607,6 +607,22 @@ namespace Starfall
                         11, mint, TextAnchor.MiddleCenter);
                 }
                 Point escortScreen = ScreenPoint(escort);
+                // The green physical cover really restores civilian safety.
+                // A stationed shelter with a hostile closing in is not a
+                // secure resting stop: distinguish both states on the
+                // actual moving NPC, not on the player HUD.
+                if (Game.ReliefEscortSecureStop)
+                    Text(escortScreen.x-88,escortScreen.y-174,176,20,
+                        Game.L("掩体驻留 · 安全恢复", "SHELTERED REST · SAFE +"),
+                        11,mint,TextAnchor.MiddleCenter);
+                else if (Game.ReliefEscortSheltered)
+                    Text(escortScreen.x-85,escortScreen.y-174,170,20,
+                        Game.L("居民已进入避难区", "CIVILIANS SHELTERED"),
+                        11,mint,TextAnchor.MiddleCenter);
+                else if (Game.reliefClimateKitTime<=0)
+                    Text(escortScreen.x-85,escortScreen.y-174,170,20,
+                        Game.L("居民正暴露于恶劣天气", "EXPOSED TO WEATHER"),
+                        11,gold,TextAnchor.MiddleCenter);
                 if (Game.ReliefEscortUnderAttack)
                     Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
                         Game.L("警戒！来袭", "INCOMING"), 11, gold,

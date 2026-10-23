@@ -3352,6 +3352,81 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void ShelterRestCommandHealsRealEscortOnlyWhenSecure(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.mode="world";
+        g.save.room=6;g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;
+        string[] oldRows=map.rows;WorldObject[] oldObjects=map.objects;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+10;x++)row[x]='.';
+                rows[y]=new string(row);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new[]{new WorldObject{id="escort_shade",kind="shade",
+                x=bx+3,y=by+.5f,name="Real shade",en="Real shade"}};
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=90;g.reliefFollowerSafety=50;
+            g.reliefFollowerPosition=new Point(bx+.5f,by+.5f);
+            g.reliefFollowerWaiting=true;g.reliefClimateKitTime=0;
+            g.save.x=bx+9.5f;g.save.y=by+.5f;
+            Check(g.ReliefEscortSecureStop,
+                "A real waiting civilian can use an unblocked shade rest while hero is far away");
+            CallCore(g,"TickReliefMission",.05f);
+            Check(Math.Abs(g.reliefFollowerSafety-50.17f)<.001f,
+                "Secure physical shelter repairs exactly 3.4 civilian safety per second");
+            Set(app,"camera",g.reliefFollowerPosition);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("SHELTERED REST")),
+                "Production moving civilian scene visibly reports the earned sheltered recovery");
+
+            g.reliefFollowerSafety=50;
+            g.reliefFollowerWaiting=false;
+            g.save.x=g.reliefFollowerPosition.x;
+            g.save.y=g.reliefFollowerPosition.y;
+            CallCore(g,"TickReliefMission",.05f);
+            Check(Math.Abs(g.reliefFollowerSafety-50.07f)<.001f,
+                "Following normally keeps existing 1.4 safety recovery, not the stop bonus");
+
+            g.reliefFollowerWaiting=true;
+            g.reliefFollowerSafety=50;
+            g.enemies.Add(new Enemy(1882,0,bx+2,by+.5f,80f));
+            Check(!g.ReliefEscortSecureStop,
+                "A real living patrol within four tiles interrupts sheltered rest");
+            CallCore(g,"TickReliefMission",.05f);
+            Check(Math.Abs(g.reliefFollowerSafety-50.07f)<.001f,
+                "Hostile presence removes only extra recovery; actual canopy still protects");
+            g.enemies.Clear();
+
+            char[] stone=rows[by].ToCharArray();
+            stone[bx+1]='#';rows[by]=new string(stone);
+            Check(!g.ReliefEscortSecureStop&&!g.ReliefEscortSheltered,
+                "Rock wall invalidates protected rest based on civilian feet");
+            g.reliefFollowerSafety=50;
+            CallCore(g,"TickReliefMission",.05f);
+            Check(Math.Abs(g.reliefFollowerSafety-49.925f)<.001f,
+                "Blocked cover restores real exposure loss rather than granting free safety");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("EXPOSED TO WEATHER")) &&
+                !GUI.commands.Exists(c=>c.Contains("SHELTERED REST")),
+                "Production rescue display marks the actual stranded civilian exposed");
+            Console.WriteLine("PASS Real escort rest: covered stop, active patrol, moving fallback, wall and visible danger");
+        }
+        finally
+        {
+            map.rows=oldRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void ActualCivilianClimateSheltersCannotPassThroughWalls(FrontierRuntime app)
     {
         Prepare(app);
@@ -4305,7 +4380,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
