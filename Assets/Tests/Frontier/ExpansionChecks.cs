@@ -834,8 +834,8 @@ namespace Starfall.Tests
                 o => o.kind == "abyssGate");
             gate.Talk(finalGate);
             Check(gate.mode == "dialog" &&
-                gate.conversation.text.Contains("\\n\\n镇流巡路") &&
-                gate.conversation.textEn.Contains("\\n\\nWard charter"),
+                gate.conversation.text.Contains("\n\n镇流巡路") &&
+                gate.conversation.textEn.Contains("\n\nWard charter"),
                 "Ward charter progress renders as real separate paragraphs in both languages");
         }
 
