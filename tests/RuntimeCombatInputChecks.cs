@@ -2126,6 +2126,55 @@ public static class RuntimeCombatInputChecks
     }
 
 
+    private static void LiveFishingReelUsesRealBiteAndProductionHud(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.Enter(0);game.enemies.Clear();
+        WorldObject pond=Array.Find(game.Map.objects,o=>o.kind=="fish");
+        Check(pond!=null,"The actual town lake still has a playable fishing source");
+        game.save.x=pond.x;game.save.y=pond.y;
+        game.Talk(pond);
+        Check(game.conversation!=null,"The original lake source opens a real fishing conversation");
+        int choice=Array.FindIndex(game.conversation.choices,c=>c.action=="fish");
+        Check(choice>=0,"The original lake conversation still offers Cast the line");
+        game.Choose(choice);
+        Check(game.mode=="fish"&&!game.FishLineReady,
+            "Authentic cast starts before the first real bite");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        var reel=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.x-473)<.01f &&
+            Math.Abs(c.rect.y-601)<.01f);
+        Check(reel!=null&&!reel.enabled &&
+            GUI.commands.Exists(x=>x.Contains("等待咬钩")||x.Contains("Wait for bite")),
+            "Shipped fishing HUD disables the real reel while the line is not ready");
+        Input.keys.Add(KeyCode.E);Update(app);
+        Check(game.fishHits==0&&game.fishMisses==0,
+            "Live E input cannot claim a premature bite");
+        for(int i=0;i<90&&!game.FishLineReady;i++)Update(app);
+        Check(game.FishLineReady,"Real Update() reaches the ready fishing bite");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        reel=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.x-473)<.01f&&
+            Math.Abs(c.rect.y-601)<.01f);
+        Check(reel!=null&&reel.enabled,
+            "Actual IMGUI Reel button becomes interactable when the fish bites");
+        int before=game.fishHits+game.fishMisses;
+        Input.keys.Add(KeyCode.E);Update(app);
+        Check(game.fishHits+game.fishMisses==before+1&&!game.FishLineReady,
+            "Live keyboard E resolves precisely one genuine bite and enters recovery");
+        GUI.queuedClick=new Rect(473,601,543,56);Call(app,"OnGUI");
+        GUI.queuedClick=null;
+        Check(game.fishHits+game.fishMisses==before+1,
+            "Same-frame pointer click cannot duplicate the already resolved E reel");
+        for(int i=0;i<90&&!game.FishLineReady;i++)Update(app);
+        Check(game.FishLineReady,"Actual Update prepares the second separate bite");
+        GUI.queuedClick=new Rect(473,601,543,56);Call(app,"OnGUI");
+        Check(!GUI.queuedClick.HasValue &&
+            game.fishHits+game.fishMisses==before+2,
+            "Physical UI pointer Reel consumes the next real bite exactly once");
+        game.Close();
+        Console.WriteLine("PASS Real fishing dock, E and pointer bite gating with actual IMGUI enabled state");
+    }
+
     private static void FishingSuspendsOnFocusLossAndResumesOnReturn(FrontierRuntime app)
     {
         Prepare(app);
@@ -5524,7 +5573,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveFishingReelUsesRealBiteAndProductionHud,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
