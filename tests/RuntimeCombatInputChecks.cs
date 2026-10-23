@@ -3493,7 +3493,9 @@ public static class RuntimeCombatInputChecks
         Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==0,
             "Gamepad LB restores page one instead of switching unrelated menus");
         Input.keys.Add(KeyCode.JoystickButton5);Update(app);Call(app,"OnGUI");
-        Input.keys.Add(KeyCode.JoystickButton0);Update(app);
+        // Update queues focused activation; the production IMGUI pass
+        // consumes that queued A press when it registers the real button.
+        Input.keys.Add(KeyCode.JoystickButton0);Update(app);Call(app,"OnGUI");
         Check(game.mode=="dialog" &&
             game.conversation.choices[0].action=="story_read_triad" &&
             game.save.coins==originalCoins,
