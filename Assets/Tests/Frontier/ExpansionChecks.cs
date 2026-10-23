@@ -1296,6 +1296,47 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssFieldRecordsCanDirectlyContinueActualTestimonyTrail(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var near=Array.Find(g.Map.objects,o=>o.kind=="abyssSurvey");
+            var far=Array.Find(g.Map.objects,o=>o.kind=="abyssFarSurvey");
+            Check(near!=null && far!=null,
+                "Near and deep original testimony tablets exist in the current floor");
+            int previousShards=g.save.shards;
+            g.save.x=near.x;g.save.y=near.y;
+            g.Talk(near);
+            int follow=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyFollow");
+            Check(follow==1 && g.conversation.choices[0].action=="close" &&
+                g.AbyssTestimonyProgress==1,
+                "Actual near-side tablet keeps its original close and offers follow as a second action");
+            g.save.x=5;g.save.y=14;g.Choose(follow);
+            Check(g.AbyssTestimonyGuidedSite==null,
+                "Leaving the tablet cannot remotely activate a stale follow choice");
+            g.save.x=near.x;g.save.y=near.y;g.Talk(near);
+            g.Choose(1);
+            var destination=g.AbyssTestimonyGuidedSite;
+            Check(destination!=null && !System.Object.ReferenceEquals(destination,near) &&
+                g.AbyssTestimonyRecordState(destination)==1 &&
+                (g.NavigationTarget().Value-new Point(destination.x,destination.y)).Length<.001f,
+                "Physical reading immediately selects the next legitimate, unlocked real record");
+
+            // Deep-gallery sources use their own production dialogue branch.
+            g.save.x=far.x;g.save.y=far.y;g.Talk(far);
+            Check(g.AbyssTestimonyProgress==2 &&
+                g.conversation.choices[0].action=="close" &&
+                g.conversation.choices[1].action=="abyssTestimonyFollow",
+                "Deep-gallery tablet exposes the same physical follow action after granting its normal XP");
+            g.Choose(1);
+            Check(g.AbyssTestimonyGuidedSite!=null &&
+                !System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,far) &&
+                g.save.shards==previousShards && g.save.room==8,
+                "Deep follow retargets without teleport or permanent reward manipulation");
+        }
+
         public static void AbyssSixChoiceGateKeepsBankAndCircuitTransfersAfterSurvey(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);

@@ -2358,6 +2358,7 @@ namespace Starfall
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
             if (action == "abyssTestimonyTrack") { TrackAbyssTestimonyFromGate(); return true; }
+            if (action == "abyssTestimonyFollow") { TrackAbyssTestimonyFromRecord(); return true; }
             if (action == "abyssTestimonyUntrack") { StopAbyssTestimonyTrackingAtGate(); return true; }
             if (action == "abyssCircuitGround") { GroundAbyssCircuitRifts(); return true; }
             if (action == "abyssCircuitRoutes") { OpenAbyssCircuitGateRoutes(); return true; }
@@ -2662,6 +2663,12 @@ namespace Starfall
                 revision++; sound = "reward";
             }
             bool trailSealed = first && TrySealAbyssTestimony();
+            var recordChoices = new List<Choice> {
+                C("收进本层记录", "Keep in floor journal", "close")
+            };
+            if (AbyssTestimonyNextSite != null)
+                recordChoices.Add(C("追寻下一份巡路证词",
+                    "Follow next warden account", "abyssTestimonyFollow"));
             Dialog(o.name, o.en,
                 cache ?
                     "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +
@@ -2673,7 +2680,7 @@ namespace Starfall
                         (first ? "\n\nUnbanked: +18 coins, +2 shards." : "\n\nAlready recorded.") :
                     "The rubbing traces how miners, ferrymen and wardens once shared light. The old abyss had more than one road." +
                         (first ? "\n\nUnbanked XP +15." : "\n\nRubbing already recorded."),
-                C("收进本层记录", "Keep in floor journal", "close"));
+                recordChoices.ToArray());
             if (trailSealed)
                 Notify("五份巡路证词已归档！额外待结算：硬币30、碎片2、经验25。",
                     "All five roadwarden accounts filed! Bonus unbanked: 30 coins, 2 shards, 25 XP.");

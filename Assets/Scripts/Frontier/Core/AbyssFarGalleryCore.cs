@@ -382,6 +382,10 @@ namespace Starfall
                     "No recoverable testimony remains on this floor.");
                 return;
             }
+            ActivateAbyssTestimonyGuidance(next);
+        }
+        private void ActivateAbyssTestimonyGuidance(WorldObject next)
+        {
             abyssTestimonyGuideActive = true;
             abyssTestimonyGuideFloor = save.abyssFloor;
             abyssTestimonyGuideMap = Map;
@@ -392,6 +396,31 @@ namespace Starfall
             revision++;
             Notify("已追踪巡路证词：" + next.name + "。东门结算仍须手动选择。",
                 "Tracking testimony: " + next.en + ". Banking remains manual.");
+        }
+        private void TrackAbyssTestimonyFromRecord()
+        {
+            // ChooseCore retains the real dialogue source only for this
+            // action. An unrelated object or stale/distant conversation
+            // cannot spoof a genuine recovered testimony as a tracker.
+            WorldObject source = pendingDialogueSource;
+            if (!InAbyss || Dying || practicing ||
+                source == null || Map.objects == null ||
+                Array.IndexOf(Map.objects, source) < 0 ||
+                !HasPhysicalInteractionReach(source) ||
+                AbyssTestimonyRecordState(source) != 2)
+            {
+                Notify("请走近已记录的巡路证词，才能继续追踪。",
+                    "Approach a recovered warden record to follow its trail.");
+                return;
+            }
+            WorldObject next = AbyssTestimonyNextSite;
+            if (next == null)
+            {
+                Notify("本层证词已齐，请到东门手动结算。",
+                    "All accounts are filed. Bank manually at the east gate.");
+                return;
+            }
+            ActivateAbyssTestimonyGuidance(next);
         }
         private void StopAbyssTestimonyTrackingAtGate()
         {
@@ -943,13 +972,19 @@ namespace Starfall
                 cache?
                 "Supplies sealed in this bottom gallery are still unbanked expedition loot until the original root gate settles the floor.":
                 "The echo stone completes the testimony: these passageways were built to share energy, not close communities off from one another.";
+            var recordChoices = new List<Choice> {
+                C("收下记录", "Keep the account", "close")
+            };
+            if (AbyssTestimonyNextSite != null)
+                recordChoices.Add(C("继续追寻下一份证词",
+                    "Follow the next warden account", "abyssTestimonyFollow"));
             Dialog(o.name,o.en,zh+(first?
                     "\n\n此层待结算："+(cache?"硬币 +30、碎片 +1。":survey?"经验 +25。":"经验 +20。"):
                     "\n\n该层记录已保存，无法重复领取。"),
                 en+(first?
                     "\n\nUnbanked: "+(cache?"+30 coins, +1 shard.":survey?"+25 XP.":"+20 XP."):
                     "\n\nRecorded for this floor; no duplicate loot."),
-                C("收下记录","Keep the account","close"));
+                recordChoices.ToArray());
             if (trailSealed)
                 Notify("五份巡路证词已归档！额外待结算：硬币30、碎片2、经验25。",
                     "All five roadwarden accounts filed! Bonus unbanked: 30 coins, 2 shards, 25 XP.");
