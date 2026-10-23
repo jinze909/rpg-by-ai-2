@@ -3363,7 +3363,7 @@ public static class RuntimeCombatInputChecks
             "New conversation starts on the first real choice page");
         Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==6,
             "First choice page draws exactly six reachable controls inside the dialog");
-        Check(!GUI.commands.Exists(c=>c.Contains("\\\"text\\\":\\\""+
+        Check(!GUI.commands.Exists(c=>c.Contains(
                 game.conversation.choices[6].en)),
             "No hidden off-page story choice is painted beyond the dialog");
         Input.keys.Add(KeyCode.PageDown); Update(app);
@@ -3376,9 +3376,56 @@ public static class RuntimeCombatInputChecks
         Input.keys.Add(KeyCode.Alpha1); Update(app);
         Check(game.mode=="dialog" && game.conversation != null &&
             game.conversation.choices.Length <= 5 &&
-            game.conversation.speaker != "The Four Starcores",
+            game.conversation.choices[0].action == "story_read_triad",
             "Visible key 1 activates absolute choice seven, not hidden choice one");
         Console.WriteLine("PASS Long real chronicle menu pages and keyboard selects visible late chapters");
+    }
+
+
+    private static void ThreePageChronicleSupportsPointerHomeEndAndRealBack(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;
+        string[] flags={
+            "survey_complete", "archive_complete", "root_harmony_started",
+            "commons_relay_started", "skywatch_started", "afterlight_started",
+            "storm_started", "hearing_started", "roadcharter_started",
+            "last_directive_started", "civic_conduit_started",
+            "civic_conduit_complete" };
+        foreach(string flag in flags)game.save.flags.Add(flag);
+        game.save.frontierEnding=1;game.save.ending=1;
+        CallCore(game,"WorldChronicleSection","after");
+        int count=game.conversation.choices.Length;
+        Check(count>=13 &&
+            game.conversation.choices[count-1].action=="story_menu",
+            "A late-game native chapter listing truly spans at least three choice pages");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        // Pointer presses run through the same production Button() hit path.
+        GUI.queuedClick=new Rect(920,682,231,34);
+        Call(app,"OnGUI");
+        Check(GUI.queuedClick==null &&
+            (int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==1,
+            "Visible mouse Next advances the real nine-plus-choice chronicle");
+        Input.keys.Add(KeyCode.End);Update(app);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        int lastPage=(int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app);
+        Check(lastPage==2 && GUI.buttonCalls.FindAll(b=>
+            b.rect.y>=539&&b.rect.y<670).Count==count-12,
+            "End reveals the last page without painting choices outside its card");
+        Input.keys.Add(KeyCode.Home);Update(app);
+        Call(app,"OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage",Private).GetValue(app)==0,
+            "Home restores the original first page and navigation scope");
+        Input.keys.Add(KeyCode.End);Update(app);
+        Call(app,"OnGUI");
+        // The final entry is the real chapter-back action, not a duplicate.
+        Input.keys.Add((KeyCode)((int)KeyCode.Alpha1+count-13));
+        Update(app);
+        Check(game.mode=="dialog"&&game.conversation.choices.Length==5 &&
+            game.conversation.choices[0].action=="story_section_origins",
+            "Last-page numeric shortcut opens the real parent chronicle safely");
+        Console.WriteLine("PASS Three-page late chronicle pointer, Home/End and real final back action");
     }
 
     private static int[] EnumerableIndices(int count)
@@ -3392,7 +3439,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

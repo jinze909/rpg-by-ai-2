@@ -42,6 +42,10 @@ namespace Starfall
                 { MoveDialogueChoicePage(-1); return; }
                 if (Input.GetKeyDown(KeyCode.PageDown))
                 { MoveDialogueChoicePage(1); return; }
+                if (Input.GetKeyDown(KeyCode.Home))
+                { MoveDialogueChoicePage(-DialogueChoicePageCount); return; }
+                if (Input.GetKeyDown(KeyCode.End))
+                { MoveDialogueChoicePage(DialogueChoicePageCount); return; }
             }
             bool menu = Array.IndexOf(menuModes, Game.mode) >= 0;
             if (menu && (PadDown(4) || PadDown(5))) { int index = Array.IndexOf(menuModes, Game.mode); OpenMenu(menuModes[(index + (PadDown(5) ? 1 : -1) + menuModes.Length) % menuModes.Length]); return; }
