@@ -21,7 +21,15 @@ namespace Starfall
             if (drawnScope != InputScope()) { confirmControl = null; navigation.Scope(InputScope()); return; }
             bool first = navigation.focused == ""; navigation.SetControls(drawnControls);
             if (first && Game.mode == "dialog" && DialogueChoicesVisible() && Game.conversation.choices.Length > 0)
-            { int count = Game.conversation.choices.Length, cols = count > 2 ? 2 : count; float w = (832 - (cols - 1) * 14) / Math.Max(1, cols); navigation.Select(ControlId(320, 539, w, 37)); }
+            {
+                // Focus the real first choice on THIS page, not a phantom
+                // half-width button inferred from the conversation total.
+                int visible = DialogueLayout.VisibleChoiceCount(
+                    Game.conversation.choices.Length, dialogueChoicePage, DialogueChoicesPerPage);
+                if (visible > 0)
+                    navigation.Select(ControlId(320, 539,
+                        DialogueLayout.ChoiceWidth(visible, 832f, 14f), 37));
+            }
         }
         private bool RegisterControl(float x, float y, float w, float h, bool enabled)
         {

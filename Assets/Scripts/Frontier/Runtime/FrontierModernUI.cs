@@ -649,9 +649,9 @@ namespace Starfall
                 int count = c.choices.Length;
                 dialogueChoicePage = Math.Max(0, Math.Min(dialogueChoicePage, DialogueChoicePageCount - 1));
                 int start = dialogueChoicePage * DialogueChoicesPerPage;
-                int shown = Math.Min(DialogueChoicesPerPage, count - start);
-                int cols = shown > 2 ? 2 : Math.Max(1, shown);
-                float w = (832 - (cols - 1) * 14) / cols;
+                int shown = DialogueLayout.VisibleChoiceCount(count, dialogueChoicePage, DialogueChoicesPerPage);
+                int cols = DialogueLayout.ChoiceColumns(shown);
+                float w = DialogueLayout.ChoiceWidth(shown, 832f, 14f);
                 for (int offset = 0; offset < shown; offset++)
                 {
                     int index = start + offset;

@@ -4,6 +4,20 @@ namespace Starfall
 {
     public static class DialogueLayout
     {
+        // Choice geometry is shared by the drawn page and its gamepad focus.
+        // The last page often has fewer choices than the full conversation:
+        // e.g. 7 choices -> 6 on page one and ONE full-width control on page two.
+        public static int VisibleChoiceCount(int total, int page, int pageSize)
+        {
+            if (total <= 0 || page < 0 || pageSize <= 0) return 0;
+            long start = (long)page * pageSize;
+            return start >= total ? 0 : Math.Min(pageSize, total - (int)start);
+        }
+        public static int ChoiceColumns(int visible)
+        { return visible > 2 ? 2 : Math.Max(1, visible); }
+        public static float ChoiceWidth(int visible, float totalWidth, float gap)
+        { int cols = ChoiceColumns(visible); return (totalWidth - (cols - 1) * gap) / cols; }
+
         // Conservative weighted line budgets preserve all text and reserve a separate choice area.
         public static List<string> Pages(string text, bool largeText = false)
         {
