@@ -775,6 +775,40 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssHonorsProtectedMissionTravelLocks(Campaign data)
+        {
+            var locked = Unlocked(data);
+            locked.Enter(6);
+            Check(locked.save.room == 6, "The protected-mission fixture starts in the unlocked highland region");
+
+            FieldInfo tuning = typeof(GameCore).GetField("stormTuning",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(tuning != null, "The civic-grid tuning state remains an explicit runtime field");
+            tuning.SetValue(locked, true);
+
+            int room = locked.save.room, floor = locked.save.abyssFloor;
+            int seed = locked.save.abyssSeed, coins = locked.save.runCoins;
+            int shards = locked.save.runShards, xp = locked.save.runXp;
+            int revision = locked.revision;
+            locked.StartAbyss(1);
+            Check(locked.save.room == room && locked.save.abyssFloor == floor &&
+                locked.save.abyssSeed == seed && locked.save.runCoins == coins &&
+                locked.save.runShards == shards && locked.save.runXp == xp &&
+                (bool)tuning.GetValue(locked) && locked.revision == revision,
+                "Protected civic-grid tuning blocks Abyss entry without mutating the live mission or expedition save");
+            Check(locked.toast.Contains("尚未结束"),
+                "Blocked Abyss entry explains that the protected field mission must be completed or canceled");
+
+            var cancelable = Unlocked(data);
+            cancelable.Enter(6);
+            cancelable.racing = true;
+            cancelable.StartAbyss(1);
+            Check(cancelable.InAbyss && cancelable.save.room == 8 &&
+                cancelable.save.abyssFloor == 1 && cancelable.save.abyssRisk == 1 &&
+                !cancelable.racing,
+                "A skiff race remains cancelable by travel and does not block a valid Abyss expedition");
+        }
+
         public static void AbyssExpeditions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)
