@@ -30,6 +30,14 @@ namespace Starfall
         public float attackCooldown, dashTime, dashCooldown, invulnerable, skillCooldown, guardTime;
         public float fishTime, fishCursor, toastTime;
         public int fishHits, fishMisses;
+        // A bite belongs to one simulation-time window, not every keyboard,
+        // controller or pointer event in the same frame. Transient and never
+        // persisted: closing the lake mini-game abandons only the active cast.
+        private float fishNextBiteAt;
+        public float FishTarget { get { return .5f + .16f * (float)Math.Sin(
+            fishTime * .67f + fishHits * 2.1f - fishMisses * .8f); } }
+        public float FishWindowRadius { get { return .18f - fishHits * .022f; } }
+        public bool FishLineReady { get { return mode == "fish" && fishTime >= fishNextBiteAt; } }
         private string currentMode = "title";
         public string mode
         {
@@ -185,7 +193,7 @@ namespace Starfall
             // None of these transient inputs belong to persisted SaveData.
             aim = dashDirection = new Point(1, 0);
             aimTarget = null;
-            fishTime = fishCursor = 0;
+            fishTime = fishCursor = fishNextBiteAt = 0;
             fishHits = fishMisses = 0;
             toast = ""; toastTime = 0;
             // Runtime audio consumes a pending queue, not just the current
@@ -593,7 +601,16 @@ namespace Starfall
             // mission or world renderer can enumerate them. Valid effect clocks
             // remain frozen outside world mode, exactly as before.
             RepairTransientEffects();
-            if (mode == "fish") { fishTime += dt; fishCursor = .5f + .5f * (float)Math.Sin(fishTime * (2.5f + fishHits * .35f)); return; }
+            if (mode == "fish")
+            {
+                // The fish moves its bite lane while the player's float
+                // swings with increasing tempo. Nothing else in the world
+                // simulates during the minigame, as before.
+                fishTime += dt;
+                fishCursor = .5f + .5f * (float)Math.Sin(
+                    fishTime * (2.5f + fishHits * .35f + fishMisses * .08f));
+                return;
+            }
             if (mode != "world") return;
             if (hitStop > 0)
             {
@@ -2759,7 +2776,8 @@ namespace Starfall
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
             if (action == "fish" && HasInventoryRoom(3, 1))
-            { fishTime = fishCursor = 0; fishHits = fishMisses = 0; mode = "fish"; }
+            { fishTime = fishCursor = 0; fishHits = fishMisses = 0;
+              fishNextBiteAt = .3f; mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
@@ -2817,8 +2835,14 @@ namespace Starfall
         }
         public void FishHit()
         {
-            if (mode != "fish") return;
-            if (Math.Abs(fishCursor - .5f) <= .18f) { fishHits++; sound = "reward"; } else { fishMisses++; sound = "hurt"; }
+            if (!FishLineReady) return;
+            // Only an actual fish bite can resolve an input. Holding E,
+            // pressing gamepad A and clicking Reel in the same frame cannot
+            // fake three catches or exhaust the three misses instantly.
+            bool hooked = Math.Abs(fishCursor - FishTarget) <= FishWindowRadius;
+            if (hooked) { fishHits++; sound = "reward"; }
+            else { fishMisses++; sound = "hurt"; }
+            fishNextBiteAt = fishTime + .34f;
             if (fishHits >= 3)
             {
                 // Normal play enters this minigame only when a fish slot was

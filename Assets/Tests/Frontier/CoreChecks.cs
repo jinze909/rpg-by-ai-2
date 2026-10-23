@@ -610,7 +610,12 @@ namespace Starfall.Tests
                 for (int hit = 0; hit < 3; hit++)
                 {
                     // Wait through the actual timing simulation rather than patching the cursor.
-                    int frames = 0; do { g.Tick(.02f, new Point()); } while ((Math.Abs(g.fishCursor - .5f) > .08f || frames++ < 5) && frames < 1000);
+                    int frames = 0;
+                    do { g.Tick(.02f, new Point()); frames++; }
+                    while ((!g.FishLineReady ||
+                        Math.Abs(g.fishCursor - g.FishTarget) > .07f ||
+                        frames < 5) && frames < 1400);
+                    Check(frames < 1400, "A real drifting fish bite is reachable before the mini-game times out");
                     g.FishHit();
                 }
                 Check(g.mode == "world", "Fishing should finish after three good pulls");

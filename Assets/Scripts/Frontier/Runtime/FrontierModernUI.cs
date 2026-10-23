@@ -699,8 +699,32 @@ namespace Starfall
         private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
         private void DrawFishing()
         {
-            Window(Game.L("湖畔垂钓", "Fishing by the lake"), Game.L("浮标进入青绿色区时收线 · E / 空格 / 点击收线", "Reel while the marker is in the teal band · E / Space / Reel")); Card(279, 179, 938, 510); Icon("fish", 667, 202, 134); Text(307, 361, 875, 41, Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " + Game.L("失误 ", "Misses ") + Game.fishMisses + "/3", 24, paper, TextAnchor.MiddleCenter);
-            Box(335, 436, 826, 37, ink); Box(335 + 826 * .32f, 436, 826 * .36f, 37, mint); Box(335 + Game.fishCursor * 826 - 3, 425, 6, 60, gold); Text(321, 520, 849, 51, Game.L("三次成功获得银鳍鱼；世界暂停，钓鱼不消耗鱼饵。", "Three good pulls earn Silverfin. World paused; no bait consumed."), 16, muted, TextAnchor.MiddleCenter); if (Button(473, 601, 543, 56, Game.L("收线  E", "Reel  E"), true)) Game.FishHit();
+            Window(Game.L("湖畔垂钓", "Fishing by the lake"),
+                Game.L("鱼口会移动。等鱼咬钩，再在绿色区域收线 · E / 空格",
+                    "The bite zone drifts. Wait for the bite, then reel in teal · E / Space"));
+            Card(279, 179, 938, 510); Icon("fish", 667, 202, 134);
+            Text(307, 361, 875, 41,
+                Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " +
+                Game.L("失误 ", "Misses ") + Game.fishMisses + "/3",
+                24, paper, TextAnchor.MiddleCenter);
+            float center = Game.FishTarget, radius = Game.FishWindowRadius;
+            Box(335, 436, 826, 37, ink);
+            Box(335 + 826 * (center - radius), 436, 826 * radius * 2, 37,
+                Game.FishLineReady ? mint : muted);
+            Box(335 + Game.fishCursor * 826 - 3, 425, 6, 60, gold);
+            Text(321, 510, 849, 30,
+                Game.FishLineReady ? Game.L("鱼已咬钩！瞄准移动的绿色区域。",
+                    "Fish on! Time the moving teal window.") :
+                    Game.L("等待鱼再次咬钩……", "Waiting for the next bite..."),
+                16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
+            Text(321, 548, 849, 44,
+                Game.L("连续三次成功获得银鳍鱼；三次失误结束。无需鱼饵。",
+                    "Three good pulls catch a Silverfin; three misses end the cast. No bait needed."),
+                15, muted, TextAnchor.MiddleCenter);
+            if (Button(473, 601, 543, 56,
+                Game.FishLineReady ? Game.L("收线  E", "Reel  E") :
+                    Game.L("等待咬钩", "Wait for bite"),
+                true, Game.FishLineReady)) Game.FishHit();
         }
         private void DrawPause()
         {
