@@ -2104,9 +2104,14 @@ namespace Starfall
             int litSteps=int.MaxValue,unlitSteps=int.MaxValue;
             foreach(WorldObject fire in Map.objects)
             {
-                if(fire==null || fire.kind!="brazier")continue;
-                bool burning=Has("warm_"+fire.id);
-                if(!burning && save.inventory[0]<2)continue;
+                if(fire==null)continue;
+                bool station=fire.kind=="fieldstation7";
+                if(!station && fire.kind!="brazier")continue;
+                // An already restored weather station is a genuine warm
+                // destination and needs no extra fuel. An unbuilt station
+                // must not impersonate an affordable unlit brazier.
+                bool burning=station?Has("fieldstation_7"):Has("warm_"+fire.id);
+                if(!burning && (station || save.inventory[0]<2))continue;
                 Point site=new Point(fire.x,fire.y);
                 bool directlyReachable=HasPhysicalInteractionReach(site);
                 List<Point> route=NavigationPath(site);
@@ -2144,7 +2149,12 @@ namespace Starfall
             int walkingSteps=int.MaxValue;
             foreach(WorldObject shade in Map.objects)
             {
-                if(shade==null || shade.kind!="shade")continue;
+                if(shade==null)continue;
+                bool station=shade.kind=="fieldstation6";
+                if(shade.kind!="shade"&&!station)continue;
+                // A player-funded cooling station competes on WALKED
+                // distance with natural oasis shade, never world distance.
+                if(station&&!Has("fieldstation_6"))continue;
                 Point site=new Point(shade.x,shade.y);
                 bool near=HasPhysicalInteractionReach(site);
                 List<Point> route=NavigationPath(site);

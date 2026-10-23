@@ -3475,6 +3475,18 @@ public static class RuntimeCombatInputChecks
             Point? target=g.NavigationTarget();
             Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
                 "Dangerous desert heat picks the nearest reachable authored-type shade");
+            var station=new WorldObject{id="desert_weather_qa",
+                kind="fieldstation6",name="Cooler",en="Cooler",
+                x=cx+5f,y=cy+.5f};
+            map.objects=new[]{station,near,far};
+            g.save.flags.Add("fieldstation_6");
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(station.x,station.y)).Length<.001f,
+                "Restored nearby cooler outranks a longer exposed walk to an oasis");
+            g.save.flags.Remove("fieldstation_6");
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
+                "An unbuilt cooling station is never advertised as a rescue route");
             var path=g.NavigationPath(target.Value);
             Check(path.Count>0&&(path[path.Count-1]-target.Value).Length<1.75f,
                 "Existing minmap/compass uses a real traversable path to cooling shade");
@@ -3601,6 +3613,18 @@ public static class RuntimeCombatInputChecks
             Point? target=g.NavigationTarget();
             Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
                 "Dangerous cold redirects existing compass to closest WALKABLE lit fire");
+            var station=new WorldObject{id="alpine_weather_qa",
+                kind="fieldstation7",name="Warming post",en="Warming post",
+                x=bx+5f,y=by+.5f};
+            m.objects=new[]{station,near,far};
+            g.save.flags.Add("fieldstation_7");
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(station.x,station.y)).Length<.001f,
+                "Already repaired weather post is a reachable alternative to lit fire");
+            g.save.flags.Remove("fieldstation_7");
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
+                "Unavailable mountain weather post does not steal an existing fire route");
             var routed=g.NavigationPath(target.Value);
             Check(routed.Count>0 &&
                 (routed[routed.Count-1]-target.Value).Length<1.75f,
