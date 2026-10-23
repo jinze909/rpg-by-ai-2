@@ -615,20 +615,41 @@ namespace Starfall
         private bool DrawExpansionObject(WorldObject o)
         {
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
-            // Overlay a genuine reachable target onto the existing
-            // environment prop render: do not replace its sprite/asset.
-            if (Game.InAbyss &&
-                (kind == "abyssSurvey" || kind == "abyssCache" ||
-                 kind == "abyssFarSurvey" || kind == "abyssFarCache" ||
-                 kind == "abyssFarEcho") &&
-                System.Object.ReferenceEquals(Game.AbyssTestimonyNextSite,o))
+            // Overlay proof state onto the EXISTING source artwork without
+            // replacing any sprites, pivots or the world base renderer.
+            // The permanent six-floor archive reveals all available notes,
+            // while new adventurers see the closest guided record only.
+            int recordState = Game.AbyssTestimonyRecordState(o);
+            if (recordState != 0)
             {
-                Ring(new Point(o.x,o.y),.86f,gold,20);
-                Text(p.x-66,p.y-97,132,21,
-                    Game.L("证词目标 · E","TESTIMONY · E"),
-                    11,gold,TextAnchor.MiddleCenter);
-                // Returning false keeps the established production base
-                // object renderer instead of shrinking its art fidelity.
+                bool closest = System.Object.ReferenceEquals(
+                    Game.AbyssTestimonyNextSite,o);
+                if (recordState == 2)
+                {
+                    Ring(new Point(o.x,o.y),.47f,mint,14);
+                    Text(p.x-53,p.y-84,106,19,
+                        Game.L("证词已归档 ✓","ACCOUNT FILED ✓"),
+                        10,mint,TextAnchor.MiddleCenter);
+                }
+                else if (recordState == 3)
+                {
+                    Ring(new Point(o.x,o.y),.45f,muted,14);
+                    Text(p.x-70,p.y-88,140,19,
+                        Game.L("先调查南侧残碑","READ SOUTH TABLET FIRST"),
+                        9,muted,TextAnchor.MiddleCenter);
+                }
+                else if (closest || Game.AbyssTestimonyLegacyComplete)
+                {
+                    Color marker = closest ? gold : light;
+                    Ring(new Point(o.x,o.y),closest?.86f:.58f,
+                        marker,closest?20:16);
+                    Text(p.x-66,p.y-97,132,21,
+                        closest ? Game.L("证词目标 · E","TESTIMONY · E") :
+                            Game.L("待归档证词","UNFILED ACCOUNT"),
+                        11,marker,TextAnchor.MiddleCenter);
+                }
+                // Fall through so the original high-fidelity object
+                // texture still renders through the canonical draw path.
             }
             if(kind=="frostsignal")
             {

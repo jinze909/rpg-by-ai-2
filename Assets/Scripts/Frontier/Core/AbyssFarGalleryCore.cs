@@ -555,6 +555,30 @@ namespace Starfall
         // Dynamic in-world route guidance. Choose the closest UNSOLVED
         // physically placed record rather than inventing a map waypoint.
         // The echo stone is withheld until its source tablet was found.
+        // Real map objects expose an observable field-record state:
+        // 0 = not a testimony, 1 = still available, 2 = collected, and
+        // 3 = the echo stone requires its southern source record first.
+        // Keeping this derived from v2 proof flags avoids stale UI caches.
+        public int AbyssTestimonyRecordState(WorldObject site)
+        {
+            if (!InAbyss || site == null || Map.objects == null) return 0;
+            switch (site.kind)
+            {
+                case "abyssSurvey":
+                case "abyssCache":
+                case "abyssFarSurvey":
+                case "abyssFarCache":
+                case "abyssFarEcho": break;
+                default: return 0;
+            }
+            string flag = AbyssCircuitOptionalFlag(site);
+            if (flag == null) return 0;
+            if (Has(flag)) return 2;
+            if (site.kind == "abyssFarEcho" &&
+                !Has("abyss_annex_far_survey_" + save.abyssFloor))
+                return 3;
+            return 1;
+        }
         public WorldObject AbyssTestimonyNextSite
         {
             get

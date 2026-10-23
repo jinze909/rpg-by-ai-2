@@ -1071,6 +1071,51 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void RoadwardenFieldRecordMarkersRespectRealProofAndMastery(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            WorldObject tablet=Array.Find(g.Map.objects,
+                o=>o.kind=="abyssSurvey");
+            WorldObject southern=Array.Find(g.Map.objects,
+                o=>o.kind=="abyssFarSurvey");
+            WorldObject echo=Array.Find(g.Map.objects,
+                o=>o.kind=="abyssFarEcho");
+            WorldObject exit=Array.Find(g.Map.objects,
+                o=>o.kind=="abyssExit");
+            Check(g.AbyssTestimonyRecordState(tablet)==1 &&
+                g.AbyssTestimonyRecordState(echo)==3 &&
+                g.AbyssTestimonyRecordState(exit)==0,
+                "World marker state distinguishes unvisited proof, locked echo and unrelated exit");
+            g.save.x=echo.x;g.save.y=echo.y;
+            g.Talk(echo);g.Close();
+            Check(g.AbyssTestimonyRecordState(echo)==3,
+                "Premature echo interaction cannot falsely display a collected marker");
+            g.save.x=southern.x;g.save.y=southern.y;
+            g.Talk(southern);g.Close();
+            Check(g.AbyssTestimonyRecordState(southern)==2 &&
+                g.AbyssTestimonyRecordState(echo)==1,
+                "Reading the real southern tablet marks it complete and enables the echo");
+            g.save.x=echo.x;g.save.y=echo.y;
+            g.Talk(echo);g.Close();
+            Check(g.AbyssTestimonyRecordState(echo)==2,
+                "The echo's world marker changes only after its actual story interaction");
+            g.save.flags.Add("abyss_clear_1");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            WorldObject restoredEcho=Array.Find(restored.Map.objects,
+                o=>o.kind=="abyssFarEcho");
+            Check(restored.AbyssTestimonyRecordState(restoredEcho)==2,
+                "The visual record state survives SaveData v2 reload without new fields");
+            restored.save.flags.Add("abyss_testimony_codex_complete");
+            Check(restored.AbyssTestimonyLegacyComplete &&
+                restored.AbyssTestimonyRecordState(
+                    Array.Find(restored.Map.objects,o=>o.kind=="abyssSurvey"))==1,
+                "Archive mastery reveals real outstanding notes but never auto-collects them");
+            restored.save.room=0;
+            Check(restored.AbyssTestimonyRecordState(restoredEcho)==0,
+                "No Abyss proof highlight leaks into unrelated overworld scenes");
+        }
+
         public static void CompletedArchiveExtendsRealRiftWindupsWithoutChangingDamage(Campaign data)
         {
             var ordinary=Unlocked(data);ordinary.StartAbyss(2);
