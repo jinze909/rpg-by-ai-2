@@ -3454,6 +3454,9 @@ public static class RuntimeCombatInputChecks
         Check((g.NavigationTarget().Value-field).Length<.001f,
             "The second wave retains its real combat destination");
         g.reliefMissionWave=3;
+        // This case verifies the ordinary return leg, not the separate
+        // low-safety emergency shelter override tested above.
+        g.reliefFollowerSafety=90f;
         g.reliefFollowerPosition=new Point(9.5f,9.5f);
         g.reliefFollowerWaiting=true;g.save.x=18;g.save.y=15;
         Check((g.NavigationTarget().Value-g.reliefFollowerPosition).Length<.001f,
