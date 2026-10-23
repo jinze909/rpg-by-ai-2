@@ -1038,6 +1038,10 @@ namespace Starfall.Tests
             g.Talk(ward);g.Choose(0);
             Check(g.save.runShards==2&&g.hazards.Contains(bossRift),
                 "Repeated pylon use cannot charge again or erase Boss combat");
+            // A clean floor is the authoritative SaveData v2 replay
+            // contract: otherwise SpawnExpansionRoom legitimately creates
+            // a fresh enemy wave and discards unbanked combat loot.
+            g.save.flags.Add("abyss_clear_3");
             g.PrepareSave();
             var restored=new GameCore(data,CloneSave(g.save));
             Check(restored.InAbyss&&restored.AbyssWardActive&&
