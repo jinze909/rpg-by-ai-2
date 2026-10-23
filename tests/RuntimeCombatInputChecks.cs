@@ -5362,6 +5362,62 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Long real chronicle supports LB/RB paging and gamepad A");
     }
 
+    private static void DialogueChoiceFocusMatchesActualRenderedButton(FrontierRuntime app)
+    {
+        foreach (int total in new[] { 7, 8, 13 })
+        {
+            Prepare(app);
+            int page = (total - 1) / 6;
+            int firstOnPage = page * 6;
+            var options = new Choice[total];
+            for (int i = 0; i < total; i++)
+                options[i] = new Choice("选择 " + i, "Choice " + i,
+                    i == firstOnPage ? "close" : "unused");
+            app.Game.mode = "dialog";
+            app.Game.conversation = new Conversation("港口记录", "Harbor log",
+                "查看此页的选项。", "Choose an entry on this page.", options);
+            Set(app, "lastConversation", app.Game.conversation);
+            Set(app, "dialoguePage", 0);
+            Set(app, "dialogueChoicePage", page);
+            GUI.commands.Clear(); GUI.buttonCalls.Clear(); Call(app, "OnGUI");
+            int visible = total - firstOnPage;
+            float width = visible == 1 ? 832f : 409f;
+            string expected = (string)Call(app, "ControlId", 320f, 539f, width, 37f);
+            var focus = (MenuNavigation)typeof(FrontierRuntime)
+                .GetField("navigation", Private).GetValue(app);
+            Check(focus.focused == expected && focus.CanActivate(expected),
+                "Real page " + page + " of " + total +
+                " choices must focus its actual first clickable button");
+            Input.keys.Add(KeyCode.JoystickButton0); Update(app); Call(app, "OnGUI");
+            Check(app.Game.mode == "world",
+                "Controller A activates that last-page button, never a phantom half-width target");
+        }
+        // Replacing an old paged conversation must synchronize its focus
+        // identity BEFORE the new speaker's first IMGUI draw.
+        Prepare(app);
+        var game = app.Game;
+        game.mode = "dialog";
+        game.conversation = new Conversation("新说话者", "New speaker",
+            "新的对话。", "A new conversation.", new Choice("结束", "Close", "close"));
+        Set(app, "lastConversation", new Conversation("旧说话者", "Previous speaker",
+            "旧页。", "Old page."));
+        Set(app, "dialoguePage", 3);
+        Set(app, "dialogueChoicePage", 2);
+        GUI.commands.Clear(); GUI.buttonCalls.Clear(); Call(app, "OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialoguePage", Private).GetValue(app) == 0 &&
+              (int)typeof(FrontierRuntime).GetField("dialogueChoicePage", Private).GetValue(app) == 0,
+              "New speaker always starts on page one on its first visible frame");
+        var navigation = (MenuNavigation)typeof(FrontierRuntime)
+            .GetField("navigation", Private).GetValue(app);
+        string first = (string)Call(app, "ControlId", 320f, 539f, 832f, 37f);
+        Check(navigation.focused == first && navigation.CanActivate(first),
+            "New speaker first-frame focus matches its actual full-width choice");
+        Input.keys.Add(KeyCode.JoystickButton0); Update(app); Call(app, "OnGUI");
+        Check(game.mode == "world",
+            "New speaker first-frame controller choice closes the intended conversation");
+        Console.WriteLine("PASS One/two-option trailing dialogue pages and new-speaker first-frame controller focus");
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -5373,7 +5429,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

@@ -15,7 +15,21 @@ namespace Starfall
         private string ControlId(float x, float y, float w, float h) { return x.ToString(CultureInfo.InvariantCulture) + ":" + y.ToString(CultureInfo.InvariantCulture) + ":" + w.ToString(CultureInfo.InvariantCulture) + ":" + h.ToString(CultureInfo.InvariantCulture); }
         private string InputScope()
         { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage + "/choices/" + dialogueChoicePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }
-        private void BeginControls() { drawnScope = InputScope(); navigation.Scope(drawnScope); drawnControls.Clear(); drawingModal = false; }
+        private void BeginControls()
+        {
+            // A choice may open a new speaker/section during the previous
+            // OnGUI callback. Reset BEFORE computing the next focus scope:
+            // otherwise the new page is drawn with page-zero geometry but
+            // an old page's focus identity for its entire first frame.
+            if (Game != null && Game.mode == "dialog" && Game.conversation != lastConversation)
+            {
+                lastConversation = Game.conversation;
+                dialoguePage = dialogueChoicePage = 0;
+                confirmControl = null;
+            }
+            drawnScope = InputScope(); navigation.Scope(drawnScope);
+            drawnControls.Clear(); drawingModal = false;
+        }
         private void EndControls()
         {
             if (drawnScope != InputScope()) { confirmControl = null; navigation.Scope(InputScope()); return; }
