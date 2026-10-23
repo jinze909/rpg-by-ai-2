@@ -410,15 +410,19 @@ namespace Starfall
         // a collected waypoint; no BFS runs on ordinary IMGUI repaint.
         private bool CanNavigateToAbyssTestimony(WorldObject site)
         {
+            return AbyssTestimonyWalkingSteps(site) >= 0;
+        }
+        private int AbyssTestimonyWalkingSteps(WorldObject site)
+        {
             if (site == null || !InAbyss || Map.rows == null ||
                 Map.rows.Length == 0 || Map.rows[0] == null ||
-                !Finite(site.x) || !Finite(site.y)) return false;
+                !Finite(site.x) || !Finite(site.y)) return -1;
             Point target = new Point(site.x, site.y);
-            if (HasPhysicalInteractionReach(site)) return true;
+            if (HasPhysicalInteractionReach(site)) return 0;
             int height = Map.rows.Length, width = Map.rows[0].Length;
             int sx = (int)Math.Floor(save.x), sy = (int)Math.Floor(save.y);
             if (sx < 0 || sy < 0 || sx >= width || sy >= height)
-                return false;
+                return -1;
             PreparePathSearch(width * height);
             int front = 0, back = 0, origin = sy * width + sx;
             pathQueue[back++] = origin;
@@ -435,7 +439,13 @@ namespace Starfall
                 {
                     Point contact = range > .55f ?
                         target - delta.Normalized * .55f : foot;
-                    if (ClearAttackPath(foot, contact)) return true;
+                    if (ClearAttackPath(foot, contact))
+                    {
+                        int steps = 0;
+                        for (int node = cell; node != origin;
+                            node = pathParents[node]) steps++;
+                        return steps;
+                    }
                 }
                 for (int i = 0; i < 4; i++)
                 {
@@ -451,7 +461,7 @@ namespace Starfall
                     pathQueue[back++] = next;
                 }
             }
-            return false;
+            return -1;
         }
         private WorldObject ReachableAbyssTestimonySite()
         {
@@ -630,12 +640,28 @@ namespace Starfall
                 return;
             }
             bool fromGate = IsTestimonyGateMenuSource;
-            var choices = new List<Choice>();
+            // The planner lists destinations by actual walking steps to
+            // legal interaction positions, not misleading crow-flight
+            // distance through walls. A stable tie preserves authored order.
+            var sites = new List<WorldObject>();
+            var steps = new List<int>();
             foreach (WorldObject site in Map.objects)
-                if (AbyssTestimonyRecordState(site) == 1 &&
-                    CanNavigateToAbyssTestimony(site))
-                    choices.Add(C("前往 " + site.name,
-                        "Follow " + site.en, "abyssTestimonyTo:" + site.id));
+            {
+                if (AbyssTestimonyRecordState(site) != 1) continue;
+                int distance = AbyssTestimonyWalkingSteps(site);
+                if (distance < 0) continue;
+                int index = 0;
+                while (index < steps.Count && steps[index] <= distance)
+                    index++;
+                sites.Insert(index, site);
+                steps.Insert(index, distance);
+            }
+            var choices = new List<Choice>();
+            for (int i = 0; i < sites.Count; i++)
+                choices.Add(C("前往 " + sites[i].name + " · 约" +
+                    steps[i] + "步",
+                    "Follow " + sites[i].en + " · about " +
+                    steps[i] + " steps", "abyssTestimonyTo:" + sites[i].id));
             choices.Add(fromGate ?
                 C("返回东门结算菜单", "Back to root-gate banking",
                     "abyssTestimonyGateMenu") :

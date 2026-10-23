@@ -1305,6 +1305,40 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssTestimonyRoutePlannerRanksActualWalkingDistance(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.x=30.5f;g.save.y=14.5f;
+            WorldObject gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.Talk(gate);
+            int list=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList");
+            Check(list>=0,"The completed first-floor gate presents the new planning option");
+            g.Choose(list);
+            var walking=typeof(GameCore).GetMethod("AbyssTestimonyWalkingSteps",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            int previous=-1,count=0;
+            foreach(Choice choice in g.conversation.choices)
+            {
+                if(!choice.action.StartsWith("abyssTestimonyTo:"))continue;
+                string id=choice.action.Substring("abyssTestimonyTo:".Length);
+                WorldObject site=Array.Find(g.Map.objects,o=>o.id==id);
+                Check(site!=null && g.AbyssTestimonyRecordState(site)==1,
+                    "Every planner row opens one existing uncollected world object");
+                int distance=(int)walking.Invoke(g,new object[]{site});
+                Check(distance>=previous && distance>=0 &&
+                    choice.label.Contains(distance+"步") &&
+                    choice.en.Contains(distance+" steps"),
+                    "The real planner sorts physical walking steps and displays matching bilingual distances");
+                previous=distance;count++;
+            }
+            Check(count==4 && previous>0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssTestimonyGateMenu",
+                "Four unlocked field records and the real banking return retain their normal actions");
+        }
+
         public static void AbyssGatePlansSpecificPhysicalSurveyAndReturnsToSettlement(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
