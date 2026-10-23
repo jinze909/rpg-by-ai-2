@@ -1152,6 +1152,55 @@ namespace Starfall.Tests
                 "Early extraction loses pending circuit earnings, never permanent shards");
         }
 
+        public static void AbyssCircuitRouteRequiresClearedFloorAndPhysicalRelay(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit1");
+            g.save.x = relay.x; g.save.y = relay.y;
+            int initialRoom = g.save.room, initialShards = g.save.shards;
+            g.save.runShards = 7;
+            g.Talk(relay);
+            Check(g.mode == "world" && g.save.x == relay.x,
+                "Circuit alone cannot skip live enemies and offer an evacuation shortcut");
+            g.enemies.Clear(); g.save.flags.Add("abyss_clear_1");
+            g.hazards.Add(new Hazard {
+                position = new Point(relay.x, relay.y), timer = 1.5f,
+                radius = 1.4f, damage = 10, kind = "rift"
+            });
+            g.Talk(relay);
+            Check(g.mode == "world" && g.save.x == relay.x,
+                "A queued rift contact forbids shortcut travel even after enemies fall");
+            g.hazards.Clear();
+            g.Talk(relay);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 2,
+                "A cleared linked relay actually offers a return-to-gate route");
+
+            g.save.x = 5; g.save.y = 14;
+            g.Choose(0);
+            Check(g.save.x == 5 && g.save.y == 14 &&
+                g.save.runShards == 7,
+                "Walking away revokes a previously opened relay shortcut choice");
+            g.save.x = relay.x; g.save.y = relay.y;
+            g.Talk(relay); g.Choose(0);
+            Check(g.mode == "world" && g.save.room == initialRoom &&
+                Math.Abs(g.save.x - 30.5f) < .01f &&
+                Math.Abs(g.save.y - 14.5f) < .01f &&
+                g.save.runShards == 7 && g.save.shards == initialShards,
+                "Fast return moves within the same dungeon but does not bank or alter any loot");
+            WorldObject gate = Array.Find(g.Map.objects,
+                o => o.kind == "abyssGate");
+            g.Talk(gate);
+            Check(g.mode == "dialog" && g.conversation.choices.Length > 0,
+                "A relay shortcut reaches the REAL settlement gate interaction");
+            // Choose the final 'bank/extract' option; no automatic rewards at
+            // teleport time, only the existing protected BankFloor transaction.
+            g.Choose(g.conversation.choices.Length - 1);
+            Check(g.save.room == 0 && g.save.shards == initialShards + 7,
+                "All pending shards bank only after personally using the root gate");
+        }
+
         public static void AbyssCircuitSeedPermutationAndResetAreDeterministic(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

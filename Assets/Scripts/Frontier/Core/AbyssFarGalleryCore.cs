@@ -208,6 +208,45 @@ namespace Starfall
                 if (AbyssCircuitTarget(i) == node) return true;
             return false;
         }
+        private bool AbyssCircuitRouteSafe()
+        {
+            return InAbyss && AbyssCircuitComplete && !Dying && !practicing &&
+                Has("abyss_clear_" + save.abyssFloor) &&
+                enemies.Count == 0 && hazards.Count == 0 &&
+                projectiles.Count == 0 && SafeTravel;
+        }
+        private bool NearLiveAbyssCircuit()
+        {
+            if (!InAbyss || Map.objects == null) return false;
+            foreach (WorldObject relay in Map.objects)
+                if (relay.kind.StartsWith("abyssCircuit") &&
+                    HasPhysicalInteractionReach(relay)) return true;
+            return false;
+        }
+        private void ReturnViaAbyssCircuit()
+        {
+            if (!AbyssCircuitRouteSafe() || !NearLiveAbyssCircuit())
+            {
+                Notify("折返光路不可用：请靠近已接通信标，并清除敌人、落印和飞行中的攻击。",
+                    "Route unavailable. Reach a linked relay and clear all enemies, warnings and flying attacks.");
+                return;
+            }
+            Point arrival = new Point(30.5f, 14.5f);
+            if (!CanStand(arrival))
+            {
+                Notify("地脉门前的落脚处暂时无法抵达。",
+                    "The safe arrival point by the root gate is blocked.");
+                return;
+            }
+            // This is same-floor movement, NOT a new expedition or settlement:
+            // do not call Enter/ResetTransient/BankFloor or mutate v2 rewards.
+            save.x = arrival.x; save.y = arrival.y;
+            revision++;
+            sound = "travel";
+            Notify("顺着三处星根光路返回东门。战利品仍需手动结算。",
+                "Returned to the east root gate. Bank your loot manually.");
+        }
+
         private void TalkAbyssCircuit(WorldObject o)
         {
             if (!InAbyss || Dying || practicing ||
@@ -217,8 +256,17 @@ namespace Starfall
                 out node) || node < 0 || node > 2) return;
             if (AbyssCircuitComplete)
             {
-                Notify("三个信标已完成调谐。本层回路战利品已登记，等待东门结算。",
-                    "All three relays are aligned. Their loot awaits banking at the east gate.");
+                if (!AbyssCircuitRouteSafe())
+                {
+                    Notify("回路已接通，但本层敌人或落印仍未平息。清除危险后，信标可送你返回东门。",
+                        "Circuit complete, but hostiles or rift contacts remain. Clear this floor before traveling from a relay.");
+                    return;
+                }
+                Dialog(o.name, o.en,
+                    "星根回路已恢复旧时的巡路轨道。东侧地脉门在回应三个信标。现在可以安全折返，但战利品仍须在东门手动结算。",
+                    "The three relays have reconnected the old evacuation route. You can return safely to the east root gate; unbanked rewards must still be settled there.",
+                    C("沿光路折返东门", "Take the starroot route to the east gate", "abyssCircuitReturn"),
+                    C("继续探索", "Keep exploring", "close"));
                 return;
             }
             int progress = AbyssCircuitProgress;

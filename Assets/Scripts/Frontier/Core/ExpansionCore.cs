@@ -2312,6 +2312,7 @@ namespace Starfall
             if (action.StartsWith("join")) { SelectCompanion(int.Parse(action.Substring(4))); return true; }
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
+            if (action == "abyssCircuitReturn") { ReturnViaAbyssCircuit(); return true; }
             if (action == "abyssWardTune") { TuneAbyssWard(); return true; }
             if (action == "abyssRootwellHeal") { UseAbyssRootwell(true); return true; }
             if (action == "abyssRootwellEnergy") { UseAbyssRootwell(false); return true; }
