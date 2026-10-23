@@ -152,7 +152,11 @@ namespace Starfall.Tests
 
         public static void CivicResponseCannotOverlapUnrelatedFieldwork(Campaign data)
         {
-
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;g.save.frontierEnding=1;
+            foreach(string flag in new[]{"civic_supply_complete",
+                "civic_supply_clinic_0","far_shelter_0"})
+                g.save.flags.Add(flag);
+            g.Enter(0);g.enemies.Clear();
             WorldObject shelter=Object(g,"farshelter");
             g.save.x=shelter.x;g.save.y=shelter.y;
             SetOuterPatrolLull(g,0);
@@ -164,7 +168,12 @@ namespace Starfall.Tests
                 "Civic medical service cannot start or spawn a second activity during fieldwork");
             ClearOuterPatrolLull(g);
             Action(g,shelter.kind,"civic_response_start");
-
+            Check(g.CivicResponseActive&&g.CivicResponseClinicRun&&
+                g.CivicResponseTimeLeft>74,
+                "The real 75-second civilian delivery remains available once fieldwork ends");
+            g.StartAbyss(0);
+            Check(g.save.room==0&&g.CivicResponseActive&&g.save.abyssFloor==0,
+                "The direct abyss start cannot bypass a protected civilian-service travel lock");
         }
 
         public static void RescueCivilianWaitFollowAndOneUseAidArePlayable(Campaign data)
