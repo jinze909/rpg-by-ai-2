@@ -607,7 +607,21 @@ namespace Starfall
             DrawExpansionWorld();
             DrawAtmosphere(); DrawPolishWorld();
             WorldObject near = Game.Nearest();
-            if (near != null && Game.mode == "world" && Game.SafeTravel)
+            if (Game.mode == "world" && Game.ReliefCivilianIsInteractionTarget(near))
+            {
+                // Match the SAME winner used by Interact/E. Never show a
+                // different NPC's name above a rescue command.
+                Point s=ScreenPoint(Game.reliefFollowerPosition);
+                string name=Game.reliefMissionWave==3 ?
+                    Game.L("获救居民","Rescued civilian"):
+                    Game.L("平民紧急集结点","Civilian rally point");
+                Panel(s.x-125,s.y+14,250,35,
+                    new Color(.04f,.075f,.12f,.94f),gold);
+                Text(s.x-117,s.y+18,234,27,
+                    ControlKey("E","B")+"  "+name,14,paper,
+                    TextAnchor.MiddleCenter);
+            }
+            else if (near != null && Game.mode == "world" && Game.SafeTravel)
             {
                 Point s = ScreenPoint(new Point(near.x, near.y)); string label = ControlKey("E", "B") + "  " + Game.L(near.name, near.en);
                 Panel(s.x - 125, s.y + 14, 250, 35, new Color(.04f, .075f, .12f, .94f), gold); Text(s.x - 117, s.y + 18, 234, 27, label, 14, paper, TextAnchor.MiddleCenter);

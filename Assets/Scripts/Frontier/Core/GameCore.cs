@@ -2106,38 +2106,66 @@ namespace Starfall
         }
         public WorldObject Nearest()
         {
-            WorldObject best=null;float distance=1.75f;
+            WorldObject best=null;
+            float bestScore=float.MaxValue;
+            Point facing=aim.Normalized;
             WorldObject[] objects = Map.objects;
             if (objects == null) return null;
             foreach(WorldObject o in objects)
             {
-                // This array is already the active map's authoritative object
-                // list, so avoid a second full-map identity scan for every
-                // candidate during the per-frame interaction prompt update.
+                // E and the on-screen E prompt use this SAME resolved source.
+                // Several actual NPCs, records and interactive props stand
+                // within a single 1.75-unit reach circle. Resolving equal
+                // feet only by authored map-array order opened NPC B when the
+                // hero was looking directly at NPC A.
                 if(!IsObjectPresent(o) ||
                     !HasPhysicalInteractionReach(new Point(o.x,o.y)))continue;
-                float d=(Position-new Point(o.x,o.y)).Length;
-                if(d<distance){distance=d;best=o;}
+                Point delta=new Point(o.x,o.y)-Position;
+                float d=delta.Length;
+                // Orientation may decide ONLY nearby competing targets.
+                // Standing almost on an actor always takes precedence over
+                // a more distant actor even if the hero is looking elsewhere.
+                float face=d>.25f ?
+                    (delta.x*facing.x+delta.y*facing.y)/d : 0f;
+                float score=d<=.25f?d-.45f:d-.30f*face;
+                if(score<bestScore-.0001f)
+                {
+                    best=o;
+                    bestScore=score;
+                }
             }
             return best;
+        }
+        // A moving rescued NPC has no Map object. It may offer its own
+        // actions through E only when it is actually the nearest physical
+        // interaction. In earlier rescue waves the old override ignored a
+        // closer authored NPC, replacing the speaker and all menu choices.
+        public bool ReliefCivilianIsInteractionTarget(WorldObject nearby)
+        {
+            if(reliefMissionRoom!=save.room ||
+                reliefMissionWave<1 || reliefMissionWave>3)return false;
+            float d=(Position-reliefFollowerPosition).Length;
+            if(d>=1.7f || !ClearAttackPath(Position,reliefFollowerPosition))
+                return false;
+            if(nearby==null)return true;
+            float other=(Position-new Point(nearby.x,nearby.y)).Length;
+            // On a near tie prefer the actual visibly prompted map NPC,
+            // rather than silently switching to a different speaker.
+            return d<other-.1f;
         }
         public void Interact()
         {
             if (mode == "fish") { FishHit(); return; }
             if (mode != "world" || Dying) return;
             WorldObject o = Nearest();
-            if (reliefMissionRoom == save.room &&
-                (reliefMissionWave == 1 || reliefMissionWave == 2) &&
-                (Position - reliefFollowerPosition).Length < 1.7f &&
-                ClearAttackPath(Position,reliefFollowerPosition))
-            { TalkReliefFieldGuard(); return; }
-            if (ReliefEscortActive &&
-                (Position - reliefFollowerPosition).Length < 1.7f &&
-                ClearAttackPath(Position,reliefFollowerPosition) &&
-                (o == null ||
-                 (Position - reliefFollowerPosition).Length <=
-                    (Position - new Point(o.x, o.y)).Length + .05f))
-            { TalkRescuedCivilian(); return; }
+            if(ReliefCivilianIsInteractionTarget(o))
+            {
+                if(reliefMissionWave==1 || reliefMissionWave==2)
+                    TalkReliefFieldGuard();
+                else
+                    TalkRescuedCivilian();
+                return;
+            }
             if (o == null) { Notify("靠近居民、路牌或发光物，再按 E。", "Approach a resident, sign or glowing object, then press E."); return; }
             TutorialAction(1); Talk(o);
         }

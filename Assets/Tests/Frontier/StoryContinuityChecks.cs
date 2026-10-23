@@ -54,6 +54,93 @@ namespace Starfall.Tests
                 "Scout's actual encounter leads coherently to Lyra's evidence and the next starcore");
         }
 
+
+        public static void CloselySpacedNpcDialogueFollowsHeroFocusAndPrompt(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject witness=Object(g,"commonswitness");
+            WorldObject archivist=Object(g,"archivekeeper");
+            WorldObject chronicle=Object(g,"worldchronicle");
+            // These are genuinely authored in a tightly packed guild corner.
+            Check((new Point(witness.x,witness.y)-
+                   new Point(archivist.x,archivist.y)).Length<1.5f &&
+                  (new Point(witness.x,witness.y)-
+                   new Point(chronicle.x,chronicle.y)).Length<=1.01f,
+                "Guild contains the real overlapping speaker and archive layout");
+            g.save.x=(witness.x+archivist.x)*.5f;
+            g.save.y=(witness.y+archivist.y)*.5f;
+            Check(g.CanStand(g.Position),
+                "NPC focus regression uses a genuinely walkable area");
+            g.aim=new Point(1,1);
+            Check(g.Nearest()==archivist,
+                "Facing the archivist selects that real NPC, not whichever was earlier in map data");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==archivist.name&&
+                g.conversationSource==archivist,
+                "E actually opens the same archivist NPC named by the prompt");
+            g.Close();
+            g.aim=new Point(-1,-1);
+            Check(g.Nearest()==witness,
+                "Changing facing chooses the adjacent testimony keeper without relocating the hero");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==witness.name&&
+                g.conversationSource==witness,
+                "E opens the neighboring witness's own dialogue, never the archivist screen");
+            g.Close();
+            g.save.x=witness.x;g.save.y=(witness.y+chronicle.y)*.5f;
+            g.aim=new Point(0,-1);
+            Check(g.Nearest()==chronicle,
+                "World chronicle can be deliberately selected beside its nearest witness");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker=="边境编年册"&&
+                g.conversationSource==chronicle,
+                "The physical chronicle opens its own book, not the nearby witness conversation");
+            g.Close();
+            g.aim=new Point(0,1);
+            Check(g.Nearest()==witness,
+                "The same physical standpoint can now intentionally select the actual witness");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==witness.name,
+                "Book and NPC cannot swap their dialogue speakers on a focus change");
+        }
+
+        public static void ReliefFieldGuardCannotStealNearestNpcDialogue(Campaign data)
+        {
+            var g=Fresh(data);g.save.room=5;
+            WorldObject captain=Object(g,"captain");
+            g.save.x=captain.x;g.save.y=captain.y;
+            g.aim=new Point(1,0);
+            Check(g.CanStand(g.Position),"Original Mistport captain has a passable talking position");
+            g.reliefMissionRoom=5;g.reliefMissionWave=1;
+            // The rescue rendezvous lies within E range but farther from
+            // the player than the actual NPC they are talking to.
+            g.reliefFollowerPosition=new Point(captain.x+1.3f,captain.y);
+            Check(g.Nearest()==captain&&!g.ReliefCivilianIsInteractionTarget(captain),
+                "A visible nearby captain beats a more distant rescue rally in wave one");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==captain.name&&
+                g.conversationSource==captain,
+                "Wave-one rescue commands do not replace the captain's authentic dialogue");
+            g.Close();
+            g.reliefMissionWave=2;
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==captain.name,
+                "Second wave also respects the nearest original NPC");
+            g.Close();
+            g.reliefMissionWave=3;
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker==captain.name,
+                "Moving escort does not steal the captain's dialogue when farther away");
+            g.Close();
+            g.save.x=captain.x+1.25f;g.save.y=captain.y;
+            Check(g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                "Walking nearer to the actual moving civilian deliberately changes E target");
+            g.Interact();
+            Check(g.conversation!=null&&g.conversation.speaker=="获救居民"&&
+                g.conversationSource==null,
+                "The real living escort's own dialogue remains accessible without fabricating a map NPC");
+        }
+
         public static void StoryDialogueRejectsStaleSourceAcrossRoomsAndRemovedNpcs(Campaign data)
         {
             var g=Fresh(data);
