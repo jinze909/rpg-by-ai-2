@@ -1287,6 +1287,10 @@ namespace Starfall
                     next ? gold : muted;
                 PropImage("lamp", 0, p.x - 26, p.y - 61, 52, 70,
                     visited || next ? Color.white : muted);
+                if (visited)
+                    Ring(new Point(o.x, o.y),
+                        GameCore.AbyssCircuitShelterRadius,
+                        new Color(mint.r,mint.g,mint.b,.34f),32);
                 Ring(new Point(o.x, o.y),
                     next ? .9f : .48f, light, 16);
                 Text(p.x - 46, p.y - 91, 92, 23,

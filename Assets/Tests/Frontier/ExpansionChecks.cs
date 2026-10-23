@@ -1234,6 +1234,71 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void LinkedAbyssRelaysShelterAgainstRealRiftContacts(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var u = Unlocked(data); u.StartAbyss(0);
+            var generate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (GameCore hero in new [] { g, u })
+            {
+                hero.save.abyssFloor = 3; hero.save.abyssSeed = 139;
+                generate.Invoke(hero, null);
+                hero.enemies.Clear(); hero.hazards.Clear();
+                hero.save.flags.Add("abyss_clear_3");
+                hero.mode = "world"; hero.invulnerable = 0;
+                hero.save.health = hero.save.maxHealth;
+            }
+            int node = g.AbyssCircuitNextNode;
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit" + node);
+            Check(relay != null && g.CanStand(new Point(relay.x,relay.y)),
+                "Shelter fixture uses a genuine standable seeded relay");
+            g.save.x = u.save.x = relay.x;
+            g.save.y = u.save.y = relay.y;
+            Check(!g.AbyssCircuitSheltered && !u.AbyssCircuitSheltered,
+                "Unconnected shrines do not provide a free defensive aura");
+            g.save.flags.Add("abyss_annex_circuit_3_0");
+            Check(g.AbyssCircuitSheltered && !u.AbyssCircuitSheltered &&
+                g.Conditions().Contains("信标庇护"),
+                "Physically linked circuit relay provides a visible tactical shelter");
+            float hp = g.save.health;
+            foreach (GameCore hero in new [] { g, u })
+                hero.hazards.Add(new Hazard {
+                    position = new Point(relay.x,relay.y),
+                    radius = 1.2f, timer = .02f, damage = 20,kind = "rift"
+                });
+            g.Tick(.05f,new Point()); u.Tick(.05f,new Point());
+            float shelteredDamage = hp - g.save.health;
+            float exposedDamage = hp - u.save.health;
+            Check(shelteredDamage > 0 && exposedDamage > shelteredDamage &&
+                Math.Abs(shelteredDamage / exposedDamage - .45f) < .01f,
+                "A REAL ground rift contact deals exactly 55% less damage within the connected shelter");
+            Check(g.hazards.Count == 0 && u.hazards.Count == 0,
+                "Both actual hazards complete their ordinary contact and retirement");
+
+            // A different kind of real ground contact must never benefit.
+            g.invulnerable = u.invulnerable = 0;
+            g.save.health = u.save.health = hp;
+            foreach (GameCore hero in new [] { g, u })
+                hero.hazards.Add(new Hazard {
+                    position = new Point(relay.x,relay.y),
+                    radius = 1.2f,timer = .02f,damage = 20,kind = "bell"
+                });
+            g.Tick(.05f,new Point()); u.Tick(.05f,new Point());
+            Check(Math.Abs(g.save.health - u.save.health) < .001f,
+                "The circuit protects against Rift contacts only, never unrelated Bell or boss hazards");
+
+            // Old v2 data stores flags but no new serialized object state.
+            g.PrepareSave();
+            var reload = new GameCore(data,CloneSave(g.save));
+            Check(reload.InAbyss && reload.AbyssCircuitSheltered,
+                "Shelter is reconstructed from the ordinary v2 partial-circuit flag and position");
+            g.save.room = 0;
+            Check(!g.AbyssCircuitSheltered,
+                "Travel out of the Abyss cannot retain a remote shield");
+        }
+
         public static void AbyssCircuitIncompleteV2FlagsRecoverWithoutFreeRewards(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

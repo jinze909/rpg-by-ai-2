@@ -212,6 +212,40 @@ namespace Starfall
                 if (AbyssCircuitTarget(i) == node) return true;
             return false;
         }
+        // Linked field relays form a small tactical refuge, not an
+        // invulnerability toggle. The benefit applies only to actual Rift
+        // ground contacts near a visited relay with an unobstructed route.
+        // Flag-backed v2 progress makes the shelter survive reloads.
+        public const float AbyssCircuitShelterRadius = 3.25f;
+        public bool AbyssCircuitSheltered
+        {
+            get
+            {
+                if (!InAbyss || save.abyssFloor < 3 ||
+                    Map.objects == null) return false;
+                float range2 = AbyssCircuitShelterRadius * AbyssCircuitShelterRadius;
+                foreach (WorldObject relay in Map.objects)
+                {
+                    if (!relay.kind.StartsWith("abyssCircuit")) continue;
+                    int node;
+                    if (!int.TryParse(relay.kind.Substring("abyssCircuit".Length),
+                        out node) || !AbyssCircuitVisited(node)) continue;
+                    float dx = relay.x - save.x, dy = relay.y - save.y;
+                    if (dx * dx + dy * dy <= range2 &&
+                        ClearAttackPath(new Point(relay.x, relay.y), Position))
+                        return true;
+                }
+                return false;
+            }
+        }
+        private float AbyssRiftContactDamage(Hazard h)
+        {
+            // All other hazards retain their existing balance, windups,
+            // parries and real line-of-sight collision contracts.
+            return h.kind == "rift" && AbyssCircuitSheltered ?
+                h.damage * .45f : h.damage;
+        }
+
         private bool AbyssCircuitRouteSafe()
         {
             return InAbyss && AbyssCircuitComplete && !Dying && !practicing &&

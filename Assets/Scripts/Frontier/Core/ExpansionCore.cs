@@ -1700,7 +1700,8 @@ namespace Starfall
                 // a delayed ring deal damage through solid world geometry.
                 if ((Position-h.position).Length < h.radius &&
                     ClearAttackPath(h.position,Position))
-                    Hurt(h.damage,"area",(Position-h.position).Normalized);
+                    Hurt(AbyssRiftContactDamage(h),"area",
+                        (Position-h.position).Normalized);
                 else if(perfectDodgeArmed &&
                     ClearAttackPath(h.position,dashOrigin))
                     // Escaping a circle that could never reach the dodge
@@ -1800,7 +1801,8 @@ namespace Starfall
                         AbyssWardCharterProgress + "/4" : "") +
                 (AbyssCircuitComplete ? L(" · 星根回路已接通", " · STARROOT CIRCUIT LINKED") :
                     L(" · 回路 ", " · CIRCUIT ") + AbyssCircuitProgress + "/3" +
-                        L(" 下个 ", " NEXT ") + AbyssCircuitSymbol(AbyssCircuitNextNode));
+                        L(" 下个 ", " NEXT ") + AbyssCircuitSymbol(AbyssCircuitNextNode)) +
+                (AbyssCircuitSheltered ? L(" · 信标庇护", " · RELAY SHELTER") : "");
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
