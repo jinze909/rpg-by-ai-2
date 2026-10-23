@@ -1745,7 +1745,7 @@ namespace Starfall.Tests
             // A rest time skip must not leave a live 30-second race clock paused
             // while the player heals at a nearby campfire.
             g.Enter(6); g.enemies.Clear();
-            int oldWaystation = g.save.projects[1];
+            int oldRaceWaystation = g.save.projects[1];
             g.save.projects[1] = 1;
             WorldObject skiff = Object(g, "skiff");
             g.save.x = skiff.x; g.save.y = skiff.y;
@@ -1760,7 +1760,7 @@ namespace Starfall.Tests
                 g.Close();
             }
             g.racing = false;
-            g.save.projects[1] = oldWaystation;
+            g.save.projects[1] = oldRaceWaystation;
 
             // Completing the full circuit unlocks an actual forecast, not just flavor text.
             g.Enter(5); g.enemies.Clear();
