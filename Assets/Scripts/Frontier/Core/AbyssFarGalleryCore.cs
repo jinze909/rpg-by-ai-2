@@ -136,15 +136,15 @@ namespace Starfall
             if (AbyssWardActive)
             {
                 Dialog(o.name, o.en,
-                    "镇流碑已经与本层地脉共振。已经生成的环境落印已被平息。站在镇流碑附近还可躲避周期风暴，但Boss与剧情攻击照常生效。新的落印间隔延长至10秒，预警更明显，范围与伤害也减轻。",
-                    "The ward is tuned: active ambient warnings were grounded. Stand near the pylon to shelter from periodic storms, not Boss or quest attacks. New rifts arrive every 10 seconds with longer warnings, smaller circles and reduced damage.",
+                    "镇流碑已经与本层地脉共振。已经生成的环境落印已被平息。站在绿圈内承受真正命中的周期风暴，可将冲击转为至多10点耐力；落空不回气，Boss与剧情攻击照常生效。新的落印间隔延长至10秒，预警更明显，范围与伤害也减轻。",
+                    "The ward is tuned: active ambient warnings were grounded. A real periodic storm impact inside the green shelter restores up to 10 energy; missed strikes restore nothing. Boss and quest attacks still hurt. New rifts arrive every 10 seconds with longer warnings, smaller circles and reduced damage.",
                     C("继续探索", "Keep exploring", "close"));
                 return;
             }
             Dialog(o.name, o.en,
-                "地下巡路人曾用镇流碑保护救援路线。你可以消耗本层待结算碎片3枚，立即平息已有的环境落印，并把以后落印从每6秒一次放缓到10秒一次，减小其伤害与范围。Boss和剧情攻击不会被平息；调谐后靠近镇流碑也能躲避周期风暴。只有这一层有效；原本已存入背包的碎片不会消耗。\\n\\n当前本层碎片：" +
+                "地下巡路人曾用镇流碑保护救援路线。你可以消耗本层待结算碎片3枚，立即平息已有的环境落印，并把以后落印从每6秒一次放缓到10秒一次，减小其伤害与范围。Boss和剧情攻击不会被平息；调谐后在镇流碑绿圈内挡住真正命中的周期风暴，还能回复至多10点耐力。只有这一层有效；原本已存入背包的碎片不会消耗。\\n\\n当前本层碎片：" +
                     save.runShards + "。",
-                "Roadwardens used this pylon to protect evacuation routes. Trade 3 UNBANKED shards to ground active ambient warnings and slow future rift pulses from 6 to 10 seconds, shrink their radius and reduce damage. Boss and encounter warnings remain active. A tuned pylon shelters players standing beside it from periodic storms. Resets next floor; banked shards are untouched.\\n\\nCurrent unbanked shards: " +
+                "Roadwardens used this pylon to protect evacuation routes. Trade 3 UNBANKED shards to ground active ambient warnings and slow future rift pulses from 6 to 10 seconds, shrink their radius and reduce damage. Boss and encounter warnings remain active. A tuned pylon absorbs actual periodic strikes inside its green circle and restores up to 10 energy on contact; misses give nothing. Resets next floor; banked shards are untouched.\\n\\nCurrent unbanked shards: " +
                     save.runShards + ".",
                 C("镇流 · 待结算碎片3", "Tune ward · 3 unbanked shards", "abyssWardTune"),
                 C("保留战利品", "Keep the loot", "close"));

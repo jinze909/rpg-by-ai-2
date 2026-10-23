@@ -1760,9 +1760,18 @@ namespace Starfall
                 // a delayed ring deal damage through solid world geometry.
                 if (wardSheltered)
                 {
-                    // The shelter catches only an ambient storm pulse. Do
-                    // not grant a fake dodge counter for a ward-absorbed hit.
+                    // The shelter catches only a REAL ambient storm impact,
+                    // never a distant expiry or a Boss/quest rift. Converting
+                    // that grounded hit to a modest stamina pulse makes
+                    // holding the physical pylon a deliberate tactical
+                    // choice without granting health or a fake perfect dodge.
                     sound = "guard";
+                    if (save.energy < 100f)
+                    {
+                        save.energy = Math.Min(100f, save.energy + 10f);
+                        effects.Add(new Effect("number", Position, .7f,
+                            L("镇流回气", "WARD ENERGY")));
+                    }
                 }
                 else if (imminentContact)
                     Hurt(AbyssRiftContactDamage(h),"area",

@@ -3343,6 +3343,67 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;
+        g.save.frontierEnding=1;g.StartAbyss(0);
+        g.save.abyssFloor=3;CallCore(g,"GenerateAbyss");
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        WorldObject ward=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+        Check(ward!=null,"Storm conversion needs the real generated floor-three ward");
+        g.save.x=ward.x;g.save.y=ward.y;g.save.runShards=3;
+        g.Talk(ward);g.Choose(0);
+        Check(g.AbyssWardShelter,"Physical shard purchase enables the actual ward");
+
+        // A distant expiry must not charge stamina, play guard or award dodge.
+        g.save.energy=25;g.effects.Clear();g.sound="";
+        g.hazards.Add(new Hazard {position=g.Position+new Point(4,0),
+            radius=1.05f,timer=.01f,damage=20,kind="rift",abyssStormOwned=true});
+        CallCore(g,"TickExpansion",.02f);
+        Check(Math.Abs(g.save.energy-25f)<.001f&&g.sound!="guard"&&
+            !g.effects.Exists(e=>e.text=="WARD ENERGY"),
+            "A storm missing the hero must never grant a defensive pulse");
+
+        // Only the real, physically intercepted ambient contact is converted.
+        g.hazards.Clear();g.effects.Clear();g.sound="";
+        g.hazards.Add(new Hazard {position=g.Position,radius=1.05f,
+            timer=.01f,damage=20,kind="rift",abyssStormOwned=true});
+        float beforeHealth=g.save.health;
+        CallCore(g,"TickExpansion",.02f);
+        Check(g.AbyssWardShelter&&Math.Abs(g.save.energy-35f)<.001f&&
+            Math.Abs(g.save.health-beforeHealth)<.001f&&g.sound=="guard"&&
+            g.effects.Exists(e=>e.text=="WARD ENERGY"),
+            "Real sheltered storm contact must absorb damage and restore exactly ten energy");
+
+        // Recharge cannot overflow 100 or misreport a bonus at full energy.
+        g.hazards.Clear();g.effects.Clear();g.save.energy=96;
+        g.hazards.Add(new Hazard {position=g.Position,radius=1.05f,
+            timer=.01f,damage=20,kind="rift",abyssStormOwned=true});
+        CallCore(g,"TickExpansion",.02f);
+        Check(Math.Abs(g.save.energy-100f)<.001f,
+            "A second sheltered impact saturates energy without overflow");
+        g.hazards.Clear();g.effects.Clear();
+        g.hazards.Add(new Hazard {position=g.Position,radius=1.05f,
+            timer=.01f,damage=20,kind="rift",abyssStormOwned=true});
+        CallCore(g,"TickExpansion",.02f);
+        Check(g.save.energy==100f&&!g.effects.Exists(e=>e.text=="WARD ENERGY"),
+            "A full-energy hero gets no fake reward popup");
+
+        // Boss rifts visually share the same kind but have different origin.
+        g.hazards.Clear();g.effects.Clear();g.save.energy=25;
+        g.invulnerable=0;g.save.health=100f;
+        g.hazards.Add(new Hazard {position=g.Position,radius=1.05f,
+            timer=.01f,damage=20,kind="rift",abyssStormOwned=false});
+        CallCore(g,"TickExpansion",.02f);
+        Check(g.save.energy==25f&&g.save.health<100f&&
+            !g.effects.Exists(e=>e.text=="WARD ENERGY"),
+            "Boss/mission-owned rifts retain real damage and cannot charge the pylon");
+
+        Console.WriteLine("PASS Tuned pylon converts only real absorbed ambient strikes into capped energy");
+    }
+
     private static void LiveTunedAbyssPylonShowsPhysicalShelterAndExit(FrontierRuntime app)
     {
         Prepare(app);
@@ -3630,7 +3691,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
