@@ -589,6 +589,23 @@ namespace Starfall
                 return closest;
             }
         }
+        public int AbyssTestimonyFloorsFiled
+        {
+            get
+            {
+                if (!InAbyss) return 0;
+                int filed = 0;
+                for (int floor = 1; floor <= 6; floor++)
+                    if (Has("abyss_annex_testimony_complete_" + floor))
+                        filed++;
+                return filed;
+            }
+        }
+        public bool AbyssTestimonyLegacyComplete
+        {
+            get { return Has("abyss_testimony_codex_complete"); }
+        }
+
         public bool AbyssTestimonySealed
         {
             get { return InAbyss &&

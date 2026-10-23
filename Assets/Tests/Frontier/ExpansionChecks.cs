@@ -1071,6 +1071,103 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void SixFloorRoadwardenArchiveBanksOnceAfterFullPhysicalExpedition(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.save.flags.Add("abyss_complete"); // Isolate the new reward.
+            int beforeSkills = g.save.skillPoints;
+            var sites = new [] {
+                "abyssSurvey","abyssCache","abyssFarCache",
+                "abyssFarSurvey","abyssFarEcho"
+            };
+            for (int floor = 1; floor <= 6; floor++)
+            {
+                Check(g.InAbyss && g.save.abyssFloor == floor &&
+                    g.AbyssTestimonyFloorsFiled == floor-1,
+                    "Each trial leg enters the correct REAL seeded abyss floor");
+                g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+                foreach (string kind in sites)
+                {
+                    WorldObject obj = Array.Find(g.Map.objects, o => o.kind == kind);
+                    Check(obj != null && g.CanStand(new Point(obj.x,obj.y)),
+                        "The " + kind + " proof is physically present on floor " + floor);
+                    g.save.x=obj.x;g.save.y=obj.y;
+                    g.Talk(obj);g.Close();
+                }
+                Check(g.AbyssTestimonySealed &&
+                    g.AbyssTestimonyFloorsFiled == floor,
+                    "Five real site visits complete the current floor's separate ledger");
+                g.save.flags.Add("abyss_clear_" + floor);
+                if (floor < 6)
+                {
+                    g.TakeBoon(0);
+                    Check(!g.AbyssTestimonyLegacyComplete &&
+                        g.save.skillPoints == beforeSkills,
+                        "Intermediate floor banking cannot grant the permanent six-floor award");
+                }
+                else
+                {
+                    Check(!g.AbyssTestimonyLegacyComplete,
+                        "Six sets of recovered notes alone cannot bypass final gate settlement");
+                    g.save.x=30.5f;g.save.y=14.5f;
+                    WorldObject gate = Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+                    g.Talk(gate);
+                    Check(g.mode=="dialog" &&
+                        g.conversation.zh.Contains("六层证词归档 6/6"),
+                        "Real last-floor gate advertises fully earned archival milestone");
+                    int oldShards=g.save.shards, unbanked=g.save.runShards;
+                    g.Choose(g.conversation.choices.Length-1);
+                    Check(g.save.room==0 &&
+                        g.AbyssTestimonyLegacyComplete &&
+                        g.save.skillPoints==beforeSkills+2 &&
+                        g.save.shards>=oldShards+unbanked+12,
+                        "Only legal final banking converts the full expedition into permanent rewards");
+                }
+            }
+            var loaded = new GameCore(data,CloneSave(g.save));
+            Check(loaded.AbyssTestimonyLegacyComplete &&
+                !loaded.InAbyss,
+                "The one-time permanent milestone survives ordinary SaveData v2 reload");
+            loaded.StartAbyss(0);
+            Check(loaded.AbyssTestimonyLegacyComplete &&
+                loaded.AbyssTestimonyFloorsFiled==0,
+                "A second expedition clears per-floor proofs but preserves permanent archive");
+            loaded.save.abyssFloor=6;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(loaded,null);
+            for(int floor=1;floor<=6;floor++)
+                loaded.save.flags.Add("abyss_annex_testimony_complete_"+floor);
+            loaded.enemies.Clear();loaded.hazards.Clear();loaded.projectiles.Clear();
+            loaded.save.flags.Add("abyss_clear_6");
+            loaded.save.x=30.5f;loaded.save.y=14.5f;
+            int earned=loaded.save.skillPoints;
+            WorldObject secondGate=Array.Find(loaded.Map.objects,
+                o=>o.kind=="abyssGate");
+            loaded.Talk(secondGate);
+            loaded.Choose(loaded.conversation.choices.Length-1);
+            Check(loaded.save.skillPoints==earned &&
+                loaded.AbyssTestimonyLegacyComplete,
+                "Even a perfect replay cannot claim permanent codex skill points twice");
+
+            var partial=Unlocked(data);partial.StartAbyss(0);
+            partial.save.flags.Add("abyss_complete");
+            for(int floor=1;floor<=5;floor++)
+                partial.save.flags.Add("abyss_annex_testimony_complete_"+floor);
+            partial.save.abyssFloor=6;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(partial,null);
+            partial.enemies.Clear();partial.save.flags.Add("abyss_clear_6");
+            partial.save.x=30.5f;partial.save.y=14.5f;
+            int previous=partial.save.skillPoints;
+            WorldObject partialGate=Array.Find(partial.Map.objects,
+                o=>o.kind=="abyssGate");
+            partial.Talk(partialGate);
+            partial.Choose(partial.conversation.choices.Length-1);
+            Check(!partial.AbyssTestimonyLegacyComplete &&
+                partial.save.skillPoints==previous,
+                "Five completed floors and an unfinished sixth cannot claim the permanent archive");
+        }
+
         public static void AbyssTestimonyCompassFollowsRealUnvisitedSources(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);

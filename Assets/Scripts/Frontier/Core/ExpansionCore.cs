@@ -2650,7 +2650,13 @@ namespace Starfall
                 "/5: " + (AbyssTestimonySealed ?
                     "Complete; bonus included in unbanked loot." :
                     "Find both near-side records, both deep records and then the echo stone.");
-            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh + testimonyZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn + testimonyEn, choices.ToArray());
+            string archiveZh = !AbyssTestimonyLegacyComplete ?
+                "\n\n六层证词归档 " + AbyssTestimonyFloorsFiled +
+                "/6：同一远征每层找齐五份记录，第六层结算后永久获得技能点2、碎片12。" : "";
+            string archiveEn = !AbyssTestimonyLegacyComplete ?
+                "\n\nSix-floor testimony archive " + AbyssTestimonyFloorsFiled +
+                "/6: file all five records on every floor, then bank floor six for 2 permanent skill points and 12 shards." : "";
+            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh + testimonyZh + archiveZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn + testimonyEn + archiveEn, choices.ToArray());
         }
         private bool CanBankFloor()
         {
@@ -2676,6 +2682,19 @@ namespace Starfall
                 CreditSkillPoints(1); CreditShards(8);
                 Notify("四层镇流巡路完成：永久获得技能点1、星晶碎片8。",
                     "Four-floor ward charter complete: permanently gained 1 skill point and 8 shards.");
+                sound = "reward";
+            }
+            // An end-to-end archival expedition needs SIX actual completed
+            // floor ledgers, not merely a final-floor visit. The permanent
+            // award is committed only by BankFloor on floor six, never by a
+            // side interaction, death, direct retreat or route teleport.
+            if (save.abyssFloor == 6 && AbyssTestimonyFloorsFiled == 6 &&
+                !AbyssTestimonyLegacyComplete)
+            {
+                Flag("abyss_testimony_codex_complete");
+                CreditSkillPoints(2); CreditShards(12);
+                Notify("六层巡路证词全部归档：永久获得技能点2、碎片12。",
+                    "Six-floor roadwarden archive complete: permanently gained 2 skill points and 12 shards.");
                 sound = "reward";
             }
             revision++;
