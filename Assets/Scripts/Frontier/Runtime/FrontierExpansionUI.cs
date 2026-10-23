@@ -1297,6 +1297,12 @@ namespace Starfall
                     (node == 0 ? "A" : node == 1 ? "B" : "C") +
                     (visited ? " ✓" : next ? " · E" : " · ?"),
                     14, light, TextAnchor.MiddleCenter);
+                if (Game.AbyssCircuitComplete)
+                    Text(p.x - 82, p.y - 118, 164, 21,
+                        Game.Has("abyss_annex_circuit_ground_" + Game.save.abyssFloor) ?
+                            Game.L("E · 折返东门", "E · Return to gate") :
+                            Game.L("E · 接地 / 折返", "E · Ground / Return"),
+                        9, mint, TextAnchor.MiddleCenter);
                 return true;
             }
             if (kind == "abyssRiftWard")

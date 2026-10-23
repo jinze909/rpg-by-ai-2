@@ -1203,8 +1203,12 @@ namespace Starfall.Tests
                 radius = 1.4f, damage = 10, kind = "rift"
             });
             g.Talk(relay);
-            Check(g.mode == "world" && g.save.x == relay.x,
-                "A queued rift contact forbids shortcut travel even after enemies fall");
+            Check(g.mode == "dialog" &&
+                g.conversation.choices.Length == 2 &&
+                g.conversation.choices[0].action == "abyssCircuitGround" &&
+                g.save.x == relay.x && g.save.runShards == 7,
+                "A queued rift can offer emergency grounding but NEVER bypass the safe-return travel lock");
+            g.Close();
             g.hazards.Clear();
             g.Talk(relay);
             Check(g.mode == "dialog" && g.conversation.choices.Length == 2,
