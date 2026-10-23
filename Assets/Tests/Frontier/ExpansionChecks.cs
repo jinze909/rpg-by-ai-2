@@ -816,6 +816,9 @@ namespace Starfall.Tests
             Check(reloaded.AbyssWardActive &&
                 Math.Abs((float)field.GetValue(reloaded) - 10f) < .001f,
                 "Reloaded ward initializes its own TEN-second clock, not an unwarded six");
+            // A newly constructed core still owns the title screen. The
+            // loaded scene enters world mode before its simulation ticks.
+            reloaded.mode = "world";
             reloaded.hazards.Clear(); reloaded.effects.Clear();
             reloaded.save.flags.Remove("abyss_clear_3");
             reloaded.save.health = reloaded.save.maxHealth = 9999;
