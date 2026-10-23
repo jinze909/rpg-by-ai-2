@@ -646,9 +646,18 @@ namespace Starfall
                         Game.L("居民正暴露于恶劣天气", "EXPOSED TO WEATHER"),
                         11,gold,TextAnchor.MiddleCenter);
                 if (Game.ReliefEscortUnderAttack)
+                {
                     Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
                         Game.L("警戒！来袭", "INCOMING"), 11, gold,
                         TextAnchor.MiddleCenter);
+                    if (Game.ReliefEscortGap < 1.7f &&
+                        Game.ReliefEscortEvadeAvailable)
+                        Text(escortScreen.x-100,escortScreen.y-126,200,23,
+                            ControlKey("E", "B")+
+                                Game.L(" · 指挥闪避 · 耐力15",
+                                    " · ORDER EVASION · 15 ENERGY"),
+                            11,mint,TextAnchor.MiddleCenter);
+                }
                 else if (Game.ReliefEscortGap < 1.7f)
                     Text(escortScreen.x - 60, escortScreen.y - 89, 120, 26,
                         ControlKey("E", "B") + Game.L(" · 指挥 / 敷药", " · Command / care"),

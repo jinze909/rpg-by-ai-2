@@ -3359,6 +3359,69 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void SealedEscortDodgeCannotSpendEnergyOrTeleport(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] oldRows=map.rows;
+        WorldObject[] oldObjects=map.objects;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+7;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new[]{new WorldObject{id="evade_no_path_station",
+                kind="fieldstation6",x=bx+7,y=by+.5f,
+                name="Station",en="Station"}};
+            Point prisoner=new Point(bx+3.5f,by+.5f);
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx+2;x<=bx+4;x++)
+                    if(x==bx+2||x==bx+4||y==by-1||y==by+1)
+                        line[x]='#';
+                rows[y]=new string(line);
+            }
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=90;g.reliefFollowerSafety=75;
+            g.reliefFollowerWaiting=true;
+            g.reliefFollowerPosition=prisoner;
+            g.save.x=prisoner.x+.2f;g.save.y=prisoner.y;
+            g.save.energy=40;
+            var attacker=new Enemy(3442,0,prisoner.x-.2f,
+                prisoner.y,60);
+            attacker.state=1;attacker.targetingReliefCivilian=true;
+            attacker.target=prisoner;g.enemies.Add(attacker);
+            Check(g.ReliefEscortEvadeAvailable,
+                "A committed attack still offers the manual tactical command while surrounded");
+            CallCore(g,"TalkRescuedCivilian");
+            int selection=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action=="relief_evasive_step")
+                    selection=i;
+            Check(selection>=0,"Trapped NPC exposes the same real action without special-case UI cheats");
+            g.Choose(selection);
+            Check((g.reliefFollowerPosition-prisoner).Length<.001f &&
+                g.save.energy==40 && g.ReliefEscortEvadeAvailable &&
+                g.reliefFollowerSafety==75,
+                "Solid walls forbid the emergency movement and do not debit scarce player energy");
+            Console.WriteLine("PASS Civilian evade refuses closed-world motion and never spends on failure");
+        }
+        finally
+        {
+            map.rows=oldRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved(FrontierRuntime app)
     {
         Prepare(app);
@@ -3394,6 +3457,10 @@ public static class RuntimeCombatInputChecks
             g.enemies.Add(raider);
             Check(g.ReliefEscortUnderAttack&&g.ReliefEscortEvadeAvailable,
                 "A physically committed threat enables the rescue evasive order");
+            Set(app,"camera",g.reliefFollowerPosition);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("ORDER EVASION")),
+                "Live world scene shows real actionable E/gamepad evasion cue only during reachable danger");
             CallCore(g,"TalkRescuedCivilian");
             Check(g.mode=="dialog",
                 "E interaction still reaches the actual living NPC");
@@ -4862,7 +4929,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
