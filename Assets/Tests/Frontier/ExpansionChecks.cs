@@ -1302,6 +1302,45 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssAmbientHUDAndFieldMarkersShareShortestReachableTestimony(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;
+            int originalCoins=g.save.coins,originalShards=g.save.shards;
+            WorldObject first=g.AbyssTestimonySuggestedSite;
+            Check(first!=null &&
+                g.AbyssTestimonyRecordState(first)==1 &&
+                g.Objective().Contains(first.name),
+                "Untracked journal uses the same actually reachable account as world field highlights");
+            for(int i=0;i<8;i++)
+                Check(System.Object.ReferenceEquals(g.AbyssTestimonySuggestedSite,first),
+                    "Repeated HUD reads reuse a stable current-tile suggestion without changing rewards");
+            // An already filed source must immediately vanish from ambient
+            // guidance even if neither the player nor the cave moved.
+            string[] kinds={"abyssSurvey","abyssCache",
+                "abyssFarSurvey","abyssFarCache","abyssFarEcho"};
+            string[] flags={"abyss_annex_survey_1","abyss_annex_cache_1",
+                "abyss_annex_far_survey_1","abyss_annex_far_cache_1",
+                "abyss_annex_far_echo_1"};
+            int index=Array.FindIndex(kinds,k=>k==first.kind);
+            Check(index>=0,"Suggested object is one of the actual seeded testimonies");
+            g.save.flags.Add(flags[index]);
+            WorldObject next=g.AbyssTestimonySuggestedSite;
+            Check(!System.Object.ReferenceEquals(next,first) &&
+                next!=null && g.Objective().Contains(next.name),
+                "Existing per-floor proof immediately invalidates stale HUD and mission target");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.AbyssTestimonySuggestedSite!=null &&
+                loaded.AbyssTestimonyProgress==1 &&
+                loaded.save.coins==originalCoins &&
+                loaded.save.shards==originalShards,
+                "No ambient navigation intent is serialized in SaveData v2");
+        }
+
         public static void AbyssTestimonyAutomaticRouteUsesShortestWalkNotCrowFlight(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);

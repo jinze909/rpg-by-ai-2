@@ -625,7 +625,7 @@ namespace Starfall
                 WorldObject selectedRecord = Game.AbyssTestimonyGuidedSite;
                 bool selected = System.Object.ReferenceEquals(selectedRecord, o);
                 bool closest = selectedRecord == null ?
-                    System.Object.ReferenceEquals(Game.AbyssTestimonyNextSite,o) :
+                    System.Object.ReferenceEquals(Game.AbyssTestimonySuggestedSite,o) :
                     selected;
                 if (recordState == 2)
                 {

@@ -240,6 +240,11 @@ namespace Starfall
             abyssTestimonyGuideFloor = -1;
             abyssTestimonyGuideMap = null;
             abyssTestimonyGuideSite = null;
+            abyssTestimonySuggestionMap = null;
+            abyssTestimonySuggestion = null;
+            abyssTestimonySuggestionFloor = -1;
+            abyssTestimonySuggestionX = abyssTestimonySuggestionY = int.MinValue;
+            abyssTestimonySuggestionProgress = -1;
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
             ClearCompanionHold();
@@ -2494,7 +2499,8 @@ namespace Starfall
                         " · Explore circuit relay " + AbyssCircuitSymbol(AbyssCircuitNextNode));
                 if (!AbyssTestimonySealed)
                 {
-                    WorldObject nextRecord = AbyssTestimonyNextSite;
+                    WorldObject nextRecord = AbyssTestimonyGuidedSite ??
+                        AbyssTestimonySuggestedSite;
                     goal += L(" · 巡路证词 " + AbyssTestimonyProgress + "/5",
                         " · Warden testimonies " + AbyssTestimonyProgress + "/5");
                     if (nextRecord != null)

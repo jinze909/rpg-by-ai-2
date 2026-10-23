@@ -350,6 +350,41 @@ namespace Starfall
         private int abyssTestimonyGuideFloor = -1;
         private MapData abyssTestimonyGuideMap;
         private WorldObject abyssTestimonyGuideSite;
+        // Ambient guide is NOT an active player choice: memoize by live
+        // player tile and proof progress so HUD/objects/journal all agree
+        // without re-running seeded-cave BFS on every IMGUI repaint.
+        private MapData abyssTestimonySuggestionMap;
+        private WorldObject abyssTestimonySuggestion;
+        private int abyssTestimonySuggestionFloor = -1;
+        private int abyssTestimonySuggestionX = int.MinValue;
+        private int abyssTestimonySuggestionY = int.MinValue;
+        private int abyssTestimonySuggestionProgress = -1;
+        public WorldObject AbyssTestimonySuggestedSite
+        {
+            get
+            {
+                if (!InAbyss || Map.objects == null ||
+                    AbyssTestimonySealed) return null;
+                int x = (int)Math.Floor(save.x), y = (int)Math.Floor(save.y);
+                int progress = AbyssTestimonyProgress;
+                if (!Object.ReferenceEquals(abyssTestimonySuggestionMap, Map) ||
+                    abyssTestimonySuggestionFloor != save.abyssFloor ||
+                    abyssTestimonySuggestionX != x ||
+                    abyssTestimonySuggestionY != y ||
+                    abyssTestimonySuggestionProgress != progress ||
+                    (abyssTestimonySuggestion != null &&
+                        AbyssTestimonyRecordState(abyssTestimonySuggestion) != 1))
+                {
+                    abyssTestimonySuggestionMap = Map;
+                    abyssTestimonySuggestionFloor = save.abyssFloor;
+                    abyssTestimonySuggestionX = x;
+                    abyssTestimonySuggestionY = y;
+                    abyssTestimonySuggestionProgress = progress;
+                    abyssTestimonySuggestion = ReachableAbyssTestimonySite();
+                }
+                return abyssTestimonySuggestion;
+            }
+        }
         public WorldObject AbyssTestimonyGuidedSite
         {
             get
