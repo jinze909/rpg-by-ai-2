@@ -2433,6 +2433,9 @@ namespace Starfall
                 if (!AbyssCircuitComplete)
                     goal += L(" · 探索回路信标 " + AbyssCircuitSymbol(AbyssCircuitNextNode),
                         " · Explore circuit relay " + AbyssCircuitSymbol(AbyssCircuitNextNode));
+                if (!AbyssTestimonySealed)
+                    goal += L(" · 巡路证词 " + AbyssTestimonyProgress + "/5",
+                        " · Warden testimonies " + AbyssTestimonyProgress + "/5");
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)
@@ -2597,6 +2600,7 @@ namespace Starfall
                 else save.runXp = CappedReward(save.runXp, 15, 9999);
                 revision++; sound = "reward";
             }
+            bool trailSealed = first && TrySealAbyssTestimony();
             Dialog(o.name, o.en,
                 cache ?
                     "巡路人的补给被冲进第二条地脉岔道。它并没有变成你的永久战利品；只有抵达东侧地脉门并结算，才真正能把物资带回来。" +
@@ -2609,6 +2613,9 @@ namespace Starfall
                     "The rubbing traces how miners, ferrymen and wardens once shared light. The old abyss had more than one road." +
                         (first ? "\n\nUnbanked XP +15." : "\n\nRubbing already recorded."),
                 C("收进本层记录", "Keep in floor journal", "close"));
+            if (trailSealed)
+                Notify("五份巡路证词已归档！额外待结算：硬币30、碎片2、经验25。",
+                    "All five roadwarden accounts filed! Bonus unbanked: 30 coins, 2 shards, 25 XP.");
         }
         private void AbyssGateConversation()
         {
@@ -2629,7 +2636,15 @@ namespace Starfall
                 !Has("abyss_ward_charter_complete") ?
                 "\n\nWard charter " + AbyssWardCharterProgress +
                     "/4: tune pylons on floors 3–6 and bank floor six for a permanent skill point and 8 shards." : "";
-            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn, choices.ToArray());
+            string testimonyZh = "\n\n巡路证词 " + AbyssTestimonyProgress +
+                "/5：" + (AbyssTestimonySealed ?
+                    "已完成，额外奖励计入本层待结算。" :
+                    "找齐近侧调查／补给及南侧残碑／补给，最后读完回声石。");
+            string testimonyEn = "\n\nWarden testimonies " + AbyssTestimonyProgress +
+                "/5: " + (AbyssTestimonySealed ?
+                    "Complete; bonus included in unbanked loot." :
+                    "Find both near-side records, both deep records and then the echo stone.");
+            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh + testimonyZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn + testimonyEn, choices.ToArray());
         }
         private bool CanBankFloor()
         {

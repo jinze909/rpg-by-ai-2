@@ -1071,6 +1071,74 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void AbyssTestimonyTrailRequiresFivePhysicalRecordsAndBanksOnlyAtGate(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            string[] kinds = {
+                "abyssSurvey", "abyssCache", "abyssFarCache",
+                "abyssFarSurvey", "abyssFarEcho"
+            };
+            WorldObject[] sites = new WorldObject[kinds.Length];
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                sites[i] = Array.Find(g.Map.objects, o => o.kind == kinds[i]);
+                Check(sites[i] != null &&
+                    g.CanStand(new Point(sites[i].x, sites[i].y)),
+                    "Roadwarden record " + i + " is a physical walkable gallery object");
+            }
+            int coins = g.save.coins, shards = g.save.shards;
+            g.save.x = sites[4].x;g.save.y = sites[4].y;
+            g.Talk(sites[4]);g.Close();
+            Check(g.AbyssTestimonyProgress == 0 && !g.AbyssTestimonySealed,
+                "The echo stone refuses to decode before finding original southern testimony");
+
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                g.save.x = sites[i].x;g.save.y = sites[i].y;
+                g.Talk(sites[i]);
+                Check(g.AbyssTestimonyProgress == i + 1,
+                    "Actual record visits advance a five-part exploration challenge");
+                if (i < kinds.Length-1)
+                    Check(!g.AbyssTestimonySealed,
+                        "Partial trail progress never awards the final bonus");
+                g.Close();
+            }
+            Check(g.AbyssTestimonySealed &&
+                g.save.runCoins == 78 && g.save.runShards == 5 &&
+                g.save.runXp == 85 &&
+                g.save.coins == coins && g.save.shards == shards &&
+                !g.Objective().Contains("巡路证词"),
+                "All five physical records award exactly one unbanked completion bonus");
+            g.save.x = sites[0].x;g.save.y = sites[0].y;
+            g.Talk(sites[0]);g.Close();
+            g.save.x = sites[4].x;g.save.y = sites[4].y;
+            g.Talk(sites[4]);g.Close();
+            Check(g.save.runCoins == 78 && g.save.runShards == 5 &&
+                g.save.runXp == 85,
+                "A repeated record visit cannot mint duplicate bonus loot");
+            g.enemies.Clear();g.save.flags.Add("abyss_clear_1");
+            g.PrepareSave();
+            var loaded = new GameCore(data, CloneSave(g.save));
+            Check(loaded.InAbyss && loaded.AbyssTestimonyProgress == 5 &&
+                loaded.AbyssTestimonySealed &&
+                loaded.save.runCoins == 78 && loaded.save.runShards == 5 &&
+                loaded.save.runXp == 85,
+                "SaveData v2 restores all five records and the exact pending reward");
+            loaded.mode = "world";
+            WorldObject exit = Array.Find(loaded.Map.objects,
+                o => o.kind == "abyssExit");
+            loaded.save.x = exit.x;loaded.save.y = exit.y;
+            loaded.Talk(exit);loaded.Choose(0);
+            Check(!loaded.InAbyss && loaded.save.runCoins == 0 &&
+                loaded.save.runShards == 0 && loaded.save.runXp == 0 &&
+                loaded.save.coins == coins && loaded.save.shards == shards,
+                "Early extraction forfeits all five-site testimony bonus earnings");
+            loaded.StartAbyss(0);
+            Check(loaded.InAbyss && loaded.AbyssTestimonyProgress == 0 &&
+                !loaded.AbyssTestimonySealed,
+                "A new expedition resets only temporary trail proof flags");
+        }
+
         public static void AbyssStarrootCircuitRequiresThreeRealSeededRelayVisits(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

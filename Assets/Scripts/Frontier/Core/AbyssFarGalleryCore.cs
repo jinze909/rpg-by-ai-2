@@ -532,6 +532,45 @@ namespace Starfall
                 "Three starroot relays light the road! Unbanked: 40 coins, 4 shards, 30 XP.");
         }
 
+        // A complete five-site roadwarden testimony trail rewards actual
+        // field investigation; existing per-floor v2 flags own all state.
+        public int AbyssTestimonyProgress
+        {
+            get
+            {
+                if (!InAbyss) return 0;
+                string suffix = save.abyssFloor.ToString();
+                string[] proofKinds = {
+                    "abyss_annex_survey_", "abyss_annex_cache_",
+                    "abyss_annex_far_survey_", "abyss_annex_far_cache_",
+                    "abyss_annex_far_echo_"
+                };
+                int count = 0;
+                foreach (string prefix in proofKinds)
+                    if (Has(prefix + suffix)) count++;
+                return count;
+            }
+        }
+        public bool AbyssTestimonySealed
+        {
+            get { return InAbyss &&
+                Has("abyss_annex_testimony_complete_" + save.abyssFloor); }
+        }
+        private bool TrySealAbyssTestimony()
+        {
+            if (!InAbyss || Dying || AbyssTestimonySealed ||
+                AbyssTestimonyProgress != 5) return false;
+            Flag("abyss_annex_testimony_complete_" + save.abyssFloor);
+            // Pending only: all gains require the old gate's BankFloor().
+            // Avoid bypassing the normal cap on v2 run counters.
+            save.runCoins = CappedReward(save.runCoins, 30, 9999);
+            save.runShards = CappedReward(save.runShards, 2, 9999);
+            save.runXp = CappedReward(save.runXp, 25, 9999);
+            revision++;
+            sound = "reward";
+            return true;
+        }
+
         // Extra seeded galleries are optional. All loot is pending until the
         // original root gate banks the floor; exiting or dying loses it.
         private void TalkAbyssFarGallery(WorldObject o)
@@ -569,6 +608,7 @@ namespace Starfall
                 else save.runXp = CappedReward(save.runXp, 20, 9999);
                 revision++;sound="reward";
             }
+            bool trailSealed = first && TrySealAbyssTestimony();
             string zh=survey?
                 "这块地脉残碑留下六次撤离的真实坐标。星根并不只供一面城墙发光，它也曾为困在地下的普通人保留回家的路。":
                 cache?
@@ -586,6 +626,9 @@ namespace Starfall
                     "\n\nUnbanked: "+(cache?"+30 coins, +1 shard.":survey?"+25 XP.":"+20 XP."):
                     "\n\nRecorded for this floor; no duplicate loot."),
                 C("收下记录","Keep the account","close"));
+            if (trailSealed)
+                Notify("五份巡路证词已归档！额外待结算：硬币30、碎片2、经验25。",
+                    "All five roadwarden accounts filed! Bonus unbanked: 30 coins, 2 shards, 25 XP.");
         }
     }
 }
