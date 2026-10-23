@@ -15,6 +15,11 @@ namespace Starfall.Tests
             Check(g.WayfarerEncounterRoom==1&&
                 g.enemies.FindAll(e=>e.id>=82000&&e.id<82100).Count==2,
                 "Actual defense spawns both original identity-verified attackers");
+            var restGuard=typeof(GameCore).GetProperty("FieldWorkPreventsRest",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(restGuard!=null&&(bool)restGuard.GetValue(g,null),
+                "An active traveler defense blocks camp time-skips even outside immediate enemy range");
             Enemy survivor=g.enemies.Find(e=>e.id==82010);
             Enemy missing=g.enemies.Find(e=>e.id==82011);
             Check(survivor!=null&&missing!=null,

@@ -2524,7 +2524,7 @@ namespace Starfall
                 // red warnings and challenge phases for free.
                 GlasswindSite != 0 || TemperActive || TriadDefenseActive ||
                 witnessDefenseRoom != 0 || commonsRelayRoom != 0 ||
-                RoadwardenTrialRoom != 0 || RootHarmonyRoom != 0 ||
+                RoadwardenTrialRoom != 0 || WayfarerEncounterRoom != 0 || RootHarmonyRoom != 0 ||
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
 
