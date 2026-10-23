@@ -31,6 +31,100 @@ namespace Starfall.Tests
             foreach (string flag in new[] { "exp_intro", "harbor_report", "desert_report", "mountain_report", "gate_5", "gate_6", "gate_7", "companion_0", "companion_1", "companion_2", "seal_5", "seal_6", "seal_7" }) g.save.flags.Add(flag);
             g.save.frontierEnding = 1; return g;
         }
+        private static Point StandableOutsideInteractionReach(GameCore g, WorldObject target)
+        {
+            for (int ix = -8; ix <= 8; ix++)
+            for (int iy = -8; iy <= 8; iy++)
+            {
+                float dx = ix * .25f, dy = iy * .25f;
+                float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+                if (distance < 1.8f || distance > 2.15f) continue;
+                Point candidate = new Point(target.x + dx, target.y + dy);
+                if (g.CanStand(candidate)) return candidate;
+            }
+            throw new InvalidOperationException("No standable out-of-range test position was found.");
+        }
+
+        private static bool TryFindWallBlockedApproach(GameCore g, WorldObject target,
+            out Point playerPosition)
+        {
+            string[] rows = g.Map.rows;
+            int height = rows.Length, width = rows[0].Length;
+            for (int y = 3; y < height - 3; y++)
+            for (int x = 4; x < width - 3; x++)
+            {
+                // A solid tile between two otherwise standable cells gives a
+                // deterministic line-of-sight fixture without changing terrain.
+                if (rows[y][x - 1] != '#') continue;
+                Point targetPoint = new Point(x + .3f, y + .5f);
+                Point approach = new Point(x - 1.25f, y + .5f);
+                if (!g.CanStand(targetPoint) || !g.CanStand(approach) ||
+                    (targetPoint - approach).Length >= 1.75f) continue;
+                target.x = targetPoint.x;
+                target.y = targetPoint.y;
+                playerPosition = approach;
+                return true;
+            }
+            playerPosition = new Point();
+            return false;
+        }
+
+        public static void AbyssOptionalInteractionsRequirePhysicalReach(Campaign data)
+        {
+            var g = new GameCore(data);
+            g.save.frontierEnding = 1;
+            g.StartAbyss(0);
+            WorldObject survey = Array.Find(g.Map.objects, o => o.kind == "abyssSurvey");
+            WorldObject farCache = Array.Find(g.Map.objects, o => o.kind == "abyssFarCache");
+            Check(survey != null && farCache != null,
+                "Both ordinary and lower-gallery abyss interactions exist");
+
+            int startXp = g.save.runXp;
+            Point remoteSurvey = StandableOutsideInteractionReach(g, survey);
+            g.save.x = remoteSurvey.x;
+            g.save.y = remoteSurvey.y;
+            g.Talk(survey);
+            Check(!g.Has("abyss_annex_survey_1") && g.save.runXp == startXp &&
+                g.mode == "world" && g.toast.Contains("走近"),
+                "Abyss survey cannot record or award XP outside physical interaction reach");
+
+            float oldX = farCache.x, oldY = farCache.y;
+            Point blockedApproach;
+            bool foundBlockedApproach = TryFindWallBlockedApproach(g, farCache,
+                out blockedApproach);
+            Check(foundBlockedApproach,
+                "The generated abyss contains a standable point separated from a gallery target by a wall");
+            if (foundBlockedApproach)
+            {
+                int coins = g.save.runCoins, shards = g.save.runShards;
+                g.save.x = blockedApproach.x;
+                g.save.y = blockedApproach.y;
+                g.Talk(farCache);
+                Check(!g.Has("abyss_annex_far_cache_1") &&
+                    g.save.runCoins == coins && g.save.runShards == shards &&
+                    g.mode == "world" && g.toast.Contains("走近"),
+                    "Lower-gallery cache cannot award loot through a blocking wall");
+            }
+            farCache.x = oldX;
+            farCache.y = oldY;
+
+            g.save.x = survey.x;
+            g.save.y = survey.y;
+            g.Talk(survey);
+            Check(g.Has("abyss_annex_survey_1") && g.save.runXp == startXp + 15,
+                "A physically reachable abyss survey retains its intended reward");
+            g.Close();
+
+            int beforeCoins = g.save.runCoins, beforeShards = g.save.runShards;
+            g.save.x = farCache.x;
+            g.save.y = farCache.y;
+            g.Talk(farCache);
+            Check(g.Has("abyss_annex_far_cache_1") &&
+                g.save.runCoins == beforeCoins + 30 &&
+                g.save.runShards == beforeShards + 1,
+                "A physically reachable lower-gallery cache retains its intended reward");
+        }
+
         public static void RegionalBossesSweepAlternatingLanes(Campaign data)
         {
             var g = Unlocked(data);

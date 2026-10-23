@@ -2478,7 +2478,7 @@ namespace Starfall
         private void TalkAbyssAnnex(WorldObject o)
         {
             if (!InAbyss || Dying || practicing ||
-                (Position - new Point(o.x, o.y)).Length > 2.2f) return;
+                !EnsurePhysicalInteractionReach(o)) return;
             bool cache = o.kind == "abyssCache";
             string flag = "abyss_annex_" + (cache ? "cache_" : "survey_") + save.abyssFloor;
             bool first = !Has(flag);

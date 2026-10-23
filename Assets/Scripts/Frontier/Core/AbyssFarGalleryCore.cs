@@ -8,7 +8,7 @@ namespace Starfall
         private void TalkAbyssFarGallery(WorldObject o)
         {
             if(!InAbyss||Dying||practicing||
-                (Position-new Point(o.x,o.y)).Length>2.2f)return;
+                !EnsurePhysicalInteractionReach(o))return;
             bool survey=o.kind=="abyssFarSurvey";
             bool cache=o.kind=="abyssFarCache";
             bool echo=o.kind=="abyssFarEcho";
