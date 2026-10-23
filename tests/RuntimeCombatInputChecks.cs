@@ -3453,6 +3453,10 @@ public static class RuntimeCombatInputChecks
             Check(target.HasValue&&(target.Value-
                 new Point(natural.x,natural.y)).Length<.001f,
                 "Critical civilian safety makes the live world compass detour to nearby real shade");
+            QuestGuide urgent=g.GetQuest("relief_rescue");
+            Check((urgent.target-target.Value).Length<.001f &&
+                urgent.next.Contains("reachable shelter first"),
+                "Journal and live compass share the actual low-safety refuge instead of giving contradictory goals");
             var route=g.NavigationPath(target.Value);
             Check(route.Count>0 &&
                 (route[route.Count-1]-target.Value).Length<1.75f,
@@ -3501,6 +3505,10 @@ public static class RuntimeCombatInputChecks
             Check(target.HasValue&&(target.Value-
                 new Point(returnStation.x,returnStation.y)).Length<.001f,
                 "With fewer than 22 seconds left, do not demand an optional shelter detour");
+            QuestGuide urgentTime=g.GetQuest("relief_rescue");
+            Check((urgentTime.target-target.Value).Length<.001f &&
+                urgentTime.next.Contains("Return survivors to the weather station"),
+                "When time is short the quest and compass both switch back to the mandatory station");
             g.reliefMissionTime=65;g.reliefFollowerSafety=50;
             target=g.NavigationTarget();
             Check((target.Value-

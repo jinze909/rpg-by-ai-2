@@ -1185,6 +1185,14 @@ namespace Starfall
                         (reliefFollowerWaiting || ReliefEscortGap > 6.5f) ?
                     reliefFollowerPosition :
                     ObjectPoint(q.room, "fieldstation" + q.room, new Point(12, 12));
+                // Keep the journal, HUD and compass on ONE authoritative
+                // tactical destination. The rescue-only cover detour remains
+                // temporary; do not modify trackedQuest or the return-stage
+                // completion criteria.
+                Point? urgentCover=reliefMissionRoom!=0 &&
+                    reliefMissionWave==3 ?
+                    CriticalEscortShelterTarget():null;
+                if(urgentCover.HasValue)q.target=urgentCover.Value;
                 q.next = q.complete ? L("三地居民已获救，救援可无奖励重演", "Three regions safe; replay with no rewards") :
                     reliefMissionRoom != 0 ? L(reliefMissionWave == 0 ? "先到巡测地标找到失联居民" :
                             reliefMissionWave == 3 && reliefFollowerWaiting ? "回到居民身旁，按E继续护送" :
@@ -1197,6 +1205,10 @@ namespace Starfall
                         " · " + (int)Math.Ceiling(reliefMissionTime) + "s" :
                     next == 0 ? L("先建设一处远岸避难站", "Build a farshore civilian shelter") :
                         L("前往已建成的站台接取居民救援", "Start a rescue at a finished shelter");
+                if(urgentCover.HasValue)
+                    q.next=L("居民安全度危急！先带他们进入附近的可达避难所",
+                        "Civilian safety critical! Escort them to reachable shelter first")+
+                        " · "+(int)Math.Ceiling(reliefMissionTime)+"s";
                 q.reward = L("每地首次45硬币、3碎片、50经验；三地额外技能点1、凉茶2",
                     "First clear each: 45 coins, 3 shards, 50 XP; all three: one talent and two teas");
                 return q;
@@ -2269,8 +2281,7 @@ namespace Starfall
             // ambush, actual waiting resident or return station without
             // rewriting the saved quest selection.
             if(reliefMissionRoom!=0 && reliefMissionRoom==save.room)
-                return CriticalEscortShelterTarget() ??
-                    GetQuest("relief_rescue").target;
+                return GetQuest("relief_rescue").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return AbyssCircuitGuideTarget() ??
                 AbyssTestimonyGuideTarget() ??
