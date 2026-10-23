@@ -76,8 +76,25 @@ namespace Starfall.Tests
             g.StartAbyss(0);
             WorldObject survey = Array.Find(g.Map.objects, o => o.kind == "abyssSurvey");
             WorldObject farCache = Array.Find(g.Map.objects, o => o.kind == "abyssFarCache");
-            Check(survey != null && farCache != null,
-                "Both ordinary and lower-gallery abyss interactions exist");
+            WorldObject gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            WorldObject exit = Array.Find(g.Map.objects, o => o.kind == "abyssExit");
+            Check(survey != null && farCache != null && gate != null && exit != null,
+                "Abyss survey, lower-gallery cache, gate and exit are real world interactions");
+
+            // A cleared floor still needs a physical visit to its gate. Opening
+            // its remote dialogue must not set the bankable-clear flag as a side effect.
+            g.enemies.Clear();
+            g.save.x = 5; g.save.y = 14;
+            g.Talk(gate);
+            Check(!g.Has("abyss_clear_1") && g.mode == "world" && g.toast.Contains("走近"),
+                "The root gate cannot mark a floor cleared before physical arrival");
+            g.Talk(exit);
+            Check(g.mode == "world" && g.toast.Contains("走近"),
+                "The abyss exit cannot open an escape interaction from across the floor");
+            TalkNear(g, "abyssGate");
+            Check(g.Has("abyss_clear_1") && g.mode == "dialog",
+                "A reachable root gate still opens the existing boon and banking choices");
+            g.Close();
 
             int startXp = g.save.runXp;
             Point remoteSurvey = StandableOutsideInteractionReach(g, survey);

@@ -2036,8 +2036,16 @@ namespace Starfall
                 if (!EnsurePhysicalInteractionReach(o)) return true;
                 OpenAbyssEntrance(); return true;
             }
-            if (kind == "abyssExit") { AbyssExitConversation(); return true; }
-            if (kind == "abyssGate") { AbyssGateConversation(); return true; }
+            if (kind == "abyssExit")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                AbyssExitConversation(); return true;
+            }
+            if (kind == "abyssGate")
+            {
+                if (!EnsurePhysicalInteractionReach(o)) return true;
+                AbyssGateConversation(); return true;
+            }
             return false;
         }
         private void CaptainConversation(WorldObject o)
