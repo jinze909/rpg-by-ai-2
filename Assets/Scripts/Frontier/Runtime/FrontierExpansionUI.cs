@@ -640,7 +640,7 @@ namespace Starfall
                 }
                 else if (closest || Game.AbyssTestimonyLegacyComplete)
                 {
-                    Color marker = closest ? gold : light;
+                    Color marker = closest ? gold : muted;
                     Ring(new Point(o.x,o.y),closest?.86f:.58f,
                         marker,closest?20:16);
                     Text(p.x-66,p.y-97,132,21,
