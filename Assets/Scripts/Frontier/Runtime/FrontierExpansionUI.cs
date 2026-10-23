@@ -619,6 +619,11 @@ namespace Starfall
                         11, mint, TextAnchor.MiddleCenter);
                 }
                 Point escortScreen = ScreenPoint(escort);
+                if(Game.ReliefEscortRouteStalled)
+                    Text(escortScreen.x-106,escortScreen.y-224,212,22,
+                        Game.L("居民通路堵塞 · 请绕路",
+                            "SURVIVOR PATH BLOCKED"),
+                        11,PixelArt.C("#f4b46f"),TextAnchor.MiddleCenter);
                 if(Game.ReliefEscortReturnObstructed)
                     Text(escortScreen.x-100,escortScreen.y-202,200,22,
                         Game.L("站台通路受阻 · 请绕到开放侧",

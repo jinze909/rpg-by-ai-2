@@ -137,6 +137,13 @@ namespace Starfall
         // authored appearance and never borrows the playable hero sprite.
         public float reliefFollowerWalkDistance;
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
+        private float reliefFollowerBlockedSeconds;
+        private bool reliefFollowerBlockedNotice;
+        public bool ReliefEscortRouteStalled
+        {
+            get { return ReliefEscortActive && !reliefFollowerWaiting &&
+                reliefFollowerBlockedSeconds >= 1.25f; }
+        }
         public bool reliefFollowerWaiting, reliefMedicalUsed;
         public float reliefClimateKitTime;
         private bool reliefClimateKitUsed;
@@ -200,6 +207,7 @@ namespace Starfall
             reliefTimeWarning = reliefSafetyWarning = false;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
+            reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
             reliefHurryTime = 0; reliefHurryUsed = false;
             reliefClimateKitTime = 0; reliefClimateKitUsed = false;
@@ -637,6 +645,7 @@ namespace Starfall
                 reliefFollowerPosition = SafeActorFoot(reliefFollowerPosition);
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
+                reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
                 reliefFollowerWaiting = reliefMedicalUsed = false;
                 reliefHurryTime = 0; reliefHurryUsed = false;
                 reliefClimateKitTime = 0; reliefClimateKitUsed = false;
@@ -675,6 +684,26 @@ namespace Starfall
             // A wall must not make the survivor walk in place. Record only
             // physical distance, with a stable horizontal orientation.
             reliefFollowerMoving = traveled.Length > .001f;
+            bool shouldFollow=!reliefFollowerWaiting && !ReliefEscortUnderAttack &&
+                reliefCivilianHitTime<=0 && follow.Length>2.3f;
+            if(shouldFollow && !reliefFollowerMoving)
+            {
+                reliefFollowerBlockedSeconds=Math.Min(4f,
+                    reliefFollowerBlockedSeconds+dt);
+                if(reliefFollowerBlockedSeconds>=1.25f &&
+                    !reliefFollowerBlockedNotice)
+                {
+                    reliefFollowerBlockedNotice=true;
+                    sound="deny";
+                    Notify("居民被地形阻挡！请返回寻找能走通的路，救援计时不会暂停。",
+                        "Civilian route blocked! Find an open approach; the rescue timer continues.");
+                }
+            }
+            else
+            {
+                reliefFollowerBlockedSeconds=0;
+                reliefFollowerBlockedNotice=false;
+            }
             if (reliefFollowerMoving)
             {
                 reliefFollowerWalkDistance += traveled.Length;

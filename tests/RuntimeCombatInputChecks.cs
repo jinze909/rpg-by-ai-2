@@ -3357,6 +3357,88 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LivingEscortStallWarnsOnlyOnRealBlockedMovement(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.mode="world";g.save.room=6;
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] oldRows=map.rows;
+        WorldObject[] oldObjects=map.objects;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+11;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new[]{new WorldObject{id="stalled_station",
+                kind="fieldstation6",x=bx+10.5f,y=by+.5f,
+                name="Return",en="Return"}};
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=100f;g.reliefFollowerSafety=95f;
+            g.reliefFollowerWaiting=false;g.reliefCivilianHitTime=0;
+            g.reliefFollowerPosition=new Point(bx+2.5f,by+.5f);
+            g.save.x=bx+9.5f;g.save.y=by+.5f;
+            // Seal the resident inside a ring on collision-valid terrain.
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx+1;x<=bx+3;x++)
+                    if(x==bx+1||x==bx+3||y==by-1||y==by+1)
+                        line[x]='#';
+                rows[y]=new string(line);
+            }
+            Point first=g.reliefFollowerPosition;
+            for(int i=0;i<28;i++)CallCore(g,"TickReliefMission",.05f);
+            Check(g.ReliefEscortRouteStalled &&
+                (g.reliefFollowerPosition-first).Length<.001f &&
+                g.reliefMissionTime<99f,
+                "Genuine trapped survivor triggers blocked status while timed rescue continues");
+            Check(g.GetQuest("relief_rescue").next.Contains("path blocked") &&
+                (g.NavigationTarget().Value-g.reliefFollowerPosition).Length<.001f,
+                "Active rescue quest and compass guide back to a truly immobile resident");
+            Set(app,"camera",g.reliefFollowerPosition);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(s=>s.Contains("SURVIVOR PATH BLOCKED")),
+                "Production world visibly diagnoses physical civilian route obstruction");
+
+            // Nonmoving WAIT is a deliberate command, not a broken route.
+            g.reliefFollowerWaiting=true;
+            CallCore(g,"TickReliefMission",.05f);
+            Check(!g.ReliefEscortRouteStalled,
+                "Explicit civilian wait immediately clears misleading blocked route warning");
+
+            // An open passage restores genuine displacement and clears
+            // the one-shot notification, not a lasting failure state.
+            g.reliefFollowerWaiting=false;
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx+1;x<=bx+3;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            CallCore(g,"TickReliefMission",.05f);
+            Check(g.reliefFollowerMoving &&
+                !g.ReliefEscortRouteStalled &&
+                (g.reliefFollowerPosition-first).Length>.001f,
+                "Reopened world crossing resumes actor movement and removes false obstruction");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!GUI.commands.Exists(s=>s.Contains("SURVIVOR PATH BLOCKED")),
+                "After genuine movement resumes there is no stale blocked HUD warning");
+            Console.WriteLine("PASS Timed civilian follow diagnoses true blocked paths and recovers without teleport");
+        }
+        finally
+        {
+            map.rows=oldRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide(FrontierRuntime app)
     {
         Prepare(app);
@@ -4706,7 +4788,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
