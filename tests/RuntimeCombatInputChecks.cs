@@ -3395,8 +3395,9 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(s=>s.Contains("CIVIC EMBER")),
             "Production render uses a timed carried-ember indicator before arrival");
         CallCore(g,"TickFrostSignal",.05f);
-        Check(g.FrostSignalAtHearth&&!g.FrostSignalComplete,
-            "The genuine stage-three update secures the fire but awards no service");
+        Check(g.FrostSignalAtHearth&&!g.FrostSignalComplete&&
+            (g.FrostSignalBankedFoot-g.Position).Length<.001f,
+            "The genuine stage-three update captures the visible hearth position without awarding service");
         var q=g.GetQuest("frost_signal");
         Check(q.steps.Count>=4&&q.steps[2].done&&!q.steps[3].done&&
             q.next.Contains("Ember safely deposited")&&

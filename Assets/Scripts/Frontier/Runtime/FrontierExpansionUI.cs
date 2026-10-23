@@ -481,7 +481,7 @@ namespace Starfall
                 // real hearth accepts it, the published objective and visual
                 // must remain at the STATION, not follow an empty-handed hero.
                 Point emberFoot=Game.FrostSignalAtHearth?
-                    Game.GetQuest("frost_signal").target:Game.Position;
+                    Game.FrostSignalBankedFoot:Game.Position;
                 Point screen=ScreenPoint(emberFoot);
                 Color tint=Game.FrostSignalAtHearth?mint:
                     Game.FrostSignalFlame<25?PixelArt.C("#ef826b"):

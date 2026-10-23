@@ -14,6 +14,10 @@ namespace Starfall
         // player chooses its permanent civic use. This is live mission state,
         // never a new SaveData field or a remotely claimable reward.
         public bool FrostSignalAtHearth { get; private set; }
+        // Exact real hearth anchor captured when the transported flame lands.
+        // The live renderer can use it without constructing the entire quest
+        // journal on every frame; it is reset with the transient mission.
+        public Point FrostSignalBankedFoot { get; private set; }
         private int frostSignalConfirmedKills;
         private void OnFrostSignalEnemyDefeated(Enemy enemy)
         {
@@ -45,7 +49,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
             FrostSignalStage=0;frostSignalConfirmedKills=0;
-            FrostSignalAtHearth=false;
+            FrostSignalAtHearth=false;FrostSignalBankedFoot=new Point();
             FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
         }
         // The authored switchyard positions are preferred, not permission to
@@ -119,11 +123,15 @@ namespace Starfall
             // the player still must interact on the same physical side to
             // choose the clinic or road beacon. Unlike simply standing
             // within a radial marker, PhysicalRefugeReach rejects walls.
-            if(FrostSignalStage==3 && !FrostSignalAtHearth &&
+            WorldObject southHearth=FrostSignalStage==3 && !FrostSignalAtHearth ?
+                FrostSignalPost(3):null;
+            if(southHearth!=null &&
                 FrostSignalTime>0 && FrostSignalFlame>0 &&
-                CanReachFrostSignalPost(FrostSignalPost(3)))
+                CanReachFrostSignalPost(southHearth))
             {
-                FrostSignalAtHearth=true;revision++;sound="quest";
+                FrostSignalAtHearth=true;
+                FrostSignalBankedFoot=new Point(southHearth.x,southHearth.y);
+                revision++;sound="quest";
                 Notify("民用余火已安全送到暖站。请在这里决定建立疗养站还是巡路灯网。",
                     "Civic ember delivered safely. Choose clinic or road beacons at the hearth.");
             }
@@ -270,7 +278,7 @@ namespace Starfall
                     FieldWorkPreventsRest||!SafeTravel||
                     !CanReachFrostSignalPost(west))return true;
                 FrostSignalStage=1;FrostSignalTime=100;FrostSignalFlame=85;
-                FrostSignalAtHearth=false;
+                FrostSignalAtHearth=false;FrostSignalBankedFoot=new Point();
                 Flag("frostsignal_started");revision++;sound="quest";
                 Notify("火种已领取。沿旧山道前往转折台，击败守卫。",
                     "Ember secured. Walk to the switchyard and defeat the guards.");

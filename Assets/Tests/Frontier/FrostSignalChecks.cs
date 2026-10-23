@@ -582,6 +582,7 @@ namespace Starfall.Tests
             float deliveredQuality=g.FrostSignalFlame;
             g.Tick(.05f,new Point());
             Check(g.FrostSignalAtHearth&&g.FrostSignalStage==3&&
+                (g.FrostSignalBankedFoot-new Point(south.x,south.y)).Length<.001f&&
                 Math.Abs(g.FrostSignalFlame-deliveredQuality)<.0001f&&
                 Math.Abs(g.FrostSignalTime-.02f)<.0001f&&
                 !g.FrostSignalComplete,
@@ -601,7 +602,7 @@ namespace Starfall.Tests
             g.save.x=south.x;g.save.y=south.y;g.Talk(south);
             Check(FrostChoice(g,"frostsignal_guides")&&g.FrostSignalComplete&&
                 g.FrostSignalOutcome==2&&!g.FrostSignalActive&&
-                !g.FrostSignalAtHearth&&
+                !g.FrostSignalAtHearth&&g.FrostSignalBankedFoot.Length<.001f&&
                 g.save.coins==coins+(deliveredQuality>=50?65:55),
                 "A real near-side choice pays the preserved flame quality once");
             int paid=g.save.coins;
