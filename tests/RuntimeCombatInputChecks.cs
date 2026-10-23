@@ -3350,6 +3350,59 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void RepairedClimateStationProtectsOnlyItsPhysicalSide(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;
+        string[] oldRows=map.rows;WorldObject[] oldObjects=map.objects;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            Check(Array.Exists(oldObjects,o=>o.kind=="fieldstation6"),
+                "The live Glass Desert must contain a real authored cooling station");
+            int bx=3,by=5;
+            string[] rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+6;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new[]{new WorldObject{id="climate_real",kind="fieldstation6",
+                name="Cooling post",en="Cooling post",x=bx+3.5f,y=by+.5f}};
+            g.save.flags.Add("fieldstation_6");
+            g.save.teaUntil=0;g.save.totalTime=15;
+            g.save.x=bx+.5f;g.save.y=by+.5f;g.save.heat=45f;
+            Check(g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)),
+                "An activated station still shelters the hero on an open physical path");
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.heat<45f,
+                "Genuine cooling from repaired station still lowers exposure");
+
+            char[] wall=rows[by].ToCharArray();
+            wall[bx+1]='#';rows[by]=new string(wall);
+            Check(!g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)),
+                "An equally near post behind a sealed wall cannot cool through stone");
+            g.save.heat=45f;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.heat>45f,
+                "Solid cliff restores real desert exposure despite a nearby repaired station");
+            g.save.flags.Remove("fieldstation_6");
+            wall[bx+1]='.';rows[by]=new string(wall);
+            Check(!g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)),
+                "Unbuilt station provides no free climate shelter");
+            Console.WriteLine("PASS Production fieldstation rejects fake radius-only climate cover through solid walls");
+        }
+        finally
+        {
+            map.rows=oldRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void LiveOasisShadeRestIsPhysicalAndSafe(FrontierRuntime app)
     {
         Prepare(app);
@@ -4123,7 +4176,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

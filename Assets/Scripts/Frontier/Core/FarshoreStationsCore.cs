@@ -86,7 +86,8 @@ namespace Starfall
             if (save.room != region || !Has("fieldstation_" + region)) return false;
             foreach (WorldObject o in Map.objects)
                 if (o.kind == "fieldstation" + region &&
-                    (new Point(o.x, o.y) - Position).Length < radius) return true;
+                    PhysicalRefugeReach(new Point(o.x, o.y),radius))
+                    return true;
             return false;
         }
         // Relief upgrades use persistent string flags already supported by old saves.
