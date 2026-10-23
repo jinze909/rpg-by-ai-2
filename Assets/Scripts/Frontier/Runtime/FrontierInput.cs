@@ -14,7 +14,7 @@ namespace Starfall
         private readonly CompanionButtonGesture companionPadGesture = new CompanionButtonGesture();
         private string ControlId(float x, float y, float w, float h) { return x.ToString(CultureInfo.InvariantCulture) + ":" + y.ToString(CultureInfo.InvariantCulture) + ":" + w.ToString(CultureInfo.InvariantCulture) + ":" + h.ToString(CultureInfo.InvariantCulture); }
         private string InputScope()
-        { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }
+        { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage + "/choices/" + dialogueChoicePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }
         private void BeginControls() { drawnScope = InputScope(); navigation.Scope(drawnScope); drawnControls.Clear(); drawingModal = false; }
         private void EndControls()
         {
@@ -35,6 +35,14 @@ namespace Starfall
             navigation.Scope(InputScope()); if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
             if (PadDown(0) || PadDown(1) || PadDown(4) || PadDown(5) || PadDown(7)) controllerUsed = true;
             if (PadDown(1) || Input.GetKeyDown(KeyCode.Escape)) { Back(); return; }
+            if (Game.mode == "dialog" && DialogueChoicesVisible() &&
+                DialogueChoicePageCount > 1)
+            {
+                if (Input.GetKeyDown(KeyCode.PageUp))
+                { MoveDialogueChoicePage(-1); return; }
+                if (Input.GetKeyDown(KeyCode.PageDown))
+                { MoveDialogueChoicePage(1); return; }
+            }
             bool menu = Array.IndexOf(menuModes, Game.mode) >= 0;
             if (menu && (PadDown(4) || PadDown(5))) { int index = Array.IndexOf(menuModes, Game.mode); OpenMenu(menuModes[(index + (PadDown(5) ? 1 : -1) + menuModes.Length) % menuModes.Length]); return; }
             Point direction = new Point();

@@ -5,7 +5,25 @@ namespace Starfall
 {
     public sealed partial class FrontierRuntime
     {
-        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, recordsPage, questPage;
+        private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, dialogueChoicePage, recordsPage, questPage;
+        private const int DialogueChoicesPerPage = 6;
+        private int DialogueChoicePageCount
+        {
+            get { return Game == null || Game.conversation == null ? 1 :
+                Math.Max(1, (Game.conversation.choices.Length + DialogueChoicesPerPage - 1) /
+                    DialogueChoicesPerPage); }
+        }
+        private void MoveDialogueChoicePage(int direction)
+        {
+            if (Game == null || Game.mode != "dialog" || !DialogueChoicesVisible()) return;
+            int next = Math.Max(0, Math.Min(DialogueChoicePageCount - 1,
+                dialogueChoicePage + direction));
+            if (next == dialogueChoicePage) return;
+            dialogueChoicePage = next;
+            confirmControl = null;
+            navigation.Scope(InputScope());
+            Game.sound = "ui";
+        }
         // NavigationPath is a real collision-aware BFS. Cache its output by
         // map, start/goal tile and world revision so IMGUI Layout/Repaint passes
         // do not repeatedly search the full 120x80 outdoor maps.
@@ -622,11 +640,46 @@ namespace Starfall
         }
         private void DrawDialogue()
         {
-            if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = 0; }
+            if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; }
             var pages = DialogueLayout.Pages(Game.L(c.text, c.textEn), Game.save.largeText); dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
-            Dim(); Card(88, 180, 1104, 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, pages[dialoguePage], 19, paper);
+            Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, pages[dialoguePage], 19, paper);
             if (pages.Count > 1) { Text(320, 497, 535, 26, Game.L("对话页 ", "Page ") + (dialoguePage + 1) + "/" + pages.Count + "  ·  " + ControlKey("SPACE / ENTER", "A"), 12, muted); if (Button(879, 494, 272, 34, dialoguePage < pages.Count - 1 ? Game.L("继续阅读", "Read more") : Game.L("重新阅读", "Read again"))) { if (dialoguePage < pages.Count - 1) AdvanceDialogue(); else dialoguePage = 0; } }
-            if (dialoguePage == pages.Count - 1) { int count = c.choices.Length; for (int i = 0; i < count; i++) { int cols = count > 2 ? 2 : count; float w = (832 - (cols - 1) * 14) / Math.Max(1, cols), y = 539 + i / cols * 45; if (Button(320 + i % cols * (w + 14), y, w, 37, (controllerUsed ? "" : (i + 1) + "  ") + Game.L(c.choices[i].label, c.choices[i].en), i == 0)) { ChooseDialogue(i); break; } } }
+            if (dialoguePage == pages.Count - 1)
+            {
+                int count = c.choices.Length;
+                dialogueChoicePage = Math.Max(0, Math.Min(dialogueChoicePage, DialogueChoicePageCount - 1));
+                int start = dialogueChoicePage * DialogueChoicesPerPage;
+                int shown = Math.Min(DialogueChoicesPerPage, count - start);
+                int cols = shown > 2 ? 2 : Math.Max(1, shown);
+                float w = (832 - (cols - 1) * 14) / cols;
+                for (int offset = 0; offset < shown; offset++)
+                {
+                    int index = start + offset;
+                    float x = 320 + offset % cols * (w + 14);
+                    float y = 539 + offset / cols * 45;
+                    // Local 1-6 labels match this page's keyboard shortcuts.
+                    if (Button(x, y, w, 37,
+                        (controllerUsed ? "" : (offset + 1) + "  ") +
+                        Game.L(c.choices[index].label, c.choices[index].en),
+                        offset == 0))
+                    { ChooseDialogue(index); break; }
+                }
+                if (count > DialogueChoicesPerPage)
+                {
+                    Text(320, 685, 235, 28,
+                        Game.L("选项 ", "Choices ") + (dialogueChoicePage + 1) +
+                        "/" + DialogueChoicePageCount +
+                        Game.L(" · 数字 1–6", " · keys 1–6"), 12, muted);
+                    if (Button(684, 682, 221, 34,
+                        Game.L("上一组选项 PgUp", "Previous PgUp"),
+                        false, dialogueChoicePage > 0))
+                        MoveDialogueChoicePage(-1);
+                    if (Button(920, 682, 231, 34,
+                        Game.L("下一组选项 PgDn", "Next PgDn"),
+                        false, dialogueChoicePage < DialogueChoicePageCount - 1))
+                        MoveDialogueChoicePage(1);
+                }
+            }
             else Text(320, 552, 832, 50, Game.L("读完这一段，再作出你的选择。", "Finish reading before making your choice."), 15, muted);
         }
         private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }

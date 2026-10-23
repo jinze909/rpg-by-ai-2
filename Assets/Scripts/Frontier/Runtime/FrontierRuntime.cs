@@ -192,9 +192,12 @@ namespace Starfall
             else if (Game.mode == "dialog")
             {
                 int count = Game.conversation == null || !DialogueChoicesVisible() ? 0 : Game.conversation.choices.Length;
-                // Six-choice Starroot relays must expose the final "continue"
-                // entry to keyboard users as well as pointer/gamepad users.
-                for (int i = 0; i < Math.Min(6, count); i++) if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i))) ChooseDialogue(i);
+                // A long chronicle section may span multiple choice pages.
+                // 1-6 select only the visible rows, never an off-page entry.
+                int start = dialogueChoicePage * DialogueChoicesPerPage;
+                for (int i = 0; i < Math.Min(DialogueChoicesPerPage, count - start); i++)
+                    if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i)))
+                    { ChooseDialogue(start + i); break; }
             }
             Toggle(KeyCode.I, "inventory"); Toggle(KeyCode.Tab, "journal"); Toggle(KeyCode.K, "talents"); Toggle(KeyCode.M, "map");
             Toggle(KeyCode.B, "camp"); Toggle(KeyCode.C, "companions"); Toggle(KeyCode.G, "loadout"); Toggle(KeyCode.N, "bounties"); Toggle(KeyCode.F1, "help");

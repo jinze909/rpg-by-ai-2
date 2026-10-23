@@ -3339,6 +3339,48 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+
+    private static void LateChronicleChoicePagesRemainPlayable(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game = app.Game;
+        game.save.english = true;
+        // Unlock actual campaign chapter entries using their existing
+        // progression flags, not fabricated button objects.
+        string[] flags = { "witness_started_1", "core_1", "core_2",
+            "core_3", "iron_temper_started", "triad_started",
+            "blackout_started", "boss_4" };
+        foreach (string flag in flags) game.save.flags.Add(flag);
+        CallCore(game, "WorldChronicleSection", "campaign");
+        Check(game.mode == "dialog" && game.conversation.choices.Length == 9,
+            "The real unlocked chapter menu has eight entries plus back");
+        string seventh = game.conversation.choices[6].action;
+        Check(seventh.StartsWith("story_read_"),
+            "Page-two entry is a genuine readable chapter, not a fake test choice");
+        GUI.commands.Clear(); GUI.buttonCalls.Clear();
+        Call(app, "OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage", Private).GetValue(app) == 0,
+            "New conversation starts on the first real choice page");
+        Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==6,
+            "First choice page draws exactly six reachable controls inside the dialog");
+        Check(!GUI.commands.Exists(c=>c.Contains("\\\"text\\\":\\\""+
+                game.conversation.choices[6].en)),
+            "No hidden off-page story choice is painted beyond the dialog");
+        Input.keys.Add(KeyCode.PageDown); Update(app);
+        GUI.commands.Clear(); GUI.buttonCalls.Clear(); Call(app, "OnGUI");
+        Check((int)typeof(FrontierRuntime).GetField("dialogueChoicePage", Private).GetValue(app)==1 &&
+            GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==3,
+            "PageDown shows the final three real chapter actions within the panel");
+        Check(GUI.commands.Exists(c=>c.Contains(game.conversation.choices[6].en)),
+            "Seventh chapter becomes visible on the actual second page");
+        Input.keys.Add(KeyCode.Alpha1); Update(app);
+        Check(game.mode=="dialog" && game.conversation != null &&
+            game.conversation.choices.Length <= 5 &&
+            game.conversation.speaker != "The Four Starcores",
+            "Visible key 1 activates absolute choice seven, not hidden choice one");
+        Console.WriteLine("PASS Long real chronicle menu pages and keyboard selects visible late chapters");
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -3350,7 +3392,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LateChronicleChoicePagesRemainPlayable, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
