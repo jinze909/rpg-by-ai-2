@@ -574,6 +574,33 @@ namespace Starfall.Tests
             Check(restored.save.version==2&&restored.Has("wayfarer_defended_1")&&
                 restored.WayfarerEncounterRoom==0,
                 "Old SaveData v2 keeps genuine rescue choices without persisting kill counters");
+
+            // Afterlight public-defense reinforcements can be temporarily
+            // deferred when the receiver is crowded. A lull with no nearby
+            // enemies must not allow a second traveler ambush to overlap it.
+            var overlap=Fresh(data);overlap.save.stage=3;overlap.save.level=10;
+            overlap.save.flags.Add("scout_saved");overlap.Enter(1);overlap.enemies.Clear();
+            WorldObject travelerForOverlap=Object(overlap,"wayfarer1");
+            overlap.save.x=travelerForOverlap.x;overlap.save.y=travelerForOverlap.y;
+            var watchRoom=typeof(GameCore).GetField("afterlightWatchRoom",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var watchTime=typeof(GameCore).GetField("afterlightWatchTime",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(watchRoom!=null&&watchTime!=null,
+                "The existing transient civic-defense clock remains addressable without save-schema changes");
+            if(watchRoom!=null&&watchTime!=null)
+            {
+                watchRoom.SetValue(overlap,1);watchTime.SetValue(overlap,60f);
+                Check(overlap.AfterlightWatchActive&&overlap.SafeTravel,
+                    "A deferred civic-defense lull has no nearby enemies but remains active fieldwork");
+                Action(overlap,travelerForOverlap.kind,"wayfarer_defend_1");
+                Check(overlap.WayfarerEncounterRoom==0&&
+                    !overlap.enemies.Exists(e=>e.id>=82010&&e.id<=82011)&&
+                    overlap.AfterlightWatchActive,
+                    "Traveler defense cannot overlap the live civic-defense lull");
+            }
         }
 
     }

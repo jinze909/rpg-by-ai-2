@@ -196,6 +196,14 @@ namespace Starfall
                 atlasEchoRoom != 0 || practicing || Dying) return true;
             Point npc = ObjectPoint(room, "wayfarer" + room, new Point(-100, -100));
             if (!CanReachWayfarer(npc)) return true;
+            // Do not stack a second live defense on top of a different field
+            // mission during its between-wave lull, when SafeTravel may be true.
+            if (fight && FieldWorkPreventsRest)
+            {
+                Notify("先完成当前现场任务，再开始新的旅人护卫。",
+                    "Finish the active field mission before starting another traveler defense.");
+                return true;
+            }
             if (donation)
             {
                 int item = WayfarerItem(room);
