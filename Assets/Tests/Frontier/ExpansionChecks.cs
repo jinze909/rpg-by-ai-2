@@ -998,6 +998,55 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssWardSanctuaryHonorsWallsAndNoPhantomGuards(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.save.abyssFloor=3;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(g,null);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var ward=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+            Check(ward!=null,"Pylon exists at the generated deep-floor object");
+            g.save.x=ward.x;g.save.y=ward.y;
+            g.save.runShards=3;g.Talk(ward);g.Choose(0);
+            Check(g.AbyssWardShelter,"Paid pylon shields exposed nearby player");
+            // Expiring distant periodic warnings do not claim that the
+            // pylon absorbed a hit which could never physically reach us.
+            g.hazards.Clear();g.effects.Clear();
+            g.hazards.Add(new Hazard{kind="rift",abyssStormOwned=true,
+                position=new Point(ward.x+5,ward.y),radius=.9f,
+                timer=.01f,damage=9});
+            g.sound="travel";
+            float health=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(Math.Abs(g.save.health-health)<.001f &&
+                g.effects.Exists(e=>e.kind=="danger") &&
+                !g.effects.Exists(e=>e.kind=="spark") &&
+                g.sound!="guard",
+                "Far-off rift still plays its ordinary contact effect, without a phantom shield sound");
+
+            // Reuse the established blocked-approach fixture to prove
+            // proximity alone cannot reach through an actual solid wall.
+            float oldX=ward.x,oldY=ward.y;
+            Point across;
+            bool found=TryFindWallBlockedApproach(g,ward,out across);
+            Check(found,"Generated floor offers a real wall-separated approach");
+            g.save.x=across.x;g.save.y=across.y;
+            Check((g.Position-new Point(ward.x,ward.y)).Length<1.6f &&
+                !g.AbyssWardShelter,
+                "Nearby player behind solid cover never receives pylon's shelter aura");
+            ward.x=oldX;ward.y=oldY;
+            g.save.x=ward.x;g.save.y=ward.y;
+            Check(g.AbyssWardShelter,"Returning to real pylon restores the active protection");
+            g.save.flags.Add("abyss_clear_3");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.AbyssWardShelter &&
+                restored.save.runShards==0,
+                "Shelter rebuilds from the legitimate floor flag and player foot on SaveData v2 load");
+        }
+
         public static void TunedAbyssPylonSheltersFromWorldStormButNotBossStrike(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);

@@ -1738,7 +1738,13 @@ namespace Starfall
                 h.timer -= dt;
                 if (h.timer > 0) continue;
                 hazards.Remove(h);
-                bool wardSheltered = h.abyssStormOwned && AbyssWardShelter;
+                // Only announce an actual blocked contact as a ward save.
+                // A distant storm may expire while the player is near the
+                // pylon; it must not generate a fake Guard cue/feedback.
+                bool imminentContact=(Position-h.position).Length<h.radius &&
+                    ClearAttackPath(h.position,Position);
+                bool wardSheltered = imminentContact && h.abyssStormOwned &&
+                    AbyssWardShelter;
                 effects.Add(new Effect(wardSheltered ? "spark" : "danger",
                     h.position, .45f) {
                     radius = h.radius, variant = HazardTheme(h),
@@ -1758,8 +1764,7 @@ namespace Starfall
                     // not grant a fake dodge counter for a ward-absorbed hit.
                     sound = "guard";
                 }
-                else if ((Position-h.position).Length < h.radius &&
-                    ClearAttackPath(h.position,Position))
+                else if (imminentContact)
                     Hurt(AbyssRiftContactDamage(h),"area",
                         (Position-h.position).Normalized);
                 else if(perfectDodgeArmed &&
