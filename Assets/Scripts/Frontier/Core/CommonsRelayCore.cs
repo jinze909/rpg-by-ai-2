@@ -246,7 +246,7 @@ namespace Starfall
                 !HasPhysicalInteractionReach(CommonsRelayPoint(step))) return true;
             if (commonsRelayRoom == 0)
             {
-                if (step != 1 || !SafeTravel) return true;
+                if (FieldWorkPreventsRest || step != 1 || !SafeTravel) return true;
                 commonsRelayRoom = 4; commonsRelayStep = 1;
                 commonsRelayTime = 110;
             }

@@ -1686,6 +1686,13 @@ namespace Starfall.Tests
                 WorldObject post = Object(g, "fieldstation" + region);
                 g.save.x = post.x; g.save.y = post.y;
                 Check(g.GetQuest("station_patrol").steps.Count == 4, "Survey journal is available after restoration");
+                SetOuterPatrolLull(g,region);
+                Check(g.OuterPatrolActive&&g.SafeTravel,
+                    "The station is locally safe while an unrelated patrol owns the fieldwork slot");
+                Action(g, post.kind, "fieldstation_survey_start");
+                Check(g.fieldSurveyRoom==0&&g.fieldSurveyPhase==0,
+                    "The timed field survey cannot start over an unrelated patrol lull");
+                ClearOuterPatrolLull(g);
                 Action(g, post.kind, "fieldstation_survey_start");
                 Check(g.fieldSurveyRoom == region && g.fieldSurveyPhase == 1 &&
                     g.fieldSurveyTime > 89 && g.save.trackedQuest == "station_patrol",
@@ -1839,6 +1846,13 @@ namespace Starfall.Tests
             Action(g, harbor.kind, "fieldstation_to_6");
             Check(g.save.room == 5, "Nearby hostiles disable cross-region station travel");
             g.enemies.Clear();
+            SetOuterPatrolLull(g,5);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The harbor is locally safe during a live patrol lull");
+            Action(g, harbor.kind, "fieldstation_to_6");
+            Check(g.save.room==5,
+                "Station-to-station travel cannot discard another active field mission");
+            ClearOuterPatrolLull(g);
             Action(g, harbor.kind, "fieldstation_to_6");
             Check(g.save.room == 6 && g.CanStand(g.Position) &&
                 (g.Position - new Point(Object(g, "fieldstation6").x,

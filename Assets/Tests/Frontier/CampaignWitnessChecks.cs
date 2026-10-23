@@ -68,6 +68,13 @@ namespace Starfall.Tests
                 g.save.x=second.x;g.save.y=second.y;
                 Check(g.Nearest()==second,"Final evidence seal must be usable on real map");
                 int oldCoins=g.save.coins,oldKills=g.save.kills[region];
+                SetOuterPatrolLull(g,region);
+                Check(g.OuterPatrolActive&&g.SafeTravel,
+                    "The testimony marker is locally safe during an unrelated patrol lull");
+                Action(g,second.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==0&&!g.enemies.Exists(g.IsWitnessEnemy),
+                    "Witness security cannot start over another active field mission");
+                ClearOuterPatrolLull(g);
                 Action(g,second.kind,"witness_defend_"+region);
                 Check(g.WitnessDefenseRoom==region &&
                     g.WitnessDefenseTime>=64 &&

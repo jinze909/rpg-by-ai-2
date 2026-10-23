@@ -265,7 +265,7 @@ namespace Starfall
             {
                 if(!Has("witness_read_"+region) ||
                     Has("witness_sealed_"+region) || Has("witness_defeated_"+region) ||
-                    witnessDefenseRoom!=0 || !SafeTravel || racing ||
+                    FieldWorkPreventsRest || witnessDefenseRoom!=0 || !SafeTravel || racing ||
                     reliefMissionRoom!=0 || roadTrialRoom!=0 ||
                     wayfarerEncounterRoom!=0 || atlasEchoRoom!=0 ||
                     RootHarmonyRoom!=0 || commonsRelayRoom!=0 ||

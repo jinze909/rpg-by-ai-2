@@ -927,6 +927,8 @@ namespace Starfall
             {
                 if (reliefMissionRoom != 0)
                 { Notify("先护送居民返回站台，或明确取消本次救援。", "Escort the civilians home or explicitly abandon rescue before traveling."); return true; }
+                if (FieldWorkPreventsRest)
+                { Notify("其它现场行动尚未结束，不能离开气象站。", "Finish the active field mission before leaving the weather station."); return true; }
                 int sourceStation = save.room;
                 if (sourceStation < 5 || sourceStation > 7 || !Has("farshore_relief_complete") ||
                     !Has("fieldstation_" + sourceStation) || Dying || practicing || racing ||
@@ -947,6 +949,8 @@ namespace Starfall
             }
             if (action.StartsWith("farshore_relief_to_"))
             {
+                if (FieldWorkPreventsRest)
+                { Notify("现场行动尚未结束，不能启动跨区运输。", "Finish the active field mission before starting cross-region transport."); return true; }
                 int reliefDestination;
                 if (!int.TryParse(action.Substring("farshore_relief_to_".Length), out reliefDestination) ||
                     reliefDestination < 5 || reliefDestination > 7 || save.room != 9 ||
@@ -1056,6 +1060,8 @@ namespace Starfall
                     "Finish or abandon your tide salvage before starting another survey."); return true; }
                 if (reliefMissionRoom != 0)
                 { Notify("先完成当前居民救援，才能接取新巡测。", "Finish the active civilian rescue before beginning another survey."); return true; }
+                if (FieldWorkPreventsRest)
+                { Notify("先完成当前现场任务，再启动新的环境巡测。", "Finish the active field mission before starting another survey."); return true; }
                 int surveyRegion = save.room;
                 if (surveyRegion < 5 || surveyRegion > 7 || fieldSurveyRoom != 0 ||
                     !Has("fieldstation_" + surveyRegion) || Has("fieldstation_survey_" + surveyRegion) ||
@@ -1083,6 +1089,8 @@ namespace Starfall
                         "Field survey underway. Finish or cancel it before station travel.");
                     return true;
                 }
+                if (FieldWorkPreventsRest)
+                { Notify("其它现场行动尚未结束，不能使用站点传送。", "Finish the active field mission before station travel."); return true; }
                 int destination;
                 if (!int.TryParse(action.Substring("fieldstation_to_".Length), out destination) ||
                     destination < 5 || destination > 7 || destination == save.room ||

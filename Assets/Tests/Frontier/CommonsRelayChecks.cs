@@ -42,7 +42,14 @@ namespace Starfall.Tests
                     "Citadel circuit " + i + " is physically accessible on the authored map");
             }
             int coins = g.save.coins, shards = g.save.shards;
-            CommonsActivate(g, 1);
+            SetOuterPatrolLull(g,4);
+            Check(g.OuterPatrolActive&&g.SafeTravel,
+                "The first console is locally safe while another patrol owns the fieldwork slot");
+            CommonsActivate(g,1);
+            Check(g.CommonsRelayRoom==0&&!g.enemies.Exists(g.IsCommonsRelayEnemy),
+                "The timed commons defense cannot spawn over unrelated fieldwork");
+            ClearOuterPatrolLull(g);
+            CommonsActivate(g,1);
             Check(g.CommonsRelayRoom == 4 && g.CommonsRelayStep == 2 &&
                 g.CommonsRelayTime > 109 &&
                 g.enemies.FindAll(g.IsCommonsRelayEnemy).Count == 2,
