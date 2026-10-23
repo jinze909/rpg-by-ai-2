@@ -77,7 +77,14 @@ namespace Starfall.Tests
                 g.save.stage=3;g.save.level=10;
                 g.save.flags.Add("intro");
                 g.save.flags.Add("exp_intro");
+                // Travel progression must be legitimate: the desert only
+                // opens after the harbor record, and Frostchime only after
+                // the desert record. Do not test a different map by
+                // teleporting through a real locked campaign gate.
+                if(room>=6)g.save.flags.Add("harbor_report");
+                if(room>=7)g.save.flags.Add("desert_report");
                 g.Enter(room);
+                Check(g.save.room==room,"Actual regional report test enters the intended unlocked map");
                 g.enemies.Clear();
                 g.save.flags.Add("gate_"+room);
                 g.save.flags.Add("boss_"+room);
