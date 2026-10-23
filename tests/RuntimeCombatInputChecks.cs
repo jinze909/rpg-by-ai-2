@@ -3377,16 +3377,28 @@ public static class RuntimeCombatInputChecks
             g.save.flags.Add("fieldstation_6");
             g.save.teaUntil=0;g.save.totalTime=15;
             g.save.x=bx+.5f;g.save.y=by+.5f;g.save.heat=45f;
-            Check(g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)),
+            Check(g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)) &&
+                g.FieldStationSheltersHero(map.objects[0]),
                 "An activated station still shelters the hero on an open physical path");
+            g.save.heat=90f;Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("CLIMATE SHELTER ACTIVE")),
+                "Production field station displays a genuinely accessible full-radius shelter");
+            g.save.heat=45f;
             CallCore(g,"TickExpansion",.05f);
             Check(g.save.heat<45f,
                 "Genuine cooling from repaired station still lowers exposure");
 
             char[] wall=rows[by].ToCharArray();
             wall[bx+1]='#';rows[by]=new string(wall);
-            Check(!g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)),
+            Check(!g.NearActiveFieldStation(6,g.FieldStationRefugeRadius(6)) &&
+                !g.FieldStationSheltersHero(map.objects[0]),
                 "An equally near post behind a sealed wall cannot cool through stone");
+            g.save.heat=90f;
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!GUI.commands.Exists(c=>c.Contains("CLIMATE SHELTER ACTIVE")) &&
+                GUI.commands.Exists(c=>c.Contains("ENTER STATION REFUGE")),
+                "Behind-wall station halo honestly shows unavailable protection");
             g.save.heat=45f;
             CallCore(g,"TickExpansion",.05f);
             Check(g.save.heat>45f,

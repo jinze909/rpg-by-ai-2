@@ -1297,9 +1297,30 @@ namespace Starfall
                     reinforced ? Game.L("民用避难区", "RELIEF REFUGE") :
                     powered ? Game.L("安全观测站", "SHELTER ONLINE") :
                     Game.L("等待维修", "REPAIR STATION"), 11, light, TextAnchor.MiddleCenter);
-                if (powered && station >= 6 && Game.NearActiveFieldStation(station, Game.FieldStationRefugeRadius(station)))
-                    Ring(new Point(o.x, o.y), reinforced ? 1.4f : 1.1f,
-                        new Color(light.r, light.g, light.b, .52f), 24);
+                if (powered && station >= 6)
+                {
+                    Point site=new Point(o.x,o.y);
+                    float radius=Game.FieldStationRefugeRadius(station);
+                    bool sheltered=Game.FieldStationSheltersHero(o);
+                    bool relevant=(station==6?Game.save.heat>=65f:
+                        Game.save.cold>=65f)||
+                        (Game.Position-site).Length<radius+2f;
+                    if(relevant)
+                    {
+                        // Draw the real 4.2/6.5 world-tile service boundary,
+                        // not the old decorative 1.1/1.4 ring that implied
+                        // shelter ended several tiles too early.
+                        Ring(site,radius,
+                            new Color(light.r,light.g,light.b,
+                                sheltered?.68f:.28f),36);
+                        Text(p.x-103,p.y-110,206,19,
+                            sheltered?
+                                Game.L("气候保护生效","CLIMATE SHELTER ACTIVE"):
+                                Game.L("进入气候避难区","ENTER STATION REFUGE"),
+                            10,sheltered?mint:gold,
+                            TextAnchor.MiddleCenter);
+                    }
+                }
                 if (reinforced)
                     Text(p.x - 32, p.y + 13, 64, 21, station == 5 ? "90s" : "6.5", 13,
                         light, TextAnchor.MiddleCenter);

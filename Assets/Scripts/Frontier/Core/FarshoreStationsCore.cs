@@ -90,6 +90,18 @@ namespace Starfall
                     return true;
             return false;
         }
+        // One specific repaired weather station protects only feet on its
+        // real visible side of the terrain. This is also the single source
+        // for accurate field-radius status in the production world renderer.
+        public bool FieldStationSheltersHero(WorldObject site)
+        {
+            int region=save.room;
+            return (region==6 || region==7) && site!=null &&
+                site.kind=="fieldstation"+region &&
+                Has("fieldstation_"+region) &&
+                PhysicalRefugeReach(new Point(site.x,site.y),
+                    FieldStationRefugeRadius(region));
+        }
         // Relief upgrades use persistent string flags already supported by old saves.
         // A finished local survey supplies the measurements needed to site each refuge.
         public float FieldStationRefugeRadius(int region)
