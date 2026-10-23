@@ -3480,7 +3480,30 @@ public static class RuntimeCombatInputChecks
             Check(!GUI.commands.Exists(c=>c.Contains("SHADE COOLING")) &&
                 !g.ShadeCoolsHero(near),
                 "Sealed nearest canopy never displays a false active shelter");
-            Console.WriteLine("PASS Production desert heat: safe shade navigation, collision-aware world halo and cooling feedback");
+
+            // The last real canopy grants a SHORT walking buffer, not a
+            // new global healing radius. Crossing a sealed wall cannot
+            // re-arm it; the value runs down on the real world clock.
+            Check(g.ShadeBreezeSeconds>2.4f && !g.ShadedInDesert,
+                "Leaving a genuine canopy earns only the short departing breeze");
+            g.save.heat=65;g.save.health=65;g.save.energy=20;
+            CallCore(g,"TickExpansion",.05f);
+            Check(Math.Abs(g.save.heat-65f)<.0001f &&
+                g.save.health==65&&g.save.energy==20,
+                "Breeze arrests new heat briefly but never grants out-of-shade recovery");
+            Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("OASIS BREEZE")),
+                "Production world shows the actual short shade-carry countdown");
+            for(int frame=0;frame<52;frame++)
+                CallCore(g,"TickExpansion",.05f);
+            Check(g.ShadeBreezeSeconds==0f&&g.save.heat>65f &&
+                g.save.health==65&&g.save.energy==20,
+                "Expired shade carry lets genuine desert heat resume without healing");
+            CallCore(g,"ResetExpansionTransient");
+            Check(g.ShadeBreezeSeconds==0f,
+                "Load, travel and new sessions cannot inherit old breeze protection");
+            Console.WriteLine("PASS Production desert shade: recover only when safe, carry brief breeze, stop on wall and expire");
         }
         finally
         {

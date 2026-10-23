@@ -24,7 +24,11 @@ namespace Starfall
         // Three seconds of fading brazier heat protect a departing traveler
         // from immediately reacquiring cold. Never serialized or carried
         // through a region change, save-slot load, or restarted campaign.
-        private float brazierEmberSeconds;
+        private float brazierEmberSeconds, shadeBreezeSeconds;
+        public float ShadeBreezeSeconds
+        {
+            get { return save.room==6 ? shadeBreezeSeconds : 0f; }
+        }
         public float BrazierEmberSeconds
         {
             get { return save.room==7 ? brazierEmberSeconds : 0f; }
@@ -238,6 +242,7 @@ namespace Starfall
         private void ResetExpansionTransient()
         {
             brazierEmberSeconds = 0f;
+            shadeBreezeSeconds = 0f;
             abyssCircuitGuideBranch = -1;
             abyssCircuitGuideFloor = -1;
             abyssCircuitGuideMap = null;
@@ -1466,6 +1471,10 @@ namespace Starfall
             get { return save.room==6 && !Dying && !practicing &&
                 !racing && !FieldWorkPreventsRest && SafeTravel; }
         }
+        public bool ShadedInDesert
+        {
+            get { return save.room==6 && NearKind("shade",3f); }
+        }
 
         public bool BrazierWarmsHero(WorldObject brazier)
         {
@@ -1534,10 +1543,19 @@ namespace Starfall
             // current physical protection, not a global immunity reward.
             bool safeReliefShelter=OuterPatrolRefuge;
             bool tea = save.teaUntil > save.totalTime;
-            bool activeShade=save.room==6 && NearKind("shade",3f);
+            bool activeShade=ShadedInDesert;
+            // A short, earned cool breeze cushions one crossing out of an
+            // actual canopy. It is NOT cooling at a distance, a portable
+            // healing source or protection from damage already suffered.
+            if(activeShade)shadeBreezeSeconds=2.5f;
+            else if(save.room!=6)shadeBreezeSeconds=0f;
+            else shadeBreezeSeconds=Math.Max(0f,shadeBreezeSeconds-dt);
+            bool shadeCarry=save.room==6 && !activeShade &&
+                shadeBreezeSeconds>0f;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !activeShade &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
-                !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
+                !GlasswindRefuge && !safeReliefShelter && !racing ?
+                    (shadeCarry ? 0f : 1.3f) : -10f), 0, 100);
             // Both authored desert shade posts are genuine safe respite
             // sites. Unlike passive cooling, HP/energy restoration cannot
             // run during combat, racing or an active timed field objective.
@@ -2158,8 +2176,8 @@ namespace Starfall
             if (kind == "shade")
             {
                 Dialog(o.name, o.en,
-                    "绿洲树荫与遮阳棚能迅速降温。安全时可靠着现有遮阴点短暂休息12秒，恢复部分生命和耐力；战斗、任务期间不可跳过时间。石墙另一侧的遮阴不生效。",
-                    "Oasis trees and canopies cool you quickly. At an accessible shade, rest for 12 seconds to recover some health and energy. Combat and active missions block resting; rock walls block cooling.",
+                    "绿洲树荫与遮阳棚能迅速降温，离开后还有2.5秒微风余凉。安全时可在遮阴点短暂休息12秒，恢复部分生命和耐力；战斗、任务期间不可跳过时间。隔墙无法避暑。",
+                    "Oasis trees and canopies cool you quickly and leave a 2.5-second breeze when you depart. At accessible shade, rest for 12 seconds to recover some health and energy. Combat and missions block resting; rock walls block cooling.",
                     C("在树荫下休整12秒","Rest in shade · 12s","shadeRest:"+o.id),
                     C("继续赶路","Keep moving","close"));
                 return true;
@@ -2441,6 +2459,7 @@ namespace Starfall
                 }
                 ResolveRestTimeSkip(12f);
                 save.heat=Math.Max(0f,save.heat-48f);
+                shadeBreezeSeconds=2.5f;
                 save.health=Math.Min(save.maxHealth,save.health+14f);
                 save.energy=Math.Min(100f,save.energy+24f);
                 effects.Add(new Effect("heal",Position,.7f));

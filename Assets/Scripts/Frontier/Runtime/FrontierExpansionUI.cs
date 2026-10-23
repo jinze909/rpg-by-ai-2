@@ -427,6 +427,14 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.ShadeBreezeSeconds>0f && !Game.ShadedInDesert)
+            {
+                Point screen=ScreenPoint(Game.Position);
+                Text(screen.x-82,screen.y-118,164,19,
+                    Game.L("绿洲余凉 ", "OASIS BREEZE ")+
+                    Game.ShadeBreezeSeconds.ToString("0.0")+"s",
+                    11,mint,TextAnchor.MiddleCenter);
+            }
             if(Game.BrazierEmberSeconds>0f && !Game.LitBrazierRefuge)
             {
                 // Real nonserialized climate protection during one short
