@@ -90,7 +90,7 @@ namespace Starfall.Tests
             g=Unlocked(data);g.StartAbyss(0);g.enemies.Clear();g.save.flags.Add("abyss_clear_1");g.save.runCoins=55;g.save.runShards=9;g.save.runXp=40;LethalShot(g);
             int coins=g.save.coins,shards=g.save.shards;g.mode="dialog";g.TakeBoon(0);
             Check(g.Dying&&g.save.abyssFloor==1&&g.save.boons[0]==0&&g.save.coins==coins&&g.save.shards==shards&&g.save.runCoins==55,"A fallen player cannot bank loot, gain a boon or descend before recovery");
-            g.Talk(Object(g,"abyssGate"));int bank=-1;
+            TalkNear(g, "abyssGate");int bank=-1;
             for(int choice=0;choice<g.conversation.choices.Length;choice++)if(g.conversation.choices[choice].action=="abyssBank")bank=choice;
             Check(bank>=0,"The real root-gate dialogue provides extraction");g.Choose(bank);
             Check(g.Dying&&g.save.abyssFloor==1&&g.save.coins==coins&&g.save.shards==shards&&g.save.runCoins==55&&g.mode=="world","A stale world dialogue cannot bank or clear the run during recovery");

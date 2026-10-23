@@ -1117,7 +1117,7 @@ namespace Starfall.Tests
             g.enemies.Clear();
             g.save.runCoins = 43; g.save.runShards = 2; g.save.runXp = 0;
             int originalCoins = g.save.coins, originalShards = g.save.shards;
-            g.Talk(Object(g, "abyssGate"));
+            TalkNear(g, "abyssGate");
             Check(g.mode == "dialog" && g.Has("abyss_clear_1"),
                 "The actual gate offers banking only after a cleared floor");
             int bank = -1;
@@ -1136,7 +1136,7 @@ namespace Starfall.Tests
                 "Stale bank menu must not close a live floor or erase pending coins and shards");
 
             g.enemies.Clear();
-            g.Talk(Object(g, "abyssGate"));
+            TalkNear(g, "abyssGate");
             bank = -1;
             for (int i = 0; i < g.conversation.choices.Length; i++)
                 if (g.conversation.choices[i].action == "abyssBank") bank = i;
