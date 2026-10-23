@@ -1302,7 +1302,22 @@ namespace Starfall
             if (kind == "campfire" || kind == "brazier")
             {
                 bool lit = kind == "campfire" || Game.Has("warm_" + o.id);
-                PropImage("fire", 0, p.x - 28, p.y - 44, 56, 65, lit ? Color.white : muted); return true;
+                PropImage("fire", 0, p.x - 28, p.y - 44, 56, 65, lit ? Color.white : muted);
+                if (kind == "brazier" && lit)
+                {
+                    bool sheltered = Game.BrazierWarmsHero(o);
+                    // The original fire artwork stays intact; the ring is
+                    // the real 3.5-tile protection boundary, not a fake
+                    // global aura that passes through cliffs.
+                    Ring(new Point(o.x,o.y),3.5f,
+                        sheltered ? mint : PixelArt.C("#af8d58"),28);
+                    if (sheltered)
+                        Text(p.x-94,p.y-85,188,21,
+                            Game.L("火盆暖圈 · 安全时休整",
+                                "WARM REFUGE · REST WHEN SAFE"),
+                            10,mint,TextAnchor.MiddleCenter);
+                }
+                return true;
             }
             if (kind.StartsWith("history") || kind == "manifest")
             {

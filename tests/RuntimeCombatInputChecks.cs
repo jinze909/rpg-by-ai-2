@@ -3345,6 +3345,83 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LitAlpineBraziersGivePhysicalSafeRest(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=7;
+        g.mode="world";g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        g.save.flags.Clear();g.save.teaUntil=0;g.save.totalTime=12;
+        WorldObject brazier=Array.Find(g.Map.objects,o=>o.kind=="brazier");
+        Check(brazier!=null,"Production alpine scene contains an authored brazier");
+        MapData map=g.Map;
+        string[] originalRows=map.rows;
+        Decoration[] originalDecor=map.decor;
+        try
+        {
+            // Preserve the original world objects and exercise its real
+            // collision checker against a reversible pass/wall fixture.
+            int x=(int)brazier.x,y=(int)brazier.y;
+            Check(x>=5&&y>=5&&x+4<map.rows[0].Length&&
+                y+4<map.rows.Length,"Shipped brazier must occupy usable mountain terrain");
+            string[] pass=(string[])originalRows.Clone();
+            for(int row=y-2;row<=y+2;row++)
+            {
+                char[] chars=pass[row].ToCharArray();
+                for(int col=x-2;col<=x+3;col++)chars[col]='.';
+                pass[row]=new string(chars);
+            }
+            map.rows=pass;map.decor=new Decoration[0];
+            g.save.x=x+2.5f;g.save.y=y+.5f;
+            Check(g.CanStand(g.Position),"Resting hero stands on genuine collision-valid terrain");
+
+            g.save.cold=40;g.save.health=60;g.save.energy=10;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.cold>40f&&g.save.health==60f&&g.save.energy==10f,
+                "Unlit fire cannot give free warmth, health or energy");
+            g.save.flags.Add("warm_"+brazier.id);
+            Check(g.BrazierWarmsHero(brazier)&&g.LitBrazierRefuge,
+                "A lit fire across an open mountain pass gives genuine local protection");
+            g.save.cold=40;g.save.health=60;g.save.energy=10;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.cold<40f&&g.save.health>60f&&g.save.energy>10f,
+                "Lit fire stops chill and gives safe, low-rate health and energy respite");
+            Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("WARM REFUGE")),
+                "Production mountain scene reports a genuine warm field");
+
+            // Insert a real opaque tile between the hero and fireplace:
+            // the same euclidean radius must no longer grant shelter.
+            char[] barrier=pass[y].ToCharArray();
+            barrier[x+1]='#';
+            pass[y]=new string(barrier);
+            Check(!g.BrazierWarmsHero(brazier)&&!g.LitBrazierRefuge,
+                "A sealed cliff blocks warmth, not just the visual route");
+            g.save.cold=40;g.save.health=60;g.save.energy=10;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.cold>40f&&g.save.health==60f&&g.save.energy==10f,
+                "Cold and survival costs remain real through solid world geometry");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!GUI.commands.Exists(c=>c.Contains("WARM REFUGE")),
+                "The actual world renderer cannot falsely show shelter across the wall");
+
+            // Reopen the pass: warming works, but live combat disables rest.
+            pass[y]=new string(barrier).Replace('#','.'); // only the injected tile changes
+            Check(g.BrazierWarmsHero(brazier),"Opening the authored corridor restores shelter");
+            g.enemies.Add(new Enemy(959,0,g.save.x+1,g.save.y,100));
+            g.save.cold=40;g.save.health=60;g.save.energy=10;
+            CallCore(g,"TickExpansion",.05f);
+            Check(g.save.cold<40f&&g.save.health==60f&&g.save.energy==10f,
+                "Fire warmth survives combat but healing and energy rest do not");
+            Console.WriteLine("PASS Production alpine brazier: unobstructed warming, safe rest, blocked wall, combat isolation");
+        }
+        finally
+        {
+            map.rows=originalRows;map.decor=originalDecor;
+        }
+    }
+
     private static void LiveAffordableWardUsesActualCaveNavigation(FrontierRuntime app)
     {
         Prepare(app);
@@ -3735,7 +3812,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

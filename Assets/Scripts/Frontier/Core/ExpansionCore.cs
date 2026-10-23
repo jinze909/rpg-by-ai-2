@@ -1438,6 +1438,28 @@ namespace Starfall
             }
             else { BeginFrost(Position,action.damage,action.impact??CaptureImpact(2)); }
         }
+        // A lit alpine brazier is an actual local warm refuge. Shared
+        // terrain/line-of-sight checks exclude heat through closed walls,
+        // while existing persisted ignition flags remain authoritative.
+        public bool BrazierWarmsHero(WorldObject brazier)
+        {
+            return save.room == 7 && !Dying && !practicing &&
+                brazier != null && brazier.kind == "brazier" &&
+                Has("warm_" + brazier.id) &&
+                PhysicalRefugeReach(new Point(brazier.x,brazier.y),3.5f);
+        }
+
+        public bool LitBrazierRefuge
+        {
+            get
+            {
+                if(save.room!=7 || Map.objects==null)return false;
+                foreach(WorldObject brazier in Map.objects)
+                    if(BrazierWarmsHero(brazier))return true;
+                return false;
+            }
+        }
+
         private bool NearKind(string kind, float range)
         {
             // This predicate drives real civic recovery, climate shelter and
@@ -1489,11 +1511,23 @@ namespace Starfall
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !NearKind("shade", 3) &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
                 !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
-            bool warm = FrostSignalRefuge;
-            if (save.room == 7) foreach (WorldObject o in Map.objects) if (o.kind == "brazier" && Has("warm_" + o.id) && (new Point(o.x, o.y) - Position).Length < 3.5f) warm = true;
+            bool brazierWarmth=LitBrazierRefuge;
+            bool warm = FrostSignalRefuge || brazierWarmth;
             if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
                 !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+            // Two timber now turn an existing lit brazier into a genuine
+            // alpine rally point. Warmth remains useful under attack, but
+            // modest HP and energy recovery require a safe break in combat.
+            // Unlike a global perk, both rewards obey the same physical
+            // reach and cannot leak through a sealed pass or across regions.
+            if (brazierWarmth && SafeTravel && !racing)
+            {
+                if (save.health > 0 && save.health < save.maxHealth)
+                    save.health = Math.Min(save.maxHealth,
+                        save.health + dt * .9f);
+                save.energy = Math.Min(100f, save.energy + dt * 3.8f);
+            }
             // The first genuine heat/cold danger crossing needs an
             // actionable readable warning, not just a shrinking HP bar.
             // Hysteresis avoids flooding toast/UI every frame near 85/90;
@@ -2086,7 +2120,7 @@ namespace Starfall
                 int id = int.Parse(kind.Substring(4)); save.bells[id] = (save.bells[id] + 1) % 4; CheckBells(); revision++;
                 Notify("钟 " + (id + 1) + "：第 " + (save.bells[id] + 1) + " 音", "Chime " + (id + 1) + ": tone " + (save.bells[id] + 1)); return true;
             }
-            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。站在附近能迅速消除寒意。" : "木材两份能点燃火盆。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Stand near it to warm up." : "Two timber light the brazier. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
+            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。在无遮蔽的暖圈内可以驱寒；脱离战斗后还会缓慢恢复生命和耐力。隔着石墙无法取暖或休整。" : "木材两份能点燃火盆，形成可接近的暖圈。脱离战斗后还可缓慢疗伤回气。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Its unobstructed warmth drives out cold; outside combat it slowly restores health and energy. Stone walls block the refuge." : "Two timber light a brazier and create a physical warm refuge. Rest outside combat to recover health and energy. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
             if (kind == "keeper") { KeeperConversation(o); return true; }
             if (kind == "campfire")
             {
