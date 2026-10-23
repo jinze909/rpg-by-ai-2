@@ -2368,6 +2368,7 @@ namespace Starfall
             if (action == "abyssTestimonyTrack") { TrackAbyssTestimonyFromGate(); return true; }
             if (action == "abyssTestimonyFollow") { TrackAbyssTestimonyFromRecord(); return true; }
             if (action == "abyssTestimonyList") { OpenAbyssTestimonyRouteList(); return true; }
+            if (action == "abyssTestimonyGateMenu") { ReturnFromAbyssTestimonyGateMenu(); return true; }
             if (action.StartsWith("abyssTestimonyTo:"))
             { ChooseAbyssTestimonyRoute(action.Substring("abyssTestimonyTo:".Length)); return true; }
             if (action == "abyssTestimonyUntrack") { StopAbyssTestimonyTrackingAtGate(); return true; }
@@ -2726,6 +2727,9 @@ namespace Starfall
                         "Track testimony " + AbyssTestimonyProgress + "/5 · " +
                         nextTestimony.en, "abyssTestimonyTrack"));
             }
+            if (AbyssAvailableTestimonyRoutes > 1)
+                choices.Add(C("规划证词路线 · 自选地点",
+                    "Plan testimony route · choose destination", "abyssTestimonyList"));
             if (AbyssCircuitRouteSafe() && NearLiveAbyssGate())
                 choices.Add(C("重访支洞信标 A/B/C", "Revisit side relays A/B/C", "abyssCircuitRoutes"));
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));

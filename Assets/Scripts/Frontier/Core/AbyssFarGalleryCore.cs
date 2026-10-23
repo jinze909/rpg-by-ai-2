@@ -592,6 +592,23 @@ namespace Starfall
                 HasPhysicalInteractionReach(source) &&
                 AbyssTestimonyRecordState(source) == 2;
         }
+        private bool CanChooseAbyssTestimonyRouteSource()
+        {
+            // The terminal may plan a survey only on a cleared floor.
+            // Field records may plan it after actual physical collection.
+            // Both menu layers inherit the real original source object.
+            WorldObject source = pendingDialogueSource;
+            return CanChooseAbyssTestimonyFromRecord() ||
+                (source != null && InAbyss && !Dying && !practicing &&
+                 source.kind == "abyssGate" && CanBankFloor() &&
+                 Array.IndexOf(Map.objects, source) >= 0 &&
+                 HasPhysicalInteractionReach(source));
+        }
+        private bool IsTestimonyGateMenuSource
+        {
+            get { return pendingDialogueSource != null &&
+                pendingDialogueSource.kind == "abyssGate"; }
+        }
         private int AbyssAvailableTestimonyRoutes
         {
             get
@@ -606,19 +623,23 @@ namespace Starfall
         }
         private void OpenAbyssTestimonyRouteList()
         {
-            if (!CanChooseAbyssTestimonyFromRecord())
+            if (!CanChooseAbyssTestimonyRouteSource())
             {
-                Notify("回到已收录的证词石板旁，再选择路线。",
-                    "Return to a recovered field tablet before choosing a route.");
+                Notify("请靠近安全的东门或已收录的证词石板，再选择路线。",
+                    "Return to a safe root gate or recovered tablet to plan a route.");
                 return;
             }
+            bool fromGate = IsTestimonyGateMenuSource;
             var choices = new List<Choice>();
             foreach (WorldObject site in Map.objects)
                 if (AbyssTestimonyRecordState(site) == 1 &&
                     CanNavigateToAbyssTestimony(site))
                     choices.Add(C("前往 " + site.name,
                         "Follow " + site.en, "abyssTestimonyTo:" + site.id));
-            choices.Add(C("继续当前调查", "Leave routes unchanged", "close"));
+            choices.Add(fromGate ?
+                C("返回东门结算菜单", "Back to root-gate banking",
+                    "abyssTestimonyGateMenu") :
+                C("继续当前调查", "Leave routes unchanged", "close"));
             Dialog("巡路证词 · 路线选择", "Warden testimony · route selector",
                 "从已经连通的现场道路中选择下一处未归档证词。路线只改变指引，不会自动结算战利品。",
                 "Select a reachable, unfiled field record. This changes navigation only; banking remains manual.",
@@ -626,10 +647,10 @@ namespace Starfall
         }
         private void ChooseAbyssTestimonyRoute(string targetId)
         {
-            if (!CanChooseAbyssTestimonyFromRecord())
+            if (!CanChooseAbyssTestimonyRouteSource())
             {
-                Notify("必须靠近原来的石板，路线选择才会生效。",
-                    "Return to the original tablet to confirm this route.");
+                Notify("必须靠近原来的东门或石板，路线选择才会生效。",
+                    "Return to the original gate or tablet to confirm this route.");
                 return;
             }
             WorldObject destination = Array.Find(Map.objects,
@@ -642,6 +663,17 @@ namespace Starfall
                 return;
             }
             ActivateAbyssTestimonyGuidance(destination);
+        }
+        private void ReturnFromAbyssTestimonyGateMenu()
+        {
+            if (!CanChooseAbyssTestimonyRouteSource() ||
+                !IsTestimonyGateMenuSource)
+            {
+                Notify("请站在安全的东门旁重新打开结算菜单。",
+                    "Return to the safe east gate to reopen banking.");
+                return;
+            }
+            AbyssGateConversation();
         }
         private void ClearAbyssTestimonyGuidance()
         {

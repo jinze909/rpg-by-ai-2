@@ -1304,6 +1304,56 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssGatePlansSpecificPhysicalSurveyAndReturnsToSettlement(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            var cache=Array.Find(g.Map.objects,o=>o.kind=="abyssFarCache");
+            Check(gate!=null&&cache!=null,"A real exit and deep cache are present");
+            g.save.x=gate.x;g.save.y=gate.y;
+            int coins=g.save.coins,shards=g.save.shards;
+            int runCoins=g.save.runCoins,runShards=g.save.runShards;
+            g.Talk(gate);
+            int list=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList");
+            Check(list>=0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssBank",
+                "Original cleared gate advertises explicit destination planning before final banking");
+            g.Choose(list);
+            int far=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyTo:"+cache.id);
+            Check(far>=0 &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssTestimonyGateMenu",
+                "Nested physically sourced terminal lists the real deep cache and offers a return to banking");
+            g.Choose(far);
+            Check(System.Object.ReferenceEquals(g.AbyssTestimonyGuidedSite,cache) &&
+                (g.NavigationTarget().Value-new Point(cache.x,cache.y)).Length<.001f &&
+                g.save.coins==coins && g.save.shards==shards &&
+                g.save.runCoins==runCoins && g.save.runShards==runShards,
+                "Player's own target is guided without transport, settlement or bonus loot");
+            g.Talk(gate);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList"));
+            int back=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyGateMenu");
+            g.save.x=5;g.save.y=14;g.Choose(back);
+            Check(g.mode=="world" && g.save.room==8,
+                "Old nested dialogue cannot reopen gate banking remotely");
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyList"));
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssTestimonyGateMenu"));
+            Check(g.mode=="dialog" &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssBank",
+                "Legitimate terminal back action reopens the live banking choices");
+            g.Choose(g.conversation.choices.Length-1);
+            Check(g.save.room==0 && !g.InAbyss,
+                "Explicit final transaction still returns to town normally");
+        }
+
         public static void AbyssRecoveredFieldRecordCanStopActiveRouteWithoutBanking(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
@@ -1650,7 +1700,7 @@ namespace Starfall.Tests
                 "Deep follow retargets without teleport or permanent reward manipulation");
         }
 
-        public static void AbyssSixChoiceGateKeepsBankAndCircuitTransfersAfterSurvey(Campaign data)
+        public static void AbyssSevenChoiceGateKeepsBankAndCircuitTransfersAfterSurvey(Campaign data)
         {
             var g=Unlocked(data);g.StartAbyss(0);
             g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
@@ -1661,19 +1711,20 @@ namespace Starfall.Tests
             var gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
             var relay=Array.Find(g.Map.objects,o=>o.kind=="abyssCircuit1");
             g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
-            Check(g.conversation.choices.Length==6 &&
+            Check(g.conversation.choices.Length==7 &&
                 g.conversation.choices[3].action=="abyssTestimonyTrack" &&
-                g.conversation.choices[4].action=="abyssCircuitRoutes" &&
-                g.conversation.choices[5].action=="abyssBank",
-                "Real cleared-floor dialog exposes six distinct safe actions: blessings, testimony, routes and bank");
+                g.conversation.choices[4].action=="abyssTestimonyList" &&
+                g.conversation.choices[5].action=="abyssCircuitRoutes" &&
+                g.conversation.choices[6].action=="abyssBank",
+                "Real cleared-floor dialog exposes seven distinct safe actions: boons, automatic tracking, chosen destination, circuit and bank");
             g.Choose(3);
             Check(g.AbyssTestimonyGuidedSite!=null && g.save.shards==shards,
                 "Choice four deliberately starts fieldwork without settlement");
             g.Talk(gate);
-            g.Choose(4);
+            g.Choose(5);
             Check(g.mode=="dialog" &&
                 g.conversation.choices[1].action=="abyssCircuitTo1",
-                "Six-choice gate still opens the original physical circuit network");
+                "Seven-choice gate still opens the original physical circuit network");
             g.Choose(1);
             Check(Math.Abs(g.save.x-relay.x)<.01f &&
                 Math.Abs(g.save.y-relay.y)<.01f &&
