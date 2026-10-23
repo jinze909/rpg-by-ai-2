@@ -69,6 +69,67 @@ namespace Starfall.Tests
             return false;
         }
 
+        public static void ClearedRegionalAltarsFileRealReportsWithoutBorrowingNpcFaces(Campaign data)
+        {
+            for(int room=5;room<=7;room++)
+            {
+                var g=Fresh(data);
+                g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("intro");
+                g.save.flags.Add("exp_intro");
+                g.Enter(room);
+                g.enemies.Clear();
+                g.save.flags.Add("gate_"+room);
+                g.save.flags.Add("boss_"+room);
+                if(room==6)g.save.flags.Add("mirrors_lit");
+                WorldObject altar=Object(g,"expAltar");
+                g.save.x=altar.x;g.save.y=altar.y;
+                Check(g.CanStand(g.Position)&&g.GateOpen,
+                    "The actual regional altar is reachable after the guardian falls");
+                int coins=g.save.coins;
+                g.Talk(altar);
+                string relay=room==5?"report_mira":room==6?"report_ivo":"report_sen";
+                Check(g.conversation!=null&&g.conversation.speaker==altar.name&&
+                    StoryChoicePresent(g,relay),
+                    "The local altar presents an authored field report choice");
+                g.Choose(StoryChoiceIndex(g,relay));
+                Check(g.conversation!=null&&g.conversation.speaker==altar.name&&
+                    g.conversationSource==altar,
+                    "Transmitting the report remains anchored to the real altar, never opens distant companion dialogue");
+                string filing=room==5?"harbor_report":room==6?"desert1":"mountain2";
+                int first=StoryChoiceIndex(g,filing);
+                Check(first>=0,"Actual first-time choice remains present at the altar");
+                // Leaving the relay disables its stale button and cannot
+                // award a remote report or a fake NPC dialogue.
+                g.save.x=altar.x-4;g.save.y=altar.y;
+                g.Choose(first);
+                Check(!g.Has(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report")&&g.save.coins==coins,
+                    "Stale altar report cannot pay from another position");
+                g.save.x=altar.x;g.save.y=altar.y;
+                g.Talk(altar);
+                g.Choose(StoryChoiceIndex(g,relay));
+                g.Choose(StoryChoiceIndex(g,filing));
+                string flag=room==5?"harbor_report":room==6?"desert_report":"mountain_report";
+                Check(g.Has(flag)&&g.Has("companion_"+(room-5))&&
+                    g.save.coins>coins,
+                    "Genuine on-site relay completes original regional story and rewards exactly once");
+                if(room==6)Check(g.save.desertChoice==1,
+                    "Actual oasis-versus-lights decision survives remote civic filing");
+                if(room==7)Check(g.save.mountainChoice==2,
+                    "Public mountain testimony still selects original memorial outcome");
+                int paid=g.save.coins;
+                g.Talk(altar);
+                Check(!StoryChoicePresent(g,relay)&&g.save.coins==paid,
+                    "After filing, the altar cannot generate a second companion reward");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.Has(flag)&&
+                    restored.Has("companion_"+(room-5)),
+                    "Existing v2 save schema retains all three genuine regional report outcomes");
+            }
+        }
+
         public static void AbyssOptionalInteractionsRequirePhysicalReach(Campaign data)
         {
             var g = new GameCore(data);

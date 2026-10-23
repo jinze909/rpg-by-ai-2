@@ -2315,6 +2315,9 @@ namespace Starfall
         }
         private void ExpansionAltar(WorldObject o)
         {
+            // A direct Talk call must meet the same real-world reach rule as E.
+            // An altar must never impersonate a companion from across a room.
+            if (!EnsurePhysicalInteractionReach(o)) return;
             if (GateOpen && GateBarrierActive) { Notify("道路正在打开，等屏障消散后再进入祭坛。", "The road is opening; wait for the barrier to dissolve before entering the altar."); return; }
             if (!GateOpen) { Notify(ExpansionGateHint(false), ExpansionGateHint(true)); return; }
             if (Has("boss_" + save.room))
@@ -2331,9 +2334,9 @@ namespace Starfall
                 else
                 {
                     Dialog(o.name, o.en,
-                        "异常能源已经平静。保留这里的记录，去找当地的同伴提交调查。",
-                        "The unstable energy settles. Bring its record to your local companion.",
-                        C("去提交调查", "File the regional report",
+                        "守护者已倒下，现场记录完好。可以直接通过祭坛的传讯装置登记这份证据，也可以亲自回到当地同伴身边，听他或她讲述后续故事。传讯不会把远处的人变成在场的 NPC。",
+                        "The guardian is defeated and the field evidence is intact. File it here using the altar's message relay, or visit your local companion in person to hear their story. The relay does not make a distant NPC physically present.",
+                        C("通过祭坛传讯登记证据", "File evidence via altar relay",
                             save.room == 5 ? "report_mira" :
                             save.room == 6 ? "report_ivo" : "report_sen"),
                         C("继续探索", "Keep exploring", "close"));
@@ -2396,37 +2399,47 @@ namespace Starfall
             }
             if (action.StartsWith("report_"))
             {
-                string kind = action == "report_mira" ? "captain" :
-                    action == "report_ivo" ? "tinker" : "keeper";
-                string allowedPrefix = action == "report_mira" ? "harbor_report" :
-                    action == "report_ivo" ? "desert" : "mountain";
-                foreach (WorldObject o in Map.objects)
+                // The altar offers an actual field-to-town report relay.
+                // Previously this silently called Talk on a distant NPC,
+                // replacing the original speaker with Mira/Ivo/Sen and
+                // opening the wrong portrait and a borrowed dialogue.
+                int expectedRoom=action=="report_mira"?5:
+                    action=="report_ivo"?6:action=="report_sen"?7:-1;
+                WorldObject altar=pendingDialogueSource;
+                bool valid=expectedRoom==save.room &&
+                    altar!=null && altar.kind=="expAltar" &&
+                    SourceBelongsToActiveMap(altar) &&
+                    HasPhysicalInteractionReach(altar) &&
+                    GateOpen && !GateBarrierActive &&
+                    Has("boss_"+save.room) &&
+                    !Has(expectedRoom==5?"harbor_report":
+                         expectedRoom==6?"desert_report":"mountain_report");
+                if(!valid)
                 {
-                    if (o.kind != kind) continue;
-                    Talk(o);
-                    if (mode == "dialog" && conversation != null &&
-                        conversationSource == o)
-                    {
-                        // The altar's report option is an intentional shortcut.
-                        // Do not expose unrelated companion actions remotely.
-                        List<Choice> choices = new List<Choice>();
-                        bool foundReport = false;
-                        foreach (Choice choice in conversation.choices)
-                        {
-                            if (choice.action == "close" ||
-                                choice.action.StartsWith(allowedPrefix))
-                            {
-                                choices.Add(choice);
-                                if (choice.action.StartsWith(allowedPrefix))
-                                    foundReport = true;
-                            }
-                        }
-                        conversation.choices = choices.ToArray();
-                        if (foundReport && !conversationSourceWasReachable)
-                            authorizedRemoteDialogueActionPrefix = allowedPrefix;
-                    }
-                    break;
+                    Notify("请到已净化的地区祭坛现场登记，或亲自与当地同伴交谈。",
+                        "File at the cleared local altar or speak to your companion in person.");
+                    return true;
                 }
+                if(expectedRoom==5)
+                    Dialog(altar.name,altar.en,
+                        "灯塔已记录米拉带回的水位原稿。把失联者的名字和潮汐数据一并传给城镇档案站；确认登记后，米拉会加入调查，港口的记录也不会被重复提交。",
+                        "The lighthouse relay preserves Mira's original tide ledger and the missing travelers' names. Filing sends this evidence to the civic archive and recruits Mira without pretending she stands at the lighthouse.",
+                        C("确认提交港口证词", "File Mistport testimony", "harbor_report"),
+                        C("先保留现场原稿", "Keep the original for now", "close"));
+                else if(expectedRoom==6)
+                    Dialog(altar.name,altar.en,
+                        "蓄光机已停止执行旧命令。请选择这份调度原稿的正式分配方向；伊沃会收到你的决定并加入调查。这个决定影响声望，但不会删除原有机器与其他地区任务。",
+                        "The reservoir has stopped following its old order. Choose where its restored supply should go. Ivo receives the recorded decision and joins the investigation. Neither outcome deletes the other regions.",
+                        C("优先供给绿洲 · 山野声望", "Prioritize oasis water · Assembly", "desert1"),
+                        C("优先供给灯网 · 守灯声望", "Prioritize navigation lights · Lamplighters", "desert2"),
+                        C("稍后再定", "Decide later", "close"));
+                else
+                    Dialog(altar.name,altar.en,
+                        "霜钟山门保存了当年撤离事故的原稿。你可以封存原稿推动内部纠正，也可以公开失踪者的名字，让未来的撤离者得到纪念和警示。森会收到登记并加入调查。",
+                        "The Frostchime pass preserves the evacuation record. Keep the original for formal reform or publish the missing people's names as a public memorial. Sen receives your filed decision and joins the investigation.",
+                        C("保存原稿 · 推动纠正", "Preserve testimony · reform", "mountain1"),
+                        C("公开名字 · 设立纪念", "Publish the names · memorial", "mountain2"),
+                        C("稍后再定", "Decide later", "close"));
                 return true;
             }
             if (action == "expboss")
