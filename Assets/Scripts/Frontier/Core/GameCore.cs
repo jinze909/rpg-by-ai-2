@@ -44,6 +44,11 @@ namespace Starfall
         // which the player originally opened it. The same world coordinates
         // in a later region or a replaced/deleted NPC are not authorization.
         private int conversationSourceRoom = -1;
+        // If the NPC was a member of the current map on opening, deleting or
+        // replacing that exact object invalidates all of its old buttons.
+        // Transient runtime-authored actors that are not map members retain
+        // the ordinary physical reach/room protections.
+        private bool conversationSourceWasMapObject;
         // Choices opened from a reachable world object must be revalidated when
         // submitted; leaving its reach cannot turn an old modal into remote action.
         private bool conversationSourceWasReachable;
@@ -54,7 +59,15 @@ namespace Starfall
         // through that dispatch, and only attach it if no new source was chosen.
         private WorldObject pendingDialogueSource;
         private int pendingDialogueSourceRoom = -1;
+        private bool pendingDialogueSourceWasMapObject;
         private bool pendingDialogueSourceWasReachable;
+        private bool SourceBelongsToActiveMap(WorldObject source)
+        {
+            if (source == null || Map.objects == null) return false;
+            foreach (WorldObject entry in Map.objects)
+                if (System.Object.ReferenceEquals(entry, source)) return true;
+            return false;
+        }
         private Point dashDirection;
         private int enemyId;
 
@@ -186,6 +199,7 @@ namespace Starfall
             invulnerable = 1; conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
             conversationSourceRoom = pendingDialogueSourceRoom = -1;
+            conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
             authorizedRemoteDialogueActionPrefix = null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
@@ -221,10 +235,13 @@ namespace Starfall
                 pendingDialogueSourceRoom == save.room &&
                 IsObjectPresent(pendingDialogueSource) &&
                 !IsObjectFromAnotherMap(pendingDialogueSource) &&
+                (!pendingDialogueSourceWasMapObject ||
+                 SourceBelongsToActiveMap(pendingDialogueSource)) &&
                 HasPhysicalInteractionReach(pendingDialogueSource))
             {
                 conversationSource = pendingDialogueSource;
                 conversationSourceRoom = pendingDialogueSourceRoom;
+                conversationSourceWasMapObject = pendingDialogueSourceWasMapObject;
                 conversationSourceWasReachable = true;
             }
             conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog";
@@ -234,6 +251,7 @@ namespace Starfall
             conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
             conversationSourceRoom = -1;
+            conversationSourceWasMapObject = false;
             authorizedRemoteDialogueActionPrefix = null; mode = "world";
         }
         public bool Blocked(float x, float y)
@@ -2197,6 +2215,7 @@ namespace Starfall
             Conversation previousConversation = conversation;
             conversationSource = o;
             conversationSourceRoom = save.room;
+            conversationSourceWasMapObject = SourceBelongsToActiveMap(o);
             conversationSourceWasReachable = HasPhysicalInteractionReach(o);
             try
             {
@@ -2216,6 +2235,7 @@ namespace Starfall
                 {
                     conversationSource = null;
                     conversationSourceRoom = -1;
+                    conversationSourceWasMapObject = false;
                     conversationSourceWasReachable = false;
                 }
             }
@@ -2226,6 +2246,7 @@ namespace Starfall
             conversation = null;
             conversationSource = null;
             conversationSourceRoom = -1;
+            conversationSourceWasMapObject = false;
             conversationSourceWasReachable = false;
             mode = "map";
         }
@@ -2609,7 +2630,9 @@ namespace Starfall
             bool sourceStillPresent = conversationSource == null ||
                 (conversationSourceRoom == save.room &&
                  IsObjectPresent(conversationSource) &&
-                 !IsObjectFromAnotherMap(conversationSource));
+                 !IsObjectFromAnotherMap(conversationSource) &&
+                 (!conversationSourceWasMapObject ||
+                  SourceBelongsToActiveMap(conversationSource)));
             bool sourceReachableNow = sourceStillPresent &&
                 conversationSource != null &&
                 HasPhysicalInteractionReach(conversationSource);
@@ -2631,16 +2654,19 @@ namespace Starfall
             }
             WorldObject selectedSource = conversationSource;
             int selectedSourceRoom = conversationSourceRoom;
+            bool selectedSourceWasMapObject = conversationSourceWasMapObject;
             bool selectedSourceWasReachable = conversationSourceWasReachable;
             Close();
             pendingDialogueSource = selectedSource;
             pendingDialogueSourceRoom = selectedSourceRoom;
+            pendingDialogueSourceWasMapObject = selectedSourceWasMapObject;
             pendingDialogueSourceWasReachable = selectedSourceWasReachable;
             try { ChooseCore(action); }
             finally
             {
                 pendingDialogueSource = null;
                 pendingDialogueSourceRoom = -1;
+                pendingDialogueSourceWasMapObject = false;
                 pendingDialogueSourceWasReachable = false;
             }
         }
