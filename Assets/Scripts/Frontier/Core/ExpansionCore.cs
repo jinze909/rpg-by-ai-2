@@ -2029,6 +2029,8 @@ namespace Starfall
             }
             if (kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
             { TalkAbyssFarGallery(o); return true; }
+            if (kind == "abyssRootwell")
+            { TalkAbyssRootwell(o); return true; }
             if (kind == "abyssCache" || kind == "abyssSurvey")
             { TalkAbyssAnnex(o); return true; }
             if (kind == "abyssEntry")
@@ -2296,6 +2298,8 @@ namespace Starfall
             if (action.StartsWith("join")) { SelectCompanion(int.Parse(action.Substring(4))); return true; }
             if (action.StartsWith("covenant")) { ResolveCouncil(int.Parse(action.Substring(8))); return true; }
             if (action == "council_epilogue") { CouncilEpilogue(); return true; }
+            if (action == "abyssRootwellHeal") { UseAbyssRootwell(true); return true; }
+            if (action == "abyssRootwellEnergy") { UseAbyssRootwell(false); return true; }
             if (action.StartsWith("abyssStart")) { StartAbyss(int.Parse(action.Substring(10))); return true; }
             if (action == "abyssLeave") { EndAbyss(false); Enter(0); return true; }
             if (action.StartsWith("boon")) { TakeBoon(int.Parse(action.Substring(4))); return true; }
@@ -2475,7 +2479,8 @@ namespace Starfall
                     new WorldObject { id = "abyssSideCache", kind = "abyssCache", name = "深层遗落物资", en = "Forgotten Deep Supplies", x = 47.5f, y = 28.5f },
                     new WorldObject { id = "abyssFarSurvey", kind = "abyssFarSurvey", name = "地脉下层残碑", en = "Deep Root Testimony", x = 20.5f, y = 39.5f },
                     new WorldObject { id = "abyssFarCache", kind = "abyssFarCache", name = "洞底失落补给", en = "Lower Gallery Supplies", x = 60.5f, y = 39.5f },
-                    new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f } },
+                    new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f },
+                    new WorldObject { id = "abyssRootwell", kind = "abyssRootwell", name = "地脉复苏泉", en = "Rootwell Refuge", x = 59.5f, y = 22.5f } },
                 decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
                     new Decoration { kind = "crystal", x = 40, y = 9 },
                     new Decoration { kind = "ruin", x = 48, y = 15 },

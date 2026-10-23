@@ -3,6 +3,89 @@ namespace Starfall
 {
     public sealed partial class GameCore
     {
+        // One retreat per floor: trade UNBANKED loot for survival rather
+        // than receiving free heals or spending permanently banked shards.
+        private string AbyssRootwellFlag
+        {
+            get { return "abyss_annex_rootwell_" + save.abyssFloor; }
+        }
+
+        private WorldObject AbyssRootwell()
+        {
+            if (!InAbyss || Map.objects == null) return null;
+            return Array.Find(Map.objects, o => o.kind == "abyssRootwell");
+        }
+
+        private void TalkAbyssRootwell(WorldObject o)
+        {
+            if (!InAbyss || Dying || practicing || !EnsurePhysicalInteractionReach(o)) return;
+            if (Has(AbyssRootwellFlag))
+            {
+                Dialog(o.name, o.en,
+                    "复苏泉已将这一层的光流交给你。再次使用必须进入下一层。",
+                    "The rootwell has shared this floor's light. Descend to find another charge.",
+                    C("继续前进", "Keep exploring", "close"));
+                return;
+            }
+            if (!SafeTravel)
+            {
+                Notify("附近仍有战斗或落印威胁，无法安全接触复苏泉。",
+                    "Nearby combat or a live rift warning makes the rootwell unsafe.");
+                return;
+            }
+            Dialog(o.name, o.en,
+                "旧巡路人将地脉改成公共避难泉。这里的能量并非免费：你可以拿尚未结算的碎片交换疗伤，或者恢复施法与闪避的耐力。每层只能选择一次。\\n\\n本层待结算碎片：" +
+                    save.runShards + "。永久存入背包的碎片不会被扣除。",
+                "Old roadwardens turned this starroot into a public refuge. Spend UNBANKED shards to heal or replenish energy. Choose once per floor; permanent banked shards are never spent.\\n\\nUnbanked shards: " +
+                    save.runShards + ".",
+                C("疗伤 · 碎片2 · 回复40%最大生命",
+                    "Mend wounds · 2 shards · heal 40% max HP", "abyssRootwellHeal"),
+                C("回气 · 碎片1 · 回复55耐力",
+                    "Recover energy · 1 shard · +55 energy", "abyssRootwellEnergy"),
+                C("暂时不用", "Not yet", "close"));
+        }
+
+        private void UseAbyssRootwell(bool heal)
+        {
+            if (!InAbyss || Dying || practicing || Has(AbyssRootwellFlag)) return;
+            WorldObject rootwell = AbyssRootwell();
+            // Re-check the LIVE source after the modal choice. A stale or
+            // fabricated remote choice must never consume resources.
+            if (rootwell == null || !EnsurePhysicalInteractionReach(rootwell)) return;
+            if (!SafeTravel)
+            {
+                Notify("敌人或落印尚未平息，无法安全完成地脉交换。",
+                    "Clear nearby threats before exchanging shards at the rootwell.");
+                return;
+            }
+            int cost = heal ? 2 : 1;
+            if (save.runShards < cost)
+            {
+                Notify("本层待结算碎片不足。探索支洞或击败敌人后再来。",
+                    "Not enough unbanked shards. Explore the galleries or defeat enemies.");
+                return;
+            }
+            if (heal ? save.health >= save.maxHealth : save.energy >= 100)
+            {
+                Notify(heal ? "生命已满，无需消耗碎片。" : "耐力已满，无需消耗碎片。",
+                    heal ? "Already at full health; no shards spent." :
+                        "Already at full energy; no shards spent.");
+                return;
+            }
+            save.runShards -= cost;
+            if (heal)
+                save.health = Math.Min(save.maxHealth, save.health + save.maxHealth * .4f);
+            else
+                save.energy = Math.Min(100, save.energy + 55);
+            Flag(AbyssRootwellFlag);
+            revision++;
+            sound = "reward";
+            Notify(heal ? "复苏泉缝合了创口。本层已无法再次取用。" :
+                    "星根回流补足了耐力。本层已无法再次取用。",
+                heal ? "The rootwell mends your wounds. This floor's charge is spent." :
+                    "Starroot restores your energy. This floor's charge is spent.");
+        }
+
         // Extra seeded galleries are optional. All loot is pending until the
         // original root gate banks the floor; exiting or dying loses it.
         private void TalkAbyssFarGallery(WorldObject o)

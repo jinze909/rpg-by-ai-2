@@ -775,6 +775,92 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssRootwellTradesPendingLootForSurvival(Campaign data)
+        {
+            var g = Unlocked(data);
+            g.StartAbyss(1);
+            WorldObject well = Array.Find(g.Map.objects, o => o.kind == "abyssRootwell");
+            Check(well != null && g.CanStand(new Point(well.x, well.y)),
+                "The optional rootwell is a real standable object in the Abyss");
+            var reachable = Reachable(g);
+            int width = g.Map.rows[0].Length;
+            Check(reachable.Contains((int)well.y * width + (int)well.x),
+                "The new rootwell is walkably connected to the original entrance");
+
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            g.save.health = 20; g.save.energy = 25;
+            g.save.runShards = 3; g.save.shards = 40;
+            int coins = g.save.coins, revision = g.revision;
+            float health = g.save.health;
+            g.Talk(well);
+            Check(g.mode == "world" && g.toast.Contains("走近") &&
+                g.save.runShards == 3 && g.save.health == health,
+                "Remote interaction cannot open a rootwell restoration menu");
+
+            g.save.x = well.x; g.save.y = well.y;
+            g.Talk(well);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 3,
+                "The rootwell offers two distinct survival trades or decline");
+            g.save.x = 5; g.save.y = 14;
+            g.Choose(0);
+            Check(g.save.runShards == 3 && g.save.health == health &&
+                g.mode == "world",
+                "A stale restoration choice cannot spend shards after walking away");
+
+            g.save.x = well.x; g.save.y = well.y;
+            g.Talk(well); g.Choose(0);
+            Check(g.Has("abyss_annex_rootwell_1") &&
+                g.save.runShards == 1 && g.save.shards == 40 &&
+                g.save.coins == coins &&
+                Math.Abs(g.save.health - Math.Min(g.save.maxHealth,
+                    health + .4f * g.save.maxHealth)) < .001f &&
+                g.save.energy == 25 && g.revision > revision,
+                "Health recovery trades exactly two pending shards for 40% max HP");
+            g.Talk(well);
+            Check(g.mode == "dialog" && g.conversation.choices.Length == 1,
+                "An exhausted font cannot be purchased again on the same floor");
+            g.Close();
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.Has("abyss_annex_rootwell_1") &&
+                restored.save.runShards == 1 &&
+                Math.Abs(restored.save.health - g.save.health) < .001f,
+                "SaveData v2 restores spent charge and precisely bankable rewards");
+
+            var energy = Unlocked(data); energy.StartAbyss(0);
+            var energyWell = Array.Find(energy.Map.objects, o => o.kind == "abyssRootwell");
+            energy.enemies.Clear(); energy.hazards.Clear(); energy.projectiles.Clear();
+            energy.save.x = energyWell.x; energy.save.y = energyWell.y;
+            energy.save.runShards = 1; energy.save.shards = 19;
+            energy.save.energy = 15; energy.save.health = 38;
+            energy.Talk(energyWell); energy.Choose(1);
+            Check(energy.save.energy == 70 && energy.save.health == 38 &&
+                energy.save.runShards == 0 && energy.save.shards == 19 &&
+                energy.Has("abyss_annex_rootwell_1"),
+                "Energy recovery trades one pending shard for 55 energy");
+
+            var empty = Unlocked(data); empty.StartAbyss(2);
+            var emptyWell = Array.Find(empty.Map.objects, o => o.kind == "abyssRootwell");
+            empty.enemies.Clear(); empty.hazards.Clear(); empty.projectiles.Clear();
+            empty.save.x = emptyWell.x; empty.save.y = emptyWell.y;
+            empty.save.runShards = 0; empty.save.shards = 200;
+            empty.save.health = 12;
+            empty.Talk(emptyWell); empty.Choose(0);
+            Check(empty.save.health == 12 && empty.save.shards == 200 &&
+                empty.save.runShards == 0 && !empty.Has("abyss_annex_rootwell_1"),
+                "Permanent shards cannot bypass the unbanked loot cost");
+            empty.save.runShards = 2; empty.save.health = empty.save.maxHealth;
+            empty.Talk(emptyWell); empty.Choose(0);
+            Check(empty.save.runShards == 2 && !empty.Has("abyss_annex_rootwell_1"),
+                "Full health cannot consume shards or the floor's only charge");
+            empty.save.health = 20;
+            empty.enemies.Add(new Enemy(902, 0, emptyWell.x + 1, emptyWell.y, 35));
+            empty.Talk(emptyWell);
+            Check(empty.mode == "world" && empty.save.runShards == 2 &&
+                !empty.Has("abyss_annex_rootwell_1"),
+                "Live nearby combat forbids using the rootwell as an instant heal");
+        }
+
         public static void AbyssHonorsProtectedMissionTravelLocks(Campaign data)
         {
             var locked = Unlocked(data);

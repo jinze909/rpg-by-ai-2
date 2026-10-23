@@ -1276,6 +1276,19 @@ namespace Starfall
                     decoded ? mint : gold, TextAnchor.MiddleCenter);
                 return true;
             }
+            if (kind == "abyssRootwell")
+            {
+                bool depleted = Game.Has("abyss_annex_rootwell_" + Game.save.abyssFloor);
+                Color light = depleted ? muted : mint;
+                PropImage("root", 0, p.x - 32, p.y - 66, 64, 75,
+                    depleted ? muted : Color.white);
+                Ring(new Point(o.x, o.y), depleted ? .45f : .8f, light, 20);
+                Text(p.x - 59, p.y - 93, 118, 22,
+                    depleted ? Game.L("本层已使用", "CHARGE SPENT") :
+                    Game.L("复苏泉 · E", "ROOTWELL · E"),
+                    11, light, TextAnchor.MiddleCenter);
+                return true;
+            }
             if (kind == "expAltar" || kind == "receiver" || kind == "sluice" || kind == "abyssGate" || kind == "abyssEntry" || kind == "abyssExit")
             {
                 bool active = kind == "expAltar" ? Game.GateOpen : kind == "receiver" ? Game.Has("mirrors_lit") : kind == "abyssEntry" ? Game.CanEnter(8) : true;
