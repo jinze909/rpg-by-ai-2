@@ -3349,6 +3349,47 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LiveOasisShadeRestIsPhysicalAndSafe(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        WorldObject canopy=Array.Find(g.Map.objects,o=>o.kind=="shade");
+        Check(canopy!=null,"Production Glass Desert contains a real oasis shelter");
+        g.save.x=canopy.x;g.save.y=canopy.y;
+        g.save.totalTime=36f;g.save.heat=90f;g.save.health=50f;g.save.energy=20f;
+        g.Talk(canopy);
+        Check(g.mode=="dialog"&&g.conversation.choices.Length>=2&&
+            g.conversation.choices[0].action=="shadeRest:"+canopy.id,
+            "Existing oasis now offers a real clickable shade respite");
+        g.Choose(0);
+        Check(g.mode=="world"&&Math.Abs(g.save.totalTime-48f)<.001f&&
+            Math.Abs(g.save.heat-42f)<.001f&&
+            Math.Abs(g.save.health-64f)<.001f&&
+            Math.Abs(g.save.energy-44f)<.001f,
+            "Unobstructed safe shade advances real world time and grants capped partial recovery");
+
+        float recoveredAt=g.save.totalTime;
+        g.Talk(canopy);g.save.x=canopy.x+10;g.save.y=canopy.y;
+        g.Choose(0);
+        Check(g.save.totalTime==recoveredAt&&
+            g.save.health==64f&&g.save.energy==44f,
+            "Leaving an open shade conversation cannot remotely heal or skip time");
+
+        g.save.x=canopy.x;g.save.y=canopy.y;
+        g.enemies.Add(new Enemy(1191,0,canopy.x+1,canopy.y,90));
+        g.Talk(canopy);g.Choose(0);
+        Check(g.save.totalTime==recoveredAt&&g.save.health==64f,
+            "Enemy ambush prevents shade rest even beneath the canopy");
+        g.enemies.Clear();
+        g.racing=true;g.Talk(canopy);g.Choose(0);
+        Check(g.save.totalTime==recoveredAt&&g.save.health==64f,
+            "Timed skiff race forbids skipping its contest clock at shade");
+        g.racing=false;
+        Console.WriteLine("PASS Physical oasis resting: real timed recovery, closed range, combat and mission isolation");
+    }
+
     private static void CriticalDesertHeatGuidesActualReachableShade(FrontierRuntime app)
     {
         Prepare(app);
@@ -4041,7 +4082,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

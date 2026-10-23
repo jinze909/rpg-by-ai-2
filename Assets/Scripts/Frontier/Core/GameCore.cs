@@ -2560,6 +2560,7 @@ namespace Starfall
                 action.StartsWith("desert") || action.StartsWith("mountain") ||
                 action.StartsWith("report_") || action == "expboss" ||
                 action.StartsWith("warm:") || action.StartsWith("brazierRest:") ||
+                action.StartsWith("shadeRest:") ||
                 action == "tea" ||
                 action == "drinktea" || action == "fieldrest" || action == "race" ||
                 action.StartsWith("personal") || action.StartsWith("gift") ||

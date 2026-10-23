@@ -2137,7 +2137,15 @@ namespace Starfall
             }
             if (kind == "receiver") { Dialog(o.name, o.en, "让北侧入射光依次连接三面镜子，再送进东侧蓄光池。镜子每按一次 E 顺时针转向。\n\n伊沃写着：第一镜向东，第二镜向南，第三镜向东。真正难的，是决定光要送给谁。", "Route the northern beam through all three mirrors into the eastern reservoir. E rotates a mirror clockwise.\n\nIvo's note: east, south, east. The harder question is who receives the light.", C("继续调试", "Keep adjusting", "close")); return true; }
             if (kind == "tinker") { TinkerConversation(o); return true; }
-            if (kind == "shade") { Notify("绿洲树荫能迅速降温。凉茶可抗暑与抗寒。", "Oasis shade cools you quickly. Tea protects against heat and cold."); return true; }
+            if (kind == "shade")
+            {
+                Dialog(o.name, o.en,
+                    "绿洲树荫与遮阳棚能迅速降温。安全时可靠着现有遮阴点短暂休息12秒，恢复部分生命和耐力；战斗、任务期间不可跳过时间。石墙另一侧的遮阴不生效。",
+                    "Oasis trees and canopies cool you quickly. At an accessible shade, rest for 12 seconds to recover some health and energy. Combat and active missions block resting; rock walls block cooling.",
+                    C("在树荫下休整12秒","Rest in shade · 12s","shadeRest:"+o.id),
+                    C("继续赶路","Keep moving","close"));
+                return true;
+            }
             if (kind == "skiff") { Dialog(o.name, o.en, "沿金色标记依次经过五个风旗，30 秒内返回终点。沙舟竞速时移动和耐力回复更快，热度不再增加。16 秒内完成可获得风行徽章，第一次完成有额外碎片。", "Follow five golden wind flags within 30 seconds. Racing boosts speed and energy recovery, and prevents heat gain. Finish under 16 seconds for a wind badge; the first finish grants extra shards.", C("出发！", "Launch!", "race"), C("先看看路线", "Study the route", "close")); return true; }
             if (kind.StartsWith("bell"))
             {
@@ -2391,6 +2399,38 @@ namespace Starfall
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true)); save.health = save.maxHealth; save.energy = 100; revision++; return true;
             }
             if (action.StartsWith("warm:")) { string id = action.Substring(5); if (save.room == 7 && !Has("warm_" + id) && Spend(2, 0, 0, 0, 0)) Flag("warm_" + id); return true; }
+            if (action.StartsWith("shadeRest:"))
+            {
+                string id=action.Substring("shadeRest:".Length);
+                WorldObject source=pendingDialogueSource;
+                // Only the same actual, still-present canopy can complete
+                // its dialog action. A distant/stale/interposed conversation
+                // is NOT an oasis teleport or a time-skip exploit.
+                bool canRest=save.room==6 && source!=null &&
+                    source.kind=="shade" && source.id==id &&
+                    HasPhysicalInteractionReach(source) && ShadeCoolsHero(source);
+                if(!canRest)
+                {
+                    Notify("请先靠近能够遮阴的树荫或棚屋，不可隔墙休整。",
+                        "Reach the actual unobstructed shade before resting.");
+                    return true;
+                }
+                if(Dying || practicing || FieldWorkPreventsRest || !SafeTravel)
+                {
+                    Notify("战斗或现场任务仍在进行，暂时不能在绿洲休整。",
+                        "Finish live combat and fieldwork before using the oasis.");
+                    return true;
+                }
+                ResolveRestTimeSkip(12f);
+                save.heat=Math.Max(0f,save.heat-48f);
+                save.health=Math.Min(save.maxHealth,save.health+14f);
+                save.energy=Math.Min(100f,save.energy+24f);
+                effects.Add(new Effect("heal",Position,.7f));
+                sound="reward";revision++;
+                Notify("绿洲短休：气温下降，部分生命与耐力已恢复。",
+                    "Oasis respite: heat reduced; some health and energy restored.");
+                return true;
+            }
             if (action.StartsWith("brazierRest:"))
             {
                 string id=action.Substring("brazierRest:".Length);
