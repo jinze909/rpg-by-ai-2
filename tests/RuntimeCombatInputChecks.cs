@@ -5422,6 +5422,10 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         var game = app.Game;
+        // Other UI suites toggle localization and accessibility. This test
+        // must use its own known layout, not inherit a previous case's save.
+        game.save.english = false;
+        game.save.largeText = false;
         int coins = game.save.coins;
         int flags = game.save.flags.Count;
         game.mode = "dialog";
