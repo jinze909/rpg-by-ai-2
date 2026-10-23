@@ -2174,6 +2174,53 @@ namespace Starfall
             }
             return nearest;
         }
+
+        // Escort safety takes precedence over the ordinary return marker
+        // only when the ACTUAL civilian is badly exposed and enough of the
+        // timed journey remains to reach existing physical cover. This
+        // reuses the live minimap/compass pathfinder; it does not teleport
+        // the survivor or mutate the player's tracked journal quest.
+        private Point? CriticalEscortShelterTarget()
+        {
+            if(!ReliefEscortActive || reliefMissionRoom!=save.room ||
+                reliefFollowerSafety>35f || reliefMissionTime<=22f ||
+                reliefFollowerWaiting || ReliefEscortGap>6.5f ||
+                reliefClimateKitTime>0 || ReliefEscortSheltered ||
+                Map.objects==null)return null;
+            int region=save.room;
+            Point? best=null;int bestWalk=int.MaxValue;
+            foreach(WorldObject refuge in Map.objects)
+            {
+                if(refuge==null)continue;
+                bool activeStation=refuge.kind=="fieldstation"+region &&
+                    Has("fieldstation_"+region) &&
+                    Has("farshore_relief_"+region);
+                bool natural=(region==6&&refuge.kind=="shade") ||
+                    (region==7&&refuge.kind=="brazier"&&
+                        Has("warm_"+refuge.id));
+                if(!activeStation&&!natural)continue;
+                Point site=new Point(refuge.x,refuge.y);
+                bool near=HasPhysicalInteractionReach(site);
+                List<Point> route=NavigationPath(site);
+                if(!near)
+                {
+                    if(route.Count==0)continue;
+                    Point end=route[route.Count-1];
+                    float d=(site-end).Length;
+                    Point contact=d>.55f?
+                        site-(site-end).Normalized*.55f:end;
+                    if(d>=1.75f||!ClearAttackPath(end,contact))
+                        continue;
+                }
+                int steps=near?0:route.Count;
+                // A huge optional detour can consume the remaining rescue
+                // clock; the mandatory return station remains the fallback.
+                if(steps>20 || steps>=bestWalk)continue;
+                bestWalk=steps;best=site;
+            }
+            return best;
+        }
+
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
@@ -2198,7 +2245,8 @@ namespace Starfall
             // ambush, actual waiting resident or return station without
             // rewriting the saved quest selection.
             if(reliefMissionRoom!=0 && reliefMissionRoom==save.room)
-                return GetQuest("relief_rescue").target;
+                return CriticalEscortShelterTarget() ??
+                    GetQuest("relief_rescue").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return AbyssCircuitGuideTarget() ??
                 AbyssTestimonyGuideTarget() ??

@@ -3354,6 +3354,88 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void LowSafetyEscortUsesReachableShelterBeforeReturn(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.mode="world";g.save.room=6;
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;
+        string[] oldRows=map.rows;WorldObject[] oldObjects=map.objects;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-3;y<=by+3;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+17;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            var natural=new WorldObject{id="escort_safe_oasis",kind="shade",
+                x=bx+5.5f,y=by+.5f,name="Open shade",en="Open shade"};
+            var returnStation=new WorldObject{id="escort_return_6",
+                kind="fieldstation6",x=bx+14.5f,y=by+.5f,
+                name="Return",en="Return"};
+            map.objects=new[]{returnStation,natural};
+            g.save.flags.Add("fieldstation_6");
+            g.save.flags.Add("farshore_relief_6");
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=65;g.reliefFollowerSafety=28f;
+            g.reliefFollowerWaiting=false;g.reliefClimateKitTime=0;
+            g.save.x=bx+.5f;g.save.y=by+.5f;
+            g.reliefFollowerPosition=g.Position;
+            g.save.trackedQuest="main";
+            Point? target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-
+                new Point(natural.x,natural.y)).Length<.001f,
+                "Critical civilian safety makes the live world compass detour to nearby real shade");
+            var route=g.NavigationPath(target.Value);
+            Check(route.Count>0 &&
+                (route[route.Count-1]-target.Value).Length<1.75f,
+                "Survival detour has an actual playable navigation path");
+
+            // One sealed shade cannot steal the arrow from the reachable
+            // rescue station even if much closer by Euclidean distance.
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx+4;x<=bx+6;x++)
+                    if(x==bx+4||x==bx+6||y==by-1||y==by+1)
+                        line[x]='#';
+                rows[y]=new string(line);
+            }
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-
+                new Point(returnStation.x,returnStation.y)).Length<.001f,
+                "Blocking physical access to shade leaves a reachable repaired return station");
+            g.reliefMissionTime=18f;
+            target=g.NavigationTarget();
+            Check(target.HasValue&&(target.Value-
+                new Point(returnStation.x,returnStation.y)).Length<.001f,
+                "With fewer than 22 seconds left, do not demand an optional shelter detour");
+            g.reliefMissionTime=65;g.reliefFollowerSafety=50;
+            target=g.NavigationTarget();
+            Check((target.Value-
+                new Point(returnStation.x,returnStation.y)).Length<.001f,
+                "Once safety recovers above danger threshold, finish actual rescue route");
+            g.reliefFollowerSafety=28;g.reliefFollowerWaiting=true;
+            Check((g.NavigationTarget().Value-
+                g.reliefFollowerPosition).Length<.001f,
+                "Waiting survivor takes priority over every optional shelter");
+            g.reliefFollowerWaiting=false;g.save.trackedQuest="main";
+            Check(g.save.trackedQuest=="main",
+                "Emergency detours never rewrite the pinned journal quest");
+            Console.WriteLine("PASS Critical civilian safety uses real cover route and retains timed rescue and quest priorities");
+        }
+        finally
+        {
+            map.rows=oldRows;map.objects=oldObjects;map.decor=oldDecor;
+        }
+    }
+
     private static void TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt(FrontierRuntime app)
     {
         Prepare(app);
@@ -4423,7 +4505,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
