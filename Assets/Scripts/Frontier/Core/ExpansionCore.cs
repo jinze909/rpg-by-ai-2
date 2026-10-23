@@ -232,6 +232,7 @@ namespace Starfall
             abyssCircuitGuideBranch = -1;
             abyssCircuitGuideFloor = -1;
             abyssCircuitGuideMap = null;
+            abyssCircuitPuzzleGuideActive = false;
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
             ClearCompanionHold();

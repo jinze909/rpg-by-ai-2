@@ -334,6 +334,25 @@ namespace Starfall
         // Waypoint intent belongs to this visit, not to the saved campaign.
         private int abyssCircuitGuideBranch = -1, abyssCircuitGuideFloor = -1;
         private MapData abyssCircuitGuideMap;
+        // Speaking to an unfinished relay opts in to puzzle guidance;
+        // existing persisted step flags also resume mid-circuit on reload.
+        private bool abyssCircuitPuzzleGuideActive;
+        public int AbyssCircuitGuidedNextRelay
+        {
+            get { return AbyssCircuitPuzzleTarget().HasValue ?
+                AbyssCircuitNextNode : -1; }
+        }
+        private Point? AbyssCircuitPuzzleTarget()
+        {
+            if (!InAbyss || AbyssCircuitComplete ||
+                (!abyssCircuitPuzzleGuideActive && AbyssCircuitProgress == 0) ||
+                Map.objects == null) return null;
+            int next = AbyssCircuitNextNode;
+            if (next < 0 || next > 2) return null;
+            WorldObject relay = Array.Find(Map.objects,
+                o => o.kind == "abyssCircuit" + next);
+            return relay == null ? (Point?)null : new Point(relay.x, relay.y);
+        }
         private WorldObject[] AbyssCircuitRelays()
         {
             var relays = new WorldObject[3];
@@ -562,6 +581,10 @@ namespace Starfall
                     relayChoices.ToArray());
                 return;
             }
+            // The first real attempt claims guidance, even on a mistake.
+            // Re-evaluate each step from authoritative existing floor flags,
+            // not a locally cached or persisted target coordinate.
+            abyssCircuitPuzzleGuideActive = true;
             int progress = AbyssCircuitProgress;
             int expected = AbyssCircuitTarget(progress);
             if (AbyssCircuitVisited(node))

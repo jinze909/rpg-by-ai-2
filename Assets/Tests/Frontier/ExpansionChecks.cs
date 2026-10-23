@@ -1640,6 +1640,64 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void StarrootPuzzleWaypointsTrackRealRelaysAcrossMistakesAndReloads(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear(); g.hazards.Clear(); g.projectiles.Clear();
+            Point east = new Point(31, 14);
+            Check((g.NavigationTarget().Value - east).Length < .001f &&
+                g.AbyssCircuitGuidedNextRelay == -1,
+                "Untouched optional circuit preserves the original east-gate guide");
+
+            var relays = new WorldObject[3];
+            for (int i = 0; i < 3; i++)
+                relays[i] = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssCircuit" + i);
+            Check(Array.TrueForAll(relays, o => o != null),
+                "The puzzle uses the three actually placed game-world relays");
+            int first = g.AbyssCircuitNextNode;
+            int mistake = (first + 1) % 3;
+            g.save.x = relays[mistake].x; g.save.y = relays[mistake].y;
+            int startingEnergy = g.save.energy;
+            g.Talk(relays[mistake]);
+            Check(g.AbyssCircuitProgress == 0 &&
+                g.AbyssCircuitGuidedNextRelay == first &&
+                (g.NavigationTarget().Value -
+                    new Point(relays[first].x, relays[first].y)).Length < .001f &&
+                g.save.energy == Math.Max(0, startingEnergy - 12),
+                "Wrong first relay charges the original energy penalty and guides the correct restart");
+
+            g.save.x = relays[first].x; g.save.y = relays[first].y;
+            g.Talk(relays[first]);
+            int second = g.AbyssCircuitNextNode;
+            Check(g.AbyssCircuitProgress == 1 &&
+                second != first && g.AbyssCircuitGuidedNextRelay == second &&
+                (g.NavigationTarget().Value -
+                    new Point(relays[second].x, relays[second].y)).Length < .001f,
+                "First correct physical interaction guides the next actual relay");
+
+            g.PrepareSave();
+            var restored = new GameCore(data, CloneSave(g.save));
+            Check(restored.InAbyss && restored.AbyssCircuitProgress == 1 &&
+                restored.AbyssCircuitGuidedNextRelay == second &&
+                (restored.NavigationTarget().Value -
+                    new Point(relays[second].x, relays[second].y)).Length < .001f,
+                "Old SaveData v2 step flags resume the puzzle guide without a new field");
+
+            for (int progress = 1; progress < 3; progress++)
+            {
+                int target = g.AbyssCircuitNextNode;
+                g.save.x = relays[target].x; g.save.y = relays[target].y;
+                g.Talk(relays[target]);
+            }
+            Check(g.AbyssCircuitComplete &&
+                g.AbyssCircuitGuidedNextRelay == -1 &&
+                (g.NavigationTarget().Value - east).Length < .001f &&
+                g.save.runShards >= 4,
+                "Real three-step completion returns to the gate and awards only its existing unbanked loot");
+        }
+
         public static void StarrootSelectedRouteGuidesRealUnvisitedSites(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);
