@@ -511,10 +511,17 @@ namespace Starfall
                 Ring(cart,.55f,color,25);
                 Bar(screen.x-27,screen.y+11,54,
                     Game.MineConvoyIntegrity/80f,color,6);
+                // Stage four is an actual delivered cart awaiting the
+                // player's physical registration, not a running escort.
+                // The timer deliberately stops at the depot: never show
+                // a misleading failure countdown above safely arrived NPCs.
                 Text(screen.x-79,screen.y-94,158,20,
-                    Game.L("矿车护送 ","CART ESCORT ")+
-                    Game.MineConvoyTime.ToString("0")+"s · "+
-                    Game.MineConvoyStage+"/4",12,gold,TextAnchor.MiddleCenter);
+                    Game.MineConvoyStage==4?
+                        Game.L("矿车到站 · 请登记","CART ARRIVED · REGISTER"):
+                        Game.L("矿车护送 ","CART ESCORT ")+
+                            Game.MineConvoyTime.ToString("0")+"s · "+
+                            Game.MineConvoyStage+"/4",
+                    12,gold,TextAnchor.MiddleCenter);
             }
             if(Game.BlackoutActive && Game.BlackoutFollowing!=0)
             {

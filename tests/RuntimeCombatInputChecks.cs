@@ -3445,6 +3445,11 @@ public static class RuntimeCombatInputChecks
         Check(g.MineConvoyStage==4&&g.MineConvoyTime>0&&
             g.MineConvoyIntegrity==66f&&!g.MineConvoyComplete,
             "Workers remain safe after the journey deadline, with no automatic reward");
+        Set(app,"camera",g.MineCartPosition);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("CART ARRIVED")) &&
+            !GUI.commands.Exists(s=>s.Contains("CART ESCORT")),
+            "Actual world cart overlay shows secure arrival rather than an expiring stage-four clock");
         QuestGuide handoff=g.GetQuest("mine_convoy");
         Check(handoff.steps.Count>=4&&handoff.steps[2].done&&
             !handoff.steps[3].done &&
