@@ -1689,6 +1689,7 @@ namespace Starfall.Tests
                         "An active 90-second survey blocks camp rest instead of pausing its deadline");
                     g.Close();
                     g.save.projects[1] = oldWaystation;
+                    g.save.x = post.x; g.save.y = post.y;
                 }
                 Action(g, post.kind, "fieldstation_to_" + otherRegion);
                 Check(g.save.room == region && g.fieldSurveyRoom == region &&
