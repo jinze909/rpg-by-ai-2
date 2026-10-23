@@ -847,11 +847,21 @@ namespace Starfall
                         !ClearAttackPath(start,desired))continue;
                     Point candidate=SweepActor(start,direction*1.1f);
                     if((candidate-start).Length<.7f)continue;
+                    // Rank the WORST live threat, not the first legal
+                    // adjacent tile. A step toward a charging raider is a
+                    // poor escape even when each destination is equally
+                    // distant from the already committed attack marker.
+                    // Target miss distance matters most; attacker distance
+                    // breaks ties without treating this as invulnerability.
                     float score=float.MaxValue;
                     foreach(Enemy e in enemies)
                         if(e.hp>0 && e.state==1 &&
                             e.targetingReliefCivilian)
-                            score=Math.Min(score,(candidate-e.target).Length);
+                        {
+                            float dodge=(candidate-e.target).Length;
+                            float spacing=(candidate-e.Position).Length;
+                            score=Math.Min(score,dodge*1.5f+spacing*.5f);
+                        }
                     if(score>bestScore)
                     {best=candidate;bestScore=score;}
                 }
