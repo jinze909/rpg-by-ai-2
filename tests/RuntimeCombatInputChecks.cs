@@ -3365,6 +3365,58 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void MineConvoySafeArrivalHoldsUntilPhysicalHandoff(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=3;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        WorldObject shelter=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.kind=="mineconvoy"&&o.id=="mineconvoy_3")
+                shelter=o;
+        Check(shelter!=null,
+            "The playable Ironreach scene contains its authored physical depot");
+        Point safe=new Point(shelter.x,shelter.y);
+        Check(g.CanStand(safe),"The delivered cart rests on actual solid route ground");
+        g.save.flags.Remove("mineconvoy_complete");
+        g.save.flags.Remove("mineconvoy_braced");
+        g.save.x=58.5f;g.save.y=35.5f;
+        typeof(GameCore).GetField("<MineConvoyStage>k__BackingField",Private)
+            .SetValue(g,3);
+        typeof(GameCore).GetField("<MineCartPosition>k__BackingField",Private)
+            .SetValue(g,safe);
+        typeof(GameCore).GetField("<MineConvoyTime>k__BackingField",Private)
+            .SetValue(g,.6f);
+        typeof(GameCore).GetField("<MineConvoyIntegrity>k__BackingField",Private)
+            .SetValue(g,66f);
+        typeof(GameCore).GetField("mineConvoySteam",Private).SetValue(g,10f);
+        // This is the actual time-step transition, not a forged stage-4
+        // reward. The cart was driven to the authored depot before this tick.
+        CallCore(g,"TickMineConvoy",.05f);
+        Check(g.MineConvoyStage==4&&g.MineConvoyTime>0,
+            "Genuine safe arrival transitions into an awaiting-handoff stage");
+        for(int t=0;t<160;t++)
+            CallCore(g,"TickMineConvoy",.25f);
+        Check(g.MineConvoyStage==4&&g.MineConvoyTime>0&&
+            g.MineConvoyIntegrity==66f&&!g.MineConvoyComplete,
+            "Workers remain safe after the journey deadline, with no automatic reward");
+        CallCore(g,"ChooseMineConvoy","mineconvoy_finish");
+        Check(g.MineConvoyStage==4&&!g.MineConvoyComplete,
+            "Remote handoff never completes or grants the protected rescue");
+        g.save.x=safe.x;g.save.y=safe.y;
+        float before=g.save.coins;
+        CallCore(g,"ChooseMineConvoy","mineconvoy_finish");
+        Check(g.MineConvoyComplete&&g.MineConvoyStage==0&&
+            g.save.coins>=before+60,
+            "A physical depot interaction finally registers earned worker safety");
+        float paid=g.save.coins;
+        CallCore(g,"ChooseMineConvoy","mineconvoy_finish");
+        Check(g.save.coins==paid,
+            "Previously registered rescue cannot pay its reward again");
+        Console.WriteLine("PASS Physical minecart arrival preserves earned safe handoff without remote or repeat reward");
+    }
+
     private static void LiveCourierAmbushNeverSpawnsOnCompanion(FrontierRuntime app)
     {
         Prepare(app);
@@ -5220,7 +5272,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

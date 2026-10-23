@@ -114,6 +114,12 @@ namespace Starfall
         {
             if(!MineConvoyActive)return;
             if(save.room!=3||Dying||practicing){ResetMineConvoy();revision++;return;}
+            // Arrival is physically completed before the paperwork. Once
+            // the actual cart reaches the secure depot, its workers must
+            // not suddenly vanish because the hero needs a few seconds to
+            // walk to the registry. Keep the no-travel field mission active:
+            // rewards still require live interaction at the shelter desk.
+            if(MineConvoyStage==4&&MineConvoyIntegrity>0)return;
             MineConvoyTime-=dt;
             if(MineConvoyTime<=0||MineConvoyIntegrity<=0)
             {
