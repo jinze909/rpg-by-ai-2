@@ -407,17 +407,17 @@ namespace Starfall
                     "Return to the safe east gate to select testimony guidance.");
                 return;
             }
+            if (AbyssTestimonyNextSite == null)
+            {
+                Notify("本层可回收的证词已全部归档。",
+                    "No recoverable testimony remains on this floor.");
+                return;
+            }
             WorldObject next = ReachableAbyssTestimonySite();
             if (next == null)
             {
                 Notify("没有当前可到达的巡路证词；可清除阻碍后重试。",
                     "No reachable testimony right now. Clear the blockage and retry.");
-                return;
-            }
-            if (AbyssTestimonyNextSite == null)
-            {
-                Notify("本层可回收的证词已全部归档。",
-                    "No recoverable testimony remains on this floor.");
                 return;
             }
             ActivateAbyssTestimonyGuidance(next);
@@ -451,17 +451,17 @@ namespace Starfall
                     "Approach a recovered warden record to follow its trail.");
                 return;
             }
+            if (AbyssTestimonyNextSite == null)
+            {
+                Notify("本层证词已齐，请到东门手动结算。",
+                    "All accounts are filed. Bank manually at the east gate.");
+                return;
+            }
             WorldObject next = ReachableAbyssTestimonySite();
             if (next == null)
             {
                 Notify("当前没有可安全到达的下一份证词，请先检查洞穴道路。",
                     "No reachable next account; check the cavern passages.");
-                return;
-            }
-            if (AbyssTestimonyNextSite == null)
-            {
-                Notify("本层证词已齐，请到东门手动结算。",
-                    "All accounts are filed. Bank manually at the east gate.");
                 return;
             }
             ActivateAbyssTestimonyGuidance(next);
@@ -1019,7 +1019,7 @@ namespace Starfall
             var recordChoices = new List<Choice> {
                 C("收下记录", "Keep the account", "close")
             };
-            if (AbyssTestimonyNextSite != null)
+            if (ReachableAbyssTestimonySite() != null)
                 recordChoices.Add(C("继续追寻下一份证词",
                     "Follow the next warden account", "abyssTestimonyFollow"));
             Dialog(o.name,o.en,zh+(first?

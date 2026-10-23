@@ -1298,6 +1298,51 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AbyssBlockedTestimonyMenusNeverOfferDeadTracking(Campaign data)
+        {
+            var g = Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            var map=g.Map;
+            string[] original=(string[])map.rows.Clone();
+            var gate=Array.Find(map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;
+            int blocked=0;
+            foreach(WorldObject site in map.objects)
+            {
+                if(g.AbyssTestimonyRecordState(site)!=1)continue;
+                int cx=(int)Math.Floor(site.x),cy=(int)Math.Floor(site.y);
+                for(int dy=-1;dy<=1;dy++)
+                for(int dx=-1;dx<=1;dx++)
+                {
+                    if(dx==0&&dy==0)continue;
+                    int x=cx+dx,y=cy+dy;
+                    if(x<2||y<2||x>=map.rows[0].Length-2||
+                        y>=map.rows.Length-2)continue;
+                    char[] row=map.rows[y].ToCharArray();
+                    row[x]='#';map.rows[y]=new string(row);
+                }
+                blocked++;
+            }
+            Check(blocked==4 && g.AbyssTestimonyNextSite!=null,
+                "Four available testimony sites exist; the fifth echo is legitimately locked");
+            g.Talk(gate);
+            Check(g.mode=="dialog" &&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="abyssTestimonyTrack")<0 &&
+                g.conversation.text.Contains("道路被封阻") &&
+                g.conversation.choices[g.conversation.choices.Length-1].action=="abyssBank",
+                "Fully obstructed caves suppress dead guidance but retain truthful banking and explanation");
+            int shards=g.save.shards, coins=g.save.coins;
+            g.Close();map.rows=original;
+            g.Talk(gate);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="abyssTestimonyTrack")>=0 &&
+                !g.conversation.text.Contains("道路被封阻") &&
+                g.save.shards==shards && g.save.coins==coins,
+                "Clearing real terrain restores the physical menu without altering banked rewards");
+        }
+
         public static void AbyssGuidedTestimonySkipsBlockedCaveAndKeepsSaveRewards(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

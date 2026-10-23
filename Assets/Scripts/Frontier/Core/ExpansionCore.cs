@@ -2666,7 +2666,7 @@ namespace Starfall
             var recordChoices = new List<Choice> {
                 C("收进本层记录", "Keep in floor journal", "close")
             };
-            if (AbyssTestimonyNextSite != null)
+            if (ReachableAbyssTestimonySite() != null)
                 recordChoices.Add(C("追寻下一份巡路证词",
                     "Follow next warden account", "abyssTestimonyFollow"));
             Dialog(o.name, o.en,
@@ -2693,7 +2693,8 @@ namespace Starfall
             List<Choice> choices = new List<Choice>();
             if (save.abyssFloor < 6)
             { choices.Add(C("利刃祝福 · 攻击+15%并深入", "Edge boon · +15% damage and descend", "boon0")); choices.Add(C("泉涌祝福 · 耐力回复+4并深入", "Spring boon · +4 energy regen and descend", "boon1")); choices.Add(C("磐石祝福 · 伤害-12%并深入", "Stone boon · -12% damage taken and descend", "boon2")); }
-            WorldObject nextTestimony = AbyssTestimonyNextSite;
+            WorldObject nextTestimony = AbyssTestimonyGuidedSite ??
+                ReachableAbyssTestimonySite();
             if (nextTestimony != null)
             {
                 bool tracking = AbyssTestimonyGuidedSite != null;
@@ -2720,10 +2721,14 @@ namespace Starfall
             string testimonyZh = "\n\n巡路证词 " + AbyssTestimonyProgress +
                 "/5：" + (AbyssTestimonySealed ?
                     "已完成，额外奖励计入本层待结算。" :
+                    nextTestimony == null && AbyssTestimonyNextSite != null ?
+                    "部分洞穴道路被封阻；当前没有可到达的证词路线。结算仍可正常进行。" :
                     "找齐近侧调查／补给及南侧残碑／补给，最后读完回声石。");
             string testimonyEn = "\n\nWarden testimonies " + AbyssTestimonyProgress +
                 "/5: " + (AbyssTestimonySealed ?
                     "Complete; bonus included in unbanked loot." :
+                    nextTestimony == null && AbyssTestimonyNextSite != null ?
+                    "Cavern passages are blocked; no testimony route is reachable. Normal banking remains available." :
                     "Find both near-side records, both deep records and then the echo stone.");
             string archiveZh = !AbyssTestimonyLegacyComplete ?
                 "\n\n六层证词归档 " + AbyssTestimonyFloorsFiled +
