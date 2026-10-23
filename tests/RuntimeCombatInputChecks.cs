@@ -3356,6 +3356,82 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.mode="world";g.save.room=6;
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;
+        string[] originalRows=map.rows;
+        WorldObject[] originalObjects=map.objects;
+        Decoration[] originalDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])originalRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] line=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+6;x++)line[x]='.';
+                rows[y]=new string(line);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            WorldObject station=new WorldObject{id="real_return",
+                kind="fieldstation6",x=bx+2f,y=by+.5f,
+                name="Return station",en="Return station"};
+            map.objects=new[]{station};
+            g.save.flags.Add("fieldstation_6");
+            g.save.flags.Add("farshore_relief_6");
+            g.save.flags.Remove("relief_rescue_6");
+            g.save.totalTime=55;
+            g.save.teaUntil=0;
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=62f;g.reliefFollowerSafety=90f;
+            g.reliefFollowerWaiting=true;
+            // Both are within the legacy completion radius, yet a live
+            // stone tile separates the hero from the return station.
+            g.save.x=bx+.5f;g.save.y=by+.5f;
+            g.reliefFollowerPosition=new Point(bx+2.5f,by+.5f);
+            char[] rock=rows[by].ToCharArray();
+            rock[bx+1]='#';rows[by]=new string(rock);
+            int originalCoins=g.save.coins;
+            CallCore(g,"TickReliefMission",.05f);
+            Check(g.reliefMissionRoom==6&&!g.Has("relief_rescue_6")&&
+                g.save.coins==originalCoins,
+                "Hero across solid wall cannot remotely complete a real civilian handoff");
+
+            // Now the hero is on the station side but the resident remains
+            // behind the same wall: the completion must still be denied.
+            g.save.x=bx+2.5f;g.reliefFollowerPosition=new Point(bx+.5f,by+.5f);
+            CallCore(g,"TickReliefMission",.05f);
+            Check(g.reliefMissionRoom==6&&!g.Has("relief_rescue_6")&&
+                g.save.coins==originalCoins,
+                "Civilian across solid wall cannot be claimed as successfully evacuated");
+
+            // The passage is genuinely opened; the original public reward
+            // and stage completion remain fully usable without new save keys.
+            rock[bx+1]='.';rows[by]=new string(rock);
+            CallCore(g,"TickReliefMission",.05f);
+            Check(g.reliefMissionRoom==0&&g.Has("relief_rescue_6")&&
+                g.save.coins==originalCoins+45,
+                "Both civilians and hero physically reaching station preserve normal first-clear rewards");
+            int earnedCoins=g.save.coins;
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=62;g.reliefFollowerWaiting=true;
+            g.reliefFollowerSafety=90;
+            CallCore(g,"TickReliefMission",.05f);
+            Check(g.reliefMissionRoom==0&&g.save.coins==earnedCoins,
+                "Repeating an actual successful return cannot double-award rescued residents");
+            Console.WriteLine("PASS Real civilian return needs hero and resident reach, solid-wall rejection, opened passage and no repeat reward");
+        }
+        finally
+        {
+            map.rows=originalRows;map.objects=originalObjects;
+            map.decor=originalDecor;
+        }
+    }
+
     private static void NoPhantomRescueMarkersWithoutMission(FrontierRuntime app)
     {
         Prepare(app);
@@ -4618,7 +4694,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

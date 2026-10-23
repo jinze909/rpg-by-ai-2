@@ -682,8 +682,13 @@ namespace Starfall
                 return;
             }
             Point station = ObjectPoint(region, "fieldstation" + region, new Point(-100, -100));
+            // The return objective belongs to TWO real living actors.
+            // Distance alone previously allowed finishing on opposite
+            // sides of a closed wall. Require unobstructed near-side
+            // station contact from both the hero and escorted civilian.
             if ((Position - station).Length >= 1.6f ||
-                (reliefFollowerPosition - station).Length >= 2f) return;
+                !HasPhysicalInteractionReach(station) ||
+                !ReliefSurvivorCanReach(station,2f))return;
             ResetReliefMission(); revision++;
             if (Has("relief_rescue_" + region))
             {
