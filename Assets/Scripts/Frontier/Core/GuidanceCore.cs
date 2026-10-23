@@ -2192,6 +2192,10 @@ namespace Starfall
         // timed journey remains to reach existing physical cover. This
         // reuses the live minimap/compass pathfinder; it does not teleport
         // the survivor or mutate the player's tracked journal quest.
+        public Point? ReliefEscortShelterWaypoint
+        {
+            get { return CriticalEscortShelterTarget(); }
+        }
         private Point? CriticalEscortShelterTarget()
         {
             if(!ReliefEscortActive || reliefMissionRoom!=save.room ||

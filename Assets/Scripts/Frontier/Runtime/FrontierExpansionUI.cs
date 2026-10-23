@@ -538,20 +538,32 @@ namespace Starfall
                 Text(p.x - 20, p.y - 44, 40, 35, (Game.raceCheckpoint + 1).ToString(), 23, gold, TextAnchor.MiddleCenter);
                 Box(430, 112, 420, 48, panel); Text(449, 124, 382, 30, Game.L("风旗竞速 ", "WIND RACE ") + Game.raceTime.ToString("0.0") + " / 30s   ·   " + Game.raceCheckpoint + "/5", 17, gold, TextAnchor.MiddleCenter);
             }
-            if (Game.reliefMissionRoom == Game.save.room)
+            if (Game.reliefMissionRoom != 0 &&
+                Game.reliefMissionRoom == Game.save.room)
             {
                 Point rescue = Game.reliefMissionWave == 0 ?
                     Game.FieldSurveyTarget(Game.save.room) : Game.reliefFollowerPosition;
-                if (Game.reliefMissionWave == 3)
-                    foreach (WorldObject o in Game.Map.objects)
+                Point? shelter=Game.reliefMissionWave==3?
+                    Game.ReliefEscortShelterWaypoint:null;
+                if(Game.reliefMissionWave==3)
+                {
+                    if(shelter.HasValue)rescue=shelter.Value;
+                    else foreach (WorldObject o in Game.Map.objects)
                         if (o.kind == "fieldstation" + Game.save.room)
                         { rescue = new Point(o.x, o.y); break; }
-                Ring(rescue, .55f, Game.reliefMissionWave == 3 ? mint : gold, 20);
-                Point rp = ScreenPoint(rescue);
-                Text(rp.x - 56, rp.y - 65, 112, 24,
-                    Game.reliefMissionWave == 3 ? Game.L("护送返程", "ESCORT HOME") :
-                        Game.reliefMissionWave == 0 ? Game.L("寻找居民", "FIND CIVILIANS") :
-                        Game.L("守护居民", "DEFEND CIVILIANS"), 12, gold, TextAnchor.MiddleCenter);
+                }
+                // A genuinely urgent detour and its journal/compass target
+                // are now the SAME actual world waypoint. Town never shows
+                // a phantom rescue marker while no mission is active.
+                Ring(rescue,.55f,shelter.HasValue?gold:
+                    Game.reliefMissionWave==3?mint:gold,20);
+                Point rp=ScreenPoint(rescue);
+                Text(rp.x-68,rp.y-65,136,24,
+                    shelter.HasValue?Game.L("先带居民避难","ESCORT SHELTER"):
+                    Game.reliefMissionWave==3?Game.L("护送返程","ESCORT HOME"):
+                    Game.reliefMissionWave==0?Game.L("寻找居民","FIND CIVILIANS"):
+                    Game.L("守护居民","DEFEND CIVILIANS"),
+                    12,shelter.HasValue?gold:mint,TextAnchor.MiddleCenter);
                 if (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 2)
                 {
                     if ((Game.Position - rescue).Length < 1.7f &&
