@@ -53,7 +53,14 @@ namespace Starfall
                         if(!CanStand(p)||(p-Position).Length<2.2f||
                             (second&&(p-other).Length<2.6f)||
                             enemies.Exists(e=>(e.Position-p).Length<1.8f))continue;
-                        if(radius>0&&NavigationPath(p).Count==0)continue;
+                        // Even the exact authored tile (radius zero) must be
+                        // reachable by a living pursuer. Compass-style
+                        // NavigationPath may legally stop on the near side of
+                        // sealed cover; that is not a valid physical ambush.
+                        // Require a walkable same-side finish from the actual
+                        // hero location. Dynamically opened bridges and gates
+                        // are evaluated afresh on each attempt.
+                        if(NavigationPathFrom(Position,p,true).Count==0)continue;
                         chosen=p;return true;
                     }
             chosen=new Point();return false;
