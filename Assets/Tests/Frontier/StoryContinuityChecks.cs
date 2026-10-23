@@ -151,6 +151,39 @@ namespace Starfall.Tests
                 loaded.Has("civic_conduit_complete"),
                 "Restyled story conversations remain compatible with existing v2 progress");
         }
+
+        public static void ChronicleEachEarnedChapterStartsWithSimpleMeaning(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.frontierEnding=2;
+            g.save.ending=1;
+            foreach(string flag in new[]{"scout_saved","core_1","core_2","core_3",
+                "boss_1","boss_2","boss_3","boss_4","harbor_report",
+                "desert_report","mountain_report","afterlight_started",
+                "civic_conduit_started","civic_conduit_complete"})
+                g.save.flags.Add(flag);
+            WorldObject book=Object(g,"worldchronicle");
+            g.Talk(book);
+            foreach(string[] pair in new[]{
+                new[]{"story_section_campaign","story_read_forest"},
+                new[]{"story_section_farshore","story_read_harbor"},
+                new[]{"story_section_after","story_read_afterlight"},
+                new[]{"story_section_after","story_read_civicconduit"}})
+            {
+                ChooseStoryChoice(g,pair[0]);
+                ChooseStoryChoice(g,pair[1]);
+                Check(g.conversation.text.StartsWith("【一句话看懂】")&&
+                    g.conversation.textEn.StartsWith("[In plain words]")&&
+                    StoryChoicePresent(g,"story_menu") &&
+                    StoryChoicePresent(g,"story_section_"+(pair[0].Substring("story_section_".Length))),
+                    "Unlocked original chapter opens with a straightforward cause-effect summary and keeps navigation");
+                ChooseStoryChoice(g,"story_menu");
+            }
+            var locked=Fresh(data);
+            locked.Talk(Object(locked,"worldchronicle"));
+            ChooseStoryChoice(locked,"story_section_campaign");
+            Check(!StoryChoicePresent(locked,"story_read_citadel"),
+                "Plain-language chapter hints never leak locked major story events");
+        }
         public static void ChronicleMenusFollowOneCanonicalPageSequence(Campaign data)
         {
             var g = Fresh(data);

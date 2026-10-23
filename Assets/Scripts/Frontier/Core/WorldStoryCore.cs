@@ -395,6 +395,49 @@ namespace Starfall
                 en += " These milestones do not replace your chosen ending; they determine how fully it reaches daily life.";
             }
         }
+        // A plain-language bridge precedes the original detailed archive.
+        // These lines are only displayed for pages already unlocked, and do
+        // not replace authored testimony, choices or permanent outcomes.
+        private static string[] PlainStoryPoint(string page)
+        {
+            switch (page)
+            {
+                case "origin": return new[] { "星陨让旧能源系统失衡，莉雅请你先救回侦察员，查清谁在受害。", "The Starfall broke an old power network. Lyra asks you to find the scout and learn who is suffering." };
+                case "roots": return new[] { "星根把能源分给各地；从某地抽走星核，会让那里的生活受影响。", "Starroot shares power among regions. Removing a core can harm the region that relied on it." };
+                case "orders": return new[] { "旧机器只知道执行命令，却不知道原来的主人和居民早已改变。", "Old machines follow orders that no longer reflect the needs of living people." };
+                case "wardens": return new[] { "巡路队保存了给平民使用的路线和证据，不愿只为堡垒运货。", "The roadwardens preserved civilian routes and evidence instead of mapping only military cargo." };
+                case "testimonies": return new[] { "三个地区的亲历者说明，灾难不是单纯的怪物作乱，而是资源被挪走。", "Witnesses from three regions reveal a resource crisis, not merely random monster attacks." };
+                case "forest": return new[] { "森林失去本应支持树木的能源；你要找出损坏原因，并带回第一枚星核。", "Thornwood lost the energy its trees needed. Find the damage and recover the first core." };
+                case "ruins": return new[] { "河闸的旧安排让居民过不了河；恢复通路不能只考虑货物。", "Old sluice rules stranded travelers. Reopening a route means protecting people, not just freight." };
+                case "mine": return new[] { "矿场的机器只顾配额不停运转；矿工必须有权停机、活着回家。", "Mine machines kept chasing quotas. Workers need the right to stop dangerous equipment and come home." };
+                case "temper": return new[] { "热量和机器不是只能用于军工；居民也需要能安全使用的炉火。", "Heat and machinery can serve civilians, not just military production." };
+                case "triad": return new[] { "把三处星核与证词放在一起，才能证明能源流向造成了什么代价。", "Comparing three cores with their witnesses shows the human cost of the power network." };
+                case "blackout": return new[] { "屏障短暂失效时，真正要紧的是把城墙两侧的人都救出来。", "When the shield falters, protecting people on both sides matters more than defending an order." };
+                case "citadel": return new[] { "厄洛想守住堡垒，但必须面对屏障正在伤害城外居民的事实。", "Orrin wants to protect the citadel, but its shield has a real cost for everyone outside." };
+                case "harbor": return new[] { "修灯与救人都重要；有限物资应该由受影响的人一起讨论用途。", "Both navigation lights and rescues matter. The people affected deserve a say in scarce supplies." };
+                case "tidebound": return new[] { "旧货单把失联旅客当成损失数字；你要让他们重新成为有名字的人。", "A shipping ledger reduced missing travelers to losses. Their names and stories must be restored." };
+                case "desert": return new[] { "老城已空，蓄光机仍给它供水；活着的居民需要重新决定分配。", "An empty city still receives water under an ancient order. Living communities need a new allocation." };
+                case "glasswind": return new[] { "风能不该只按照旧的命令输送；安全与生活都需要电力。", "Wind power should serve present needs, not just an obsolete route or command." };
+                case "mountain": return new[] { "高原留下的名字和讯号说明，维护道路先要记得谁在使用它们。", "Highland names and signals remind us that roads exist for the people who use them." };
+                case "covenant": return new[] { "远岸各方同意共同讨论资源和责任，不再任由堡垒单方面决定。", "Farshore communities agree to share decisions and responsibilities instead of obeying one fortress." };
+                case "signal": return new[] { "恢复巡路信标，是让普通人安全回家，而不只是解锁快捷路线。", "Restoring road beacons gives ordinary travelers a safe way home." };
+                case "atlas": return new[] { "旧测绘记录能揭开被删掉的逃生道路，让后来的人少冒险。", "Old survey records reveal escape routes that official maps had ignored." };
+                case "counterpoint": return new[] { "星根需要多处共同调节；只顾一个地区会让其他地方失衡。", "Starroot needs balancing across regions. Favoring one place can harm another." };
+                case "commons": return new[] { "公共信标让居民知道能源如何输送，也让维修责任可以追查。", "A public relay shows residents where power flows and who must maintain it." };
+                case "skywatch": return new[] { "夜空观测能说明灾害何时靠近，帮助居民提前保护道路与住处。", "Skywatch observations help communities prepare roads and shelters for approaching danger." };
+                case "abyss": return new[] { "深入地脉时，要弄清危险从何而来，而不是只相信堡垒的旧结论。", "Exploring the abyss means investigating the danger instead of relying on the citadel's assumptions." };
+                case "afterlight": return new[] { "结局之后还得重建三处公共设施，并找到愿意负责维护的人。", "After the ending, three civic services still need rebuilding and local stewards." };
+                case "storm": return new[] { "第一场星雨检验了各地区的供能选择，也让公共分配必须公开。", "The first starstorm tests regional power choices and the transparency of shared supplies." };
+                case "hearing": return new[] { "公开听证让居民说出损失、提供证据，并追问谁该负责。", "A public hearing gives residents a voice, records evidence and asks who is accountable." };
+                case "roadcharter": return new[] { "地图上的道路不够；得让旅人真的能走，并说清谁负责维护。", "A map is not enough: roads must actually be safe, with named people responsible." };
+                case "supply_inquest": return new[] { "物资送到不是故事的终点；有人必须继续保障路线。", "Delivering supplies is not the end. Someone must keep the route working afterward." };
+                case "lastdirective": return new[] { "旧命令不该无限期压过活人的安全；需要公开复核与应急庇护。", "Old orders cannot outrank living people's safety forever. They need public review and emergency refuge." };
+                case "civicconduit": return new[] { "把公共电网接回实际站点，并确保居民有权使用与管理。", "Reconnect the public grid to real sites so residents can use and manage it." };
+                case "civic_aftermath": return new[] { "电网接通以后，还要复查道路、维护人员和日常运行是否可靠。", "After the grid goes live, audit the routes, maintainers and everyday reliability." };
+                case "ending": return new[] { "你的选择改变了屏障与星核的关系；真正的结局仍需居民一起实践。", "Your choice changed the shield and the cores. A lasting outcome still takes shared civic work." };
+                default: return null;
+            }
+        }
         private void WorldChroniclePage(string page)
         {
             string zh = "", en = "", headingZh = "", headingEn = "";
@@ -1068,6 +1111,12 @@ namespace Starfall
                     { zh = "杏让药物走向村庄，老潮把食物送过河，诺尔将耗能机器改造成共用水泵。星核慢慢回到居民之间，厄洛拆下第一段城墙。没有一夜解决全部问题，终于有人愿意一起承担。"; en = "An sends medicine beyond authorized roads. Old Tide ferries food. Noll rebuilds generators as public pumps. The cores return to communities and Orrin removes the first wall. Shared work, not one victory, begins the change."; }
                     break;
                 default: WorldChronicleMenu(); return;
+            }
+            string[] shortPoint=PlainStoryPoint(page);
+            if(shortPoint!=null)
+            {
+                zh="【一句话看懂】"+shortPoint[0]+"\n\n"+zh;
+                en="[In plain words] "+shortPoint[1]+"\n\n"+en;
             }
             AppendChronicleConsequences(page, ref zh, ref en);
             // Offer chapter-local navigation without jumping across locked
