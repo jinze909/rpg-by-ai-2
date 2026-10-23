@@ -3360,7 +3360,7 @@ public static class RuntimeCombatInputChecks
         try
         {
             int w=oldRows[0].Length,h=oldRows.Length;
-            Check(w>18&&h>10&&oldObjects.Any(o=>o.kind=="brazier"),
+            Check(w>18&&h>10&&Array.Exists(oldObjects,o=>o.kind=="brazier"),
                 "The shipped mountain must be large enough for a physical shelter route");
             int bx=3,by=5;
             var rows=(string[])oldRows.Clone();
