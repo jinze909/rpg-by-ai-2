@@ -815,6 +815,35 @@ namespace Starfall.Tests
                 cancelable.save.abyssFloor == 1 && cancelable.save.abyssRisk == 1 &&
                 !cancelable.racing,
                 "A skiff race remains cancelable by travel and does not block a valid Abyss expedition");
+
+            var cancelableMap = Unlocked(data);
+            cancelableMap.Enter(6);
+            cancelableMap.racing = true;
+            cancelableMap.raceTime = 12f;
+            cancelableMap.raceCheckpoint = 2;
+            int mapCoins = cancelableMap.save.coins;
+            cancelableMap.Enter(0);
+            Check(cancelableMap.save.room == 0 && !cancelableMap.racing &&
+                cancelableMap.raceTime == 0 && cancelableMap.raceCheckpoint == 0 &&
+                cancelableMap.save.coins == mapCoins,
+                "Ordinary map travel cancels an unfinished skiff race without awarding its completion reward");
+
+            var cancelableFastReturn = Unlocked(data);
+            cancelableFastReturn.Enter(6);
+            cancelableFastReturn.enemies.Clear();
+            cancelableFastReturn.projectiles.Clear();
+            cancelableFastReturn.hazards.Clear();
+            cancelableFastReturn.racing = true;
+            cancelableFastReturn.raceTime = 12f;
+            cancelableFastReturn.raceCheckpoint = 2;
+            int returnCoins = cancelableFastReturn.save.coins;
+            Check(cancelableFastReturn.SafeTravel,
+                "The fast-return fixture has no nearby enemy, hostile projectile or live hazard");
+            cancelableFastReturn.ReturnToTown();
+            Check(cancelableFastReturn.save.room == 0 && !cancelableFastReturn.racing &&
+                cancelableFastReturn.raceTime == 0 && cancelableFastReturn.raceCheckpoint == 0 &&
+                cancelableFastReturn.save.coins == returnCoins,
+                "Quick return cancels an unfinished skiff race without awarding its completion reward");
         }
 
         public static void AbyssExpeditions(Campaign data)
