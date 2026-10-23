@@ -42,8 +42,18 @@ namespace Starfall
             string en = "Lyra spreads out the map:\n\n[What went wrong] Starroot once shared water, warmth and power between regions. Seven days ago its old network failed: thorns blocked roads, rivers flooded, and machines kept working. The citadel kept drawing starcores to power its shield, protecting the city while neighboring towns suffered.";
             if (save.stage == 0)
             {
-                zh += "\n\n【你正在做什么】先到荆棘密林找到失踪侦察员，查清黑荆巨兽为何守住星根，再取回第一枚星核。";
-                en += "\n\n[Your next step] Rescue the lost scout in Thornwood. Learn why the Briar Beast guards the damaged root, then recover the first starcore.";
+                if (Has("core_1"))
+                {
+                    zh += "\n\n【已经完成】你在荆棘密林找到了第一枚星核。不要再回头找同一枚。";
+                    en += "\n\n[Completed] You recovered the first starcore from Thornwood. There is no need to retrieve it again.";
+                    zh += "\n\n【下一步】把星核交给余烬镇公会的莉雅，再听下一处地区的任务。";
+                    en += "\n\n[Next] Return the starcore to Lyra at Emberfall Guild for your next assignment.";
+                }
+                else
+                {
+                    zh += "\n\n【下一步】先到荆棘密林找到失踪侦察员，查清黑荆巨兽为何守住星根，再取回第一枚星核。";
+                    en += "\n\n[Next] Rescue the lost scout in Thornwood. Learn why the Briar Beast guards the damaged root, then recover the first starcore.";
+                }
             }
             else if (save.stage < 3)
             {
