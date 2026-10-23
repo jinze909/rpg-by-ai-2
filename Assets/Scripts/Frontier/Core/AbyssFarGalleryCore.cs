@@ -323,11 +323,24 @@ namespace Starfall
                     save.flags.Remove(AbyssCircuitStepFlag(i));
                 save.energy = Math.Max(0, save.energy - 12);
                 effects.Add(new Effect("spark", new Point(o.x, o.y), .45f));
+                // In the deep Abyss a miswired ancient relay releases a
+                // REAL delayed warning, with a full visible 1.6-second dodge
+                // window. The contact goes through TickExpansion/Hurt's
+                // terrain, difficulty, invulnerability and riposte rules.
+                // Early tutorial floors retain their original energy-only
+                // consequence; a successful relay never creates this hazard.
+                bool backlash = save.abyssFloor >= 3 &&
+                    !Has("abyss_clear_" + save.abyssFloor);
+                if (backlash)
+                    AddHazard(new Point(o.x,o.y), 1.35f, 1.6f,
+                        12 + save.abyssRisk * 3, "rift");
                 revision++;
-                Notify("接线顺序错误：回路断开，损失12耐力。重新从 " +
-                    AbyssCircuitSymbol(AbyssCircuitTarget(0)) + " 开始。",
-                    "Wrong relay order: circuit reset, -12 energy. Restart at " +
-                    AbyssCircuitSymbol(AbyssCircuitTarget(0)) + ".");
+                Notify("接线顺序错误：回路断开，损失12耐力。" +
+                    (backlash ? "地脉反冲即将爆发，快离开预警圈！" : "") +
+                    "重新从 " + AbyssCircuitSymbol(AbyssCircuitTarget(0)) + " 开始。",
+                    "Wrong order: circuit reset, -12 energy." +
+                    (backlash ? " A Rift backlash is charging—dodge the marked zone!" : "") +
+                    " Restart at " + AbyssCircuitSymbol(AbyssCircuitTarget(0)) + ".");
                 return;
             }
             Flag(AbyssCircuitStepFlag(progress));

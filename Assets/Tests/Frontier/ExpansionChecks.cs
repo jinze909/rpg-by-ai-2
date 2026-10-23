@@ -1234,6 +1234,64 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void MiswiredDeepAbyssCircuitCreatesDodgeableRealBacklash(Campaign data)
+        {
+            var deep = Unlocked(data); deep.StartAbyss(2);
+            var generator = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            deep.save.abyssFloor = 3;
+            generator.Invoke(deep,null);
+            deep.enemies.Clear(); deep.hazards.Clear();
+            int expected = deep.AbyssCircuitNextNode;
+            int wrongNode = (expected + 1) % 3;
+            WorldObject wrong = Array.Find(deep.Map.objects,
+                o => o.kind == "abyssCircuit" + wrongNode);
+            deep.save.x = wrong.x; deep.save.y = wrong.y;
+            deep.save.energy = 100;
+            deep.Talk(wrong);
+            Hazard backlash = deep.hazards.Find(h => h.kind == "rift");
+            Check(backlash != null && deep.save.energy == 88 &&
+                deep.AbyssCircuitProgress == 0 &&
+                Math.Abs(backlash.timer - 1.6f) < .001f &&
+                Math.Abs(backlash.radius - 1.35f) < .001f &&
+                Math.Abs(backlash.damage - 18f) < .001f,
+                "Incorrect deep relay uses a real 1.6s telegraphed rift and original energy reset");
+
+            deep.invulnerable = 0; deep.save.health = deep.save.maxHealth;
+            float before = deep.save.health;
+            for (int i = 0; i < 20; i++) deep.Tick(.05f,new Point());
+            Check(deep.save.health == before && deep.hazards.Contains(backlash),
+                "Early reaction frames do not hit before the real rift warning completes");
+            for (int i = 0; i < 15; i++) deep.Tick(.05f,new Point());
+            Check(deep.save.health < before && !deep.hazards.Contains(backlash),
+                "An undodged wrong-order rift delivers real HP damage and retires its warning");
+
+            var dodge = Unlocked(data); dodge.StartAbyss(0);
+            dodge.save.abyssFloor = 3; generator.Invoke(dodge,null);
+            dodge.enemies.Clear(); dodge.hazards.Clear();
+            WorldObject dnode = Array.Find(dodge.Map.objects,
+                o => o.kind == "abyssCircuit" + ((dodge.AbyssCircuitNextNode + 1) % 3));
+            dodge.save.x = dnode.x; dodge.save.y = dnode.y;
+            dodge.Talk(dnode);
+            Check(dodge.hazards.Exists(h => h.kind == "rift"),
+                "Wrong node creates the normal visible warning in a second run");
+            dodge.save.x = 5; dodge.save.y = 14;
+            dodge.save.health = dodge.save.maxHealth;
+            dodge.invulnerable = 0;
+            for (int i = 0; i < 40; i++) dodge.Tick(.05f,new Point());
+            Check(dodge.save.health == dodge.save.maxHealth,
+                "Leaving the marked circle before contact avoids ALL backlash damage");
+
+            var early = Unlocked(data); early.StartAbyss(0);
+            early.enemies.Clear();early.hazards.Clear();
+            WorldObject earlyWrong = Array.Find(early.Map.objects,
+                o => o.kind == "abyssCircuit" + ((early.AbyssCircuitNextNode + 1) % 3));
+            early.save.x = earlyWrong.x; early.save.y = earlyWrong.y;
+            early.save.energy = 100; early.Talk(earlyWrong);
+            Check(early.save.energy == 88 && early.hazards.Count == 0,
+                "Accessible floor-one puzzle retains energy-only teaching penalty");
+        }
+
         public static void LinkedAbyssRelaysShelterAgainstRealRiftContacts(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);
