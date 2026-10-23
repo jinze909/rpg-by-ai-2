@@ -282,6 +282,9 @@ namespace Starfall
             {
                 if (o.kind == "surveyDesk")
                 {
+                    // The authored chart is a physical piece of furniture,
+                    // never a globally addressable dialogue actor.
+                    if (!EnsurePhysicalInteractionReach(o)) return true;
                     int found = 0;
                     for (int i = 1; i <= 3; i++) if (Has("survey_" + i)) found++;
                     if (Has("survey_complete"))
@@ -393,9 +396,18 @@ namespace Starfall
             }
             if (action == "farshore_relief_return")
             {
-                if (save.room != 9) return true;
-                foreach (WorldObject o in Map.objects)
-                    if (o.kind == "surveyDesk") { Talk(o); break; }
+                // Continue on the EXACT source that opened this menu.
+                // Scanning the map for an arbitrary replacement desk could
+                // switch the NPC window or make a removed table clickable.
+                WorldObject original=pendingDialogueSource;
+                if(save.room==9 && original!=null &&
+                    original.kind=="surveyDesk" &&
+                    SourceBelongsToActiveMap(original) &&
+                    HasPhysicalInteractionReach(original))
+                    Talk(original);
+                else
+                    Notify("请回到原先的星图桌现场重新打开路网。",
+                        "Return to the original physical chart to open its routes.");
                 return true;
             }
             if (ChooseWorldChronicle(action)) return true;

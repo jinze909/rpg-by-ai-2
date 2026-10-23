@@ -46,6 +46,42 @@ namespace Starfall.Tests
             Check(choice >= 0, "The survivor offers the requested player command: " + action);
             g.Choose(choice);
         }
+        public static void InnReliefMenuAlwaysReturnsToTheOriginalChartActor(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.flags.Add("farshore_relief_complete");
+            g.Enter(9);
+            WorldObject desk=Object(g,"surveyDesk");
+            g.save.x=desk.x+4;g.save.y=desk.y;
+            g.Talk(desk);
+            Check(g.mode!="dialog",
+                "Remote map chart cannot impersonate a nearby talking NPC");
+            g.Close();
+            g.save.x=desk.x;g.save.y=desk.y;
+            g.Talk(desk);
+            Check(StoryChoicePresent(g,"farshore_relief_routes"),
+                "The genuine Inn chart offers its public refuge route submenu");
+            g.Choose(StoryChoiceIndex(g,"farshore_relief_routes"));
+            Check(StoryChoicePresent(g,"farshore_relief_return")&&
+                g.conversationSource==desk,
+                "Nested relief menu remembers the actual chart as its origin");
+            g.Choose(StoryChoiceIndex(g,"farshore_relief_return"));
+            Check(g.mode=="dialog"&&g.conversationSource==desk &&
+                StoryChoicePresent(g,"farshore_relief_routes") &&
+                g.conversation.speaker==desk.name,
+                "Returning from the route submenu opens the same desk, not a different actor");
+            g.Close();
+            g.Talk(desk);
+            g.Choose(StoryChoiceIndex(g,"farshore_relief_routes"));
+            g.save.x=desk.x+4;g.save.y=desk.y;
+            g.Choose(StoryChoiceIndex(g,"farshore_relief_return"));
+            Check(g.mode=="world"&&g.conversation==null,
+                "Out-of-range stale back choice cannot resurrect another dialogue");
+            g.save.x=desk.x;g.save.y=desk.y;g.Talk(desk);
+            Check(g.mode=="dialog"&&g.conversation.speaker==desk.name,
+                "The true chart dialogue still works normally after the stale click");
+        }
+
         public static void FarshoreStationChoicesRequireCurrentPhysicalReach(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=10;
