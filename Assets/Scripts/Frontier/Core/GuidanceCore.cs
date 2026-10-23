@@ -312,12 +312,20 @@ namespace Starfall
                     "Defeat switchyard raiders and release the cart"),
                     q.complete||MineConvoyStage>=3));
                 q.steps.Add(new QuestStep(L("将最后一班矿工送到南侧矿棚",
-                    "Deliver the workers at southern shelter"),q.complete));
+                    "Deliver the workers at southern shelter"),
+                    q.complete||MineConvoyStage==4));
+                // Cart arrival and official registration are deliberately
+                // different physical milestones. Old completed v2 saves
+                // show both done, while an in-progress arrival stays 3/4.
+                q.steps.Add(new QuestStep(L("在南侧矿棚登记撤离并领取奖励",
+                    "Register the evacuation at the southern depot"),q.complete));
                 int target=MineConvoyStage==2?2:MineConvoyStage>=3?3:1;
                 foreach(WorldObject post in data.maps[3].objects)
                     if(post.id=="mineconvoy_"+target)
                     {q.target=new Point(post.x,post.y);break;}
                 q.next=q.complete?L("撤离完成，南侧矿棚提供安全休息","Evacuation complete; the shelter now offers safe rest"):
+                    MineConvoyStage==4?L("矿车已安全抵达！前往南侧矿棚登记撤离，领取一次性奖励。",
+                        "Cart safely delivered! Register the evacuation in person at the southern depot."):
                     q.locked?L("先完成矿场的原始守护者战斗","Defeat Ironreach's original guardian"):
                     MineConvoyActive?L("剩余"+MineConvoyTime.ToString("0")+"秒 · 车厢"+
                         MineConvoyIntegrity.ToString("0")+"/80 · "+MineConvoyStage+"/4",

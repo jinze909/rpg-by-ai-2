@@ -3401,6 +3401,14 @@ public static class RuntimeCombatInputChecks
         Check(g.MineConvoyStage==4&&g.MineConvoyTime>0&&
             g.MineConvoyIntegrity==66f&&!g.MineConvoyComplete,
             "Workers remain safe after the journey deadline, with no automatic reward");
+        QuestGuide handoff=g.GetQuest("mine_convoy");
+        Check(handoff.steps.Count>=4&&handoff.steps[2].done&&
+            !handoff.steps[3].done &&
+            handoff.next.Contains("Cart safely delivered!")&&
+            !handoff.next.Contains("s · Hull") &&
+            g.NavigationTarget().HasValue &&
+            (g.NavigationTarget().Value-safe).Length<.001f,
+            "Production quest and active compass distinguish secure arrival from physical paperwork");
         CallCore(g,"ChooseMineConvoy","mineconvoy_finish");
         Check(g.MineConvoyStage==4&&!g.MineConvoyComplete,
             "Remote handoff never completes or grants the protected rescue");
@@ -3410,6 +3418,10 @@ public static class RuntimeCombatInputChecks
         Check(g.MineConvoyComplete&&g.MineConvoyStage==0&&
             g.save.coins>=before+60,
             "A physical depot interaction finally registers earned worker safety");
+        QuestGuide completed=g.GetQuest("mine_convoy");
+        Check(completed.complete&&completed.steps.Count>=4&&
+            completed.steps[2].done&&completed.steps[3].done,
+            "The permanent completed quest records arrival and handoff without a new save field");
         float paid=g.save.coins;
         CallCore(g,"ChooseMineConvoy","mineconvoy_finish");
         Check(g.save.coins==paid,
