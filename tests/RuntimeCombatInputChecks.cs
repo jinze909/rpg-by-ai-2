@@ -3353,6 +3353,49 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.projectiles.Clear();
+        g.save.trackedQuest="main";g.reliefMissionRoom=6;
+        g.reliefMissionWave=0;g.reliefMissionTime=100;
+        Point field=g.FieldSurveyTarget(6);
+        Check(g.NavigationTarget().HasValue&&
+            (g.NavigationTarget().Value-field).Length<.001f,
+            "Live field rescue outranks an unrelated pinned story waypoint");
+        g.reliefMissionWave=1;
+        Check((g.NavigationTarget().Value-field).Length<.001f,
+            "The first real ambush stays routed to its own survey marker");
+        g.reliefMissionWave=2;
+        Check((g.NavigationTarget().Value-field).Length<.001f,
+            "The second wave retains its real combat destination");
+        g.reliefMissionWave=3;
+        g.reliefFollowerPosition=new Point(9.5f,9.5f);
+        g.reliefFollowerWaiting=true;g.save.x=18;g.save.y=15;
+        Check((g.NavigationTarget().Value-g.reliefFollowerPosition).Length<.001f,
+            "A waiting civilian outranks the station; hero must actually return");
+        g.reliefFollowerWaiting=false;
+        Check((g.NavigationTarget().Value-g.reliefFollowerPosition).Length<.001f,
+            "Falling more than 6.5 tiles behind retains the living civilian waypoint");
+        g.save.x=g.reliefFollowerPosition.x;
+        g.save.y=g.reliefFollowerPosition.y;
+        Point station=Array.Find(g.Map.objects,o=>o.kind=="fieldstation6")!=null?
+            new Point(Array.Find(g.Map.objects,o=>o.kind=="fieldstation6").x,
+                      Array.Find(g.Map.objects,o=>o.kind=="fieldstation6").y):
+            new Point(-100,-100);
+        Check(station.x>=0&&(g.NavigationTarget().Value-station).Length<.001f,
+            "Recovered follower restores the existing real return-station objective");
+        Check(g.save.trackedQuest=="main",
+            "An emergency timed mission NEVER overwrites the player's pinned journal quest");
+        g.reliefMissionRoom=0;g.reliefMissionWave=0;
+        Check(!g.NavigationTarget().HasValue||
+            (g.NavigationTarget().Value-station).Length>.001f,
+            "After mission ends, temporary rescue waypoint releases the compass");
+        Console.WriteLine("PASS Timed rescue compass follows physical waves, waiting survivor and station without quest mutation");
+    }
+
     private static void ShelterRestCommandHealsRealEscortOnlyWhenSecure(FrontierRuntime app)
     {
         Prepare(app);
@@ -4380,7 +4423,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

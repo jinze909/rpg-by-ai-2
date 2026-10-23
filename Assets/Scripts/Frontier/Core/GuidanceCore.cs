@@ -2192,6 +2192,13 @@ namespace Starfall
             if(FarCourierActive) return GetQuest("far_couriers").target;
             if(CivicResponseActive) return GetQuest("civic_services").target;
             if(CivicConduitActive) return GetQuest("civic_conduit").target;
+            // A living, timed civilian rescue is a mandatory world objective,
+            // not the user's pinned journal quest. Reuse its AUTHORITATIVE
+            // stage-dependent waypoint so the normal compass follows the
+            // ambush, actual waiting resident or return station without
+            // rewriting the saved quest selection.
+            if(reliefMissionRoom==save.room)
+                return GetQuest("relief_rescue").target;
             if (save.showGuidance && save.room == 0 && TutorialStep >= 3 && TutorialStep <= 5 && !practicing) return new Point(11, 14);
             if (InAbyss) return AbyssCircuitGuideTarget() ??
                 AbyssTestimonyGuideTarget() ??
