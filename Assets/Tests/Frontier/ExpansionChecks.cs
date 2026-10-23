@@ -161,6 +161,30 @@ namespace Starfall.Tests
             ClearOuterPatrolLull(g);
         }
 
+        public static void LastDirectiveCannotStartDuringActiveFieldwork(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2"})
+                g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();
+            WorldObject core=Object(g,"lastdirectivecore");
+            g.save.x=core.x;g.save.y=core.y;
+            SetOuterPatrolLull(g,4);
+            Check(g.LastDirectiveReady&&g.OuterPatrolActive&&g.SafeTravel,
+                "The directive console is safe locally while another patrol still owns the fieldwork slot");
+            Action(g,core.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==0&&
+                !g.enemies.Exists(e=>e.id>=90300&&e.id<=90304),
+                "The first directive wave cannot start during an active patrol lull");
+            ClearOuterPatrolLull(g);
+            Action(g,core.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&
+                g.enemies.FindAll(e=>e.id>=90300&&e.id<=90304).Count==2,
+                "The directive's real first wave remains available once the other fieldwork ends");
+        }
+
         public static void RegionalBossesSweepAlternatingLanes(Campaign data)
         {
             var g = Unlocked(data);

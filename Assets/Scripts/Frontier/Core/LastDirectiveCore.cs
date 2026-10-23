@@ -180,7 +180,7 @@ public sealed partial class GameCore {
         }
         if(!atCore||!LastDirectiveReady||LastDirectiveChoice>0)return true;
         if(action.StartsWith("last_directive_code_")){
-            if(directivePhase!=0||!SafeTravel)return true;
+            if(directivePhase!=0||FieldWorkPreventsRest||!SafeTravel)return true;
             if(action!="last_directive_code_0"){
                 Notify("时间顺序与现场证词不符。","Sequence contradicts the original testimony.");return true;
             }
