@@ -2316,16 +2316,36 @@ namespace Starfall
         // across different actors or mutable world collisions.
         public List<Point> NavigationPathFrom(Point origin,Point target)
         {
+            // Compass/UI callers intentionally accept the closest reachable
+            // frontier even if the target is beyond a sealed wall.
+            return NavigationPathFrom(origin,target,false);
+        }
+        public List<Point> NavigationPathFrom(Point origin,Point target,bool requirePhysicalFinish)
+        {
             int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)origin.x, sy = (int)origin.y, start = sy * w + sx;
             var path = new List<Point>(); if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
             PreparePathSearch(w * h);
-            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start; float best = (origin - target).Length;
+            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start;
+            float best = requirePhysicalFinish ? float.MaxValue : (origin - target).Length;
             while (head < tail)
             {
-                int n = pathQueue[head++], x = n % w, y = n / w; float d = (new Point(x + .5f, y + .5f) - target).Length;
-                if (d < best) { best = d; end = n; } if (d <= 1.2f) { end = n; break; }
+                int n = pathQueue[head++], x = n % w, y = n / w;
+                Point foot = new Point(x + .5f, y + .5f);
+                float d = (foot - target).Length;
+                // An escort must reach the hero's PHYSICAL side of the
+                // obstacle. A nearest tile 1.7 units away across a locked
+                // wall is useful compass guidance but not a walkable escort
+                // destination. Check only candidates near the goal.
+                bool finish = !requirePhysicalFinish ||
+                    (d <= 1.8f && ClearAttackPath(foot,target));
+                if (finish)
+                {
+                    if (d < best) { best = d; end = n; }
+                    if (d <= 1.2f) { end = n; break; }
+                }
                 for (int i = 0; i < 4; i++) { int xx = x + guidanceSteps[i, 0], yy = y + guidanceSteps[i, 1]; if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue; int next = yy * w + xx; if (PathVisited(next) || !Fits(new Point(xx + .5f, yy + .5f))) continue; VisitPath(next, n); pathQueue[tail++] = next; }
             }
+            if (requirePhysicalFinish && best == float.MaxValue) return path;
             if (best > 1.8f && (new Point(end % w + .5f, end / w + .5f) - target).Length > 1.8f) return path;
             for (int n = end; n != start && n >= 0; n = parent[n]) path.Add(new Point(n % w + .5f, n / w + .5f)); path.Reverse(); return path;
         }

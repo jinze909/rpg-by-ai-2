@@ -3362,6 +3362,57 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void SealedEscortRouteRejectsFalseNearSideDestination(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] originalRows=map.rows;
+        WorldObject[] originalObjects=map.objects;
+        Decoration[] originalDecor=map.decor;
+        try
+        {
+            int bx=4,by=6,wall=bx+6;
+            string[] rows=(string[])originalRows.Clone();
+            // Seal the entire map-height divider: there is NO civilian
+            // crossing. Make nearby footing on both sides unambiguous.
+            for(int y=0;y<rows.Length;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+13;x++)
+                    if(y>=by-3&&y<=by+3&&x!=wall)row[x]='.';
+                row[wall]='#';rows[y]=new string(row);
+            }
+            map.rows=rows;map.objects=new WorldObject[0];
+            map.decor=new Decoration[0];
+            Point start=new Point(bx+2.5f,by+.5f);
+            g.save.x=wall+1.27f;g.save.y=by+.5f;
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=90;g.reliefFollowerSafety=95;
+            g.reliefFollowerWaiting=false;g.reliefFollowerPosition=start;
+            g.reliefCivilianHitTime=0;
+            Check(g.CanStand(start)&&g.CanStand(g.Position),
+                "Resident and hero each stand on legitimate but separated ground");
+            Check(g.NavigationPathFrom(start,g.Position).Count>0,
+                "Legacy compass remains permitted to show nearest reachable frontier");
+            Check(g.NavigationPathFrom(start,g.Position,true).Count==0,
+                "Physical escort refuses the fake near-side route across an unbroken wall");
+            for(int tick=0;tick<29;tick++)CallCore(g,"TickReliefMission",.05f);
+            Check((g.reliefFollowerPosition-start).Length<.001f &&
+                g.ReliefEscortRouteStalled && g.reliefMissionRoom==6 &&
+                g.reliefMissionTime<90 &&
+                (g.reliefFollowerPosition-g.Position).Length>1.3f,
+                "No phantom wall-crossing, no false reunion and no paused rescue clock");
+            Console.WriteLine("PASS Closed wall cannot masquerade as a completed civilian escort route");
+        }
+        finally
+        {
+            map.rows=originalRows;map.objects=originalObjects;
+            map.decor=originalDecor;
+        }
+    }
+
     private static void CivilianEscortNavigatesRealWallDetour(FrontierRuntime app)
     {
         Prepare(app);
@@ -5052,7 +5103,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

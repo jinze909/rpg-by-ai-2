@@ -707,7 +707,7 @@ namespace Starfall
                           !CanStand(reliefFollowerRouteWaypoint))) ||
                         (Position - reliefFollowerRouteTarget).Length > 1.4f)
                     {
-                        List<Point> route = NavigationPathFrom(reliefFollowerPosition, Position);
+                        List<Point> route = NavigationPathFrom(reliefFollowerPosition, Position, true);
                         reliefFollowerRouteFound = route.Count > 0;
                         reliefFollowerRouteWaypoint = reliefFollowerRouteFound ?
                             route[0] : reliefFollowerPosition;
