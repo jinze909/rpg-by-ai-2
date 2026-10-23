@@ -1234,6 +1234,73 @@ namespace Starfall.Tests
                 "All pending shards bank only after personally using the root gate");
         }
 
+        public static void CompletedAbyssCircuitCanGroundOnlyLocalRiftsForPendingLoot(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();
+            g.save.flags.Add("abyss_clear_1");
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.save.runShards=3;g.save.shards=19;
+            WorldObject relay = Array.Find(g.Map.objects,
+                o => o.kind == "abyssCircuit0");
+            Hazard local = new Hazard {
+                position = new Point(relay.x,relay.y),radius=1.4f,
+                timer=1.5f,damage=15,kind="rift"
+            };
+            Hazard other = new Hazard {
+                position = new Point(relay.x,relay.y),radius=1.4f,
+                timer=1.5f,damage=15,kind="bell"
+            };
+            Hazard distant = new Hazard {
+                position = new Point(5,14),radius=1.4f,
+                timer=1.5f,damage=15,kind="rift"
+            };
+            g.hazards.Add(local);g.hazards.Add(other);g.hazards.Add(distant);
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.Talk(relay);
+            Check(g.mode=="dialog"&&g.conversation.choices.Length==2,
+                "A completed relay presents a resource-funded emergency grounding during live warnings");
+            g.save.x=5;g.save.y=14;
+            g.Choose(0);
+            Check(g.save.runShards==3&&g.hazards.Count==3,
+                "Leaving relay reach voids the old menu without spending loot or erasing attacks");
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.Talk(relay);g.Choose(0);
+            Check(g.Has("abyss_annex_circuit_ground_1") &&
+                g.save.runShards==1&&g.save.shards==19&&
+                !g.hazards.Contains(local)&&g.hazards.Contains(other)&&
+                g.hazards.Contains(distant),
+                "Grounding spends exactly two unbanked shards and retires ONLY local genuine rift warnings");
+            int revision=g.revision;
+            g.Talk(relay);
+            Check(g.mode=="world"&&g.save.runShards==1&&
+                g.hazards.Contains(distant)&&g.revision==revision,
+                "An already-spent grounding charge cannot erase a second rift");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.InAbyss&&restored.Has("abyss_annex_circuit_ground_1")&&
+                restored.save.runShards==1,
+                "Spent emergency grounding persists across a standard SaveData v2 reload");
+
+            var empty=Unlocked(data);empty.StartAbyss(0);
+            empty.enemies.Clear();empty.hazards.Clear();
+            empty.save.flags.Add("abyss_clear_1");
+            empty.save.flags.Add("abyss_annex_circuit_complete_1");
+            WorldObject emptyRelay=Array.Find(empty.Map.objects,
+                o=>o.kind=="abyssCircuit0");
+            empty.save.x=emptyRelay.x;empty.save.y=emptyRelay.y;
+            empty.save.runShards=0;empty.save.shards=200;
+            empty.hazards.Add(new Hazard{
+                position=new Point(emptyRelay.x,emptyRelay.y),
+                timer=1.5f,radius=1.4f,damage=15,kind="rift"
+            });
+            empty.Talk(emptyRelay);
+            Check(empty.mode=="world"&&empty.hazards.Count==1&&
+                empty.save.shards==200&&
+                !empty.Has("abyss_annex_circuit_ground_1"),
+                "Permanent banked shards cannot finance a grounding without unbanked loot");
+        }
+
         public static void MiswiredDeepAbyssCircuitCreatesDodgeableRealBacklash(Campaign data)
         {
             var deep = Unlocked(data); deep.StartAbyss(2);

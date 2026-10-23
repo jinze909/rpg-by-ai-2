@@ -246,6 +246,53 @@ namespace Starfall
                 h.damage * .45f : h.damage;
         }
 
+        private string AbyssCircuitGroundFlag
+        {
+            get { return "abyss_annex_circuit_ground_" + save.abyssFloor; }
+        }
+        private bool GroundableAbyssRift(Hazard warning)
+        {
+            if (warning.kind != "rift" || warning.damage <= 0) return false;
+            float dx=warning.position.x-save.x, dy=warning.position.y-save.y;
+            float radius = AbyssCircuitShelterRadius + .3f;
+            return dx*dx+dy*dy <= radius*radius &&
+                ClearAttackPath(warning.position,Position);
+        }
+        private bool AbyssCircuitCanGround
+        {
+            get
+            {
+                if (!InAbyss || !AbyssCircuitComplete ||
+                    Has(AbyssCircuitGroundFlag) || save.runShards < 2 ||
+                    !NearLiveAbyssCircuit()) return false;
+                foreach (Hazard h in hazards)
+                    if (GroundableAbyssRift(h)) return true;
+                return false;
+            }
+        }
+        private void GroundAbyssCircuitRifts()
+        {
+            // Recheck at CHOICE time; walking away, spending loot or a
+            // contact expiring during the dialogue must not take payment.
+            if (Dying || practicing || !AbyssCircuitCanGround)
+            {
+                Notify("回路接地不可用：须靠近已接通信标，携带2枚待结算碎片，并有附近落印。",
+                    "Circuit grounding needs a nearby linked relay, two unbanked shards and a live local rift.");
+                return;
+            }
+            int grounded = hazards.RemoveAll(GroundableAbyssRift);
+            if (grounded <= 0) return;
+            save.runShards -= 2;
+            Flag(AbyssCircuitGroundFlag);
+            revision++;
+            sound="reward";
+            effects.Add(new Effect("spark", Position, .6f));
+            Notify("星根接地成功：清除了 " + grounded +
+                    " 道近处落印预警。本层接地能量已经耗尽。",
+                "Starroot grounded " + grounded +
+                    " nearby rift warnings. This floor's grounding charge is spent.");
+        }
+
         private bool AbyssCircuitRouteSafe()
         {
             return InAbyss && AbyssCircuitComplete && !Dying && !practicing &&
@@ -296,6 +343,15 @@ namespace Starfall
             {
                 if (!AbyssCircuitRouteSafe())
                 {
+                    if (AbyssCircuitCanGround)
+                    {
+                        Dialog(o.name, o.en,
+                            "回路已接通，但仍有落印即将爆发。你可以消耗本层待结算碎片2枚，接地并消除附近的地脉落印预警。每层只能使用一次；其他敌人和危险仍需亲自应对。",
+                            "The circuit is linked but rift warnings are still charging. Trade 2 unbanked shards to ground nearby rift telegraphs, once per floor. Enemies and other hazards remain.",
+                            C("接地 · 未结算碎片2", "Ground local rifts · 2 pending shards", "abyssCircuitGround"),
+                            C("保持回路", "Leave the circuit", "close"));
+                        return;
+                    }
                     Notify("回路已接通，但本层敌人或落印仍未平息。清除危险后，信标可送你返回东门。",
                         "Circuit complete, but hostiles or rift contacts remain. Clear this floor before traveling from a relay.");
                     return;
