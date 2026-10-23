@@ -775,6 +775,86 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssFourFloorWardCharterPaysOnlyOnLegitimateFinalBank(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            // Model a replaying adventurer: isolate the NEW charter payout
+            // from the older first-time six-floor completion award.
+            g.save.flags.Add("abyss_complete");
+            g.save.abyssFloor = 3;
+            regenerate.Invoke(g, null);
+            int beforeSkills = g.save.skillPoints, beforeShards = g.save.shards;
+            for (int floor = 3; floor <= 6; floor++)
+            {
+                Check(g.InAbyss && g.save.abyssFloor == floor,
+                    "Each charter leg begins in the actual next abyss floor");
+                var ward = Array.Find(g.Map.objects, o => o.kind == "abyssRiftWard");
+                Check(ward != null, "A current-floor pylon is available");
+                g.enemies.Clear(); g.hazards.Clear();
+                g.save.x = ward.x; g.save.y = ward.y;
+                g.save.runShards = 3;
+                g.Talk(ward); g.Choose(0);
+                Check(g.AbyssWardActive && g.AbyssWardCharterProgress == floor - 2,
+                    "A physical paid tune records one additional unique floor");
+                g.save.flags.Add("abyss_clear_" + floor);
+                if (floor < 6)
+                {
+                    g.TakeBoon(0); // The real descent commits each bank.
+                    Check(!g.Has("abyss_ward_charter_complete") &&
+                        g.save.skillPoints == beforeSkills,
+                        "Early-floor banking never grants the permanent final reward");
+                }
+                else
+                {
+                    Check(!g.Has("abyss_ward_charter_complete") &&
+                        g.save.skillPoints == beforeSkills,
+                        "Four ward activations alone cannot bypass the floor-six bank");
+                    g.save.x = 31; g.save.y = 14;
+                    WorldObject gate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+                    g.Talk(gate);
+                    Check(g.mode == "dialog" && g.conversation.choices.Length == 1,
+                        "The sixth-floor gate exposes the real final banking choice");
+                    g.Choose(0);
+                }
+            }
+            Check(g.save.room == 0 && g.Has("abyss_ward_charter_complete") &&
+                g.save.skillPoints == beforeSkills + 1 &&
+                g.save.shards == beforeShards + 8,
+                "The last-floor settlement permanently banks the one-time charter award");
+            g.StartAbyss(0);
+            Check(g.InAbyss && g.AbyssWardCharterProgress == 0 &&
+                g.Has("abyss_ward_charter_complete"),
+                "A new expedition resets temporary pylon charges but retains the permanent award");
+            g.save.abyssFloor = 6;
+            regenerate.Invoke(g, null);
+            for (int floor = 3; floor <= 6; floor++)
+                g.save.flags.Add("abyss_annex_ward_" + floor);
+            g.enemies.Clear(); g.save.flags.Add("abyss_clear_6");
+            g.save.x = 31; g.save.y = 14;
+            int awardedSkills = g.save.skillPoints, awardedShards = g.save.shards;
+            WorldObject repeatGate = Array.Find(g.Map.objects, o => o.kind == "abyssGate");
+            g.Talk(repeatGate); g.Choose(0);
+            Check(g.save.skillPoints == awardedSkills && g.save.shards == awardedShards,
+                "Replaying even a perfect charter cannot mint a second permanent reward");
+
+            var incomplete = Unlocked(data); incomplete.StartAbyss(0);
+            incomplete.save.flags.Add("abyss_complete");
+            incomplete.save.abyssFloor = 6;
+            regenerate.Invoke(incomplete, null);
+            for (int floor = 3; floor <= 5; floor++)
+                incomplete.save.flags.Add("abyss_annex_ward_" + floor);
+            incomplete.enemies.Clear(); incomplete.save.flags.Add("abyss_clear_6");
+            incomplete.save.x = 31; incomplete.save.y = 14;
+            int skills = incomplete.save.skillPoints;
+            WorldObject lastGate = Array.Find(incomplete.Map.objects, o => o.kind == "abyssGate");
+            incomplete.Talk(lastGate); incomplete.Choose(0);
+            Check(!incomplete.Has("abyss_ward_charter_complete") &&
+                incomplete.save.skillPoints == skills,
+                "A three-of-four circuit cannot claim the charter by extracting from six");
+        }
+
         public static void AbyssRiftWardRequiresExpeditionLootAndActuallyChangesStorms(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

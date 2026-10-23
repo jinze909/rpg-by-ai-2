@@ -1794,7 +1794,10 @@ namespace Starfall
                     L("剩余公共储备 ", "RESERVE LEFT ") + StormBudgetLeft;
             if (InAbyss) return L("地脉 ", "ABYSS ") + save.abyssFloor + "/6  ·  " +
                 L("未结算碎片 ", "UNBANKED SHARDS ") + save.runShards +
-                (AbyssWardActive ? L(" · 镇流生效", " · RIFT WARD ACTIVE") : "");
+                (AbyssWardActive ? L(" · 镇流生效", " · RIFT WARD ACTIVE") : "") +
+                (save.abyssFloor >= 3 && !Has("abyss_ward_charter_complete") ?
+                    L(" · 镇流巡路 ", " · WARD CHARTER ") +
+                        AbyssWardCharterProgress + "/4" : "");
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
@@ -2596,7 +2599,15 @@ namespace Starfall
             if (save.abyssFloor < 6)
             { choices.Add(C("利刃祝福 · 攻击+15%并深入", "Edge boon · +15% damage and descend", "boon0")); choices.Add(C("泉涌祝福 · 耐力回复+4并深入", "Spring boon · +4 energy regen and descend", "boon1")); choices.Add(C("磐石祝福 · 伤害-12%并深入", "Stone boon · -12% damage taken and descend", "boon2")); }
             choices.Add(C(save.abyssFloor == 6 ? "完成远征，结算返回" : "结算本层，安全返回", save.abyssFloor == 6 ? "Complete the expedition and bank" : "Bank this floor and extract", "abyssBank"));
-            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。", "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards.", choices.ToArray());
+            string charterZh = save.abyssFloor >= 3 &&
+                !Has("abyss_ward_charter_complete") ?
+                "\\n\\n镇流巡路 " + AbyssWardCharterProgress +
+                    "/4：连续在第3至6层调谐镇流碑，并安全结算第6层，可永久获得技能点1与碎片8。" : "";
+            string charterEn = save.abyssFloor >= 3 &&
+                !Has("abyss_ward_charter_complete") ?
+                "\\n\\nWard charter " + AbyssWardCharterProgress +
+                    "/4: tune pylons on floors 3–6 and bank floor six for a permanent skill point and 8 shards." : "";
+            Dialog("会记住选择的地脉", "Roots that remember choices", "本层未结算：硬币 " + save.runCoins + "，碎片 " + save.runShards + "，经验 " + save.runXp + "。\n\n祝福只在本次远征有效，可叠加至四层。深入前自动结算当前楼层，回复一半最大生命。第三层与第六层会解锁永久奖励。" + charterZh, "Unbanked: " + save.runCoins + " coins, " + save.runShards + " shards, " + save.runXp + " XP.\n\nBoons last this run and stack four times. Descending banks the floor and heals half your maximum health. Floors three and six unlock permanent rewards." + charterEn, choices.ToArray());
         }
         private bool CanBankFloor()
         {
@@ -2611,6 +2622,19 @@ namespace Starfall
             BountyEvent(5, 1);
             if (save.abyssFloor >= 3) RewardRelic(5);
             if (save.abyssFloor == 6 && !Has("abyss_complete")) { Flag("abyss_complete"); CreditSkillPoints(2); CreditShards(12); }
+            // Four physically tuned ward pylons are the proof of a full
+            // roadwarden rescue circuit. Grant its one-time PERMANENT award
+            // only through the legitimate last-floor banking transaction.
+            // Leaving or dying on floor six never reaches this branch.
+            if (save.abyssFloor == 6 && AbyssWardCharterProgress == 4 &&
+                !Has("abyss_ward_charter_complete"))
+            {
+                Flag("abyss_ward_charter_complete");
+                CreditSkillPoints(1); CreditShards(8);
+                Notify("四层镇流巡路完成：永久获得技能点1、星晶碎片8。",
+                    "Four-floor ward charter complete: permanently gained 1 skill point and 8 shards.");
+                sound = "reward";
+            }
             revision++;
         }
         public void TakeBoon(int id)

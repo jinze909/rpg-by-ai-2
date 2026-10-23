@@ -86,6 +86,17 @@ namespace Starfall
                     "Starroot restores your energy. This floor's charge is spent.");
         }
 
+        public int AbyssWardCharterProgress
+        {
+            get
+            {
+                int count = 0;
+                for (int floor = 3; floor <= 6; floor++)
+                    if (Has("abyss_annex_ward_" + floor)) count++;
+                return count;
+            }
+        }
+
         // A strategic answer to floor-three-plus rift storms: pay for
         // sustained mitigation with loot from this SAME unbanked floor.
         public bool AbyssWardActive
