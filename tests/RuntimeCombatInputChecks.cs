@@ -3381,7 +3381,7 @@ public static class RuntimeCombatInputChecks
             Point? target=g.NavigationTarget();
             Check(target.HasValue&&(target.Value-new Point(near.x,near.y)).Length<.001f,
                 "Dangerous desert heat picks the nearest reachable authored-type shade");
-            List<Point> path=g.NavigationPath(target.Value);
+            var path=g.NavigationPath(target.Value);
             Check(path.Count>0&&(path[path.Count-1]-target.Value).Length<1.75f,
                 "Existing minmap/compass uses a real traversable path to cooling shade");
 
