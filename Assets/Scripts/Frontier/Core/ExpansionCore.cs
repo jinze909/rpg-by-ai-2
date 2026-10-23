@@ -21,6 +21,14 @@ namespace Starfall
         private Point dashOrigin;
         private float dodgeEscapeTime;
         private float companionAttack, climateTimer, stormTimer;
+        // Three seconds of fading brazier heat protect a departing traveler
+        // from immediately reacquiring cold. Never serialized or carried
+        // through a region change, save-slot load, or restarted campaign.
+        private float brazierEmberSeconds;
+        public float BrazierEmberSeconds
+        {
+            get { return save.room==7 ? brazierEmberSeconds : 0f; }
+        }
         // A successful follower route is cached only in memory. The route is
         // tied to this save session, room/map, party identity and target tile;
         // the next physical segment is rechecked against live terrain/enemies
@@ -229,6 +237,7 @@ namespace Starfall
         }
         private void ResetExpansionTransient()
         {
+            brazierEmberSeconds = 0f;
             abyssCircuitGuideBranch = -1;
             abyssCircuitGuideFloor = -1;
             abyssCircuitGuideMap = null;
@@ -1512,16 +1521,23 @@ namespace Starfall
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
                 !GlasswindRefuge && !safeReliefShelter && !racing ? 1.3f : -10), 0, 100);
             bool brazierWarmth=LitBrazierRefuge;
+            if(brazierWarmth)brazierEmberSeconds=2.5f;
+            else brazierEmberSeconds=Math.Max(0f,brazierEmberSeconds-dt);
+            bool emberCarry=save.room==7 && !brazierWarmth &&
+                brazierEmberSeconds>0f;
             bool warm = FrostSignalRefuge || brazierWarmth;
             if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
+            // Residual heat holds the cold meter steady during one short
+            // crossing; it is NOT another permanent heater or HP immunity.
             save.cold = Clamp(save.cold + dt * (save.room == 7 && !tea && !warm &&
-                !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ? 1.1f : -8), 0, 100);
+                !NearActiveFieldStation(7, FieldStationRefugeRadius(7)) ?
+                    (emberCarry ? 0f : 1.1f) : -8f), 0, 100);
             // Two timber now turn an existing lit brazier into a genuine
             // alpine rally point. Warmth remains useful under attack, but
             // modest HP and energy recovery require a safe break in combat.
             // Unlike a global perk, both rewards obey the same physical
             // reach and cannot leak through a sealed pass or across regions.
-            if (brazierWarmth && SafeTravel && !racing)
+            if (brazierWarmth && SafeTravel && !FieldWorkPreventsRest && !racing)
             {
                 if (save.health > 0 && save.health < save.maxHealth)
                     save.health = Math.Min(save.maxHealth,
@@ -2120,7 +2136,7 @@ namespace Starfall
                 int id = int.Parse(kind.Substring(4)); save.bells[id] = (save.bells[id] + 1) % 4; CheckBells(); revision++;
                 Notify("钟 " + (id + 1) + "：第 " + (save.bells[id] + 1) + " 音", "Chime " + (id + 1) + ": tone " + (save.bells[id] + 1)); return true;
             }
-            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。在无遮蔽的暖圈内可以驱寒；脱离战斗后还会缓慢恢复生命和耐力。隔着石墙无法取暖或休整。" : "木材两份能点燃火盆，形成可接近的暖圈。脱离战斗后还可缓慢疗伤回气。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Its unobstructed warmth drives out cold; outside combat it slowly restores health and energy. Stone walls block the refuge." : "Two timber light a brazier and create a physical warm refuge. Rest outside combat to recover health and energy. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
+            if (kind == "brazier") { Dialog(o.name, o.en, Has("warm_" + o.id) ? "火盆已经点燃。在无遮蔽的暖圈内可以驱寒；离开后余温维持2.5秒。脱离战斗和现场任务后才能缓慢恢复生命和耐力，隔着石墙无法取暖。" : "木材两份能点燃火盆，形成可接近的暖圈。脱离战斗后还可缓慢疗伤回气。寒意超过 70 会让你变慢，超过 90 会持续受伤。", Has("warm_" + o.id) ? "The brazier is lit. Its unobstructed warmth drives out cold; carried embers hold chill at bay for 2.5 seconds after leaving. Health and energy recover only when safe and free of active fieldwork. Walls block the refuge." : "Two timber light a brazier and create a physical warm refuge. Rest outside combat to recover health and energy. Cold above 70 slows you; above 90 hurts.", C(Has("warm_" + o.id) ? "暖一会儿" : "点火 · 木材2", Has("warm_" + o.id) ? "Warm up" : "Light · 2 timber", Has("warm_" + o.id) ? "close" : "warm:" + o.id), C("继续赶路", "Keep going", "close")); return true; }
             if (kind == "keeper") { KeeperConversation(o); return true; }
             if (kind == "campfire")
             {

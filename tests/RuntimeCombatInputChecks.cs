@@ -3400,21 +3400,34 @@ public static class RuntimeCombatInputChecks
                 "A sealed cliff blocks warmth, not just the visual route");
             g.save.cold=40;g.save.health=60;g.save.energy=10;
             CallCore(g,"TickExpansion",.05f);
-            Check(g.save.cold>40f&&g.save.health==60f&&g.save.energy==10f,
-                "Cold and survival costs remain real through solid world geometry");
+            Check(Math.Abs(g.save.cold-40f)<.0001f&&
+                g.save.health==60f&&g.save.energy==10f&&
+                g.BrazierEmberSeconds>2.4f,
+                "Only earned carried warmth pauses new cold; a wall blocks HP and energy rest");
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(!GUI.commands.Exists(c=>c.Contains("WARM REFUGE")),
-                "The actual world renderer cannot falsely show shelter across the wall");
+            Check(!GUI.commands.Exists(c=>c.Contains("WARM REFUGE")) &&
+                GUI.commands.Exists(c=>c.Contains("EMBER WARMTH")),
+                "World feedback distinguishes fading embers from an accessible fire");
+            for(int i=0;i<52;i++)CallCore(g,"TickExpansion",.05f);
+            Check(g.BrazierEmberSeconds==0&&g.save.cold>40f&&
+                g.save.health==60f&&g.save.energy==10f,
+                "Carry expires after a bounded traversal; sealed walls cannot grant perpetual warming");
 
-            // Reopen the pass: warming works, but live combat disables rest.
-            pass[y]=new string(barrier).Replace('#','.'); // only the injected tile changes
+            // Reopen only the injected tile, preserving all other terrain.
+            barrier[x+1]='.';
+            pass[y]=new string(barrier);
             Check(g.BrazierWarmsHero(brazier),"Opening the authored corridor restores shelter");
             g.enemies.Add(new Enemy(959,0,g.save.x+1,g.save.y,100));
             g.save.cold=40;g.save.health=60;g.save.energy=10;
             CallCore(g,"TickExpansion",.05f);
             Check(g.save.cold<40f&&g.save.health==60f&&g.save.energy==10f,
                 "Fire warmth survives combat but healing and energy rest do not");
-            Console.WriteLine("PASS Production alpine brazier: unobstructed warming, safe rest, blocked wall, combat isolation");
+            g.enemies.Clear();
+            // The same reset runs on save-slot replacement and real travel.
+            CallCore(g,"ResetExpansionTransient");
+            Check(g.BrazierEmberSeconds==0,
+                "Transient ember carry must not survive a world/slot transition");
+            Console.WriteLine("PASS Production alpine brazier: physical refuge, bounded ember carry, real wall, combat and reset isolation");
         }
         finally
         {

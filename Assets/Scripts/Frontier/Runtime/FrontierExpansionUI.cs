@@ -427,6 +427,16 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.BrazierEmberSeconds>0f && !Game.LitBrazierRefuge)
+            {
+                // Real nonserialized climate protection during one short
+                // retreat, not another fixed halo attached to the player.
+                Point screen=ScreenPoint(Game.Position);
+                Text(screen.x-82,screen.y-118,164,19,
+                    Game.L("火盆余温 ", "EMBER WARMTH ")+
+                    Game.BrazierEmberSeconds.ToString("0.0")+"s",
+                    11,gold,TextAnchor.MiddleCenter);
+            }
             if(Game.SwordLessonActive)
             {
                 Point launcher=GameCore.SwordLessonLauncher;
