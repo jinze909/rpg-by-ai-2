@@ -1071,6 +1071,82 @@ namespace Starfall.Tests
                 "The maximum legal seed and sixth-floor rootwell survive SaveData v2 reload");
         }
 
+        public static void CompletedArchiveExtendsRealRiftWindupsWithoutChangingDamage(Campaign data)
+        {
+            var ordinary=Unlocked(data);ordinary.StartAbyss(2);
+            var archivist=Unlocked(data);
+            archivist.save.flags.Add("abyss_testimony_codex_complete");
+            archivist.StartAbyss(2);
+            var generate=typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            foreach(GameCore g in new[]{ordinary,archivist})
+            {
+                g.save.abyssFloor=3;
+                g.save.abyssSeed=137;
+                generate.Invoke(g,null);
+                g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+                g.save.x=5;g.save.y=14;
+                g.save.maxHealth=g.save.health=9999;
+                g.save.reducedMotion=true;
+            }
+            Check(!ordinary.AbyssArchiveForesight &&
+                archivist.AbyssArchiveForesight &&
+                archivist.Objective().Contains("巡路预知"),
+                "Only the permanently completed archive unlocks its visible Rift foresight");
+            for(int i=0;i<120;i++)
+            {
+                ordinary.Tick(.05f,new Point());
+                archivist.Tick(.05f,new Point());
+            }
+            Hazard a=ordinary.hazards.Find(h=>h.kind=="rift");
+            Hazard b=archivist.hazards.Find(h=>h.kind=="rift");
+            Check(a!=null&&b!=null&&
+                Math.Abs((b.timer-a.timer)-.4f)<.01f &&
+                Math.Abs(b.damage-a.damage)<.01f &&
+                Math.Abs(b.radius-a.radius)<.01f,
+                "Actual six-second spawned rifts gain .4s of warning, not reduced damage or area");
+            float life=ordinary.save.health, protectedLife=archivist.save.health;
+            for(int i=0;i<29;i++)
+            {
+                ordinary.Tick(.05f,new Point());
+                archivist.Tick(.05f,new Point());
+            }
+            Check(ordinary.save.health<life &&
+                archivist.save.health==protectedLife,
+                "An unarchived hero suffers the same real Rift before the archivist's longer warning ends");
+            for(int i=0;i<10;i++)archivist.Tick(.05f,new Point());
+            Check(archivist.save.health<protectedLife,
+                "Foresight delays but never erases an undodged Rift contact");
+            archivist.save.flags.Remove("abyss_testimony_codex_complete");
+            Check(!archivist.AbyssArchiveForesight,
+                "Without a permanent proof there is no free Rift warning buff");
+
+            var early=Unlocked(data);early.StartAbyss(2);
+            early.save.flags.Add("abyss_testimony_codex_complete");
+            early.save.abyssFloor=3;
+            generate.Invoke(early,null);
+            early.enemies.Clear();early.hazards.Clear();
+            int expected=early.AbyssCircuitNextNode;
+            WorldObject wrong=Array.Find(early.Map.objects,
+                o=>o.kind=="abyssCircuit"+((expected+1)%3));
+            early.save.x=wrong.x;early.save.y=wrong.y;
+            early.Talk(wrong);
+            Hazard backlash=early.hazards.Find(h=>h.kind=="rift");
+            Check(backlash!=null&&Math.Abs(backlash.timer-2f)<.001f&&
+                Math.Abs(backlash.damage-18f)<.001f,
+                "The same permanent foresight also adds .4s to live miswire backlash warnings");
+
+            early.save.flags.Add("abyss_clear_3");
+            early.PrepareSave();
+            var reload=new GameCore(data,CloneSave(early.save));
+            Check(reload.InAbyss&&reload.AbyssArchiveForesight,
+                "The unlocked combat advantage survives the existing SaveData v2 round trip");
+            var city=Unlocked(data);
+            city.save.flags.Add("abyss_testimony_codex_complete");
+            Check(!city.AbyssArchiveForesight,
+                "The passive cannot affect ordinary surface hazards outside the Abyss");
+        }
+
         public static void SixFloorRoadwardenArchiveBanksOnceAfterFullPhysicalExpedition(Campaign data)
         {
             var g = Unlocked(data);g.StartAbyss(0);

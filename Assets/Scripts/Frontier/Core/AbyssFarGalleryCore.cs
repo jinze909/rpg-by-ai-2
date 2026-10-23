@@ -498,7 +498,8 @@ namespace Starfall
                 bool backlash = save.abyssFloor >= 3 &&
                     !Has("abyss_clear_" + save.abyssFloor);
                 if (backlash)
-                    AddHazard(new Point(o.x,o.y), 1.35f, 1.6f,
+                    AddHazard(new Point(o.x,o.y), 1.35f,
+                        1.6f + AbyssArchiveWarningLead,
                         12 + save.abyssRisk * 3, "rift");
                 revision++;
                 Notify("接线顺序错误：回路断开，损失12耐力。" +
@@ -605,6 +606,19 @@ namespace Starfall
         {
             get { return Has("abyss_testimony_codex_complete"); }
         }
+        // Permanent benefit of completing all six field ledgers: the hero
+        // recognizes old root-rift patterns earlier. Only REAL rift warning
+        // time changes; no damage, area, spawn interval, or other hazards
+        // receive a free reduction. No new SaveData v2 field is introduced.
+        public bool AbyssArchiveForesight
+        {
+            get { return InAbyss && AbyssTestimonyLegacyComplete; }
+        }
+        private float AbyssArchiveWarningLead
+        {
+            get { return AbyssArchiveForesight ? .4f : 0f; }
+        }
+
 
         public bool AbyssTestimonySealed
         {

@@ -1675,7 +1675,8 @@ namespace Starfall
                     // so the player sees the full 1.4-second warning before
                     // the real contact becomes active.
                     AddHazard(Position, AbyssWardActive ? 1.05f : 1.4f,
-                        (AbyssWardActive ? 1.9f : 1.4f) + dt,
+                        (AbyssWardActive ? 1.9f : 1.4f) + dt +
+                            AbyssArchiveWarningLead,
                         (10 + save.abyssRisk * 4) * (AbyssWardActive ? .6f : 1f),
                         "rift");
                 }
@@ -2442,6 +2443,9 @@ namespace Starfall
                         goal += L("：下个 " + nextRecord.name,
                             ": next " + nextRecord.en);
                 }
+                if (save.abyssFloor >= 3 && AbyssArchiveForesight)
+                    goal += L(" · 巡路预知：落印预警延长0.4秒",
+                        " · Archivist foresight: +0.4s rift warning");
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)
@@ -2459,7 +2463,7 @@ namespace Starfall
         private void OpenAbyssEntrance()
         {
             if (!CanEnter(8)) { Notify(RouteHint(8, false), RouteHint(8, true)); return; }
-            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。第三层之后有落印，最后一层有地脉收割者，根刺会从两侧合拢，沿垂直方向闪避。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Rift marks begin on floor three; the Root Reaper waits on six; its roots close from both sides, so dodge perpendicular to their line. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
+            Dialog("地脉裂口", "The root fissure", "每次远征有六层，房间随种子改变。清层后选择一种祝福，并结算本层战利品；继续深入会保留祝福。\n\n倒下或提前离开会失去本层未结算收益，已结算物品保留。完成六层巡路档案可永久获得落印提前预警。第三层之后有落印，最后一层有地脉收割者，根刺会从两侧合拢，沿垂直方向闪避。风险越高，生命与碎片收益越高。", "Six seeded floors. Clear a floor, choose a boon and bank its loot; boons stay while descending.\n\nFalling or leaving loses only the unbanked floor. Completing all six roadwarden ledgers permanently extends rift warnings. Rift marks begin on floor three; the Root Reaper waits on six; its roots close from both sides, so dodge perpendicular to their line. Higher risk means tougher enemies and more shards.", C("巡行 · 风险0", "Survey · risk 0", "abyssStart0"), C("深入 · 风险1", "Delve · risk 1", "abyssStart1"), C("裂隙 · 风险2", "Rift · risk 2", "abyssStart2"), C("稍后再来", "Later", "close"));
         }
         public void StartAbyss(int risk)
         {
