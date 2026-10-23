@@ -3361,6 +3361,73 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void CivilianEscortNavigatesRealWallDetour(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.english=true;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] originalRows=map.rows;
+        WorldObject[] originalObjects=map.objects;
+        Decoration[] originalDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            string[] rows=(string[])originalRows.Clone();
+            for(int y=by-4;y<=by+4;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+15;x++)row[x]='.';
+                rows[y]=new string(row);
+            }
+            // A real solid partition with a long detour at both ends.
+            // Direct civilian->hero movement is impossible; the world graph
+            // still contains a continuous, footprint-clear walking route.
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                row[bx+6]='#';rows[y]=new string(row);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            map.objects=new[]{new WorldObject{id="route_detour_station",
+                kind="fieldstation6",x=bx+14.5f,y=by+.5f,
+                name="Shelter",en="Shelter"}};
+            Point start=new Point(bx+3.5f,by+.5f);
+            g.reliefMissionRoom=6;g.reliefMissionWave=3;
+            g.reliefMissionTime=100;g.reliefFollowerSafety=100;
+            g.reliefFollowerWaiting=false;g.reliefFollowerPosition=start;
+            g.reliefCivilianHitTime=0;
+            g.save.x=bx+11.5f;g.save.y=by+.5f;
+            Check(g.NavigationPathFrom(start,g.Position).Count>0,
+                "Solid partition has a legal but nonstraight civilian route");
+            float furthestSideStep=0;
+            for(int tick=0;tick<270 &&
+                (g.reliefFollowerPosition-g.Position).Length>1.4f;tick++)
+            {
+                CallCore(g,"TickReliefMission",.05f);
+                furthestSideStep=Math.Max(furthestSideStep,
+                    Math.Abs(g.reliefFollowerPosition.y-start.y));
+                Check(g.CanStand(g.reliefFollowerPosition),
+                    "Civilian remains on collision-valid ground throughout detour");
+            }
+            Check(furthestSideStep>2f &&
+                g.reliefFollowerPosition.x>bx+7.5f &&
+                (g.reliefFollowerPosition-g.Position).Length<1.6f &&
+                g.reliefFollowerWalkDistance>(g.Position-start).Length &&
+                g.reliefMissionRoom==6,
+                "Escort walks around the real partition and actually rejoins the hero");
+            Check(!g.ReliefEscortRouteStalled && g.reliefFollowerSafety>0 &&
+                g.reliefMissionTime>0,
+                "Reachable detour does not falsely fail a timed civilian rescue");
+            Console.WriteLine("PASS Live civilian escort routes around real walls without teleporting or false stalls");
+        }
+        finally
+        {
+            map.rows=originalRows;map.objects=originalObjects;
+            map.decor=originalDecor;
+        }
+    }
+
     private static void EscortDodgeChoosesFarSideOfLivingAttacker(FrontierRuntime app)
     {
         Prepare(app);
@@ -4985,7 +5052,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

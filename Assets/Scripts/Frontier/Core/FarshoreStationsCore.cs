@@ -139,6 +139,12 @@ namespace Starfall
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         private float reliefFollowerBlockedSeconds;
         private bool reliefFollowerBlockedNotice;
+        // Transient, live-collision route hint. Replan every quarter-second
+        // when a wall blocks the direct escort line (or immediately when a
+        // waypoint is reached or becomes impassable). Never enter SaveData.
+        private Point reliefFollowerRouteWaypoint, reliefFollowerRouteTarget;
+        private float reliefFollowerRouteRefresh;
+        private bool reliefFollowerRouteFound;
         public bool ReliefEscortRouteStalled
         {
             get { return ReliefEscortActive && !reliefFollowerWaiting &&
@@ -215,6 +221,7 @@ namespace Starfall
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
+            reliefFollowerRouteRefresh = 0; reliefFollowerRouteFound = false;
             reliefFollowerWaiting = reliefMedicalUsed = false;
             reliefHurryTime = 0; reliefHurryUsed = false;
             reliefEvadeCooldown = 0;
@@ -656,6 +663,7 @@ namespace Starfall
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
                 reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
+                reliefFollowerRouteRefresh = 0; reliefFollowerRouteFound = false;
                 reliefFollowerWaiting = reliefMedicalUsed = false;
                 reliefHurryTime = 0; reliefHurryUsed = false;
                 reliefClimateKitTime = 0; reliefClimateKitUsed = false;
@@ -677,17 +685,48 @@ namespace Starfall
             Point follow = Position - reliefFollowerPosition;
             Point beforeWalk = reliefFollowerPosition;
             reliefFollowerMoving = false;
+            // A resident previously walked straight into every real corner.
+            // A nearby hero on the OTHER side of a wall is not a safe arrival.
+            bool obstructed = !ClearAttackPath(reliefFollowerPosition, Position);
+            reliefFollowerRouteRefresh = Math.Max(0, reliefFollowerRouteRefresh - dt);
             if (!reliefFollowerWaiting && !ReliefEscortUnderAttack &&
-                reliefCivilianHitTime <= 0 && follow.Length > 1.3f)
+                reliefCivilianHitTime <= 0 && (follow.Length > 1.3f || obstructed))
             {
-                // Visible committed strikes make the civilian brace and stay
-                // put until the attack resolves. They no longer skate across
-                // the warning as though nothing dangerous were happening.
-                // Follow the route through real collision, never teleport.
+                // Visible committed strikes still stop movement. Route around
+                // only actual terrain/gate obstacles using the same footprint
+                // pathfinder as the world navigation. Every step remains
+                // swept through collision: waypoints are NOT teleports.
                 float walk = follow.Length > 5.5f ? 3.5f : 2.6f;
                 if (reliefHurryTime > 0) walk += 1.7f;
-                Point advance = DirectionTo(reliefFollowerPosition, Position) *
-                    Math.Min(dt * walk, follow.Length - 1.3f);
+                Point destination = Position;
+                if (obstructed)
+                {
+                    if (reliefFollowerRouteRefresh <= 0 ||
+                        (reliefFollowerRouteFound &&
+                         ((reliefFollowerRouteWaypoint - reliefFollowerPosition).Length < .18f ||
+                          !CanStand(reliefFollowerRouteWaypoint))) ||
+                        (Position - reliefFollowerRouteTarget).Length > 1.4f)
+                    {
+                        List<Point> route = NavigationPathFrom(reliefFollowerPosition, Position);
+                        reliefFollowerRouteFound = route.Count > 0;
+                        reliefFollowerRouteWaypoint = reliefFollowerRouteFound ?
+                            route[0] : reliefFollowerPosition;
+                        reliefFollowerRouteTarget = Position;
+                        reliefFollowerRouteRefresh = .25f;
+                    }
+                    destination = reliefFollowerRouteFound ?
+                        reliefFollowerRouteWaypoint : reliefFollowerPosition;
+                }
+                else
+                {
+                    reliefFollowerRouteRefresh = 0;
+                    reliefFollowerRouteFound = false;
+                }
+                Point toward = destination - reliefFollowerPosition;
+                float step = obstructed ? dt * walk :
+                    Math.Min(dt * walk, Math.Max(0, follow.Length - 1.3f));
+                Point advance = toward.Length > .001f ?
+                    toward.Normalized * Math.Min(step, toward.Length) : new Point();
                 reliefFollowerPosition = SweepActor(reliefFollowerPosition, advance);
             }
             Point traveled = reliefFollowerPosition - beforeWalk;
@@ -695,7 +734,7 @@ namespace Starfall
             // physical distance, with a stable horizontal orientation.
             reliefFollowerMoving = traveled.Length > .001f;
             bool shouldFollow=!reliefFollowerWaiting && !ReliefEscortUnderAttack &&
-                reliefCivilianHitTime<=0 && follow.Length>2.3f;
+                reliefCivilianHitTime<=0 && (follow.Length>2.3f || obstructed);
             if(shouldFollow && !reliefFollowerMoving)
             {
                 reliefFollowerBlockedSeconds=Math.Min(4f,
@@ -873,6 +912,7 @@ namespace Starfall
                 }
                 save.energy-=15;reliefEvadeCooldown=3.5f;
                 reliefFollowerPosition=best;
+                reliefFollowerRouteRefresh=0;reliefFollowerRouteFound=false;
                 reliefFollowerWalkDistance+=(best-start).Length;
                 reliefFollowerMoving=true;
                 if(Math.Abs(best.x-start.x)>.015f)
