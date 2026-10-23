@@ -145,8 +145,9 @@ namespace Starfall.Tests
         public static void CivicConduitCannotOverlapActiveFieldwork(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;
-            g.save.flags.Add("last_directive_complete");
-            g.save.flags.Add("last_directive_open");
+            foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",
+                "last_directive_complete","last_directive_open"})
+                g.save.flags.Add(flag);
             g.save.inventory[4]=1;
             g.Enter(4);g.enemies.Clear();
             WorldObject master=Object(g,"civicconduitmaster");
