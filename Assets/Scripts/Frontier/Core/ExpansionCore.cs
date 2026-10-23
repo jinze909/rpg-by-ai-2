@@ -1728,7 +1728,7 @@ namespace Starfall
                         (AbyssWardActive ? 1.9f : 1.4f) + dt +
                             AbyssArchiveWarningLead,
                         (10 + save.abyssRisk * 4) * (AbyssWardActive ? .6f : 1f),
-                        "rift");
+                        "rift", true);
                 }
             }
             tickingHazards.Clear();tickingHazards.AddRange(hazards);
@@ -1763,8 +1763,12 @@ namespace Starfall
             }
             tickingHazards.Clear();
         }
-        private void AddHazard(Point p, float radius, float delay, float damage, string kind)
-        { hazards.Add(new Hazard { position = p, radius = radius, timer = delay, damage = damage, kind = kind }); }
+        private void AddHazard(Point p, float radius, float delay, float damage,
+            string kind, bool abyssStormOwned = false)
+        {
+            hazards.Add(new Hazard { position = p, radius = radius, timer = delay,
+                damage = damage, kind = kind, abyssStormOwned = abyssStormOwned });
+        }
         public static int HazardTheme(Hazard hazard)
         { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : hazard.kind == "bell" ? 7 : 8; }
         private void BossExpansionAttack(Enemy e)

@@ -119,15 +119,15 @@ namespace Starfall
             if (AbyssWardActive)
             {
                 Dialog(o.name, o.en,
-                    "镇流碑已经与本层地脉共振。新的落印间隔延长至10秒，预警更明显，落印范围与伤害也减轻。",
-                    "The ward is tuned for this floor: new rifts arrive every 10 seconds with longer warnings, smaller circles and reduced damage.",
+                    "镇流碑已经与本层地脉共振。已经生成的环境落印已被平息。新的落印间隔延长至10秒，预警更明显，落印范围与伤害也减轻。",
+                    "The ward is tuned: active ambient warnings were grounded. New rifts arrive every 10 seconds with longer warnings, smaller circles and reduced damage.",
                     C("继续探索", "Keep exploring", "close"));
                 return;
             }
             Dialog(o.name, o.en,
-                "地下巡路人曾用镇流碑保护救援路线。你可以消耗本层待结算碎片3枚，让本层落印从每6秒一次放缓到10秒一次，并减小其伤害与范围。只有这一层有效；原本已存入背包的碎片不会消耗。\\n\\n当前本层碎片：" +
+                "地下巡路人曾用镇流碑保护救援路线。你可以消耗本层待结算碎片3枚，立即平息已有的环境落印，并把以后落印从每6秒一次放缓到10秒一次，减小其伤害与范围。Boss和剧情攻击不会被平息。只有这一层有效；原本已存入背包的碎片不会消耗。\\n\\n当前本层碎片：" +
                     save.runShards + "。",
-                "Roadwardens used this pylon to protect evacuation routes. Trade 3 UNBANKED shards to slow this floor's rift pulses from 6 to 10 seconds, shrink their radius and reduce damage. Resets next floor; banked shards are untouched.\\n\\nCurrent unbanked shards: " +
+                "Roadwardens used this pylon to protect evacuation routes. Trade 3 UNBANKED shards to ground active ambient warnings and slow future rift pulses from 6 to 10 seconds, shrink their radius and reduce damage. Boss and encounter warnings remain active. Resets next floor; banked shards are untouched.\\n\\nCurrent unbanked shards: " +
                     save.runShards + ".",
                 C("镇流 · 待结算碎片3", "Tune ward · 3 unbanked shards", "abyssWardTune"),
                 C("保留战利品", "Keep the loot", "close"));
@@ -147,13 +147,18 @@ namespace Starfall
             }
             save.runShards -= 3;
             Flag("abyss_annex_ward_" + save.abyssFloor);
-            // Do not advance a pending telegraph or invent an extra hit.
-            // Newly scheduled floor hazards use the slower ten-second clock.
+            // Stabilize existing AMBIENT rifts as well as future pulses.
+            // Boss, relay backlash and mission rifts share a visual kind
+            // but were never created by the periodic abyss storm clock.
+            int grounded = hazards.RemoveAll(h => h.abyssStormOwned);
             stormTimer = Math.Max(stormTimer, 10f);
+            effects.Add(new Effect("spark",new Point(ward.x,ward.y),.6f));
             revision++;
             sound = "reward";
-            Notify("镇流碑已稳定：本层落印每10秒一次，范围和伤害降低。",
-                "Ward tuned: this floor's rifts arrive every 10 seconds with smaller, weaker strikes.");
+            Notify("镇流碑已稳定：平息已有的地脉落印 " + grounded +
+                " 处；新落印每10秒一次，范围和伤害降低。",
+                "Ward tuned: grounded " + grounded +
+                " ambient warning(s). New storms arrive every 10 seconds with smaller, weaker strikes.");
         }
 
         // Three distant, physically visited starroot relays form an optional

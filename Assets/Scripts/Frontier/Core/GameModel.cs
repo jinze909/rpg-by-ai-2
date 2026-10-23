@@ -210,6 +210,10 @@ namespace Starfall
         public Point position;
         public float timer, radius, damage;
         public string kind;
+        // Only scheduled ambient Abyss storms are suppressed when tuning
+        // the floor pylon; identical-looking Boss or scripted rifts persist.
+        // This is transient hazard state, never a SaveData v2 field.
+        public bool abyssStormOwned;
         // Transient ownership prevents encounter hazards surviving retirement.
         public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
     }

@@ -996,6 +996,55 @@ namespace Starfall.Tests
                 "Pylon cannot spend already banked shards or activate for free");
         }
 
+
+        public static void AbyssWardPurchaseGroundsOnlyActualAmbientWarnings(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.save.abyssFloor=3;
+            typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance|BindingFlags.NonPublic).Invoke(g,null);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.health=g.save.maxHealth=1000;g.invulnerable=0;
+            var ward=Array.Find(g.Map.objects,o=>o.kind=="abyssRiftWard");
+            Check(ward!=null,"A real deep-floor pylon exists");
+            g.save.x=ward.x;g.save.y=ward.y;g.save.runShards=5;
+            for(int i=0;i<122;i++)g.Tick(.05f,new Point());
+            Hazard ambient=g.hazards.Find(h=>h.abyssStormOwned);
+            Check(ambient!=null && ambient.kind=="rift" && ambient.timer>0,
+                "Actual six-second storm clock creates an owned live telegraph");
+            var boss=new Enemy(918,3,29,9,100,true);
+            boss.target=new Point(ward.x,ward.y);
+            typeof(GameCore).GetMethod("BossExpansionAttack",
+                BindingFlags.Instance|BindingFlags.NonPublic)
+                .Invoke(g,new object[]{boss});
+            Hazard bossRift=g.hazards.Find(h=>h.kind=="rift"&&!h.abyssStormOwned);
+            Check(bossRift!=null&&bossRift.timer>0,
+                "Real Boss phase creates another rift not owned by the storm");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.Talk(ward);
+            Check(g.mode=="dialog"&&g.conversation.choices[0].action=="abyssWardTune",
+                "Original three-shard pylon purchase exists in the real world");
+            g.Choose(0);
+            Check(g.AbyssWardActive&&g.save.runShards==2&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Purchase consumes exactly three unbanked shards and persists floor ward");
+            Check(!g.hazards.Contains(ambient)&&g.hazards.Contains(bossRift)&&
+                bossRift.timer>0&&g.hazards.FindAll(h=>h.abyssStormOwned).Count==0,
+                "Stabilizing clears the ambient storm but never cancels the Boss release warning");
+            var timer=typeof(GameCore).GetField("stormTimer",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check((float)timer.GetValue(g)>=10f,
+                "New ambient pulse really waits for the ten-second ward clock");
+            g.Talk(ward);g.Choose(0);
+            Check(g.save.runShards==2&&g.hazards.Contains(bossRift),
+                "Repeated pylon use cannot charge again or erase Boss combat");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.InAbyss&&restored.AbyssWardActive&&
+                restored.save.runShards==2,
+                "SaveData v2 reconstructs the paid ward with no new saved fields");
+        }
+
         public static void AbyssWardPylonIsSeededAndTraversableOnAllHazardFloors(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);
