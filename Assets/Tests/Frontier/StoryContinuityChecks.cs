@@ -27,6 +27,33 @@ namespace Starfall.Tests
             return -1;
         }
 
+        public static void OpeningConversationsExplainTheSameMotivationInBothLanguages(Campaign data)
+        {
+            var g=new GameCore(data);
+            g.NewGame(0);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("七天前") &&
+                g.conversation.text.Contains("星核") &&
+                g.conversation.text.Contains("侦察员") &&
+                g.conversation.textEn.Contains("scout") &&
+                g.conversation.textEn.Contains("starcore") &&
+                g.conversation.textEn.Contains("citadel"),
+                "Both openings explain the danger, the source of the conflict and the first actionable mission");
+            g.Close();g.Enter(1);g.enemies.Clear();
+            WorldObject scout=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(o.kind=="scout"){scout=o;break;}
+            Check(scout!=null,"Authored forest still contains its living lost scout");
+            g.save.x=scout.x;g.save.y=scout.y;
+            g.save.kills[1]=4;g.Talk(scout);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("堡垒") &&
+                g.conversation.text.Contains("莉雅") &&
+                g.conversation.textEn.Contains("Lyra") &&
+                g.conversation.textEn.Contains("altar"),
+                "Scout's actual encounter leads coherently to Lyra's evidence and the next starcore");
+        }
+
         public static void StoryDialogueRejectsStaleSourceAcrossRoomsAndRemovedNpcs(Campaign data)
         {
             var g=Fresh(data);
