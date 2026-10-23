@@ -369,6 +369,23 @@ namespace Starfall
         // second spent here consumes the same dwindling mission timer.
         // Enemy patrols within four tiles or a committed civilian warning
         // prevent the faster calm recovery, even with a green field canopy.
+        // Near a completed rescue objective, terrain may still separate
+        // either living actor from the station. Show why the last handoff
+        // has not succeeded instead of silently ignoring two nearby bodies.
+        public bool ReliefEscortReturnObstructed
+        {
+            get
+            {
+                if(!ReliefEscortActive || reliefMissionRoom!=save.room)
+                    return false;
+                Point station=ObjectPoint(save.room,
+                    "fieldstation"+save.room,new Point(-100,-100));
+                return (Position-station).Length<1.6f &&
+                    (reliefFollowerPosition-station).Length<2f &&
+                    (!HasPhysicalInteractionReach(station) ||
+                        !ReliefSurvivorCanReach(station,2f));
+            }
+        }
         public bool ReliefEscortSecureStop
         {
             get

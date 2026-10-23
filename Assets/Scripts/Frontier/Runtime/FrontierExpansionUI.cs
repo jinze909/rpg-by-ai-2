@@ -619,6 +619,11 @@ namespace Starfall
                         11, mint, TextAnchor.MiddleCenter);
                 }
                 Point escortScreen = ScreenPoint(escort);
+                if(Game.ReliefEscortReturnObstructed)
+                    Text(escortScreen.x-100,escortScreen.y-202,200,22,
+                        Game.L("站台通路受阻 · 请绕到开放侧",
+                            "STATION PATH BLOCKED · FIND OPEN SIDE"),
+                        11,PixelArt.C("#f4b46f"),TextAnchor.MiddleCenter);
                 // The green physical cover really restores civilian safety.
                 // A stationed shelter with a hostile closing in is not a
                 // secure resting stop: distinguish both states on the

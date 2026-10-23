@@ -3396,6 +3396,12 @@ public static class RuntimeCombatInputChecks
             char[] rock=rows[by].ToCharArray();
             rock[bx+1]='#';rows[by]=new string(rock);
             int originalCoins=g.save.coins;
+            Check(g.ReliefEscortReturnObstructed,
+                "Hero inside handoff radius but behind stone receives an explicit blocked-return status");
+            Set(app,"camera",g.Position);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("STATION PATH BLOCKED")),
+                "Production world shows why the final rescue handoff cannot occur through a wall");
             CallCore(g,"TickReliefMission",.05f);
             Check(g.reliefMissionRoom==6&&!g.Has("relief_rescue_6")&&
                 g.save.coins==originalCoins,
@@ -3412,6 +3418,8 @@ public static class RuntimeCombatInputChecks
             // The passage is genuinely opened; the original public reward
             // and stage completion remain fully usable without new save keys.
             rock[bx+1]='.';rows[by]=new string(rock);
+            Check(!g.ReliefEscortReturnObstructed,
+                "An opened route immediately removes the physical obstruction warning");
             CallCore(g,"TickReliefMission",.05f);
             Check(g.reliefMissionRoom==0&&g.Has("relief_rescue_6")&&
                 g.save.coins==originalCoins+45,
