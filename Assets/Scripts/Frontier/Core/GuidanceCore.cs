@@ -2265,10 +2265,19 @@ namespace Starfall
         }
         public List<Point> NavigationPath(Point target)
         {
-            int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)Position.x, sy = (int)Position.y, start = sy * w + sx;
+            return NavigationPathFrom(Position,target);
+        }
+        // The same live collision/path-search implementation can now
+        // evaluate a civilian's actual feet. It never teleports the hero,
+        // rewrites coordinates or mutates the persisted quest destination.
+        // The shared scratch buffers are reused sequentially, not cached
+        // across different actors or mutable world collisions.
+        public List<Point> NavigationPathFrom(Point origin,Point target)
+        {
+            int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)origin.x, sy = (int)origin.y, start = sy * w + sx;
             var path = new List<Point>(); if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
             PreparePathSearch(w * h);
-            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start; float best = (Position - target).Length;
+            int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start; float best = (origin - target).Length;
             while (head < tail)
             {
                 int n = pathQueue[head++], x = n % w, y = n / w; float d = (new Point(x + .5f, y + .5f) - target).Length;

@@ -3355,6 +3355,67 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void ActorOriginNavigationPreservesHeroAndCollision(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.save.room=6;g.mode="world";
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        MapData map=g.Map;string[] oldRows=map.rows;
+        Decoration[] oldDecor=map.decor;
+        try
+        {
+            int bx=4,by=6;
+            var rows=(string[])oldRows.Clone();
+            for(int y=by-2;y<=by+2;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx;x<=bx+12;x++)row[x]='.';
+                rows[y]=new string(row);
+            }
+            map.rows=rows;map.decor=new Decoration[0];
+            Point origin=new Point(bx+.5f,by+.5f);
+            Point end=new Point(bx+11.5f,by+.5f);
+            g.save.x=origin.x;g.save.y=origin.y;
+            var existing=g.NavigationPath(end);
+            var fromHero=g.NavigationPathFrom(origin,end);
+            Check(existing.Count>0&&existing.Count==fromHero.Count,
+                "Refactored actor-origin path preserves original hero route length");
+            for(int i=0;i<existing.Count;i++)
+                Check((existing[i]-fromHero[i]).Length<.001f,
+                    "Hero navigation never changes walking cells after reusable origin extraction");
+
+            Point civilian=new Point(bx+2.5f,by+.5f);
+            var civilianPath=g.NavigationPathFrom(civilian,end);
+            Check(civilianPath.Count>0&&civilianPath.Count<fromHero.Count,
+                "Civilian foot origin generates its own shorter real path");
+            Check((g.Position-origin).Length<.001f,
+                "Computing a civilian route cannot move the hero or alter the saved slot");
+
+            // Seal the civilian inside a solid stone loop. The hero outside
+            // still has a path around it, but the civilian must be rejected.
+            for(int y=by-1;y<=by+1;y++)
+            {
+                char[] row=rows[y].ToCharArray();
+                for(int x=bx+1;x<=bx+3;x++)
+                    if(x==bx+1||x==bx+3||y==by-1||y==by+1)
+                        row[x]='#';
+                rows[y]=new string(row);
+            }
+            Check(g.NavigationPathFrom(civilian,end).Count==0,
+                "An enclosed rescue actor cannot pretend to reach a shelter through walls");
+            Check(g.NavigationPath(end).Count>0,
+                "Hero route remains traversable around a civilian's enclosure");
+            Check((g.Position-origin).Length<.001f,
+                "Two sequential world navigation searches cannot corrupt hero coordinates");
+            Console.WriteLine("PASS Actor-origin terrain pathfinding preserves hero and rejects trapped civilian");
+        }
+        finally
+        {
+            map.rows=oldRows;map.decor=oldDecor;
+        }
+    }
+
     private static void LowSafetyEscortUsesReachableShelterBeforeReturn(FrontierRuntime app)
     {
         Prepare(app);
@@ -4508,7 +4569,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
