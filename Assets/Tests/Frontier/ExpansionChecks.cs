@@ -2192,6 +2192,58 @@ namespace Starfall.Tests
                 "Collecting echo completes the selected branch and restores exit guidance");
         }
 
+
+        public static void StarrootGalleryRouteNeverPointsThroughSealedWalls(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+            g.save.flags.Add("abyss_annex_circuit_complete_1");
+            g.save.flags.Add("abyss_clear_1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.kind=="abyssSurvey");
+            WorldObject gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            Check(survey!=null && gate!=null,"Original survey and gate objects exist");
+            var map=g.Map;
+            string[] old=(string[])map.rows.Clone();
+            int x=(int)Math.Floor(survey.x),y=(int)Math.Floor(survey.y);
+            for(int dy=-1;dy<=1;dy++)
+            for(int dx=-1;dx<=1;dx++)
+            {
+                if(dx==0&&dy==0)continue;
+                int px=x+dx,py=y+dy;
+                if(px<2||py<2||px>=map.rows[0].Length-2||
+                    py>=map.rows.Length-2)continue;
+                var row=map.rows[py].ToCharArray();
+                row[px]='#';map.rows[py]=new string(row);
+            }
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            int routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssCircuitRoutes");
+            Check(routes>=0,"Original cleared-floor gate exposes its real route network");
+            g.Choose(routes);
+            g.Choose(0);
+            Point? goal=g.NavigationTarget();
+            Check(goal.HasValue &&
+                (goal.Value-new Point(survey.x,survey.y)).Length>.01f &&
+                g.AbyssCircuitUnvisitedSites(0)>0,
+                "Gallery A never points at its sealed original survey but retains its uncollected proof");
+            int visits=g.AbyssCircuitUnvisitedSites(0);
+            for(int i=0;i<5;i++)
+                Check(g.NavigationTarget().HasValue &&
+                    (g.NavigationTarget().Value-goal.Value).Length<.001f &&
+                    g.AbyssCircuitUnvisitedSites(0)==visits,
+                    "Repeated production navigation reads are stable and do not mutate proof state");
+            map.rows=old;
+            // Reselecting the physical route is the explicit refresh when
+            // a previously inaccessible passage has reopened.
+            g.save.x=gate.x;g.save.y=gate.y;g.Talk(gate);
+            routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="abyssCircuitRoutes");
+            g.Choose(routes);g.Choose(0);
+            Check(g.NavigationTarget().HasValue &&
+                (g.NavigationTarget().Value-new Point(survey.x,survey.y)).Length<.001f,
+                "A new real route selection restores survey guidance after terrain clears");
+        }
+
         public static void StarrootSelectedRouteGuidesRealUnvisitedSites(Campaign data)
         {
             var g = Unlocked(data); g.StartAbyss(0);

@@ -334,6 +334,11 @@ namespace Starfall
         // Waypoint intent belongs to this visit, not to the saved campaign.
         private int abyssCircuitGuideBranch = -1, abyssCircuitGuideFloor = -1;
         private MapData abyssCircuitGuideMap;
+        private WorldObject abyssCircuitGuideSite;
+        private int abyssCircuitGuideProofKey = int.MinValue;
+        // A missing target is also cached. Otherwise the actual world
+        // navigation renderer would re-run cave-wide BFS on every frame.
+        private bool abyssCircuitGuideEvaluated;
         // Speaking to an unfinished relay opts in to puzzle guidance;
         // existing persisted step flags also resume mid-circuit on reload.
         private bool abyssCircuitPuzzleGuideActive;
@@ -696,41 +701,53 @@ namespace Starfall
                 abyssCircuitGuideFloor != save.abyssFloor ||
                 !Object.ReferenceEquals(abyssCircuitGuideMap, Map) ||
                 Map.objects == null) return null;
-            WorldObject[] relays = AbyssCircuitRelays();
-            WorldObject origin = relays[abyssCircuitGuideBranch];
-            if (origin == null) return null;
-            WorldObject next = null;
-            WorldObject lockedEcho = null;
-            float best = float.MaxValue;
-            foreach (WorldObject site in Map.objects)
+            // Live v2 flags are the authority. Recheck only when a real
+            // optional site was filed or the echo's source was unlocked.
+            int proofKey = AbyssCircuitUnvisitedSites(abyssCircuitGuideBranch) +
+                (Has("abyss_annex_far_survey_" + save.abyssFloor) ? 32 : 0);
+            if (!abyssCircuitGuideEvaluated ||
+                proofKey != abyssCircuitGuideProofKey)
             {
-                string flag = AbyssCircuitOptionalFlag(site);
-                if (flag == null || Has(flag) ||
-                    AbyssCircuitNearestRelay(site, relays) != abyssCircuitGuideBranch)
-                    continue;
-                if (site.kind == "abyssFarEcho" &&
-                    AbyssTestimonyRecordState(site) == 3)
+                abyssCircuitGuideEvaluated = true;
+                abyssCircuitGuideProofKey = proofKey;
+                abyssCircuitGuideSite = null;
+                WorldObject[] relays = AbyssCircuitRelays();
+                WorldObject origin = relays[abyssCircuitGuideBranch];
+                if (origin == null) return null;
+                WorldObject lockedEcho = null;
+                float best = float.MaxValue;
+                foreach (WorldObject site in Map.objects)
                 {
-                    lockedEcho = site;
-                    continue;
+                    string flag = AbyssCircuitOptionalFlag(site);
+                    if (flag == null || Has(flag) ||
+                        AbyssCircuitNearestRelay(site, relays) != abyssCircuitGuideBranch)
+                        continue;
+                    if (site.kind == "abyssFarEcho" &&
+                        AbyssTestimonyRecordState(site) == 3)
+                    {
+                        lockedEcho = site;
+                        continue;
+                    }
+                    // An optional objective only exists when a real walking
+                    // route reaches a legal interaction foot, not just its
+                    // icon or a point on the far side of a wall.
+                    if (!CanNavigateToAbyssTestimony(site)) continue;
+                    float dx = site.x - origin.x, dy = site.y - origin.y;
+                    float distance = dx * dx + dy * dy;
+                    if (distance < best)
+                    { best = distance; abyssCircuitGuideSite = site; }
                 }
-                // Stable ordering from the relay prevents mid-walk jitter
-                // between two equally near optional sites.
-                float dx = site.x - origin.x, dy = site.y - origin.y;
-                float distance = dx * dx + dy * dy;
-                if (distance < best) { best = distance; next = site; }
+                if (abyssCircuitGuideSite == null && lockedEcho != null)
+                {
+                    WorldObject source = Array.Find(Map.objects,
+                        o => o.kind == "abyssFarSurvey");
+                    if (source != null &&
+                        !Has("abyss_annex_far_survey_" + save.abyssFloor) &&
+                        CanNavigateToAbyssTestimony(source))
+                        abyssCircuitGuideSite = source;
+                }
             }
-            if (next == null && lockedEcho != null)
-            {
-                // The prerequisite may lie in a different gallery. Guide
-                // its actual world position without allowing locked echo
-                // rewards or changing permanent v2 testimony flags.
-                WorldObject source = Array.Find(Map.objects,
-                    o => o.kind == "abyssFarSurvey");
-                if (source != null &&
-                    !Has("abyss_annex_far_survey_" + save.abyssFloor))
-                    next = source;
-            }
+            WorldObject next = abyssCircuitGuideSite;
             return next == null ? (Point?)null : new Point(next.x, next.y);
         }
         public int AbyssCircuitUnvisitedSites(int branch)
@@ -825,6 +842,9 @@ namespace Starfall
             abyssTestimonyGuideSite = null;
             abyssCircuitGuideFloor = save.abyssFloor;
             abyssCircuitGuideMap = Map;
+            abyssCircuitGuideSite = null;
+            abyssCircuitGuideEvaluated = false;
+            abyssCircuitGuideProofKey = int.MinValue;
             RejoinCompanionAfterAbyssCircuitTravel(previousHero);
             revision++;
             sound = "travel";

@@ -232,6 +232,9 @@ namespace Starfall
             abyssCircuitGuideBranch = -1;
             abyssCircuitGuideFloor = -1;
             abyssCircuitGuideMap = null;
+            abyssCircuitGuideSite = null;
+            abyssCircuitGuideEvaluated = false;
+            abyssCircuitGuideProofKey = int.MinValue;
             abyssCircuitPuzzleGuideActive = false;
             abyssTestimonyGuideActive = false;
             abyssTestimonyGuideFloor = -1;
