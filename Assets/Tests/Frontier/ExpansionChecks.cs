@@ -756,7 +756,17 @@ namespace Starfall.Tests
             g.save.inventory[0] = 2; Action(g, "brazier", "warm:brazier0"); g.save.x = 6; g.save.y = 14;
             for (int i = 0; i < 200; i++) g.Tick(.05f, new Point()); Check(g.save.cold < 5, "Lit braziers warm the player");
             g.Enter(0); g.AcceptBounty(2); Check(!g.ClaimBounty(), "Contract cannot pay before progress");
-            for (int fish = 0; fish < 3; fish++) { Action(g, "fish", "fish"); for (int hit = 0; hit < 3; hit++) { g.fishCursor = .5f; g.FishHit(); } }
+            for (int fish = 0; fish < 3; fish++)
+            {
+                Action(g, "fish", "fish");
+                for (int hit = 0; hit < 3; hit++)
+                {
+                    // The contract now requires three real, spaced bites;
+                    // assigning the old center cursor cannot counterfeit one.
+                    ReachFishingBite(g,true);
+                    g.FishHit();
+                }
+            }
             Check(g.save.bountyProgress == 3, "Actual catches advance the contract"); int coins = g.save.coins; Check(g.ClaimBounty() && g.save.coins == coins + 35, "Completed contract pays once");
             Check(!g.ClaimBounty(), "Claim cannot be repeated");
             g.Enter(6); g.enemies.Clear(); g.save.mirrors = new[] { 1, 2, 1 }; g.save.x = 14; g.save.y = 18;

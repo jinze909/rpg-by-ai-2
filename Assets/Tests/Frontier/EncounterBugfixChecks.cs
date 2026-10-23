@@ -951,7 +951,11 @@ namespace Starfall.Tests
             g.save.inventory[3]=9998;g.save.coins=999999;
             Action(g,"fish","fish");
             Check(g.mode=="fish","A freed stack can resume normal fishing");
-            for (int i=0;i<3;i++){g.fishCursor=.5f;g.FishHit();}
+            for (int i=0;i<3;i++)
+            {
+                ReachFishingBite(g,true);
+                g.FishHit();
+            }
             Check(g.mode=="world" && g.save.inventory[3]==9999 &&
                 g.save.coins==999999 && g.save.bountyProgress==1,
                 "Normal three-hit catch awards one bounded fish and real bounty progress");
