@@ -2404,6 +2404,12 @@ namespace Starfall
         }
         public void StartAbyss(int risk)
         {
+            if(FieldWorkPreventsRest)
+            {
+                Notify("当前现场行动尚未结束。请先完成或明确取消，再进入地脉深渊。",
+                    "Finish or explicitly cancel the active field mission before entering the Root Abyss.");
+                return;
+            }
             if (Dying || !CanEnter(8) || InAbyss || risk < 0 || risk > 2) return;
             save.abyssFloor = 1; save.abyssRisk = risk; save.abyssSeed = (int)(Random() * 1000000) + 137;
             save.abyssEnemies = null; save.abyssSnapshotFloor = 0;
