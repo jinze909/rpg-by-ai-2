@@ -128,11 +128,16 @@ namespace Starfall.Tests
             Action(game,"fish","fish");
             Check(game.mode=="fish"&&Math.Abs(game.FishTarget-.5f)<.0001f,
                 "Accessibility mode anchors the bite target at the original center");
-            float initial=game.fishCursor;
-            for(int i=0;i<90;i++)game.Tick(.02f,new Point());
+            float minFloat=float.MaxValue,maxFloat=float.MinValue;
+            for(int i=0;i<90;i++)
+            {
+                game.Tick(.02f,new Point());
+                minFloat=Math.Min(minFloat,game.fishCursor);
+                maxFloat=Math.Max(maxFloat,game.fishCursor);
+            }
             Check(Math.Abs(game.FishTarget-.5f)<.0001f &&
-                Math.Abs(game.fishCursor-initial)>.1f,
-                "Reduced motion removes moving-target drift without removing the timed float challenge");
+                maxFloat-minFloat>.6f,
+                "Reduced motion anchors the target but keeps a genuinely active timing float");
             ReachFishingBite(game,true);game.FishHit();
             Check(game.fishHits==1&&!game.FishLineReady &&
                 Math.Abs(game.FishTarget-.5f)<.0001f,
