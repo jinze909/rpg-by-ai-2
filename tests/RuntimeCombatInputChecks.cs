@@ -3428,6 +3428,10 @@ public static class RuntimeCombatInputChecks
             g.reliefMissionRoom=6;g.reliefMissionWave=3;
             g.reliefMissionTime=62;g.reliefFollowerWaiting=true;
             g.reliefFollowerSafety=90;
+            // Completing the first mission clears its transient follower.
+            // Recreate the actual return actor for a legitimate replay,
+            // instead of accidentally testing an empty no-civilian mission.
+            g.reliefFollowerPosition=new Point(bx+.5f,by+.5f);
             CallCore(g,"TickReliefMission",.05f);
             Check(g.reliefMissionRoom==0&&g.save.coins==earnedCoins,
                 "Repeating an actual successful return cannot double-award rescued residents");
