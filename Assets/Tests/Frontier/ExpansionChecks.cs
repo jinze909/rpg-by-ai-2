@@ -775,6 +775,37 @@ namespace Starfall.Tests
                 "Mid-floor old-format save restores new gallery geometry and pending loot");
         }
 
+        public static void AbyssRootwellSeededRoutesStayReachableAndSaveStable(Campaign data)
+        {
+            var g = Unlocked(data); g.StartAbyss(0);
+            var regenerate = typeof(GameCore).GetMethod("GenerateAbyss",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(regenerate != null, "Original procedural Abyss generator remains installed");
+            var positions = new HashSet<string>();
+            for (int seed = 100; seed < 103; seed++)
+            {
+                g.save.abyssSeed = seed;
+                regenerate.Invoke(g, null);
+                WorldObject well = Array.Find(g.Map.objects,
+                    o => o.kind == "abyssRootwell");
+                Check(well != null && g.CanStand(new Point(well.x, well.y)),
+                    "Every seeded recovery site is physically standable");
+                int width = g.Map.rows[0].Length;
+                Check(Reachable(g).Contains((int)well.y * width + (int)well.x),
+                    "Every seeded recovery site is walkably connected to the entry corridor");
+                positions.Add(well.x + "," + well.y);
+                GameCore reloaded = new GameCore(data, CloneSave(g.save));
+                WorldObject restored = Array.Find(reloaded.Map.objects,
+                    o => o.kind == "abyssRootwell");
+                Check(restored != null &&
+                    restored.x == well.x && restored.y == well.y &&
+                    reloaded.save.abyssSeed == seed,
+                    "SaveData v2 regenerates the SAME rootwell site without changing the seed");
+            }
+            Check(positions.Count == 3,
+                "Three successive deterministic seeds place the rootwell in distinct reachable branches");
+        }
+
         public static void AbyssRootwellTradesPendingLootForSurvival(Campaign data)
         {
             var g = Unlocked(data);

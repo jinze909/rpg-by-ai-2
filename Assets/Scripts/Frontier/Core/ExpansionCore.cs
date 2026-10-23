@@ -2400,8 +2400,8 @@ namespace Starfall
                 if (!Has("abyss_annex_rootwell_" + save.abyssFloor) &&
                     ((save.health <= save.maxHealth * .5f && save.runShards >= 2) ||
                      (save.energy <= 25 && save.runShards >= 1)))
-                    goal += L(" · 东侧支洞复苏泉可兑换恢复",
-                        " · East gallery rootwell offers recovery");
+                    goal += L(" · 探索支洞复苏泉可兑换恢复",
+                        " · Seek the side-gallery rootwell for recovery");
                 return goal;
             }
             if (save.room >= 5 && save.room <= 7)
@@ -2488,6 +2488,17 @@ namespace Starfall
                     if((y+save.abyssFloor)%4==0)rows[y][x]='.';
             string[] strings = new string[44];
             for (int y = 0; y < 44; y++) strings[y] = new string(rows[y]);
+            // Distinct optional refuge sites make the side-galleries worth
+            // exploring on each descent. Derive without advancing the seeded
+            // enemy/terrain RNG, so all legacy enemy, boss and gate positions
+            // and v2 procedural saves remain byte-for-byte deterministic.
+            Point[] rootwellSites = {
+                new Point(59.5f, 22.5f), // east outer branch
+                new Point(47.5f, 23.5f), // eastern lower gallery
+                new Point(20.5f, 30.5f)  // southern branch
+            };
+            Point rootwellSite = rootwellSites[
+                (save.abyssSeed + save.abyssFloor * 17) % rootwellSites.Length];
             abyssMap = new MapData { id = 8, name = "地脉深渊 · 第" + save.abyssFloor + "层", en = "ROOT ABYSS · FLOOR " + save.abyssFloor, color = save.abyssFloor % 2 == 0 ? "#4f576c" : "#425b5c", subtitle = "越深入，越要决定带什么回来。", suben = "Every descent asks what you will carry home.", spawnX = 5, spawnY = 14, rows = strings,
                 objects = new[] { new WorldObject { id = "abyssExit", kind = "abyssExit", name = "放弃本层收益，返回", en = "Leave unbanked loot", x = 3, y = 14 }, new WorldObject { id = "abyssGate", kind = "abyssGate", name = "地脉门 · 祝福与结算", en = "Root gate · boons and banking", x = 31, y = 14 },
                     new WorldObject { id = "abyssSideSurvey", kind = "abyssSurvey", name = "地脉旧拓片", en = "Root Warden's Lost Rubbing", x = 12.5f, y = 28.5f },
@@ -2495,7 +2506,7 @@ namespace Starfall
                     new WorldObject { id = "abyssFarSurvey", kind = "abyssFarSurvey", name = "地脉下层残碑", en = "Deep Root Testimony", x = 20.5f, y = 39.5f },
                     new WorldObject { id = "abyssFarCache", kind = "abyssFarCache", name = "洞底失落补给", en = "Lower Gallery Supplies", x = 60.5f, y = 39.5f },
                     new WorldObject { id = "abyssFarEcho", kind = "abyssFarEcho", name = "地脉回声石", en = "Starroot Echo Stone", x = 60.5f, y = 11.5f },
-                    new WorldObject { id = "abyssRootwell", kind = "abyssRootwell", name = "地脉复苏泉", en = "Rootwell Refuge", x = 59.5f, y = 22.5f } },
+                    new WorldObject { id = "abyssRootwell", kind = "abyssRootwell", name = "地脉复苏泉", en = "Rootwell Refuge", x = rootwellSite.x, y = rootwellSite.y } },
                 decor = new[] { new Decoration { kind = "crystal", x = 8, y = 6 }, new Decoration { kind = "obelisk", x = 18, y = 6 }, new Decoration { kind = "root", x = 29, y = 18 },
                     new Decoration { kind = "crystal", x = 40, y = 9 },
                     new Decoration { kind = "ruin", x = 48, y = 15 },
