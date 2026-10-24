@@ -91,7 +91,13 @@ namespace Starfall
         private void Diamond(float x, float y, float r, Color c) { for (int i = -(int)r; i <= (int)r; i++) { float w = r - Math.Abs(i); Box(x - w, y + i, w * 2 + 1, 1, c); } }
         private void DrawNavigation()
         {
-            if (Game.mode != "world" || !Game.save.showGuidance) return; Point? target = Game.NavigationTarget(); if (!target.HasValue) return;
+            if (Game.mode != "world" || !Game.save.showGuidance) return;
+            // The modern target marker draws an explicit red blocked cross.
+            // Do not superimpose the legacy golden "go here" diamond or
+            // its stale breadcrumb trail over an impassable personal route.
+            if (Game.PersonalNavigationActive && Game.LocalWaymarkRouteBlocked)
+                return;
+            Point? target = Game.NavigationTarget(); if (!target.HasValue) return;
             if (Game.SafeTravel && route.Count > 0) for (int i = 0; i < Math.Min(route.Count, 22); i += 2) { Point p = ScreenPoint(route[i]); Box(p.x - 2, p.y - 1, 4, 3, new Color(.94f, .77f, .48f, .55f)); }
             Point goal = ScreenPoint(target.Value);
             int gallery = Game.AbyssCircuitGuidedBranch;

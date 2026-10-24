@@ -3584,6 +3584,32 @@ public static class RuntimeCombatInputChecks
         var path=(System.Collections.Generic.List<Point>)nav.Invoke(app,null);
         Check(path!=null&&path.Count>0,
             "Personal waypoint drives genuine world-navigation BFS rather than a fake marker");
+        // A live destination can become unwalkable after a changing gate or
+        // tide. Exercise the real in-game map and world HUD rather than only
+        // trusting the transient GameCore flag.
+        MapData pinnedMap=g.Map;string[] originalRows=pinnedMap.rows;
+        try
+        {
+            string[] sealedRows=(string[])originalRows.Clone();
+            int px=(int)Math.Floor(chosen.x),py=(int)Math.Floor(chosen.y);
+            char[] blocked=sealedRows[py].ToCharArray();
+            blocked[px]='#';sealedRows[py]=new string(blocked);
+            pinnedMap.rows=sealedRows;
+            for(int i=0;i<32;i++)g.Tick(.05f,new Point());
+            Check(g.LocalWaymarkRouteBlocked&&g.HasLocalWaymark,
+                "Blocked live destination holds the player's original personal pin");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(c=>c.Contains("ROUTE BLOCKED")) &&
+                !GUI.commands.Exists(c=>c.Contains("PERSONAL PIN")),
+                "Actual world mini HUD advertises the closed route instead of misleading normal guidance");
+            pinnedMap.rows=originalRows;
+            for(int i=0;i<32;i++)g.Tick(.05f,new Point());
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!g.LocalWaymarkRouteBlocked&&
+                GUI.commands.Exists(c=>c.Contains("PERSONAL PIN")),
+                "Original real-world HUD destination and route cues return when footing reopens");
+        }
+        finally{pinnedMap.rows=originalRows;}
         g.mode="map";
         GUI.buttonCalls.Clear();GUI.commands.Clear();
         GUI.queuedClick=new Rect(888,571,306,35);

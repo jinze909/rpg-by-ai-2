@@ -321,13 +321,22 @@ namespace Starfall
                 (!Game.save.showGuidance && !Game.PersonalNavigationActive) ||
                 float.IsNaN(target.x) || float.IsInfinity(target.x) ||
                 float.IsNaN(target.y) || float.IsInfinity(target.y)) return false;
+            // A personal pin can still have a PARTIAL best-effort HUD
+            // route up to a closed gate. The physical finish check in the
+            // core is authoritative; never display the partial line as open.
+            if(Game.PersonalNavigationActive && Game.LocalWaymarkRouteBlocked)
+                return true;
             return (target - Game.Position).Length > 3f &&
                 NavigationRoute().Count == 0;
         }
         private void DrawNavigationRoute(float x0, float y0, float tileSize,
             int left, int top, int width, int height)
         {
-            if (tileSize <= 0) return;
+            // A best-effort path ending at a locked wall is not the route
+            // to the actual pinned destination. Show the blocked marker,
+            // not teal breadcrumbs that lead the player into the wall.
+            if (tileSize <= 0 ||
+                Game.PersonalNavigationActive && Game.LocalWaymarkRouteBlocked) return;
             List<Point> route = NavigationRoute();
             if (route.Count == 0) return;
             float dot = Math.Max(1.5f, Math.Min(3f, tileSize * .36f));
