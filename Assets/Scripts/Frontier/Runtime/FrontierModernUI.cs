@@ -781,12 +781,20 @@ namespace Starfall
         private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
         private void DrawFishing()
         {
-            Window(Game.L("湖畔垂钓", "Fishing by the lake"),
-                Game.save.reducedMotion ?
-                    Game.L("低动态模式：鱼口固定。等鱼咬钩，再在绿色区域收线 · E / 空格",
-                        "Reduced motion: steady bite zone. Wait for the bite, then reel · E / Space") :
-                    Game.L("鱼口会移动。等鱼咬钩，再在绿色区域收线 · E / 空格",
-                        "The bite zone drifts. Wait for the bite, then reel in teal · E / Space"));
+            Window(Game.FishExpertCast?
+                    Game.L("湖畔 · 精准垂钓", "Precision fishing by the lake"):
+                    Game.L("湖畔垂钓", "Fishing by the lake"),
+                Game.FishExpertCast?
+                    Game.save.reducedMotion?
+                        Game.L("窄鱼口固定 · 三次精准收线，赢得两条银鳍鱼 · E / 空格",
+                            "Steady narrow bite · three tight hooks for two Silverfin · E / Space"):
+                        Game.L("急水鱼口更窄 · 三次精准收线，赢得两条银鳍鱼 · E / 空格",
+                            "Narrow moving bite · three tight hooks for two Silverfin · E / Space"):
+                    Game.save.reducedMotion ?
+                        Game.L("低动态模式：鱼口固定。等鱼咬钩，再在绿色区域收线 · E / 空格",
+                            "Reduced motion: steady bite zone. Wait for the bite, then reel · E / Space") :
+                        Game.L("鱼口会移动。等鱼咬钩，再在绿色区域收线 · E / 空格",
+                            "The bite zone drifts. Wait for the bite, then reel in teal · E / Space"));
             Card(279, 179, 938, 510); Icon("fish", 667, 202, 134);
             Text(307, 361, 875, 41,
                 Game.L("成功 ", "Good pulls ") + Game.fishHits + "/3   ·   " +
@@ -821,8 +829,11 @@ namespace Starfall
                         Game.L("等待鱼再次咬钩……", "Waiting for the next bite...")),
                 16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
             Text(321, 548, 849, 44,
-                Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",
-                    "Three good pulls catch a Silverfin. A bad or missed bite counts; three misses end the cast."),
+                Game.FishExpertCast?
+                    Game.L("急水挑战：成功三次收获银鳍鱼 ×2；鱼口更窄。累计失误三次便空手而归。",
+                        "PRECISION CAST: three tight hooks yield two Silverfin; three misses lose the haul."):
+                    Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",
+                        "Three good pulls catch a Silverfin. A bad or missed bite counts; three misses end the cast."),
                 15, muted, TextAnchor.MiddleCenter);
             if (Button(473, 601, 543, 56,
                 Game.FishLineReady ? Game.L("收线  E", "Reel  E") :

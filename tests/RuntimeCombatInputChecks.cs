@@ -2126,6 +2126,64 @@ public static class RuntimeCombatInputChecks
     }
 
 
+
+    private static void PrecisionFishingInLiveGameViewDistinguishesBothRealRules(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.Enter(0);g.enemies.Clear();g.save.english=true;
+        WorldObject pond=Array.Find(g.Map.objects,o=>o.kind=="fish");
+        Check(pond!=null,"Shipped town scene contains the real fishing source");
+        g.save.x=pond.x;g.save.y=pond.y;
+        g.Talk(pond);
+        int expert=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="fish_expert");
+        Check(expert>=0,"Real NPC dialogue exposes optional precision fishing");
+        g.Choose(expert);
+        Check(g.mode=="fish"&&g.FishExpertCast&&
+            Math.Abs(g.FishWindowRadius-.10f)<.001f,
+            "Authentic expert action starts a narrow-bite physical minigame");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("PRECISION CAST"))&&
+            GUI.commands.Exists(x=>x.Contains("Precision fishing by the lake"))&&
+            GUI.commands.Exists(x=>x.Contains("two Silverfin")),
+            "Actual English GameView displays the expert cast and earned two-fish goal");
+        var reel=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.x-473)<.01f&&
+            Math.Abs(c.rect.y-601)<.01f);
+        Check(reel!=null&&!reel.enabled,
+            "Expert mode does not invent a ready hook before the first real splash");
+        for(int i=0;i<90&&!g.FishLineReady;i++)Update(app);
+        Check(g.FishLineReady,"Expert mode reaches a genuine bite through runtime Update");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        reel=GUI.buttonCalls.Find(c=>Math.Abs(c.rect.x-473)<.01f&&
+            Math.Abs(c.rect.y-601)<.01f);
+        Check(reel!=null&&reel.enabled,
+            "Actual expert reel activates only for a live bite");
+        int before=g.fishHits+g.fishMisses;
+        Input.keys.Add(KeyCode.E);Update(app);
+        Check(g.fishHits+g.fishMisses==before+1,
+            "Production E key commits at most one honest expert hook or miss");
+        g.Close();g.save.english=false;
+        g.Talk(pond);expert=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="fish_expert");
+        g.Choose(expert);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("湖畔 · 精准垂钓"))&&
+            GUI.commands.Exists(x=>x.Contains("银鳍鱼 ×2")),
+            "Production Chinese HUD names the actual narrower two-fish challenge");
+        g.Close();g.Talk(pond);
+        int normal=Array.FindIndex(g.conversation.choices,c=>c.action=="fish");
+        g.Choose(normal);
+        Check(g.mode=="fish"&&!g.FishExpertCast,
+            "Leaving expert mode cannot silently make the later standard cast difficult");
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Fishing by the lake"))&&
+            !GUI.commands.Exists(x=>x.Contains("PRECISION CAST")),
+            "Existing fishing GameView retains original standard tutorial without leaked expert copy");
+        g.Close();
+        Console.WriteLine("PASS Bilingual production fishing HUD accurately exposes narrower expert mode and live input");
+    }
+
     private static void LiveFishingReelUsesRealBiteAndProductionHud(FrontierRuntime app)
     {
         Prepare(app);
@@ -6022,7 +6080,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
