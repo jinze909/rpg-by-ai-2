@@ -94,6 +94,9 @@ namespace Starfall
                 L("密林侦察员仍在等待救援。", "The woodland scout still needs rescue."));
             s += "\n" + L("摆渡盟声望3后：炖汤15、木材8硬币。",
                 "Ferry trust 3: stew 15 coins, timber 8 coins.");
+            if(PublicFishKitchenStocked)
+                s += "\n" + L("湖畔公共厨房恢复开火：用两条银鳍鱼换一碗炖汤；炖汤恢复65生命，攻击增益延长至105秒。",
+                    "The public lakeside kitchen is stocked: two Silverfin make a bowl of stew; stew heals 65 HP and boosts attacks for 105 seconds.");
             if (save.harborPledge > 0)
                 s += "\n" + L("雾港优先：", "Mistport priority: ") +
                     L(new[] { "", "守灯", "救援", "协调" }[save.harborPledge],
