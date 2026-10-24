@@ -2195,7 +2195,8 @@ namespace Starfall
             // Draw/recovery screens may intentionally have no active world
             // objects (or a stripped decoration-only map). Nothing can
             // be interacted with, so do not query terrain collision at all.
-            if(objects==null||objects.Length==0)return null;
+            if (objects == null) return null;
+            if (objects.Length == 0) return null;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
