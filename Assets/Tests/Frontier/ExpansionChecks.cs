@@ -4108,8 +4108,10 @@ namespace Starfall.Tests
                     "Recovering the original authorized foot restores legal combat");
                 g.Attack(new Point(1,0));
                 Check(g.playerAction!=null&&
-                    g.playerAction.kind=="attack"&&g.save.energy<100f,
-                    "The same three classes and all three weapons can attack on legal ground");
+                    g.playerAction.kind=="attack"&&
+                    g.playerAction.equippedWeapon==weapon&&
+                    g.attackCooldown>0f,
+                    "All nine class-loadout pairs restore real physical attack and cooldown on legal ground");
             }
             }
             finally { data.maps[0]=original; }
