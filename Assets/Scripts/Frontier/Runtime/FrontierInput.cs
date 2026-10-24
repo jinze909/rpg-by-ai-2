@@ -56,7 +56,22 @@ namespace Starfall
             pressedTime = Math.Max(0, pressedTime - dt); navigationRepeat = Math.Max(0, navigationRepeat - dt); confirmControl = null;
             navigation.Scope(InputScope()); if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
             if (PadDown(0) || PadDown(1) || PadDown(4) || PadDown(5) || PadDown(7)) controllerUsed = true;
-            if (PadDown(1) || Input.GetKeyDown(KeyCode.Escape)) { Back(); return; }
+            bool controllerBack=PadDown(1);
+            if (controllerBack || Input.GetKeyDown(KeyCode.Escape))
+            {
+                // B is the controller counterpart to Backspace on a
+                // multi-card story, not a command to discard the NPC.
+                // Escape retains its explicit close/menu-back semantics.
+                // Require the page owner to still be this conversation:
+                // a newly opened speaker must never inherit old pages.
+                if (controllerBack && Game.mode == "dialog" &&
+                    Game.conversation != null && Game.conversation == lastConversation &&
+                    dialoguePage > 0)
+                    PreviousDialoguePage();
+                else
+                    Back();
+                return;
+            }
             if (Game.mode == "dialog" && Game.conversation != null &&
                 Game.conversation == lastConversation && dialoguePage > 0 &&
                 (Input.GetKeyDown(KeyCode.Backspace) ||
