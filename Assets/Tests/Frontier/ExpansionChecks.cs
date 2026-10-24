@@ -3911,5 +3911,36 @@ namespace Starfall.Tests
                 restored.save.inventory[2]==0,
                 "Original save format retains recovered HP and material payment");
         }
+
+        public static void PeacefulCitadelResolutionStillUnlocksRealHighlandWatch(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.frontierEnding=3;
+            g.save.flags.Add("ridge_seen_4_0");
+            g.save.flags.Add("ridge_seen_4_1");
+            g.Enter(4);
+            Check(g.Proofs==3&&g.RidgeLinked(4)&&!g.Has("boss_4"),
+                "All existing civic prerequisites and field bearings are actually satisfied");
+            var key=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(((Dictionary<int,int>)key.GetValue(g)).Count==0,
+                "A live fortress guardian still prevents high-trail patrol activation");
+            Action(g,"shrine","parley");
+            var ids=(Dictionary<int,int>)key.GetValue(g);
+            Check(g.Has("boss_4")&&g.Has("warden_stood_down")&&
+                ids.Count==3&&!g.enemies.Exists(e=>e.boss),
+                "Actual nonlethal negotiation preserves peace but opens the distant patrol");
+            Check(!g.RidgeWatchComplete(4)&&g.RidgeWatchProgress(4)==0,
+                "Negotiating the guardian is not itself a paid watch victory");
+            var guide=g.GetQuest("ridge_watch");
+            Check(guide.room==4&&g.enemies.Exists(e=>ids.ContainsKey(e.id)&&
+                (e.Position-guide.target).Length<.01f),
+                "Civilian quest navigation immediately reaches one of three real live enemies");
+            g.PrepareSave();
+            var resume=new GameCore(data,CloneSave(g.save));resume.Start();
+            Check(resume.Has("warden_stood_down")&&!resume.enemies.Exists(e=>e.boss)&&
+                ((Dictionary<int,int>)key.GetValue(resume)).Count==3,
+                "Unchanged save schema retains both the peaceful ending and the field watch");
+        }
     }
 }

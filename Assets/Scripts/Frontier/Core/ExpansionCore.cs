@@ -2372,7 +2372,14 @@ namespace Starfall
             if (action == "parley")
             {
                 if (save.room != 4 || Proofs != 3 || save.frontierEnding != 3 || Has("boss_4") || TriadDefenseActive) return true;
-                enemies.Clear(); projectiles.Clear(); hazards.Clear(); Flag("boss_4"); Flag("warden_stood_down"); CreditCoins(70); AddXp(80); FinalConversation(); revision++; return true;
+                enemies.Clear(); projectiles.Clear(); hazards.Clear();
+                Flag("boss_4"); Flag("warden_stood_down");
+                // This NON-LETHAL resolution also satisfies the highland
+                // watch's guardian prerequisite. The original peace
+                // negotiation clears the citadel army first; only distinct
+                // remote civilian-route threats may spawn, once.
+                EnsureRidgeWatchPatrols();
+                CreditCoins(70); AddXp(80); FinalConversation(); revision++; return true;
             }
             if (action.StartsWith("pledge"))
             {
