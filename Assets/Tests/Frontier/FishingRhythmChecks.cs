@@ -32,6 +32,11 @@ namespace Starfall.Tests
             Check(g.Has("ally_2")&&g.save.inventory[3]==2&&
                 !g.PublicFishKitchenStocked&&g.StewHealing==55&&g.StewBuffSeconds==90f,
                 "Historic three-fish reward is preserved and cannot accidentally unlock the kitchen");
+            // The historic three-fish commission itself gifts one Tide
+            // stew. The new two-fish exchange adds ONE MORE, not a total
+            // of one, and must never erase that established reward.
+            int initialStew=g.save.inventory[6];
+            Check(initialStew==1,"Original commission still provides its existing free stew");
             int beforeMoments=g.save.moments.Count;
             g.Talk(pond);
             int kitchen=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_kitchen");
@@ -39,7 +44,7 @@ namespace Starfall.Tests
                 "Real lake fisherman now offers a new physical two-fish supply trade");
             g.Choose(kitchen);
             Check(g.PublicFishKitchenStocked&&g.save.inventory[3]==0&&
-                g.save.inventory[6]==1&&g.StewHealing==65&&
+                g.save.inventory[6]==initialStew+1&&g.StewHealing==65&&
                 g.StewBuffSeconds==105f&&
                 g.save.moments.Count==Math.Min(8,beforeMoments+1)&&
                 g.save.moments.Exists(m=>m.en.Contains("public kitchen")),
@@ -52,17 +57,17 @@ namespace Starfall.Tests
             g.save.health=10;g.save.energy=20;g.save.totalTime=40;
             g.Eat();
             Check(g.save.health==75&&g.save.energy==100f&&
-                g.save.foodUntil==145f&&g.save.inventory[6]==0,
+                g.save.foodUntil==145f&&g.save.inventory[6]==initialStew,
                 "The earned permanent kitchen upgrade changes actual healing and combat buff time");
             g.save.inventory[3]=4;g.Talk(pond);
             kitchen=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_kitchen");
             g.Choose(kitchen);
-            Check(g.save.inventory[3]==2&&g.save.inventory[6]==1&&
+            Check(g.save.inventory[3]==2&&g.save.inventory[6]==initialStew+1&&
                 g.save.moments.Count==Math.Min(8,beforeMoments+1),
                 "Repeatable two-fish trade issues one real consumable and never duplicates the one-time chronicle");
             g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));restored.Start();
             Check(restored.PublicFishKitchenStocked&&restored.StewHealing==65&&
-                restored.StewBuffSeconds==105f&&restored.save.inventory[6]==1&&
+                restored.StewBuffSeconds==105f&&restored.save.inventory[6]==initialStew+1&&
                 restored.save.version==2&&
                 restored.WorldResponse().Contains("湖畔公共厨房"),
                 "Kitchen benefit, remaining edible stock and visible civic world consequence survive unchanged v2 save/reload");
