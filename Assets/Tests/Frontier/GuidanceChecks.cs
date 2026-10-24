@@ -329,7 +329,7 @@ namespace Starfall.Tests
                 Check(count<500&&g.FarCourierActive&&g.FarCourierCrossed&&
                     g.Position.y>=54.25f&&!g.FarCourierOnBridge&&
                     g.FarCourierRaidersAlive==2&&
-                    g.Conditions().Contains("检查站核验封条")&&
+                    g.Conditions().Contains("劫匪 2 名")&&
                     checkpointGuide.HasValue&&
                     (checkpointGuide.Value-new Point(111.5f,61.5f)).Length<.01f,
                     "Only reaching the south bank on real legal movement earns the bridge and two live raiders in region "+room);
