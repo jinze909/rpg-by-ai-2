@@ -2337,6 +2337,11 @@ namespace Starfall
             if(emergencyFire.HasValue)return emergencyFire;
             Point? emergencyShade=EmergencyShadeGuideTarget();
             if(emergencyShade.HasValue)return emergencyShade;
+            // A personal pin temporarily takes over ordinary quest routing
+            // but NEVER redirects an active timed escort, defense, rescue or
+            // emergency. The player's original tracked quest is untouched.
+            Point? personal=LocalWaymark;
+            if(personal.HasValue&&!FieldWorkPreventsRest)return personal;
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
             if (q.room == save.room) return q.target;
             foreach (var o in Map.objects) if (o.kind == "portal" + q.room) return new Point(o.x, o.y);
