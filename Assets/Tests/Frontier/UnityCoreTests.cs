@@ -146,6 +146,7 @@ namespace Starfall.Tests
         [Test] public void BothRangerSkillsRequireRealPhysicalMuzzle() { CoreChecks.RangerSkillsCannotLaunchProjectilesFromBuriedPhysicalMuzzle(Data()); }
         [Test] public void AutoHealingRequiresRealLineOfSight() { CoreChecks.CompanionAutoHealRequiresPhysicalReachAndRetiresBlockedRelease(Data()); }
         [Test] public void MiraTriageTreatsOnlyPhysicallyReachableRescueCivilians() { CoreChecks.MiraTriageTreatsOnlyPhysicallyReachableRescueCivilians(Data()); }
+        [Test] public void MiraWalksRealTerrainToReachWoundedRescueResident() { CoreChecks.MiraWalksRealTerrainToReachWoundedRescueResident(Data()); }
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }
         [Test] public void CompanionHoldOrderIsPhysicalTransientAndResumesFollowing() { CoreChecks.CompanionHoldPositionIsTransientAndResumesPhysicalFollowing(Data()); }
         [Test] public void CompanionButtonGestureDistinguishesTapFromHoldAndCancelsSafely() { CoreChecks.CompanionButtonGestureDistinguishesTapFromHoldAndCancelsSafely(Data()); }

@@ -4831,6 +4831,104 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void MiraWalksRealTerrainToReachWoundedRescueResident(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<tiles.Length;x++)tiles[x]='#';
+                    else {tiles[0]='#';tiles[tiles.Length-1]='#';}
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=17.5f,spawnY=13.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("companion_0");g.SelectCompanion(0);
+                g.save.x=17.5f;g.save.y=13.5f;
+                g.companionPosition=new Point(10.5f,10.5f);
+                g.save.health=g.save.maxHealth;g.save.reducedMotion=true;
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90f;g.reliefFollowerSafety=52f;
+                g.reliefFollowerPosition=new Point(16.5f,10.5f);
+                g.reliefFollowerWaiting=true;
+                var cooldown=typeof(GameCore).GetField("companionAttack",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                cooldown.SetValue(g,0f);
+                Check(g.CanStand(g.companionPosition)&&
+                    g.CanStand(g.reliefFollowerPosition)&&
+                    (g.companionPosition-g.reliefFollowerPosition).Length>5f,
+                    "Real injured resident begins beyond Mira's physical treatment reach");
+                Point begin=g.companionPosition;
+                for(int frame=0;frame<12;frame++)
+                {
+                    Point previous=g.companionPosition;
+                    g.Tick(.05f,new Point());
+                    Check(g.CanStand(g.companionPosition)&&
+                        (g.companionPosition-previous).Length<.42f,
+                        "Medic approaches using legal incremental swept footsteps, never teleporting");
+                }
+                Check(g.companionPosition.x>begin.x+.45f&&
+                    Math.Abs(g.companionPosition.y-begin.y)<.5f,
+                    "Mira actively moves toward a wounded resident rather than following the distant hero diagonally");
+                Advance(g,1.6f);
+                Check(g.reliefFollowerSafety>55f&&
+                    g.effects.Exists(e=>e.reliefMissionOwned&&
+                        e.kind=="number"&&
+                        e.text.StartsWith(g.L("包扎 +","TREATED +"))),
+                    "A walking medic reaches an honest healing lane and performs the actual delayed civilian treatment");
+
+                for(int y=1;y<23;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    line[12]='#';rows[y]=new string(line);
+                }
+                var blocked=Fresh(data);blocked.Enter(1);blocked.enemies.Clear();
+                blocked.save.flags.Add("companion_0");
+                blocked.SelectCompanion(0);
+                blocked.save.x=17.5f;blocked.save.y=13.5f;
+                blocked.companionPosition=new Point(10.5f,10.5f);
+                blocked.save.health=blocked.save.maxHealth;
+                blocked.reliefMissionRoom=1;blocked.reliefMissionWave=3;
+                blocked.reliefMissionTime=90f;blocked.reliefFollowerSafety=52f;
+                blocked.reliefFollowerPosition=new Point(16.5f,10.5f);
+                blocked.reliefFollowerWaiting=true;
+                cooldown.SetValue(blocked,0f);
+                for(int k=0;k<25;k++)blocked.Tick(.05f,new Point());
+                Check(blocked.companionPosition.x<12f&&
+                    blocked.reliefFollowerSafety<=52f &&
+                    !blocked.effects.Exists(e=>e.reliefMissionOwned&&
+                        e.kind=="number"&&e.text.StartsWith(
+                            blocked.L("包扎 +","TREATED +"))),
+                    "A sealed full-height wall prevents both healer walking and medical contact");
+                // Reopen the real single-cell corridor. The same companion
+                // must recover along connected actor footing without a warp.
+                char[] door=rows[10].ToCharArray();door[12]='.';
+                rows[10]=new string(door);
+                bool treated=false;
+                for(int frame=0;frame<180;frame++)
+                {
+                    Point prev=blocked.companionPosition;
+                    blocked.Tick(.05f,new Point());
+                    Check(blocked.CanStand(blocked.companionPosition)&&
+                        (blocked.companionPosition-prev).Length<.42f,
+                        "Reopened route keeps real foot collision and normal movement limits");
+                    if(blocked.effects.Exists(e=>e.reliefMissionOwned&&
+                        e.kind=="number"&&
+                        e.text.StartsWith(blocked.L("包扎 +","TREATED +"))))
+                    {treated=true;break;}
+                }
+                Check(treated&&blocked.companionPosition.x>12f,
+                    "When the physical corridor opens the same medic navigates through and treats the waiting survivor");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void CompanionIdleReadinessReactsToRealTargets(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

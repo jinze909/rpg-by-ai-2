@@ -967,6 +967,49 @@ namespace Starfall
                 CanStand(companionPosition)&&CanStand(reliefFollowerPosition)&&
                 ClearAttackPath(companionPosition,reliefFollowerPosition);
         }
+        // Real field triage is useful only if Mira can WALK to a nearby
+        // injured resident. Follow the established actor-sized route/sweep
+        // pipeline and keep a distinct planted position beside the civilian.
+        // Explicit hold, critical hero care and active guard orders outrank
+        // this optional medical repositioning.
+        private Point CompanionRescueTriageFollowTarget(Point ordinary)
+        {
+            if(save.companion!=0||Dying||practicing||
+                companionAction!=null||CompanionHoldingPosition||
+                OuterPatrolActive||
+                save.health<save.maxHealth*.8f||
+                reliefMissionRoom==0||reliefMissionRoom!=save.room||
+                reliefMissionWave<1||reliefMissionWave>3||
+                reliefMissionTime<=3f||
+                reliefFollowerSafety<=0f||reliefFollowerSafety>=65f||
+                !CanStand(companionPosition)||
+                !CanStand(reliefFollowerPosition)||
+                (Position-reliefFollowerPosition).Length>6f||
+                (companionPosition-reliefFollowerPosition).Length>9f)
+                return ordinary;
+            Point away=companionPosition-reliefFollowerPosition;
+            if(away.Length<.01f)away=Position-reliefFollowerPosition;
+            if(away.Length<.01f)away=new Point(-1f,0f);
+            Point foot=reliefFollowerPosition+away.Normalized*2.3f;
+            if(CanStand(foot)&&(foot-Position).Length>.7f)
+                return foot;
+            Point[] alternatives={
+                new Point(-2.3f,0f),new Point(2.3f,0f),
+                new Point(0f,-2.3f),new Point(0f,2.3f)
+            };
+            Point selected=ordinary;
+            float nearest=float.PositiveInfinity;
+            foreach(Point offset in alternatives)
+            {
+                Point option=reliefFollowerPosition+offset;
+                if(!CanStand(option)||(option-Position).Length<=.7f)
+                    continue;
+                float distance=(companionPosition-option).Length;
+                if(distance<nearest){nearest=distance;selected=option;}
+            }
+            return selected;
+        }
+
         // Automatic companion fire must clear the actual physical arrow
         // or staff projectile over its entire flight, not just actor LOS
         // and the 0.8-tile weapon attachment. Manual player-directed
@@ -1624,8 +1667,8 @@ namespace Starfall
                 return; // Plant the feet while drawing a bow or casting.
             }
             Point followGoal = CompanionHoldingPosition ?
-                companionHoldFoot : CompanionTacticalFollowTarget(
-                    CompanionOutpostGuardTarget());
+                companionHoldFoot : CompanionRescueTriageFollowTarget(
+                    CompanionTacticalFollowTarget(CompanionOutpostGuardTarget()));
             // A deliberate hold overrides ordinary tactical repositioning.
             // It still uses the same physical route planner to return to its
             // anchor, but never pursues a firing-foot detour while stationed.
