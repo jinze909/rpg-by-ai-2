@@ -230,9 +230,10 @@ namespace Starfall.Tests
             g.Close();
             g.save.inventory[3]=9999;
             g.Talk(pond);
-            Check(g.conversation.choices[0].action=="close" &&
+            Check(g.conversation.choices[0].action=="fish" &&
+                g.conversation.choices[0].en.Contains("full") &&
                 g.conversation.text.Contains("三条银鳍鱼"),
-                "Full fish storage is shown as a non-cast option without hiding the existing commission");
+                "A full fish bag retains the original cast action ID but explains why no fish fits");
             g.Close();
             g.save.inventory[3]=3;
             QuestGuide filled=g.GetQuest("ally2");

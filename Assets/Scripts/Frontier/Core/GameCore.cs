@@ -2538,7 +2538,7 @@ namespace Starfall
                 List<Choice> list = new List<Choice> {
                     roomForFish?
                         C("开始钓鱼", "Cast the line", "fish"):
-                        C("鱼袋已满 · 先腾出空间", "Fish bag full · make room", "close")
+                        C("鱼袋已满 · 先腾出空间", "Fish bag full · make room", "fish")
                 };
                 if (!Has("ally_2")) list.Add(C("支线：交付银鳍鱼 ×3", "Commission: deliver 3 Silverfin", "ally2"));
                 list.Add(C("再见", "Goodbye", "close"));
