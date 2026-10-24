@@ -8,7 +8,7 @@ namespace Starfall
     {
         private int courierRoom=-1;
         private Point courierLast;
-        private bool courierCrossed,courierStamped;
+        private bool courierCrossed,courierStamped,courierBridgeEntered;
         private float courierWalked,courierElapsed;
         private float courierIntegrity;
         private bool courierPatched,courierIntegrityWarning;
@@ -143,8 +143,8 @@ namespace Starfall
             courierRoom=-1;courierRaided=false;
             courierConfirmedRaiderKills=0;
             courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;
-            courierCrossed=courierStamped=courierPatched=
-                courierIntegrityWarning=courierGuardSpent=false;
+            courierCrossed=courierStamped=courierBridgeEntered=
+                courierPatched=courierIntegrityWarning=courierGuardSpent=false;
             courierLast=new Point();
         }
         private void TickFarCourier(float dt)
@@ -163,12 +163,35 @@ namespace Starfall
             }
             courierElapsed+=Math.Max(0,dt);courierWalked+=step;
             courierGuardLeft=Math.Max(0,courierGuardLeft-dt);
-            if(!courierCrossed&&FarBridgeOpen(save.room)&&
-               now.x>=110.25f&&now.x<=112.75f&&
-               now.y>=52.2f&&now.y<=53.9f&&now.y>courierLast.y+.01f)
+            if(!courierCrossed)
             {
-                courierCrossed=true;
-                SpawnFarCourierRaiders();
+                // The repaired bridge occupies y=52..53 in every authored
+                // 120x80 region. Touching its northern lip is not a
+                // completed crossing: require real continuous footsteps
+                // from the north bank to the south bank before crediting
+                // the parcel and deploying its physical raiders.
+                bool inLane=now.x>=110.25f&&now.x<=112.75f;
+                bool headingSouth=now.y>courierLast.y+.01f;
+                if(!FarBridgeOpen(save.room)||!inLane)
+                    courierBridgeEntered=false;
+                else
+                {
+                    if(!courierBridgeEntered && headingSouth &&
+                        courierLast.y<52.0f && now.y>=52.0f &&
+                        now.y<=53.9f)
+                        courierBridgeEntered=true;
+                    // A return to the northern bank cancels the crossing.
+                    // Walking north-to-south again earns a fresh chance,
+                    // without inventing any transport or teleport distance.
+                    if(now.y<51.95f)courierBridgeEntered=false;
+                    if(courierBridgeEntered&&headingSouth&&
+                        courierLast.y<54.25f&&now.y>=54.25f)
+                    {
+                        courierCrossed=true;
+                        courierBridgeEntered=false;
+                        SpawnFarCourierRaiders();
+                    }
+                }
             }
             courierLast=now;
             if(courierElapsed>=95)
@@ -341,7 +364,8 @@ namespace Starfall
                 {Notify("先清除桥边敌人。","Clear nearby hostiles first.");return true;}
                 courierRoom=room;courierLast=Position;
                 courierWalked=courierElapsed=0;
-                courierIntegrity=100;courierCrossed=courierStamped=false;
+                courierIntegrity=100;
+                courierCrossed=courierStamped=courierBridgeEntered=false;
                 courierPatched=courierIntegrityWarning=courierGuardSpent=courierRaided=false;
                 courierConfirmedRaiderKills=0;
                 courierGuardLeft=0;

@@ -275,6 +275,44 @@ namespace Starfall.Tests
                     "Abort removes only live courier threats and owned arrows");
             }
         }
+
+        public static void CourierCrossingRequiresTheWholeLiveBridgeNotItsNorthernLip(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                var g=Fresh(data);
+                g.save.stage=4;g.save.frontierEnding=1;
+                g.save.flags.Add("scout_saved");g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
+                g.save.flags.Add("gate_"+room);
+                g.save.flags.Add("far_bridge_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                g.Enter(room);g.enemies.Clear();
+                WorldObject bridge=Object(g,"farbridge");
+                g.save.x=bridge.x;g.save.y=bridge.y;
+                Action(g,"farbridge","far_courier_start");
+                Check(g.FarCourierActive&&!g.FarCourierCrossed,
+                    "Eight authored regions begin with an unearned parcel crossing");
+                int count=0;
+                while(g.Position.y<53.1f&&count++<150)
+                    g.Tick(.05f,new Point(0,1));
+                Check(count<150&&g.FarCourierActive&&
+                    !g.FarCourierCrossed&&g.FarCourierRaidersAlive==0,
+                    "Entering the bridge from the north cannot prematurely award crossing or spawn raiders in region "+room);
+                // Returning to the first bank does not let a future
+                // approach inherit the old bridge traversal.
+                while(g.Position.y>51.8f&&count++<300)
+                    g.Tick(.05f,new Point(0,-1));
+                Check(count<300&&!g.FarCourierCrossed,
+                    "Turning back on the bridge remains an incomplete crossing");
+                while(!g.FarCourierCrossed&&count++<500)
+                    g.Tick(.05f,new Point(0,1));
+                Check(count<500&&g.FarCourierActive&&g.FarCourierCrossed&&
+                    g.Position.y>=54.25f&&g.FarCourierRaidersAlive==2,
+                    "Only reaching the south bank on real legal movement earns the bridge and two live raiders in region "+room);
+            }
+        }
+
         public static void CourierRaidersActuallyWindUpAndCanTearCargoDuringPlay(Campaign data)
         {
             var g=Fresh(data);
