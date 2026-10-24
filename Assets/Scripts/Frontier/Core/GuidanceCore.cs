@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -226,6 +226,47 @@ namespace Starfall
 
 
 
+
+
+            if(id=="soup_route")
+            {
+                q.title=L("湖畔公共厨房 · 给远路的人留汤",
+                    "Lakeside Kitchen · Warm Meals for the Road");
+                q.category=L("外环补给 · 实地交接","OUTER RELIEF · PHYSICAL DELIVERY");
+                q.locked=!PublicFishKitchenStocked;
+                q.complete=SoupRouteComplete;
+                q.description=L(
+                    "老潮把公共汤锅重新烧旺后，密林、雾港和霜钟高原最远端的守棚人仍缺晚饭。分别把背包里的一碗暖潮炖汤亲手交到各地已修好的南侧避险棚。交付需要附近安全；每处交接后，玩家在棚屋旁可获得额外的生命与耐力恢复。",
+                    "Old Tide reopened the public kitchen, but the remote refuge keepers in Thornwood, Mistport and Frostchime still lack hot meals. Carry one real Tide stew to each repaired southern shelter. Handoffs require safety; each stocked shelter gives additional local health and energy recovery.");
+                int next=-1;
+                string[] z={"荆棘密林","雾港","霜钟高原"};
+                string[] e={"Thornwood","Mistport","Frostchime"};
+                int[] regions={1,5,7};
+                for(int i=0;i<regions.Length;i++)
+                {
+                    int room=regions[i];bool done=SoupRouteDelivered(room);
+                    q.steps.Add(new QuestStep(L(z[i],e[i])+
+                        L(" · 已交付"," · delivered"),done));
+                    if(!done&&(next<0||(!CanEnter(next)&&CanEnter(room))))
+                        next=room;
+                }
+                q.room=next<0?0:next;
+                q.target=next<0?ObjectPoint(0,"fish",new Point(25,18)):
+                    ObjectPoint(next,"farshelter",new Point(112.5f,73.5f));
+                q.next=q.locked?
+                    L("先完成湖畔老潮的委托并恢复公共厨房",
+                      "First reopen Old Tide's public kitchen"):
+                    q.complete?L("三处守棚人都收到热汤，远地恢复已开放",
+                        "All three remote keepers have stew; refuge recovery is live"):
+                    !FarShelterBuilt(q.room)?
+                        L("先在"+data.maps[q.room].name+"找到气象手记并修好南部避险棚",
+                          "First restore the southern shelter in "+data.maps[q.room].en):
+                        L("带一碗暖潮炖汤走到"+data.maps[q.room].name+"的南侧避险棚",
+                          "Carry one Tide stew to the southern refuge in "+data.maps[q.room].en);
+                q.reward=L("每处经验24、安全时实地恢复生命与耐力；三地全部完成再得硬币45、技能点1",
+                    "Each shelter: 24 XP and physical safe HP/energy recovery. All three: +45 coins, +1 talent.");
+                return q;
+            }
 
             if(id=="sword_lesson")
             {

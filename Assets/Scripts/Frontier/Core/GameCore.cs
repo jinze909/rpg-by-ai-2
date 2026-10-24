@@ -2414,6 +2414,10 @@ namespace Starfall
                 if (mode == "dialog" && conversation != previousConversation &&
                     (o.kind == "guild" || o.kind == "innGuest"))
                     AppendStoryBridgeChoice();
+                // This applies regardless of which preexisting shelter
+                // conversation owns the source (civic duties included).
+                if(mode=="dialog"&&conversation!=previousConversation&&
+                    o.kind=="farshelter")AppendSoupRouteChoice(o);
             }
             finally
             {
@@ -2564,6 +2568,10 @@ namespace Starfall
                     save.inventory[3]>=2&&save.inventory[6]<9999?
                     "Public kitchen · 2 fish for 1 stew":
                     "Public kitchen · need 2 fish and stew space","fish_kitchen"));
+                if(PublicFishKitchenStocked)
+                    list.Add(C("远地送汤 · "+SoupRouteDeliveredCount+"/3",
+                        "Remote hot meals · "+SoupRouteDeliveredCount+"/3",
+                        "soup_route_track"));
                 list.Add(C("再见", "Goodbye", "close"));
                 string fishermanZh=Has("ally_2")?
                     "岸边的锅里翻着热气。\n\n“孩子们昨晚总算喝上了鱼汤。现在你若再抛竿，听见水面扑通一响就收线，别让鱼儿叼着钩跑了。”":
@@ -2808,7 +2816,8 @@ namespace Starfall
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
-                (action == "fish" || action == "fish_expert" || action == "fish_kitchen") || action == "deliver" ||
+                (action == "fish" || action == "fish_expert" || action == "fish_kitchen" ||
+                 action=="soup_route_track" || action=="soup_route_deliver") || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
                 action == "continue" || action == "swordlesson_start" ||

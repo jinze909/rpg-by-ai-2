@@ -69,6 +69,101 @@ namespace Starfall.Tests
             return false;
         }
 
+
+        public static void RemoteSoupRouteUsesThreeRealSheltersAndProvidesPhysicalCare(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("fish_kitchen_supplied");
+            g.save.inventory[6]=3;
+            Check(g.GetQuest("soup_route").locked==false&&
+                !g.GetQuest("soup_route").complete,
+                "A stocked public kitchen exposes optional remote delivery without a new v2 save field");
+            int[] rooms={1,5,7};
+            for(int i=0;i<rooms.Length;i++)
+            {
+                int room=rooms[i];
+                g.save.flags.Add("far_dial_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                g.Enter(room);g.enemies.Clear();g.projectiles.Clear();
+                Check(g.save.room==room,"Actual unlocked campaign enters each existing outer world");
+                WorldObject shelter=Object(g,"farshelter");
+                TalkNearObject(g,shelter);
+                int index=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="soup_route_deliver");
+                Check(index>=0,"Existing FarRefuge shelter menu preserves its original options and appends a real food delivery");
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="far_rest")>=0,
+                    "New hot meal choice never deletes the original timber-fueled shelter rest");
+                int stew=g.save.inventory[6];
+                g.Choose(index);
+                Check(g.save.inventory[6]==stew-1&&
+                    g.SoupRouteDelivered(room)&&g.SoupRouteDeliveredCount==i+1,
+                    "Each actual far-ring shelter consumes one real stew and credits exactly one local delivery");
+                float health=g.save.health,energy=g.save.energy;
+                g.save.health=45;g.save.energy=25;
+                for(int tick=0;tick<40;tick++)g.Tick(.05f,new Point());
+                Check(g.save.health>45.5f&&g.save.energy>28,
+                    "An authentically stocked and physically near shelter now heals HP and energy in real world ticks");
+                g.save.health=health;g.save.energy=energy;
+                TalkNearObject(g,shelter);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="soup_route_deliver")<0,
+                    "A delivered shelter's menu cannot duplicate its original one-time handoff");
+                g.Close();
+            }
+            Check(g.SoupRouteComplete&&g.Has("soup_route_complete")&&
+                g.GetQuest("soup_route").complete&&g.save.skillPoints>=1,
+                "All three far-ring deliveries unlock a permanent completion reward and fully complete the real quest");
+            g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));reloaded.Start();
+            Check(reloaded.SoupRouteDeliveredCount==3&&
+                reloaded.SoupRouteComplete&&reloaded.save.version==2,
+                "All three remote outposts and their actual health services persist in unchanged v2 saves");
+        }
+
+        public static void SoupRouteGuardsCachedRemoteAndCombatHandoffs(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("fish_kitchen_supplied");
+            g.save.flags.Add("far_dial_1");
+            g.save.flags.Add("far_shelter_1");
+            g.save.inventory[6]=2;
+            g.Enter(1);g.enemies.Clear();
+            WorldObject shelter=Object(g,"farshelter");
+            TalkNearObject(g,shelter);
+            int index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="soup_route_deliver");
+            Check(index>=0,"Genuine repaired refuge exposes optional supply choice");
+            int stew=g.save.inventory[6];
+            g.save.x=shelter.x+15f;g.save.y=shelter.y+15f;
+            g.Choose(index);
+            Check(g.save.inventory[6]==stew&&!g.SoupRouteDelivered(1),
+                "Cached shelter interaction cannot consume a stew from outside physical reach");
+            TalkNearObject(g,shelter);
+            index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="soup_route_deliver");
+            g.save.inventory[6]=0;g.Choose(index);
+            Check(!g.SoupRouteDelivered(1)&&g.save.inventory[6]==0,
+                "An empty inventory cannot fake the delivery or claim XP");
+            g.save.inventory[6]=2;TalkNearObject(g,shelter);
+            index=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="soup_route_deliver");
+            g.enemies.Add(new Enemy(880100,0,g.Position.x+1,g.Position.y,50));
+            g.Choose(index);
+            Check(!g.SoupRouteDelivered(1)&&g.save.inventory[6]==2,
+                "Real nearby combat prevents humanitarian supply handoffs");
+            g.enemies.Clear();
+            TalkNearObject(g,shelter);
+            index=Array.FindIndex(g.conversation.choices,c=>c.action=="soup_route_deliver");
+            g.Choose(index);
+            Check(g.SoupRouteDelivered(1)&&g.save.inventory[6]==1,
+                "Safely restored local interaction can commit exactly one real stew");
+            g.save.health=50;g.save.energy=25;
+            g.save.x=shelter.x+15f;g.save.y=shelter.y+15f;
+            for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+            Check(g.save.health<=50.01f,
+                "A remote supplied shelter never heals a player standing far outside its true local radius");
+        }
         public static void RegionalReportRewardsRequireOriginalPresentSpeaker(Campaign data)
         {
             var g=Fresh(data);

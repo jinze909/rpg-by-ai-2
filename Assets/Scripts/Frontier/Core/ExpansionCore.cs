@@ -1624,6 +1624,18 @@ namespace Starfall
                 if(CivicSupplyWatch(save.room))
                     save.energy=Math.Min(100,save.energy+dt*(CivicResponseDone(save.room)?6.5f:4.5f));
             }
+
+            // Real delivered hot meals improve the specific outer refuge,
+            // never remote health bars or combat-time regeneration.
+            if(SoupRouteDelivered(save.room)&&FarShelterBuilt(save.room)&&
+                !Dying&&!practicing&&!racing&&!FieldWorkPreventsRest&&
+                SafeTravel&&NearKind("farshelter",3.2f))
+            {
+                if(save.health>0&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*1.3f);
+                if(save.energy<100)
+                    save.energy=Math.Min(100,save.energy+dt*2.4f);
+            }
             // Signed service records circulate usable basic care among
             // *all* repaired refuges. No regeneration from a map menu or
             // from distant buildings; active combat always suspends it.

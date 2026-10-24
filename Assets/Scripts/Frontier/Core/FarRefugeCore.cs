@@ -717,8 +717,106 @@ namespace Starfall
                 C("继续探索","Keep exploring","close"));
             return true;
         }
+
+        // A new, optional food-relief route connects the already-stocked
+        // lakeside public kitchen to three actual far-ring shelters. No item
+        // variants, map edits or v2 save-schema expansion are needed.
+        private static readonly int[] SoupRouteRegions={1,5,7};
+        public bool SoupRouteDelivered(int room)
+        {return (room==1||room==5||room==7)&&Has("soup_route_"+room);}
+        public int SoupRouteDeliveredCount
+        {
+            get {int count=0;foreach(int room in SoupRouteRegions)
+                if(SoupRouteDelivered(room))count++;return count;}
+        }
+        public bool SoupRouteComplete
+        {get {return SoupRouteDeliveredCount==3;}}
+        private bool SoupRouteRegion(int room)
+        {return room==1||room==5||room==7;}
+
+        // Append a standalone choice to whichever legitimate shelter
+        // conversation won ownership (normal rest or later civic-defense).
+        // Do not replace existing shelter mechanics or swallow their NPC UI.
+        private void AppendSoupRouteChoice(WorldObject source)
+        {
+            int room=save.room;
+            if(source==null||source.kind!="farshelter"||
+                !SoupRouteRegion(room)||!PublicFishKitchenStocked||
+                !FarShelterBuilt(room)||mode!="dialog"||
+                conversation==null||!SourceBelongsToActiveMap(source))
+                return;
+            bool delivered=SoupRouteDelivered(room);
+            conversation.text+=delivered?
+                "\n\n汤锅已经送到。有人把给晚归旅人的热汤放在炉火旁，这处棚屋现在也能提供更好的恢复。":
+                "\n\n汤锅还有空位。留下一碗从余烬镇带来的暖潮炖汤，守棚人就能为后来的人开一夜热灶。";
+            conversation.textEn+=delivered?
+                "\n\nA pot of warm stew stands by the fire for late travelers. This shelter now offers better recuperation.":
+                "\n\nThere's room by the stove. Leave one bowl of Emberfall's Tide stew and the refuge keeper can feed the next arrivals.";
+            if(delivered)return;
+            var options=new System.Collections.Generic.List<Choice>(conversation.choices);
+            // Keep familiar Rest and other existing actions first; the last
+            // slot remains the original Leave/Return choice.
+            int slot=Math.Max(0,options.Count-1);
+            options.Insert(slot,save.inventory[6]>0?
+                C("留下炖汤×1 · 支援避险棚","Deliver 1 stew · supply shelter","soup_route_deliver"):
+                C("需要炖汤×1 · 回城补给","Need 1 stew · return for supplies","soup_route_deliver"));
+            conversation.choices=options.ToArray();
+        }
+
+        private bool ChooseSoupRoute(string action)
+        {
+            if(action!="soup_route_deliver"&&action!="soup_route_track")
+                return false;
+            WorldObject source=pendingDialogueSource;
+            if(Dying||practicing||source==null||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||
+                !PublicFishKitchenStocked)return true;
+            if(action=="soup_route_track")
+            {
+                if(save.room!=0||source.kind!="fish")return true;
+                TrackQuest("soup_route");
+                Notify("热汤补给已追踪：前往密林、雾港与霜钟高原的南部公共避险棚。",
+                    "Hot-meal relief tracked: visit southern public refuges in Thornwood, Mistport and Frostchime.");
+                return true;
+            }
+            int room=save.room;
+            if(source.kind!="farshelter"||!SoupRouteRegion(room)||
+                !FarShelterBuilt(room)||SoupRouteDelivered(room))return true;
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("现场任务或附近敌人尚未解除，无法安全把热汤交给守棚人。",
+                    "Finish fieldwork and clear nearby hostiles before handing over the stew.");
+                return true;
+            }
+            if(save.inventory[6]<=0)
+            {
+                Notify("背包没有炖汤。回余烬镇的厨师或湖畔公共厨房准备一碗。",
+                    "No stew in your pack. Prepare a bowl at Emberfall's cook or public kitchen.");
+                return true;
+            }
+            save.inventory[6]--;
+            Flag("soup_route_"+room);
+            AddXp(24);sound="reward";revision++;
+            RecordMoment("你亲自把一碗暖潮炖汤送到"+Map.name+"最远处的公共避险棚。棚里的热灶开始为下一位旅人留火。",
+                "You delivered Tide stew to the remote public refuge in "+Map.en+". Its stove now stays ready for the next traveler.");
+            if(SoupRouteComplete&&!Has("soup_route_complete"))
+            {
+                Flag("soup_route_complete");
+                CreditCoins(45);CreditSkillPoints(1);
+                Notify("三地热汤补给完成！硬币+45、技能点+1；三处避险棚已获得持续恢复。",
+                    "All three food deliveries completed! +45 coins, +1 talent; three shelters now provide extra recovery.");
+            }
+            else
+                Notify("热汤已交付："+SoupRouteDeliveredCount+"/3；这处避险棚现在能安全恢复生命与耐力。",
+                    "Stew delivered: "+SoupRouteDeliveredCount+"/3. This refuge now safely restores health and energy.");
+            if(save.trackedQuest!="soup_route")TrackQuest("soup_route");
+            return true;
+        }
         private bool ChooseFarStation(string action)
         {
+            if(ChooseSoupRoute(action))return true;
             if(ChooseCivicResponse(action))return true;
             if(ChooseCivicSupply(action))return true;
             if(action=="far_courier_charter")
