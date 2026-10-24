@@ -76,6 +76,75 @@ namespace Starfall
         // command owns its explicit aim instead, and must never be retargeted
         // or cancelled by this transient AI safety check.
         private Enemy companionAutoTarget;
+
+        // A manual MARK is earned only by an actually released Ivo/Sen
+        // command. It is bound to this exact live enemy, save/map and ally
+        // presentation generation; numeric IDs are not ownership.
+        private Enemy companionFocusTarget,companionCommandFocusCandidate;
+        private SaveData companionFocusSave;
+        private MapData companionFocusMap;
+        private int companionFocusRoom=-1,companionFocusGeneration=-1;
+        private float companionFocusSeconds;
+        public float CompanionFocusSeconds
+        {get{return CompanionFocusActive?companionFocusSeconds:0f;}}
+        public bool CompanionFocusActive
+        {
+            get
+            {
+                return companionFocusTarget!=null&&companionFocusSeconds>.001f&&
+                    save!=null&&save.companion>0&&
+                    System.Object.ReferenceEquals(companionFocusSave,save)&&
+                    System.Object.ReferenceEquals(companionFocusMap,Map)&&
+                    companionFocusRoom==save.room&&
+                    companionFocusGeneration==companionPresentationGeneration&&
+                    companionFocusTarget.hp>0&&enemies.Contains(companionFocusTarget);
+            }
+        }
+        public bool IsCompanionFocusTarget(Enemy candidate)
+        {return candidate!=null&&CompanionFocusActive&&
+            System.Object.ReferenceEquals(candidate,companionFocusTarget);}
+        private void ClearCompanionFocus()
+        {
+            companionFocusTarget=null;companionCommandFocusCandidate=null;
+            companionFocusSave=null;companionFocusMap=null;
+            companionFocusRoom=companionFocusGeneration=-1;
+            companionFocusSeconds=0f;
+        }
+        private void PrepareCompanionFocusCandidate(Point? cursor)
+        {
+            companionCommandFocusCandidate=null;
+            if(save.companion==0||!cursor.HasValue)return;
+            float best=.65f*.65f;
+            foreach(Enemy foe in enemies)
+            {
+                if(foe==null||foe.hp<=0)continue;
+                Point toCursor=foe.Position-cursor.Value;
+                float squared=toCursor.x*toCursor.x+toCursor.y*toCursor.y;
+                if(squared>=best||(foe.Position-companionPosition).Length>=7f)
+                    continue;
+                best=squared;companionCommandFocusCandidate=foe;
+            }
+        }
+        private void ArmCompanionFocusAfterCommand()
+        {
+            Enemy candidate=companionCommandFocusCandidate;
+            companionCommandFocusCandidate=null;
+            if(candidate==null||candidate.hp<=0||!enemies.Contains(candidate)||
+                save.companion<=0||
+                (candidate.Position-companionPosition).Length>=7f||
+                !CanStand(companionPosition)||
+                !ClearAttackPath(companionPosition,candidate.Position)||
+                !CompanionAutoFlightLaneClear(companionPosition,
+                    save.companion==1?1:2,candidate.Position))
+                return;
+            companionFocusTarget=candidate;companionFocusSave=save;
+            companionFocusMap=Map;companionFocusRoom=save.room;
+            companionFocusGeneration=companionPresentationGeneration;
+            companionFocusSeconds=8f;
+            revision++;
+            Notify("同伴集火已标记！8秒内优先攻击目标，紧急威胁仍会先拦截。",
+                "Companion focus marked! Prioritize this foe for 8s; imminent threats still come first.");
+        }
         private MapData abyssMap;
         private bool previousLowTide;
         public static readonly Point[] RaceRoute = { new Point(8, 18), new Point(8, 5), new Point(23, 5), new Point(30, 18), new Point(14, 18) };
@@ -261,6 +330,7 @@ namespace Starfall
             abyssTestimonySuggestionProgress = -1;
             hazards.Clear(); racing = false; raceTime = 0; raceCheckpoint = 0;
             companionAction = null; companionAutoTarget = null;
+            ClearCompanionFocus();
             ClearCompanionHold();
             ClearCompanionFollowRoute();
             companionAim = new Point(1, 0); companionMoving = false; companionMoveTime = 0;
@@ -394,6 +464,7 @@ namespace Starfall
             bool unreleasedCommand=companionAction!=null &&
                 companionAction.kind=="command" && !companionAction.released;
             ClearCompanionHold();
+            ClearCompanionFocus();
             save.companion = id;
             // A tactical watch was assigned to a PARTICULAR companion
             // body and its original physical foot. Swapping that body
@@ -440,6 +511,8 @@ namespace Starfall
                 else target = null;
             }
             companionCooldown = save.frontierEnding == 3 ? 12 : 18;
+            ClearCompanionFocus();
+            PrepareCompanionFocusCandidate(target);
             companionAutoTarget = null; // explicit command is owned by user
             companionAction = new ActorAction { kind = "command", weapon = save.companion, combo = save.relationships[save.companion], damage = Damage,
                 direction = direction, target=target, duration = .52f, contact = .2f, impact = CaptureImpact(save.companion==1?1:2,0,false) };
@@ -524,6 +597,7 @@ namespace Starfall
                     }
             }
             sound = "skill";
+            if(action.weapon!=0)ArmCompanionFocusAfterCommand();
             if (action.weapon == 0) effects.Add(new Effect("heal", Position, .6f));
             else if (action.weapon == 1) effects.Add(new Effect("release", WeaponOrigin(companionPosition, 1, action.direction), .18f) { direction = action.direction, variant = 1, height = WeaponHeight(1, action.direction) });
         }
@@ -1090,7 +1164,8 @@ namespace Starfall
                     // ordinary enemy can beat its priority; avoid extra
                     // projectile sweeps on every simulation tick.
                     if(bestPriority<2)continue;
-                    priority=CompanionCommittedHeroStrike(foe)?2:3;
+                    priority=CompanionCommittedHeroStrike(foe)?2:
+                        IsCompanionFocusTarget(foe)?3:4;
                 }
                 if(priority>bestPriority)continue;
                 // Preserve raw deadlines, including an overdue stock strike.
@@ -1146,6 +1221,11 @@ namespace Starfall
         private void TickCompanion(float dt)
         {
             companionMoving = false;
+            if(companionFocusTarget!=null)
+            {
+                companionFocusSeconds=Math.Max(0f,companionFocusSeconds-dt);
+                if(!CompanionFocusActive)ClearCompanionFocus();
+            }
             if(companionHoldActive&&!CompanionHoldingPosition)
                 ClearCompanionHold();
             if(CompanionHoldingPosition&&!CanStand(companionHoldFoot))
