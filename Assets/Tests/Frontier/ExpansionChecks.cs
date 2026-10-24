@@ -3572,6 +3572,92 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void RidgeWatchMissingBlockedPatrolRejoinsRealThreeGuardObjective(Campaign data)
+        {
+            MapData original=data.maps[1];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                // A temporarily closed 7x7 clearing suppresses ONLY the
+                // first patrol. It cannot silently turn 2/3 into a victory.
+                for(int y=58;y<=64;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    for(int x=98;x<=104;x++)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=original.spawnX,
+                    spawnY=original.spawnY,rows=rows,objects=original.objects,
+                    decor=original.decor};
+                var g=Unlocked(data);
+                g.save.flags.Add("boss_1");
+                g.save.flags.Add("ridge_seen_1_0");
+                g.save.flags.Add("ridge_seen_1_1");
+                g.Enter(1);g.invulnerable=180f;
+                var field=typeof(GameCore).GetField("ridgeWatchIds",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                var tracked=(Dictionary<int,int>)field.GetValue(g);
+                Check(tracked.Count==2&&!tracked.ContainsValue(0),
+                    "A physically closed ridge clearing spawns no distant or buried fake patrol");
+                var strike=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                int coins=g.save.coins,shards=g.save.shards;
+                foreach(int id in new List<int>(tracked.Keys))
+                {
+                    var body=g.enemies.Find(e=>e.id==id);
+                    Check(body!=null&&g.CanStand(body.Position),"Existing patrol actors still stand on their genuine local paths");
+                    strike.Invoke(g,new object[]{body,9999f,true,null,null});
+                }
+                Check(g.RidgeWatchProgress(1)==2&&!g.RidgeWatchComplete(1)&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "Defeating two accessible actors can NEVER publish a false three-patrol reward");
+                rows=(string[])original.rows.Clone();
+                data.maps[1].rows=rows;
+                g.save.x=original.spawnX;g.save.y=original.spawnY;
+                for(int tick=0;tick<90&&tracked.Count<3;tick++)
+                    g.Tick(.05f,new Point());
+                Check(tracked.Count==3&&tracked.ContainsValue(0),
+                    "Reopened real clearing allows one missing original patrol to join without a map reload");
+                var missing=g.enemies.Find(e=>tracked.ContainsKey(e.id)&&tracked[e.id]==0);
+                Check(missing!=null&&g.CanStand(missing.Position)&&
+                    (missing.Position-new Point(101.5f,61.5f)).Length<=4.25f,
+                    "The recovered patrol stands on genuine local footing, not arbitrary fallback scenery");
+                strike.Invoke(g,new object[]{missing,9999f,true,null,null});
+                Check(g.RidgeWatchProgress(1)==3&&g.RidgeWatchComplete(1)&&
+                    g.save.shards==shards+1&&g.save.coins==coins+28,
+                    "Only the third confirmed real enemy death pays the original one-time reward");
+            }
+            finally { data.maps[1]=original; }
+        }
+
+        public static void RidgeWatchCannotCreditAnotherActorWithReusedNumericId(Campaign data)
+        {
+            var g=Unlocked(data);g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var field=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var tracked=(Dictionary<int,int>)field.GetValue(g);
+            Check(tracked.Count==3,"Real ridge watch has all three actors");
+            int id=0;foreach(int candidate in tracked.Keys){id=candidate;break;}
+            Enemy actual=g.enemies.Find(e=>e.id==id);
+            Check(actual!=null&&g.IsActiveRidgeWatchPatrol(actual),
+                "Actual registered living patrol carries the legitimate visual marker");
+            var impostor=new Enemy(id,0,g.Position.x+2f,g.Position.y,30f);
+            g.enemies.Add(impostor);
+            Check(!g.IsActiveRidgeWatchPatrol(impostor),
+                "Unrelated combat actor with coincidentally reused ID cannot borrow a hunt marker");
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            strike.Invoke(g,new object[]{impostor,9999f,true,null,null});
+            Check(g.RidgeWatchProgress(1)==0&&!g.RidgeWatchComplete(1),
+                "A genuine kill of the wrong ACTOR must not credit the protected patrol");
+            strike.Invoke(g,new object[]{actual,9999f,true,null,null});
+            Check(g.RidgeWatchProgress(1)==1,
+                "Only the original registered combatant can earn the survey kill");
+        }
         public static void RidgeWatchSurveysOnlyRealCombatAndPaysOnce(Campaign data)
         {
             var g=Unlocked(data);

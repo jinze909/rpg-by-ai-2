@@ -30,11 +30,17 @@ namespace Starfall
             "The frost chimes reach the warming shelters again. Travelers once refused at checkpoints can now follow the bells to a hearth with someone waiting."
         };
         private readonly Dictionary<int,int> ridgeWatchIds = new Dictionary<int,int>();
+        // Spawn IDs are not unique actor identity: saves and optional
+        // encounters can legitimately have overlapping numeric IDs.
+        private readonly Dictionary<int,Enemy> ridgeWatchActors =
+            new Dictionary<int,Enemy>();
+        private float ridgeWatchRespawnCheck;
         private int ridgeWatchRoom = -1;
         private MapData ridgeWatchMap;
         private void ResetRidgeWatch()
         {
-            ridgeWatchIds.Clear();ridgeWatchRoom=-1;ridgeWatchMap=null;
+            ridgeWatchIds.Clear();ridgeWatchActors.Clear();
+            ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
         }
         public int RidgeWatchProgress(int room)
         {
@@ -56,8 +62,10 @@ namespace Starfall
                 !Object.ReferenceEquals(ridgeWatchMap,Map)||
                 !RidgeLinked(save.room)||!Has("boss_"+save.room)||
                 RidgeWatchComplete(save.room))return false;
-            int index;
+            int index;Enemy actual;
             return ridgeWatchIds.TryGetValue(enemy.id,out index)&&
+                ridgeWatchActors.TryGetValue(enemy.id,out actual)&&
+                Object.ReferenceEquals(actual,enemy)&&
                 !Has("ridge_watch_"+save.room+"_"+index);
         }
         private string RidgeWatchHint(int room,bool english)
@@ -79,22 +87,22 @@ namespace Starfall
             if(enemy==null||save.room!=ridgeWatchRoom||
                 !Object.ReferenceEquals(Map,ridgeWatchMap)||
                 !RidgeLinked(save.room)||!Has("boss_"+save.room))return;
-            int index;
-            if(!ridgeWatchIds.TryGetValue(enemy.id,out index))return;
+            int index;Enemy actual;
+            if(!ridgeWatchIds.TryGetValue(enemy.id,out index)||
+                !ridgeWatchActors.TryGetValue(enemy.id,out actual)||
+                !Object.ReferenceEquals(actual,enemy))return;
             string flag="ridge_watch_"+save.room+"_"+index;
             bool first=!Has(flag);
             if(first)Flag(flag);
-            if(RidgeWatchComplete(save.room)||ridgeWatchIds.Count==0)return;
-            foreach(int place in ridgeWatchIds.Values)
-                if(!Has("ridge_watch_"+save.room+"_"+place))
-                {
-                    // A partial, actually credited patrol kill advances the
-                    // public journal in real time. Never replay this notice
-                    // when an already-cleared actor respawns.
-                    if(first)Notify("高地巡守进度 "+RidgeWatchProgress(save.room)+"/3。继续清理附近敌人。",
-                        "Ridge watch "+RidgeWatchProgress(save.room)+"/3. Clear the remaining patrols.");
-                    return;
-                }
+            if(RidgeWatchComplete(save.room))return;
+            // Never pay the three-guard reward for just the subset that
+            // happened to spawn on temporarily blocked terrain.
+            if(RidgeWatchProgress(save.room)<3)
+            {
+                if(first)Notify("高地巡守进度 "+RidgeWatchProgress(save.room)+"/3。继续清理附近敌人。",
+                    "Ridge watch "+RidgeWatchProgress(save.room)+"/3. Clear the remaining patrols.");
+                return;
+            }
             Flag("ridge_watch_complete_"+save.room);
             CreditCoins(28);CreditShards(1);AddXp(40);
             RecordMoment(ridgeWatchStoryZh[save.room-1],
@@ -130,10 +138,24 @@ namespace Starfall
         {
             if(mode!="world"||ridgeWatchRoom!=save.room||
                 !Object.ReferenceEquals(ridgeWatchMap,Map)||dt<=0f)return;
+            // A dynamic gate or another world actor can temporarily occupy
+            // a patrol's authored footing. Retry missing bodies on the live
+            // map instead of making the three-kill quest impossible forever.
+            ridgeWatchRespawnCheck-=dt;
+            if(ridgeWatchRespawnCheck<=0)
+            {
+                ridgeWatchRespawnCheck=1.5f;
+                if(!RidgeWatchComplete(save.room))
+                    for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                        TrySpawnRidgeWatchPatrol(i);
+            }
             foreach(Enemy enemy in enemies)
             {
                 int index;
+                Enemy actual;
                 if(!ridgeWatchIds.TryGetValue(enemy.id,out index)||
+                    !ridgeWatchActors.TryGetValue(enemy.id,out actual)||
+                    !Object.ReferenceEquals(actual,enemy)||
                     enemy.hp<=0f||enemy.boss||enemy.state!=0||
                     enemy.stun>.0001f||enemy.hitTime>.0001f||
                     enemy.releaseTime>.0001f||
@@ -160,31 +182,68 @@ namespace Starfall
                 enemy.Face(traveled);
             }
         }
+        // Use genuine local walking lanes, never the broad CreatePlacedEnemy
+        // recovery fallback that can relocate a patrol behind a mountain.
+        // The two-cell walkable continuation excludes an isolated 1x1 pocket
+        // even when its center is technically a legal actor foot.
+        private bool RidgeWatchFootHasExit(Point foot)
+        {
+            Point[] directions={new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1)};
+            foreach(Point d in directions)
+                if(CanStand(foot+d)&&CanStand(foot+d*2f)&&
+                    ActorHasLocalRoute(foot,foot+d*2f,3))return true;
+            return false;
+        }
+        private bool TrySpawnRidgeWatchPatrol(int index)
+        {
+            if(index<0||index>=RidgeWildlifeSpawns.Length||
+                save.room!=ridgeWatchRoom||
+                !Object.ReferenceEquals(Map,ridgeWatchMap)||
+                ridgeWatchIds.ContainsValue(index))return false;
+            Point anchor=RidgeWildlifeSpawns[index];
+            // Patrol sites are deliberately away from historical objectives.
+            foreach(WorldObject site in Map.objects)
+                if((new Point(site.x,site.y)-anchor).Length<8f)return false;
+            for(int radius=0;radius<=3;radius++)
+                for(int dy=-radius;dy<=radius;dy++)
+                    for(int dx=-radius;dx<=radius;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)
+                            continue;
+                        Point foot=anchor+new Point(dx,dy);
+                        if(!CanStand(foot)||!RidgeWatchFootHasExit(foot)||
+                            (foot-Position).Length<1.6f||
+                            (save.companion>=0&&
+                             (foot-companionPosition).Length<1.6f))
+                            continue;
+                        bool occupied=false;
+                        foreach(Enemy live in enemies)
+                            if(live.hp>0&&(foot-live.Position).Length<1.6f)
+                            {occupied=true;break;}
+                        if(occupied)continue;
+                        Enemy scout=new Enemy(++enemyId,(save.room+index)%3,
+                            foot.x,foot.y,30+save.room*7+index*9);
+                        enemies.Add(scout);
+                        ridgeWatchIds[scout.id]=index;
+                        ridgeWatchActors[scout.id]=scout;
+                        revision++;
+                        return true;
+                    }
+            return false;
+        }
         private void SpawnRidgeWildlife()
         {
             ResetRidgeWatch();
             // Never spawn in the safe starting town, inn or procedural abyss.
             if(save.room<1||save.room>7||!RidgeLinked(save.room)||
                 !Has("boss_"+save.room))return;
-            // Late-game wildlife never expands the required combat roster
-            // for an unfinished regional guardian or an untouched story gate.
-            // They return only after both ridge bearings AND the original
-            // region guardian have been resolved on this save slot.
+            // Late-game patrols require BOTH real surveyed ridge bearings and
+            // the original guardian's defeat; no old campaign roster changes.
             ridgeWatchRoom=save.room;ridgeWatchMap=Map;
             for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
-            {
-                Point position=RidgeWildlifeSpawns[i];
-                if(!CanStand(position))continue;
-                bool adjacentToObjective=false;
-                foreach(WorldObject o in Map.objects)
-                    if((new Point(o.x,o.y)-position).Length<8)
-                    { adjacentToObjective=true;break; }
-                if(adjacentToObjective)continue;
-                Enemy scout=CreatePlacedEnemy(++enemyId,(save.room+i)%3,
-                    position,30+save.room*7+i*9);
-                enemies.Add(scout);
-                ridgeWatchIds[scout.id]=i;
-            }
+                TrySpawnRidgeWatchPatrol(i);
+            ridgeWatchRespawnCheck=1.5f;
         }
     }
 }
