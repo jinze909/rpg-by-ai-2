@@ -927,28 +927,38 @@ namespace Starfall
                         !ClearAttackPath(start,desired))continue;
                     Point candidate=SweepActor(start,direction*1.1f);
                     if((candidate-start).Length<.7f)continue;
-                    // Rank the WORST live threat, not the first legal
-                    // adjacent tile. A step toward a charging raider is a
-                    // poor escape even when each destination is equally
-                    // distant from the already committed attack marker.
-                    // Target miss distance matters most; attacker distance
-                    // breaks ties without treating this as invulnerability.
+                    // A legal tile is not necessarily a safe dodge. Reject
+                    // another enemy's occupied body and destinations still
+                    // inside the SAME real contact arcs, locked AoE circles
+                    // or archer aim footprint that triggered the command.
+                    // No stamina is spent on a doomed cosmetic sidestep.
+                    bool stillHit=false;
                     float score=float.MaxValue;
                     foreach(Enemy e in enemies)
-                        if(e.hp>0 && e.state==1 &&
-                            e.targetingReliefCivilian)
-                        {
-                            float dodge=(candidate-e.target).Length;
-                            float spacing=(candidate-e.Position).Length;
-                            score=Math.Min(score,dodge*1.5f+spacing*.5f);
-                        }
+                    {
+                        if(e==null||e.hp<=0f)continue;
+                        if((candidate-e.Position).Length<(e.boss?.88f:.58f))
+                        {stillHit=true;break;}
+                        if(!CompanionCommittedRescueStrike(e))continue;
+                        bool vulnerable=e.kind==2||e.boss?
+                            (candidate-e.target).Length<EnemyAreaRadius(e):
+                            e.kind==1?
+                            (candidate-e.target).Length<.55f:
+                            InEnemyMeleeArc(e,candidate);
+                        if(vulnerable&&ClearAttackPath(e.Position,candidate))
+                        {stillHit=true;break;}
+                        float dodge=(candidate-e.target).Length;
+                        float spacing=(candidate-e.Position).Length;
+                        score=Math.Min(score,dodge*1.5f+spacing*.5f);
+                    }
+                    if(stillHit)continue;
                     if(score>bestScore)
                     {best=candidate;bestScore=score;}
                 }
                 if((best-start).Length<.7f)
                 {
-                    Notify("四周通路封闭，居民无法执行侧移；没有消耗耐力。",
-                        "No open path for civilian evasion. No energy spent.");
+                    Notify("周围没有能避开这次攻击的安全落点；未消耗耐力。",
+                        "No safe reachable foot outside the incoming strike. No energy spent.");
                     return true;
                 }
                 save.energy-=15;reliefEvadeCooldown=3.5f;

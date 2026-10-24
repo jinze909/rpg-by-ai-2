@@ -1638,6 +1638,83 @@ namespace Starfall.Tests
                 "An archer aimed at an old off-hero point does not receive false threat priority");
         }
 
+        public static void RescueEvasionSelectsRealSafeFootOrRefundsEnergy(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] row=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<row.Length;x++)row[x]='#';
+                    else {row[0]='#';row[row.Length-1]='#';}
+                    rows[y]=new string(row);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=13.4f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=13.4f;g.save.y=10.5f;
+                g.save.energy=100;
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90f;g.reliefFollowerSafety=90f;
+                g.reliefFollowerPosition=new Point(12.5f,10.5f);
+                g.reliefFollowerWaiting=true;
+                var raider=new Enemy(99591,0,11.2f,10.5f,1000f)
+                {state=1,timer=.5f,windupDuration=.65f,
+                 targetingReliefCivilian=true,
+                 target=g.reliefFollowerPosition,
+                 facing=new Point(1,0)};
+                g.enemies.Add(raider);
+                var choose=typeof(GameCore).GetMethod("ChooseRescuedCivilian",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                var damage=typeof(GameCore).GetMethod("DamageReliefCivilian",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                Check(choose!=null&&damage!=null&&g.ReliefEscortEvadeAvailable,
+                    "The real committed forward raider strike authorizes a civilian evasive order");
+                Point original=g.reliefFollowerPosition;
+                choose.Invoke(g,new object[]{"relief_evasive_step"});
+                Check((g.reliefFollowerPosition-original).Length>.7f&&
+                    g.save.energy==85f&&g.CanStand(g.reliefFollowerPosition)&&
+                    (g.reliefFollowerPosition-raider.Position).Length>.58f,
+                    "Actual ordered evasion uses a reachable, unoccupied foot and exactly fifteen energy");
+                float safety=g.reliefFollowerSafety;
+                damage.Invoke(g,new object[]{raider});
+                Check(g.reliefFollowerSafety==safety,
+                    "Successful sidestep leaves the raider's actual attack arc and avoids its real HP transaction");
+                var blocked=Fresh(data);blocked.Enter(1);blocked.enemies.Clear();
+                blocked.save.x=12.5f;blocked.save.y=10.5f;
+                blocked.save.energy=100f;
+                blocked.reliefMissionRoom=1;blocked.reliefMissionWave=3;
+                blocked.reliefMissionTime=90f;blocked.reliefFollowerSafety=90f;
+                blocked.reliefFollowerPosition=new Point(12.5f,10.5f);
+                blocked.reliefFollowerWaiting=true;
+                blocked.enemies.Add(new Enemy(99592,0,11.2f,10.5f,1000f){
+                    state=1,timer=.5f,windupDuration=.65f,
+                    targetingReliefCivilian=true,
+                    target=blocked.reliefFollowerPosition,
+                    facing=new Point(1,0)});
+                // Surround the resident except for the attacker-facing tile;
+                // that last passable foot is still inside the melee arc.
+                for(int y=9;y<=11;y++)
+                {
+                    char[] row=rows[y].ToCharArray();
+                    for(int x=12;x<=13;x++)
+                        if(x!=12||y!=10)row[x]='#';
+                    rows[y]=new string(row);
+                }
+                Check(blocked.ReliefEscortEvadeAvailable,
+                    "The original civilian and hostile attacker retain valid feet");
+                Point before=blocked.reliefFollowerPosition;
+                choose.Invoke(blocked,new object[]{"relief_evasive_step"});
+                Check((blocked.reliefFollowerPosition-before).Length<.001f&&
+                    blocked.save.energy==100f,
+                    "No physically safe evasion cannot charge energy or teleport the resident");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void EscortStopsOnlyForPhysicalCommittedCivilianAttacks(Campaign data)
         {
             MapData old=data.maps[1];
