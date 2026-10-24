@@ -3535,6 +3535,66 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live wayfarer cover NPC option, real bilingual world aura and quest timer");
     }
 
+    private static void LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.mode="world";g.save.room=0;g.save.english=true;
+        g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+        g.save.energy=100f;
+        bool corridor=false;
+        for(int y=5;y<23&&!corridor;y++)
+        for(int x=5;x<28&&!corridor;x++)
+        {
+            var foot=new Point(x+.5f,y+.5f);
+            bool walkable=true;
+            for(int i=0;i<=25;i++)
+                if(!g.CanStand(foot+new Point(i*.1f,0)))
+                { walkable=false;break; }
+            if(!walkable)continue;
+            g.save.x=foot.x;g.save.y=foot.y;corridor=true;
+        }
+        Check(corridor,"The live Emberfall scene has a real clear lane for an L3 sprint test");
+        Set(app,"camera",g.Position);
+        Input.Clear();Input.axes["Horizontal"]=1f;
+        Input.held.Add(KeyCode.LeftShift);
+        Point beginning=g.Position;
+        float baseline=g.Speed*.02f;
+        Update(app);
+        float run=(g.Position-beginning).Length;
+        Check(g.Sprinting&&run>baseline*1.44f&&run<baseline*1.55f&&
+            g.save.energy<100f,
+            "Actual runtime Shift hold produces real boosted movement and charges stamina");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("SPRINT ×1.5")),
+            "Production HUD indicates real full-body sprint and live energy drain");
+        Input.held.Remove(KeyCode.LeftShift);
+        beginning=g.Position;Update(app);
+        Check(!g.Sprinting&&(g.Position-beginning).Length<baseline*1.08f,
+            "Releasing keyboard sprint immediately restores ordinary world walking");
+        Input.held.Add(KeyCode.JoystickButton8);
+        beginning=g.Position;Update(app);
+        Check(g.Sprinting&&(g.Position-beginning).Length>baseline*1.44f,
+            "Holding genuine controller L3 uses the same physical player sprint");
+        g.save.energy=10.1f;
+        for(int i=0;i<6&&!g.SprintFatigued;i++)Update(app);
+        Check(g.SprintFatigued&&!g.Sprinting,
+            "An actual controller-held sprint runs out of usable stamina and stops accelerating");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("SPRINT TIRED")),
+            "Production HUD explains fatigue and the minimum restart energy");
+        g.save.energy=39f;
+        Update(app);
+        Check(!g.SprintFatigued&&g.Sprinting,
+            "Recovering energy with L3 still held safely resumes voluntary sprint");
+        Input.Clear();g.mode="inventory";beginning=g.Position;
+        Input.held.Add(KeyCode.LeftShift);
+        Update(app);
+        Check((g.Position-beginning).Length<.0001f,
+            "Modal inventory focus never interprets the held sprint button as world movement");
+        Console.WriteLine("PASS Physical runtime Shift/L3 sprint, HUD, fatigue and modal input isolation");
+    }
+
     private static void NearbyNpcHudMatchesRealKeyboardInteraction(FrontierRuntime app)
     {
         Prepare(app);
@@ -5644,7 +5704,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
