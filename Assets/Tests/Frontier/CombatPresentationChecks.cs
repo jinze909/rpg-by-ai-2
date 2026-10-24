@@ -1288,6 +1288,132 @@ namespace Starfall.Tests
             finally{data.maps[0]=old;}
         }
 
+
+        public static void ManualCompanionFocusPrefersMarkedFoeUntilUrgentHeroStrike(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData {id=0,spawnX=8.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                foreach(int profession in new[]{1,2})
+                {
+                    var g=Fresh(data,profession);
+                    g.save.flags.Add("companion_"+profession);
+                    g.SelectCompanion(profession);
+                    g.save.x=8.5f;g.save.y=10.5f;
+                    g.companionPosition=new Point(10.5f,10.5f);
+                    var closer=new Enemy(99100,0,10.5f,12.5f,10000f)
+                        {stun=100f,timer=1000f};
+                    var ordered=new Enemy(99101,0,14.5f,10.5f,10000f)
+                        {stun=100f,timer=1000f};
+                    g.enemies.Clear();
+                    g.enemies.Add(closer);g.enemies.Add(ordered);
+                    var choose=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                        System.Reflection.BindingFlags.Instance|
+                        System.Reflection.BindingFlags.NonPublic);
+                    Check(choose!=null&&g.CanStand(g.companionPosition)&&
+                        g.CanStand(ordered.Position),
+                        "Focus regression keeps original companion physical targeting on walkable terrain");
+                    Check(System.Object.ReferenceEquals(choose.Invoke(g,null),closer),
+                        "Without a marked target the ally retains its old nearest-ordinary-enemy behavior");
+                    g.aim=new Point(1f,0);
+                    g.aimTarget=ordered.Position;
+                    g.CommandCompanion();
+                    Check(!g.CompanionFocusActive&&g.companionAction!=null&&
+                        !g.companionAction.released,
+                        "A merely queued Z command never claims a physical focus marker");
+                    Advance(g,.23f);
+                    Check(g.CompanionFocusActive&&g.IsCompanionFocusTarget(ordered)&&
+                        !g.IsCompanionFocusTarget(closer)&&
+                        g.CompanionFocusSeconds>7f,
+                        "Only the real released manual Ivo/Sen command marks its exact live enemy object");
+                    Check(System.Object.ReferenceEquals(choose.Invoke(g,null),ordered),
+                        "The marked foe takes priority over a nearer ordinary attacker with clear line of fire");
+                    var threatening=new Enemy(99102,2,9.5f,10.5f,10000f)
+                    {
+                        state=1,timer=.4f,windupDuration=.65f,
+                        target=g.Position,facing=new Point(-1f,0)
+                    };
+                    g.enemies.Add(threatening);
+                    Check(System.Object.ReferenceEquals(choose.Invoke(g,null),threatening),
+                        "A genuine about-to-land heavy strike on the hero always supersedes optional manual focus");
+                    g.enemies.Remove(threatening);
+                    Check(System.Object.ReferenceEquals(choose.Invoke(g,null),ordered),
+                        "Once the urgent strike is gone the remaining physical manual focus resumes");
+                    g.enemies.Remove(ordered);
+                    var impostor=new Enemy(ordered.id,ordered.kind,ordered.x,ordered.y,10000f)
+                        {stun=100f,timer=1000f};
+                    g.enemies.Add(impostor);
+                    Check(!g.CompanionFocusActive&&
+                        !g.IsCompanionFocusTarget(impostor)&&
+                        System.Object.ReferenceEquals(choose.Invoke(g,null),closer),
+                        "A newly spawned impostor with the same numeric ID cannot inherit the original focus");
+                    g.enemies.Clear();
+                    g.SelectCompanion(0);
+                    Check(!g.CompanionFocusActive,
+                        "Changing party identity retires all active manual focus state");
+                    g.PrepareSave();
+                    var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+                    Check(!restored.CompanionFocusActive&&restored.save.version==2,
+                        "No temporary target references or timers leak into legacy v2 saves");
+                }
+            }
+            finally{data.maps[0]=previous;}
+        }
+
+        public static void ManualCompanionFocusNeedsAnHonestReleasedMuzzleAndExpires(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    if(y==10)cells[9]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData {id=0,spawnX=8.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.save.flags.Add("companion_1");
+                g.SelectCompanion(1);g.save.x=8.5f;g.save.y=10.5f;
+                g.companionPosition=new Point(10.5f,10.5f);
+                var foe=new Enemy(99112,0,10.5f,7.5f,10000f)
+                    {stun=100f,timer=1000f};
+                g.enemies.Clear();g.enemies.Add(foe);
+                g.aim=new Point(0,-1);g.aimTarget=foe.Position;
+                Check(g.CanStand(g.companionPosition)&&g.CanStand(foe.Position)&&
+                    g.Blocked(9.9f,10.02f),
+                    "Genuine blocked bow-hand test fixture preserves a valid standing foot");
+                g.CommandCompanion();
+                Advance(g,.23f);
+                Check(!g.CompanionFocusActive&&g.companionCooldown==0f,
+                    "An unsuccessful wall-born manual volley cannot create the focus marker or spend cooldown");
+                char[] open=rows[10].ToCharArray();open[9]='.';rows[10]=new string(open);
+                g.CommandCompanion();Advance(g,.23f);
+                Check(g.CompanionFocusActive&&g.IsCompanionFocusTarget(foe),
+                    "Restoring the same true arrow lane permits a legal marked shot");
+                Advance(g,8.2f);
+                Check(!g.CompanionFocusActive&&g.CompanionFocusSeconds==0f,
+                    "Genuine short-lived focus expires on world ticks without persisting into later battles");
+                g.Enter(0);
+                Check(!g.CompanionFocusActive,
+                    "World travel does not preserve old combat targets across scene lifecycle");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Campaign data)
         {
             var game=Fresh(data,1);
