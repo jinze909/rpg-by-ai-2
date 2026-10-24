@@ -887,9 +887,50 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS production ridge-watch marker: locked, pending, partial and cleared world draw cues");
     }
 
+
+    static void RidgePatrolRingUsesActualLivingWorldActor(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.save.flags.Add("boss_1");
+        g.save.flags.Add("ridge_seen_1_0");
+        g.save.flags.Add("ridge_seen_1_1");
+        g.Enter(1);
+        var idField=typeof(GameCore).GetField("ridgeWatchIds",Private);
+        var tracked=(Dictionary<int,int>)idField.GetValue(g);
+        Enemy enemy=null;int slot=-1;
+        foreach(Enemy e in g.enemies)
+            if(tracked.TryGetValue(e.id,out slot)&&slot==0){enemy=e;break;}
+        Check(enemy!=null&&g.IsActiveRidgeWatchPatrol(enemy),
+            "Only the real live ridge enemy may receive a world patrol ring");
+        Set(app,"camera",enemy.Position);
+        g.save.reducedMotion=true;
+        ClearDraw();Call(app,"DrawEnemyActor",enemy);
+        int ringed=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
+        int body=GUI.textureCalls.Count(c=>c.texture!=Texture2D.whiteTexture);
+        Check(ringed>=16&&body>0,
+            "Actual reduced-motion monster render retains real body and visible fixed quest ring");
+        g.save.flags.Add("ridge_watch_1_0");
+        ClearDraw();Call(app,"DrawEnemyActor",enemy);
+        int credited=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
+        Check(ringed-credited==16&&!g.IsActiveRidgeWatchPatrol(enemy)&&
+            GUI.textureCalls.Count(c=>c.texture!=Texture2D.whiteTexture)==body,
+            "Credited patrol drops exactly one ring without changing painted monster frames");
+        g.save.flags.Remove("ridge_watch_1_0");
+        g.save.flags.Add("ridge_watch_complete_1");
+        ClearDraw();Call(app,"DrawEnemyActor",enemy);
+        int complete=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
+        Check(complete==credited,
+            "Fully cleared watch never draws a misleading hostile objective ring");
+        Console.WriteLine("PASS actual ridge watch combat body, fixed ring, credited removal and sprite preservation");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }

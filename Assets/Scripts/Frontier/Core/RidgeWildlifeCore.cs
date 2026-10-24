@@ -26,6 +26,20 @@ namespace Starfall
         }
         public bool RidgeWatchComplete(int room)
         { return room>=1&&room<=7&&Has("ridge_watch_complete_"+room); }
+        // The actual world renderer asks GameCore, not an enemy-ID range,
+        // whether this living combat body still belongs to an unfinished
+        // patrol. Never paint a quest ring on unrelated or already credited
+        // actors, even if old save flags are present.
+        public bool IsActiveRidgeWatchPatrol(Enemy enemy)
+        {
+            if(enemy==null||enemy.hp<=0f||save.room!=ridgeWatchRoom||
+                !Object.ReferenceEquals(ridgeWatchMap,Map)||
+                !RidgeLinked(save.room)||!Has("boss_"+save.room)||
+                RidgeWatchComplete(save.room))return false;
+            int index;
+            return ridgeWatchIds.TryGetValue(enemy.id,out index)&&
+                !Has("ridge_watch_"+save.room+"_"+index);
+        }
         private string RidgeWatchHint(int room,bool english)
         {
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))

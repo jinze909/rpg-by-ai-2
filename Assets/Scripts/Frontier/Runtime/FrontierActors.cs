@@ -1123,6 +1123,13 @@ namespace Starfall
             DrawActorContactShadow(p,size*.57f,e.boss?24:16,
                 e.boss?8+GameCore.GaitFrame(e.moveTime,2.8f):
                     e.kind==0?4:e.kind==1?5:6,.84f);
+            // The foot-ring is the only addition; the canonical authored
+            // monster/archer/guard full-body sprite remains the same. The
+            // same live enemy instance also drives its patrol gait, AI and
+            // tracked-journal waypoint. Static dots remain legible with
+            // reduced-motion and vanish after the actual credited kill.
+            if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
+                Ring(e.Position,.63f,PixelArt.C("#7acabb"),16);
             // The two-wave roadwarden attackers are real combat enemies, but
             // their warm foot ring distinguishes them from roaming patrols.
             // A fixed ring is legible even with reduced-motion effects.
