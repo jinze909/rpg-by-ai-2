@@ -28,8 +28,28 @@ namespace Starfall.Tests
                 var unrelated=new Hazard{position=new Point(12,12),
                     radius=.5f,timer=20f,damage=2,kind="rift"};
                 g.hazards.Add(unrelated);
-                int energy=(int)g.save.energy,coins=g.save.coins;
+                int coins=g.save.coins;
                 float charge=g.GlasswindCharge;
+                // The vent must break an actual live attacker preparing
+                // contact, not merely paint an unrelated warning invisible.
+                Enemy winding=g.enemies.Find(g.IsGlasswindEnemy);
+                Point[] candidateSteps={
+                    new Point(1.7f,0),new Point(-1.7f,0),
+                    new Point(0,1.7f),new Point(0,-1.7f)};
+                Point chosen=new Point();
+                bool found=false;
+                foreach(Point step in candidateSteps)
+                {
+                    Point proposed=new Point(valve.x,valve.y)+step;
+                    if(!g.CanStand(proposed))continue;
+                    if(g.NavigationPath(proposed).Count==0)continue;
+                    chosen=proposed;found=true;break;
+                }
+                Check(found&&winding!=null,
+                    "A legitimate active machine can approach the pressured valve");
+                winding.x=chosen.x;winding.y=chosen.y;
+                winding.stun=0f;winding.state=1;winding.timer=.02f;
+                float foeHp=winding.hp;
                 g.save.energy=5;
                 Action(g,valve.kind,"glasswind_vent");
                 Check(!g.GlasswindVentSpent && g.hazards.Exists(h=>h.glasswindOwned)&&
@@ -46,6 +66,8 @@ namespace Starfall.Tests
                     g.save.energy==100-GameCore.GlasswindVentEnergy &&
                     !g.hazards.Exists(h=>h.glasswindOwned)&&g.hazards.Contains(unrelated)&&
                     g.GlasswindSite==site&&g.GlasswindWave==1 &&
+                    winding.hp==foeHp&&winding.state==0 &&
+                    winding.stun>=1.2f&&winding.timer>=.45f &&
                     Math.Abs(g.GlasswindCharge-charge)<.001f &&
                     g.save.coins==coins&&!g.Has("glasswind_"+site),
                     "One real paid vent clears only relay pressure without awarding capture, currency or kill credit");
@@ -57,6 +79,12 @@ namespace Starfall.Tests
                 Check(g.GlasswindSite==0&&!g.GlasswindVentSpent &&
                     !g.hazards.Exists(h=>h.glasswindOwned),
                     "Withdrawing resets the unused next-attempt vent and cleans up all owned warnings");
+                // Ordinary live hazards are NOT deleted by withdrawing.
+                // Remove this deliberately inserted independent hazard
+                // before demanding a new SafeTravel-gated mission start.
+                Check(g.hazards.Contains(unrelated),
+                    "The independent danger correctly survives abort");
+                g.hazards.Remove(unrelated);
                 Action(g,valve.kind,"glasswind_start_"+site);
                 Check(g.GlasswindSite==site&&!g.GlasswindVentSpent &&
                     g.save.version==2,"A new genuine attempt has a fresh transient vent, not a saved upgrade");
