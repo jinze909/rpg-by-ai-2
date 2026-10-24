@@ -1638,6 +1638,95 @@ namespace Starfall.Tests
                 "An archer aimed at an old off-hero point does not receive false threat priority");
         }
 
+        public static void CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] line=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<line.Length;x++)line[x]='#';
+                    else {line[0]='#';line[line.Length-1]='#';}
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data,1);
+                g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("companion_1");
+                g.SelectCompanion(1);g.save.reducedMotion=true;
+                g.save.x=16.5f;g.save.y=10.5f;
+                g.companionPosition=new Point(10.5f,10.5f);
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90f;g.reliefFollowerSafety=92f;
+                g.reliefFollowerPosition=new Point(15.5f,12.5f);
+                g.reliefFollowerWaiting=true;
+                var idle=new Enemy(99881,0,10.5f,12f,10000f){timer=1000f};
+                var attacker=new Enemy(99882,2,14.2f,12.5f,10000f)
+                {state=1,timer=.60f,windupDuration=.65f,
+                 target=g.reliefFollowerPosition,
+                 targetingReliefCivilian=true,facing=new Point(1,0)};
+                g.enemies.Add(idle);g.enemies.Add(attacker);
+                var nearest=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                var lockField=typeof(GameCore).GetField("companionAutoTarget",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(nearest!=null&&lockField!=null&&cadence!=null&&
+                    g.CanStand(attacker.Position)&&
+                    g.CanStand(g.reliefFollowerPosition)&&
+                    g.CanStand(g.companionPosition),
+                    "Rescue defender, civilian and live attack windup must occupy legal feet");
+                Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),attacker),
+                    "Companion prioritizes the real committed civilian strike over the closer idle enemy");
+                // A stale rescued-actor flag outside an active mission cannot
+                // promote unrelated enemies to urgent tactical priority.
+                g.reliefMissionTime=0f;
+                Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),idle),
+                    "Expired rescue missions have no phantom protected target");
+                g.reliefMissionTime=90f;
+                attacker.target=new Point(17.5f,17.5f);
+                Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),idle),
+                    "An off-civilian telegraph cannot claim a protected strike");
+                attacker.target=g.reliefFollowerPosition;
+                attacker.stun=1f;
+                Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),idle),
+                    "A fully interrupted foe cannot receive urgent rescue priority");
+                attacker.stun=0f;
+                g.ToggleCompanionHold();
+                Check(g.CompanionHoldingPosition,
+                    "Actual ally holds the planted shot while civilians are protected");
+                // Start the authentic auto windup against an idle foe and
+                // introduce the rescued-actor attack only BEFORE release.
+                g.enemies.Remove(attacker);
+                cadence.SetValue(g,0f);
+                g.Tick(.02f,new Point());
+                Check(g.companionAction!=null&&
+                    g.companionAction.kind=="attack"&&
+                    System.Object.ReferenceEquals(lockField.GetValue(g),idle),
+                    "Authentic companion attack begins on the closer idle enemy");
+                g.enemies.Add(attacker);
+                float savedSafety=g.reliefFollowerSafety;
+                Advance(g,.16f);
+                Check(g.companionAction!=null&&g.companionAction.released&&
+                    System.Object.ReferenceEquals(lockField.GetValue(g),attacker)&&
+                    g.projectiles.Exists(p=>p.friendly)&&
+                    g.effects.Exists(e=>e.kind=="number"&&e.reliefMissionOwned&&
+                        e.text==g.L("同伴掩护！","ALLY COVER!")),
+                    "True auto-release retargets and paints rescue cover only after a projectile exists");
+                Check(g.reliefFollowerSafety==savedSafety,
+                    "Ally's protection feedback never damages or heals civilian safety by itself");
+                Check(!g.save.flags.Contains("companion_rescue_cover"),
+                    "Rescue tactical retargeting never writes a new persistent save flag");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void FrostPulsesPreserveLongerExistingEnemyControl(Campaign data)
         {
             // Drive the REAL Arcanist alternate-Q and world update loop:

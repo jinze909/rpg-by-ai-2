@@ -1176,6 +1176,44 @@ namespace Starfall
                     EnemyBowFlightLaneClear(foe,foe.target);
             return InEnemyMeleeArc(foe,Position);
         }
+        // A resident in an active rescue is a real protected body. Do not
+        // classify an arbitrary nearby enemy as a rescue threat: its still
+        // unreleased attack must belong to this mission, target the CURRENT
+        // living civilian and have legal physical contact geometry.
+        private bool CompanionCommittedRescueStrike(Enemy foe)
+        {
+            if(foe==null||foe.hp<=0||foe.state!=1||
+                reliefMissionRoom==0||reliefMissionRoom!=save.room||
+                reliefMissionWave<1||reliefMissionWave>3||
+                reliefMissionTime<=0f||reliefFollowerSafety<=0f||
+                !foe.targetingReliefCivilian||
+                !Finite(foe.timer)||!Finite(foe.windupDuration)||
+                foe.windupDuration<=0f||
+                foe.timer>foe.windupDuration+.001f||
+                foe.stun>.001f||foe.hitTime>.001f||
+                foe.releaseTime>.001f||
+                !Finite(foe.target.x)||!Finite(foe.target.y)||
+                !Finite(reliefFollowerPosition.x)||
+                !Finite(reliefFollowerPosition.y)||
+                !CanStand(foe.Position)||!CanStand(reliefFollowerPosition))
+                return false;
+            bool missionAttacker=IsReliefMissionEnemy(foe);
+            bool escortPatrol=reliefMissionWave==3&&!foe.boss&&
+                !missionAttacker&&
+                (foe.Position-reliefFollowerPosition).Length<8f;
+            if(!missionAttacker&&!escortPatrol)return false;
+            if(!ClearAttackPath(foe.Position,reliefFollowerPosition))
+                return false;
+            if(foe.kind==1&&!foe.boss)
+                return (foe.target-reliefFollowerPosition).Length<=.55f&&
+                    EnemyBowFlightLaneClear(foe,foe.target);
+            if(foe.boss||foe.kind==2)
+                return (foe.target-reliefFollowerPosition).Length<
+                    EnemyAreaRadius(foe);
+            return (foe.target-reliefFollowerPosition).Length<=.8f&&
+                InEnemyMeleeArc(foe,reliefFollowerPosition);
+        }
+
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;
@@ -1187,7 +1225,7 @@ namespace Starfall
             // auto-support can interrupt a heavy slam or committed lunge
             // instead of spending its contact on a closer idle enemy.
             float bestStockSeconds=float.PositiveInfinity;
-            float bestHeroStrikeSeconds=float.PositiveInfinity;
+            float bestProtectedStrikeSeconds=float.PositiveInfinity;
             foreach(Enemy foe in enemies)
             {
                 if(foe==null || foe.hp<=0)continue;
@@ -1207,7 +1245,8 @@ namespace Starfall
                     // ordinary enemy can beat its priority; avoid extra
                     // projectile sweeps on every simulation tick.
                     if(bestPriority<2)continue;
-                    priority=CompanionCommittedHeroStrike(foe)?2:
+                    priority=(CompanionCommittedHeroStrike(foe)||
+                        CompanionCommittedRescueStrike(foe))?2:
                         IsCompanionFocusTarget(foe)?3:4;
                 }
                 if(priority>bestPriority)continue;
@@ -1216,7 +1255,7 @@ namespace Starfall
                 // the deterministic tie-breaker; ordinary foes remain nearest-first.
                 float stockSeconds=priority==0?foe.timer:
                     float.PositiveInfinity;
-                float heroStrikeSeconds=priority==2?foe.timer:
+                float protectedStrikeSeconds=priority==2?foe.timer:
                     float.PositiveInfinity;
                 if(priority==bestPriority)
                 {
@@ -1231,9 +1270,9 @@ namespace Starfall
                     }
                     else if(priority==2)
                     {
-                        bool earlier=heroStrikeSeconds<bestHeroStrikeSeconds;
-                        bool tied=heroStrikeSeconds==bestHeroStrikeSeconds||
-                            Math.Abs(heroStrikeSeconds-bestHeroStrikeSeconds)<=.0001f;
+                        bool earlier=protectedStrikeSeconds<bestProtectedStrikeSeconds;
+                        bool tied=protectedStrikeSeconds==bestProtectedStrikeSeconds||
+                            Math.Abs(protectedStrikeSeconds-bestProtectedStrikeSeconds)<=.0001f;
                         if(!earlier&&!(tied&&squared<best))continue;
                     }
                     else if(squared>=best)continue;
@@ -1252,7 +1291,7 @@ namespace Starfall
                     continue;
                 best=squared;bestPriority=priority;nearest=foe;
                 bestStockSeconds=priority==0?stockSeconds:float.PositiveInfinity;
-                bestHeroStrikeSeconds=priority==2?heroStrikeSeconds:float.PositiveInfinity;
+                bestProtectedStrikeSeconds=priority==2?protectedStrikeSeconds:float.PositiveInfinity;
             }
             return nearest;
         }
@@ -1361,31 +1400,36 @@ namespace Starfall
                                 (!lockedCache||
                                  available!=locked&&
                                  availableSeconds<lockedSeconds-.0001f);
-                            bool availableHeroStrike=
-                                CompanionCommittedHeroStrike(available);
-                            bool lockedHeroStrike=
-                                CompanionCommittedHeroStrike(locked);
-                            float availableHeroSeconds=availableHeroStrike?
+                            // Reselect a threatened resident or hero at
+                            // REAL release time. One urgent live objective
+                            // may overtake an older, nearer ordinary lock.
+                            bool availableProtectedStrike=
+                                CompanionCommittedHeroStrike(available)||
+                                CompanionCommittedRescueStrike(available);
+                            bool lockedProtectedStrike=
+                                CompanionCommittedHeroStrike(locked)||
+                                CompanionCommittedRescueStrike(locked);
+                            float availableProtectedSeconds=availableProtectedStrike?
                                 available.timer:float.PositiveInfinity;
-                            float lockedHeroSeconds=lockedHeroStrike?
+                            float lockedProtectedSeconds=lockedProtectedStrike?
                                 locked.timer:float.PositiveInfinity;
-                            bool tiedHeroDeadlines=availableHeroStrike&&
-                                lockedHeroStrike&&
-                                Math.Abs(availableHeroSeconds-
-                                    lockedHeroSeconds)<=.0001f;
-                            bool nearerTiedHero=availableHeroStrike&&
-                                lockedHeroStrike&&available!=locked&&
-                                tiedHeroDeadlines&&
+                            bool tiedProtectedDeadlines=availableProtectedStrike&&
+                                lockedProtectedStrike&&
+                                Math.Abs(availableProtectedSeconds-
+                                    lockedProtectedSeconds)<=.0001f;
+                            bool nearerTiedProtected=availableProtectedStrike&&
+                                lockedProtectedStrike&&available!=locked&&
+                                tiedProtectedDeadlines&&
                                 (available.Position-companionPosition).Length<
                                 (locked.Position-companionPosition).Length-.0001f;
-                            bool urgentHeroStrike=availableHeroStrike&&
-                                (!lockedHeroStrike||
+                            bool urgentProtectedStrike=availableProtectedStrike&&
+                                (!lockedProtectedStrike||
                                  available!=locked&&
-                                 (availableHeroSeconds<
-                                      lockedHeroSeconds-.0001f||
-                                  nearerTiedHero));
+                                 (availableProtectedSeconds<
+                                      lockedProtectedSeconds-.0001f||
+                                  nearerTiedProtected));
                             if(available!=null&&
-                                (!oldValid||urgentCache||urgentHeroStrike))
+                                (!oldValid||urgentCache||urgentProtectedStrike))
                             {
                                 locked=available;
                                 companionAutoTarget=available;
@@ -1438,6 +1482,14 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
+                                // Only a physically released covering shot
+                                // earns the bilingual rescue feedback.
+                                if(action.kind=="attack"&&
+                                   CompanionCommittedRescueStrike(locked))
+                                    effects.Add(new Effect("number",
+                                        reliefFollowerPosition,.7f,
+                                        L("同伴掩护！","ALLY COVER!"))
+                                        {reliefMissionOwned=true});
                                 if(action.kind=="attack"&&
                                     System.Object.ReferenceEquals(
                                         locked,companionCornerTarget)&&
