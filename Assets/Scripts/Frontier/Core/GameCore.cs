@@ -2452,21 +2452,21 @@ namespace Starfall
                 if (TalkTriadGuild(o)) return;
                 if (save.ending > 0) { Dialog(o.name, o.en,
                     (Has("storm_complete")?
-                        "莉雅：第一场星雨终于证明了一个事实：三个地区真的可以自己决定如何分配公共电力。我已经把庇护与生产的选择、每座星灯的调谐顺序和剩余储备全部公开。" +
+                        "莉雅揉了揉泛红的眼角，桌上堆着几张湿透的供电记录。\n\n“星雨总算过去了。三个地区各有自己的用电安排——我一份也没替他们改。账都贴在告示板上，谁想查都能来。”" +
                         (StormReliefAll?"三位原来的证人还把你捐出的热汤送到了受寒的居民手中。":"") + "\n\n" :
-                        Has("storm_started")?"莉雅：星雨还没有结束。三片地区的选择不由城墙自动替代；请到公约议事台确认每一笔公共储备。\n\n":"") +
+                        Has("storm_started")?"莉雅没抬头，仍在把烛油滴到几份封条上。\n\n“外头的星雨还在下。三地的储备都摆在议事台，谁先领电，得让他们自己商量。我的印章不管这个。”\n\n":"") +
                     (Has("afterlight_complete") ?
-                    "莉雅：你没有让终章变成另一本落满灰尘的历史书。三地公共站点已经接通，普通人可以使用它们，也知道谁来维护。\n\n" :
-                    "莉雅：厄洛的决定过去了，村庄仍然需要真正的公共道路。公会南侧设立了余光重建议事台；把星根设施接回居民身边吧。\n\n") +
-                    "冒险尚未结束。旅店有热汤，密林里仍有星晶，大家都在等你。",
+                    "“三处公共站终于亮灯了。昨晚有个老人带着孩子从南边回来，摸着灯柱不肯走。”莉雅翻开维修簿。“名字我都记下了。坏一盏，我们就知道该找谁修。”\n\n" :
+                    "“城墙那边终于安静了，城外可没闲着。”莉雅朝公会南面指了指。“余光重建的工地还缺人。灯熄了几个月，昨夜又有人摸黑走错路。”\n\n") +
+                    "她把一张空白的巡路单推过来：“旅店还有热汤。路上需要什么，先去装好。没人催你，可总有人得出门。”",
                     (Has("storm_complete")?
-                        "Lyra: The first storm proved three living regions can choose how to distribute public power. The shelter and utility allocations, physical lamp sequence and remaining reserve are all on the public record." +
+                        "Lyra rubs her tired eyes. Damp power ledgers cover the desk.\n\n“The starstorm's over. All three regions made their own allocations. I didn't change a single one. The figures are on the noticeboard if anyone wants to check.”" +
                         (StormReliefAll?" The original three witnesses also delivered your hot meals to neighbors suffering in the cold.":"") + "\n\n" :
-                        Has("storm_started")?"Lyra: The starstorm is not over. The citadel cannot decide each region's power needs by decree. Inspect the civic allocations at the council.\n\n":"") +
+                        Has("storm_started")?"Lyra keeps her eyes on the wax seals she's fixing.\n\n“The starstorm hasn't passed. The reserves are on the council table. Who gets power first is for those regions to settle. My stamp doesn't decide it.”\n\n":"") +
                     (Has("afterlight_complete") ?
-                    "Lyra: You did not let the ending become another dusty history book. All three public sites now work, and ordinary people know who maintains them.\n\n" :
-                    "Lyra: Orrin's decision is behind us, but villages still need real public routes. Find the afterlight reconstruction council south of the guild and rebuild those civic sites.\n\n") +
-                    "There is warm stew at the inn, starcrystal in the woods, and more living to do.",
+                    "“All three public stations have lights again. An old man came through with a child last night and wouldn't let go of the lamppost.” Lyra opens a maintenance ledger. “I have the repairers' names right here.”\n\n" :
+                    "“It's quiet behind the wall for once. Out here? Not so much.” Lyra points south of the guild. “The Afterlight workers need help. The road lamps have been dark for months. Someone got lost there again last night.”\n\n") +
+                    "She slides over a blank roadwarden's slip. “There's hot stew at the inn. Take what you need before you go. No one's ordering you out. The roads still need someone.”",
                     C("开始新的远征", "Another expedition", "routes"),
                     C("回顾结局", "Revisit the ending", "epilogue"),
                     C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); return; }
@@ -2474,10 +2474,10 @@ namespace Starfall
                 if (save.stage < 3 && Has("core_" + next))
                     Dialog(o.name, o.en, (Has("witness_complete_"+next) ?
                         new[]{"","莫芽的证词已经到我手里：森林不是敌人，它失去了本该属于自己的自愈力。\n\n","阿菱记录的渡口孩子不再是货运损失的空白项。\n\n","维恩证明矿工停机是救命，而不是违反配额。\n\n"}[next] : "") +
-                        "星核暂存进公会封库，堡垒却已经催促下一批供能。镇里的井水比昨天更浅。把下一片遗迹中的原始记录带回来吧：我们需要的不只是能源，还要知道失衡始于何处。", (Has("witness_complete_"+next) ?
+                        "莉雅把星核放进衬着毛毡的铁匣，啪地锁上。\n\n“堡垒的催单比你回来的脚步还快。”她把一杯井水放到你面前，杯底有细沙。“今天才打上来这么点。下一处地方要是也出了事，把账簿和那边的人说过的话一块带回来。”", (Has("witness_complete_"+next) ?
                         new[]{"","Moya's testimony is here. The forest was wounded, not our enemy.\n\n","Arin's children at the crossing will no longer be counted as missing freight.\n\n","Venn proves the miners' shutdown was a safety measure, not misconduct.\n\n"}[next] : "") +
-                        "The core is safe in the guild vault, but the citadel is already demanding more power. Our town's wells are lower than yesterday. Bring back the next region's records, not just its core. We must learn where the balance broke.", C("交回星核 · 开启下一章", "Deliver the starcore · next chapter", "deliver"), C("稍后再来", "Later", "close"));
-                else Dialog(o.name, o.en, save.stage == 3 ? "三枚星核已送入堡垒的调谐网。屏障越亮，城外的树林与河道就越虚弱。去见厄洛，问问他究竟在保护谁。\n\n杏、老潮和诺尔能提供药品、食物与共用水泵；远岸的原始证词还可能证明，星核不止有筑墙一种用法。" : "莉雅：先去荆棘密林找回侦察员，再到祭坛取回第一枚星核。如果你已经找到星核，就把它交给我。\n\n森林的怪物未必是灾难的原因：堡垒正在抽走各地的能源，我们需要把现场证据一起带回来。按 Tab 查看任务，或问我事情的来龙去脉。", save.stage == 3 ? "Three cores now feed the citadel's tuning network. Its shield brightens as rivers and trees beyond the wall weaken. Confront Orrin and ask whom he is protecting.\n\nAn, Old Tide and Noll can offer medicine, food and shared pumps. Original farshore records might prove that walls are not the only use for starcores." : "Lyra: Find the lost scout in Thornwood, then retrieve the first starcore from the altar. If you already have the core, bring it to me.\n\nThe monster may not be the cause: the citadel is draining the regions. We need evidence from the scene. Press Tab for quests, or ask me to explain how the story fits together.", C("查看冒险路线", "Choose a route", "routes"), C("我出发了", "On my way", "close"));
+                        "Lyra locks the core inside a felt-lined iron case.\n\n“The citadel's requisition arrived before you did.” She sets down a glass of well water, grit visible at the bottom. “This is all we drew today. If the next region's in the same state, bring its ledger back. And tell me what its people said.”", C("交回星核 · 开启下一章", "Deliver the starcore · next chapter", "deliver"), C("稍后再来", "Later", "close"));
+                else Dialog(o.name, o.en, save.stage == 3 ? "莉雅将三份旧账摊在桌上，指尖停在同一天的日期上。\n\n“这边写着堡垒屏障供能充足。旁边是断流的井、停不下来的矿机，还有河上的失踪者名单。厄洛要是说不知道，就让他自己看。”\n\n“杏有伤药，老潮还能送人过河，诺尔总能从废铁里拆出能用的零件。去堡垒之前，远岸那几份原始证词能带多少就带多少。”" : "莉雅看了一眼屋外湿漉漉的路。\n\n“荆棘密林还没信。我不敢再派第二个孩子进去找侦察员了。祭坛旁盘踞着黑荆巨兽——先找到人，听他说那里怎么了。要是能拿到星核，就带回公会，我来收着。”\n\n“桌上这封求援信还没写完。等你回来，我想把最后一行补上。”", save.stage == 3 ? "Lyra spreads three old ledgers across the desk, her finger stopping on the same date.\n\n“This one says the citadel shield was fully powered. The others say wells went dry, the mine couldn't shut down, and people vanished at the crossing. If Orrin says he didn't know, let him read them.”\n\n“An has medicine. Old Tide can still ferry people. Noll makes useful things out of junk iron. Bring as many original farshore accounts as you can before you go.”" : "Lyra glances at the rain-soaked road outside.\n\n“No word from Thornwood. I can't send another youngster in after our scout. The Briar Beast's been seen at the old altar. Find the scout first. Let him tell you what happened there. If you reach the starcore, bring it back to the guild. I'll keep it safe.”\n\n“The plea for help on my desk is unfinished. I'd like to write an answer when you return.”", C("查看冒险路线", "Choose a route", "routes"), C("我出发了", "On my way", "close"));
                 return;
             }
             if (kind == "rest")
@@ -2544,8 +2544,8 @@ namespace Starfall
             if (kind == "scout")
             {
                 if (Has("scout_saved")) { Notify("侦察员已经安全离开。", "The scout reached safety."); return; }
-                if (save.kills[1] < 4) { Dialog(o.name, o.en, "路上至少还有四只狂暴的怪物。帮我清理道路，我会告诉你星核的入口。", "At least four beasts block the escape route. Clear them and I will open the path to the core.", C("我来解决", "I will clear the road", "close")); return; }
-                Dialog(o.name, o.en, "侦察员：谢谢你把路上的怪物清理掉。我终于知道森林为什么变成这样。\n\n地下的星根本来给树林供能，但堡垒为了维持屏障，长期从这里抽走能源。黑荆巨兽守在受损的调节装置前，不只是无缘无故袭击人。\n\n我会把发现交给公会的莉雅。你去祭坛取回第一枚星核，然后带回镇里；我们要把证据和星核放在一起，才知道下一步怎么办。", "Scout: Thank you for clearing the monsters. Now I know why the forest changed.\n\nThe roots beneath us used to support the trees. But the citadel's shield has been drawing away their power. The Briar Beast guards a damaged regulator; it is not attacking for no reason.\n\nI'll take my findings to Lyra at the guild. Recover the first starcore at the altar, then bring it back to town. We need both the evidence and the core to decide what happens next.", C("送侦察员回镇报告", "Send the scout to report", "scout")); return;
+                if (save.kills[1] < 4) { Dialog(o.name, o.en, "侦察员攥着一根断裂的木棍，手背都是血。\n\n“路口那几只东西疯了一样撞树。我试过跑，差点没回来。你能把它们引开吗？安全了我再指给你看祭坛的路。”", "The scout grips a broken branch, blood on his knuckles.\n\n“Those beasts keep throwing themselves against the trees. I tried running. Barely made it back. Can you get them off the road? I'll show you the way to the altar when it's clear.”", C("我来解决", "I will clear the road", "close")); return; }
+                Dialog(o.name, o.en, "侦察员靠着树喘了半天，才把皱巴巴的测绘纸从衣襟里摸出来。\n\n“你看这两道口子。不是兽爪，是镐头。我跟着它们一路摸到星根下面，那里原本该给树林供能，现在却有条线直通堡垒的屏障。难怪根都枯了。”\n\n他往祭坛方向看了一眼。\n\n“黑荆巨兽没追我，它一直守着伤口。莉雅得知道这件事，我回公会去告诉她。你要是进得去祭坛，把那枚星核带回来，别让人把痕迹都擦掉。”", "The scout leans against a tree for a while before pulling a crumpled survey sheet from his coat.\n\n“See these cuts? Not claws. Pickaxe marks. I followed them down to the starroot. That flow used to feed the forest. Now there's a line running straight to the citadel's shield. No wonder the roots have gone dry.”\n\nHe looks toward the altar.\n\n“The Briar Beast didn't chase me. It stayed by the wound. Lyra needs to hear this. I'll tell her at the guild. If you can get into the altar, bring back the core before someone scrapes all the evidence away.”", C("送侦察员回镇报告", "Send the scout to report", "scout")); return;
             }
             if (kind.StartsWith("rune"))
             {
@@ -2616,7 +2616,7 @@ namespace Starfall
                 {
                     bool newlyFound = !Has("core_" + save.room); Flag("core_" + save.room);
                     if (newlyFound) RecordMoment("获得探索能力：" + new[] { "", "藤封共鸣", "浅水接通", "断桥修复" }[Math.Min(3, save.room)] + "。旧地区出现新的支路。", "Exploration power gained: " + new[] { "", "Grove resonance", "Tidal connection", "Bridge repair" }[Math.Min(3, save.room)] + ". Revisit old regions for sealed routes.");
-                    Dialog("星核祭坛", "Starcore altar", "星核的光安静下来。它不是怪物身上的战利品，而是旧星根网络的一处调谐核心。先交给莉雅保管；它最终要为城墙还是土地供能，仍需要你找到更多证据。", "The starcore grows still. It is not a trophy, but a regulator of the old living lattice. Bring it to Lyra for safekeeping. Its final purpose—shield or soil—must wait until you know more.", C("返回余烬镇", "Return to Emberfall", "goto0"), C("继续探索", "Keep exploring", "close")); sound = "reward"; return;
+                    Dialog("星核祭坛", "Starcore altar", "祭坛的齿轮一枚枚停下。星核从底座升起，表面还缠着细细的根须。刻在石台边缘的调谐数字有几处被人凿掉了。\n\n你用布裹住星核。莉雅的公会有保存旧记录的铁柜，那里至少能让这块石头和这些痕迹留到明天。", "The altar's gears slow to a stop. The starcore rises from its cradle, fine roots still clinging to its surface. Someone has chiseled several calibration figures out of the rim.\n\nYou wrap the core in cloth. Lyra keeps the old records behind an iron cabinet door. At least there it might survive the night beside the evidence.", C("返回余烬镇", "Return to Emberfall", "goto0"), C("继续探索", "Keep exploring", "close")); sound = "reward"; return;
                 }
                 if (enemies.Exists(e => e.boss)) { Notify("留意红色攻击预告，闪避后反击。", "Watch the red attack warnings. Dodge, then strike."); return; }
                 BossData b = data.bosses[save.room - 1];
