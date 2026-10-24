@@ -30,6 +30,10 @@ namespace Starfall
         public float attackCooldown, dashTime, dashCooldown, invulnerable, skillCooldown, guardTime;
         public float fishTime, fishCursor, toastTime;
         public int fishHits, fishMisses;
+        // Optional expert tackle is a risk/reward choice for the CURRENT
+        // cast only, never a SaveData v2 field or permanent unlock.
+        public bool FishExpertCast { get; private set; }
+        public int FishCatchReward { get { return FishExpertCast ? 2 : 1; } }
         // A bite belongs to one simulation-time window, not every keyboard,
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
@@ -46,7 +50,8 @@ namespace Starfall
         public float FishTarget { get { return save != null && save.reducedMotion ? .5f :
             .5f + .16f * (float)Math.Sin(fishTime * .67f +
                 fishHits * 2.1f - fishMisses * .8f); } }
-        public float FishWindowRadius { get { return .18f - fishHits * .022f; } }
+        public float FishWindowRadius { get { return FishExpertCast ?
+            .10f - fishHits*.012f : .18f - fishHits*.022f; } }
         public bool FishLineReady { get { return mode == "fish" &&
             fishTime >= fishNextBiteAt && fishTime < fishBiteExpiresAt; } }
         private string currentMode = "title";
@@ -205,7 +210,8 @@ namespace Starfall
             aim = dashDirection = new Point(1, 0);
             aimTarget = null;
             fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
-            fishHits = fishMisses = 0;
+            fishHits = fishMisses = 0;FishExpertCast=false;
+            FishFeedbackZh=FishFeedbackEn="";
             toast = ""; toastTime = 0;
             // Runtime audio consumes a pending queue, not just the current
             // sound name. Neither old combat cues nor dialogue clicks may
@@ -263,6 +269,7 @@ namespace Starfall
         }
         public void Close()
         {
+            if(mode=="fish")FishExpertCast=false;
             conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
             conversationSourceRoom = -1;
@@ -2538,7 +2545,10 @@ namespace Starfall
                 List<Choice> list = new List<Choice> {
                     roomForFish?
                         C("开始钓鱼", "Cast the line", "fish"):
-                        C("鱼袋已满 · 先腾出空间", "Fish bag full · make room", "fish")
+                        C("鱼袋已满 · 先腾出空间", "Fish bag full · make room", "fish"),
+                    HasInventoryRoom(3,2)?
+                        C("精准垂钓 · 两条鱼", "Precision cast · two fish", "fish_expert"):
+                        C("精准垂钓 · 鱼袋需两格", "Precision cast · need two slots", "fish_expert")
                 };
                 if (!Has("ally_2")) list.Add(C("支线：交付银鳍鱼 ×3", "Commission: deliver 3 Silverfin", "ally2"));
                 list.Add(C("再见", "Goodbye", "close"));
@@ -2552,6 +2562,8 @@ namespace Starfall
                     save.inventory[3]>=3?
                     "The fisher looks up from the pot, sees the fish you brought and clears a clean bucket.\n\n'All three? Hand them over. The children at the shelter are waiting for supper.'":
                     "A few leaves drift in the cooking pot.\n\n'More children reached the shelter tonight. I still need three Silverfin. Reel when you hear the splash, with the float inside the teal band. Three good pulls will land one fish.'";
+                fishermanZh+="\n\n“想试试树桩边那股急水？青色窗口窄得多。三次钩准，能拉上两条；没有鱼饵也能试。”";
+                fishermanEn+="\n\n'Try the swift water by the stump? The teal window is narrower. Land three hooks and you can pull in two fish. No bait needed.'";
                 Dialog(o.name,o.en,fishermanZh,fishermanEn,list.ToArray());return;
             }
             if (kind == "forge")
@@ -2774,7 +2786,7 @@ namespace Starfall
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
-                action == "fish" || action == "deliver" ||
+                (action == "fish" || action == "fish_expert") || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
                 action == "continue" || action == "swordlesson_start" ||
@@ -2916,14 +2928,18 @@ namespace Starfall
             if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
-            if (action == "fish")
+            if (action == "fish" || action == "fish_expert")
             {
-                if(!HasInventoryRoom(3,1))
+                bool expert=action=="fish_expert";
+                int required=expert?2:1;
+                if(!HasInventoryRoom(3,required))
                 {
-                    Notify("鱼袋已满。先腾出一格，才有地方装上钩的鱼。",
-                        "Your fish bag is full. Make room before casting.");
+                    Notify(expert?"精准垂钓需要两个鱼袋空位。":"鱼袋已满。先腾出一格，才有地方装上钩的鱼。",
+                        expert?"Precision fishing needs two free fish slots.":
+                               "Your fish bag is full. Make room before casting.");
                     return;
                 }
+                FishExpertCast=expert;
                 fishTime = fishCursor = 0; fishHits = fishMisses = 0;
                 fishNextBiteAt = .3f;
                 fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
@@ -3024,10 +3040,21 @@ namespace Starfall
                 // Normal play enters this minigame only when a fish slot was
                 // available. Keep the final reward safe if a developer or
                 // future UI changes the inventory during the reel sequence.
-                save.inventory[3] = Math.Min(9999, save.inventory[3] + 1);
-                save.coins = Math.Min(999999, save.coins + 4);
-                BountyEvent(2, 1); Close(); revision++;
-                Notify("钓到银鳍鱼 ×1！", "Caught a Silverfin!");
+                bool expert=FishExpertCast;
+                int caught=Math.Max(0,Math.Min(FishCatchReward,
+                    9999-save.inventory[3]));
+                if(caught>0)
+                {
+                    save.inventory[3]+=caught;
+                    save.coins=Math.Min(999999,save.coins+caught*4);
+                    BountyEvent(2,caught);
+                }
+                Close();revision++;
+                Notify(caught==0?"鱼袋已满，这次钓获未能收下。":
+                        "钓到银鳍鱼 ×"+caught+(expert?"！精准垂钓成功。":"！"),
+                       caught==0?"Your fish bag is full; no catch was stored.":
+                        "Caught "+caught+" Silverfin"+(caught==1?"":"")+"!"+
+                        (expert?" Precision cast complete.":""));
             }
             else if (fishMisses >= 3) { Close(); Notify("鱼游走了。没有损失，再试一次吧。", "The fish slipped away. Nothing lost; try again."); }
         }

@@ -16,6 +16,87 @@ namespace Starfall.Tests
             throw new Exception("Live float never reached the requested fish bite state");
         }
 
+
+        public static void PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject pond=Object(g,"fish");
+            g.save.x=pond.x;g.save.y=pond.y;
+            g.Talk(pond);
+            int expertIndex=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fish_expert");
+            Check(expertIndex>=0&&g.conversation.choices[expertIndex].en.Contains("two fish"),
+                "Actual fisherman offers the optional expert cast in the real world conversation");
+            g.Choose(expertIndex);
+            Check(g.mode=="fish"&&g.FishExpertCast&&g.FishCatchReward==2&&
+                Math.Abs(g.FishWindowRadius-.10f)<.0001f,
+                "Precision reel is actually narrower than the historical beginner fishing window");
+            int fish=g.save.inventory[3],coins=g.save.coins;
+            for(int i=0;i<3;i++)
+            {
+                ReachFishingBite(g,true);
+                Check(g.FishLineReady&&g.FishWindowRadius<=.10f,
+                    "Each expert hook still requires a live bite and a narrow physical cursor contact");
+                g.FishHit();
+                if(i<2)
+                    Check(g.mode=="fish"&&!g.FishLineReady&&g.fishHits==i+1,
+                        "A single expert bite never grants multiple fish or bypasses the recovery gap");
+            }
+            Check(g.mode=="world"&&!g.FishExpertCast&&
+                g.save.inventory[3]==fish+2&&g.save.coins==coins+8&&
+                g.save.version==2,
+                "Three genuine expert hooks pay two physical Silverfin and eight coins without schema changes");
+            g.FishHit();
+            Check(g.save.inventory[3]==fish+2,
+                "Replayed reel input after success cannot double the expert payout");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(!loaded.FishExpertCast&&loaded.save.inventory[3]==fish+2&&
+                loaded.save.version==2,
+                "The earned fish survives v2 reload but the transient expert challenge does not");
+        }
+
+        public static void PrecisionLakeFishingRespectsBagFailuresAndOrdinaryCasting(Campaign data)
+        {
+            var g=Fresh(data);g.save.inventory[3]=9998;
+            WorldObject pond=Object(g,"fish");
+            g.save.x=pond.x;g.save.y=pond.y;
+            g.Talk(pond);
+            int expert=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fish_expert");
+            Check(expert>=0&&g.conversation.choices[expert].en.Contains("two slots"),
+                "One free fish slot disables the two-fish challenge honestly in the fisherman menu");
+            g.Choose(expert);
+            Check(g.mode=="world"&&g.save.inventory[3]==9998&&
+                !g.FishExpertCast,
+                "A cached expert button cannot start with insufficient physical inventory space");
+            g.Talk(pond);int ordinary=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="fish");
+            Check(ordinary>=0,"Ordinary original lake gameplay remains selectable");
+            g.Choose(ordinary);
+            Check(g.mode=="fish"&&!g.FishExpertCast&&g.FishCatchReward==1&&
+                Math.Abs(g.FishWindowRadius-.18f)<.0001f,
+                "Existing normal reel retains exactly its historic timing window and one-fish reward");
+            g.Close();
+            Check(!g.FishExpertCast,"Leaving a cast clears transient expert status");
+            g.save.inventory[3]=0;g.Talk(pond);
+            expert=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_expert");
+            g.Choose(expert);
+            Check(g.FishExpertCast,"Second cast may legitimately elect precision mode");
+            for(int i=0;i<3;i++)
+            {
+                ReachFishingBite(g,false);g.FishHit();
+            }
+            Check(g.mode=="world"&&!g.FishExpertCast&&
+                g.save.inventory[3]==0,
+                "Three real missed precision pulls lose the challenge without minting items");
+            g.Talk(pond);
+            ordinary=Array.FindIndex(g.conversation.choices,c=>c.action=="fish");
+            g.Choose(ordinary);
+            Check(!g.FishExpertCast&&g.mode=="fish"&&
+                Math.Abs(g.FishWindowRadius-.18f)<.0001f,
+                "Expert failure never makes the subsequent ordinary fishing cast harder");
+        }
         public static void FishingBitesMoveAndCannotBeClaimedByButtonMashing(Campaign data)
         {
             var game = Fresh(data);
