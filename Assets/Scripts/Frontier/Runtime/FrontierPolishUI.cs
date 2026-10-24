@@ -65,11 +65,66 @@ namespace Starfall
             { Game.Equip(inspectedWeapon); Game.SetStyle(inspectedStyle); }
             Text(297, 642, 583, 41, !owned ? Game.L("先去铁匠处制作武器。", "Craft this weapon at the blacksmith first.") : !unlocked ? Game.L("第一星核或本武器熟练度1解锁打法。", "First core or weapon mastery rank 1 unlocks styles.") : candidate.benefit + " · " + candidate.cost, 12, muted);
         }
+        private bool journeyShowRecap=true;
+        private int journeyRecapIndex=-1;
         private void DrawJourney()
         {
-            Card(279, 226, 429, 464); Text(301, 245, 382, 34, Game.L("世界记得你的选择", "The world remembers"), 22, gold); Text(301, 296, 382, 366, Game.WorldResponse(), 15, paper);
-            for (int i = 0; i < Math.Min(6, Game.save.moments.Count); i++) { var m = Game.save.moments[Game.save.moments.Count - 1 - i]; float y = 226 + i * 78; Card(728, y, 489, 72); Text(745, y + 6, 450, 17, Game.L("第 ", "Day ") + m.day + Game.L(" 天", ""), 11, mint); Text(745, y + 26, 450, 42, Game.L(m.zh, m.en), 12, paper); }
-            if (Game.save.moments.Count == 0) Text(755, 287, 422, 119, Game.L("完成任务、发现旧路、改变地方决定后，关键足迹会保存在这里。", "Quest updates, discoveries and regional decisions leave a record here."), 18, muted);
+            // One continuous story at a time is actually readable in the
+            // existing 429px panel. The original world-response record and
+            // the six real journal memories remain available alongside it.
+            Card(279,226,429,464);
+            Text(301,245,382,34,Game.L("冒险足迹","Journey & story"),22,gold);
+            if(Button(297,285,189,33,Game.L("剧情回顾","Story so far"),
+                journeyShowRecap))journeyShowRecap=true;
+            if(Button(497,285,193,33,Game.L("世界变化","World response"),
+                !journeyShowRecap))journeyShowRecap=false;
+            if(journeyShowRecap)
+            {
+                var beats=Game.StoryRecap();
+                if(journeyRecapIndex<0||journeyRecapIndex>=beats.Count)
+                    journeyRecapIndex=beats.Count-1;
+                StoryBeat beat=beats[journeyRecapIndex];
+                Text(301,333,384,48,beat.title,21,gold);
+                Text(301,385,382,28,
+                    (beat.complete?Game.L("✓ 已完成","✓ Complete"):
+                        Game.L("◆ 当前进度","◆ In progress"))+
+                    "  ·  "+(journeyRecapIndex+1)+"/"+beats.Count,
+                    13,beat.complete?mint:paper);
+                Text(301,423,384,119,beat.summary,16,paper);
+                Text(301,546,380,97,
+                    Game.L("下一步：","Next: ")+beat.next,14,muted);
+                if(Button(297,652,83,30,Game.L("上章","Prev"),
+                    false,journeyRecapIndex>0))journeyRecapIndex--;
+                if(Button(389,652,83,30,Game.L("下章","Next"),
+                    false,journeyRecapIndex<beats.Count-1))
+                    journeyRecapIndex++;
+                // Earlier chapters are historical and must not change
+                // progression when selected. Only track a live, unlocked
+                // quest in the existing navigation system.
+                QuestGuide quest=Game.GetQuest(beat.questId);
+                if(Button(480,652,210,30,
+                    beat.complete?Game.L("已载入历史","In the record"):
+                        Game.L("追踪本章任务","Track this chapter"),
+                    false,!beat.complete&&!quest.locked))
+                    Game.TrackQuest(beat.questId);
+            }
+            else
+                Text(301,333,382,326,Game.WorldResponse(),14,paper);
+            for(int i=0;i<Math.Min(6,Game.save.moments.Count);i++)
+            {
+                var moment=Game.save.moments[Game.save.moments.Count-1-i];
+                float y=226+i*78;
+                Card(728,y,489,72);
+                Text(745,y+6,450,17,
+                    Game.L("第 ","Day ")+moment.day+Game.L(" 天",""),11,mint);
+                Text(745,y+26,450,42,
+                    Game.L(moment.zh,moment.en),12,paper);
+            }
+            if(Game.save.moments.Count==0)
+                Text(755,287,422,119,Game.L(
+                    "完成任务、发现旧路、改变地方决定后，关键足迹会保存在这里。",
+                    "Quest updates, discoveries and regional decisions leave a record here."),
+                    18,muted);
         }
         // An original 4x2 Sprite Sheet, NOT a reused GUI circle or a
         // second actor body. Painted behind the unchanged detailed beacon
