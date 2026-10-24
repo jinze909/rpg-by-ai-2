@@ -330,8 +330,8 @@ namespace Starfall
                 if(enemies.Exists(IsMineConvoyEnemy)||!MineConvoyGuardsDefeated)
                 {
                     Dialog(o.name,o.en,
-                        "袭击者还在矿道上。先靠真实战斗击败他们；矿车受威胁时完整度会持续下降。",
-                        "Raiders are still attacking. Defeat them in real combat while the cart hull drains under threat.",
+                        "袭击者正试图破坏矿车！站在他们与车厢之间可以挡住那一路的破坏，但另一名劫匪仍会动手。亲自击败两人才能继续运送。",
+                        "Saboteurs threaten the cart! Stand between each raider and the carriage to block that attack lane. The other raider can still damage the hull. Defeat both to dispatch.",
                         C("继续战斗","Defend cart","close"));return true;
                 }
                 Dialog(o.name,o.en,

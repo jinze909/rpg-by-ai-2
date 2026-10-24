@@ -1987,6 +1987,25 @@ namespace Starfall
                     (GlasswindVentSpent ?
                         L("泄压已用", "VENT SPENT") :
                         L("泄压可用 · 25耐力", "VENT READY · 25 ENERGY"));
+            // Minecart defense is a timed real-world escort. Keep the live
+            // hull, raid phase and actual positional bodyguard state visible
+            // regardless of which long-term quest the player tracks.
+            if(MineConvoyActive && save.room==3)
+                return L("矿工护送 · ", "MINECART ESCORT · ") +
+                    (MineConvoyStage==4?L("已到站", "ARRIVED"):
+                        (int)Math.Ceiling(MineConvoyTime)+"s")+
+                    " · "+L("车厢 ", "HULL ")+
+                    MineConvoyIntegrity.ToString("0")+"/80\n"+
+                    (MineConvoyStage==2 ?
+                        MineConvoyBodyguarding ?
+                            L("挡在袭击者和矿车之间 · 正在拦截",
+                              "BETWEEN RAIDER & CART · INTERCEPTING") :
+                            L("靠近矿车，挡住袭击者破坏路线",
+                              "STAND BETWEEN RAIDER AND CART") :
+                        MineConvoyStage==4 ?
+                            L("在矿棚办理救援登记","REGISTER AT THE DEPOT") :
+                            L("跟紧矿车，不要落在后面",
+                              "STAY NEAR THE CART"));
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)

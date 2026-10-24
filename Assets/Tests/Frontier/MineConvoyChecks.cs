@@ -216,8 +216,10 @@ namespace Starfall.Tests
                 threat.x=relay.x+3;threat.y=relay.y;
                 threat.stun=0;threat.timer=100;
                 g.save.x=relay.x+1.25f;g.save.y=relay.y;
-                Check(g.MineConvoyBodyguarding,
-                    "Hero standing directly inside the real saboteur-to-cart lane can intercept");
+                Check(g.MineConvoyBodyguarding &&
+                    g.Conditions().Contains("正在拦截") &&
+                    g.GetQuest("mine_convoy").next.Contains("挡住矿车破坏"),
+                    "Hero standing directly in the real sabotage lane gets actionable live HUD and journal guidance");
                 float hull=g.MineConvoyIntegrity;
                 g.Tick(.05f,new Point());
                 Check(g.MineConvoyBodyguarding&&
@@ -226,8 +228,10 @@ namespace Starfall.Tests
                         e.kind=="number"&&e.text=="挡住破坏"),
                     "Genuine pressure is prevented and a visible cue is emitted without deleting enemies");
                 g.save.y=relay.y+1.5f;
-                Check(!g.MineConvoyBodyguarding,
-                    "Stepping out of the physical strike corridor loses cart protection");
+                Check(!g.MineConvoyBodyguarding &&
+                    g.Conditions().Contains("挡住袭击者破坏路线") &&
+                    g.GetQuest("mine_convoy").next.Contains("站在袭击者"),
+                    "Stepping out of the lane loses protection and visibly explains how to regain it");
                 hull=g.MineConvoyIntegrity;g.Tick(.05f,new Point());
                 Check(g.MineConvoyIntegrity<hull-.12f,
                     "The same living attacker immediately damages the unprotected civilian cart");

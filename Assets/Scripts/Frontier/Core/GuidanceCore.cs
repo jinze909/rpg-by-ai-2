@@ -307,8 +307,8 @@ namespace Starfall
                 q.title=L("矿工的最后一班车","The Miners' Last Shift");
                 q.category=L("护送、战斗与资源选择","ESCORT, COMBAT & RESOURCE CHOICE");
                 q.description=L(
-                    "矿场监工倒台后，从西北矿车岗亲自护送最后一班矿工。始终跟在矿车附近；在转轨台击退两名袭击者，选择消耗零件修复或保留材料。避开沿途蒸汽预警，将矿车送到南侧矿棚。失败可免费重试。",
-                    "After defeating the overseer, physically escort the workers' cart from western dispatch. Stay nearby, defeat two real raiders at the switchyard, choose spare-part reinforcement or conserve resources, dodge steam and deliver to southern shelter. Retries are free.");
+                    "矿场监工倒台后，从西北矿车岗护送最后一班矿工。转轨台遭遇劫匪时，可以亲自站在袭击者与矿车之间阻止其破坏，也可击退两人；之后选择用零件修车或保留材料。避开蒸汽，护送至南侧矿棚。失败可重试。",
+                    "Escort the last mine shift from western dispatch. At the switchyard, stand physically between saboteurs and the cart to block their damage while fighting both raiders. Choose to repair with a spare part or keep it, dodge steam, and reach the southern depot. Retries are free.");
                 q.room=3;q.locked=!Has("boss_3")||!CanEnter(3);
                 q.complete=MineConvoyComplete;
                 q.steps.Add(new QuestStep(L("在西北发车岗启动护送","Start the western cart dispatch"),
@@ -332,6 +332,12 @@ namespace Starfall
                     MineConvoyStage==4?L("矿车已安全抵达！前往南侧矿棚登记撤离，领取一次性奖励。",
                         "Cart safely delivered! Register the evacuation in person at the southern depot."):
                     q.locked?L("先完成矿场的原始守护者战斗","Defeat Ironreach's original guardian"):
+                    MineConvoyActive&&MineConvoyStage==2?
+                        MineConvoyBodyguarding?
+                            L("你正在挡住矿车破坏；继续保护并击败剩余袭击者",
+                              "You are intercepting cart sabotage; defeat both remaining raiders"):
+                            L("靠近矿车，站在袭击者与车厢之间阻止破坏",
+                              "Stand between raiders and the cart to prevent sabotage"):
                     MineConvoyActive?L("剩余"+MineConvoyTime.ToString("0")+"秒 · 车厢"+
                         MineConvoyIntegrity.ToString("0")+"/80 · "+MineConvoyStage+"/4",
                         MineConvoyTime.ToString("0")+"s · Hull "+MineConvoyIntegrity.ToString("0")+
