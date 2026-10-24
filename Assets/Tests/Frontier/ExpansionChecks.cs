@@ -3571,5 +3571,62 @@ namespace Starfall.Tests
                 Check(g.save.room == 0 && g.save.shards == banked && g.save.runShards == 0 && g.save.abyssFloor == 0, "Failure loses pending loot only and safely returns home");
             }
         }
+
+        public static void RidgeWatchSurveysOnlyRealCombatAndPaysOnce(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var idsField=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(idsField!=null&&strike!=null&&g.save.room==1,
+                "Ridge watch is attached to the real playable combat/world path");
+            var tracked=(Dictionary<int,int>)idsField.GetValue(g);
+            Check(tracked.Count>0,"Mapped highlands must spawn actual eligible patrols");
+            var ids=new List<int>(tracked.Keys);
+            // Merely removing patrols or killing ordinary unrelated foes
+            // may not report a real surveyed combat victory.
+            int coins=g.save.coins,shards=g.save.shards;
+            Enemy other=new Enemy(90001,0,g.Position.x+1,g.Position.y,1);
+            g.enemies.Add(other);
+            strike.Invoke(g,new object[]{other,50f,false,null,null});
+            Check(g.RidgeWatchProgress(1)==0&&!g.RidgeWatchComplete(1),
+                "An unrelated world combat kill cannot advance high-trail survey");
+            for(int k=0;k<ids.Count;k++)
+            {
+                Enemy target=g.enemies.Find(e=>e.id==ids[k]);
+                Check(target!=null,"Genuine patrol remains alive until combat defeats it");
+                strike.Invoke(g,new object[]{target,999f,true,null,null});
+                Check(g.RidgeWatchProgress(1)==k+1,
+                    "Each actually defeated mapped patrol advances exactly one stop");
+                if(k==0&&ids.Count>1)
+                {
+                    g.PrepareSave();
+                    g=new GameCore(data,CloneSave(g.save));
+                    g.Start();
+                    tracked=(Dictionary<int,int>)idsField.GetValue(g);
+                    Check(tracked.Count==ids.Count&&g.RidgeWatchProgress(1)==1,
+                        "Save reload retains survey flags and stable mapped combat IDs");
+                }
+            }
+            Check(g.RidgeWatchComplete(1)&&g.save.shards==shards+1&&
+                g.save.coins>=coins+28,
+                "Only clearing all actual ridge guards yields a one-time first-clear reward");
+            int earnedShards=g.save.shards;
+            g.Enter(1);
+            tracked=(Dictionary<int,int>)idsField.GetValue(g);
+            foreach(int id in new List<int>(tracked.Keys))
+            {
+                Enemy target=g.enemies.Find(e=>e.id==id);
+                Check(target!=null,"Repeatable existing wilderness combat is preserved");
+                strike.Invoke(g,new object[]{target,999f,true,null,null});
+            }
+            Check(g.RidgeWatchComplete(1)&&g.save.shards==earnedShards&&
+                !g.RidgeWatchComplete(2),"Repeated kills never duplicate the survey bonus");
+        }
     }
 }

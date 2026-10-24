@@ -211,7 +211,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
-            ResetContinuity(); ResetLocalWaymark(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
+            ResetContinuity(); ResetLocalWaymark(); ResetRidgeWatch(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
         {
@@ -531,7 +531,7 @@ namespace Starfall
         }
         private void SpawnRoom()
         {
-            enemies.Clear(); enemyId = 0;
+            enemies.Clear(); enemyId = 0; ResetRidgeWatch();
             if (SpawnExpansionRoom())
             {
                 SpawnRidgeWildlife();
@@ -975,6 +975,7 @@ namespace Starfall
             OnAfterlightWatchEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
             OnLastDirectiveEnemyDefeated(e);
+            OnRidgeWatchEnemyDefeated(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
                 hazards.RemoveAll(h => h.rootHarmonyOwned);
             if (IsCommonsRelayEnemy(e) && !enemies.Exists(IsCommonsRelayEnemy))

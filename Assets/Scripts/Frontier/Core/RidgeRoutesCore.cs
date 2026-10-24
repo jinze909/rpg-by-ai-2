@@ -68,10 +68,10 @@ namespace Starfall
             };
             if(RidgeLinked(room))
             {
-                Dialog(o.name,o.en,zh[room]+
+                Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 12 耐力。"+
                     (first?"\n\n这处地标首次记录：经验 +9。线路连通：硬币 +20、碎片 +1、经验 +24。":""),
-                    en[room]+
+                    en[room]+RidgeWatchHint(room,true)+
                     "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for 12 energy."+
                     (first?"\n\nFirst visit: +9 XP. Route linked: +20 coins, +1 shard, +24 XP.":""),
                     C("穿越巡路 · 耐力 12","Cross route · 12 energy","ridge_travel"),
