@@ -101,6 +101,53 @@ namespace Starfall.Tests
             }
             finally{data.maps[1]=old;}
         }
+        public static void RealCivilianDefenseOutranksPersonalPinWithoutErasingIt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();
+            WorldObject traveler=Object(g,"wayfarer1");
+            g.save.x=traveler.x;g.save.y=traveler.y;
+            g.save.showGuidance=false;g.save.trackedQuest="wayfarers";
+            Point chosen=new Point();bool found=false;
+            for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+            for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if((p-new Point(traveler.x,traveler.y)).Length<7f||
+                    !g.CanStand(p)||
+                    g.NavigationPathFrom(g.Position,p,true).Count==0)continue;
+                chosen=p;found=true;
+            }
+            Check(found,"The original live rescue region offers a reachable waypoint away from the traveler");
+            g.mode="map";
+            Check(g.PlaceLocalWaymark(chosen),
+                "Original regional collision validates a real personal foot target");
+            g.Close();
+            Check(g.PersonalNavigationActive &&
+                (g.NavigationTarget().Value-chosen).Length<.001f,
+                "Personal pin temporarily outranks nonurgent saved journal tracking");
+            Action(g,traveler.kind,"wayfarer_defend_1");
+            Check(g.WayfarerEncounterRoom==1&&
+                g.enemies.FindAll(e=>e.id>=82010&&e.id<=82011).Count==2,
+                "Authentic civilian combat activates with both live attackers");
+            Point? urgent=g.NavigationTarget();
+            Check(g.HasLocalWaymark&&!g.PersonalNavigationActive&&
+                urgent.HasValue&&(urgent.Value-chosen).Length>2f,
+                "Timed real-world defense takes priority without deleting the player's own pin or saved quest");
+            g.Talk(traveler);
+            int abandon=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action=="wayfarer_abandon")
+                {abandon=i;break;}
+            Check(abandon>=0,"The actual civilian provides voluntary withdrawal");
+            g.Choose(abandon);
+            Check(g.WayfarerEncounterRoom==0&&g.PersonalNavigationActive&&
+                (g.NavigationTarget().Value-chosen).Length<.001f&&
+                g.save.trackedQuest=="wayfarers",
+                "After the safe physical withdrawal, original personal walking guidance resumes");
+        }
+
         public static void WaymarkNeverPersistsAcrossRegionTravelOrSelectedSave(Campaign data)
         {
             MapData old=data.maps[1];
