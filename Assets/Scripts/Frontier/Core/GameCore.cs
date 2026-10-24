@@ -2177,6 +2177,10 @@ namespace Starfall
         }
         public WorldObject Nearest()
         {
+            // A gate or tide can seal the player's root BETWEEN input
+            // samples. A buried actor may not offer an active E prompt
+            // or start a new physical mission interaction.
+            if(!CanStand(Position))return null;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
@@ -2208,6 +2212,7 @@ namespace Starfall
         // closer authored NPC, replacing the speaker and all menu choices.
         public bool ReliefCivilianIsInteractionTarget(WorldObject nearby)
         {
+            if(!CanStand(Position))return false;
             if(reliefMissionRoom!=save.room ||
                 reliefMissionWave<1 || reliefMissionWave>3)return false;
             float d=(Position-reliefFollowerPosition).Length;
@@ -2237,6 +2242,16 @@ namespace Starfall
         {
             if (mode == "fish") { FishHit(); return; }
             if (mode != "world" || Dying) return;
+            // E cannot commit dialogue/quest actions while the hero's
+            // planted feet occupy newly sealed ground. This mirrors the
+            // existing physical guards on LMB, Q and dodge. Scripted
+            // dialogue from authorized story transitions is unaffected.
+            if(!CanStand(Position))
+            {
+                Notify("脚下地形已封闭，先回到可站立位置再交谈。",
+                    "Footing is blocked. Reach walkable ground before interacting.");
+                return;
+            }
             WorldObject o = Nearest();
             if(ReliefCivilianIsInteractionTarget(o))
             {

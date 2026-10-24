@@ -6073,5 +6073,76 @@ namespace Starfall.Tests
             }
             finally { data.maps[1]=old; }
         }
+
+        public static void SealedHeroFootNeverOpensNpcOrRescueInteraction(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    if(y==10)tiles[9]='#';
+                    rows[y]=new string(tiles);
+                }
+                var guest=new WorldObject{
+                    id="liveInnGuest",kind="innGuest",
+                    name="Wayfarer Witness",en="Wayfarer Witness",
+                    x=10.5f,y=11.5f
+                };
+                data.maps[1]=new MapData{
+                    id=1,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{guest},
+                    decor=new Decoration[0]
+                };
+                foreach(int wave in new[]{0,1,3})
+                {
+                    var g=Fresh(data,0);
+                    g.save.room=1;g.enemies.Clear();
+                    g.save.x=9.5f;g.save.y=10.5f;
+                    g.save.english=true;
+                    if(wave>0)
+                    {
+                        g.reliefMissionRoom=1;g.reliefMissionWave=wave;
+                        g.reliefMissionTime=90f;g.reliefFollowerSafety=75f;
+                        g.reliefFollowerPosition=new Point(10.8f,10.5f);
+                    }
+                    Check(!g.CanStand(g.Position),
+                        "Physical root lies inside the deliberately sealed wall");
+                    Check(g.Nearest()==null&&
+                        !g.ReliefCivilianIsInteractionTarget(null),
+                        "No misleading E prompt can appear from a buried hero");
+                    g.Interact();
+                    Check(g.mode=="world"&&g.conversation==null&&
+                        g.toast=="Footing is blocked. Reach walkable ground before interacting.",
+                        "E cannot start map-NPC or rescue dialogue from sealed feet");
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    Check(g.CanStand(g.Position),
+                        "Returning to the same map's legal center restores world interaction");
+                    if(wave==0)
+                    {
+                        Check(g.Nearest()==guest,
+                            "The named world NPC becomes selectable again");
+                        g.Interact();
+                        Check(g.mode=="dialog"&&g.conversation!=null&&
+                            g.conversation.speaker=="Wayfarer Witness",
+                            "The genuine E pipeline opens the requested nearby NPC");
+                    }
+                    else
+                    {
+                        g.SetAim(new Point(1,0));
+                        Check(g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                            "A reachable real rescue actor becomes available after movement");
+                        g.Interact();
+                        Check(g.mode=="dialog"&&g.conversation!=null,
+                            "Original rescue dialogue remains playable when feet are legal");
+                    }
+                }
+            }
+            finally{data.maps[1]=old;}
+        }
     }
 }
