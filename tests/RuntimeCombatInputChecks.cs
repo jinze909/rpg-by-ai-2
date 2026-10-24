@@ -2142,10 +2142,17 @@ public static class RuntimeCombatInputChecks
         int supply=Array.FindIndex(g.conversation.choices,
             c=>c.action=="fish_kitchen");
         Check(supply>=0,"Actual in-world fisherman opens the new repeatable kitchen trade");
+        // The fisher now has enough story text to require multiple reader
+        // pages. The production UI intentionally hides every action until
+        // its last story page; don't mistake page one for a missing choice.
+        GUI.commands.Clear();Call(app,"OnGUI");
+        int pages=DialogueLayout.Pages(g.conversation.textEn,
+            g.save.largeText).Count;
+        for(int page=1;page<pages;page++)Call(app,"AdvanceDialogue");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(x=>x.Contains("Public kitchen"))&&
             GUI.commands.Exists(x=>x.Contains("2 fish")),
-            "Shipped English NPC dialogue renders the physical two-fish supply choice");
+            "After reading the real NPC story, the shipped English dialogue exposes the two-fish supply choice");
         g.Choose(supply);
         Check(g.PublicFishKitchenStocked&&g.save.inventory[3]==0&&
             g.save.inventory[6]==1&&g.StewHealing==65,
