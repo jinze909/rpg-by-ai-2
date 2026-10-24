@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+
+namespace Starfall.Tests
+{
+    public static partial class CoreChecks
+    {
+        public static void StoryRecapOnlyRevealsChaptersPlayerReached(Campaign data)
+        {
+            var game=Fresh(data);
+            int initialFlags=game.save.flags.Count;
+            List<StoryBeat> opening=game.StoryRecap();
+            Check(opening.Count==1 && opening[0].chapter==1 &&
+                opening[0].questId=="main" && !opening[0].complete &&
+                opening[0].next==game.GetQuest("main").next,
+                "A new adventure receives only its real first story beat and next objective");
+            Check(!opening[0].summary.Contains("星核事件之后") &&
+                game.save.flags.Count==initialFlags,
+                "Reading story does not spoil postwar outcomes or write any campaign flags");
+            game.save.flags.Add("scout_saved");
+            var scout=game.StoryRecap();
+            Check(scout.Count==1 && scout[0].summary.Contains("侦察员已经找到"),
+                "Once the scout is rescued the explanation adds only already discovered evidence");
+            game.save.stage=1;
+            var second=game.StoryRecap();
+            Check(second.Count==2 && second[0].complete &&
+                second[1].chapter==2 && !second[1].complete,
+                "Completing the first core changes its beat to history and reveals the ruins");
+            game.save.stage=2;
+            Check(game.StoryRecap().Count==3,
+                "The mining chapter remains hidden until the second core has progressed");
+            game.save.stage=3;
+            var citadel=game.StoryRecap();
+            Check(citadel.Count==4 && citadel[3].chapter==4 &&
+                !citadel[3].complete && citadel[3].questId=="main",
+                "The citadel and three-core investigation appear only on entering chapter four");
+            game.save.flags.Add("triad_complete");
+            Check(game.StoryRecap()[3].summary.Contains("已经公开"),
+                "Publishing the three-core evidence updates the story's real historical explanation");
+            Check(game.StoryRecap().Count==4,
+                "Research alone does not reveal the consequences of an unchosen ending");
+        }
+
+        public static void StoryRecapAftermathFollowsActualUnlocksAndQuestNavigation(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.stage=3;
+            game.save.ending=1;
+            var beats=game.StoryRecap();
+            Check(beats.Count>=5 && beats[3].complete &&
+                beats[4].chapter==5 && beats[4].questId=="afterlight" &&
+                !beats[4].complete && beats[4].next==game.GetQuest("afterlight").next,
+                "Original final choice reveals only the unlocked reconstruction chapter and its live quest");
+            foreach(StoryBeat beat in beats)
+            {
+                Check(beat.chapter>=1 && beat.chapter<=11 &&
+                    !string.IsNullOrEmpty(beat.title) &&
+                    !string.IsNullOrEmpty(beat.summary) &&
+                    !string.IsNullOrEmpty(beat.next) &&
+                    Array.IndexOf(GameCore.QuestIds,beat.questId)>=0,
+                    "Every visible story summary is readable and linked to a real trackable quest");
+                Check(beat.chapter<=5 || !game.GetQuest(beat.questId).locked,
+                    "No later locked chapter can leak into the completed-journey journal");
+            }
+            game.save.english=true;
+            var english=game.StoryRecap();
+            Check(english.Count==beats.Count && english[4].title.StartsWith("Chapter Five") &&
+                english[4].next==game.GetQuest("afterlight").next &&
+                !english[4].summary.Contains("星核"),
+                "Already unlocked story pages, explanations and goals switch to English together");
+            game.save.flags.Add("afterlight_started");
+            var updated=game.StoryRecap();
+            Check(updated[4].next==game.GetQuest("afterlight").next &&
+                updated[4].next!=english[4].next,
+                "New reconstruction progress updates the explanation's next step without a saved recap cache");
+            game.save.english=false;
+            Check(game.StoryRecap()[4].summary.Contains("星核") &&
+                game.StoryRecap()[4].chapter==5,
+                "Switching back to Chinese preserves the same chapter order and actual progress");
+        }
+
+        public static void StoryRecapNeverRewritesExistingSaveOrQuestTracking(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.stage=3;
+            game.save.ending=1;
+            game.save.trackedQuest="main";
+            int coins=game.save.coins,shards=game.save.shards,skills=game.save.skillPoints;
+            int moments=game.save.moments.Count,revision=game.revision;
+            for(int i=0;i<9;i++)
+            {
+                var beats=game.StoryRecap();
+                Check(beats[0].chapter==1 && beats[beats.Count-1].chapter>=5,
+                    "Repeated journal reads remain historically ordered");
+            }
+            Check(game.save.trackedQuest=="main" && game.save.coins==coins &&
+                game.save.shards==shards && game.save.skillPoints==skills &&
+                game.save.moments.Count==moments && game.revision==revision,
+                "Viewing a past chapter never awards rewards, changes quest tracking or mutates save data");
+            game.PrepareSave();
+            var restored=new GameCore(data,CloneSave(game.save));
+            restored.Start();
+            Check(restored.StoryRecap().Count==game.StoryRecap().Count &&
+                restored.StoryRecap()[4].questId=="afterlight",
+                "Existing SaveData v2 is sufficient to reconstruct all chapter context after reload");
+        }
+    }
+}
