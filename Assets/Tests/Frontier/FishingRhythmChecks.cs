@@ -179,6 +179,36 @@ namespace Starfall.Tests
                 "The subsequent unanswered bite expires once without retracting the earlier success");
         }
 
+
+        public static void FishingReelShowsRealDirectionalFeedbackAndResetsAtNextBite(Campaign data)
+        {
+            var g=Fresh(data);
+            Action(g,"fish","fish");
+            ReachFishingBite(g,false);
+            bool left=g.fishCursor<g.FishTarget;
+            g.FishHit();
+            Check(g.fishMisses==1&&
+                g.FishFeedbackZh.Contains(left?"偏左":"偏右")&&
+                g.FishFeedbackEn.Contains(left?"left":"right"),
+                "A bad physical reel explains which side of the moving float missed");
+            ReachFishingBite(g,true);
+            Check(g.FishFeedbackZh.Length==0&&g.FishFeedbackEn.Length==0,
+                "A new real fish bite clears stale directional advice");
+            g.FishHit();
+            Check(g.fishHits==1&&g.FishFeedbackZh.Contains("绷紧")&&
+                g.FishFeedbackEn.Contains("Good hook"),
+                "A good pull gives different feedback without granting an extra item");
+            int steps=0;
+            while(!g.FishLineReady&&steps++<100)g.Tick(.05f,new Point());
+            Check(g.FishLineReady&&g.FishFeedbackZh.Length==0,
+                "The following live bite starts with a clean presentation state");
+            while(g.FishLineReady&&steps++<200)g.Tick(.05f,new Point());
+            Check(g.fishHits==1&&g.fishMisses==2&&
+                g.FishFeedbackZh.Contains("及时")&&
+                g.FishFeedbackEn.Contains("promptly"),
+                "An unanswered bite receives explicit timing feedback distinct from a mistimed reel");
+        }
+
         public static void ReducedMotionFishingKeepsReadableSteadyBite(Campaign data)
         {
             var game=Fresh(data);

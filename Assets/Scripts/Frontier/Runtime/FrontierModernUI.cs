@@ -812,7 +812,9 @@ namespace Starfall
                         "Fish on! Time the moving teal window.")) +
                         Game.L("  ·  鱼口剩余 ", "  ·  BITE TIME ") +
                         Game.FishBiteTimeRemaining.ToString("0.0") + "s" :
-                    Game.L("等待鱼再次咬钩……", "Waiting for the next bite..."),
+                    (Game.FishFeedbackZh.Length>0?
+                        Game.L(Game.FishFeedbackZh,Game.FishFeedbackEn):
+                        Game.L("等待鱼再次咬钩……", "Waiting for the next bite...")),
                 16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
             Text(321, 548, 849, 44,
                 Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",

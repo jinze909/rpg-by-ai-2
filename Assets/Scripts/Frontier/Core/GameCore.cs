@@ -39,6 +39,10 @@ namespace Starfall
         public const float FishBiteWindow = 2.7f;
         public float FishBiteTimeRemaining { get { return FishLineReady ?
             Math.Max(0f,fishBiteExpiresAt-fishTime) : 0f; } }
+        // Immediate bilingual feedback for the *actual* reel error, kept
+        // only for the current mini-game; no quest/save changes.
+        public string FishFeedbackZh { get; private set; } = "";
+        public string FishFeedbackEn { get; private set; } = "";
         public float FishTarget { get { return save != null && save.reducedMotion ? .5f :
             .5f + .16f * (float)Math.Sin(fishTime * .67f +
                 fishHits * 2.1f - fishMisses * .8f); } }
@@ -619,7 +623,10 @@ namespace Starfall
                 // A real bite is heard once at the readiness boundary,
                 // not every frame the green window remains available.
                 if (previousFishTime < fishNextBiteAt && fishTime >= fishNextBiteAt)
+                {
                     sound = "fishBite";
+                    FishFeedbackZh = FishFeedbackEn = "";
+                }
                 fishCursor = .5f + .5f * (float)Math.Sin(
                     fishTime * (2.5f + fishHits * .35f + fishMisses * .08f));
                 // Waiting indefinitely for perfect alignment made the lake
@@ -627,7 +634,7 @@ namespace Starfall
                 // can never charge twice or pay a catch reward.
                 if (fishTime >= fishBiteExpiresAt)
                 {
-                    FishMissedBite();
+                    FishMissedBite(true);
                     if (fishMisses >= 3)
                     {
                         Close();
@@ -2898,6 +2905,7 @@ namespace Starfall
             { fishTime = fishCursor = 0; fishHits = fishMisses = 0;
               fishNextBiteAt = .3f;
               fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+              FishFeedbackZh = FishFeedbackEn = "";
               mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
@@ -2954,8 +2962,13 @@ namespace Starfall
             if (talent == 1) { save.maxHealth += 12; save.health = Math.Min(save.maxHealth, save.health + 12); }
             revision++; sound = "reward";
         }
-        private void FishMissedBite()
+        private void FishMissedBite(bool timedOut = false)
         {
+            if(timedOut)
+            {
+                FishFeedbackZh = "鱼松开了钩。下一次咬钩要及时收线。";
+                FishFeedbackEn = "The fish let go. Reel promptly on the next bite.";
+            }
             fishMisses++;
             sound = "hurt";
             fishNextBiteAt = fishTime + .34f;
@@ -2970,11 +2983,19 @@ namespace Starfall
             bool hooked = Math.Abs(fishCursor - FishTarget) <= FishWindowRadius;
             if (hooked)
             {
+                FishFeedbackZh = "鱼线绷紧了！再稳住下一次咬钩。";
+                FishFeedbackEn = "Good hook! Hold steady for the next bite.";
                 fishHits++; sound = "reward";
                 fishNextBiteAt = fishTime + .34f;
                 fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
             }
-            else FishMissedBite();
+            else
+            {
+                bool left=fishCursor<FishTarget;
+                FishFeedbackZh=left?"浮标偏左，没能钩住。":"浮标偏右，没能钩住。";
+                FishFeedbackEn=left?"The float was left of the bite.":"The float was right of the bite.";
+                FishMissedBite();
+            }
             if (fishHits >= 3)
             {
                 // Normal play enters this minigame only when a fish slot was
