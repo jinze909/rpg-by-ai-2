@@ -232,8 +232,8 @@ namespace Starfall.Tests
             g.Talk(pond);
             Check(g.conversation.choices[0].action=="fish" &&
                 g.conversation.choices[0].en.Contains("full") &&
-                g.conversation.text.Contains("三条银鳍鱼"),
-                "A full fish bag retains the original cast action ID but explains why no fish fits");
+                g.conversation.text.Contains("三条都齐了"),
+                "A full fish bag preserves the cast action and still offers the existing three-fish delivery");
             g.Close();
             g.save.inventory[3]=3;
             QuestGuide filled=g.GetQuest("ally2");
