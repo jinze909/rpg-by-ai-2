@@ -82,6 +82,7 @@ namespace Starfall.Tests
         [Test] public void HighFlameDeliveryEarnsRealStrongerCivicService() { CoreChecks.HighlandFullFlameDeliveryEarnsBrightServiceWithoutMaterials(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
         [Test] public void TemporarilySealedRidgePatrolCanRejoinBeforeFinalReward() { CoreChecks.RidgeWatchMissingBlockedPatrolRejoinsRealThreeGuardObjective(Data()); }
+        [Test] public void RestoredRidgeSnapshotsRejectReusedIdAndWrongCombatProfile() { CoreChecks.RidgeWatchWorldSnapshotRejectsImpostorWithReusedPatrolId(Data()); }
         [Test] public void DuplicateActorIdsNeverForgeRidgeWatchCredit() { CoreChecks.RidgeWatchCannotCreditAnotherActorWithReusedNumericId(Data()); }
         [Test] public void PrecisionLakeFishingAwardsTwoRealFishWithTightTiming() { CoreChecks.PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Data()); }
         [Test] public void PrecisionFishingFailurePreservesOrdinaryLakePlay() { CoreChecks.PrecisionLakeFishingRespectsBagFailuresAndOrdinaryCasting(Data()); }

@@ -3642,6 +3642,62 @@ namespace Starfall.Tests
             finally { data.maps[1]=original; }
         }
 
+
+        public static void RidgeWatchWorldSnapshotRejectsImpostorWithReusedPatrolId(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var key=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var ids=(Dictionary<int,int>)key.GetValue(g);
+            int patrolId=-1;
+            foreach(var pair in ids)
+                if(pair.Value==0){patrolId=pair.Key;break;}
+            Check(patrolId>0,"Actual first highland patrol is present before saving");
+            g.PrepareSave();
+            SaveData captured=CloneSave(g.save);
+            EnemyRecord forged=Array.Find(captured.worldEnemies,
+                x=>x!=null&&x.id==patrolId);
+            Check(forged!=null&&forged.maxHp==37f,
+                "Old v2 world snapshots preserve each patrol's original numeric ID and maximum HP");
+            // A corrupted or legacy snapshot reuses the real patrol ID for
+            // an unrelated enemy of the very same archetype, on the very
+            // same clearing, but with a different true combat profile.
+            forged.maxHp=160f;forged.hp=160f;
+            var restored=new GameCore(data,captured);
+            restored.Start();
+            var registered=(Dictionary<int,int>)key.GetValue(restored);
+            Enemy impostor=restored.enemies.Find(x=>x.id==patrolId);
+            Check(impostor!=null&&impostor.hp==160f&&
+                !restored.IsActiveRidgeWatchPatrol(impostor)&&
+                !registered.ContainsValue(0),
+                "Original numeric ID and position alone cannot impersonate an authentic saved ridge patrol");
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            int shards=restored.save.shards;
+            strike.Invoke(restored,new object[]{impostor,9999f,true,null,null});
+            Check(restored.RidgeWatchProgress(1)==0&&
+                restored.save.shards==shards,
+                "Killing a wrong-profile world enemy never grants protected patrol credit");
+            int frames=0;
+            while(!registered.ContainsValue(0)&&frames++<90)
+                restored.Tick(.05f,new Point());
+            Check(registered.ContainsValue(0),
+                "Real patrol recovers on legal local footing after the unsafe saved actor is retired");
+            Enemy live=null;
+            foreach(var pair in registered)
+                if(pair.Value==0){live=restored.enemies.Find(x=>x.id==pair.Key);break;}
+            Check(live!=null&&live.maxHp==37f&&
+                restored.IsActiveRidgeWatchPatrol(live),
+                "Recovered actor is precisely the authored first patrol with real combat identity");
+            strike.Invoke(restored,new object[]{live,9999f,true,null,null});
+            Check(restored.RidgeWatchProgress(1)==1&&
+                !restored.RidgeWatchComplete(1)&&restored.save.version==2,
+                "Authentic replacement kill advances exactly one third of the original quest without save migration");
+        }
         public static void RidgeWatchCannotCreditAnotherActorWithReusedNumericId(Campaign data)
         {
             var g=Unlocked(data);g.save.flags.Add("boss_1");

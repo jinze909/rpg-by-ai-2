@@ -102,11 +102,17 @@ namespace Starfall
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
             foreach(Enemy body in enemies)
             {
+                // A legacy world snapshot can reuse a patrol's numeric ID
+                // for an unrelated ordinary enemy. An exact matching archetype
+                // AND original maximum HP are required before assigning the
+                // quest's combat identity. Otherwise the real patrol may
+                // safely respawn nearby instead of paying a forged kill.
                 if(body==null||body.hp<=0||body.boss)continue;
                 int index=-1;
                 int old;
                 if(expected.TryGetValue(body.id,out old)&&
-                    body.kind==(save.room+old)%3)
+                    body.kind==(save.room+old)%3&&
+                    Math.Abs(body.maxHp-(30+save.room*7+old*9))<.01f)
                     index=old;
                 else
                 {
@@ -116,6 +122,7 @@ namespace Starfall
                     for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
                         if(!ridgeWatchIds.ContainsValue(i)&&
                            body.kind==(save.room+i)%3&&
+                           Math.Abs(body.maxHp-(30+save.room*7+i*9))<.01f&&
                            (body.Position-RidgeWildlifeSpawns[i]).Length<=4.25f)
                         {index=i;break;}
                 }
