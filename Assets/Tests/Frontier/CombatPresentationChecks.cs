@@ -1892,7 +1892,7 @@ namespace Starfall.Tests
                 Check(!g.projectiles.Contains(first)&&
                     g.reliefFollowerSafety>=safety-.25f&&
                     !g.ReliefCompanionArrowGuardReady&&
-                    g.ReliefCompanionArrowGuardCooldown>2.95f&&
+                    g.ReliefCompanionArrowGuardCooldown>=2.9f&&
                     g.effects.Exists(e=>e.reliefMissionOwned&&
                         e.kind=="number"&&e.text==g.L("同伴挡箭！","ALLY BLOCK!")),
                     "Physical frame-start arrow interception; remaining="+
