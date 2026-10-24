@@ -651,6 +651,11 @@ namespace Starfall
             save.totalTime += dt;
             // Resolve changed world collision before any body, missile or contact advances.
             TickTideTransition(); Point beforeMove = Position;
+            // A held LMB is sampled every frame. Once the hero escapes a
+            // sealed foot, permit the NEXT genuine blocked-floor episode to
+            // explain itself without spamming/overwriting unrelated toasts.
+            if(blockedFootingNoticeShown && CanStand(Position))
+                blockedFootingNoticeShown=false;
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
             TickSwordLesson(dt);
@@ -753,6 +758,15 @@ namespace Starfall
             if (Relic(0)) save.health = Math.Min(save.maxHealth, save.health + 3);
             effects.Add(new Effect("dash", Position, .3f) { direction = dashDirection }); sound = "dash";
         }
+        // A single actionable warning per physically sealed root.
+        // This is runtime feedback only; it never becomes a SaveData field.
+        private bool blockedFootingNoticeShown;
+        private void WarnBlockedFooting(string zh,string en)
+        {
+            if(blockedFootingNoticeShown)return;
+            blockedFootingNoticeShown=true;
+            Notify(zh,en);
+        }
         public void Attack(Point direction)
         {
             if(!Finite(direction.x)||!Finite(direction.y))
@@ -767,7 +781,7 @@ namespace Starfall
             if(!CanStand(Position))
             {
                 ClearBufferedAttack();
-                Notify("脚下地形已封闭，先返回可站立位置再攻击。",
+                WarnBlockedFooting("脚下地形已封闭，先返回可站立位置再攻击。",
                     "The ground is blocked. Move to walkable footing before attacking.");
                 return;
             }
@@ -804,7 +818,7 @@ namespace Starfall
             if(!CanStand(Position))
             {
                 ClearBufferedSkill();
-                Notify("脚下地形已封闭，无法从此处发动职业战技。",
+                WarnBlockedFooting("脚下地形已封闭，无法从此处发动职业战技。",
                     "Blocked footing prevents casting a class technique here.");
                 return;
             }
@@ -844,7 +858,7 @@ namespace Starfall
             // cooldown or fake cast if a gate closes during that buffer.
             if(!CanStand(Position))
             {
-                Notify("施法前地形发生变化；请先站稳再试。",
+                WarnBlockedFooting("施法前地形发生变化；请先站稳再试。",
                     "Footing changed before release; find safe ground and retry.");
                 return;
             }
@@ -2248,7 +2262,7 @@ namespace Starfall
             // dialogue from authorized story transitions is unaffected.
             if(!CanStand(Position))
             {
-                Notify("脚下地形已封闭，先回到可站立位置再交谈。",
+                WarnBlockedFooting("脚下地形已封闭，先回到可站立位置再交谈。",
                     "Footing is blocked. Reach walkable ground before interacting.");
                 return;
             }

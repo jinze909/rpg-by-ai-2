@@ -6144,5 +6144,57 @@ namespace Starfall.Tests
             }
             finally{data.maps[1]=old;}
         }
+
+        public static void HeldAttackCannotDrownQuestToastsWhenFootingIsBlocked(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    if(y==10)tiles[9]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{
+                    id=1,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data,0);g.save.room=1;g.enemies.Clear();
+                g.save.x=9.5f;g.save.y=10.5f;
+                g.save.english=true;
+                Check(!g.CanStand(g.Position),
+                    "This held-input test starts on genuinely sealed footing");
+                g.Attack(new Point(1,0));
+                Check(g.toast=="The ground is blocked. Move to walkable footing before attacking.",
+                    "First physically blocked strike explains why combat is unavailable");
+                g.Tick(.02f,new Point());
+                float afterFirst=g.toastTime;
+                for(int k=0;k<8;k++)
+                {
+                    g.Attack(new Point(1,0));
+                    g.Skill(new Point(1,0));
+                    g.Interact();
+                    g.Tick(.02f,new Point());
+                }
+                Check(g.toast=="The ground is blocked. Move to walkable footing before attacking."&&
+                    g.toastTime<afterFirst-.1f&&
+                    g.playerAction==null&&g.conversation==null,
+                    "Repeated held LMB, Q and E cannot endlessly refresh one stale warning");
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.Tick(.02f,new Point());
+                Check(g.CanStand(g.Position),
+                    "The actual open map foot re-arms the next blocked episode");
+                g.save.x=9.5f;g.save.y=10.5f;
+                g.Skill(new Point(1,0));
+                Check(g.toast=="Blocked footing prevents casting a class technique here."&&
+                    g.toastTime>3.99f&&g.skillCooldown<=0f,
+                    "A fresh sealed-foot episode gives a new useful warning, but never charges Q");
+            }
+            finally{data.maps[1]=old;}
+        }
     }
 }

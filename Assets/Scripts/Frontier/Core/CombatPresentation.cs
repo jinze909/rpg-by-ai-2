@@ -489,6 +489,7 @@ namespace Starfall
 
         private void ResetCombatPresentation()
         {
+            blockedFootingNoticeShown=false;
             ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge();
             playerAction = null; fallen.Clear(); playerHitTime = playerFlash = deathTime = hitStop = impactShake = finaleDelay = 0;
             playerRecoil = movementDirection = new Point();
