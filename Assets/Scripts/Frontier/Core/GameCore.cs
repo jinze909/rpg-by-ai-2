@@ -2594,6 +2594,22 @@ namespace Starfall
                         "\n\n'The shared pot is simmering again. Bring me two Silverfin and I'll save you a bowl. We keep enough for those still hungry.'":
                         "\n\n'Bring two more Silverfin and we can restart the public kitchen. I'll set aside a bowl for you. Once we have a steady stock, every stew goes further.'";
                 }
+                if(PublicFishKitchenStocked)
+                {
+                    int carried=SoupRouteDeliveredCount;
+                    if(SoupRouteComplete)
+                    {
+                        fishermanZh+="\n\n“密林、雾港和霜钟的守棚人都报了平安。远路有人能喝上热汤了。下一锅还在火上，你想送给谁就带去。”";
+                        fishermanEn+="\n\n'Thornwood, Mistport and Frostchime all sent word. Their keepers have a hot pot on the road now. There's another bowl on the fire if you need it.'";
+                    }
+                    else
+                    {
+                        fishermanZh+="\n\n“我托人问过路了。三处远地避险棚，已有"+
+                            carried+"处收到了汤。剩下的在密林、雾港和霜钟高原，得亲手送到棚屋才行。”";
+                        fishermanEn+="\n\n'I asked the road wardens. "+carried+
+                            " of three far shelters have received stew. The others are out in Thornwood, Mistport and Frostchime. Deliver each bowl to the keeper yourself.'";
+                    }
+                }
                 Dialog(o.name,o.en,fishermanZh,fishermanEn,list.ToArray());return;
             }
             if (kind == "forge")

@@ -95,6 +95,14 @@ namespace Starfall
             s += "\n" + L("摆渡盟声望3后：炖汤15、木材8硬币。",
                 "Ferry trust 3: stew 15 coins, timber 8 coins.");
             if(PublicFishKitchenStocked)
+                s += "\n" + L("湖畔热汤已送往远地避险棚：",
+                    "Hot meals delivered to far shelters: ") +
+                    SoupRouteDeliveredCount+"/3."+
+                    (SoupRouteComplete?
+                        L("密林、雾港和霜钟的守棚人都能在安全时照料晚归旅人。",
+                          "Keepers in Thornwood, Mistport and Frostchime now offer warm recovery when the road is safe."):
+                        "");
+            if(PublicFishKitchenStocked)
                 s += "\n" + L("湖畔公共厨房恢复开火：用两条银鳍鱼换一碗炖汤；炖汤恢复65生命，攻击增益延长至105秒。",
                     "The public lakeside kitchen is stocked: two Silverfin make a bowl of stew; stew heals 65 HP and boosts attacks for 105 seconds.");
             if (save.harborPledge > 0)

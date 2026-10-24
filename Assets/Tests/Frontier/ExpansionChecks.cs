@@ -112,8 +112,17 @@ namespace Starfall.Tests
                 g.Close();
             }
             Check(g.SoupRouteComplete&&g.Has("soup_route_complete")&&
-                g.GetQuest("soup_route").complete&&g.save.skillPoints>=1,
-                "All three far-ring deliveries unlock a permanent completion reward and fully complete the real quest");
+                g.GetQuest("soup_route").complete&&g.save.skillPoints>=1&&
+                g.WorldResponse().Contains("3/3")&&
+                g.WorldResponse().Contains("守棚人"),
+                "All three remote deliveries pay once, finish the real quest and change the in-game civic response");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject fisherman=Object(g,"fish");
+            TalkNearObject(g,fisherman);
+            Check(g.conversation.text.Contains("都报了平安")&&
+                g.conversation.textEn.Contains("sent word"),
+                "Actual old-town fisherman acknowledges all three distant keepers by name without reusing a generic completion toast");
+            g.Close();
             g.PrepareSave();
             var reloaded=new GameCore(data,CloneSave(g.save));reloaded.Start();
             Check(reloaded.SoupRouteDeliveredCount==3&&
@@ -156,8 +165,9 @@ namespace Starfall.Tests
             TalkNearObject(g,shelter);
             index=Array.FindIndex(g.conversation.choices,c=>c.action=="soup_route_deliver");
             g.Choose(index);
-            Check(g.SoupRouteDelivered(1)&&g.save.inventory[6]==1,
-                "Safely restored local interaction can commit exactly one real stew");
+            Check(g.SoupRouteDelivered(1)&&g.save.inventory[6]==1&&
+                g.WorldResponse().Contains("1/3"),
+                "Safely restored local interaction commits one real stew and updates the public regional supply record");
             g.save.health=50;g.save.energy=25;
             g.save.x=shelter.x+15f;g.save.y=shelter.y+15f;
             for(int i=0;i<30;i++)g.Tick(.05f,new Point());
