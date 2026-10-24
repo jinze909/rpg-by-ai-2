@@ -3990,8 +3990,31 @@ namespace Starfall.Tests
         }
 
 
+        private static MapData CombatWallTestMap()
+        {
+            // Reuse the existing production combat fixture's physical wall.
+            // Only test-local map data is replaced; originals are restored.
+            string[] rows=new string[25];
+            for(int y=0;y<25;y++)
+            {
+                char[] tiles=new string('#',25).ToCharArray();
+                if(y>=2&&y<=22)
+                    for(int x=2;x<=22;x++)tiles[x]='.';
+                if(y==10)tiles[9]='#';
+                rows[y]=new string(tiles);
+            }
+            return new MapData{
+                id=0,spawnX=10.5f,spawnY=10.5f,
+                rows=rows,objects=new WorldObject[0],
+                decor=new Decoration[0]};
+        }
+
         public static void SwordRiposteOnlySpendsOnRealUnblockedRelease(Campaign data)
         {
+            MapData original=data.maps[0];
+            try
+            {
+                data.maps[0]=CombatWallTestMap();
             for(int profession=0;profession<3;profession++)
             {
                 // Existing source-art / combat tests already validate this
@@ -4046,10 +4069,16 @@ namespace Starfall.Tests
                     e.text=="RIPOSTE RELEASE"),
                     "The real open sword stroke announces its earned counter");
             }
+            }
+            finally { data.maps[0]=original; }
         }
 
         public static void AllClassAttacksRejectSealedFootingBeforeResourcePayment(Campaign data)
         {
+            MapData original=data.maps[0];
+            try
+            {
+                data.maps[0]=CombatWallTestMap();
             for(int profession=0;profession<3;profession++)
             for(int weapon=0;weapon<3;weapon++)
             {
@@ -4080,10 +4109,16 @@ namespace Starfall.Tests
                     g.playerAction.kind=="attack"&&g.save.energy<100f,
                     "The same three classes and all three weapons can attack on legal ground");
             }
+            }
+            finally { data.maps[0]=original; }
         }
 
         public static void BufferedQRechecksCurrentFloorBeforeSpendingEnergy(Campaign data)
         {
+            MapData original=data.maps[0];
+            try
+            {
+                data.maps[0]=CombatWallTestMap();
             for(int profession=0;profession<3;profession++)
             {
                 var g=Fresh(data,profession);
@@ -4105,6 +4140,8 @@ namespace Starfall.Tests
                     g.skillCooldown>0f&&g.save.energy==60f,
                     "A new deliberate Q from legal ground still works after the canceled intent");
             }
+            }
+            finally { data.maps[0]=original; }
         }
     }
 }
