@@ -66,6 +66,12 @@ namespace Starfall.Tests
                     "The hearing does not allow overwriting an already publicly signed vote");
                 Check(g.conversation!=null && g.conversation.choices.Length>0,
                     "The original resident's earlier testimony or storm relief dialogue remains accessible");
+                int recall=Array.FindIndex(g.conversation.choices,c=>c.action=="hearing_witness_storm");
+                Check(recall>=0 && g.conversation.text.Contains(new[]{"","莫芽","阿菱","维恩"}[region]),
+                    "Signed resident responds to the policy with new region-specific dialogue");
+                g.Choose(recall);
+                Check(g.mode=="dialog" && Array.Exists(g.conversation.choices,c=>c.action=="storm_oldstory_"+region),
+                    "Signed resident retains guarded access to the original storm testimony");
                 g.Close();
             }
             g.Enter(0);g.enemies.Clear();
@@ -99,6 +105,14 @@ namespace Starfall.Tests
                 g.Enter(region);g.enemies.Clear();
                 Check(g.IsObjectPresent(Object(g,"hearingplaque"+region)),
                     "Real regional oath appears only after a fully ratified public vote");
+                WorldObject resident=Object(g,"witnessnpc"+region);
+                g.save.x=resident.x;g.save.y=resident.y;g.Talk(resident);
+                Check(g.mode=="dialog" && g.conversation!=null &&
+                    g.conversation.text.Contains("医护") && g.conversation.textEn.Contains("medics") &&
+                    Array.Exists(g.conversation.choices,c=>c.action=="hearing_witness_storm") &&
+                    !Array.Exists(g.conversation.choices,c=>c.action.StartsWith("hearing_voice_")),
+                    "After ratification each witness recognizes the town verdict but cannot sign twice");
+                g.Close();
             }
             g.PrepareSave();
             var persisted=new GameCore(data,CloneSave(g.save));persisted.Start();

@@ -133,6 +133,49 @@ namespace Starfall
                     C("与居民再商量","Consult the residents","close"));
                 return true;
             }
+            // Signed witnesses remember their actual promise. Older storm
+            // testimony remains one deliberate, physically guarded choice away.
+            if(voice && HearingReady && Has("hearing_started") &&
+                HearingVoice(region)!=0)
+            {
+                bool care=HearingVoice(region)==1;
+                string[] careZh={"",
+                    "莫芽蹲在灯旁压实新土。“树根长得慢，别看灯亮了就以为它不疼了。我签的那条，记得让人回来换土。”",
+                    "阿菱指向新修的栈板。“我把没证件的人也写进渡船名册。下次河水涨了，谁也别让他们排在最后。”",
+                    "维恩把备用钥匙挂在工人板上。“谁看见炉温过线，谁就能停机。不用再追着工头要印章。”"};
+                string[] watchZh={"",
+                    "莫芽把林灯转向岔路。“夜里回来的人靠这盏灯认路。记得给受伤的根留点晶石，别全烧在灯里。”",
+                    "阿菱敲敲河岸的水位桩。“涨潮时先把家人领到高处。灯油我会留一桶，船也拴好了。”",
+                    "维恩拿起停机钥匙。“这次谁喊停，所有人都得听见。机器少转一圈，也比再送一个人去医馆强。”"};
+                string[] careEn={"",
+                    "Moya pats fresh soil around the roots. 'Trees mend slowly. A lit lamp doesn't mean they're healed. Someone must come back and tend them.'",
+                    "Arin points to the repaired planks. 'I've put travelers without papers on the ferry roll. When the river rises again, they won't be last in line.'",
+                    "Venn hangs a spare key on the workers' board. 'Whoever sees the furnace overheat can shut it down. No more chasing the foreman for his seal.'"};
+                string[] watchEn={"",
+                    "Moya turns a forest lamp toward the fork. 'Late travelers need this light. Just leave a little crystal for the wounded roots too.'",
+                    "Arin taps the high-water post. 'Get the families uphill when the tide turns. I've saved lamp oil, and the boat is tied off.'",
+                    "Venn tests the shutdown key. 'When someone shouts stop, everyone hears it. One less shift is better than another man in the infirmary.'"};
+                string zh=care?careZh[region]:watchZh[region];
+                string en=care?careEn[region]:watchEn[region];
+                if(HearingComplete)
+                {
+                    zh+="\n\n"+(HearingVerdict==1?
+                        "镇里的医疗灯已经交给医护；公会门外有人排队等着处理伤口。":
+                        "镇里留下了应急供能；今早巡路队从公会出发时，补给灯还亮着。");
+                    en+="\n\n"+(HearingVerdict==1?
+                        "The town lamp is with the medics now. A line has formed outside the guild for treatment.":
+                        "The town kept emergency power. The supply lamp was lit when the road patrol left this morning.");
+                }
+                else
+                {
+                    zh+="\n\n“我这份已经签好。还有谁没把话带回镇里？”";
+                    en+="\n\n'My paper is signed. Who else hasn't sent word to town?'";
+                }
+                Dialog(o.name,o.en,zh,en,
+                    C("再问问那场星雨","Ask about the first storm","hearing_witness_storm"),
+                    C("告辞","Goodbye","close"));
+                return true;
+            }
             if(!HearingReady || !Has("hearing_started") ||
                 HearingComplete || HearingVoice(region)!=0)return false;
             string[] zhWho={"","莫芽 · 森林的名字","阿菱 · 沉没遗迹的渡口","维恩 · 赤铁矿工"};
@@ -157,6 +200,22 @@ namespace Starfall
         }
         private bool ChooseHearing(string action)
         {
+            if(action=="hearing_witness_storm")
+            {
+                if(save.room<1 || save.room>3 || !HearingReady ||
+                    !Has("hearing_started") || HearingVoice(save.room)==0 ||
+                    Dying || practicing || Map.objects==null)return true;
+                foreach(WorldObject witness in Map.objects)
+                    if(witness!=null && witness.kind=="witnessnpc"+save.room &&
+                        IsObjectPresent(witness) &&
+                        !IsObjectFromAnotherMap(witness) &&
+                        HasPhysicalInteractionReach(witness))
+                    {
+                        TalkStorm(witness);
+                        break;
+                    }
+                return true;
+            }
             if(action=="hearing_orrin_review")
             {
                 if(save.room==4 && HearingComplete &&
