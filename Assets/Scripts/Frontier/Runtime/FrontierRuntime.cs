@@ -835,6 +835,21 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.51f,
                     linked?mint:read?muted:gold,16);
                 if(!read)Diamond(p.x,p.y-78,5,gold);
+                // A reopened ridge carries a real combat survey as well as
+                // its original two-end travel link. Three tiny grounded pips
+                // above the accepted obelisk show verified patrol contacts;
+                // never replace source art or imply that untouched guardians
+                // have a quest waiting on their still-locked ridge.
+                if(linked&&Game.Has("boss_"+Game.save.room)&&
+                    Game.save.room>=1&&Game.save.room<=7)
+                {
+                    int cleared=Game.RidgeWatchProgress(Game.save.room);
+                    for(int i=0;i<3;i++)
+                        Box(p.x-9+i*7,p.y-96,5,5,
+                            i<cleared?mint:muted);
+                    if(Game.RidgeWatchComplete(Game.save.room))
+                        Diamond(p.x,p.y-105,4,mint);
+                }
                 return;
             }
             if(kind=="outerwatch")

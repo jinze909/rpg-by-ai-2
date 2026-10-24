@@ -836,9 +836,59 @@ public static class RuntimeContinuityChecks
         }
         Console.WriteLine("PASS tracked-quest routes, blocked-objective cues, HUD/local maps, guidance toggle and route cache invalidation");
     }
+
+    static void RidgeWatchIsDrawnOnTheActualWorldMarker(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.room=1;
+        WorldObject marker=Array.Find(game.Map.objects,
+            o=>o.kind=="ridgemarker"&&o.id.EndsWith("_0"));
+        Check(marker!=null,"Ridge presentation must use a real authored map actor");
+        var markerPoint=new Point(marker.x,marker.y);
+        Set(app,"camera",markerPoint);
+        game.save.x=marker.x;game.save.y=marker.y;
+        Point p=(Point)Call(app,"ScreenPoint",markerPoint);
+        game.save.flags.Remove("ridge_seen_1_0");
+        game.save.flags.Remove("ridge_seen_1_1");
+        game.save.flags.Remove("boss_1");
+        ClearDraw();Call(app,"DrawObject",marker);
+        Check(!GUI.textureCalls.Exists(t=>t.texture==Texture2D.whiteTexture&&
+            t.rect.width==5f&&t.rect.height==5f&&
+            Math.Abs(t.rect.y-(p.y-96))<.01f),
+            "Locked high trail must not advertise an unavailable optional watch");
+        game.save.flags.Add("ridge_seen_1_0");
+        game.save.flags.Add("ridge_seen_1_1");
+        game.save.flags.Add("boss_1");
+        ClearDraw();Call(app,"DrawObject",marker);
+        var empty=GUI.textureCalls.FindAll(t=>t.texture==Texture2D.whiteTexture&&
+            t.rect.width==5f&&t.rect.height==5f&&
+            Math.Abs(t.rect.y-(p.y-96))<.01f);
+        Check(empty.Count==3&&empty[0].color.g<.8f,
+            "Unlocked route renders three pending grounded survey pips");
+        game.save.flags.Add("ridge_watch_1_0");
+        ClearDraw();Call(app,"DrawObject",marker);
+        var partial=GUI.textureCalls.FindAll(t=>t.texture==Texture2D.whiteTexture&&
+            t.rect.width==5f&&t.rect.height==5f&&
+            Math.Abs(t.rect.y-(p.y-96))<.01f);
+        Check(partial.Count==3&&partial[0].color.g>empty[0].color.g&&
+            partial[1].color.g==empty[1].color.g,
+            "Only actually surveyed lanes become green; untouched patrols remain pending");
+        game.save.flags.Add("ridge_watch_1_1");
+        game.save.flags.Add("ridge_watch_1_2");
+        game.save.flags.Add("ridge_watch_complete_1");
+        ClearDraw();Call(app,"DrawObject",marker);
+        var finished=GUI.textureCalls.FindAll(t=>t.texture==Texture2D.whiteTexture&&
+            t.rect.width==5f&&t.rect.height==5f&&
+            Math.Abs(t.rect.y-(p.y-96))<.01f);
+        Check(finished.Count==3&&finished.TrueForAll(t=>t.color.g>.8f),
+            "Finished fieldwork draws the complete watch on the actual marked ridge");
+        Console.WriteLine("PASS production ridge-watch marker: locked, pending, partial and cleared world draw cues");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }
