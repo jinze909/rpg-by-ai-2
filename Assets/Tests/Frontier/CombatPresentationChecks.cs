@@ -1730,10 +1730,10 @@ namespace Starfall.Tests
                     BindingFlags.Instance|BindingFlags.NonPublic);
                 Check(strike!=null&&game.CanStand(game.reliefFollowerPosition),
                     "Exercise authoritative rescue HP transaction on real walkable terrain");
-                var heavy=new Enemy(99791,2,12.9f,10.5f,999f)
+                var heavy=new Enemy(99791,2,13.3f,10.5f,999f)
                 {state=1,timer=.1f,windupDuration=.65f,
                  targetingReliefCivilian=true,
-                 target=new Point(10.8f,10.5f),
+                 target=new Point(8.5f,10.5f),
                  facing=new Point(1,0)};
                 Check((heavy.Position-game.reliefFollowerPosition).Length<
                     GameCore.EnemyAreaRadius(heavy)&&
