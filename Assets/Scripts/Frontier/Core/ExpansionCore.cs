@@ -2059,7 +2059,7 @@ namespace Starfall
                              L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
             if(FrostSignalActive && save.room==7)
                 return (FrostSignalAtHearth?
-                    L("公共余火已到站 · ", "CIVIC EMBER BANKED · "):
+                    L("暖站已安全收火 · ", "HEARTH SECURED · "):
                     L("护送公共余火 · ", "CIVIC EMBER RUN · "))+
                     FrostSignalFlame.ToString("0")+"/100 · "+
                     (FrostSignalAtHearth?
