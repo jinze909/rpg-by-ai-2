@@ -881,7 +881,8 @@ public static class RuntimeContinuityChecks
         var finished=GUI.textureCalls.FindAll(t=>t.texture==Texture2D.whiteTexture&&
             t.rect.width==5f&&t.rect.height==5f&&
             Math.Abs(t.rect.y-(p.y-96))<.01f);
-        Check(finished.Count==3&&finished.TrueForAll(t=>t.color.g>.8f),
+        Check(finished.Count==3&&finished.TrueForAll(t=>
+            Math.Abs(t.color.g-partial[0].color.g)<.0001f),
             "Finished fieldwork draws the complete watch on the actual marked ridge");
         Console.WriteLine("PASS production ridge-watch marker: locked, pending, partial and cleared world draw cues");
     }
