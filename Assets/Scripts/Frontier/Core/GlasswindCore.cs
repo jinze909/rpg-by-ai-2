@@ -18,6 +18,13 @@ namespace Starfall
         private bool glasswindReinforcementsDeferred;
         // Two real kills from EACH wave, never inferred from an empty list.
         private int glasswindConfirmedKills;
+        // A physical, one-use pressure vent gives the defender a tactical
+        // escape without bypassing either real combat wave or the 8s capture.
+        // It is transient like the contested valve, never in SaveData v2.
+        private bool glasswindVentSpent;
+        public bool GlasswindVentSpent
+        { get { return GlasswindSite!=0 && glasswindVentSpent; } }
+        public const float GlasswindVentEnergy=25f;
         private bool GlasswindWavesDefeated { get { return glasswindConfirmedKills==15; } }
         private void OnGlasswindEnemyDefeated(Enemy enemy)
         {
@@ -55,7 +62,7 @@ namespace Starfall
             effects.RemoveAll(e => e.glasswindOwned);
             glasswindSurgeTimer=0;glasswindSurgeCycle=0;
             glasswindReinforcementsDeferred=false;
-            glasswindConfirmedKills=0;
+            glasswindConfirmedKills=0;glasswindVentSpent=false;
             GlasswindSite=GlasswindWave=0;
             GlasswindTime=GlasswindCharge=0;
         }
@@ -180,6 +187,11 @@ namespace Starfall
                     C(clear?"封存并开放回路":"继续守点",
                         clear?"Seal and open circuit":"Keep defending",
                         clear?"glasswind_seal":"close"),
+                    !glasswindVentSpent?
+                        C("手动泄压 · 25耐力 · 中断风压与近身攻击",
+                          "Vent pressure · 25 energy · disrupt local attacks",
+                          "glasswind_vent"):
+                        C("泄压阀已用完","Pressure vent expended","close"),
                     C("撤出试炼","Withdraw","glasswind_withdraw"));
                 return true;
             }
@@ -231,6 +243,43 @@ namespace Starfall
                 TrackQuest("glasswind");revision++;sound="windup";
                 Notify("中继争夺开始！守住光圈，击退两轮守卫。",
                     "Relay contested! Hold the lit circle and defeat two waves.");
+                return true;
+            }
+            if(action=="glasswind_vent")
+            {
+                if(save.room!=6||Dying||practicing||GlasswindSite==0||
+                    glasswindVentSpent||
+                    !PhysicalRefugeReach(GlasswindPoint(GlasswindSite),2.2001f))
+                    return true;
+                if(save.energy<GlasswindVentEnergy)
+                {
+                    Notify("手动泄压需要25耐力。可先恢复体力，或用闪避躲开风压。",
+                        "Venting needs 25 energy. Recover first, or dodge the pressure.");
+                    return true;
+                }
+                Point station=GlasswindPoint(GlasswindSite);
+                save.energy-=GlasswindVentEnergy;
+                glasswindVentSpent=true;
+                // Wind pressure belongs to this active relay. Clearing a
+                // telegraph here must not erase ambient desert hazards.
+                hazards.RemoveAll(h=>h.glasswindOwned);
+                effects.RemoveAll(fx=>fx.glasswindOwned && fx.kind=="danger");
+                int interrupted=0;
+                foreach(Enemy foe in enemies)
+                {
+                    if(!IsGlasswindEnemy(foe)||foe.hp<=0||
+                        (foe.Position-station).Length>3.65f||
+                        !ClearAttackPath(station,foe.Position))continue;
+                    ApplyEnemyControl(foe,1.2f);
+                    interrupted++;
+                }
+                effects.Add(new Effect("burst",station,.48f)
+                    {radius=1.3f,glasswindOwned=true});
+                sound="guard";revision++;
+                Notify("风阀泄压！当前风压被驱散，近处 "+interrupted+
+                       " 台守卫短暂失去攻势。仍需守满八秒并击败两波敌人。",
+                    "Valve vented! Pressure cleared and "+interrupted+
+                       " nearby guards disrupted. Both waves and eight seconds still count.");
                 return true;
             }
             if(action=="glasswind_withdraw")

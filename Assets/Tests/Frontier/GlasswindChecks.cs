@@ -3,6 +3,62 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void GlasswindManualVentCostsEnergyAndInterruptsRealPressure(Campaign data)
+        {
+            for(int site=1;site<=3;site++)
+            {
+                var g=Fresh(data);
+                g.save.stage=3;
+                foreach(string f in new[]{"harbor_report","desert_report",
+                    "gate_6","glasswind_started"})g.save.flags.Add(f);
+                g.Enter(6);g.enemies.Clear();g.invulnerable=240f;
+                WorldObject valve=Object(g,"glasswindrelay"+site);
+                g.save.x=valve.x;g.save.y=valve.y;
+                Action(g,valve.kind,"glasswind_start_"+site);
+                Check(g.GlasswindSite==site && g.GlasswindWave==1,
+                    "The vent is part of the real physical relay encounter");
+                foreach(Enemy foe in g.enemies.FindAll(g.IsGlasswindEnemy))
+                {foe.stun=200f;foe.timer=200f;}
+                Advance(g,2.55f);
+                Check(g.hazards.Exists(h=>h.glasswindOwned),
+                    "Actual relay pressure warns of imminent physical damage");
+                var unrelated=new Hazard{position=new Point(12,12),
+                    radius=.5f,timer=20f,damage=2,kind="rift"};
+                g.hazards.Add(unrelated);
+                int energy=(int)g.save.energy,coins=g.save.coins;
+                float charge=g.GlasswindCharge;
+                g.save.energy=5;
+                Action(g,valve.kind,"glasswind_vent");
+                Check(!g.GlasswindVentSpent && g.hazards.Exists(h=>h.glasswindOwned)&&
+                    g.save.energy==5,
+                    "Insufficient energy never burns the one-use valve or cancels a live warning");
+                g.save.energy=100f;
+                g.Close();g.Talk(valve);
+                Check(Array.Exists(g.conversation.choices,x=>x.action=="glasswind_vent"),
+                    "The production NPC offers a tactical vent during the real siege");
+                g.Close();
+                Action(g,valve.kind,"glasswind_vent");
+                Check(g.GlasswindVentSpent&&g.save.energy==100-GameCore.GlasswindVentEnergy &&
+                    !g.hazards.Exists(h=>h.glasswindOwned)&&g.hazards.Contains(unrelated)&&
+                    g.GlasswindSite==site&&g.GlasswindWave==1 &&
+                    Math.Abs(g.GlasswindCharge-charge)<.001f &&
+                    g.save.coins==coins&&!g.Has("glasswind_"+site),
+                    "One real paid vent clears only relay pressure without awarding capture, currency or kill credit");
+                g.Close();g.Talk(valve);
+                Check(!Array.Exists(g.conversation.choices,x=>x.action=="glasswind_vent"),
+                    "Spent vent cannot be activated twice from a new dialogue");
+                g.Close();
+                Action(g,valve.kind,"glasswind_withdraw");
+                Check(g.GlasswindSite==0&&!g.GlasswindVentSpent &&
+                    !g.hazards.Exists(h=>h.glasswindOwned),
+                    "Withdrawing resets the unused next-attempt vent and cleans up all owned warnings");
+                Action(g,valve.kind,"glasswind_start_"+site);
+                Check(g.GlasswindSite==site&&!g.GlasswindVentSpent &&
+                    g.save.version==2,"A new genuine attempt has a fresh transient vent, not a saved upgrade");
+            }
+        }
+
         public static void GlasswindBothWavesSpawnAwayFromExistingCombatActors(Campaign data)
         {
             var g=Fresh(data);
