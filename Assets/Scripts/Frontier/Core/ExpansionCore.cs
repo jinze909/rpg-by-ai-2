@@ -2012,7 +2012,7 @@ namespace Starfall
                     (!FarCourierCrossed ?
                          FarCourierOnBridge ?
                             L("桥面已进入 · 继续走到南岸", "ON BRIDGE · CONTINUE SOUTH") :
-                            L("从北岸步行过桥", "CROSS BRIDGE FROM NORTH") :
+                            L("从北岸步行过桥", "CROSS BRIDGE ON FOOT · FROM NORTH") :
                      !FarCourierStamped ?
                          FarCourierRaidersAlive>0?
                              L("劫匪 "+FarCourierRaidersAlive+" 名 · 可击退或绕行",
