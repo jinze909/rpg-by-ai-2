@@ -141,6 +141,12 @@ namespace Starfall.Tests
                 threat.stun=100;threat.timer=1000;
                 other.x=junction.x+12f;other.y=junction.y+8f;
                 other.stun=100;other.timer=1000;
+                // Test ordinary unguarded raider pressure from outside the
+                // new, deliberately playable hero bodyguard lane. The
+                // interception mechanic has its own real-position test.
+                g.save.x=junction.x;g.save.y=junction.y+1.35f;
+                Check(!g.MineConvoyBodyguarding,
+                    "The old hull-pressure case does not already physically intercept its attacker");
                 char[] closed=rows[(int)junction.y].ToCharArray();
                 closed[(int)junction.x+1]='#';
                 rows[(int)junction.y]=new string(closed);
