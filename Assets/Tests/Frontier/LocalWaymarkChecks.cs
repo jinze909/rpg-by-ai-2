@@ -148,6 +148,70 @@ namespace Starfall.Tests
                 "After the safe physical withdrawal, original personal walking guidance resumes");
         }
 
+
+        public static void LocalWaymarkSurvivesClosedRoadAndResumesWhenPassageReopens(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var g=WaymarkFixture(data);
+                Point goal=new Point(18.5f,8.5f);
+                g.mode="map";
+                Check(g.PlaceLocalWaymark(goal),"A walkable original destination accepts a physical pin");
+                g.Close();
+                // Seal every walkable row of the middle corridor. The goal
+                // remains a real, standable tile, but it cannot be reached.
+                for(int y=2;y<32;y++)
+                {
+                    char[] row=g.Map.rows[y].ToCharArray();
+                    row[13]='#';
+                    g.Map.rows[y]=new string(row);
+                }
+                for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+                Check(g.LocalWaymarkRouteBlocked && g.HasLocalWaymark &&
+                    (g.LocalWaymark.Value-goal).Length<.001f &&
+                    g.NavigationPathFrom(g.Position,goal,true).Count==0,
+                    "A newly sealed route is visibly suspended without discarding the player's pin");
+                // Reopen one physically traversable gate. The same original
+                // destination becomes navigable; no user re-pin is required.
+                char[] opened=g.Map.rows[8].ToCharArray();opened[13]='.';
+                g.Map.rows[8]=new string(opened);
+                for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+                Check(!g.LocalWaymarkRouteBlocked && g.HasLocalWaymark &&
+                    g.PersonalNavigationActive &&
+                    g.NavigationPathFrom(g.Position,goal,true).Count>0,
+                    "A reopened corridor reactivates the existing pin and the real walking route");
+                g.mode="map";
+                Check(g.ClearLocalWaymark()&&!g.LocalWaymarkRouteBlocked,
+                    "Clearing a recovered pin also clears transient blocked-route state");
+            }
+            finally{data.maps[1]=old;}
+        }
+        public static void LocalWaymarkRetainsBlockedDestinationUntilTideOrGateChanges(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var g=WaymarkFixture(data);
+                Point goal=new Point(15.5f,8.5f);
+                g.mode="map";
+                Check(g.PlaceLocalWaymark(goal),"Original target is walkable before dynamic obstacle");
+                g.Close();
+                char[] blocked=g.Map.rows[8].ToCharArray();blocked[15]='#';
+                g.Map.rows[8]=new string(blocked);
+                for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+                Check(g.HasLocalWaymark && g.LocalWaymarkRouteBlocked &&
+                    !g.CanStand(goal),
+                    "Blocked destination is retained without inventing a reachable walking route");
+                blocked[15]='.';g.Map.rows[8]=new string(blocked);
+                for(int i=0;i<30;i++)g.Tick(.05f,new Point());
+                Check(g.HasLocalWaymark&&!g.LocalWaymarkRouteBlocked &&
+                    g.CanStand(goal),
+                    "When destination footing reopens, the original waypoint becomes active again");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void WaymarkNeverPersistsAcrossRegionTravelOrSelectedSave(Campaign data)
         {
             MapData old=data.maps[1];

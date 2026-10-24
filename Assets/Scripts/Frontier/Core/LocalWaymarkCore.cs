@@ -10,6 +10,10 @@ namespace Starfall
         private Point localWaymarkFoot;
         private int localWaymarkRoom = -1;
         private MapData localWaymarkMap;
+        private bool localWaymarkBlocked;
+        private float localWaymarkRouteRecheck;
+        public bool LocalWaymarkRouteBlocked
+        { get { return LocalWaymark.HasValue && localWaymarkBlocked; } }
         public Point? LocalWaymark
         {
             get
@@ -36,6 +40,8 @@ namespace Starfall
             localWaymarkRoom=-1;
             localWaymarkMap=null;
             localWaymarkFoot=new Point();
+            localWaymarkBlocked=false;
+            localWaymarkRouteRecheck=0f;
         }
         public bool ClearLocalWaymark()
         {
@@ -77,12 +83,14 @@ namespace Starfall
             localWaymarkRoom=save.room;
             localWaymarkMap=map;
             localWaymarkSet=true;
+            localWaymarkBlocked=false;
+            localWaymarkRouteRecheck=1f;
             revision++;sound="ui";
             Notify("已设置本地标记。返回世界后，跟随地图上的路线前往。",
                 "Local map pin set. Return to the world and follow its route.");
             return true;
         }
-        private void TickLocalWaymark()
+        private void TickLocalWaymark(float dt)
         {
             Point? mark=LocalWaymark;
             if(!mark.HasValue)return;
@@ -92,7 +100,27 @@ namespace Starfall
                 ResetLocalWaymark();
                 revision++;sound="quest";
                 Notify("已到达个人标记位置。", "Personal map destination reached.");
+                return;
             }
+            // Local pins must survive closed tidal gates and temporary road
+            // barriers. Recheck the complete physical route at a low fixed
+            // rate instead of calling the 120x80 BFS every render/sim tick.
+            localWaymarkRouteRecheck-=dt;
+            if(localWaymarkRouteRecheck>0f)return;
+            localWaymarkRouteRecheck=1.25f;
+            bool direct=(Position-mark.Value).Length<=1.8f &&
+                ReliefActorLineWalkable(Position,mark.Value);
+            bool reachable=CanStand(Position) && CanStand(mark.Value) &&
+                (direct || NavigationPathFrom(Position,mark.Value,true).Count>0);
+            if(reachable==!localWaymarkBlocked)return;
+            localWaymarkBlocked=!reachable;
+            revision++;
+            if(localWaymarkBlocked)
+                Notify("前往个人标记的道路暂时不通。标记已保留，等道路开放后会恢复引导。",
+                    "The path to your pin is blocked. The pin stays until the road reopens.");
+            else
+                Notify("前往个人标记的道路恢复畅通。",
+                    "The route to your personal pin is open again.");
         }
     }
 }

@@ -676,7 +676,9 @@ namespace Starfall
                 if(Game.HasLocalWaymark)
                 {
                     if(Button(888,571,306,35,
-                        Game.L("清除个人地图标记","Clear personal map pin")))
+                        Game.LocalWaymarkRouteBlocked ?
+                            Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
+                            Game.L("清除个人地图标记","Clear personal map pin")))
                         Game.ClearLocalWaymark();
                 }
                 else Text(888,569,306,38,
