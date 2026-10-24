@@ -1848,6 +1848,83 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void HeldCompanionPhysicallyBlocksOneRescueArrowPerCadence(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] line=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<line.Length;x++)line[x]='#';
+                    else{line[0]='#';line[line.Length-1]='#';}
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=17.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.save.x=17.5f;g.save.y=10.5f;
+                g.companionPosition=new Point(12.5f,10.5f);
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90f;g.reliefFollowerSafety=90f;
+                g.reliefFollowerPosition=new Point(13.75f,10.5f);
+                g.reliefFollowerWaiting=true;g.save.reducedMotion=true;
+                g.ToggleCompanionHold();
+                Check(g.CompanionHoldingPosition&&
+                    g.ReliefCompanionArrowGuardReady,
+                    "Explicitly held ally stands on legitimate clear ground directly in the physical escort arrow lane");
+                var update=typeof(GameCore).GetMethod("UpdateProjectiles",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(update!=null,"Drive the real swept projectile collision pipeline");
+                Func<Projectile> send=()=>{
+                    var shot=new Projectile{position=new Point(11.7f,10.5f),
+                        velocity=new Point(16f,0),life=2f,damage=13f,
+                        visual="enemyArrow",friendly=false,
+                        reliefMissionOwned=true,source="enemy"};
+                    g.projectiles.Add(shot);return shot;
+                };
+                float safety=g.reliefFollowerSafety;
+                Projectile first=send();update.Invoke(g,new object[]{.05f});
+                Check(!g.projectiles.Contains(first)&&
+                    g.reliefFollowerSafety==safety&&
+                    !g.ReliefCompanionArrowGuardReady&&
+                    g.ReliefCompanionArrowGuardCooldown>2.95f&&
+                    g.effects.Exists(e=>e.reliefMissionOwned&&
+                        e.kind=="number"&&e.text==g.L("同伴挡箭！","ALLY BLOCK!")),
+                    "One real incoming shot collides with the planted companion, consumes the shot and starts a true guard cooldown");
+                Projectile second=send();update.Invoke(g,new object[]{.16f});
+                Check(!g.projectiles.Contains(second)&&
+                    g.reliefFollowerSafety<safety,
+                    "A second arrow inside cooldown is not blocked by a free permanent ally shield");
+                float after=g.reliefFollowerSafety;
+                var cooldown=typeof(GameCore).GetField(
+                    "reliefCompanionArrowGuardCooldown",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(cooldown!=null,"The guard cadence belongs to transient combat state");
+                cooldown.SetValue(g,0f);
+                Projectile third=send();update.Invoke(g,new object[]{.16f});
+                Check(!g.projectiles.Contains(third)&&
+                    g.reliefFollowerSafety==after,
+                    "After genuine cooldown recovery the same living planted companion can physically block again");
+                g.ToggleCompanionHold();
+                Check(!g.ReliefCompanionArrowGuardReady,
+                    "Explicit recall immediately disables planted interception");
+                cooldown.SetValue(g,0f);
+                Projectile unheld=send();update.Invoke(g,new object[]{.16f});
+                Check(g.reliefFollowerSafety<after,
+                    "Unheld companions cannot pretend to guard the escorted civilian");
+                g.reliefMissionRoom=0;
+                Check(!g.ReliefCompanionArrowGuardReady,
+                    "Ending the escort retires companion arrow defense without a save flag");
+                Check(!g.save.flags.Contains("companion_rescue_arrow_guard"),
+                    "No save schema or permanent upgrade can be minted by defending a single shot");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Campaign data)
         {
             MapData old=data.maps[1];

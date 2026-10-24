@@ -178,6 +178,61 @@ namespace Starfall
         public float reliefHurryTime;
         private bool reliefHurryUsed;
         private float reliefEvadeCooldown;
+        // Only a planted, nearby ally can physically intercept ONE hostile
+        // escort arrow per three seconds. This is transient combat state,
+        // never a free SaveData v2 shield or permanent world upgrade.
+        private float reliefCompanionArrowGuardCooldown;
+        public bool ReliefCompanionArrowGuardPositioned
+        {
+            get
+            {
+                return reliefMissionRoom!=0&&reliefMissionRoom==save.room&&
+                    reliefMissionWave>=1&&reliefMissionWave<=3&&
+                    reliefMissionTime>0f&&reliefFollowerSafety>0f&&
+                    CompanionHoldingPosition&&
+                    (companionPosition-companionHoldFoot).Length<.65f&&
+                    (companionPosition-reliefFollowerPosition).Length>.55f&&
+                    (companionPosition-reliefFollowerPosition).Length<2.8f&&
+                    CanStand(companionPosition)&&
+                    CanStand(reliefFollowerPosition)&&
+                    ClearAttackPath(companionPosition,reliefFollowerPosition);
+            }
+        }
+        public bool ReliefCompanionArrowGuardReady
+        { get { return ReliefCompanionArrowGuardPositioned &&
+            reliefCompanionArrowGuardCooldown<=0f; } }
+        public float ReliefCompanionArrowGuardCooldown
+        { get { return ReliefCompanionArrowGuardPositioned ?
+            Math.Max(0f,reliefCompanionArrowGuardCooldown) : 0f; } }
+
+        // Called only at REAL per-step projectile/circle contact, before
+        // the hostile shot can reach the original civilian body collider.
+        // A shot moving away, missing the resident's corridor, or reaching
+        // the civilian/hero first cannot be absorbed remotely by the ally.
+        private bool CanCompanionCatchRescueArrow(Projectile shot)
+        {
+            if(shot==null||shot.friendly||!shot.reliefMissionOwned||
+                !ReliefCompanionArrowGuardReady||
+                (shot.position-companionPosition).Length>=.4f)return false;
+            Point toResident=reliefFollowerPosition-companionPosition;
+            float speed=shot.velocity.Length;
+            if(!Finite(speed)||speed<.01f)return false;
+            float forward=shot.velocity.x*toResident.x+
+                shot.velocity.y*toResident.y;
+            float across=Math.Abs(shot.velocity.x*toResident.y-
+                shot.velocity.y*toResident.x)/speed;
+            return forward>.001f&&across<.6f;
+        }
+        private void RegisterCompanionRescueArrowBlock()
+        {
+            reliefCompanionArrowGuardCooldown=3f;
+            effects.Add(new Effect("number",companionPosition,.8f,
+                L("同伴挡箭！","ALLY BLOCK!")){reliefMissionOwned=true});
+            effects.Add(new Effect("discover",companionPosition,.3f)
+                {reliefMissionOwned=true});
+            sound="guard";revision++;
+        }
+
         public bool ReliefEscortEvadeAvailable
         {
             get { return ReliefEscortActive && !Dying &&
@@ -235,6 +290,7 @@ namespace Starfall
             reliefMissionRoom = reliefMissionWave = 0; reliefMissionTime = 0;
             reliefFollowerPosition = new Point(); reliefFollowerSafety = 0;
             reliefCivilianHitTime = 0;
+            reliefCompanionArrowGuardCooldown = 0;
             reliefWardTime = 0; reliefWardUsed = false;
             reliefTimeWarning = reliefSafetyWarning = false;
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
@@ -582,6 +638,8 @@ namespace Starfall
                 reliefHurryTime = Math.Max(0, reliefHurryTime - dt);
             if (reliefEvadeCooldown > 0)
                 reliefEvadeCooldown = Math.Max(0, reliefEvadeCooldown - dt);
+            reliefCompanionArrowGuardCooldown = Math.Max(0f,
+                reliefCompanionArrowGuardCooldown - dt);
             if (reliefClimateKitTime > 0)
                 reliefClimateKitTime = Math.Max(0, reliefClimateKitTime - dt);
             if (reliefMissionTime <= 0)

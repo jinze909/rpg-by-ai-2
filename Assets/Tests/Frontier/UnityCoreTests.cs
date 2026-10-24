@@ -156,6 +156,7 @@ namespace Starfall.Tests
         [Test] public void BlockedManualCompanionFocusNeverMarksAndExpires() { CoreChecks.ManualCompanionFocusNeedsAnHonestReleasedMuzzleAndExpires(Data()); }
         [Test] public void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease() { CoreChecks.CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Data()); }
         [Test] public void CompanionProtectsActualRescueCivilianBeforeIdleEnemies() { CoreChecks.CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Data()); }
+        [Test] public void HeldCompanionPhysicallyBlocksOneRescueArrowPerCadence() { CoreChecks.HeldCompanionPhysicallyBlocksOneRescueArrowPerCadence(Data()); }
         [Test] public void RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry() { CoreChecks.RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry(Data()); }
         [Test] public void EscortStopsOnlyForPhysicalCommittedCivilianAttacks() { CoreChecks.EscortStopsOnlyForPhysicalCommittedCivilianAttacks(Data()); }
         [Test] public void RescueEvasionSelectsRealSafeFootOrRefundsEnergy() { CoreChecks.RescueEvasionSelectsRealSafeFootOrRefundsEnergy(Data()); }

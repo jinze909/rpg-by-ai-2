@@ -1868,6 +1868,26 @@ namespace Starfall
                 ProjectileCircleEntry(p.position,p.velocity,
                     reliefFollowerPosition,.45f)+.00001f <
                 ProjectileCircleEntry(p.position,p.velocity,Position,.38f));
+            // Interception is a swept-body collision, never an abstract
+            // mission perk. Preserve the original first-actor wins rule:
+            // a planted ally cannot absorb an arrow that reached the hero
+            // or civilian earlier along the SAME physical flight sample.
+            if(CanCompanionCatchRescueArrow(p))
+            {
+                float allyEntry=ProjectileCircleEntry(p.position,p.velocity,
+                    companionPosition,.4f);
+                bool firstToAlly=(!heroContact||allyEntry+.00001f<
+                    ProjectileCircleEntry(p.position,p.velocity,
+                        Position,.38f))&&
+                    (!civilianContact||allyEntry+.00001f<
+                    ProjectileCircleEntry(p.position,p.velocity,
+                        reliefFollowerPosition,.45f));
+                if(firstToAlly)
+                {
+                    RegisterCompanionRescueArrowBlock();
+                    return true;
+                }
+            }
             if(civilianFirst)
             {
                 DamageReliefCivilianArrow(p);
