@@ -1719,8 +1719,8 @@ namespace Starfall.Tests
                     g.effects.Exists(e=>e.kind=="number"&&e.reliefMissionOwned&&
                         e.text==g.L("同伴掩护！","ALLY COVER!")),
                     "True auto-release retargets and paints rescue cover only after a projectile exists");
-                Check(g.reliefFollowerSafety==savedSafety,
-                    "Ally's protection feedback never damages or heals civilian safety by itself");
+                Check(g.reliefFollowerSafety<=savedSafety,
+                    "Rescue combat may genuinely injure the civilian; the covering arrow cannot award unearned safety");
                 Check(!g.save.flags.Contains("companion_rescue_cover"),
                     "Rescue tactical retargeting never writes a new persistent save flag");
             }
