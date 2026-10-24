@@ -209,6 +209,46 @@ namespace Starfall.Tests
                 "An unanswered bite receives explicit timing feedback distinct from a mistimed reel");
         }
 
+
+        public static void LakeFisherDialogueHonorsLiveCommissionAndFullBag(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject pond=Object(g,"fish");
+            g.enemies.Clear();
+            g.save.x=pond.x;g.save.y=pond.y;
+            g.Talk(pond);
+            Check(g.conversation!=null &&
+                g.conversation.text.Contains("三条银鳍鱼")&&
+                g.conversation.textEn.Contains("three Silverfin")&&
+                g.conversation.text.Contains("听见鱼咬钩")&&
+                !g.conversation.textEn.Contains("take your time"),
+                "The actual lake fisher gives story-grounded timed-bite advice before the commission");
+            g.Close();
+            g.save.inventory[3]=9999;
+            g.Talk(pond);
+            Check(g.conversation.choices[0].action=="close" &&
+                g.conversation.text.Contains("三条银鳍鱼"),
+                "Full fish storage is shown as a non-cast option without hiding the existing commission");
+            g.Close();
+            g.save.inventory[3]=3;
+            g.Talk(pond);
+            Check(g.conversation.text.Contains("都齐了") &&
+                g.conversation.textEn.Contains("All three?"),
+                "Bringing the requested fish changes the real fisher's dialogue before handoff");
+            int turnIn=Array.FindIndex(g.conversation.choices,c=>c.action=="ally2");
+            Check(turnIn>=0,"The original companion/aid commission remains physically available");
+            int beforeCoins=g.save.coins;
+            g.Choose(turnIn);
+            Check(g.Has("ally_2")&&g.save.inventory[3]==0&&
+                g.save.coins==beforeCoins+40,
+                "Existing fish commission pays exactly once and consumes exactly three real catches");
+            g.Close();g.Talk(pond);
+            Check(g.conversation.text.Contains("孩子们昨晚") &&
+                g.conversation.textEn.Contains("fish stew last night")&&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="ally2")<0,
+                "Completed commission acknowledges the actual children and cannot be paid twice");
+        }
+
         public static void ReducedMotionFishingKeepsReadableSteadyBite(Campaign data)
         {
             var game=Fresh(data);

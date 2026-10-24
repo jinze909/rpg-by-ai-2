@@ -2534,10 +2534,25 @@ namespace Starfall
             }
             if (kind == "fish")
             {
-                List<Choice> list = new List<Choice> { C("开始钓鱼", "Cast the line", "fish") };
+                bool roomForFish=HasInventoryRoom(3,1);
+                List<Choice> list = new List<Choice> {
+                    roomForFish?
+                        C("开始钓鱼", "Cast the line", "fish"):
+                        C("鱼袋已满 · 先腾出空间", "Fish bag full · make room", "close")
+                };
                 if (!Has("ally_2")) list.Add(C("支线：交付银鳍鱼 ×3", "Commission: deliver 3 Silverfin", "ally2"));
                 list.Add(C("再见", "Goodbye", "close"));
-                Dialog(o.name, o.en, "我想给避难的孩子们煮一锅鱼汤，需要三条银鳍鱼。\n\n钓鱼时按 E 或点收线，让浮标停在绿色区，成功三次就能钓到鱼。没有鱼饵消耗，慢慢试。", "Three Silverfin would make soup for the refugee children.\n\nPress E or Reel while the marker is in the green band. Three good pulls catch a fish. No bait cost; take your time.", list.ToArray()); return;
+                string fishermanZh=Has("ally_2")?
+                    "岸边的锅里翻着热气。\n\n“孩子们昨晚总算喝上了鱼汤。现在你若再抛竿，听见水面扑通一响就收线，别让鱼儿叼着钩跑了。”":
+                    save.inventory[3]>=3?
+                    "岸边的人从锅旁起身，瞧见你带来的鱼，赶紧腾出干净的木桶。\n\n“三条都齐了？快给我吧，避难所的孩子们还等着开饭。”":
+                    "岸边的锅里只漂着几片菜叶。\n\n“避难所今晚又来了孩子，我还缺三条银鳍鱼。听见鱼咬钩就快收线，浮标落进青色那段才能勾牢。稳住三次，才捞得上一条。”";
+                string fishermanEn=Has("ally_2")?
+                    "Steam rises from the pot on the bank.\n\n'The children finally had fish stew last night. If you cast again, reel when you hear the splash. The fish won't wait long.'":
+                    save.inventory[3]>=3?
+                    "The fisher looks up from the pot, sees the fish you brought and clears a clean bucket.\n\n'All three? Hand them over. The children at the shelter are waiting for supper.'":
+                    "A few leaves drift in the cooking pot.\n\n'More children reached the shelter tonight. I still need three Silverfin. Reel when you hear the splash, with the float inside the teal band. Three good pulls will land one fish.'";
+                Dialog(o.name,o.en,fishermanZh,fishermanEn,list.ToArray());return;
             }
             if (kind == "forge")
             {
@@ -2901,12 +2916,20 @@ namespace Starfall
             if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
-            if (action == "fish" && HasInventoryRoom(3, 1))
-            { fishTime = fishCursor = 0; fishHits = fishMisses = 0;
-              fishNextBiteAt = .3f;
-              fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
-              FishFeedbackZh = FishFeedbackEn = "";
-              mode = "fish"; }
+            if (action == "fish")
+            {
+                if(!HasInventoryRoom(3,1))
+                {
+                    Notify("鱼袋已满。先腾出一格，才有地方装上钩的鱼。",
+                        "Your fish bag is full. Make room before casting.");
+                    return;
+                }
+                fishTime = fishCursor = 0; fishHits = fishMisses = 0;
+                fishNextBiteAt = .3f;
+                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+                FishFeedbackZh = FishFeedbackEn = "";
+                mode = "fish";
+            }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
