@@ -32,9 +32,10 @@ namespace Starfall.Tests
             var g=new GameCore(data);
             g.NewGame(0);
             Check(g.conversation!=null&&
-                g.conversation.text.Contains("七天前") &&
+                g.conversation.text.Contains("七天过去了") &&
                 g.conversation.text.Contains("星核") &&
                 g.conversation.text.Contains("侦察员") &&
+                g.conversation.text.Contains("矿场") &&
                 g.conversation.textEn.Contains("scout") &&
                 g.conversation.textEn.Contains("starcore") &&
                 g.conversation.textEn.Contains("citadel"),
@@ -200,8 +201,10 @@ namespace Starfall.Tests
             finally { g.Map.objects=originals; }
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
             Check(g.mode=="dialog"&&g.conversation!=null&&
-                g.conversation.text.Contains("星根"),
-                "Fresh original NPC story choices remain playable after a rejected stale click");
+                g.conversation.text.Contains("星核") &&
+                g.conversation.text.Contains("荆棘密林") &&
+                g.conversation.text.Contains("巡路"),
+                "Fresh original NPC story choices keep place, missing person and core after a rejected stale click");
         }
         public static void LivingStoryGuideConnectsPeopleCausesAndNextStepWithoutChangingProgress(Campaign data)
         {
@@ -244,8 +247,9 @@ namespace Starfall.Tests
             g.Close();
             g.save.ending=1;
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
-            Check(g.conversation.text.Contains("余光重建"),
-                "Post-ending explanation points to rebuilding, rather than resetting the ending");
+            Check(g.conversation.text.Contains("公会南面的余光工地") &&
+                g.conversation.text.Contains("三地"),
+                "Post-ending Lyra points to the actual three-site reconstruction without an authorial chapter summary");
             g.Close();
             g.save.flags.Add("afterlight_complete");
             g.save.flags.Add("storm_complete");
@@ -253,8 +257,9 @@ namespace Starfall.Tests
             g.save.flags.Add("roadcharter_complete");
             g.save.flags.Add("civic_conduit_complete");
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
-            Check(g.conversation.text.Contains("巡路复核"),
-                "Late chapter connections identify the actually remaining local work");
+            Check(g.conversation.text.Contains("旅店") &&
+                g.conversation.text.Contains("巡路队"),
+                "Late-chapter conversation points to the inn log and genuinely remaining roadwarden duties");
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
             Check(loaded.save.version==2&&loaded.save.ending==1&&
@@ -693,8 +698,9 @@ namespace Starfall.Tests
         {
             var g = Fresh(data); g.NewGame(0);
             Check(g.conversation != null &&
-                g.conversation.text.Contains("七天前") &&
-                g.conversation.text.Contains("星根") &&
+                g.conversation.text.Contains("七天过去了") &&
+                g.conversation.text.Contains("星核") &&
+                g.conversation.text.Contains("屏障") &&
                 g.conversation.textEn.Contains("Seven days") &&
                 g.conversation.textEn.Contains("roadwarden"),
                 "The opening establishes the seven-day disaster, root network and lost patrol in both languages");
@@ -718,8 +724,10 @@ namespace Starfall.Tests
                 !StoryChoicePresent(g, "story_read_wardens"),
                 "Foundational lore is visible from the start, missing patrol secrets are not");
             ChooseStoryChoice(g, "story_read_roots");
-            Check(g.conversation.text.Contains("七") && g.conversation.textEn.Contains("Starroot"),
-                "The live story page explains the seven anchors bilingually");
+            Check(g.conversation.text.Contains("七处锚点") &&
+                g.conversation.textEn.Contains("seven anchors") &&
+                g.conversation.text.Contains("星核"),
+                "The in-world engineering manual identifies the seven linked anchors without an expositional summary");
             ChooseStoryChoice(g, "story_menu");
             ChooseStoryChoice(g, "story_section_campaign");
             Check(!StoryChoicePresent(g, "story_read_citadel") &&
@@ -755,8 +763,10 @@ namespace Starfall.Tests
                 "All four campaign accounts unlock according to actual earned milestones");
             ChooseStoryChoice(g, "story_read_citadel");
             Check(g.conversation.text.Contains("厄洛") &&
-                g.conversation.textEn.Contains("Orrin"),
-                "Orrin's readable account acknowledges his real motive in both languages");
+                g.conversation.text.Contains("谁保护") &&
+                g.conversation.textEn.Contains("Orrin") &&
+                g.conversation.textEn.Contains("who protects"),
+                "Orrin's marginal question reveals his own fear and reason to keep the shield");
             g.Close();
             g.save.flags.Add("harbor_report"); g.save.flags.Add("desert_report");
             g.save.flags.Add("mountain_report"); g.save.flags.Add("exp_intro");
