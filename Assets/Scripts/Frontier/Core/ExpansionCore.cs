@@ -1335,6 +1335,50 @@ namespace Starfall
             sound="counter";revision++;
             p.rescueCoverTarget=null; // exactly one confirmed rescue per shot
         }
+        // Actual pending rescue attacks for the compact world HUD. Reuse
+        // the same collision/ownership evidence as ally target selection:
+        // do not advertise stale telegraphs, a sealed archer or a wrong NPC.
+        public Enemy IncomingRescueCivilianThreat
+        {
+            get
+            {
+                if(reliefMissionRoom==0||reliefMissionRoom!=save.room)return null;
+                Enemy earliest=null;
+                foreach(Enemy foe in enemies)
+                    if(CompanionCommittedRescueStrike(foe)&&
+                       (earliest==null||foe.timer<earliest.timer))
+                        earliest=foe;
+                return earliest;
+            }
+        }
+        public bool CompanionRescueMedicalCastPending
+        {
+            get
+            {
+                return save.companion==0&&reliefMissionRoom==save.room&&
+                    reliefMissionRoom!=0&&companionAction!=null&&
+                    companionAction.kind=="heal"&&!companionAction.released&&
+                    companionAction.target.HasValue&&
+                    (companionAction.target.Value-reliefFollowerPosition).Length<.85f;
+            }
+        }
+        public bool CompanionRescueCoverInFlight
+        {
+            get
+            {
+                if(reliefMissionRoom==0||reliefMissionRoom!=save.room)return false;
+                foreach(Projectile shot in projectiles)
+                    if(shot.life>0f&&shot.friendly&&
+                       shot.rescueCoverTarget!=null&&
+                       System.Object.ReferenceEquals(shot.rescueCoverSave,save)&&
+                       System.Object.ReferenceEquals(shot.rescueCoverMap,Map)&&
+                       shot.rescueCoverRoom==save.room&&
+                       shot.rescueCoverTarget.hp>0f&&
+                       enemies.Contains(shot.rescueCoverTarget))
+                        return true;
+                return false;
+            }
+        }
         private bool CompanionCacheContactImminent(Enemy foe)
         {
             return foe!=null&&enemies.Contains(foe)&&

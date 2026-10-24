@@ -22,7 +22,7 @@ namespace Starfall
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||Game.OuterPatrolActive||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||Game.OuterPatrolActive||(Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room)||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -61,6 +61,7 @@ namespace Starfall
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
                 if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive ||
                     Game.OuterPatrolActive || Game.MineConvoyActive ||
+                    (Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room) ||
                     Game.TideSalvageActive || Game.FrostSignalActive)
                     rects.Add(new Rect(380, 22, 520, 65));
             }
@@ -265,6 +266,41 @@ namespace Starfall
                         Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
+            }
+            else if (Game.reliefMissionRoom!=0 &&
+                     Game.reliefMissionRoom==Game.save.room)
+            {
+                // Combat mode hides the large exploration objective. The
+                // timed living escort and its real safety must stay visible,
+                // particularly while the player is drawing aggro or moving
+                // the wounded survivor past a shelter.
+                int wave=Game.reliefMissionWave;
+                float safe=Game.reliefFollowerSafety;
+                Color accent=safe<=30f?PixelArt.C("#ec7668"):
+                    safe<=65f?gold:mint;
+                Enemy imminent=Game.IncomingRescueCivilianThreat;
+                string stage=wave==0?Game.L("搜寻居民","SEARCH"):
+                    wave==1?Game.L("首波伏击","FIRST AMBUSH"):
+                    wave==2?Game.L("重甲伏击","HEAVY AMBUSH"):
+                    Game.L("护送返程","ESCORT HOME");
+                string status=imminent!=null?
+                    Game.L(" · 居民遇袭倒计时 "," · CIVILIAN HIT IN ")+
+                    Math.Max(0f,imminent.timer).ToString("0.0")+"s":
+                    Game.CompanionRescueMedicalCastPending?
+                    Game.L(" · 米拉正在包扎"," · MIRA TREATING"):
+                    Game.CompanionRescueCoverInFlight?
+                    Game.L(" · 掩护箭矢飞行中"," · COVER SHOT EN ROUTE"):"";
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(394,25,492,26,
+                    Game.L("居民救援 · ","CIVILIAN RESCUE · ")+stage+
+                    " · "+Math.Ceiling(Math.Max(0f,Game.reliefMissionTime))+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,480,18,
+                    (wave==0?Game.L("到现场寻找失联居民","Reach the field site to locate civilians"):
+                        Game.L("居民安全 ","CIVILIAN SAFETY ")+Math.Ceiling(safe)+"%")+
+                    status,11,accent,TextAnchor.MiddleCenter);
+                if(wave>0)Bar(401,71,478,safe/100f,accent,7);
             }
             else if (Game.MineConvoyActive && Game.save.room==3)
             {
