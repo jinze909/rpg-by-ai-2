@@ -3578,6 +3578,12 @@ public static class RuntimeCombatInputChecks
             "Holding genuine controller L3 uses the same physical player sprint");
         g.save.energy=10.1f;
         for(int i=0;i<6&&!g.SprintFatigued;i++)Update(app);
+        // The last PAID sprint sample can trigger fatigue at its end.
+        // Its actual traveled footstep is still a sprint until the next
+        // simulation slice applies the now-locked normal walking speed.
+        Check(g.SprintFatigued,
+            "Paid last sprint segment crosses the real fatigue threshold");
+        Update(app);
         Check(g.SprintFatigued&&!g.Sprinting,
             "An actual controller-held sprint runs out of usable stamina and stops accelerating");
         GUI.commands.Clear();Call(app,"OnGUI");
