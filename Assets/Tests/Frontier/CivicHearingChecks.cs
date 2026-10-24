@@ -9,6 +9,11 @@ namespace Starfall.Tests
             WorldObject dais=Object(g,"hearingdais");
             g.save.x=dais.x;g.save.y=dais.y;
             g.Talk(dais);
+            Check(g.conversation.text.Contains("莉雅") &&
+                g.conversation.textEn.Contains("Lyra") &&
+                !g.conversation.text.Contains("第五章") &&
+                !g.conversation.textEn.Contains("Chapter Five"),
+                "Prerequisites are narrated through an in-world note rather than a quest checklist");
             Check(!Array.Exists(g.conversation.choices,c=>c.action=="hearing_begin"),
                 "The post-storm public hearing cannot begin on an unfinished campaign or before Orrin's accord");
             g.Close();
@@ -39,6 +44,10 @@ namespace Starfall.Tests
                 int stale=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="hearing_voice_"+region+"_care");
                 Check(stale>=0,"The resident presents a genuine choice while physically present");
+                Check(!g.conversation.text.Contains("游戏世界") &&
+                    !g.conversation.textEn.Contains("game world") &&
+                    g.conversation.text.Length>35 && g.conversation.textEn.Length>35,
+                    "Regional witnesses deliver concrete bilingual testimony without metagame narration");
                 g.save.x=outsideWitness.x;g.save.y=outsideWitness.y;
                 g.Choose(stale);g.Close();
                 Check(g.HearingVoice(region)==0,
@@ -65,6 +74,12 @@ namespace Starfall.Tests
             g.Talk(dais);
             int staleVerdict=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="hearing_verdict_public");
+            Check(g.conversation.text.Contains("莉雅") &&
+                g.conversation.textEn.Contains("Lyra") &&
+                !g.conversation.text.Contains("不是谁对谁错") &&
+                !g.conversation.textEn.Contains("trick answer") &&
+                g.conversation.text.Contains("医护") && g.conversation.text.Contains("巡路"),
+                "Final hearing speaks of competing practical needs instead of grading player choices");
             Check(staleVerdict>=0 &&
                 Array.Exists(g.conversation.choices,c=>c.action=="hearing_verdict_reserve"),
                 "Actual council presents two distinct civic tradeoffs only after all three independent signatures");
