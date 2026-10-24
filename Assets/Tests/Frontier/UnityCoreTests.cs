@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }
         [Test] public void StationedAllyInterposesTwoRealPhysicalStockContacts() { CoreChecks.RealStationedCompanionHasTwoFinitePhysicalStockGuards(Data()); }
         [Test] public void PartySwapClearsPriorCompanionsPhysicalGuardOrder() { CoreChecks.CompanionPartySwapCannotInheritAnotherAllysDefenseOrder(Data()); }
         [Test] public void CompanionAutoAttackCannotFireDeadOrEscapedTargets() { CoreChecks.CompanionCancelledAutoContactNeverFiresAtDeadOrLostTarget(Data()); }

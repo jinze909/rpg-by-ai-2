@@ -28,7 +28,7 @@ namespace Starfall
             return "。！？!?；;.".IndexOf(c)>=0;
         }
         private static bool DialogueClosing(char c)
-        { return "，。、！？：；）】”’」』,.!?;:%".IndexOf(c)>=0; }
+        { return "，。、！？：；）】”’」』,.!?;:%)]".IndexOf(c)>=0; }
         private static bool DialogueOpening(char c)
         { return "（【“‘「『(".IndexOf(c)>=0; }
         private static bool DialogueCombining(char c)
@@ -93,9 +93,16 @@ namespace Starfall
                     else if(lastWord>start && i-lastWord<=32)end=lastWord;
                     // Never strand a closing Chinese mark or its quotation
                     // at the beginning of the following dialogue page.
-                    while(end>start+1 && end<text.Length &&
+                    while(end<text.Length &&
                         (DialogueClosing(text[end])||DialogueCombining(text[end])))
-                        end=PreviousDialogueScalar(text,end);
+                    {
+                        // The punctuation closes the PRECEDING sentence. Move
+                        // the page boundary right, keeping the full cluster
+                        // with that sentence; moving left stranded even its
+                        // period at the start of the next page.
+                        end+=char.IsHighSurrogate(text[end]) && end+1<text.Length &&
+                            char.IsLowSurrogate(text[end+1])?2:1;
+                    }
                     // Similarly keep an opening quotation with its phrase.
                     if(end>start+1 && DialogueOpening(text[end-1]))
                         end=PreviousDialogueScalar(text,end);
