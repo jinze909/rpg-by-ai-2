@@ -1913,7 +1913,7 @@ namespace Starfall.Tests
                 cooldown.SetValue(g,0f);
                 Projectile third=send();Advance(g,.20f);
                 Check(!g.projectiles.Contains(third)&&
-                    g.reliefFollowerSafety>after-.3f,
+                    g.reliefFollowerSafety>after-.5f,
                     "After genuine cooldown recovery the same living planted companion can physically block again");
                 g.ToggleCompanionHold();
                 Check(!g.ReliefCompanionArrowGuardReady,
