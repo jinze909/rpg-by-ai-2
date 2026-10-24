@@ -3942,5 +3942,48 @@ namespace Starfall.Tests
                 ((Dictionary<int,int>)key.GetValue(resume)).Count==3,
                 "Unchanged save schema retains both the peaceful ending and the field watch");
         }
+
+        public static void RidgeWatchPublishesSevenDistinctPhysicalFieldAccounts(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var field=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var stories=new HashSet<string>();
+            for(int room=1;room<=7;room++)
+            {
+                var g=Unlocked(data);
+                g.save.flags.Add("boss_"+room);
+                g.save.flags.Add("ridge_seen_"+room+"_0");
+                g.save.flags.Add("ridge_seen_"+room+"_1");
+                g.Enter(room);
+                var ids=(Dictionary<int,int>)field.GetValue(g);
+                Check(ids.Count==3,"Real regional patrols exist before history can be recorded");
+                int count=g.save.moments.Count;
+                foreach(int id in new List<int>(ids.Keys))
+                {
+                    Enemy victim=g.enemies.Find(e=>e.id==id);
+                    Check(victim!=null,"Physical scout must be alive before victory credit");
+                    hit.Invoke(g,new object[]{victim,999f,true,null,null});
+                }
+                Check(g.RidgeWatchComplete(room)&&g.save.moments.Count==count+1,
+                    "Actual three-enemy victory appends exactly one chronicle account");
+                string note=g.save.moments[g.save.moments.Count-1].en;
+                Check(note.Length>80&&stories.Add(note),
+                    "Each liberated region has a distinct, nontrivial authored story");
+                WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="ridgemarker");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Talk(marker);
+                Check(g.conversation!=null&&g.conversation.textEn.Contains(note),
+                    "The exact original marker can reread the resulting civilian account");
+                g.Close();
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+                Check(restored.save.moments.Exists(m=>m.en==note)&&
+                    restored.RidgeWatchComplete(room),
+                    "Original save schema retains completed route and public memory");
+            }
+            Check(stories.Count==7,"Every historical region has its own aftermath");
+        }
     }
 }

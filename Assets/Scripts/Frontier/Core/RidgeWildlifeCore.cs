@@ -9,6 +9,26 @@ namespace Starfall
         // 12 tiles from new interactive ridge endpoints. No fake silhouettes.
         // Spawn IDs persist in v2 world snapshots. Progress lives in the
         // existing string flags and does not alter the serialized schema.
+        // Original local civilian accounts become public only after real
+        // patrol combat and are preserved as normal v2 chronicle moments.
+        private static readonly string[] ridgeWatchStoryZh = {
+            "林道威胁消失后，巡路队发现了孩子们留在荆棘下的脚印。新路终于标出家人真正走过的方向，而不是只有堡垒批准的通道。",
+            "遗迹高地重新开放。摆渡人把洪水季未登记的归乡航线刻在公共水尺上，谁都能靠这份记录找到渡口。",
+            "矿场上方的步道恢复安全。工人把三处急停铃连成真正的回家路，下一次警报不会再让人被困在机器旁。",
+            "堡垒外环的旧哨站交还居民。这里的灯会为夜归的避难者亮起，不再只为军令和封锁服务。",
+            "雾港高地重新通行。夜航人把最早发现的潮位刻在灯塔下，救援小艇不必等到官方命令才出海。",
+            "沙海巡敌被清理后，未登记的绿洲家庭重新竖起补水木牌。商队和村民终于共享同一条找井路线。",
+            "霜钟的声音重新传到暖棚。曾被拒于哨线外的旅人，如今可以循着钟声找到一处有人守候的炉火。"
+        };
+        private static readonly string[] ridgeWatchStoryEn = {
+            "After the Thornwood patrol falls, roadwardens find children's footprints beneath the thorns. The new trail marks where families truly walked, not only where citadel permits allowed.",
+            "The ruins' high ground opens again. Ferrymen carve unregistered flood-season crossings onto a public tide gauge so every traveler can find the ferry.",
+            "Workers reopen the high route above Ironreach. Three emergency bells mark a real way home, so the next alarm will not leave anyone trapped beside running machines.",
+            "The closed citadel lookout returns to civilian hands. Its lamps will guide travelers home instead of enforcing military orders alone.",
+            "Mistport's high trail is passable again. Sailors carve early tide readings below the lighthouse so rescue skiffs can sail before official orders arrive.",
+            "With Glasswind's patrols gone, unregistered oasis families raise shared water signs so both caravans and residents can find the next well.",
+            "The frost chimes reach the warming shelters again. Travelers once refused at checkpoints can now follow the bells to a hearth with someone waiting."
+        };
         private readonly Dictionary<int,int> ridgeWatchIds = new Dictionary<int,int>();
         private int ridgeWatchRoom = -1;
         private MapData ridgeWatchMap;
@@ -45,8 +65,8 @@ namespace Starfall
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
                 return "";
             if(RidgeWatchComplete(room))
-                return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.":
-                    "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。";
+                return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\\n\\n"+ridgeWatchStoryEn[room-1]:
+                    "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\\n\\n"+ridgeWatchStoryZh[room-1];
             int available=ridgeWatchRoom==room&&
                 Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
             return english?"\n\nRidge watch: clear the real hostile patrols beyond the markers ("+
@@ -68,8 +88,8 @@ namespace Starfall
                 if(!Has("ridge_watch_"+save.room+"_"+place))return;
             Flag("ridge_watch_complete_"+save.room);
             CreditCoins(28);CreditShards(1);AddXp(40);
-            RecordMoment("你清除了偏远巡路上威胁行人的敌人，巡路队把这条通道开放给更多居民。",
-                "The hostile high-trail patrols were defeated in combat. The roadwardens reopened the passage to civilian travelers.");
+            RecordMoment(ridgeWatchStoryZh[save.room-1],
+                ridgeWatchStoryEn[save.room-1]);
             Notify("高地巡守完成：硬币 +28、碎片 +1、经验 +40；外环高路耐力恢复 +2/秒。",
                 "Ridge watch complete: +28 coins, +1 shard, +40 XP; outer high-trail energy +2/sec.");
             sound="reward";revision++;
