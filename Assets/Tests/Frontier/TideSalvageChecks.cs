@@ -71,6 +71,58 @@ namespace Starfall.Tests
             finally {data.maps[5]=original;}
         }
 
+
+        public static void TideboundRaidersKeepLiveReachableFeetAndProtectOtherActors(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            foreach(string f in new[]{"exp_intro","harbor_report","gate_5","companion_1"})
+                g.save.flags.Add(f);
+            g.Enter(5);g.enemies.Clear();
+            g.SelectCompanion(1);g.invulnerable=180;
+            WorldObject dock=Object(g,"tidedock"),first=Object(g,"tidecargo1"),
+                second=Object(g,"tidecargo2"),third=Object(g,"tidecargo3");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            var unrelated=new Enemy(91883,0,13.5f,11.5f,850f)
+                {stun=150f,timer=150f};
+            g.enemies.Add(unrelated);
+            g.companionPosition=new Point(11.5f,12.5f);
+            Point ally=g.companionPosition;
+            g.save.x=second.x;g.save.y=second.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            var raiders=g.enemies.FindAll(g.IsTideSalvageEnemy);
+            Check(g.TideSalvagePhase==3&&raiders.Count==2 &&
+                g.enemies.Contains(unrelated)&&
+                (g.companionPosition-ally).Length<.01f,
+                "Crowded inner shoal still spawns two authentic foes without moving other actors");
+            foreach(Enemy foe in raiders)
+            {
+                Check(g.CanStand(foe.Position)&&
+                    (foe.Position-g.Position).Length>=1.7f &&
+                    (foe.Position-g.companionPosition).Length>=1.65f &&
+                    (foe.Position-unrelated.Position).Length>=1.7f &&
+                    g.NavigationPathFrom(foe.Position,g.Position,true).Count>0,
+                    "Every inner-shoal pursuer has a walkable approach clear of hero, ally and existing fighters");
+            }
+            Check((raiders[0].Position-raiders[1].Position).Length>=2.2f,
+                "The two genuine first wave combat roots cannot overlap");
+            g.companionPosition=new Point(28.5f,18.5f);
+            g.save.totalTime=36f;g.save.x=third.x;g.save.y=third.y;
+            Action(g,"tidecargo3","tide_salvage_take_3");
+            var all=g.enemies.FindAll(g.IsTideSalvageEnemy);
+            Check(g.TideSalvagePhase==4&&all.Count==3,
+                "The final real island guard can choose an alternate unoccupied path");
+            Enemy thirdFoe=all.Find(e=>e.id==89926);
+            Check(thirdFoe!=null&&g.CanStand(thirdFoe.Position) &&
+                (thirdFoe.Position-g.Position).Length>=1.7f &&
+                (thirdFoe.Position-g.companionPosition).Length>=1.65f &&
+                g.NavigationPathFrom(thirdFoe.Position,g.Position,true).Count>0 &&
+                g.enemies.Contains(unrelated) &&g.save.version==2,
+                "Island chase remains physical, companion-safe and v2-compatible");
+        }
+
         public static void TideboundManifestRequiresTidesPhysicalTravelAndRealCombat(Campaign data)
         {
             var g=Fresh(data);

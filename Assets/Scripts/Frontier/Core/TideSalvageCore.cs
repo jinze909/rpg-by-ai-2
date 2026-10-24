@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Starfall
 {
@@ -79,21 +80,54 @@ namespace Starfall
                     "The shoal route closed. Undelivered cargo was lost; retry from the dock.");
             }
         }
+        // Tidewater and local piers change collision during a sortie.
+        // A fallback toward the nearest island is NOT a connected pursuit
+        // route; guard feet must reach the current actual hero on the same
+        // four-neighbor actor graph before the whole wave can deploy.
+        private bool FindTideSalvageRaiderFoot(Point authored,
+            List<Point> reserved,out Point chosen)
+        {
+            for(int radius=0;radius<=4;radius++)
+                for(int dy=-radius;dy<=radius;dy++)
+                    for(int dx=-radius;dx<=radius;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                        Point foot=authored+new Point(dx,dy);
+                        if(!CanStand(foot) ||
+                            (foot-Position).Length<1.7f ||
+                            (save.companion>=0 &&
+                             (foot-companionPosition).Length<1.65f) ||
+                            reserved.Exists(p=>(p-foot).Length<2.2f) ||
+                            enemies.Exists(e=>e.hp>0&&
+                                (e.Position-foot).Length<1.7f) ||
+                            !ActorHasLocalRoute(foot,Position,10))
+                            continue;
+                        chosen=foot;return true;
+                    }
+            chosen=new Point();return false;
+        }
         private bool SpawnTideSalvageRaiders(int stage)
         {
-            // Validate all actor feet before mutating the world, so a failed
-            // spawn cannot leave half a wave alive or hand out free credit.
-            Point[] places=stage==2?
+            // Keep all three historical identity IDs and exact combat
+            // archetypes. Choose the ENTIRE wave before adding an actor,
+            // preventing half-spawns from corrupting kill confirmations.
+            Point[] authored=stage==2?
                 new[]{new Point(11.5f,12.5f),new Point(13.5f,11.5f)}:
                 new[]{new Point(28.5f,18.5f)};
-            foreach(Point p in places)
-                if(!CanStand(p) || NavigationPath(p).Count==0)
+            var positions=new List<Point>();
+            foreach(Point root in authored)
+            {
+                Point foot;
+                if(!FindTideSalvageRaiderFoot(root,positions,out foot))
                     return false;
-            for(int i=0;i<places.Length;i++)
+                positions.Add(foot);
+            }
+            for(int i=0;i<positions.Count;i++)
             {
                 int kind=stage==2?i:2;
+                Point p=positions[i];
                 Enemy foe=new Enemy(89920+stage*2+i,kind,
-                    places[i].x,places[i].y,stage==3?125:stage==2?75:50);
+                    p.x,p.y,stage==3?125:75);
                 foe.timer=.85f+i*.25f;
                 enemies.Add(foe);
             }
