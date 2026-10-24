@@ -759,6 +759,18 @@ namespace Starfall
                 direction=new Point();
             if (mode != "world" || Dying || bufferedSkill != null ||
                 bufferedDodge != null) return;
+            // The original collision topology can seal the hero's feet
+            // before input (tide, raised gate, collapsing bridge). Do not
+            // charge an impossible strike or buffer an attack from stone.
+            // A floor that closes AFTER a valid input is still handled at
+            // the authoritative TickAction contact, as before.
+            if(!CanStand(Position))
+            {
+                ClearBufferedAttack();
+                Notify("脚下地形已封闭，先返回可站立位置再攻击。",
+                    "The ground is blocked. Move to walkable footing before attacking.");
+                return;
+            }
             // "Recovery" permits the next buffered Q to join a combo, but
             // it is NOT permission to replace the current whole-body Cast
             // or Attack before its authored duration finishes. A late LMB
@@ -789,6 +801,13 @@ namespace Starfall
         {
             float cost = Relic(4) ? 50 : 40;
             if (mode != "world" || Dying) return;
+            if(!CanStand(Position))
+            {
+                ClearBufferedSkill();
+                Notify("脚下地形已封闭，无法从此处发动职业战技。",
+                    "Blocked footing prevents casting a class technique here.");
+                return;
+            }
             if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
             // Repeated Q intentionally updates the currently queued aim and
             // world target (the existing tactical retarget contract). NEVER
@@ -820,6 +839,15 @@ namespace Starfall
         {
             float cost = Relic(4) ? 50 : 40;
             ClearBufferedSkill();
+            // An accepted Q may wait 200ms for a visible previous action.
+            // Recheck the physical root at DISPATCH as well: no charged
+            // cooldown or fake cast if a gate closes during that buffer.
+            if(!CanStand(Position))
+            {
+                Notify("施法前地形发生变化；请先站稳再试。",
+                    "Footing changed before release; find safe ground and retry.");
+                return;
+            }
             if (skillCooldown > 0 || save.energy < cost) { ActionUnavailable(skillCooldown, cost); return; }
             SetAim(direction);
             save.energy -= cost; skillCooldown = 3.5f;

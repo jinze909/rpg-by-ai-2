@@ -4047,5 +4047,64 @@ namespace Starfall.Tests
                     "The real open sword stroke announces its earned counter");
             }
         }
+
+        public static void AllClassAttacksRejectSealedFootingBeforeResourcePayment(Campaign data)
+        {
+            for(int profession=0;profession<3;profession++)
+            for(int weapon=0;weapon<3;weapon++)
+            {
+                var g=Fresh(data,profession);
+                g.enemies.Clear();g.projectiles.Clear();
+                g.save.flags.Add("weapon_1");g.save.flags.Add("weapon_2");
+                g.Equip(weapon);
+                g.save.energy=100f;g.save.english=true;
+                // Reuse the existing production source-art fixture:
+                // west of the starter clearing is an ACTUAL wall tile.
+                g.save.x=9.5f;g.save.y=10.5f;
+                Check(!g.CanStand(g.Position)&&g.Blocked(9.5f,10.5f),
+                    "Real wall denies the root for every playable class and loadout");
+                g.Attack(new Point(1,0));
+                Check(g.playerAction==null&&g.save.energy==100f&&
+                    g.attackCooldown<=0f&&g.projectiles.Count==0,
+                    "Sealed-foot basic attack cannot charge energy, damage or cooldown");
+                g.Skill(new Point(1,0));
+                Check(g.playerAction==null&&g.save.energy==100f&&
+                    g.skillCooldown<=0f&&g.projectiles.Count==0,
+                    "Sealed-foot Q cannot mint a spell, immunity or cooldown");
+
+                g.save.x=10.5f;g.save.y=10.5f;
+                Check(g.CanStand(g.Position),
+                    "Recovering the original authorized foot restores legal combat");
+                g.Attack(new Point(1,0));
+                Check(g.playerAction!=null&&
+                    g.playerAction.kind=="attack"&&g.save.energy<100f,
+                    "The same three classes and all three weapons can attack on legal ground");
+            }
+        }
+
+        public static void BufferedQRechecksCurrentFloorBeforeSpendingEnergy(Campaign data)
+        {
+            for(int profession=0;profession<3;profession++)
+            {
+                var g=Fresh(data,profession);
+                g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.save.energy=100f;
+                g.playerHitTime=.08f;
+                g.Skill(new Point(1,0));
+                Check(g.SkillQueued&&g.skillCooldown<=0f&&g.save.energy==100f,
+                    "Q can be queued legally during existing real hit recovery");
+                g.save.x=9.5f;g.save.y=10.5f;
+                for(int i=0;i<7;i++)g.Tick(.02f,new Point());
+                Check(!g.SkillQueued&&g.playerAction==null&&
+                    g.skillCooldown<=0f&&g.save.energy==100f,
+                    "A closing floor during the original Q buffer cannot charge or emit a ghost cast");
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.Skill(new Point(1,0));
+                Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
+                    g.skillCooldown>0f&&g.save.energy==60f,
+                    "A new deliberate Q from legal ground still works after the canceled intent");
+            }
+        }
     }
 }
