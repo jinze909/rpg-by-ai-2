@@ -144,6 +144,79 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void WayfarerCoverWorksAtAllThreeRealRegionalTravelers(Campaign data)
+        {
+            for(int room=1;room<=3;room++)
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.level=10;
+                g.save.flags.Add("scout_saved");
+                g.Enter(room);g.enemies.Clear();g.invulnerable=120f;
+                WorldObject npc=Object(g,"wayfarer"+room);
+                g.save.x=npc.x;g.save.y=npc.y;g.save.energy=45f;
+                Action(g,npc.kind,"wayfarer_defend_"+room);
+                Check(g.WayfarerEncounterRoom==room,
+                    "Each original regional civilian launches its own real two-raider encounter");
+                g.Talk(npc);
+                int cover=WayfarerChoiceIndex(g,"wayfarer_cover");
+                Check(cover>=0&&g.WayfarerCoverAvailable,
+                    "Real regional traveler offers an energy-paid one-use protective rally: "+room);
+                g.Choose(cover);
+                Check(g.WayfarerCoverTime==8f&&g.save.energy==25f&&
+                    g.WayfarerEncounterRoom==room&&!g.Has("wayfarer_"+room),
+                    "Each true map uses the same live cover without an unearned quest reward: "+room);
+                g.Talk(npc);
+                Check(WayfarerChoiceIndex(g,"wayfarer_cover")<0,
+                    "All three authentic NPCs hide their spent command until a new rescue: "+room);
+            }
+        }
+
+        public static void WayfarerCoverHalvesHeavyContactWithoutReplacingBodyguard(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var npc=new WorldObject{id="wayfarer1",kind="wayfarer1",
+                    name="Traveler",en="Traveler",x=10.5f,y=10.5f};
+                var g=StartWayfarerCoverFixture(data,npc);
+                g.Talk(npc);
+                g.Choose(WayfarerChoiceIndex(g,"wayfarer_cover"));
+                Enemy heavy=g.enemies.Find(e=>e.id==82011);
+                Enemy hunter=g.enemies.Find(e=>e.id==82010);
+                Check(heavy!=null&&heavy.kind==2&&hunter!=null,
+                    "Real second ambusher is the original area-impact armored breaker");
+                hunter.stun=100f;hunter.timer=100f;
+                heavy.x=npc.x+1.5f;heavy.y=npc.y;
+                heavy.state=1;heavy.timer=.01f;heavy.stun=0f;
+                heavy.releaseTime=0f;heavy.hitTime=0f;
+                heavy.target=new Point(npc.x,npc.y);
+                heavy.targetingWayfarer=true;
+                heavy.Face(heavy.target-heavy.Position);
+                g.save.x=22.5f;g.save.y=10.5f;
+                float before=g.WayfarerIntegrity;
+                g.Tick(.05f,new Point());
+                Check(Math.Abs(g.WayfarerIntegrity-(before-12f))<.001f,
+                    "An actual 24-damage heavy raider strike causes only 12 through cover");
+                // In the NEXT real enemy windup the hero physically takes
+                // the lane. Full interception has precedence over the
+                // residual 12-damage cover calculation.
+                heavy.x=npc.x+1.5f;heavy.y=npc.y;
+                heavy.state=1;heavy.timer=.01f;heavy.stun=0f;
+                heavy.releaseTime=0f;heavy.hitTime=0f;
+                heavy.target=new Point(npc.x,npc.y);
+                heavy.targetingWayfarer=true;
+                heavy.Face(heavy.target-heavy.Position);
+                g.save.x=npc.x+.75f;g.save.y=npc.y;
+                g.invulnerable=120f;
+                before=g.WayfarerIntegrity;
+                g.Tick(.05f,new Point());
+                Check(Math.Abs(g.WayfarerIntegrity-before)<.001f &&
+                    g.effects.Exists(e=>e.kind=="number"&&
+                        e.wayfarerOwned&&e.text=="护卫拦截"),
+                    "A true heavy contact intercepted by the hero grants no phantom civilian injury despite cover");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void WayfarerCoverRequiresSufficientEnergyAndNeverSurvivesAbandon(Campaign data)
         {
             MapData old=data.maps[1];
