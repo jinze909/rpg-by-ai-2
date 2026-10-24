@@ -821,6 +821,17 @@ namespace Starfall
                             "GRID POWER ONLINE":"PUBLIC CARE ONLINE"),
                         11,network,TextAnchor.MiddleCenter);
                 }
+                // Hot meals have reached only the three genuine stocked
+                // far-ring shelters. Keep all original clinic/watch/grid
+                // overlays, prop atlas and world anchor untouched.
+                if(kind=="farshelter"&&Game.SoupRouteDelivered(room))
+                {
+                    Color supper=new Color(1f,.77f,.41f);
+                    Ring(new Point(o.x,o.y),.95f,supper,20);
+                    Text(p.x-73,p.y-136,146,22,
+                        Game.L("热汤已送到","HOT STEW DELIVERED"),
+                        11,supper,TextAnchor.MiddleCenter);
+                }
                 if(!ready)Diamond(p.x,p.y-79,6,gold);
                 return;
             }
