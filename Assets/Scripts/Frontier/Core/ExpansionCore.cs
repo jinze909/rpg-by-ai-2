@@ -2009,7 +2009,10 @@ namespace Starfall
                 return L("居民救援包 · ", "RELIEF PARCEL · ") +
                     (int)Math.Ceiling(FarCourierTimeLeft) + "s · " +
                     (int)Math.Ceiling(FarCourierIntegrity) + "%\n" +
-                    (!FarCourierCrossed ? L("步行过桥", "CROSS BRIDGE ON FOOT") :
+                    (!FarCourierCrossed ?
+                         FarCourierOnBridge ?
+                            L("桥面已进入 · 继续走到南岸", "ON BRIDGE · CONTINUE SOUTH") :
+                            L("从北岸步行过桥", "CROSS BRIDGE FROM NORTH") :
                      !FarCourierStamped ? L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
                          L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
             if(TideSalvageActive && save.room==5)

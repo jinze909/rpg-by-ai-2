@@ -129,6 +129,8 @@ namespace Starfall
         public bool FarCourierActive {get{return courierRoom==save.room&&!Dying;}}
         public float FarCourierTimeLeft {get{return FarCourierActive?Math.Max(0,95-courierElapsed):0;}}
         public bool FarCourierCrossed {get{return FarCourierActive&&courierCrossed;}}
+        public bool FarCourierOnBridge
+        {get{return FarCourierActive&&courierBridgeEntered&&!courierCrossed;}}
         public bool FarCourierStamped {get{return FarCourierActive&&courierStamped;}}
         public bool FarCourierDelivered(int room)
         {return room>=0&&room<8&&Has("far_courier_"+room);}
