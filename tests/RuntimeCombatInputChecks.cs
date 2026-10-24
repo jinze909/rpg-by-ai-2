@@ -2208,7 +2208,7 @@ public static class RuntimeCombatInputChecks
         int coins=game.save.coins,flags=game.save.flags.Count;
         GUI.queuedClick=new Rect(297,652,83,30);
         Call(app,"OnGUI");
-        GUI.commands.Clear();Call(app,"OnGUI");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(x=>x.Contains("Chapter Four")) &&
             game.save.trackedQuest=="afterlight",
             "Reading a completed chapter moves back through real history without changing tracking");
