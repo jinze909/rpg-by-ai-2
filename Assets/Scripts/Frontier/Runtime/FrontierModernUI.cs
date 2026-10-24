@@ -732,7 +732,7 @@ namespace Starfall
             if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; }
             string localizedText = Game.L(c.text, c.textEn);
             if (dialoguePages == null ||
-                !Object.ReferenceEquals(dialoguePagesConversation, c) ||
+                !System.Object.ReferenceEquals(dialoguePagesConversation, c) ||
                 dialoguePagesLarge != Game.save.largeText ||
                 !String.Equals(dialoguePagesText, localizedText, StringComparison.Ordinal))
             {

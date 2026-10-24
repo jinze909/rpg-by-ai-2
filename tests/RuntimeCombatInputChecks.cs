@@ -6305,15 +6305,15 @@ public static class RuntimeCombatInputChecks
         var pageField=typeof(FrontierRuntime).GetField("dialoguePages",Private);
         object originalLayout=pageField.GetValue(app);
         Call(app,"OnGUI");
-        Check(Object.ReferenceEquals(originalLayout,pageField.GetValue(app)),
+        Check(System.Object.ReferenceEquals(originalLayout,pageField.GetValue(app)),
             "An unchanged production NPC repaint must reuse its page layout");
         game.save.largeText=true;Call(app,"OnGUI");
         object accessibleLayout=pageField.GetValue(app);
-        Check(!Object.ReferenceEquals(originalLayout,accessibleLayout),
+        Check(!System.Object.ReferenceEquals(originalLayout,accessibleLayout),
             "Turning on large dialogue text rebuilds the real reader immediately");
         game.save.english=true;Call(app,"OnGUI");
         var englishLayout=(System.Collections.Generic.List<string>)pageField.GetValue(app);
-        Check(!Object.ReferenceEquals(accessibleLayout,englishLayout) &&
+        Check(!System.Object.ReferenceEquals(accessibleLayout,englishLayout) &&
               string.Concat(englishLayout.ToArray())==translated,
             "Switching language in the same conversation rebuilds translated pages");
         game.save.largeText=false;game.save.english=false;
