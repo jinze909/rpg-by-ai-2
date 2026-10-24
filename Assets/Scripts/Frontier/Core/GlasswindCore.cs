@@ -260,6 +260,10 @@ namespace Starfall
                 Point station=GlasswindPoint(GlasswindSite);
                 save.energy-=GlasswindVentEnergy;
                 glasswindVentSpent=true;
+                // Briefly reopen a real reaction interval. Do not let the
+                // normal surge timer rearm a fresh strike on the very next
+                // simulation frame after the paid intervention.
+                glasswindSurgeTimer=Math.Max(glasswindSurgeTimer,1.4f);
                 // Wind pressure belongs to this active relay. Clearing a
                 // telegraph here must not erase ambient desert hazards.
                 hazards.RemoveAll(h=>h.glasswindOwned);

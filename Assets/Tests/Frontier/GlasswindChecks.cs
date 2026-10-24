@@ -71,6 +71,12 @@ namespace Starfall.Tests
                     Math.Abs(g.GlasswindCharge-charge)<.001f &&
                     g.save.coins==coins&&!g.Has("glasswind_"+site),
                     "One real paid vent clears only relay pressure without awarding capture, currency or kill credit");
+                g.PrepareSave();
+                var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+                Check(resumed.save.version==2&&resumed.GlasswindSite==0 &&
+                    !resumed.GlasswindVentSpent&&
+                    !resumed.Has("glasswind_"+site),
+                    "A reload never revives an old paid vent or grants a permanent unfinished relay");
                 g.Close();g.Talk(valve);
                 Check(!Array.Exists(g.conversation.choices,x=>x.action=="glasswind_vent"),
                     "Spent vent cannot be activated twice from a new dialogue");
@@ -393,6 +399,23 @@ namespace Starfall.Tests
                     "Opening the same wall launches the original physical trial and wave-one battle");
                 foreach(Enemy guard in g.enemies.FindAll(g.IsGlasswindEnemy))
                 {guard.stun=200;guard.timer=200;}
+                // The relay choice was opened on reachable ground; sealing
+                // a real intervening wall before the button is clicked must
+                // NOT spend energy or discharge hazards remotely.
+                g.Talk(valve);
+                int ventIndex=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="glasswind_vent");
+                Check(ventIndex>=0,"Active relay exposes the actual vent command");
+                wall[11]='#';rows[10]=new string(wall);
+                float beforeVentEnergy=g.save.energy;
+                g.Choose(ventIndex);
+                Check(!g.GlasswindVentSpent&&g.save.energy==beforeVentEnergy,
+                    "Stale wind valve choice cannot spend energy through a newly sealed wall");
+                wall[11]='.';rows[10]=new string(wall);
+                Action(g,valve.kind,"glasswind_vent");
+                Check(g.GlasswindVentSpent &&
+                    g.save.energy==beforeVentEnergy-GameCore.GlasswindVentEnergy,
+                    "Reopening the same physical path permits one genuine manual vent");
                 Advance(g,4.25f);
                 Check(g.GlasswindWave==2&&
                     g.enemies.FindAll(g.IsGlasswindEnemy).Count==4,
