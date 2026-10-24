@@ -1130,6 +1130,17 @@ namespace Starfall
             // reduced-motion and vanish after the actual credited kill.
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
                 Ring(e.Position,.63f,PixelArt.C("#7acabb"),16);
+            if(!drawingOutline&&Game.IsCompanionFocusTarget(e))
+            {
+                // The mark belongs to the SAME living enemy used by the
+                // companion's real auto-target logic; no marker for stale
+                // numeric IDs, expired orders or unreachable saved actors.
+                Ring(e.Position,.82f,PixelArt.C("#f3bd67"),20);
+                Text(p.x-83,p.y-131,166,24,
+                    Game.L("同伴集火 · "+Game.CompanionFocusSeconds.ToString("0")+"秒",
+                        "FOCUS FIRE · "+Game.CompanionFocusSeconds.ToString("0")+"s"),
+                    12,gold,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsSpecialistDrillTarget(e))
             {
                 // Honest class practice shows the actual target's physical
