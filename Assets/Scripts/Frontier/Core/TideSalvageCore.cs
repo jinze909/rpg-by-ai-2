@@ -42,6 +42,11 @@ namespace Starfall
 
         private Point TideSalvageSite(int site)
         { return ObjectPoint(5,"tidecargo"+site,new Point(-100,-100)); }
+        // Cargo, emergency tide controls and public delivery all require
+        // direct *walkable* contact, including after a dialogue has opened.
+        // Euclidean proximity alone can cross a flooded tile or a closed gate.
+        private bool CanReachTideSalvagePoint(Point site)
+        { return save.room==5 && PhysicalRefugeReach(site,2.2001f); }
 
         private void ResetTideSalvage()
         {
@@ -99,7 +104,7 @@ namespace Starfall
         {
             if(o.kind=="tidedock")
             {
-                if(save.room!=5)return true;
+                if(!CanReachTideSalvagePoint(new Point(o.x,o.y)))return true;
                 if(!Has("harbor_report"))
                 {
                     Dialog(o.name,o.en,
@@ -150,6 +155,7 @@ namespace Starfall
             int site;
             if(!int.TryParse(o.kind.Substring("tidecargo".Length),out site) ||
                 site<1 || site>3 || save.room!=5)return true;
+            if(!CanReachTideSalvagePoint(new Point(o.x,o.y)))return true;
             if(!Has("harbor_report"))
             {Notify("先完成雾港的原始水位调查。","Finish Mistport's original tide report first.");return true;}
             if(!TideSalvageActive)
@@ -202,7 +208,8 @@ namespace Starfall
                     Dying || practicing || racing || FieldWorkPreventsRest || fieldSurveyRoom!=0 || reliefMissionRoom!=0 ||
                     GlasswindSite!=0 || commonsRelayRoom!=0 ||
                     !LowTide || !SafeTravel ||
-                    (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
+                    !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
+                        new Point(-100,-100))))
                     return true;
                 TideSalvagePhase=1;TideSalvageTime=100;tideSalvageHoldUsed=false;
                 tideSalvageConfirmedKills=0;
@@ -216,7 +223,8 @@ namespace Starfall
             {
                 if(!TideSalvageActive || save.room!=5 ||
                     tideSalvageHoldUsed || save.shards<1 ||
-                    (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
+                    !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
+                        new Point(-100,-100))))
                     return true;
                 save.shards--;tideSalvageHoldUsed=true;
                 save.tideHeldUntil=Math.Max(save.tideHeldUntil,save.totalTime+18f);
@@ -231,7 +239,7 @@ namespace Starfall
                 if(!int.TryParse(action.Substring("tide_salvage_take_".Length),out site) ||
                     site!=TideSalvagePhase || site<1 || site>3 ||
                     save.room!=5 || Dying || !LowTide ||
-                    (Position-TideSalvageSite(site)).Length>2.2f)
+                    !CanReachTideSalvagePoint(TideSalvageSite(site)))
                     return true;
                 // A new wave must be deployable before advancing a cargo
                 // checkpoint: spawning failure never grants a free stage.
@@ -264,7 +272,8 @@ namespace Starfall
             if(action=="tide_salvage_abandon")
             {
                 if(!TideSalvageActive || save.room!=5 ||
-                    (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
+                    !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
+                        new Point(-100,-100))))
                     return true;
                 ResetTideSalvage();revision++;
                 Notify("打捞已取消。未交付的货物不算完成，可重新出航。",
@@ -276,7 +285,8 @@ namespace Starfall
                 if(save.room!=5 || TideSalvagePhase!=4 || Dying ||
                     !TideSalvageRaidersDefeated ||
                     enemies.Exists(IsTideSalvageEnemy) || Has("tide_salvage_complete") ||
-                    (Position-ObjectPoint(5,"tidedock",new Point(-100,-100))).Length>2.2f)
+                    !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
+                        new Point(-100,-100))))
                     return true;
                 ResetTideSalvage();
                 Flag("tide_salvage_complete");

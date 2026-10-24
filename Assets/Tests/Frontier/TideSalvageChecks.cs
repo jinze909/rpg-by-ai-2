@@ -3,6 +3,74 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void TideboundStaleDockAndCargoButtonsCannotCrossLiveWalls(Campaign data)
+        {
+            MapData original=data.maps[5];
+            var rows=(string[])original.rows.Clone();
+            try
+            {
+                data.maps[5]=new MapData{id=5,spawnX=original.spawnX,
+                    spawnY=original.spawnY,rows=rows,
+                    objects=original.objects,decor=original.decor};
+                var g=Fresh(data);g.save.stage=3;
+                foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                    g.save.flags.Add(flag);
+                g.Enter(5);g.enemies.Clear();g.save.totalTime=0;
+                WorldObject dock=Object(g,"tidedock");
+                WorldObject cargo=Object(g,"tidecargo1");
+                g.save.x=dock.x+2f;g.save.y=dock.y;
+                Check(g.CanStand(g.Position),"Physical pier visitor stands on real ground");
+                g.Talk(dock);
+                int start=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="tide_salvage_start");
+                Check(start>=0,"The real dock offers the tidebound expedition");
+                // This gate closes AFTER the visible menu opens. Cached
+                // dialogue is never permission to act through actual cover.
+                char[] pier=rows[(int)dock.y].ToCharArray();
+                char originalPier=pier[(int)dock.x+1];
+                pier[(int)dock.x+1]='#';
+                rows[(int)dock.y]=new string(pier);
+                g.Choose(start);
+                Check(!g.TideSalvageActive&&!g.Has("tide_salvage_started"),
+                    "A stale start choice cannot register distant cargo through a sealed pier");
+                pier[(int)dock.x+1]=originalPier;
+                rows[(int)dock.y]=new string(pier);
+                g.Talk(dock);
+                start=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="tide_salvage_start");
+                Check(start>=0,"The reopened physical pier exposes the same launch");
+                g.Choose(start);
+                Check(g.TideSalvageActive&&g.TideSalvagePhase==1,
+                    "Opening the pier physically permits a real first sortie");
+                g.save.x=cargo.x+2f;g.save.y=cargo.y;
+                Check(g.CanStand(g.Position)&&g.LowTide,
+                    "Shoal witness stands on an accessible original low-tide tile");
+                g.Talk(cargo);
+                int take=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="tide_salvage_take_1");
+                Check(take>=0,"The legal tide crate offers an actual retrieval");
+                char[] shoal=rows[(int)cargo.y].ToCharArray();
+                char originalShoal=shoal[(int)cargo.x+1];
+                shoal[(int)cargo.x+1]='#';
+                rows[(int)cargo.y]=new string(shoal);
+                g.Choose(take);
+                Check(g.TideSalvagePhase==1&&!g.Has("tide_salvage_seen_1"),
+                    "A cargo choice cached before a gate closure cannot seize a manifest through solid terrain");
+                shoal[(int)cargo.x+1]=originalShoal;
+                rows[(int)cargo.y]=new string(shoal);
+                g.Talk(cargo);
+                take=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="tide_salvage_take_1");
+                Check(take>=0,"The restored shoal permits actual crate dialogue again");
+                g.Choose(take);
+                Check(g.TideSalvagePhase==2&&g.Has("tide_salvage_seen_1")&&
+                    g.save.version==2,
+                    "True physical contact, not the cached UI, grants the single witnessed manifest");
+            }
+            finally {data.maps[5]=original;}
+        }
+
         public static void TideboundManifestRequiresTidesPhysicalTravelAndRealCombat(Campaign data)
         {
             var g=Fresh(data);
