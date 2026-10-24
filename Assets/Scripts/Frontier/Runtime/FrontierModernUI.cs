@@ -167,8 +167,11 @@ namespace Starfall
                         "SPRINT ×1.5 · stamina drain") :
                     Game.SprintFatigued ? Game.L("疾跑疲劳 · 耐力恢复至35后可再次使用",
                         "SPRINT TIRED · recover 35 energy") :
-                        Game.L("按住 Shift 疾跑 · 松开恢复步行",
-                            "Hold SHIFT to sprint · release to walk"),
+                        controllerUsed?
+                            Game.L("按住左摇杆 L3 疾跑 · 松开恢复步行",
+                                "Hold L3 to sprint · release to walk"):
+                            Game.L("按住 Shift 疾跑 · 松开恢复步行",
+                                "Hold SHIFT to sprint · release to walk"),
                     12,Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
                 DrawMinimap(); QuestGuide q = Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));

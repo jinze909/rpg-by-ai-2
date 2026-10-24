@@ -151,7 +151,8 @@ namespace Starfall
             // exactly the same bounded substeps as ordinary walking.
             bool sprintHeld=beganInWorld&&
                 (Input.GetKey(KeyCode.LeftShift)||
-                 Input.GetKey(KeyCode.RightShift));
+                 Input.GetKey(KeyCode.RightShift)||
+                 Input.GetKey(KeyCode.JoystickButton8));
             float timeLeft = frameDelta;
             while (timeLeft > .00001f)
             {
