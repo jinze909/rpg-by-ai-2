@@ -793,17 +793,30 @@ namespace Starfall
             Box(335 + 826 * (center - radius), 436, 826 * radius * 2, 37,
                 Game.FishLineReady ? mint : muted);
             Box(335 + Game.fishCursor * 826 - 3, 425, 6, 60, gold);
+            // Real live bite timer. A missed opportunity counts toward the
+            // three misses; the ink track drains, then turns gold at the
+            // final moment. Static geometry also works in reduced motion.
+            Box(335, 488, 826, 7, ink);
+            if(Game.FishLineReady)
+            {
+                float remaining=Game.FishBiteTimeRemaining;
+                Box(335,488,826*Math.Max(0f,
+                    Math.Min(1f,remaining/GameCore.FishBiteWindow)),7,
+                    remaining<.7f?gold:mint);
+            }
             Text(321, 510, 849, 30,
                 Game.FishLineReady ? (Game.save.reducedMotion ?
                     Game.L("鱼已咬钩！对准固定的绿色区域。",
                         "Fish on! Reel inside the steady teal window.") :
                     Game.L("鱼已咬钩！瞄准移动的绿色区域。",
-                        "Fish on! Time the moving teal window.")) :
+                        "Fish on! Time the moving teal window.")) +
+                        Game.L("  ·  鱼口剩余 ", "  ·  BITE TIME ") +
+                        Game.FishBiteTimeRemaining.ToString("0.0") + "s" :
                     Game.L("等待鱼再次咬钩……", "Waiting for the next bite..."),
                 16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
             Text(321, 548, 849, 44,
-                Game.L("连续三次成功获得银鳍鱼；三次失误结束。无需鱼饵。",
-                    "Three good pulls catch a Silverfin; three misses end the cast. No bait needed."),
+                Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",
+                    "Three good pulls catch a Silverfin. A bad or missed bite counts; three misses end the cast."),
                 15, muted, TextAnchor.MiddleCenter);
             if (Button(473, 601, 543, 56,
                 Game.FishLineReady ? Game.L("收线  E", "Reel  E") :

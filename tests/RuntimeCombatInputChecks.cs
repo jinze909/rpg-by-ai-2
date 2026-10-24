@@ -2230,11 +2230,58 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live Journey story recap, spoiler gate, historical pages and physical Track/UI toggle");
     }
 
+
+    private static void LiveFishingBiteClockAndHudPreventInfiniteWaiting(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.Enter(0);g.enemies.Clear();
+        WorldObject pond=Array.Find(g.Map.objects,o=>o.kind=="fish");
+        Check(pond!=null,"The real Emberfall lake owns the timed fishing encounter");
+        g.save.x=pond.x;g.save.y=pond.y;g.Talk(pond);
+        int cast=Array.FindIndex(g.conversation.choices,c=>c.action=="fish");
+        Check(cast>=0,"Real lake interaction opens the fishing button");
+        g.Choose(cast);
+        int pulses=0;
+        while(!g.FishLineReady&&pulses++<80)Update(app);
+        Check(g.FishLineReady && g.FishBiteTimeRemaining>2.5f,
+            "A real keyboard/controller fishing window opens for a finite playable interval");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("鱼口剩余")||
+            x.Contains("BITE TIME")),
+            "The production IMGUI paints the same countdown the GameCore enforces");
+        float initial=g.FishBiteTimeRemaining;
+        for(int i=0;i<8;i++)Update(app);
+        Check(g.FishBiteTimeRemaining<initial-.1f &&
+            g.fishHits==0&&g.fishMisses==0,
+            "The active lake timer drains without automatically charging an early miss");
+        for(int lost=1;lost<=3;lost++)
+        {
+            int safety=0;
+            while(g.fishMisses<lost && g.mode=="fish" && safety++<240)
+                Update(app);
+            Check(g.fishMisses==lost&&g.fishHits==0,
+                "Waiting too long costs exactly one genuine unanswered bite");
+            if(lost<3)Check(g.mode=="fish"&&!g.FishLineReady,
+                "After a time-out the physical button waits for a new bite");
+        }
+        Check(g.mode=="world"&&g.fishHits==0,
+            "Three genuinely unanswered bites return from the minigame to the live world");
+        Console.WriteLine("PASS Real fishing bite countdown, IMGUI and unattended miss limits");
+    }
+
     private static void FishingSuspendsOnFocusLossAndResumesOnReturn(FrontierRuntime app)
     {
         Prepare(app);
         var game = app.Game;
-        game.mode = "fish";
+        game.Enter(0);game.enemies.Clear();
+        WorldObject pond=Array.Find(game.Map.objects,o=>o.kind=="fish");
+        Check(pond!=null,"Original pond exists for real fishing focus continuity");
+        game.save.x=pond.x;game.save.y=pond.y;
+        game.Talk(pond);
+        int cast=Array.FindIndex(game.conversation.choices,c=>c.action=="fish");
+        Check(cast>=0,"Real fishing conversation offers a cast");
+        game.Choose(cast);
+        Check(game.mode=="fish","Focus test begins with real bite expiry initialization");
         game.fishTime = 1.25f;
         game.fishHits = 1;
         game.fishMisses = 1;
@@ -5845,7 +5892,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
