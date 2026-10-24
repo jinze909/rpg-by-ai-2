@@ -1289,6 +1289,121 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void FocusComboRequiresTrueHeroThenRealAllyContact(Campaign data)
+        {
+            // Real projectile geometry, real Q action/contact and auto-ally
+            // release on an open physical map. The training-size HP avoids
+            // an accidental death before the coordinated second strike.
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData {id=0,spawnX=12.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,2);g.save.reducedMotion=true;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.save.x=12.5f;g.save.y=10.5f;
+                g.companionPosition=new Point(10.5f,10.5f);
+                var marked=new Enemy(99270,0,14.5f,10.5f,10000f)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Clear();g.enemies.Add(marked);
+                g.aim=new Point(1,0);g.aimTarget=marked.Position;
+                g.CommandCompanion();
+                Check(!g.CompanionFocusActive&&!g.CompanionFocusExposed&&
+                    !g.CompanionFocusComboSpent,
+                    "Queued command cannot expose or trigger a phantom two-body strike");
+                Advance(g,.23f);
+                Check(g.CompanionFocusActive&&g.IsCompanionFocusTarget(marked)&&
+                    !g.CompanionFocusExposed&&!g.CompanionFocusComboSpent,
+                    "Actual released Ivo triple shot opens the tactical mark, not an unearned combo");
+                // Isolate the later true AUTO shot from the manual volley.
+                g.projectiles.Clear();
+                g.save.energy=100f;g.Skill(new Point(1,0));
+                Advance(g,.48f);
+                Check(g.CompanionFocusExposed&&!g.CompanionFocusComboSpent&&
+                    marked.hp<marked.maxHp&&
+                    g.effects.Exists(x=>x.kind=="number"&&
+                        x.text=="ALLY OPENING"||x.kind=="number"&&
+                        x.text=="协同破绽"),
+                    "One real player Q contact damages the marked enemy and exposes the opening without prepaying ally damage");
+                float afterHero=marked.hp;
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                Check(cadence!=null,"Production automatic companion cadence remains accessible");
+                cadence.SetValue(g,0f);
+                g.Tick(.02f,new Point());
+                Check(g.companionAction!=null&&
+                    g.companionAction.kind=="attack",
+                    "Genuine follow-up attack starts through the existing autonomous companion combat path");
+                Advance(g,.75f);
+                Check(g.CompanionFocusComboSpent&&
+                    !g.CompanionFocusExposed&&
+                    marked.hp<afterHero&&
+                    g.CompanionFocusActive,
+                    "A subsequent physically landed ally shot consumes the one-time coordinated strike while retaining eight-second focus");
+                Check(g.effects.Exists(e=>e.kind=="number"&&
+                    (e.text=="COORDINATED HIT!"||e.text=="协同打击！")),
+                    "Real ally hit emits unique bilingual coordination feedback only on earned contact");
+                g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+                restored.Start();
+                Check(restored.save.version==2&&!restored.CompanionFocusActive&&
+                    !restored.CompanionFocusExposed&&!restored.CompanionFocusComboSpent,
+                    "Original v2 saves persist the hero and loot, never an ephemeral focus combo");
+            }
+            finally{data.maps[0]=original;}
+        }
+
+        public static void FocusComboNeverCreditsMissesImpostorsOrAllyFirst(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData {id=0,spawnX=12.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data,1);g.save.reducedMotion=true;
+                g.save.flags.Add("companion_1");g.SelectCompanion(1);
+                g.save.x=12.5f;g.save.y=10.5f;
+                g.companionPosition=new Point(10.5f,10.5f);
+                var foe=new Enemy(99271,0,14.5f,10.5f,10000f)
+                    {stun=100f,timer=1000f,staggerRecovery=100f};
+                g.enemies.Clear();g.enemies.Add(foe);
+                g.aim=new Point(1,0);g.aimTarget=foe.Position;
+                g.CommandCompanion();Advance(g,.23f);
+                Check(g.CompanionFocusActive&&!g.CompanionFocusExposed,
+                    "Ally's original manual release alone cannot fabricate a player contact");
+                Advance(g,.6f);
+                Check(!g.CompanionFocusExposed&&!g.CompanionFocusComboSpent,
+                    "Ally-only physical arrow hits neither expose nor cash an unearned combo");
+                // A later Ranger Q launched AWAY from the enemy is still
+                // a genuine cast and paid cooldown, but is not contact.
+                g.Skill(new Point(-1,0));Advance(g,.65f);
+                Check(!g.CompanionFocusExposed&&!g.CompanionFocusComboSpent,
+                    "A real paid but missed hero skill cannot expose the original marked target");
+                g.enemies.Remove(foe);
+                g.enemies.Add(new Enemy(foe.id,foe.kind,foe.x,foe.y,10000f));
+                Check(!g.CompanionFocusActive&&!g.CompanionFocusExposed&&
+                    !g.CompanionFocusComboSpent,
+                    "Reused numeric IDs cannot inherit the defeated target's combo");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void ManualCompanionFocusPrefersMarkedFoeUntilUrgentHeroStrike(Campaign data)
         {
             MapData previous=data.maps[0];

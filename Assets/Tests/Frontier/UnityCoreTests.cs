@@ -148,6 +148,8 @@ namespace Starfall.Tests
         [Test] public void AllyFeetNeverOverlapHeroOnNarrowBridges() { CoreChecks.CompanionNarrowBridgesKeepSeparateSafeFeet(Data()); }
         [Test] public void CompanionHoldOrderIsPhysicalTransientAndResumesFollowing() { CoreChecks.CompanionHoldPositionIsTransientAndResumesPhysicalFollowing(Data()); }
         [Test] public void CompanionButtonGestureDistinguishesTapFromHoldAndCancelsSafely() { CoreChecks.CompanionButtonGestureDistinguishesTapFromHoldAndCancelsSafely(Data()); }
+        [Test] public void FocusComboNeedsPhysicalHeroThenAllyContactAndPersistsOnlyAsTransient() { CoreChecks.FocusComboRequiresTrueHeroThenRealAllyContact(Data()); }
+        [Test] public void FocusComboRejectsMissedCastsAndReusedEnemyIdentity() { CoreChecks.FocusComboNeverCreditsMissesImpostorsOrAllyFirst(Data()); }
         [Test] public void ManualCompanionFocusRetainsHeroThreatPriorityAndExactActorIdentity() { CoreChecks.ManualCompanionFocusPrefersMarkedFoeUntilUrgentHeroStrike(Data()); }
         [Test] public void BlockedManualCompanionFocusNeverMarksAndExpires() { CoreChecks.ManualCompanionFocusNeedsAnHonestReleasedMuzzleAndExpires(Data()); }
         [Test] public void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease() { CoreChecks.CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Data()); }
