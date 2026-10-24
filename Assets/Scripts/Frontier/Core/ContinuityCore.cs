@@ -151,15 +151,15 @@ namespace Starfall
                         Move(movement*freeDt*Speed*factor);
                         if(sprint)
                         {
-                            float actual=(Position-beforeWalk).Length;
+                            float walked=(Position-beforeWalk).Length;
                             float planned=movement.Length*freeDt*Speed*factor;
                             // Charge for actual footsteps only: a sealed
                             // gate, body obstacle or blocked wall cannot
                             // siphon energy while the player is stationary.
-                            if(actual>.0001f&&planned>.0001f)
+                            if(walked>.0001f&&planned>.0001f)
                             {
                                 Sprinting=true;
-                                float portion=Clamp(actual/planned,0f,1f);
+                                float portion=Clamp(walked/planned,0f,1f);
                                 save.energy=Math.Max(0f,save.energy-
                                     SprintEnergyRate*freeDt*portion);
                                 if(save.energy<10f)SprintFatigued=true;

@@ -159,6 +159,17 @@ namespace Starfall
             Text(406, 28, 468, 36, Game.L(Game.Map.name, Game.Map.en), 24, paper, TextAnchor.MiddleCenter); Text(412, 69, 456, 25, Game.L(Game.Map.subtitle, Game.Map.suben), 12, gold, TextAnchor.MiddleCenter);
             if (world)
             {
+                // A world-speed control belongs beside live energy, not
+                // inside the canonical hero's action-frame animation. The
+                // fatigue latch and current sprint share the real simulation.
+                Text(415,98,454,24,
+                    Game.Sprinting ? Game.L("疾跑 ×1.5 · 每秒消耗耐力",
+                        "SPRINT ×1.5 · stamina drain") :
+                    Game.SprintFatigued ? Game.L("疾跑疲劳 · 耐力恢复至35后可再次使用",
+                        "SPRINT TIRED · recover 35 energy") :
+                        Game.L("按住 Shift 疾跑 · 松开恢复步行",
+                            "Hold SHIFT to sprint · release to walk"),
+                    12,Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
                 DrawMinimap(); QuestGuide q = Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
                 Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
