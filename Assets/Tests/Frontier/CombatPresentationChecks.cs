@@ -1392,9 +1392,14 @@ namespace Starfall.Tests
                     "Ally-only physical arrow hits neither expose nor cash an unearned combo");
                 // A later Ranger Q launched AWAY from the enemy is still
                 // a genuine cast and paid cooldown, but is not contact.
+                // Clear the EXPLICIT right-side lock from the original
+                // manual companion order. A direction-left Q with a live
+                // right-side target lock is intentionally target-guided and
+                // WOULD physically hit; a genuine miss must remove that lock.
+                g.aimTarget=null;g.aim=new Point(-1,0);
                 g.Skill(new Point(-1,0));Advance(g,.65f);
                 Check(!g.CompanionFocusExposed&&!g.CompanionFocusComboSpent,
-                    "A real paid but missed hero skill cannot expose the original marked target");
+                    "A genuinely untargeted leftward hero Q that misses the right-side mark cannot expose it");
                 g.enemies.Remove(foe);
                 g.enemies.Add(new Enemy(foe.id,foe.kind,foe.x,foe.y,10000f));
                 Check(!g.CompanionFocusActive&&!g.CompanionFocusExposed&&
