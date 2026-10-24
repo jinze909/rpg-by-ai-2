@@ -737,11 +737,12 @@ namespace Starfall
                 }
                 if(FarCourierActive)
                 {
-                    q.room=save.room;q.target=!FarCourierCrossed?new Point(111.5f,53.5f):
+                    q.room=save.room;q.target=!FarCourierCrossed?new Point(111.5f,54.5f):
                         !FarCourierStamped?new Point(111.5f,61.5f):new Point(112.5f,73.5f);
                     if(FarCourierStamped)foreach(WorldObject obj in Map.objects)
                         if(obj.kind=="farshelter"){q.target=new Point(obj.x,obj.y);break;}
-                    q.next=!FarCourierCrossed?L("真正背包从北向南过桥","Cross the real bridge on foot"):
+                    q.next=!FarCourierCrossed?L("沿修好的桥面走到南岸，再前往居民检查台",
+                        "Walk all the way to the south bank, then the checkpoint"):
                         !FarCourierStamped?L("在中途居民检查台核验封条","Verify the parcel at the checkpoint"):
                         L("前往避险棚，剩余 "+(int)FarCourierTimeLeft+" 秒",
                             "Deliver at refuge · "+(int)FarCourierTimeLeft+"s left");

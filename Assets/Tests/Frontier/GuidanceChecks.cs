@@ -49,7 +49,7 @@ namespace Starfall.Tests
             Check(g.FarCourierActive,"The real bridge interaction starts a timed parcel");
             Point? crossing=g.NavigationTarget();
             Check(crossing.HasValue&&
-                (crossing.Value-new Point(111.5f,53.5f)).Length<.01f,
+                (crossing.Value-new Point(111.5f,54.5f)).Length<.01f,
                 "An active timed parcel guides toward the actual traversable bridge");
             Check(g.save.trackedQuest=="main",
                 "Urgent transport guidance must not overwrite the player's chosen quest");
@@ -296,8 +296,11 @@ namespace Starfall.Tests
                 int count=0;
                 while(g.Position.y<53.1f&&count++<150)
                     g.Tick(.05f,new Point(0,1));
+                Point? southGuide=g.NavigationTarget();
                 Check(count<150&&g.FarCourierActive&&
-                    !g.FarCourierCrossed&&g.FarCourierRaidersAlive==0,
+                    !g.FarCourierCrossed&&g.FarCourierRaidersAlive==0&&
+                    southGuide.HasValue&&
+                    (southGuide.Value-new Point(111.5f,54.5f)).Length<.01f,
                     "Entering the bridge from the north cannot prematurely award crossing or spawn raiders in region "+room);
                 // Returning to the first bank does not let a future
                 // approach inherit the old bridge traversal.
@@ -307,8 +310,11 @@ namespace Starfall.Tests
                     "Turning back on the bridge remains an incomplete crossing");
                 while(!g.FarCourierCrossed&&count++<500)
                     g.Tick(.05f,new Point(0,1));
+                Point? checkpointGuide=g.NavigationTarget();
                 Check(count<500&&g.FarCourierActive&&g.FarCourierCrossed&&
-                    g.Position.y>=54.25f&&g.FarCourierRaidersAlive==2,
+                    g.Position.y>=54.25f&&g.FarCourierRaidersAlive==2&&
+                    checkpointGuide.HasValue&&
+                    (checkpointGuide.Value-new Point(111.5f,61.5f)).Length<.01f,
                     "Only reaching the south bank on real legal movement earns the bridge and two live raiders in region "+room);
             }
         }
