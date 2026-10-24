@@ -1876,9 +1876,10 @@ namespace Starfall.Tests
                 Check(g.CompanionHoldingPosition&&
                     g.ReliefCompanionArrowGuardReady,
                     "Explicitly held ally stands on legitimate clear ground directly in the physical escort arrow lane");
-                var update=typeof(GameCore).GetMethod("UpdateProjectiles",
-                    BindingFlags.NonPublic|BindingFlags.Instance);
-                Check(update!=null,"Drive the real swept projectile collision pipeline");
+                // Fire through the actual world clock: projectiles created
+                // in a new Tick may only fly if they existed at frame start.
+                // Calling UpdateProjectiles directly would correctly leave
+                // an unfired test shot untouched by that ownership guard.
                 Func<Projectile> send=()=>{
                     var shot=new Projectile{position=new Point(11.7f,10.5f),
                         velocity=new Point(16f,0),life=2f,damage=13f,
@@ -1887,15 +1888,20 @@ namespace Starfall.Tests
                     g.projectiles.Add(shot);return shot;
                 };
                 float safety=g.reliefFollowerSafety;
-                Projectile first=send();update.Invoke(g,new object[]{.05f});
+                Projectile first=send();g.Tick(.05f,new Point());
                 Check(!g.projectiles.Contains(first)&&
                     g.reliefFollowerSafety==safety&&
                     !g.ReliefCompanionArrowGuardReady&&
                     g.ReliefCompanionArrowGuardCooldown>2.95f&&
                     g.effects.Exists(e=>e.reliefMissionOwned&&
                         e.kind=="number"&&e.text==g.L("同伴挡箭！","ALLY BLOCK!")),
-                    "One real incoming shot collides with the planted companion, consumes the shot and starts a true guard cooldown");
-                Projectile second=send();update.Invoke(g,new object[]{.16f});
+                    "Physical frame-start arrow interception; remaining="+
+                    g.projectiles.Count+" safety="+g.reliefFollowerSafety+
+                    " ready="+g.ReliefCompanionArrowGuardReady+
+                    " cooldown="+g.ReliefCompanionArrowGuardCooldown+
+                    " holding="+g.CompanionHoldingPosition+
+                    " cue="+g.effects.Exists(e=>e.text==g.L("同伴挡箭！","ALLY BLOCK!")));
+                Projectile second=send();Advance(g,.20f);
                 Check(!g.projectiles.Contains(second)&&
                     g.reliefFollowerSafety<safety,
                     "A second arrow inside cooldown is not blocked by a free permanent ally shield");
@@ -1905,7 +1911,7 @@ namespace Starfall.Tests
                     BindingFlags.NonPublic|BindingFlags.Instance);
                 Check(cooldown!=null,"The guard cadence belongs to transient combat state");
                 cooldown.SetValue(g,0f);
-                Projectile third=send();update.Invoke(g,new object[]{.16f});
+                Projectile third=send();Advance(g,.20f);
                 Check(!g.projectiles.Contains(third)&&
                     g.reliefFollowerSafety==after,
                     "After genuine cooldown recovery the same living planted companion can physically block again");
@@ -1913,7 +1919,7 @@ namespace Starfall.Tests
                 Check(!g.ReliefCompanionArrowGuardReady,
                     "Explicit recall immediately disables planted interception");
                 cooldown.SetValue(g,0f);
-                Projectile unheld=send();update.Invoke(g,new object[]{.16f});
+                Projectile unheld=send();Advance(g,.20f);
                 Check(g.reliefFollowerSafety<after,
                     "Unheld companions cannot pretend to guard the escorted civilian");
                 g.reliefMissionRoom=0;
