@@ -2428,6 +2428,12 @@ namespace Starfall
             // valid BFS start and produce fictitious escort navigation.
             if (!Finite(origin.x) || !Finite(origin.y) ||
                 !Finite(target.x) || !Finite(target.y)) return path;
+            // A sealed floor cannot be the origin of a genuine walk. The
+            // old BFS seeded its blocked tile as visited, then silently
+            // stepped into legal neighbors and drew a fictitious escape
+            // route across flood seals/raised arena gates.
+            if (Map == null || Map.rows == null || Map.rows.Length == 0 ||
+                Map.rows[0] == null || !CanStand(origin)) return path;
             int w = Map.rows[0].Length, h = Map.rows.Length;
             int sx = (int)Math.Floor(origin.x), sy = (int)Math.Floor(origin.y);
             if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;

@@ -65,6 +65,12 @@ namespace Starfall
             Point destination=new Point(
                 (float)Math.Floor(requested.x)+.5f,
                 (float)Math.Floor(requested.y)+.5f);
+            if(!CanStand(Position))
+            {
+                Notify("脚下道路已被封锁。请先回到可站立的位置再设标记。",
+                    "Your footing is blocked. Reach safe ground before setting a pin.");
+                return false;
+            }
             if(!CanStand(destination))
             {
                 Notify("此处不能站立。请在可通行的道路上设置标记。",

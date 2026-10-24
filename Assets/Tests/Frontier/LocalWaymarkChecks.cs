@@ -212,6 +212,34 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+
+        public static void SealedFootingCannotForgeAPhysicalNavigationRoute(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var g=WaymarkFixture(data);
+                Point destination=new Point(16.5f,8.5f);
+                Check(g.NavigationPathFrom(g.Position,destination,true).Count>0,
+                    "The original walkable corridor has a real route");
+                char[] row=g.Map.rows[8].ToCharArray();
+                row[8]='#';g.Map.rows[8]=new string(row);
+                Check(!g.CanStand(g.Position) &&
+                    g.NavigationPathFrom(g.Position,destination,true).Count==0 &&
+                    g.NavigationPathFrom(g.Position,destination,false).Count==0,
+                    "Both strict escorts and guidance refuse routes originating under sealed footing");
+                g.mode="map";
+                Check(!g.PlaceLocalWaymark(destination)&&!g.HasLocalWaymark,
+                    "A player sealed into terrain cannot forge a new route through the map UI");
+                row[8]='.';g.Map.rows[8]=new string(row);
+                Check(g.CanStand(g.Position)&&
+                    g.PlaceLocalWaymark(destination) &&
+                    g.NavigationPathFrom(g.Position,destination,true).Count>0,
+                    "Restoring walkable feet restores legitimate route planning without a save migration");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void WaymarkNeverPersistsAcrossRegionTravelOrSelectedSave(Campaign data)
         {
             MapData old=data.maps[1];
