@@ -31,8 +31,8 @@ namespace Starfall
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
                 return "";
             if(RidgeWatchComplete(room))
-                return english?"\\n\\nRidge watch: cleared. Travelers can follow the surveyed high trail.":
-                    "\\n\\n高地巡守：已完成，居民可以使用已勘定的高处步道。";
+                return english?"\\n\\nRidge watch: cleared. +2 energy/sec while exploring the outer high trails.":
+                    "\\n\\n高地巡守：已完成。在外环高处步道探索时耐力恢复 +2/秒。";
             int available=ridgeWatchRoom==room&&
                 Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
             return english?"\\n\\nRidge watch: clear the real hostile patrols beyond the markers ("+
@@ -56,8 +56,8 @@ namespace Starfall
             CreditCoins(28);CreditShards(1);AddXp(40);
             RecordMoment("你清除了偏远巡路上威胁行人的敌人，巡路队把这条通道开放给更多居民。",
                 "The hostile high-trail patrols were defeated in combat. The roadwardens reopened the passage to civilian travelers.");
-            Notify("高地巡守完成！巡路补给：硬币 +28、碎片 +1、经验 +40。",
-                "Ridge watch complete! Warden supplies: +28 coins, +1 shard, +40 XP.");
+            Notify("高地巡守完成：硬币 +28、碎片 +1、经验 +40；外环高路耐力恢复 +2/秒。",
+                "Ridge watch complete: +28 coins, +1 shard, +40 XP; outer high-trail energy +2/sec.");
             sound="reward";revision++;
         }
         private static readonly Point[] RidgeWildlifeSpawns = {

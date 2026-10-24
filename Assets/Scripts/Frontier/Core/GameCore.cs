@@ -658,7 +658,14 @@ namespace Starfall
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
                 (save.room<8 && (save.x>=36 || save.y>=24) &&
-                    TrailCircuitComplete(save.room) ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
+                    TrailCircuitComplete(save.room) ? 2 : 0) +
+                // Cleared outer watches grant a real, permanent local
+                // endurance benefit during sustained high-trail traversal.
+                // No global combat buff and no new save schema field.
+                (save.room>=1&&save.room<=7&&
+                    save.x>=70f&&save.y>=55f&&
+                    RidgeWatchComplete(save.room) ? 2 : 0) +
+                (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim, hitLockedDt, sprintHeld);

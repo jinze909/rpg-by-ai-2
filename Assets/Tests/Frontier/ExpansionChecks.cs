@@ -3669,5 +3669,36 @@ namespace Starfall.Tests
                 restored.GetQuest("ridge_watch").steps[0].text.Contains("1/3"),
                 "Existing v2 save files preserve tracked watch and per-actor progress");
         }
+
+        public static void RidgeWatchPermanentlyRestoresHighTrailEndurance(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);g.enemies.Clear();
+            g.save.x=89.5f;g.save.y=67.5f;
+            g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            float before=g.save.energy-30f;
+            Check(before>0f,"Baseline stamina regeneration must remain alive");
+            g.save.flags.Add("ridge_watch_complete_1");
+            g.save.energy=30f;g.Tick(.05f,new Point());
+            float boosted=g.save.energy-30f;
+            Check(Math.Abs(boosted-before-.10f)<.0003f,
+                "Only a cleared ridge grants +2 energy/sec along the actual distant walk");
+            g.save.x=65.5f;g.save.y=67.5f;g.save.energy=30f;
+            g.Tick(.05f,new Point());
+            Check(Math.Abs(g.save.energy-30f-before)<.0003f,
+                "A cleared ridge must not inflate combat energy in the inner region");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            loaded.Start();loaded.enemies.Clear();
+            loaded.save.x=89.5f;loaded.save.y=67.5f;
+            loaded.save.energy=30f;loaded.Tick(.05f,new Point());
+            Check(loaded.RidgeWatchComplete(1)&&
+                Math.Abs(loaded.save.energy-30f-boosted)<.0003f,
+                "Original save format retains the actual completed high-trail benefit");
+        }
     }
 }

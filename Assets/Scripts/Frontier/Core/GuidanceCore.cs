@@ -835,8 +835,8 @@ namespace Starfall
                 q.category=L("开放地图 · 巡路战斗","OPEN WORLD · PATROL COMBAT");
                 q.description=L("两端高地路标已联通、地区守护者已经击败后，真正清理第五圈路外巡敌，为居民恢复偏远高路。每处击杀记录可以延续到旧存档，只有原有敌人的实际战斗死亡才算。",
                     "After both ridge markers are linked and the regional guardian has fallen, defeat the actual high-trail hostiles so residents can use the far approaches. Each real combat kill is saved in existing progress flags.");
-                q.reward=L("每地首次清除巡敌：硬币28、碎片1、经验40；不重复结算",
-                    "First cleared patrol per region: 28 coins, 1 shard, 40 XP; never farmable");
+                q.reward=L("每地首次清除巡敌：硬币28、碎片1、经验40；该区高处道路耐力恢复+2/秒；不重复结算",
+                    "First cleared patrol per region: 28 coins, 1 shard, 40 XP; +2 energy/sec on that region's high trails; never farmable");
                 q.locked=true;q.complete=true;
                 int next=-1;
                 for(int i=1;i<=7;i++)
