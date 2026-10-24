@@ -2191,15 +2191,16 @@ namespace Starfall
         }
         public WorldObject Nearest()
         {
-            // A gate or tide can seal the player's root BETWEEN input
-            // samples. A buried actor may not offer an active E prompt
-            // or start a new physical mission interaction.
+            WorldObject[] objects = Map.objects;
+            // Draw/recovery screens may intentionally have no active world
+            // objects (or a stripped decoration-only map). Nothing can
+            // be interacted with, so do not query terrain collision at all.
+            if(objects==null||objects.Length==0)return null;
+            // A gate or tide can seal the player's root BETWEEN inputs.
             if(!CanStand(Position))return null;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
-            WorldObject[] objects = Map.objects;
-            if (objects == null) return null;
             foreach(WorldObject o in objects)
             {
                 // E and the on-screen E prompt use this SAME resolved source.
@@ -2226,9 +2227,11 @@ namespace Starfall
         // closer authored NPC, replacing the speaker and all menu choices.
         public bool ReliefCivilianIsInteractionTarget(WorldObject nearby)
         {
-            if(!CanStand(Position))return false;
+            // The ordinary draw path probes this without an active rescue.
+            // Do not touch collision for a decorative/noninteractive map.
             if(reliefMissionRoom!=save.room ||
                 reliefMissionWave<1 || reliefMissionWave>3)return false;
+            if(!CanStand(Position))return false;
             float d=(Position-reliefFollowerPosition).Length;
             if(d>=1.7f || !ClearAttackPath(Position,reliefFollowerPosition))
                 return false;
