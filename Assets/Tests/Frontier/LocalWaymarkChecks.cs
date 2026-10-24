@@ -122,8 +122,8 @@ namespace Starfall.Tests
                     g.save.room==0&&g.save.trackedQuest=="main",
                     "Changing regions destroys the old local marker without altering journal tracking");
                 g.Enter(1);
-                Check(!g.HasLocalWaymark&&
-                    g.NavigationTarget().HasValue==g.CurrentGuide.locked==false,
+                Check(!g.HasLocalWaymark&&!g.PersonalNavigationActive&&
+                    g.save.version==2&&g.save.trackedQuest=="main",
                     "Returning to the same region does not resurrect a stale navigation command");
             }
             finally{data.maps[1]=old;}
