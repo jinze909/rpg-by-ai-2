@@ -1688,8 +1688,8 @@ namespace Starfall
                 q.title=L("玻璃风脉","Glasswind Circuit");
                 q.category=L("沙海争夺 · 限时守点","DESERT CONTROL · TIMED DEFENSE");
                 q.locked=!Has("glasswind_started");
-                q.description=L("沙海三座风压阀被旧货运网独占。靠近风圈完成八秒校准，击退两波守卫，再手动封存中继。",
-                    "The old freight network controls three desert wind valves. Hold the capture ring for eight seconds, defeat two security waves, then manually seal each relay.");
+                q.description=L("沙海三座风压阀被旧货运网独占。靠近风圈完成八秒校准，击退两波守卫。危急时可在风阀旁消耗25耐力手动泄压一次，清除风压并暂时打断近身机器；最后手动封存中继。",
+                    "The old freight network controls three desert wind valves. Hold the ring for eight seconds and defeat two waves. Once per defense, spend 25 energy at the valve to clear active pressure and briefly disrupt nearby machines, then seal the relay.");
                 int next=0;
                 for(int i=1;i<=3;i++)
                 {
@@ -1705,7 +1705,12 @@ namespace Starfall
                 q.next=q.complete?L("全部中继已变成公共避暑地","All relays provide public shade"):
                     q.locked?L("完成沙海调查后找测绘员米娅","Finish the desert report and find Mia"):
                     Has("glasswind_all_sealed")?L("返回余烬镇公开风路图","Publish the chart in Emberfall"):
-                    GlasswindSite!=0?L("守住风圈击退两波敌人，再按E封存","Hold the ring, defeat both waves and press E to seal"):
+                    GlasswindSite!=0?
+                        GlasswindVentSpent?
+                            L("泄压已用。守住八秒并击退两波守卫，返回风阀封存",
+                              "Vent spent. Hold eight seconds, defeat both waves, then seal") :
+                            L("守住风圈；受压时靠近风阀花25耐力泄压一次",
+                              "Defend the ring; vent once for 25 energy when under pressure") :
                     L("前往沙海中继站开始守点","Start a desert relay defense");
                 q.reward=L("每站15硬币、1碎片、20经验与避暑圈；最终65硬币、2碎片、1天赋点、70经验",
                     "Each: 15 coins, 1 shard, 20 XP and shade; final: 65 coins, 2 shards, 1 talent, 70 XP");

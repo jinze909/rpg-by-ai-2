@@ -16,8 +16,10 @@ namespace Starfall.Tests
                 WorldObject valve=Object(g,"glasswindrelay"+site);
                 g.save.x=valve.x;g.save.y=valve.y;
                 Action(g,valve.kind,"glasswind_start_"+site);
-                Check(g.GlasswindSite==site && g.GlasswindWave==1,
-                    "The vent is part of the real physical relay encounter");
+                Check(g.GlasswindSite==site && g.GlasswindWave==1 &&
+                    g.Conditions().Contains("泄压可用") &&
+                    g.GetQuest("glasswind").next.Contains("25耐力"),
+                    "The live defense HUD and journal expose the tactical vent in the actual relay encounter");
                 foreach(Enemy foe in g.enemies.FindAll(g.IsGlasswindEnemy))
                 {foe.stun=200f;foe.timer=200f;}
                 Advance(g,2.55f);
@@ -39,7 +41,9 @@ namespace Starfall.Tests
                     "The production NPC offers a tactical vent during the real siege");
                 g.Close();
                 Action(g,valve.kind,"glasswind_vent");
-                Check(g.GlasswindVentSpent&&g.save.energy==100-GameCore.GlasswindVentEnergy &&
+                Check(g.GlasswindVentSpent&&g.Conditions().Contains("泄压已用")&&
+                    g.GetQuest("glasswind").next.Contains("泄压已用") &&
+                    g.save.energy==100-GameCore.GlasswindVentEnergy &&
                     !g.hazards.Exists(h=>h.glasswindOwned)&&g.hazards.Contains(unrelated)&&
                     g.GlasswindSite==site&&g.GlasswindWave==1 &&
                     Math.Abs(g.GlasswindCharge-charge)<.001f &&

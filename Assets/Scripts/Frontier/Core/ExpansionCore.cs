@@ -1977,6 +1977,16 @@ namespace Starfall
                     L(" · 回路 ", " · CIRCUIT ") + AbyssCircuitProgress + "/3" +
                         L(" 下个 ", " NEXT ") + AbyssCircuitSymbol(AbyssCircuitNextNode)) +
                 (AbyssCircuitSheltered ? L(" · 信标庇护", " · RELAY SHELTER") : "");
+            // The same world HUD used for other real field defenses exposes
+            // both the contested meter and its single tactical vent.
+            if(GlasswindSite!=0 && save.room==6)
+                return L("风压中继 ", "GLASSWIND VALVE ") + GlasswindSite +
+                    " · " + (int)Math.Ceiling(GlasswindTime) + "s\n" +
+                    L("校准 ", "CAPTURE ") + GlasswindCharge.ToString("0.0") +
+                    "/8 · " + L("波次 ", "WAVE ") + GlasswindWave + "/2 · " +
+                    (GlasswindVentSpent ?
+                        L("泄压已用", "VENT SPENT") :
+                        L("泄压可用 · 25耐力", "VENT READY · 25 ENERGY"));
             // Reuse the existing conditions HUD slot: a timed survey remains legible
             // even if the player temporarily tracks a different journal quest.
             if (reliefMissionRoom == save.room && reliefMissionRoom != 0)
