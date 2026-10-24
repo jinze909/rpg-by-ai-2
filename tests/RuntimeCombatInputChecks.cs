@@ -3883,7 +3883,7 @@ public static class RuntimeCombatInputChecks
         var raider=new Enemy(89924,0,second.x+2f,second.y+1f,85f);
         g.enemies.Add(raider);
         Check(g.TideSalvageActive&&g.TideSalvageRaidersAlive==1&&
-            g.GetQuest("tide_salvage").target.HasValue,
+            g.GetQuest("tide_salvage").room==5,
             "Actual field quest exposes a living authored raider");
         Set(app,"camera",g.Position);
         GUI.commands.Clear();Call(app,"OnGUI");
