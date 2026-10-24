@@ -171,7 +171,7 @@ namespace Starfall
                     signedZh+="\n\n“我这份已经签好。还有谁没把话带回镇里？”";
                     signedEn+="\n\n'My paper is signed. Who else hasn't sent word to town?'";
                 }
-                Dialog(o.name,o.signedEn,signedZh,signedEn,
+                Dialog(o.name,o.en,signedZh,signedEn,
                     C("再问问那场星雨","Ask about the first storm","hearing_witness_storm"),
                     C("告辞","Goodbye","close"));
                 return true;
