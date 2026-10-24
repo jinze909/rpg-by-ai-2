@@ -1130,6 +1130,21 @@ namespace Starfall
             // reduced-motion and vanish after the actual credited kill.
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
                 Ring(e.Position,.63f,PixelArt.C("#7acabb"),16);
+            if(!drawingOutline&&Game.IsSpecialistDrillTarget(e))
+            {
+                // Honest class practice shows the actual target's physical
+                // feet, real skill contact count and remaining clock. No
+                // alternate character or fabricated animated dummy atlas.
+                Ring(e.Position,.77f,PixelArt.C("#e7b76b"),20);
+                Text(p.x-82,p.y-120,164,22,
+                    Game.L("Q实战靶 "+Game.SpecialistDrillHits+"/3",
+                        "LIVE Q TARGET "+Game.SpecialistDrillHits+"/3"),
+                    12,gold,TextAnchor.MiddleCenter);
+                Text(p.x-67,p.y-98,134,20,
+                    Game.L("剩余 "+Game.SpecialistDrillTime.ToString("0")+"秒",
+                        Game.SpecialistDrillTime.ToString("0")+"s left"),
+                    11,mint,TextAnchor.MiddleCenter);
+            }
             // The two-wave roadwarden attackers are real combat enemies, but
             // their warm foot ring distinguishes them from roaming patrols.
             // A fixed ring is legible even with reduced-motion effects.

@@ -26,6 +26,11 @@ namespace Starfall
         // dummy; a Ranger volley never scores five for one physical cast.
         public bool SpecialistDrillActive{get;private set;}
         public int SpecialistDrillHits{get;private set;}
+        // The GameView marker resolves the real actor instance, not a
+        // numeric enemy ID which world restore may reuse.
+        public bool IsSpecialistDrillTarget(Enemy candidate)
+        {return SpecialistDrillActive&&candidate!=null&&
+            Object.ReferenceEquals(specialistDrillTarget,candidate);}
         public float SpecialistDrillTime{get;private set;}
         private int specialistDrillProfession=-1;
         private Enemy specialistDrillTarget;
