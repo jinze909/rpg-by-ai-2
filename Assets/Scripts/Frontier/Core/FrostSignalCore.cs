@@ -30,6 +30,40 @@ namespace Starfall
         private bool FrostSignalGuardsDefeated
         { get { return frostSignalConfirmedKills == 3; } }
         public bool FrostSignalActive { get { return FrostSignalStage>0; } }
+        // A recruited companion can physically screen ONE guard's wind lane
+        // while walking alongside the person carrying the fire. Neither
+        // distant party membership nor a wall grants a passive flame aura.
+        private bool FrostCompanionBlocksGuard(Enemy guard)
+        {
+            if(guard==null||guard.hp<=0||FrostSignalStage!=2||
+                save.room!=7||save.companion<0||save.companion>=3||
+                !Has("companion_"+save.companion)||Dying ||
+                !CanStand(companionPosition)||!CanStand(Position))return false;
+            Point lane=Position-guard.Position;
+            float length=lane.Length;
+            if(length<2f ||
+                (companionPosition-Position).Length>3f)return false;
+            Point offset=companionPosition-guard.Position;
+            float forward=(offset.x*lane.x+offset.y*lane.y)/length;
+            float lateral=Math.Abs(offset.x*lane.y-offset.y*lane.x)/length;
+            return forward>.7f&&forward<length-.5f&&lateral<.7f &&
+                ClearAttackPath(guard.Position,companionPosition)&&
+                ClearAttackPath(companionPosition,Position);
+        }
+        public int FrostSignalGuardsScreened
+        {
+            get
+            {
+                if(FrostSignalStage!=2)return 0;
+                int count=0;
+                foreach(Enemy guard in enemies)
+                    if(IsFrostSignalEnemy(guard)&&guard.hp>0&&
+                        (guard.Position-Position).Length<5f &&
+                        ClearAttackPath(guard.Position,Position) &&
+                        FrostCompanionBlocksGuard(guard))count++;
+                return count;
+            }
+        }
         public bool FrostSignalComplete { get { return Has("frostsignal_complete"); } }
         public int FrostSignalOutcome
         { get { return Has("frostsignal_clinic")?1:Has("frostsignal_guides")?2:0; } }
@@ -157,7 +191,8 @@ namespace Starfall
                         (enemy.Position-Position).Length<5f&&
                         // The carried fire is threatened by real adjacent
                         // combat, not a guard sealed behind solid stone.
-                        ClearAttackPath(enemy.Position,Position))
+                        ClearAttackPath(enemy.Position,Position) &&
+                        !FrostCompanionBlocksGuard(enemy))
                         drain+=.58f;
             // Shield only the remaining fraction of this simulation frame.
             float protectedDt=Math.Min(dt,FrostSignalWindbreakTime);
