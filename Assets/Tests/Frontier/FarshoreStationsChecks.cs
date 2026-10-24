@@ -1198,6 +1198,7 @@ namespace Starfall.Tests
             var attacker = new Enemy(590, 0, civilian.x - 1.3f, civilian.y, 50);
             attacker.target = civilian; attacker.Face(civilian - attacker.Position);
             attacker.state = 1; attacker.timer = .5f;
+            attacker.windupDuration = .65f;
             attacker.targetingReliefCivilian = true;
             g.enemies.Add(attacker);
             Check(g.ReliefEscortUnderAttack,
