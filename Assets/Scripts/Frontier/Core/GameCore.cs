@@ -2196,11 +2196,10 @@ namespace Starfall
             // objects (or a stripped decoration-only map). Nothing can
             // be interacted with, so do not query terrain collision at all.
             if(objects==null||objects.Length==0)return null;
-            // A gate or tide can seal the player's root BETWEEN inputs.
-            if(!CanStand(Position))return null;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
+            bool validatedHeroFoot=false;
             foreach(WorldObject o in objects)
             {
                 // E and the on-screen E prompt use this SAME resolved source.
@@ -2208,8 +2207,17 @@ namespace Starfall
                 // within a single 1.75-unit reach circle. Resolving equal
                 // feet only by authored map-array order opened NPC B when the
                 // hero was looking directly at NPC A.
-                if(!IsObjectPresent(o) ||
-                    !HasPhysicalInteractionReach(new Point(o.x,o.y)))continue;
+                if(!IsObjectPresent(o))continue;
+                // Malformed/streamed maps may contain only null or invalid
+                // records and even lack optional decor. Filtering them must
+                // be safe BEFORE running any terrain/house-collider query.
+                // Once there is a real actor, reject E from buried feet.
+                if(!validatedHeroFoot)
+                {
+                    if(!CanStand(Position))return null;
+                    validatedHeroFoot=true;
+                }
+                if(!HasPhysicalInteractionReach(new Point(o.x,o.y)))continue;
                 // Face preference never overrides a nearly-overlapping
                 // actor; identical logic is used by moving rescue civilians.
                 float score=InteractionTargetScore(new Point(o.x,o.y),facing);
