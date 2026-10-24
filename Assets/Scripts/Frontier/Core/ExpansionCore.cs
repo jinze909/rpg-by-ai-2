@@ -2013,8 +2013,18 @@ namespace Starfall
                          FarCourierOnBridge ?
                             L("桥面已进入 · 继续走到南岸", "ON BRIDGE · CONTINUE SOUTH") :
                             L("从北岸步行过桥", "CROSS BRIDGE FROM NORTH") :
-                     !FarCourierStamped ? L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
-                         L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
+                     !FarCourierStamped ?
+                         FarCourierRaidersAlive>0?
+                             L("劫匪 "+FarCourierRaidersAlive+" 名 · 可击退或绕行",
+                               "RAIDERS "+FarCourierRaidersAlive+" · FIGHT OR EVADE") :
+                         FarCourierSecuredInFlight?
+                             L("道路已清理 · 检查台核验封条",
+                               "ROAD SECURED · VERIFY SEAL") :
+                             L("检查站核验封条", "VERIFY SEAL AT CHECKPOINT") :
+                         FarCourierSecuredInFlight?
+                             L("安全护送奖金待交付 · 前往避险棚",
+                               "SECURE BONUS ON DELIVERY · REACH REFUGE") :
+                             L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
             if(TideSalvageActive && save.room==5)
                 return L("潮滩打捞 ", "SALVAGE ") +
                     (int)Math.Ceiling(TideSalvageTime) + "s · " +

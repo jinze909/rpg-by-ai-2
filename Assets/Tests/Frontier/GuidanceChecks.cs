@@ -234,8 +234,14 @@ namespace Starfall.Tests
                 Check(g.FarCourierRaidersAlive==0,
                     "There are no fabricated raiders before walking over the bridge");
                 for(int i=0;i<60&&!g.FarCourierCrossed;i++)g.Tick(.05f,new Point(0,1));
-                Check(g.FarCourierActive&&g.FarCourierCrossed&&g.FarCourierRaidersAlive==2,
-                    "Two live raiders begin only on actual crossing in region "+room);
+                Check(g.FarCourierActive&&g.FarCourierCrossed&&g.FarCourierRaidersAlive==2 &&
+                    g.Conditions().Contains("劫匪 2 名"),
+                    "Two live raiders begin only on actual crossing and show their true threat in region "+room);
+                g.save.english=true;
+                Check(g.Conditions().Contains("RAIDERS 2")&&
+                    g.Conditions().Contains("FIGHT OR EVADE"),
+                    "The English world HUD describes the real optional raider choice");
+                g.save.english=false;
                 int id=90100+room*2;
                 Enemy melee=g.enemies.Find(e=>e.id==id);
                 Enemy archer=g.enemies.Find(e=>e.id==id+1);
@@ -260,8 +266,14 @@ namespace Starfall.Tests
                 g.save.level=10;int kills=g.save.kills[room],coins=g.save.coins;
                 int materials=g.save.inventory[1],xp=g.save.xp;
                 hit.Invoke(g,new object[]{melee,9000f,false,null,null});
+                Check(g.FarCourierRaidersAlive==1&&
+                    g.Conditions().Contains("劫匪 1 名")&&
+                    !g.FarCourierSecuredInFlight,
+                    "Killing one real raider updates the HUD without falsely granting the two-enemy bonus");
                 hit.Invoke(g,new object[]{archer,9000f,false,null,null});
                 Check(g.FarCourierRaidersAlive==0&&
+                    g.FarCourierSecuredInFlight&&
+                    g.Conditions().Contains("道路已清理")&&
                     g.save.kills[room]==kills&&g.save.coins==coins&&
                     g.save.inventory[1]==materials&&g.save.xp==xp,
                     "Courier combat cannot be exploited to farm chapter kills, coins, XP or drops");
