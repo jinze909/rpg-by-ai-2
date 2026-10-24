@@ -38,6 +38,13 @@ namespace Starfall
             }
         }
         public bool TideSalvageActive { get { return TideSalvagePhase > 0; } }
+        public int TideSalvageRaidersAlive
+        {get{int count=0;foreach(Enemy e in enemies)
+            if(IsTideSalvageEnemy(e)&&e.hp>0)count++;
+            return TideSalvageActive?count:0;}}
+        public bool TideSalvageCargoReady
+        {get{return TideSalvagePhase==4&&
+            TideSalvageRaidersDefeated&&TideSalvageRaidersAlive==0;}}
         public bool IsTideSalvageEnemy(Enemy e)
         { return e != null && e.id >= 89920 && e.id < 89930; }
 

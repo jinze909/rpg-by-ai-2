@@ -60,7 +60,8 @@ namespace Starfall
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
                 if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive ||
-                    Game.OuterPatrolActive || Game.MineConvoyActive)
+                    Game.OuterPatrolActive || Game.MineConvoyActive ||
+                    Game.TideSalvageActive)
                     rects.Add(new Rect(380, 22, 520, 65));
             }
             else
@@ -173,7 +174,9 @@ namespace Starfall
                     12,gold);
             }
             QuestGuide guide = Game.MineConvoyActive?
-                Game.GetQuest("mine_convoy"):Game.CurrentGuide;
+                Game.GetQuest("mine_convoy"):
+                Game.TideSalvageActive?Game.GetQuest("tide_salvage"):
+                Game.CurrentGuide;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
             Text(1041,56,136,23,(int)(guide.Progress*100)+"%  ·  "+Game.L("查看步骤","View steps"),11,paper);
@@ -288,6 +291,33 @@ namespace Starfall
                                 " · STAND BETWEEN RAIDER AND CART")),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,hull/80f,accent,7);
+            }
+            else if(Game.TideSalvageActive && Game.save.room==5)
+            {
+                // The compact HUD replaces the exploration objective during
+                // live raider combat. Tide, cargo and real remaining attackers
+                // must not disappear when the player needs them most.
+                float remaining=Game.TideSalvageTime;
+                Color accent=remaining<20f?PixelArt.C("#ec7668"):gold;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(394,25,492,26,
+                    Game.L("潮滩打捞 · ","TIDEBOUND SALVAGE · ")+
+                    Math.Max(0,Game.TideSalvagePhase-1)+"/3 · "+
+                    Math.Ceiling(remaining)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,480,20,
+                    (Game.LowTide?Game.L("低潮 · ","LOW TIDE · "):
+                        Game.L("高潮 · ","HIGH TIDE · "))+
+                    (Game.TideSalvageCargoReady?
+                        Game.L("货物就绪 · 返回码头交付",
+                            "CARGO SECURED · RETURN TO DOCK"):
+                        Game.TideSalvageRaidersAlive>0?
+                            Game.L("追兵剩余 ","RAIDERS LEFT ")+
+                                Game.TideSalvageRaidersAlive:
+                            Game.L("追踪下一处货箱","FIND NEXT MANIFEST")),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,72,478,(Game.TideSalvagePhase-1)/3f,accent,6);
             }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));
