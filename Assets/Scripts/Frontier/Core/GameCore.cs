@@ -225,10 +225,10 @@ namespace Starfall
         private void Intro()
         {
             Flag("intro");
-            Dialog("莉雅 · 公会接待员", "Lyra · Guild Steward",
-                "莉雅：你送来的信属于一名失踪的巡路员。我们本来等他画好回家的路，如今连他自己都没回来。\n\n七天前发生了“星陨”。森林被荆棘封住，桥被洪水冲断，矿场机器还在不停工作。堡垒说必须拿走各地的“星核”来维持保护城墙的屏障，可城外的人正因此缺水、缺药、无路可走。\n\n我们的第一步很简单：去荆棘密林找回侦察员，问清黑荆巨兽守护什么，再取回第一枚星核。回镇后，我们一起查清其他地区为什么也出了问题。\n\n如果听不懂星根、星核或人物关系，随时回公会找我，或者阅读公会北侧的《边境编年册》。\n\n操作：WASD 移动，鼠标左键／J 攻击，空格闪避，Q 技能，E 交谈，Tab 看任务。",
-                "Lyra: Your letter belonged to a missing roadwarden. We were waiting for him to map a way home. Now he has not returned.\n\nSeven days ago the Starfall struck. Thorns blocked the forest, floodwater broke the bridge, and mine machines kept running. The citadel says it needs each region's starcore to power its protective shield. But people outside the walls are losing water, medicine and safe routes.\n\nOur first job is simple: find the lost scout in Thornwood, learn why the Briar Beast guards the place, and recover the first starcore. Then come back. We will find out why the other regions are suffering too.\n\nIf the people or the terms become confusing, ask me at the guild or read the Frontier Chronicle north of the guild.\n\nControls: WASD to move, mouse click/J to attack, Space to dodge, Q for skill, E to talk, Tab for quests.",
-                C("先去找失踪的侦察员", "Find the lost scout", "close"));
+            Dialog("莉雅 · 公会接待员","Lyra · Guild Steward",
+                "“信是你带来的？”\n\n莉雅把一封封口开裂的信放到桌上，没急着拆。\n\n“这封本来该由巡路员自己送回来。他走之前答应替镇上的人查一条林间小路。七天过去了，连他的靴印都找不着。”\n\n窗外的马车在泥里打滑。远处传来矿场的钟声。\n\n“星陨之后，桥塌了，密林不让人进，矿机倒是一刻没停。堡垒只派人来要星核，说是城墙上的屏障不能熄。我问他们，河对岸的药怎么办——没人回答。”\n\n她把荆棘密林的地图推向你。\n\n“替我把侦察员找回来。黑荆巨兽盘踞着那座旧祭坛；如果他还活着，也许知道祭坛为什么出事。至于星核，见到之后再决定怎么带回来。别为它丢了命。”",
+                "“You're the one who brought this letter?”\n\nLyra places an envelope with a split seal on the desk. She doesn't open it yet.\n\n“The roadwarden was supposed to bring it back himself. He promised the people here he'd look for a path through the forest. Seven days. Not even a bootprint.”\n\nA cart slips in the mud outside. The mine bell sounds in the distance.\n\n“Since Starfall the bridge is down, the woods are closed, and the mine hasn't stopped for a breath. The citadel only sends men asking for starcores. Says their shield can't go dark. I asked about medicine for the far bank. No answer.”\n\nShe slides the Thornwood map toward you.\n\n“Find our scout. The Briar Beast's camped on the old altar. If he's alive, he may know what happened there. As for the core—see what you find. Don't throw your life away for it.”",
+                C("收下地图，去密林找人","Take the map and find the scout","close"));
         }
         public void Notify(string zh, string en) { toast = L(zh, en); toastTime = 4; }
         private void Dialog(string speaker, string en, string text, string textEn, params Choice[] choices)

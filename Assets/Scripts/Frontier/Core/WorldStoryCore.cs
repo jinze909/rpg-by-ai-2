@@ -30,115 +30,121 @@ namespace Starfall
                 insert--;
             Choice[] updated = new Choice[choices.Length + 1];
             Array.Copy(choices, 0, updated, 0, insert);
-            updated[insert] = StoryChoice("帮我把事情从头讲清楚",
-                "Explain how the story fits together", "story_catchup");
+            updated[insert] = StoryChoice("我们现在查到哪儿了？",
+                "What have we found so far?", "story_catchup");
             Array.Copy(choices, insert, updated, insert + 1,
                 choices.Length - insert);
             conversation.choices = updated;
         }
         private void WorldStoryCatchUp()
         {
-            string zh = "莉雅把地图摊开：\n\n【事情为什么会发生】星根原本把水、热和能量分给各地。七天前，旧系统失去平衡，森林封路、河流泛滥、矿机不停运转。堡垒为了维持屏障，不断向各地索取星核；城内安全，城外却越来越难生活。";
-            string en = "Lyra spreads out the map:\n\n[What went wrong] Starroot once shared water, warmth and power between regions. Seven days ago its old network failed: thorns blocked roads, rivers flooded, and machines kept working. The citadel kept drawing starcores to power its shield, protecting the city while neighboring towns suffered.";
+            // Lyra answers as a working guild steward, not as a floating
+            // "plot explained" overlay. The journal remains the player's
+            // source of explicit objective markers.
+            string zh = "莉雅推开桌上的空杯，露出一张满是针孔的旧地图。\n\n“那天夜里，我们先听见矿场的钟。钟敲了整整一夜，没人敢去关机器。接着桥断了，林子里的路也没了。”\n\n“堡垒说，城墙上的屏障一刻也不能灭。他们要星核，就有人得从地里把它挖出来。镇上已经有两户人等不到运药的车了。”";
+            string en = "Lyra pushes aside an empty cup. The map beneath it is speckled with pinholes.\n\n“The mine bell rang all through that night. No one dared turn off the machines. By morning the bridge was gone, and so was the road through the trees.”\n\n“The citadel says its shield must never go dark. It wants starcores, and someone has to dig them out. Two families here are still waiting for medicine that never came.”";
             if (save.stage == 0)
             {
                 if (Has("core_1"))
                 {
-                    zh += "\n\n【已经完成】你在荆棘密林找到了第一枚星核。不要再回头找同一枚。";
-                    en += "\n\n[Completed] You recovered the first starcore from Thornwood. There is no need to retrieve it again.";
-                    zh += "\n\n【下一步】回到余烬镇公会，把星核交给莉雅，再听下一处地区的任务。";
-                    en += "\n\n[Next] Return the starcore to Lyra at Emberfall Guild for your next assignment.";
+                    zh += "\n\n她看见你包里的星核，伸手拉开了公会的登记簿。\n\n“荆棘密林这一份，我认得。交给莉雅——就是我。把东西放桌上吧，别再往林子里跑第二趟了。”";
+                    en += "\n\nShe spots the core in your pack and opens the guild ledger.\n\n“That one's from Thornwood. Hand it to me here. No sense walking back into those thorns for something you've already carried home.”";
                 }
                 else
                 {
-                    zh += "\n\n【下一步】先到荆棘密林找到失踪侦察员，查清黑荆巨兽为何守住星根，再取回第一枚星核。";
-                    en += "\n\n[Next] Rescue the lost scout in Thornwood. Learn why the Briar Beast guards the damaged root, then recover the first starcore.";
+                    zh += "\n\n她用铅笔点了点荆棘密林的入口。\n\n“巡路队的侦察员还没回来。他上回说，黑荆巨兽守着的地方，有人把树根挖断了。先把人找到。若还能靠近祭坛，就看看那枚星核究竟被人动过什么手脚。”";
+                    en += "\n\nHer pencil stops at the entrance to Thornwood.\n\n“Our scout never came back. Last time he wrote, he said someone had torn through the roots near the Briar Beast's altar. Find him first. If you can reach the altar, see what's been done to its core.”";
                 }
             }
             else if (save.stage < 3)
             {
-                int next = save.stage + 1;
-                string[] regionsZh = { "", "荆棘密林", "沉没遗迹", "赤铁矿场" };
-                string[] regionsEn = { "", "Thornwood", "Drowned Ruins", "Ironreach" };
-                zh += "\n\n【已查到】你已经交回 " + save.stage + " 枚星核。每取得一枚，都证明了相同的问题：为了维持堡垒的供能，各地原本用于生活的资源被挪走了。";
-                en += "\n\n[Evidence so far] You have returned " + save.stage + " starcore(s). Each shows the same pattern: the citadel diverted resources that surrounding communities needed.";
-                zh += Has("core_" + next) ?
-                    "\n\n【下一步】" + regionsZh[next] + "的星核已经在你手中。返回余烬镇公会交给莉雅，开启下一章。" :
-                    "\n\n【下一步】前往" + regionsZh[next] + "，查出当地的问题，拿到下一枚星核。记得听一听居民的证词。";
-                en += Has("core_" + next) ?
-                    "\n\n[Next] You have the core from " + regionsEn[next] + ". Return it to Lyra at Emberfall Guild to unlock the next chapter." :
-                    "\n\n[Next] Investigate " + regionsEn[next] + ", recover its core and listen to local witnesses.";
+                int next=save.stage+1;
+                string[] regionsZh={"","荆棘密林","沉没遗迹","赤铁矿场"};
+                string[] regionsEn={"","Thornwood","Drowned Ruins","Ironreach"};
+                zh += "\n\n莉雅翻过"+save.stage+"张盖着蜡印的登记页。\n\n“每一枚送回来的星核，旁边都夹着一封求援信。我原先以为只是同一场灾祸。现在看，信里写的都是同一条供能线。”";
+                en += "\n\nLyra turns past "+save.stage+" wax-stamped entries.\n\n“Every core that came back had a plea for help tucked beside it. I thought they were separate disasters. The letters all point to the same supply line.”";
+                if(Has("core_"+next))
+                {
+                    zh+="\n\n“"+regionsZh[next]+"那枚已经在你身上了？交给莉雅——放到这份登记簿旁。还有人等着我们查下一段。”";
+                    en+="\n\n“You've brought back the one from "+regionsEn[next]+"? Leave it with me beside the ledger. There's another part of this line we still need to follow.”";
+                }
+                else
+                {
+                    zh+="\n\n她在"+regionsZh[next]+"的位置压下一枚图钉。\n\n“那边的信还没到。先去听听当地人怎么说，再找星核。别只带回来一块会发光的石头。”";
+                    en+="\n\nShe presses a pin into "+regionsEn[next]+".\n\n“No word from that road yet. Hear what the people there have to say before you go after its core. Don't come back with nothing but a shining stone.”";
+                }
             }
-            else if (save.ending == 0)
+            else if(save.ending==0)
             {
-                zh += "\n\n【真相】三枚星核已经送入堡垒。屏障获得了能源，周围的土地却持续失衡。你现在要面对厄洛：应当让一座城独占保护，还是让各地也有活下去的资源？";
-                en += "\n\n[What you learned] Three cores now power the citadel, while the surrounding land deteriorates. Confront Orrin: should one city monopolize safety, or should every community have a share?";
-                zh += save.frontierEnding == 0 ?
-                    "\n\n【下一步】继续收集远岸居民的证词，查明灯塔、沙海与高原的选择，然后推进堡垒议事。" :
-                    "\n\n【下一步】远岸已经达成协定；回到堡垒，与厄洛讨论星核和屏障的最终去向。";
-                en += save.frontierEnding == 0 ?
-                    "\n\n[Next] Gather the farshore reports from lighthouse, desert and highland communities, then continue the council discussions." :
-                    "\n\n[Next] The farshore covenant is in place. Return to the citadel and confront Orrin about the cores and shield.";
+                zh+="\n\n莉雅把三页登记摊在一起，纸角都卷起来了。\n\n“三枚，全往堡垒去了。厄洛说那边也有人要活命，我信。但河边等船的人呢？矿工呢？我想让他当面看看这些名字。”";
+                en+="\n\nLyra lays three curled ledger pages side by side.\n\n“All three went to the citadel. Orrin says people inside need protecting. I believe him. But what about the people waiting at the crossing? The miners? I want him to see these names himself.”";
+                zh+=save.frontierEnding==0?
+                    "\n\n“远岸的灯塔、沙海、高原，还差他们自己的说法。把证词带回来，我们再去堡垒。”":
+                    "\n\n“远岸的议定书已经签了。走吧，去堡垒找厄洛。纸在这里签得再漂亮，城墙上的人不点头也没用。”";
+                en+=save.frontierEnding==0?
+                    "\n\n“We still need the lighthouse, desert and highland accounts. Bring their testimony back. Then we'll go to the citadel.”":
+                    "\n\n“The farshore agreement is signed. Time to speak with Orrin at the citadel. Ink on our side of the wall won't turn his machinery off.”";
             }
             else
             {
-                zh += "\n\n【结局之后】星核与屏障的选择已经作出，但决定不等于落实。居民还需要能走的路、能用的公共设施，以及愿意负责维护的人。";
-                en += "\n\n[After the decision] You have made the major choice about cores and the shield. But a decision is not a working road. Villagers still need public services and named people responsible for keeping them safe.";
-                string nextZh, nextEn;
-                if (!Has("afterlight_complete"))
-                { nextZh = "在余烬镇公会南侧推进余光重建，让三地设施真正接回居民。"; nextEn = "Work on Afterlight reconstruction south of Emberfall Guild to reconnect three public services."; }
-                else if (!Has("storm_complete"))
-                { nextZh = "处理第一场星雨，并明确各地的公共电力分配。"; nextEn = "Manage the first starstorm and agree on how shared electricity is allocated."; }
-                else if (!Has("hearing_complete"))
-                { nextZh = "参加居民听证，让失联者和旧命令的责任得到公开回应。"; nextEn = "Attend the public hearing and make the lost travelers and old orders part of the record."; }
-                else if (!RoadCharterComplete)
-                { nextZh = "落实共同道路公约，让旅人能安全穿过边境。"; nextEn = "Carry out the shared road charter so people can travel safely."; }
-                else if (!CivicConduitComplete)
-                { nextZh = "继续公共电网任务，完成实际调谐和居民交接。"; nextEn = "Continue the public-grid work, tune the real equipment and hand it over to residents."; }
+                zh+="\n\n窗外有人在修路，一块石头落地，响得连公会都听见。\n\n“星核的事定了。可你听见外头了吧？那是今天的活，不是庆功。”";
+                en+="\n\nA paving stone drops outside the window, loud enough to hear across the guild.\n\n“The cores have been decided. Hear that out there? That's today's work. No one's celebrating just yet.”";
+                string nextZh,nextEn;
+                if(!Has("afterlight_complete"))
+                {nextZh="公会南面的余光工地还缺人。先让三地的灯和设备通电。";nextEn="The Afterlight site south of the guild needs hands. Start with power to the three public stations.";}
+                else if(!Has("storm_complete"))
+                {nextZh="第一场星雨就要检验这些新线路。各地得自己定下供能顺序。";nextEn="The first starstorm will test those new lines. The regions need to settle their supply priorities.";}
+                else if(!Has("hearing_complete"))
+                {nextZh="听证会还等着人到齐。那些失联者的名字不能一直留在名单背面。";nextEn="The public hearing is still waiting for witnesses. Those missing names can't stay on the back of a ledger.";}
+                else if(!RoadCharterComplete)
+                {nextZh="路图画好了，路还没走通。去把公用道路那份约定落实。";nextEn="The routes are mapped, not yet safe. Help put the road charter into practice.";}
+                else if(!CivicConduitComplete)
+                {nextZh="公用电网的阀门还得逐个校准，才能把电送到避险棚。";nextEn="The public grid's valves still need tuning before the shelters can rely on them.";}
                 else
-                { nextZh = "公共电网已经运转。查看旅店巡路复核与后续居民委托，确认设施能长久使用。"; nextEn = "The public grid is running. Check the inn's road audit and remaining civic jobs to keep it working."; }
-                zh += "\n\n【下一步】" + nextZh;
-                en += "\n\n[Next] " + nextEn;
+                {nextZh="去旅店看看巡路队的新记录吧。电网通了，总得有人继续巡查。";nextEn="Read the roadwardens' latest log at the inn. The grid runs now; someone still has to inspect it.";}
+                zh+="\n\n“"+nextZh+"”";
+                en+="\n\n“"+nextEn+"”";
             }
-            Dialog("莉雅 · 剧情梳理", "Lyra · Story So Far", zh, en,
-                StoryChoice("这些人物各自做什么？", "Who is everyone?", "story_people"),
-                StoryChoice("星根、星核、屏障是什么？", "Explain the key terms", "story_terms"),
-                StoryChoice("打开按章节排列的记录", "Open the chapter records", "story_menu"),
-                StoryChoice("我明白了", "Got it", "close"));
+            Dialog("莉雅 · 公会接待员","Lyra · Guild Steward",zh,en,
+                StoryChoice("那些人后来怎么样了？","What happened to the others?","story_people"),
+                StoryChoice("这张图上的星根是什么？","What is this starroot on your map?","story_terms"),
+                StoryChoice("我想看看以前的记录","Let me read the old records","story_menu"),
+                StoryChoice("我知道该去哪了","I know where to go","close"));
         }
         private void WorldStoryPeople()
         {
-            string zh = "【莉雅】余烬镇公会的负责人。她负责整理证据，提醒你不要只听堡垒的一面之词。\n\n【杏】照顾伤者、采药。她关心的是药能不能送到村庄。\n\n【老潮】帮助被困在河道两边的人，关心船、食物与安全渡河。\n\n【诺尔】负责机器和修理，认为设备应该能安全停下，也应该为普通人服务。";
-            string en = "[Lyra] Leads the Emberfall Guild. She gathers evidence instead of accepting the citadel's orders without question.\n\n[An] Tends the wounded and gathers medicine. She asks whether supplies actually reach villages.\n\n[Old Tide] Helps people cross the flooded river, focusing on boats, food and safety.\n\n[Noll] Repairs machines. He wants equipment that can stop safely and serve ordinary people.";
-            if (Has("scout_saved"))
-            { zh += "\n\n【获救的侦察员】带回第一处星根受损的证据，让你知道森林的异常并不只是怪物作乱。"; en += "\n\n[The rescued scout] Found proof that the first starroot anchor was damaged. The forest's crisis was not simply a monster attack."; }
-            if (save.stage >= 3)
-            { zh += "\n\n【厄洛】堡垒屏障的守护者。他想保护城里的人，但必须面对城外为此付出的代价。"; en += "\n\n[Orrin] Protects the citadel's shield. His duty to those inside must be weighed against the cost paid by people outside."; }
-            if (Has("witness_started_1") || Has("witness_complete_1"))
-            { zh += "\n\n【莫芽】记录森林和居民受损情况的证人。"; en += "\n\n[Moya] Records what happened to the forest and its residents."; }
-            if (Has("witness_started_2") || Has("witness_complete_2"))
-            { zh += "\n\n【阿菱】帮助渡口居民留下被遗漏的名字与证言。"; en += "\n\n[Arin] Records the names and accounts missing from the crossing ledger."; }
-            if (Has("witness_started_3") || Has("witness_complete_3"))
-            { zh += "\n\n【维恩】为矿工停机与人身安全作证。"; en += "\n\n[Venn] Testifies about miner safety and the need to shut dangerous machines down."; }
-            Dialog("人物关系", "People and Their Motives", zh, en,
-                StoryChoice("回到当前剧情", "Back to the story", "story_catchup"),
-                StoryChoice("查看原始章节记录", "View chapter records", "story_menu"),
-                StoryChoice("结束交谈", "Finish", "close"));
+            // Only acquaintances actually introduced by this save are named.
+            string zh="莉雅把几封不同笔迹的信排在桌边。\n\n“杏寄来的信总带着药草味。你看，右下角又画了个小勺子。她怕伤员不肯喝药。”\n\n“老潮没什么耐心写信。三张纸全在催船板和粮食。他大概又把自己的晚饭让给等渡的人了。”\n\n“诺尔的字倒像是拿尺子量过。他说矿机要装一只人人都够得着的停机闸——这话可不会讨堡垒工程师喜欢。”";
+            string en="Lyra lays out letters in three different hands.\n\n“An's always smell of herbs. Look, she's drawn another little spoon at the bottom. She's worried her patients won't take their medicine.”\n\n“Old Tide doesn't waste ink. Three letters asking for planks and grain. I imagine he's given his own supper to someone waiting for the ferry again.”\n\n“Noll writes like he measures each line with a ruler. He wants a shutdown lever any worker can reach. The citadel engineers won't like that.”";
+            if(Has("scout_saved"))
+            {zh+="\n\n“那个侦察员回来时，靴子里还扎着树根。他说那不是兽踩的，是铁镐留下的。”";en+="\n\n“The scout came back with splintered roots in his boots. Said those marks weren't made by beasts. They were pickaxe cuts.”";}
+            if(save.stage>=3)
+            {zh+="\n\n“厄洛？他守城守了一辈子。我不知道他上次走出城墙是什么时候。”";en+="\n\n“Orrin? He's spent his whole life keeping the city safe. I wonder when he last stepped beyond its walls.”";}
+            if(Has("witness_started_1")||Has("witness_complete_1"))
+            {zh+="\n\n“莫芽说她能认出每一棵受过伤的树。可她数不清到底倒了多少棵。”";en+="\n\n“Moya says she knows every wounded tree by sight. She can't count how many have fallen.”";}
+            if(Has("witness_started_2")||Has("witness_complete_2"))
+            {zh+="\n\n“阿菱把渡口失踪者的名字一笔一笔誊下来。她不肯用‘损失人数’四个字。”";en+="\n\n“Arin copies each missing traveler's name by hand. She refuses to write 'losses' where a name should be.”";}
+            if(Has("witness_started_3")||Has("witness_complete_3"))
+            {zh+="\n\n“维恩的手被机油染黑了。他拿来一份停机记录，最后一栏写着：‘人还在里面。’”";en+="\n\n“Venn came in with oil-black hands. On his shutdown sheet, the last column reads: 'Workers still inside.'”";}
+            Dialog("莉雅 · 未寄出的信","Lyra · Unsent Letters",zh,en,
+                StoryChoice("再看看地图","Back to the map","story_catchup"),
+                StoryChoice("翻开编年册","Open the chronicle","story_menu"),
+                StoryChoice("把信收好","Put the letters away","close"));
         }
         private void WorldStoryTerms()
         {
-            Dialog("把名词说清楚", "The World in Plain Language",
-                "【星根】地下连通各地区的能源和生命系统，就像一套共同的水电网。\n\n【锚点】帮助星根维持地区平衡的调节装置。\n\n【星核】锚点的重要核心，不是普通矿石。把它从一地拿走，就可能改变那里的水、热与生机。\n\n【星晶】能量留下的矿物，可用于制作和修理，不等于星核。\n\n【屏障】堡垒用星核供能的防护设施，确实保护城内，但不能无视对城外的影响。\n\n【证词与公约】证词让被忽视的居民有发言权；公约决定谁拿资源、谁负责维护。",
-                "[Starroot] A shared underground network for life, water and power.\n\n[Anchors] Regulators that keep each region in balance.\n\n[Starcores] Vital parts of those regulators, not ordinary ore. Taking one may change the region's water and warmth.\n\n[Starcrystals] Mineral deposits used for crafting, not the cores themselves.\n\n[Shield] The citadel's starcore-powered defense. It protects its people, but draws resources away from others.\n\n[Testimony and charter] Testimony gives overlooked residents a voice; a charter states who receives resources and who maintains them.",
-                StoryChoice("现在故事进展到哪里？", "Where am I in the story?", "story_catchup"),
-                StoryChoice("返回目录", "Back to chronicle", "story_menu"),
-                StoryChoice("合上", "Close", "close"));
+            Dialog("莉雅 · 旧线路图","Lyra · Old Circuit Map",
+                "莉雅用指甲压住地图上交错的红线。\n\n“这些叫星根。地底下的水、热气，还有我们用的能量，都顺着它走。七处锚点就像河上的闸，要一处一处调。”\n\n“闸里最要紧的那块，是星核。拔出来拿去供城墙，别处的水就会少。星晶不一样——那是旁边结出的矿石，诺尔拿它修东西。”\n\n她敲了敲地图上画着城墙的黑方框。\n\n“屏障真能挡危险。我见过它救人。所以我才要让堡垒把账拿出来：谁在用，谁没得用？”\n\n“要是有人愿意在证词上署名，或把维修责任写进公约，纸就不再只是堡垒的一张命令。”",
+                "Lyra pins down the crossing red lines with a fingernail.\n\n“Starroot. Water, warmth, even the power we use runs through it below ground. Seven anchors keep it in check, like sluices along a river.”\n\n“Inside each anchor is a starcore. Pull it out to feed the wall, and another place runs dry. Starcrystal's different—that's the mineral growing around the lines. Noll uses it for repairs.”\n\nShe taps the black square marking the citadel.\n\n“The shield does stop danger. I've seen it save lives. That's why I want their ledgers opened. Who gets the power? Who goes without?”\n\n“A signed witness account, or a charter naming who's responsible for repairs—those are papers the citadel can't so easily throw away.”",
+                StoryChoice("回到地图","Back to the map","story_catchup"),
+                StoryChoice("翻阅原始记录","Read the original records","story_menu"),
+                StoryChoice("我记下了","I'll remember that","close"));
         }
         private void WorldChronicleMenu()
         {
             Dialog("边境编年册", "Frontier Chronicle",
-                "封面是一条横跨星根与河流的细线。卷首写道：\n\n“壁垒留住的是昨夜，路能带来明天。任何被牺牲的人，都应该先有说话的机会。”\n\n册中只有你亲眼见证、或已取得记录的篇章会逐渐展开。",
-                "An ink line runs from roots to rivers across the cover. Its first words read:\n\n“A wall can keep last night. A road can bring tomorrow. Those asked to pay deserve to speak first.”\n\nOnly accounts you have witnessed or recovered are available.",
+                "厚封皮被雨泡得卷了边。第一页夹着半张渡船票，背后是巡路队手写的字：\n\n“余烬镇至旧桥，能走。涨潮时绕北坡。桥西第三户还有人在等药。”\n\n往后的纸页有水渍、矿灰和不同人的签名。你带回的记录夹在其中；没有找到的页仍是空白。",
+                "The leather cover has warped from rain. Half a ferry ticket is tucked inside the first page. On its back, a roadwarden wrote:\n\n“Emberfall to Old Bridge: passable. Take the northern slope at high tide. Third house west of the bridge is still waiting for medicine.”\n\nThe remaining pages are stained by water and mine dust, signed by different hands. Only the records you brought home are filled in.",
                 // Keep the original four chapter entries at the same
                 // keyboard/controller positions. Context guides are extra
                 // options, never an accidental remapping of old buttons.
@@ -146,9 +152,9 @@ namespace Starfall
                 StoryChoice("星核四章", "Four starcore chapters", "story_section_campaign"),
                 StoryChoice("远岸与证词", "Farshore and testimony", "story_section_farshore"),
                 StoryChoice("归乡支线与尾声", "Homeward stories and aftermath", "story_section_after"),
-                StoryChoice("现在剧情进展到哪里？", "Story so far and next steps", "story_catchup"),
-                StoryChoice("人物关系一览", "Who is everyone?", "story_people"),
-                StoryChoice("看懂星根与星核", "Explain the key terms", "story_terms"),
+                StoryChoice("公会的下一条线索", "The guild's next lead", "story_catchup"),
+                StoryChoice("那些人的来信", "Letters from the others", "story_people"),
+                StoryChoice("旧星根线路图", "The old starroot diagram", "story_terms"),
                 StoryChoice("合上编年册", "Close the chronicle", "close"));
         }
         private bool StoryUnlocked(string page)
@@ -396,49 +402,6 @@ namespace Starfall
                     " The maintenance charter has been published." :
                     " Residents still need to sign the maintenance charter.";
                 en += " These milestones do not replace your chosen ending; they determine how fully it reaches daily life.";
-            }
-        }
-        // A plain-language bridge precedes the original detailed archive.
-        // These lines are only displayed for pages already unlocked, and do
-        // not replace authored testimony, choices or permanent outcomes.
-        private static string[] PlainStoryPoint(string page)
-        {
-            switch (page)
-            {
-                case "origin": return new[] { "星陨让旧能源系统失衡，莉雅请你先救回侦察员，查清谁在受害。", "The Starfall broke an old power network. Lyra asks you to find the scout and learn who is suffering." };
-                case "roots": return new[] { "星根把能源分给各地；从某地抽走星核，会让那里的生活受影响。", "Starroot shares power among regions. Removing a core can harm the region that relied on it." };
-                case "orders": return new[] { "旧机器只知道执行命令，却不知道原来的主人和居民早已改变。", "Old machines follow orders that no longer reflect the needs of living people." };
-                case "wardens": return new[] { "巡路队保存了给平民使用的路线和证据，不愿只为堡垒运货。", "The roadwardens preserved civilian routes and evidence instead of mapping only military cargo." };
-                case "testimonies": return new[] { "三个地区的亲历者说明，灾难不是单纯的怪物作乱，而是资源被挪走。", "Witnesses from three regions reveal a resource crisis, not merely random monster attacks." };
-                case "forest": return new[] { "森林失去本应支持树木的能源；你要找出损坏原因，并带回第一枚星核。", "Thornwood lost the energy its trees needed. Find the damage and recover the first core." };
-                case "ruins": return new[] { "河闸的旧安排让居民过不了河；恢复通路不能只考虑货物。", "Old sluice rules stranded travelers. Reopening a route means protecting people, not just freight." };
-                case "mine": return new[] { "矿场的机器只顾配额不停运转；矿工必须有权停机、活着回家。", "Mine machines kept chasing quotas. Workers need the right to stop dangerous equipment and come home." };
-                case "temper": return new[] { "热量和机器不是只能用于军工；居民也需要能安全使用的炉火。", "Heat and machinery can serve civilians, not just military production." };
-                case "triad": return new[] { "把三处星核与证词放在一起，才能证明能源流向造成了什么代价。", "Comparing three cores with their witnesses shows the human cost of the power network." };
-                case "blackout": return new[] { "屏障短暂失效时，真正要紧的是把城墙两侧的人都救出来。", "When the shield falters, protecting people on both sides matters more than defending an order." };
-                case "citadel": return new[] { "厄洛想守住堡垒，但必须面对屏障正在伤害城外居民的事实。", "Orrin wants to protect the citadel, but its shield has a real cost for everyone outside." };
-                case "harbor": return new[] { "修灯与救人都重要；有限物资应该由受影响的人一起讨论用途。", "Both navigation lights and rescues matter. The people affected deserve a say in scarce supplies." };
-                case "tidebound": return new[] { "旧货单把失联旅客当成损失数字；你要让他们重新成为有名字的人。", "A shipping ledger reduced missing travelers to losses. Their names and stories must be restored." };
-                case "desert": return new[] { "老城已空，蓄光机仍给它供水；活着的居民需要重新决定分配。", "An empty city still receives water under an ancient order. Living communities need a new allocation." };
-                case "glasswind": return new[] { "风能不该只按照旧的命令输送；安全与生活都需要电力。", "Wind power should serve present needs, not just an obsolete route or command." };
-                case "mountain": return new[] { "高原留下的名字和讯号说明，维护道路先要记得谁在使用它们。", "Highland names and signals remind us that roads exist for the people who use them." };
-                case "covenant": return new[] { "远岸各方同意共同讨论资源和责任，不再任由堡垒单方面决定。", "Farshore communities agree to share decisions and responsibilities instead of obeying one fortress." };
-                case "signal": return new[] { "恢复巡路信标，是让普通人安全回家，而不只是解锁快捷路线。", "Restoring road beacons gives ordinary travelers a safe way home." };
-                case "atlas": return new[] { "旧测绘记录能揭开被删掉的逃生道路，让后来的人少冒险。", "Old survey records reveal escape routes that official maps had ignored." };
-                case "counterpoint": return new[] { "星根需要多处共同调节；只顾一个地区会让其他地方失衡。", "Starroot needs balancing across regions. Favoring one place can harm another." };
-                case "commons": return new[] { "公共信标让居民知道能源如何输送，也让维修责任可以追查。", "A public relay shows residents where power flows and who must maintain it." };
-                case "skywatch": return new[] { "夜空观测能说明灾害何时靠近，帮助居民提前保护道路与住处。", "Skywatch observations help communities prepare roads and shelters for approaching danger." };
-                case "abyss": return new[] { "深入地脉时，要弄清危险从何而来，而不是只相信堡垒的旧结论。", "Exploring the abyss means investigating the danger instead of relying on the citadel's assumptions." };
-                case "afterlight": return new[] { "结局之后还得重建三处公共设施，并找到愿意负责维护的人。", "After the ending, three civic services still need rebuilding and local stewards." };
-                case "storm": return new[] { "第一场星雨检验了各地区的供能选择，也让公共分配必须公开。", "The first starstorm tests regional power choices and the transparency of shared supplies." };
-                case "hearing": return new[] { "公开听证让居民说出损失、提供证据，并追问谁该负责。", "A public hearing gives residents a voice, records evidence and asks who is accountable." };
-                case "roadcharter": return new[] { "地图上的道路不够；得让旅人真的能走，并说清谁负责维护。", "A map is not enough: roads must actually be safe, with named people responsible." };
-                case "supply_inquest": return new[] { "物资送到不是故事的终点；有人必须继续保障路线。", "Delivering supplies is not the end. Someone must keep the route working afterward." };
-                case "lastdirective": return new[] { "旧命令不该无限期压过活人的安全；需要公开复核与应急庇护。", "Old orders cannot outrank living people's safety forever. They need public review and emergency refuge." };
-                case "civicconduit": return new[] { "把公共电网接回实际站点，并确保居民有权使用与管理。", "Reconnect the public grid to real sites so residents can use and manage it." };
-                case "civic_aftermath": return new[] { "电网接通以后，还要复查道路、维护人员和日常运行是否可靠。", "After the grid goes live, audit the routes, maintainers and everyday reliability." };
-                case "ending": return new[] { "你的选择改变了屏障与星核的关系；真正的结局仍需居民一起实践。", "Your choice changed the shield and the cores. A lasting outcome still takes shared civic work." };
-                default: return null;
             }
         }
         private void WorldChroniclePage(string page)
@@ -1114,12 +1077,6 @@ namespace Starfall
                     { zh = "杏让药物走向村庄，老潮把食物送过河，诺尔将耗能机器改造成共用水泵。星核慢慢回到居民之间，厄洛拆下第一段城墙。没有一夜解决全部问题，终于有人愿意一起承担。"; en = "An sends medicine beyond authorized roads. Old Tide ferries food. Noll rebuilds generators as public pumps. The cores return to communities and Orrin removes the first wall. Shared work, not one victory, begins the change."; }
                     break;
                 default: WorldChronicleMenu(); return;
-            }
-            string[] shortPoint=PlainStoryPoint(page);
-            if(shortPoint!=null)
-            {
-                zh="【一句话看懂】"+shortPoint[0]+"\n\n"+zh;
-                en="[In plain words] "+shortPoint[1]+"\n\n"+en;
             }
             AppendChronicleConsequences(page, ref zh, ref en);
             // Offer chapter-local navigation without jumping across locked

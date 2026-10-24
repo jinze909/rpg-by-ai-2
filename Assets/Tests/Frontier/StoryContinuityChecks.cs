@@ -214,20 +214,20 @@ namespace Starfall.Tests
             int flags=g.save.flags.Count,coins=g.save.coins;
             ChooseStoryChoice(g,"story_catchup");
             Check(g.conversation.text.Contains("荆棘密林") &&
-                !g.conversation.text.Contains("【厄洛】") &&
+                !g.conversation.text.Contains("厄洛") &&
                 StoryChoicePresent(g,"story_people") &&
                 StoryChoicePresent(g,"story_terms"),
                 "New players get simple, spoiler-conscious explanations and their real next destination");
             ChooseStoryChoice(g,"story_people");
-            Check(g.conversation.text.Contains("【杏】") &&
-                !g.conversation.text.Contains("【厄洛】") &&
-                !g.conversation.text.Contains("【莫芽】"),
+            Check(g.conversation.text.Contains("杏") &&
+                !g.conversation.text.Contains("厄洛") &&
+                !g.conversation.text.Contains("莫芽"),
                 "People only appear in the guide after their original introduction");
             ChooseStoryChoice(g,"story_catchup");
             ChooseStoryChoice(g,"story_terms");
-            Check(g.conversation.text.Contains("【星核】") &&
-                g.conversation.text.Contains("【星晶】") &&
-                g.conversation.text.Contains("【屏障】"),
+            Check(g.conversation.text.Contains("星核") &&
+                g.conversation.text.Contains("星晶") &&
+                g.conversation.text.Contains("屏障"),
                 "World jargon is explained through in-world dialogue rather than a new lore flag");
             Check(g.save.flags.Count==flags&&g.save.coins==coins,
                 "Story explanations do not alter rewards or quest progress");
@@ -281,11 +281,12 @@ namespace Starfall.Tests
             {
                 ChooseStoryChoice(g,pair[0]);
                 ChooseStoryChoice(g,pair[1]);
-                Check(g.conversation.text.StartsWith("【一句话看懂】")&&
-                    g.conversation.textEn.StartsWith("[In plain words]")&&
+                Check(!g.conversation.text.Contains("【一句话看懂】")&&
+                    !g.conversation.textEn.Contains("[In plain words]")&&
+                    g.conversation.text.Length>45&&
                     StoryChoicePresent(g,"story_menu") &&
                     StoryChoicePresent(g,"story_section_"+(pair[0].Substring("story_section_".Length))),
-                    "Unlocked original chapter opens with a straightforward cause-effect summary and keeps navigation");
+                    "Unlocked authentic archive opens with its primary document, no editorial plot-explainer label");
                 ChooseStoryChoice(g,"story_menu");
             }
             var locked=Fresh(data);
