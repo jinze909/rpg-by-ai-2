@@ -47,6 +47,13 @@ namespace Starfall
         // without leaving breadcrumbs pinned to the previous whole tile.
         private int navigationRouteTargetX = int.MinValue, navigationRouteTargetY = int.MinValue;
         private Conversation lastConversation;
+        // The IMGUI path repaints repeatedly even when the NPC and narration
+        // are unchanged. Cache only page layout, never dialogue actions/state.
+        // Rebuild for language, accessibility or live text changes.
+        private Conversation dialoguePagesConversation;
+        private string dialoguePagesText;
+        private bool dialoguePagesLarge;
+        private List<string> dialoguePages;
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
         private readonly string[] menuZh = { "冒险背包", "遗物配装", "职业成长", "同行伙伴", "任务手帐", "世界地图", "城镇建设", "公会悬赏", "冒险指南" };
         private readonly string[] menuEn = { "Inventory", "Relics", "Talents", "Companions", "Journal", "World map", "Town projects", "Contracts", "Field guide" };
@@ -723,7 +730,19 @@ namespace Starfall
         private void DrawDialogue()
         {
             if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; }
-            var pages = DialogueLayout.Pages(Game.L(c.text, c.textEn), Game.save.largeText); dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
+            string localizedText = Game.L(c.text, c.textEn);
+            if (dialoguePages == null ||
+                !Object.ReferenceEquals(dialoguePagesConversation, c) ||
+                dialoguePagesLarge != Game.save.largeText ||
+                !String.Equals(dialoguePagesText, localizedText, StringComparison.Ordinal))
+            {
+                dialoguePagesConversation = c;
+                dialoguePagesText = localizedText;
+                dialoguePagesLarge = Game.save.largeText;
+                dialoguePages = DialogueLayout.Pages(localizedText, dialoguePagesLarge);
+            }
+            var pages = dialoguePages;
+            dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
             Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, pages[dialoguePage], 19, paper);
             if (pages.Count > 1)
             {

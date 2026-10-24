@@ -6300,6 +6300,24 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
         Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==0,
             "The production UI cannot expose a conversation response before its full story");
+        // Repaint reuses the actual page objects, but preferences and
+        // localization must invalidate them immediately, without an NPC swap.
+        var pageField=typeof(FrontierRuntime).GetField("dialoguePages",Private);
+        object originalLayout=pageField.GetValue(app);
+        Call(app,"OnGUI");
+        Check(Object.ReferenceEquals(originalLayout,pageField.GetValue(app)),
+            "An unchanged production NPC repaint must reuse its page layout");
+        game.save.largeText=true;Call(app,"OnGUI");
+        object accessibleLayout=pageField.GetValue(app);
+        Check(!Object.ReferenceEquals(originalLayout,accessibleLayout),
+            "Turning on large dialogue text rebuilds the real reader immediately");
+        game.save.english=true;Call(app,"OnGUI");
+        var englishLayout=(System.Collections.Generic.List<string>)pageField.GetValue(app);
+        Check(!Object.ReferenceEquals(accessibleLayout,englishLayout) &&
+              string.Concat(englishLayout.ToArray())==translated,
+            "Switching language in the same conversation rebuilds translated pages");
+        game.save.largeText=false;game.save.english=false;
+        Call(app,"OnGUI");
         for(int i=1;i<cn.Count;i++)Call(app,"AdvanceDialogue");
         GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
         Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==1,
