@@ -1638,6 +1638,70 @@ namespace Starfall.Tests
                 "An archer aimed at an old off-hero point does not receive false threat priority");
         }
 
+        public static void EscortStopsOnlyForPhysicalCommittedCivilianAttacks(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] row=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<row.Length;x++)row[x]='#';
+                    else{row[0]='#';row[row.Length-1]='#';}
+                    rows[y]=new string(row);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=16.5f;g.save.y=10.5f;
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90;g.reliefFollowerSafety=90;
+                g.reliefFollowerPosition=new Point(12.5f,10.5f);
+                g.reliefFollowerWaiting=false;g.save.energy=100;
+                var foe=new Enemy(99481,0,13.75f,10.5f,10000f){
+                    state=1,timer=.5f,windupDuration=.65f,
+                    targetingReliefCivilian=true,target=g.reliefFollowerPosition,
+                    facing=new Point(1,0)};
+                g.enemies.Add(foe);
+                Check(!g.ReliefEscortUnderAttack&&!g.ReliefEscortEvadeAvailable,
+                    "An enemy attacking AWAY from the resident cannot lock the escort");
+                Point before=g.reliefFollowerPosition;
+                g.Tick(.05f,new Point());
+                Check((g.reliefFollowerPosition-before).Length>.01f,
+                    "The escorted civilian actually walks while a fake attack flag is present");
+                foe.target=g.reliefFollowerPosition;
+                foe.Face(new Point(-1,0));
+                Check(g.ReliefEscortUnderAttack&&g.ReliefEscortEvadeAvailable,
+                    "Face-on committed contact physically threatens the civilian");
+                before=g.reliefFollowerPosition;g.Tick(.05f,new Point());
+                Check((g.reliefFollowerPosition-before).Length<.001f,
+                    "Genuine imminent contact plants the civilian's feet");
+                foe.stun=1f;
+                Check(!g.ReliefEscortUnderAttack&&!g.ReliefEscortEvadeAvailable,
+                    "Interrupting the attacker retracts the evacuation freeze");
+                before=g.reliefFollowerPosition;g.Tick(.05f,new Point());
+                Check((g.reliefFollowerPosition-before).Length>.01f,
+                    "Resident resumes actual footsteps after a combat interruption");
+                foe.stun=0f;foe.state=1;foe.timer=.4f;
+                foe.windupDuration=.65f;foe.target=g.reliefFollowerPosition;
+                foe.Face(new Point(-1f,0f));
+                Check(g.ReliefEscortUnderAttack,
+                    "A new honest windup can physically threaten the same resident");
+                foe.x=14.5f;
+                char[] wall=rows[10].ToCharArray();wall[13]='#';
+                rows[10]=new string(wall);
+                Check(g.CanStand(foe.Position)&&g.CanStand(g.reliefFollowerPosition)&&
+                    !g.ReliefEscortUnderAttack&&!g.ReliefEscortEvadeAvailable,
+                    "Blocking the attack corridor retracts a phantom civilian warning");
+                g.reliefMissionRoom=0;
+                Check(!g.ReliefEscortUnderAttack,
+                    "Ending the mission clears warning ownership");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry(Campaign data)
         {
             MapData old=data.maps[1];

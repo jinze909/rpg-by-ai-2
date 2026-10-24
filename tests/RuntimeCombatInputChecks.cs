@@ -4683,7 +4683,8 @@ public static class RuntimeCombatInputChecks
             g.save.energy=60;
             var raider=new Enemy(3441,0,original.x-1.2f,original.y,90);
             raider.state=1;raider.targetingReliefCivilian=true;
-            raider.target=original;
+            raider.timer=.5f;raider.windupDuration=.65f;
+            raider.target=original;raider.Face(original-raider.Position);
             g.enemies.Add(raider);
             Check(g.ReliefEscortUnderAttack&&g.ReliefEscortEvadeAvailable,
                 "A physically committed threat enables the rescue evasive order");

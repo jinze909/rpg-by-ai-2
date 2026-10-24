@@ -157,6 +157,7 @@ namespace Starfall.Tests
         [Test] public void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease() { CoreChecks.CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Data()); }
         [Test] public void CompanionProtectsActualRescueCivilianBeforeIdleEnemies() { CoreChecks.CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Data()); }
         [Test] public void RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry() { CoreChecks.RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry(Data()); }
+        [Test] public void EscortStopsOnlyForPhysicalCommittedCivilianAttacks() { CoreChecks.EscortStopsOnlyForPhysicalCommittedCivilianAttacks(Data()); }
         [Test] public void CompanionRescueCoverCannotTriggerFromMissOrReusedId() { CoreChecks.CompanionRescueCoverCannotTriggerFromMissOrReusedId(Data()); }
         [Test] public void IdleAllyWakesWhenTargetAppears() { CoreChecks.CompanionIdleReadinessReactsToRealTargets(Data()); }
         [Test] public void FullInventoryDoesNotChargeForOverflowStock() { CoreChecks.RepeatablePurchasesCannotConsumeResourcesPastSavedStackCaps(Data()); }

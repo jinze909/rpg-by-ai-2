@@ -201,12 +201,14 @@ namespace Starfall
         {
             get
             {
-                if (!ReliefEscortActive) return false;
+                if (!ReliefEscortActive || reliefMissionRoom!=save.room ||
+                    reliefMissionTime<=0f || reliefFollowerSafety<=0f)
+                    return false;
+                // Share the real contact geometry with companion interception
+                // and combat warning HUD. Stale attack flags, a backward
+                // swing and a shut gate cannot freeze the actual evacuee.
                 foreach (Enemy enemy in enemies)
-                    if (enemy.hp > 0 && enemy.state == 1 &&
-                        enemy.targetingReliefCivilian &&
-                        (enemy.target - reliefFollowerPosition).Length < 2.2f)
-                        return true;
+                    if (CompanionCommittedRescueStrike(enemy)) return true;
                 return false;
             }
         }
