@@ -97,6 +97,12 @@ namespace Starfall.Tests
             g.save.flags.Add("desert_report");
             g.save.flags.Add("boss_7");
             g.Enter(7);g.enemies.Clear();g.invulnerable=240f;
+            // Party changes are correctly locked once nearby guards are
+            // alive. Select the recruited companion at a genuinely safe
+            // post, before entering the physical switchyard encounter.
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            Check(g.save.companion==1,
+                "A real recruited companion joins safely before combat");
             WorldObject west=FrostPost(g,1),mid=FrostPost(g,2);
             g.save.x=west.x;g.save.y=west.y;g.Talk(west);
             Check(FrostChoice(g,"frostsignal_start"),
@@ -112,14 +118,13 @@ namespace Starfall.Tests
             other.x=west.x;other.y=west.y;
             foreach(Enemy foe in guards){foe.stun=200f;foe.timer=200f;}
             g.save.cold=0;g.save.x=mid.x;g.save.y=mid.y;
-            g.save.companion=-1;
+            g.companionPosition=new Point(mid.x,mid.y+2f);
             float before=g.FrostSignalFlame;
             g.Tick(.05f,new Point());
             float unguarded=before-g.FrostSignalFlame;
             Check(unguarded>.055f&&unguarded<.065f&&
                 g.FrostSignalGuardsScreened==0,
                 "A nearby unobstructed raider consumes the original extra ember pressure without a companion");
-            g.save.flags.Add("companion_1");g.SelectCompanion(1);
             g.companionPosition=new Point(mid.x+1.5f,mid.y);
             Check(g.CanStand(g.companionPosition)&&g.FrostSignalGuardsScreened==1,
                 "A recruited physically present companion screens the real approach");
