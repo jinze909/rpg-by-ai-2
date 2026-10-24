@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route", "specialist_drill" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -265,6 +265,40 @@ namespace Starfall
                           "Carry one Tide stew to the southern refuge in "+data.maps[q.room].en);
                 q.reward=L("每处经验24、安全时实地恢复生命与耐力；三地全部完成再得硬币45、技能点1",
                     "Each shelter: 24 XP and physical safe HP/energy recovery. All three: +45 coins, +1 talent.");
+                return q;
+            }
+
+
+            if(id=="specialist_drill")
+            {
+                q.title=L("艾妲 · 职业战技实战考核",
+                    "Ada · Class Technique Proficiency");
+                q.category=L("职业成长 · 实际战技接触",
+                    "CLASS MASTERY · REAL CONTACT");
+                q.locked=save.profession==0;
+                q.complete=SpecialistDrillComplete;
+                q.room=0;q.target=ObjectPoint(0,"mentor",new Point(11,14));
+                q.description=L("在余烬镇艾妲的训练场，用三次独立释放的Q战技实际命中木靶。游侠一轮五箭只计一次。42秒内完成，失败可免费重试。首次通过使Q永久减少5耐力消耗。",
+                    "At Ada's original town yard, land three separate genuine Q skill contacts. A Ranger volley counts only once, not five times. Complete in 42 seconds; retries are free. First clear permanently reduces Q energy cost by five.");
+                q.steps.Add(new QuestStep(L("与艾妲交谈并开始考核",
+                    "Speak to Ada and begin the course"),
+                    SpecialistDrillActive||q.complete));
+                q.steps.Add(new QuestStep(L("三次独立战技实际命中",
+                    "Land three independent physical Q contacts"),
+                    q.complete));
+                q.next=q.locked?L("战士请参加诺尔的剑盾考核",
+                    "Vanguard trains sword guard with Noll"):
+                    SpecialistDrillActive?
+                        L("实际命中 "+SpecialistDrillHits+"/3 · 剩余 "+
+                            SpecialistDrillTime.ToString("0")+"秒",
+                          "True contacts "+SpecialistDrillHits+"/3 · "+
+                            SpecialistDrillTime.ToString("0")+"s left"):
+                    q.complete?L("Q永久节省5耐力；可返回艾妲处复练",
+                        "Permanent Q cost -5; Ada offers a free replay"):
+                    L("返回余烬镇找艾妲进行职业考核",
+                        "Talk to Ada at Emberfall's practice yard");
+                q.reward=L("首次奖励：硬币35、经验60、职业Q消耗永久-5",
+                    "First clear: +35 coins, +60 XP, permanent Q cost -5");
                 return q;
             }
 

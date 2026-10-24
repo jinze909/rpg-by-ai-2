@@ -192,7 +192,13 @@ namespace Starfall
         {
             if (Dying) return;
             if (save.room != 0 || mode == "title") { Notify("回到余烬镇，在训练场重新练习。", "Return to Emberfall to use the practice yard."); return; }
-            if (practicing) return; Close(); ResetCombatPresentation(); practicing = true; practiceStage = 0; practiceReturn = Position;
+            if(practicing||SpecialistDrillActive)
+            {
+                if(SpecialistDrillActive)Notify("先结束本次Q考核，再进行基础训练。",
+                    "Finish or abort this Q proficiency before starting the basic course.");
+                return;
+            }
+            Close(); ResetCombatPresentation(); practicing = true; practiceStage = 0; practiceReturn = Position;
             enemies.Clear(); projectiles.Clear(); hazards.Clear(); save.x = 14; save.y = 13; invulnerable = 0; save.energy = 100;
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0; ClearFrost();
             PracticeEnemy(); Notify("训练场：先命中练习木桩。练习不会损失生命或物资。", "Practice yard: hit the dummy. Health and supplies are safe.");

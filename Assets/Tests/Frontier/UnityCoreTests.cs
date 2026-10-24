@@ -88,6 +88,8 @@ namespace Starfall.Tests
         [Test] public void LakeKitchenTradeRejectsFullBagAndRemoteChoices() { CoreChecks.PublicFishKitchenRejectsStaleChoicesAndInventoryOverflow(Data()); }
         [Test] public void SoupRouteFeedsThreeDistantPhysicalShelters() { CoreChecks.RemoteSoupRouteUsesThreeRealSheltersAndProvidesPhysicalCare(Data()); }
         [Test] public void SoupRouteRejectsRemoteEmptyAndCombatTrades() { CoreChecks.SoupRouteGuardsCachedRemoteAndCombatHandoffs(Data()); }
+        [Test] public void RangerAndArcanistQProficiencyHasRealDamageGates() { CoreChecks.RangerAndArcanistAdvancedDrillCountsTrueDistinctSkillContacts(Data()); }
+        [Test] public void QProficiencyRejectsRemoteAndMissedCasts() { CoreChecks.AdvancedClassDrillRejectsRemoteAndMissedContacts(Data()); }
         [Test] public void PrecisionLakeFishingAwardsTwoRealFishWithTightTiming() { CoreChecks.PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Data()); }
         [Test] public void PrecisionFishingFailurePreservesOrdinaryLakePlay() { CoreChecks.PrecisionLakeFishingRespectsBagFailuresAndOrdinaryCasting(Data()); }
         [Test] public void LiveHighlandEmberCompassFollowsNextObjectiveAndSave() { CoreChecks.LiveFrostSignalNavigationTracksActualCarriedEmber(Data()); }

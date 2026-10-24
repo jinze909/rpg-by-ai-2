@@ -12,6 +12,84 @@ namespace Starfall.Tests
                 friendly=false,visual="enemyArrow",source="shot"
             };
         }
+
+        public static void RangerAndArcanistAdvancedDrillCountsTrueDistinctSkillContacts(Campaign data)
+        {
+            foreach(int profession in new[]{1,2})
+            {
+                var g=Fresh(data,profession);
+                WorldObject mentor=Object(g,"mentor");
+                TalkNearObject(g,mentor);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="specialist_drill_start");
+                Check(start>=0,"Both nonwarrior classes are offered the authentic advanced mentor trial");
+                int coins=g.save.coins;
+                Check(g.ClassSkillEnergyCost==40f,"Untrained Q still uses the original forty energy");
+                g.Choose(start);
+                Check(g.SpecialistDrillActive&&g.save.room==0&&
+                    Math.Abs(g.save.x-14f)<.01f&&
+                    g.save.trackedQuest=="specialist_drill"&&
+                    g.GetQuest("specialist_drill").id=="specialist_drill",
+                    "True mentor choice begins a timed real-world drill and points guidance to the actual yard");
+                Check(g.enemies.Count==1&&g.enemies[0].hp==20000f,
+                    "Target is a live ordinary combat actor rather than a scripted score or fake button");
+                for(int cast=0;cast<3;cast++)
+                {
+                    g.Skill(new Point(1,0));
+                    for(int frame=0;frame<88&&g.SpecialistDrillActive;frame++)
+                        g.Tick(.05f,new Point());
+                    Check((cast<2&&g.SpecialistDrillHits==cast+1)||
+                        (cast==2&&!g.SpecialistDrillActive),
+                        "Each genuine class Q can credit only one contact even if five Ranger arrows strike the same target");
+                    if(cast<2)
+                        Check(g.SpecialistDrillActive&&g.save.coins==coins&&
+                            g.enemies.Count==1,
+                            "Two real contacts cannot claim the complete trial or mint partial payouts");
+                }
+                Check(!g.SpecialistDrillActive&&g.SpecialistDrillComplete&&
+                    g.ClassSkillEnergyCost==35f&&g.save.coins==coins+35&&
+                    g.GetQuest("specialist_drill").complete,
+                    "Three physically separate Q hits permanently earn the class Q stamina discount and payout");
+                Check(g.enemies.Count==0,
+                    "Success retires the actual practice dummy without leaving any live town enemy");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+                Check(restored.SpecialistDrillComplete&&
+                    !restored.SpecialistDrillActive&&
+                    restored.ClassSkillEnergyCost==35f&&restored.save.version==2,
+                    "V2 save reload restores class mastery without carrying a practice actor or transient timer");
+            }
+        }
+        public static void AdvancedClassDrillRejectsRemoteAndMissedContacts(Campaign data)
+        {
+            var g=Fresh(data,1);WorldObject mentor=Object(g,"mentor");
+            TalkNearObject(g,mentor);
+            int start=Array.FindIndex(g.conversation.choices,c=>c.action=="specialist_drill_start");
+            g.save.x=mentor.x+11f;g.save.y=mentor.y+11f;
+            g.Choose(start);
+            Check(!g.SpecialistDrillActive&&g.enemies.Count==0,
+                "Cached mentor button cannot summon a training enemy from remote world feet");
+            TalkNearObject(g,mentor);
+            start=Array.FindIndex(g.conversation.choices,c=>c.action=="specialist_drill_start");
+            g.Choose(start);
+            int coins=g.save.coins;
+            g.Skill(new Point(-1,0));
+            for(int f=0;f<86;f++)g.Tick(.05f,new Point());
+            Check(g.SpecialistDrillHits==0&&!g.SpecialistDrillComplete,
+                "A real Ranger Q released away from the target never earns false progress");
+            g.save.x=mentor.x;g.save.y=mentor.y;
+            g.Talk(mentor);
+            int abort=Array.FindIndex(g.conversation.choices,c=>c.action=="specialist_drill_abort");
+            Check(abort>=0,"The still-active trial offers a real in-world cancel");
+            g.Choose(abort);
+            Check(!g.SpecialistDrillActive&&g.enemies.Count==0&&
+                g.save.coins==coins&&!g.SpecialistDrillComplete,
+                "Aborting a genuine trial cannot mint XP, coins or persistent training flags");
+            var warrior=Fresh(data,0);
+            Check(warrior.ClassSkillEnergyCost==40f&&
+                warrior.GetQuest("specialist_drill").locked,
+                "Existing warrior guard mechanics and their separate training remain unchanged");
+        }
         public static void SwordGuardReflectsRealHostileShotsWithResourceAndDirection(Campaign data)
         {
             var g=Fresh(data,0);
