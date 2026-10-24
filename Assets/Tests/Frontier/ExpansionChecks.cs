@@ -3697,10 +3697,8 @@ namespace Starfall.Tests
                 "An unrelated world combat kill cannot advance high-trail survey");
             for(int k=0;k<ids.Count;k++)
             {
-                // On a v2 reload, numeric enemy IDs can legitimately be
-                // reallocated. The same logical watch index must still
-                // resolve to its NEW authentic combat actor, never a stale
-                // impostor that happens to reuse an old integer.
+                // On v2 reload, all Enemy objects are reconstructed; the
+                // logical watch index resolves to its new authentic body.
                 int liveId=-1;
                 foreach(var pair in tracked)
                     if(pair.Value==indices[k]){liveId=pair.Key;break;}
@@ -3718,8 +3716,10 @@ namespace Starfall.Tests
                     g=new GameCore(data,CloneSave(g.save));
                     g.Start();
                     tracked=(Dictionary<int,int>)idsField.GetValue(g);
-                    Check(tracked.Count==ids.Count&&g.RidgeWatchProgress(1)==1,
-                        "Save reload retains survey flags and stable mapped combat IDs");
+                    Check(tracked.Count==ids.Count-1&&
+                        !tracked.ContainsValue(indices[0])&&
+                        g.RidgeWatchProgress(1)==1,
+                        "Reload keeps credited progress and only surviving actual patrol actors, never dead phantom registrations");
                 }
             }
             Check(g.RidgeWatchComplete(1)&&g.save.shards==shards+1&&

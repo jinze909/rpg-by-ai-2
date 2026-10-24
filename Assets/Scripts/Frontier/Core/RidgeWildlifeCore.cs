@@ -91,6 +91,41 @@ namespace Starfall
                     return RidgeWildlifeSpawns[i];
             return null;
         }
+        // World snapshots reconstruct every Enemy object on Load. Retain
+        // strict actor identity, but reconnect it to legitimate restored
+        // survivors instead of stale pre-load instances.
+        private void RebindRidgeWatchAfterWorldRestore()
+        {
+            if(save.room!=ridgeWatchRoom||
+                !Object.ReferenceEquals(Map,ridgeWatchMap))return;
+            var expected=new Dictionary<int,int>(ridgeWatchIds);
+            ridgeWatchIds.Clear();ridgeWatchActors.Clear();
+            foreach(Enemy body in enemies)
+            {
+                if(body==null||body.hp<=0||body.boss)continue;
+                int index=-1;
+                int old;
+                if(expected.TryGetValue(body.id,out old)&&
+                    body.kind==(save.room+old)%3)
+                    index=old;
+                else
+                {
+                    // A temporarily closed path can move the fallback patrol
+                    // and allocate it a different ID. Rebind only a matching
+                    // archetype close to its authentic clearing.
+                    for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                        if(!ridgeWatchIds.ContainsValue(i)&&
+                           body.kind==(save.room+i)%3&&
+                           (body.Position-RidgeWildlifeSpawns[i]).Length<=4.25f)
+                        {index=i;break;}
+                }
+                if(index<0||index>=RidgeWildlifeSpawns.Length||
+                    ridgeWatchIds.ContainsValue(index))continue;
+                ridgeWatchIds[body.id]=index;
+                ridgeWatchActors[body.id]=body;
+            }
+            ridgeWatchRespawnCheck=1.5f;
+        }
         private string RidgeWatchHint(int room,bool english)
         {
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
@@ -174,7 +209,8 @@ namespace Starfall
                 ridgeWatchRespawnCheck=1.5f;
                 if(!RidgeWatchComplete(save.room))
                     for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
-                        TrySpawnRidgeWatchPatrol(i);
+                        if(!Has("ridge_watch_"+save.room+"_"+i))
+                            TrySpawnRidgeWatchPatrol(i);
             }
             foreach(Enemy enemy in enemies)
             {

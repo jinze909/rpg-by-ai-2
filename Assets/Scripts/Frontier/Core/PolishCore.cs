@@ -572,6 +572,9 @@ namespace Starfall
                 Point p = SafeActorFoot(new Point(r.x, r.y));
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, Clamp(r.maxHp, 1, 5000), r.boss); e.hp = Clamp(r.hp, .1f, e.maxHp); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
             }
+            // SpawnRoom instances were replaced by reconstructed world
+            // actors. Rebind the true patrols after restore completes.
+            RebindRidgeWatchAfterWorldRestore();
         }
     }
 }
