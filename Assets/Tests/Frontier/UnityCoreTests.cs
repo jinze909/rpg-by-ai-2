@@ -155,6 +155,7 @@ namespace Starfall.Tests
         [Test] public void BlockedManualCompanionFocusNeverMarksAndExpires() { CoreChecks.ManualCompanionFocusNeedsAnHonestReleasedMuzzleAndExpires(Data()); }
         [Test] public void CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease() { CoreChecks.CompanionAutoFirePrioritizesCommittedHeroStrikeAtRelease(Data()); }
         [Test] public void CompanionProtectsActualRescueCivilianBeforeIdleEnemies() { CoreChecks.CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Data()); }
+        [Test] public void CompanionRescueCoverCannotTriggerFromMissOrReusedId() { CoreChecks.CompanionRescueCoverCannotTriggerFromMissOrReusedId(Data()); }
         [Test] public void IdleAllyWakesWhenTargetAppears() { CoreChecks.CompanionIdleReadinessReactsToRealTargets(Data()); }
         [Test] public void FullInventoryDoesNotChargeForOverflowStock() { CoreChecks.RepeatablePurchasesCannotConsumeResourcesPastSavedStackCaps(Data()); }
         [Test] public void FieldCampsRespectElapsedCombatTimeAndActiveMissions() { CoreChecks.FieldCampRestAdvancesCombatTimeAndCannotSkipLiveCivilianWork(Data()); }

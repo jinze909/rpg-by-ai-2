@@ -1313,6 +1313,28 @@ namespace Starfall
             }
             return nearest;
         }
+        // The whole swept projectile collider is authoritative. Merely
+        // releasing a shot, aiming a reticle, overlapping a VFX or matching
+        // a recycled enemy ID NEVER constitutes a successful rescue.
+        private bool RescueCoverContactEligible(Projectile p, Enemy e)
+        {
+            return p!=null&&e!=null&&p.friendly&&p.damage>0f&&
+                System.Object.ReferenceEquals(p.rescueCoverTarget,e)&&
+                System.Object.ReferenceEquals(p.rescueCoverSave,save)&&
+                System.Object.ReferenceEquals(p.rescueCoverMap,Map)&&
+                p.rescueCoverRoom==save.room&&
+                CompanionCommittedRescueStrike(e);
+        }
+        private void FinishCompanionRescueCoverContact(Projectile p,Enemy e)
+        {
+            if(!projectiles.Contains(p))return;
+            if(e.hp>0f) ApplyEnemyControl(e,e.boss?.3f:.85f);
+            // A lethal contact also genuinely prevented this attack.
+            effects.Add(new Effect("number",e.Position,.75f,
+                L("掩护命中！","COVER HIT!")){reliefMissionOwned=true});
+            sound="counter";revision++;
+            p.rescueCoverTarget=null; // exactly one confirmed rescue per shot
+        }
         private bool CompanionCacheContactImminent(Enemy foe)
         {
             return foe!=null&&enemies.Contains(foe)&&
@@ -1520,14 +1542,17 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
-                                // Only a physically released covering shot
-                                // earns the bilingual rescue feedback.
+                                // A genuine pending intercept follows the
+                                // *projectile* to physical impact. No claim of
+                                // protection is shown on mere bow release.
                                 if(action.kind=="attack"&&
                                    CompanionCommittedRescueStrike(locked))
-                                    effects.Add(new Effect("number",
-                                        reliefFollowerPosition,.7f,
-                                        L("同伴掩护！","ALLY COVER!"))
-                                        {reliefMissionOwned=true});
+                                {
+                                    shot.rescueCoverTarget=locked;
+                                    shot.rescueCoverSave=save;
+                                    shot.rescueCoverMap=Map;
+                                    shot.rescueCoverRoom=save.room;
+                                }
                                 if(action.kind=="attack"&&
                                     System.Object.ReferenceEquals(
                                         locked,companionCornerTarget)&&

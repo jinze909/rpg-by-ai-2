@@ -1887,6 +1887,16 @@ namespace Starfall
                 Hurt(p.damage,p.source??"shot",p.velocity.Normalized);
             return true;
         }
+        // Shared by ordinary swept flight and last-legal-sample
+        // wall-edge body contacts. Establish rescue eligibility BEFORE Hit:
+        // successful HP damage itself sets hitTime and may interrupt state.
+        private void HitFriendlyProjectileContact(Projectile shot,Enemy victim)
+        {
+            bool covered=RescueCoverContactEligible(shot,victim);
+            Hit(victim,shot.damage,shot.technique,
+                shot.velocity.Normalized,shot.impact);
+            if(covered)FinishCompanionRescueCoverContact(shot,victim);
+        }
         private void UpdateProjectiles(float dt)
         {
             tickingProjectiles.Clear();tickingProjectiles.AddRange(projectiles);
@@ -1971,8 +1981,7 @@ namespace Starfall
                                 if(p.piercing)
                                 {
                                     p.hitActors.Add(candidate);p.hits.Add(candidate.id);
-                                    Hit(candidate,p.damage,p.technique,
-                                        p.velocity.Normalized,p.impact);
+                                    HitFriendlyProjectileContact(p,candidate);
                                     if(!projectiles.Contains(p))break;
                                     if(p.slowing)ApplyEnemyControl(candidate,.45f);
                                 }
@@ -1988,8 +1997,7 @@ namespace Starfall
                             {
                                 p.hitActors.Add(firstBody);
                                 p.hits.Add(firstBody.id);
-                                Hit(firstBody,p.damage,p.technique,
-                                    p.velocity.Normalized,p.impact);
+                                HitFriendlyProjectileContact(p,firstBody);
                                 if(projectiles.Contains(p)&&p.slowing)
                                     ApplyEnemyControl(firstBody,.45f);
                                 // The existing projectileImpact below is
@@ -2078,7 +2086,7 @@ namespace Starfall
                             p.hitActors.Add(e);
                             p.hits.Add(e.id);
                             hitAny = true;
-                            Hit(e, p.damage, p.technique, p.velocity.Normalized, p.impact);
+                            HitFriendlyProjectileContact(p,e);
                             // Practice completion or another transaction can
                             // retire the shot. It must not leave an old-room impact.
                             if (!projectiles.Contains(p)) { dead = true; break; }

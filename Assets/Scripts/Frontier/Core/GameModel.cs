@@ -170,6 +170,13 @@ namespace Starfall
         // This field is transient; GameCore SaveData and snapshots are intact.
         public float trailResetAt;
         public ImpactProfile impact;
+        // One genuine automatic ally shot may intercept ONE exact living
+        // resident attacker on impact. This is deliberately transient:
+        // spawn IDs can be reused and SaveData v2 never serializes shots.
+        public Enemy rescueCoverTarget;
+        public SaveData rescueCoverSave;
+        public MapData rescueCoverMap;
+        public int rescueCoverRoom = -1;
         public float Radius { get { return visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
         public int theme;
         // A projectile can cross several independently spawned actors with the

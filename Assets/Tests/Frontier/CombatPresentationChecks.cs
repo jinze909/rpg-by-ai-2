@@ -1667,7 +1667,7 @@ namespace Starfall.Tests
                 g.reliefFollowerWaiting=true;
                 var idle=new Enemy(99881,0,10.5f,12f,10000f){timer=1000f};
                 var attacker=new Enemy(99882,2,14.2f,12.5f,10000f)
-                {state=1,timer=.60f,windupDuration=.65f,
+                {state=1,timer=1.10f,windupDuration=1.15f,
                  target=g.reliefFollowerPosition,
                  targetingReliefCivilian=true,facing=new Point(1,0)};
                 g.enemies.Add(idle);g.enemies.Add(attacker);
@@ -1715,14 +1715,85 @@ namespace Starfall.Tests
                 Advance(g,.16f);
                 Check(g.companionAction!=null&&g.companionAction.released&&
                     System.Object.ReferenceEquals(lockField.GetValue(g),attacker)&&
-                    g.projectiles.Exists(p=>p.friendly)&&
-                    g.effects.Exists(e=>e.kind=="number"&&e.reliefMissionOwned&&
-                        e.text==g.L("同伴掩护！","ALLY COVER!")),
-                    "True auto-release retargets and paints rescue cover only after a projectile exists");
+                    g.projectiles.Exists(p=>p.friendly&&
+                        System.Object.ReferenceEquals(p.rescueCoverTarget,attacker))&&
+                    !g.effects.Exists(e=>e.kind=="number"&&e.reliefMissionOwned&&
+                        e.text==g.L("掩护命中！","COVER HIT!")),
+                    "Actual auto release carries a pending, identity-bound rescue arrow but cannot claim a hit yet");
+                Advance(g,.60f);
+                Check(g.effects.Exists(e=>e.kind=="number"&&
+                    e.reliefMissionOwned&&e.text==g.L("掩护命中！","COVER HIT!"))&&
+                    attacker.hp<attacker.maxHp&&attacker.stun>.01f,
+                    "Only a genuine traveling rescue arrow striking the live attacker earns cover feedback and interruption");
                 Check(g.reliefFollowerSafety<=savedSafety,
                     "Rescue combat may genuinely injure the civilian; the covering arrow cannot award unearned safety");
                 Check(!g.save.flags.Contains("companion_rescue_cover"),
                     "Rescue tactical retargeting never writes a new persistent save flag");
+            }
+            finally{data.maps[1]=old;}
+        }
+
+        public static void CompanionRescueCoverCannotTriggerFromMissOrReusedId(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] line=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<line.Length;x++)line[x]='#';
+                    else {line[0]='#';line[line.Length-1]='#';}
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var game=Fresh(data,1);game.Enter(1);game.enemies.Clear();
+                game.save.flags.Add("companion_1");game.SelectCompanion(1);
+                game.save.x=16.5f;game.save.y=10.5f;
+                game.companionPosition=new Point(10.5f,10.5f);
+                game.save.reducedMotion=true;
+                game.reliefMissionRoom=1;game.reliefMissionWave=3;
+                game.reliefMissionTime=90f;game.reliefFollowerSafety=90f;
+                game.reliefFollowerPosition=new Point(15.5f,12.5f);
+                game.reliefFollowerWaiting=true;
+                var attacker=new Enemy(99889,2,14.2f,12.5f,10000f)
+                {state=1,timer=1.25f,windupDuration=1.3f,
+                 target=game.reliefFollowerPosition,
+                 targetingReliefCivilian=true,facing=new Point(1,0)};
+                game.enemies.Add(attacker);
+                game.ToggleCompanionHold();
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                cadence.SetValue(game,0f);
+                game.Tick(.02f,new Point());Advance(game,.16f);
+                Projectile shot=game.projectiles.Find(p=>p.friendly&&
+                    System.Object.ReferenceEquals(p.rescueCoverTarget,attacker));
+                Check(shot!=null,
+                    "Real ally attack releases one rescue-owned projectile");
+                // Moving a live enemy out of the swept lane AFTER release
+                // must not award a ranged hit just because the original
+                // target's numeric ID still exists.
+                attacker.x=17.5f;attacker.y=17.5f;
+                Advance(game,.65f);
+                Check(!game.effects.Exists(e=>e.kind=="number"&&
+                    e.text==game.L("掩护命中！","COVER HIT!"))&&
+                    attacker.stun<=0f,
+                    "A missed rescue projectile cannot stun or claim a cover hit");
+                // A new enemy with the SAME spawn ID at the old trajectory
+                // must not inherit the previous actor's pending intercept.
+                var impostor=new Enemy(attacker.id,0,13.1f,11.8f,10000f)
+                    {timer=1000f};
+                game.enemies.Add(impostor);
+                Check(!System.Object.ReferenceEquals(shot.rescueCoverTarget,impostor),
+                    "A recycled numeric ID is not the original living target");
+                Advance(game,.2f);
+                Check(impostor.stun<=0f&&
+                    !game.effects.Exists(e=>e.kind=="number"&&
+                        e.text==game.L("掩护命中！","COVER HIT!")),
+                    "A recycled enemy ID never receives rescue suppression or false credit");
             }
             finally{data.maps[1]=old;}
         }
