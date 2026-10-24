@@ -3610,8 +3610,8 @@ namespace Starfall.Tests
                     strike.Invoke(g,new object[]{body,9999f,true,null,null});
                 }
                 Check(g.RidgeWatchProgress(1)==2&&!g.RidgeWatchComplete(1)&&
-                    g.save.coins==coins&&g.save.shards==shards,
-                    "Defeating two accessible actors can NEVER publish a false three-patrol reward");
+                    g.save.coins==coins+12&&g.save.shards==shards,
+                    "Only two normal enemy loot payments occur; the unique three-patrol reward is NOT granted");
                 rows=(string[])original.rows.Clone();
                 data.maps[1].rows=rows;
                 g.save.x=original.spawnX;g.save.y=original.spawnY;
@@ -3625,7 +3625,7 @@ namespace Starfall.Tests
                     "The recovered patrol stands on genuine local footing, not arbitrary fallback scenery");
                 strike.Invoke(g,new object[]{missing,9999f,true,null,null});
                 Check(g.RidgeWatchProgress(1)==3&&g.RidgeWatchComplete(1)&&
-                    g.save.shards==shards+1&&g.save.coins==coins+28,
+                    g.save.shards==shards+1&&g.save.coins==coins+46,
                     "Only the third confirmed real enemy death pays the original one-time reward");
             }
             finally { data.maps[1]=original; }
@@ -3674,6 +3674,8 @@ namespace Starfall.Tests
             var tracked=(Dictionary<int,int>)idsField.GetValue(g);
             Check(tracked.Count>0,"Mapped highlands must spawn actual eligible patrols");
             var ids=new List<int>(tracked.Keys);
+            var indices=new List<int>();
+            foreach(int id in ids)indices.Add(tracked[id]);
             // Merely removing patrols or killing ordinary unrelated foes
             // may not report a real surveyed combat victory.
             int coins=g.save.coins,shards=g.save.shards;
@@ -3684,8 +3686,15 @@ namespace Starfall.Tests
                 "An unrelated world combat kill cannot advance high-trail survey");
             for(int k=0;k<ids.Count;k++)
             {
-                Enemy target=g.enemies.Find(e=>e.id==ids[k]);
-                Check(target!=null,"Genuine patrol remains alive until combat defeats it");
+                // On a v2 reload, numeric enemy IDs can legitimately be
+                // reallocated. The same logical watch index must still
+                // resolve to its NEW authentic combat actor, never a stale
+                // impostor that happens to reuse an old integer.
+                int liveId=-1;
+                foreach(var pair in tracked)
+                    if(pair.Value==indices[k]){liveId=pair.Key;break;}
+                Enemy target=g.enemies.Find(e=>e.id==liveId);
+                Check(target!=null,"The current logical patrol index retains a genuine living actor after any save reload");
                 strike.Invoke(g,new object[]{target,999f,true,null,null});
                 Check(g.RidgeWatchProgress(1)==k+1,
                     "Each actually defeated mapped patrol advances exactly one stop");
