@@ -1027,6 +1027,7 @@ namespace Starfall
             if (e.boss && !IsSkywatchEnemy(e))
             {
                 Flag("boss_" + save.room); RetireHostileProjectiles();
+                EnsureRidgeWatchPatrols();
                 if (save.room == 4) finaleDelay = 1.4f;
                 else if (save.room >= 5) Notify("守护者倒下了。完成地区调查或清理本层剩余敌人。", "Guardian defeated. File the report, or clear remaining abyss enemies.");
                 else Notify("守护者倒下了。到祭坛处收取星核。", "The guardian has fallen. Recover the starcore at the altar.");

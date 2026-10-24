@@ -65,6 +65,18 @@ namespace Starfall
             new Point(89.5f,67.5f),
             new Point(76.5f,66.5f)
         };
+        // The last landmark and the guardian's defeat can each unlock this
+        // hunt while the hero is STILL in the active scene. An idempotent
+        // check avoids duplicating world enemies or replacing a mid-hunt
+        // enemy identity on a repeated dialogue or combat callback.
+        private void EnsureRidgeWatchPatrols()
+        {
+            if(save.room<1||save.room>7||!RidgeLinked(save.room)||
+                !Has("boss_"+save.room))return;
+            if(ridgeWatchRoom==save.room&&
+                Object.ReferenceEquals(ridgeWatchMap,Map))return;
+            SpawnRidgeWildlife();
+        }
         private void SpawnRidgeWildlife()
         {
             ResetRidgeWatch();

@@ -3700,5 +3700,62 @@ namespace Starfall.Tests
                 Math.Abs(loaded.save.energy-30f-boosted)<.0003f,
                 "Original save format retains the actual completed high-trail benefit");
         }
+
+        public static void RidgeWatchActivatesImmediatelyOnBothRealUnlockOrders(Campaign data)
+        {
+            var key=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(key!=null&&strike!=null,"Actual watch spawns and contact damage exist");
+            // Case A: guardian is already dead, and the second physical
+            // ridge marker is the LAST unlock. The hero stays in this map.
+            var linked=Fresh(data);
+            linked.save.flags.Add("boss_1");
+            linked.Enter(1);
+            Check(((Dictionary<int,int>)key.GetValue(linked)).Count==0,
+                "A still-unlinked route starts with no late-game watch");
+            var markers=new List<WorldObject>();
+            foreach(WorldObject o in linked.Map.objects)
+                if(o.kind=="ridgemarker")markers.Add(o);
+            Check(markers.Count==2,"Two real map markers must gate the watch");
+            foreach(WorldObject marker in markers)
+            {
+                linked.save.x=marker.x;linked.save.y=marker.y;
+                linked.Talk(marker);linked.Close();
+            }
+            Check(linked.RidgeLinked(1)&&
+                ((Dictionary<int,int>)key.GetValue(linked)).Count==3,
+                "Second real marker immediately activates all three live hostiles");
+            int firstCount=linked.enemies.Count;
+            linked.save.x=markers[0].x;linked.save.y=markers[0].y;
+            linked.Talk(markers[0]);linked.Close();
+            Check(linked.enemies.Count==firstCount,
+                "Repeated marker interaction cannot duplicate an active patrol");
+            // Case B: both route markers are already known, and a real
+            // guardian death is the LAST unlock, without region transition.
+            var guardian=Fresh(data);
+            guardian.save.flags.Add("ridge_seen_1_0");
+            guardian.save.flags.Add("ridge_seen_1_1");
+            guardian.Enter(1);
+            Check(((Dictionary<int,int>)key.GetValue(guardian)).Count==0,
+                "Surveying a still-guarded route does not prematurely spawn the watch");
+            Enemy boss=guardian.enemies.Find(e=>e.boss);
+            if(boss==null)
+            {
+                boss=new Enemy(7777,0,guardian.Position.x+2f,
+                    guardian.Position.y,30f,true);
+                guardian.enemies.Add(boss);
+            }
+            strike.Invoke(guardian,new object[]{boss,9999f,true,null,null});
+            Check(guardian.Has("boss_1")&&
+                ((Dictionary<int,int>)key.GetValue(guardian)).Count==3,
+                "Authoritative Boss hit/defeat transaction unlocks real patrols immediately");
+            int afterBoss=guardian.enemies.Count;
+            guardian.save.x=markers[0].x;guardian.save.y=markers[0].y;
+            guardian.Talk(markers[0]);guardian.Close();
+            Check(guardian.enemies.Count==afterBoss,
+                "Later ridge dialogues do not duplicate a live post-Boss encounter");
+        }
     }
 }
