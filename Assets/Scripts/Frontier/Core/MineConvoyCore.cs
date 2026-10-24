@@ -15,19 +15,37 @@ namespace Starfall
         // Active interception is based on physical standing positions, not
         // equipment or a saved perk. A hero must actually occupy the raider's
         // sabotage lane, with an unbroken path to both attacker and cart.
-        public bool MineConvoyBodyguarding
+        private bool MineConvoyActivePressureLane(Enemy e)
+        { return IsMineConvoyEnemy(e)&&e.hp>0&&
+            (e.Position-MineCartPosition).Length<5.3f &&
+            ClearAttackPath(e.Position,MineCartPosition); }
+        // Blocking one real approach never grants invulnerability to
+        // the whole carriage: the other attacker remains independent.
+        public int MineConvoyThreatLanes
         {
             get
             {
-                if(MineConvoyStage!=2||save.room!=3||Dying)return false;
-                foreach(Enemy e in enemies)
-                    if(IsMineConvoyEnemy(e)&&e.hp>0 &&
-                        (e.Position-MineCartPosition).Length<5.3f &&
-                        ClearAttackPath(e.Position,MineCartPosition) &&
-                        BlocksMineConvoySabotage(e))return true;
-                return false;
+                if(MineConvoyStage!=2||save.room!=3||Dying)return 0;
+                int count=0;
+                foreach(Enemy foe in enemies)
+                    if(MineConvoyActivePressureLane(foe))count++;
+                return count;
             }
         }
+        public int MineConvoyProtectedLanes
+        {
+            get
+            {
+                if(MineConvoyStage!=2||save.room!=3||Dying)return 0;
+                int count=0;
+                foreach(Enemy foe in enemies)
+                    if(MineConvoyActivePressureLane(foe)&&
+                        BlocksMineConvoySabotage(foe))count++;
+                return count;
+            }
+        }
+        public bool MineConvoyBodyguarding
+        {get{return MineConvoyProtectedLanes>0;}}
         // A missing enemy is not a player victory; only Hit's lethal callback
         // can record the two actually defeated switchyard attackers.
         private int mineConvoyConfirmedKills;
@@ -177,12 +195,9 @@ namespace Starfall
                         return;
                     }
                 foreach(Enemy guard in enemies)
-                    if(IsMineConvoyEnemy(guard)&&guard.hp>0&&
-                        (guard.Position-MineCartPosition).Length<5.3f&&
-                        // A junction wall can close AFTER the guards
-                        // arrived. A fighter behind sealed cover cannot
-                        // damage a real cart it cannot even see.
-                        ClearAttackPath(guard.Position,MineCartPosition))
+                    // The HUD and physical damage must agree on which
+                    // enemy has a real unobstructed cart pressure lane.
+                    if(MineConvoyActivePressureLane(guard))
                     {
                         float pressure=ActiveMineConvoyPressureTime(guard,dt);
                         if(pressure<=0)continue;

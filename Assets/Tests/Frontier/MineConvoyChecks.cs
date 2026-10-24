@@ -233,6 +233,22 @@ namespace Starfall.Tests
                     g.effects.Exists(e=>e.mineConvoyOwned&&
                         e.kind=="number"&&e.text=="挡住破坏"),
                     "Genuine pressure is prevented and a visible cue is emitted without deleting enemies");
+                // Both saboteurs remain independently dangerous.
+                // Blocking the eastern one never prevents the northern
+                // guard from damaging the live civilian carriage.
+                other.x=relay.x;other.y=relay.y+3f;
+                other.stun=0;other.timer=100;
+                Check(g.MineConvoyThreatLanes==2 &&
+                    g.MineConvoyProtectedLanes==1 &&
+                    g.Conditions().Contains("1/2"),
+                    "One protected lane of two is counted in the actual tactical HUD");
+                hull=g.MineConvoyIntegrity;
+                g.Tick(.05f,new Point());
+                Check(hull-g.MineConvoyIntegrity>.12f &&
+                    hull-g.MineConvoyIntegrity<.23f,
+                    "The unblocked second raider damages the cart despite the valid first interception");
+                other.x=relay.x+14;other.y=relay.y+9;
+                other.stun=100;other.timer=100;
                 g.save.y=relay.y+1.5f;
                 Check(!g.MineConvoyBodyguarding &&
                     g.Conditions().Contains("挡住袭击者破坏路线") &&

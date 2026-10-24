@@ -2001,7 +2001,8 @@ namespace Starfall
                     (MineConvoyStage==2 ?
                         MineConvoyBodyguarding ?
                             L("挡在袭击者和矿车之间 · 正在拦截",
-                              "BETWEEN RAIDER & CART · INTERCEPTING") :
+                              "BETWEEN RAIDER & CART · INTERCEPTING")+
+                                " "+MineConvoyProtectedLanes+"/"+MineConvoyThreatLanes :
                             L("靠近矿车，挡住袭击者破坏路线",
                               "STAND BETWEEN RAIDER AND CART") :
                         MineConvoyStage==4 ?
