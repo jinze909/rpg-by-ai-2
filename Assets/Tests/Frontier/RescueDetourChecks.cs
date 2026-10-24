@@ -122,6 +122,37 @@ namespace Starfall.Tests
             finally { data.maps[6]=old; }
         }
 
+        public static void PhysicalRouteRejectsBrokenCoordinatesAndClosedGoalFeet(Campaign data)
+        {
+            MapData old=data.maps[6];
+            try
+            {
+                string[] rows=RescueDetourArena(false,false);
+                var game=RescueDetourGame(data,rows);
+                Point from=game.reliefFollowerPosition,to=game.Position;
+                Check(game.NavigationPathFrom(new Point(float.NaN,8.5f),to,true).Count==0 &&
+                    game.NavigationPathFrom(new Point(float.PositiveInfinity,8.5f),to,true).Count==0 &&
+                    game.NavigationPathFrom(from,new Point(float.NegativeInfinity,8.5f),true).Count==0 &&
+                    game.NavigationPathFrom(from,new Point(float.NaN,8.5f),false).Count==0,
+                    "Broken actor and quest coordinates cannot become a valid physical navigation tile");
+                Check(game.NavigationPathFrom(new Point(-.1f,8.5f),to,false).Count==0,
+                    "Negative fractional out-of-bounds feet cannot silently truncate into column zero");
+                Check(game.NavigationPathFrom(from,to,true).Count==0,
+                    "A closed real wall never grants the civilian a physically finished route");
+                char[] door=rows[13].ToCharArray();door[8]='.';
+                rows[13]=new string(door);
+                List<Point> route=game.NavigationPathFrom(from,to,true);
+                Check(route.Count>10 && game.CanStand(route[route.Count-1]),
+                    "The same live goal immediately offers a long detour after the original gate opens");
+                Check((bool)typeof(GameCore).GetMethod("ReliefActorLineWalkable",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).Invoke(
+                        game,new object[]{route[route.Count-1],to}),
+                    "The final segment can carry a full actor, not just a point-like missile");
+            }
+            finally { data.maps[6]=old; }
+        }
+
         public static void CivilianFullFootprintRejectsCornerGrazingCenterRays(Campaign data)
         {
             MapData old=data.maps[6];
