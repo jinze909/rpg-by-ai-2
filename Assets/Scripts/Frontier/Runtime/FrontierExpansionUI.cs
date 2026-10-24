@@ -740,13 +740,20 @@ namespace Starfall
                 int stage=0;
                 for(int i=1;i<=3;i++)if(o.id=="frostsignal_"+i)stage=i;
                 bool complete=Game.FrostSignalComplete;
+                bool bright=complete&&Game.FrostSignalHearthBright;
                 bool active=Game.FrostSignalActive&&stage==Game.FrostSignalStage;
-                Color tint=complete?mint:active?gold:muted;
+                Color tint=bright?gold:complete?mint:active?gold:muted;
                 Box(p.x-17,p.y-31,34,27,PixelArt.C("#736662"));
                 Box(p.x-10,p.y-41,20,12,PixelArt.C("#b27b51"));
-                if(complete||active)Box(p.x-4,p.y-54,8,13,PixelArt.C("#edb76a"));
+                if(complete||active)Box(p.x-4,p.y-54,8,13,
+                    bright?PixelArt.C("#ffe3a1"):PixelArt.C("#edb76a"));
+                // A steady gold halo is an immediately readable upgrade cue,
+                // including with reduced motion. The accepted world art and
+                // original physical hearth anchor remain unchanged.
+                if(bright)Ring(new Point(o.x,o.y),.67f,gold,22);
                 Ring(new Point(o.x,o.y),active?.84f:.55f,tint,22);
                 Text(p.x-82,p.y-81,164,20,
+                    bright?Game.L("公共暖站火势稳定","STEADY PUBLIC FIRE"):
                     complete?Game.L("公共暖站已重燃","PUBLIC FIRE RESTORED"):
                     active&&stage==2?Game.L("警戒 · 解决守卫","ALERT · CLEAR GUARDS"):
                     active&&stage==3?Game.L("交付火种 · 选择","DELIVER EMBER · CHOOSE"):
