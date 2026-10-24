@@ -3989,63 +3989,62 @@ namespace Starfall.Tests
             Check(stories.Count==7,"Every historical region has its own aftermath");
         }
 
+
         public static void SwordRiposteOnlySpendsOnRealUnblockedRelease(Campaign data)
         {
             for(int profession=0;profession<3;profession++)
             {
-                var g=Fresh(data,profession);
-                g.enemies.Clear();
-                g.projectiles.Clear();
-                g.save.energy=100f;
-                g.riposteTime=2f;
-                // Find a walkable center immediately west of real stone
-                // in the actual town map, without mutating shared tiles.
-                Point wallStart=new Point();bool found=false;
-                for(int y=3;y<g.Map.rows.Length-3&&!found;y++)
-                for(int x=3;x<g.Map.rows[y].Length-3&&!found;x++)
-                {
-                    if(g.Map.rows[y][x+1]!='#')continue;
-                    Point p=new Point(x+.5f,y+.5f);
-                    if(!g.CanStand(p)||!g.Blocked(x+1.2f,y+.5f))continue;
-                    wallStart=p;found=true;
-                }
-                Check(found,"Real tile-map wall strike fixture exists");
-                g.save.x=wallStart.x;g.save.y=wallStart.y;
-                g.Attack(new Point(1,0));
-                Check(g.playerAction!=null&&g.playerAction.riposteArmed,
-                    "Each hero class may carry an earned counter into the real sword windup");
-                for(int i=0;i<20&&g.playerAction!=null&&
-                    !g.playerAction.released;i++)g.Tick(.05f,new Point());
-                Check(g.playerAction!=null&&g.playerAction.released&&
-                    g.playerAction.blockedAtContact&&g.riposteTime>1f,
-                    "Sword contacting a real wall cannot consume an unspent riposte");
-                Check(!g.effects.Exists(f=>f.kind=="number"&&
-                    f.text.Contains("RIPOSTE RELEASE")),
-                    "Blocked sword tip must not announce an earned physical counter");
-                // A clean physical swing may spend the same retained
-                // riposte once, even without placing a fake dummy enemy.
-                var clean=Fresh(data,profession);
-                clean.enemies.Clear();clean.projectiles.Clear();
-                clean.riposteTime=2f;clean.save.energy=100f;
-                Point open=new Point();found=false;
-                for(int y=3;y<clean.Map.rows.Length-3&&!found;y++)
-                for(int x=3;x<clean.Map.rows[y].Length-4&&!found;x++)
-                {
-                    Point p=new Point(x+.5f,y+.5f);
-                    if(!clean.CanStand(p)||!clean.CanStand(new Point(x+1.2f,y+.5f))||
-                        clean.Blocked(x+1.2f,y+.5f))continue;
-                    open=p;found=true;
-                }
-                Check(found,"Genuine unobstructed sword release fixture exists");
-                clean.save.x=open.x;clean.save.y=open.y;
-                clean.Attack(new Point(1,0));
-                float baseline=clean.playerAction.damage;
-                for(int i=0;i<20&&clean.playerAction!=null&&
-                    !clean.playerAction.released;i++)clean.Tick(.05f,new Point());
-                Check(clean.playerAction!=null&&clean.playerAction.released&&
-                    clean.riposteTime==0f&&
-                    Math.Abs(clean.playerAction.damage-baseline*1.5f)<.0001f,
-                    "The real open sword stroke spends exactly one 50 percent counter per class");
+                // Existing source-art / combat tests already validate this
+                // exact 10.5,10.5 foot: legal actor root, real stone WEST,
+                // open sword reach EAST. Reuse that map evidence instead of
+                // assuming the town contains an arbitrary eastern wall.
+                var blocked=Fresh(data,profession);
+                blocked.enemies.Clear();blocked.projectiles.Clear();
+                blocked.save.x=10.5f;blocked.save.y=10.5f;
+                blocked.save.english=true;
+                blocked.save.energy=100f;blocked.riposteTime=2f;
+                Check(blocked.CanStand(blocked.Position)&&
+                    blocked.Blocked(9.5f,10.5f)&&
+                    blocked.Blocked(9.8f,10.5f),
+                    "Verified source-map wall sits in the physical sword sweep");
+                blocked.Attack(new Point(-1f,0f));
+                Check(blocked.playerAction!=null&&
+                    blocked.playerAction.riposteArmed,
+                    "Each canonical hero class carries the real counter to the sword contact");
+                for(int i=0;i<20&&blocked.playerAction!=null&&
+                    !blocked.playerAction.released;i++)
+                    blocked.Tick(.05f,new Point());
+                Check(blocked.playerAction!=null&&
+                    blocked.playerAction.released&&
+                    blocked.playerAction.blockedAtContact&&
+                    blocked.riposteTime>1f,
+                    "Wall impact does not spend an earned counter");
+                Check(!blocked.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="RIPOSTE RELEASE"),
+                    "No counterfeit counter VFX appears on a wall impact");
+
+                var open=Fresh(data,profession);
+                open.enemies.Clear();open.projectiles.Clear();
+                open.save.x=10.5f;open.save.y=10.5f;
+                open.save.english=true;
+                open.save.energy=100f;open.riposteTime=2f;
+                Check(open.CanStand(open.Position)&&
+                    !open.Blocked(11.2f,10.5f),
+                    "The opposite direction is an actual open contact");
+                open.Attack(new Point(1f,0f));
+                Check(open.playerAction!=null,
+                    "Unblocked test enters the actual hero action pipeline");
+                float originalDamage=open.playerAction.damage;
+                for(int i=0;i<20&&open.playerAction!=null&&
+                    !open.playerAction.released;i++)
+                    open.Tick(.05f,new Point());
+                Check(open.playerAction!=null&&open.playerAction.released&&
+                    open.riposteTime==0f&&
+                    Math.Abs(open.playerAction.damage-originalDamage*1.5f)<.0001f,
+                    "Unobstructed sword release spends one exact 50 percent bonus");
+                Check(open.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="RIPOSTE RELEASE"),
+                    "The real open sword stroke announces its earned counter");
             }
         }
     }
