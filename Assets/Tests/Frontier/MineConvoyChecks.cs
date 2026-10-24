@@ -179,6 +179,80 @@ namespace Starfall.Tests
             finally {data.maps[3]=original;}
         }
 
+
+        public static void MinecartHeroCanPhysicallyBodyguardTheSwitchyard(Campaign data)
+        {
+            MapData original=data.maps[3];
+            try
+            {
+                var rows=new string[80];
+                for(int y=0;y<80;y++)
+                {
+                    char[] cells=new string('#',120).ToCharArray();
+                    if(y>=2&&y<=77)
+                        for(int x=2;x<=117;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[3]=new MapData{id=3,spawnX=original.spawnX,
+                    spawnY=original.spawnY,rows=rows,objects=original.objects,
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();g.save.flags.Add("boss_3");
+                g.save.flags.Add("gate_3");g.invulnerable=120;
+                WorldObject start=MineCartTestPost(g,1);
+                WorldObject relay=MineCartTestPost(g,2);
+                g.save.x=start.x;g.save.y=start.y;
+                g.Talk(start);
+                Check(MineCartTestChoice(g,"mineconvoy_start"),
+                    "Real railway NPC starts the existing civilian rescue");
+                WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+                Check(g.MineConvoyStage==2&&g.MineConvoyIntegrity>0,
+                    "Physical cart arrived at the contested switchyard");
+                var actors=g.enemies.FindAll(g.IsMineConvoyEnemy);
+                Check(actors.Count==2,"Existing two real saboteurs remain in the encounter");
+                Enemy threat=actors[0],other=actors[1];
+                other.x=relay.x+14;other.y=relay.y+9;
+                other.stun=100;other.timer=100;
+                threat.x=relay.x+3;threat.y=relay.y;
+                threat.stun=0;threat.timer=100;
+                g.save.x=relay.x+1.25f;g.save.y=relay.y;
+                Check(g.MineConvoyBodyguarding,
+                    "Hero standing directly inside the real saboteur-to-cart lane can intercept");
+                float hull=g.MineConvoyIntegrity;
+                g.Tick(.05f,new Point());
+                Check(g.MineConvoyBodyguarding&&
+                    Math.Abs(g.MineConvoyIntegrity-hull)<.0001f &&
+                    g.effects.Exists(e=>e.mineConvoyOwned&&
+                        e.kind=="number"&&e.text=="挡住破坏"),
+                    "Genuine pressure is prevented and a visible cue is emitted without deleting enemies");
+                g.save.y=relay.y+1.5f;
+                Check(!g.MineConvoyBodyguarding,
+                    "Stepping out of the physical strike corridor loses cart protection");
+                hull=g.MineConvoyIntegrity;g.Tick(.05f,new Point());
+                Check(g.MineConvoyIntegrity<hull-.12f,
+                    "The same living attacker immediately damages the unprotected civilian cart");
+                g.save.x=relay.x+1.25f;g.save.y=relay.y;
+                char[] barrier=rows[(int)relay.y].ToCharArray();
+                barrier[(int)relay.x+1]='#';
+                rows[(int)relay.y]=new string(barrier);
+                Check(!g.MineConvoyBodyguarding,
+                    "An invalid blocked root and sealed corridor cannot claim phantom bodyguard credit");
+                float before=g.MineConvoyIntegrity;
+                g.Tick(.05f,new Point());
+                Check(Math.Abs(g.MineConvoyIntegrity-before)<.0001f,
+                    "A closed wall cannot generate damage or paid bodyguard success");
+                barrier[(int)relay.x+1]='.';
+                rows[(int)relay.y]=new string(barrier);
+                g.Tick(.05f,new Point());
+                Check(g.MineConvoyBodyguarding&&
+                    Math.Abs(g.MineConvoyIntegrity-before)<.0001f,
+                    "Reopening the physical sabotage lane immediately restores real positioning play");
+                Check(g.save.version==2&&!g.MineConvoyComplete,
+                    "Transient hero protection never edits saves or pays the original quest reward");
+            }
+            finally{data.maps[3]=original;}
+        }
+
         public static void MinecartStaleRailwayActionsCannotSpendOrRewardThroughClosedWall(Campaign data)
         {
             MapData original=data.maps[3];

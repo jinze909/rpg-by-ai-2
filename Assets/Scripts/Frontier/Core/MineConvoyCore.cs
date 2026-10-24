@@ -11,6 +11,23 @@ namespace Starfall
         public Point MineCartPosition { get; private set; }
         private float mineConvoySteam;
         private bool mineConvoyBraced;
+        private float mineConvoyBlockNoticeTime;
+        // Active interception is based on physical standing positions, not
+        // equipment or a saved perk. A hero must actually occupy the raider's
+        // sabotage lane, with an unbroken path to both attacker and cart.
+        public bool MineConvoyBodyguarding
+        {
+            get
+            {
+                if(MineConvoyStage!=2||save.room!=3||Dying)return false;
+                foreach(Enemy e in enemies)
+                    if(IsMineConvoyEnemy(e)&&e.hp>0 &&
+                        (e.Position-MineCartPosition).Length<5.3f &&
+                        ClearAttackPath(e.Position,MineCartPosition) &&
+                        BlocksMineConvoySabotage(e))return true;
+                return false;
+            }
+        }
         // A missing enemy is not a player victory; only Hit's lethal callback
         // can record the two actually defeated switchyard attackers.
         private int mineConvoyConfirmedKills;
@@ -41,6 +58,7 @@ namespace Starfall
             MineConvoyStage=0;MineConvoyTime=MineConvoyIntegrity=0;
             MineCartPosition=new Point();mineConvoySteam=0;
             mineConvoyBraced=false;mineConvoyConfirmedKills=0;
+            mineConvoyBlockNoticeTime=0;
         }
         // Keep the authored two-guard confrontation, but do not summon a
         // fighter inside the real cart, hero, companion, existing enemy or
@@ -99,6 +117,24 @@ namespace Starfall
             mineConvoyConfirmedKills=0;
             return true;
         }
+        // Standing between the active saboteur and the civilian car takes
+        // real positioning, not a passive shield aura. An offset hero, a
+        // sealed wall or an already-lost lane must never intercept.
+        private bool BlocksMineConvoySabotage(Enemy guard)
+        {
+            if(guard==null||guard.hp<=0||Dying||
+                !CanStand(Position)||!CanStand(MineCartPosition))return false;
+            Point lane=MineCartPosition-guard.Position;
+            float length=lane.Length;
+            if(length<1.7f)return false;
+            Point blocker=Position-guard.Position;
+            float forward=(blocker.x*lane.x+blocker.y*lane.y)/length;
+            float lateral=Math.Abs(blocker.x*lane.y-blocker.y*lane.x)/length;
+            return forward>.55f&&forward<length-.4f&&lateral<.68f &&
+                (Position-MineCartPosition).Length<2.4f &&
+                ClearAttackPath(guard.Position,Position) &&
+                ClearAttackPath(Position,MineCartPosition);
+        }
         private static float ActiveMineConvoyPressureTime(Enemy guard,float dt)
         {
             // Enemy AI consumes hit/stun/release locks before the cart is
@@ -130,6 +166,7 @@ namespace Starfall
             }
             if(MineConvoyStage==2)
             {
+                mineConvoyBlockNoticeTime=Math.Max(0,mineConvoyBlockNoticeTime-dt);
                 for(int i=0;i<2;i++)
                     if((mineConvoyConfirmedKills&(1<<i))==0 &&
                         !enemies.Exists(e=>e.id==91300+i))
@@ -144,10 +181,28 @@ namespace Starfall
                         (guard.Position-MineCartPosition).Length<5.3f&&
                         // A junction wall can close AFTER the guards
                         // arrived. A fighter behind sealed cover cannot
-                        // damage a real cart it cannot even see. The same
-                        // physical corridor opens damage again immediately.
+                        // damage a real cart it cannot even see.
                         ClearAttackPath(guard.Position,MineCartPosition))
-                        MineConvoyIntegrity-=ActiveMineConvoyPressureTime(guard,dt)*3.3f;
+                    {
+                        float pressure=ActiveMineConvoyPressureTime(guard,dt);
+                        if(pressure<=0)continue;
+                        if(BlocksMineConvoySabotage(guard))
+                        {
+                            // This cancels only the intercepted raider's
+                            // damage. The hero still has to survive the
+                            // ordinary enemy's real attacks and the other
+                            // saboteur can still destroy an unguarded cart.
+                            if(mineConvoyBlockNoticeTime<=0)
+                            {
+                                effects.Add(new Effect("number",Position,.55f,
+                                    L("挡住破坏","CART GUARD"))
+                                    {mineConvoyOwned=true});
+                                mineConvoyBlockNoticeTime=.65f;
+                                sound="guard";
+                            }
+                        }
+                        else MineConvoyIntegrity-=pressure*3.3f;
+                    }
                 // Real combat is the necessary route to stage three;
                 // no scripted button can despawn surviving miners' attackers.
                 return;
