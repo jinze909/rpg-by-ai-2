@@ -1700,8 +1700,9 @@ namespace Starfall.Tests
                 for(int y=9;y<=11;y++)
                 {
                     char[] row=rows[y].ToCharArray();
-                    for(int x=12;x<=13;x++)
-                        if(x!=12||y!=10)row[x]='#';
+                    for(int x=11;x<=13;x++)
+                        if(!(x==12&&y==10)&&!(x==11&&y==10))
+                            row[x]='#';
                     rows[y]=new string(row);
                 }
                 Check(blocked.ReliefEscortEvadeAvailable,
