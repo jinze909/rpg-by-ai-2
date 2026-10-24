@@ -949,6 +949,24 @@ namespace Starfall
                 Fits(companionPosition) &&
                 ClearAttackPath(companionPosition,Position);
         }
+        // Mira treats genuinely endangered residents along a real short
+        // field-healing lane. No remote heals, idle-camp farming, permanent
+        // buffs or SaveData changes. Her ordinary six-second cadence and
+        // full-body heal pose remain the same as healing the hero.
+        private bool CanCompanionTriageCivilian()
+        {
+            return save.companion==0&&
+                reliefMissionRoom!=0&&reliefMissionRoom==save.room&&
+                reliefMissionWave>=1&&reliefMissionWave<=3&&
+                Finite(reliefMissionTime)&&reliefMissionTime>0f&&
+                Finite(reliefFollowerSafety)&&
+                reliefFollowerSafety>0f&&reliefFollowerSafety<75f&&
+                Finite(reliefFollowerPosition.x)&&
+                Finite(reliefFollowerPosition.y)&&
+                (reliefFollowerPosition-companionPosition).Length<=5f&&
+                CanStand(companionPosition)&&CanStand(reliefFollowerPosition)&&
+                ClearAttackPath(companionPosition,reliefFollowerPosition);
+        }
         // Automatic companion fire must clear the actual physical arrow
         // or staff projectile over its entire flight, not just actor LOS
         // and the 0.8-tile weapon attachment. Manual player-directed
@@ -1335,20 +1353,40 @@ namespace Starfall
                     if (action.kind == "command") ReleaseCompanionCommand(action);
                     else if (action.kind == "heal")
                     {
-                        // A prepared heal is not a remote teleport. If the
-                        // player crossed a wall/portal before the release
-                        // frame, cancel the contact rather than paying out
-                        // health and a false "+HP" effect through terrain.
-                        if (CanCompanionHeal() && save.health < save.maxHealth)
+                        // The SAME authored healing pose can serve the hero
+                        // (null target) or a living rescue civilian (physical
+                        // target snapshot). Verify the current civilian foot
+                        // AGAIN at contact: no remote treatment after an
+                        // evacuee moves or a gate shuts mid-cast.
+                        if(action.target.HasValue)
                         {
-                            save.health = Math.Min(save.maxHealth, save.health + 6 + action.combo);
-                            effects.Add(new Effect("number", Position, .7f, "+HP"));
+                            if(CanCompanionTriageCivilian()&&
+                               (reliefFollowerPosition-action.target.Value).Length<=.85f)
+                            {
+                                float restored=Math.Min(85f,
+                                    reliefFollowerSafety+8f+action.combo)-
+                                    reliefFollowerSafety;
+                                reliefFollowerSafety+=restored;
+                                effects.Add(new Effect("number",
+                                    reliefFollowerPosition,.7f,
+                                    L("包扎 +","TREATED +")+
+                                    (int)Math.Ceiling(restored))
+                                    {reliefMissionOwned=true});
+                                revision++;sound="skill";
+                            }
+                            else companionAttack=Math.Min(companionAttack,.22f);
+                        }
+                        else if (CanCompanionHeal() &&
+                                 save.health < save.maxHealth)
+                        {
+                            save.health = Math.Min(save.maxHealth,
+                                save.health + 6 + action.combo);
+                            effects.Add(new Effect("number",Position,.7f,"+HP"));
                             sound = "skill";
                         }
                         else
-                            // A ward or fast move can invalidate a prepared
-                            // heal. Don't consume the six-second cadence for
-                            // a contact that never actually restored HP.
+                            // A wall, fast move or recovered patient cancels
+                            // the entire unspent auto-heal cadence.
                             companionAttack=Math.Min(companionAttack,.22f);
                     }
                     else
@@ -1559,6 +1597,14 @@ namespace Starfall
             if (save.companion == 0 && save.health < save.maxHealth * .8f &&
                 CanCompanionHeal())
             { kind = "heal"; direction = (Position - companionPosition).Normalized; }
+            else if(CanCompanionTriageCivilian())
+            {
+                // Keep the existing heal animation, without pretending that
+                // the civilian is the hero or introducing a new pose family.
+                kind="heal";
+                attackTarget=reliefFollowerPosition;
+                direction=(reliefFollowerPosition-companionPosition).Normalized;
+            }
             else
             {
                 Enemy target = NearestCompanionThreat();

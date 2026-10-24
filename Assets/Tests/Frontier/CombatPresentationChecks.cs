@@ -4651,6 +4651,104 @@ namespace Starfall.Tests
                 "Genuine unobstructed ally healing still restores HP on its contact frame");
         }
 
+        public static void MiraTriageTreatsOnlyPhysicallyReachableRescueCivilians(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<tiles.Length;x++)tiles[x]='#';
+                    else {tiles[0]='#';tiles[tiles.Length-1]='#';}
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=15.5f,spawnY=14.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("companion_0");g.SelectCompanion(0);
+                g.save.x=15.5f;g.save.y=14.5f;
+                g.companionPosition=new Point(12.5f,10.5f);
+                g.save.health=g.save.maxHealth;
+                g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                g.reliefMissionTime=90f;g.reliefFollowerSafety=52f;
+                g.reliefFollowerPosition=new Point(15.5f,10.5f);
+                g.reliefFollowerWaiting=true;
+                var cadence=typeof(GameCore).GetField("companionAttack",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(cadence!=null&&g.CanStand(g.companionPosition)&&
+                    g.CanStand(g.reliefFollowerPosition)&&
+                    g.CanStand(g.Position),
+                    "Mira, the civilian and hero require real walkable feet");
+                cadence.SetValue(g,0f);
+                float originalHealth=g.save.health;
+                g.Tick(.02f,new Point());
+                var heal=g.companionAction;
+                Check(heal!=null&&heal.kind=="heal"&&!heal.released&&
+                    heal.target.HasValue,
+                    "Actual automatic healing pose targets a wounded rescue civilian rather than an invented actor");
+                Advance(g,.16f);
+                Check(heal.released&&g.reliefFollowerSafety>=60f&&
+                    g.save.health==originalHealth&&
+                    g.effects.Exists(e=>e.reliefMissionOwned&&e.kind=="number"&&
+                        e.text.Contains("包扎")),
+                    "Actual Mira contact treats civilian safety without falsely healing the hero");
+                // Once the rescue is over, the same patient cannot be
+                // treated forever via stale coordinates or retained action.
+                g.companionAction=null;
+                g.reliefMissionRoom=0;g.reliefFollowerSafety=40f;
+                cadence.SetValue(g,0f);g.Tick(.02f,new Point());
+                Check(g.companionAction==null&&g.reliefFollowerSafety==40f,
+                    "Closed rescue work cannot spawn unearned free medical care");
+
+                var blocked=Fresh(data);
+                blocked.Enter(1);blocked.enemies.Clear();
+                blocked.save.flags.Add("companion_0");
+                blocked.SelectCompanion(0);
+                blocked.save.x=15.5f;blocked.save.y=14.5f;
+                blocked.companionPosition=new Point(12.5f,10.5f);
+                blocked.save.health=blocked.save.maxHealth;
+                blocked.reliefMissionRoom=1;blocked.reliefMissionWave=3;
+                blocked.reliefMissionTime=90f;blocked.reliefFollowerSafety=50f;
+                blocked.reliefFollowerPosition=new Point(15.5f,10.5f);
+                blocked.reliefFollowerWaiting=true;
+                cadence.SetValue(blocked,0f);
+                blocked.Tick(.02f,new Point());
+                var interrupted=blocked.companionAction;
+                Check(interrupted!=null&&interrupted.kind=="heal"&&
+                    interrupted.target.HasValue,
+                    "Second real rescuer winds up a visible medical action");
+                char[] wall=rows[10].ToCharArray();wall[14]='#';
+                rows[10]=new string(wall);
+                Advance(blocked,.16f);
+                Check(interrupted.released&&blocked.reliefFollowerSafety==50f&&
+                    (float)cadence.GetValue(blocked)<=.22f&&
+                    !blocked.effects.Exists(e=>e.reliefMissionOwned&&
+                        e.kind=="number"&&e.text.Contains("包扎")),
+                    "A mid-cast closed wall cancels civilian treatment and refunds unspent heal cadence");
+                rows[10]=new string('.',30);
+                var hero=Fresh(data);
+                hero.Enter(1);hero.enemies.Clear();
+                hero.save.flags.Add("companion_0");hero.SelectCompanion(0);
+                hero.save.x=15.5f;hero.save.y=12.5f;
+                hero.companionPosition=new Point(14.5f,12.5f);
+                hero.save.health=20f;
+                hero.reliefMissionRoom=1;hero.reliefMissionWave=3;
+                hero.reliefMissionTime=90f;hero.reliefFollowerSafety=40f;
+                hero.reliefFollowerPosition=new Point(15.5f,10.5f);
+                cadence.SetValue(hero,0f);hero.Tick(.02f,new Point());
+                Check(hero.companionAction!=null&&
+                    hero.companionAction.kind=="heal"&&
+                    !hero.companionAction.target.HasValue,
+                    "A wounded hero still receives Mira's original higher-priority healing");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void CompanionIdleReadinessReactsToRealTargets(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();
