@@ -674,7 +674,7 @@ namespace Starfall
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim, hitLockedDt, sprintHeld);
-            TickLocalWaymark();
+            TickLocalWaymark(dt);
             // An UNRELEASED action is planted through hit recoil. Only
             // the unlocked remainder may advance its contact/damage clock;
             // already-released animation recovery keeps its old duration.
