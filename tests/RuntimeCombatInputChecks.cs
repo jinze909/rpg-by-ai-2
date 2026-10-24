@@ -3535,6 +3535,68 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live wayfarer cover NPC option, real bilingual world aura and quest timer");
     }
 
+    private static void LocalMapClickPinDrawsRealWorldRouteAndCanClear(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.enemies.Clear();g.projectiles.Clear();
+        g.save.showGuidance=false;g.save.english=true;
+        Point chosen=new Point();bool found=false;
+        int w=g.Map.rows[0].Length,h=g.Map.rows.Length;
+        for(int y=3;y<h-3&&!found;y++)
+        for(int x=3;x<w-3&&!found;x++)
+        {
+            Point candidate=new Point(x+.5f,y+.5f);
+            if((candidate-g.Position).Length<5f||!g.CanStand(candidate)||
+               g.NavigationPathFrom(g.Position,candidate,true).Count==0)
+                continue;
+            chosen=candidate;found=true;
+        }
+        Check(found,"The genuine Hearth map contains a reachable nontrivial personal destination");
+        g.mode="map";Set(app,"selectedRegion",g.save.room);
+        float scale=WorldStreaming.PreviewScale(w,h,306,207);
+        float sx=888+chosen.x*scale,sy=264+chosen.y*scale;
+        Input.mousePosition=new UnityEngine.Vector3(sx,Screen.height-sy,0);
+        GUI.queuedClick=new Rect(888,264,w*scale,h*scale);
+        GUI.buttonCalls.Clear();GUI.commands.Clear();
+        Call(app,"OnGUI");
+        Check(g.HasLocalWaymark&&
+            (g.LocalWaymark.Value-chosen).Length<.001f&&
+            GUI.buttonCalls.Exists(c=>Math.Abs(c.rect.x-888)<.001f&&
+                Math.Abs(c.rect.y-264)<.001f),
+            "Clicking actual authored terrain, not a generic placeholder button, pins its physical tile");
+        Point original=g.LocalWaymark.Value;
+        Set(app,"selectedRegion",g.save.room==0?1:0);
+        GUI.queuedClick=new Rect(888,264,w*scale,h*scale);
+        Call(app,"OnGUI");
+        GUI.queuedClick=null;
+        Check(g.HasLocalWaymark&&(g.LocalWaymark.Value-original).Length<.001f,
+            "Previewing another region cannot forge a remote personal destination");
+        Set(app,"selectedRegion",g.save.room);
+        g.Close();GUI.commands.Clear();Call(app,"OnGUI");
+        Check(g.PersonalNavigationActive&&
+            GUI.commands.Exists(c=>c.Contains("PERSONAL PIN")),
+            "Live world HUD identifies the user-selected route even when quest guidance is hidden");
+        var nav=typeof(FrontierRuntime).GetMethod("NavigationRoute",
+            System.Reflection.BindingFlags.Instance|
+            System.Reflection.BindingFlags.NonPublic);
+        Check(nav!=null,"Actual runtime uses its existing cached physical route");
+        var path=(System.Collections.Generic.List<Point>)nav.Invoke(app,null);
+        Check(path!=null&&path.Count>0,
+            "Personal waypoint drives genuine world-navigation BFS rather than a fake marker");
+        g.mode="map";
+        GUI.buttonCalls.Clear();GUI.commands.Clear();
+        GUI.queuedClick=new Rect(888,571,306,35);
+        Call(app,"OnGUI");
+        Check(!g.HasLocalWaymark&&!g.PersonalNavigationActive&&
+            g.save.version==2,
+            "Real visible clear-pin control retires the temporary path with old save compatibility");
+        g.Close();GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("PERSONAL PIN")),
+            "Cleared personal destination never leaves an orphan HUD cue");
+        Console.WriteLine("PASS Live authored map click/pin, route overlay, region isolation and clear control");
+    }
+
     private static void LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue(FrontierRuntime app)
     {
         Prepare(app);
@@ -5710,7 +5772,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
