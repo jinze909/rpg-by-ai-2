@@ -2354,8 +2354,16 @@ namespace Starfall
         }
         public List<Point> NavigationPathFrom(Point origin,Point target,bool requirePhysicalFinish)
         {
-            int w = Map.rows[0].Length, h = Map.rows.Length, sx = (int)origin.x, sy = (int)origin.y, start = sy * w + sx;
-            var path = new List<Point>(); if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
+            var path = new List<Point>();
+            // Never convert corrupt transient feet or quest coordinates into
+            // integer tile indices; casts from NaN / infinities can alias a
+            // valid BFS start and produce fictitious escort navigation.
+            if (!Finite(origin.x) || !Finite(origin.y) ||
+                !Finite(target.x) || !Finite(target.y)) return path;
+            int w = Map.rows[0].Length, h = Map.rows.Length;
+            int sx = (int)Math.Floor(origin.x), sy = (int)Math.Floor(origin.y);
+            if (sx < 0 || sx >= w || sy < 0 || sy >= h) return path;
+            int start = sy * w + sx;
             PreparePathSearch(w * h);
             int[] parent = pathParents; int head = 0, tail = 0; pathQueue[tail++] = start; VisitPath(start, -1); int end = start;
             float best = requirePhysicalFinish ? float.MaxValue : (origin - target).Length;
@@ -2369,7 +2377,7 @@ namespace Starfall
                 // wall is useful compass guidance but not a walkable escort
                 // destination. Check only candidates near the goal.
                 bool finish = !requirePhysicalFinish ||
-                    (d <= 1.8f && ClearAttackPath(foot,target));
+                    (d <= 1.8f && ReliefActorLineWalkable(foot,target));
                 if (finish)
                 {
                     if (d < best) { best = d; end = n; }
