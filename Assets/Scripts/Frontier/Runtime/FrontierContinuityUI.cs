@@ -61,7 +61,7 @@ namespace Starfall
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
                 if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive ||
                     Game.OuterPatrolActive || Game.MineConvoyActive ||
-                    Game.TideSalvageActive)
+                    Game.TideSalvageActive || Game.FrostSignalActive)
                     rects.Add(new Rect(380, 22, 520, 65));
             }
             else
@@ -176,6 +176,7 @@ namespace Starfall
             QuestGuide guide = Game.MineConvoyActive?
                 Game.GetQuest("mine_convoy"):
                 Game.TideSalvageActive?Game.GetQuest("tide_salvage"):
+                Game.FrostSignalActive?Game.GetQuest("frost_signal"):
                 Game.CurrentGuide;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
@@ -318,6 +319,35 @@ namespace Starfall
                             Game.L("追踪下一处货箱","FIND NEXT MANIFEST")),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,72,478,(Game.TideSalvagePhase-1)/3f,accent,6);
+            }
+            else if(Game.FrostSignalActive && Game.save.room==7)
+            {
+                // Combat mode replaces the exploration HUD. Keep the living
+                // ember and physically screened guard lanes readable here.
+                float flame=Game.FrostSignalFlame;
+                Color accent=flame<25?PixelArt.C("#ec7668"):
+                    flame<50?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,26,
+                    Game.FrostSignalAtHearth?
+                        Game.L("公共余火已到站","CIVIC EMBER BANKED"):
+                        Game.L("霜钟余火护送 · ","FROSTCHIME EMBER · ")+
+                            Math.Ceiling(Game.FrostSignalTime)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("余温 ","FLAME ")+Math.Ceiling(flame)+"/100"+
+                    (Game.FrostSignalStage==2?
+                        Game.FrostSignalGuardsScreened>0?
+                            Game.L(" · 同伴挡风 "," · ALLY SCREENING ")+
+                                Game.FrostSignalGuardsScreened:
+                            Game.L(" · 让同伴挡住守卫方向",
+                                " · PLACE ALLY BETWEEN GUARD & EMBER"):
+                        Game.FrostSignalWindbreakTime>0?
+                            Game.L(" · 防风 "," · WINDBREAK ")+
+                                Math.Ceiling(Game.FrostSignalWindbreakTime)+"s":""),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,flame/100f,accent,7);
             }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));

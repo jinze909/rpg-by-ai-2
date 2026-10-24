@@ -2057,6 +2057,25 @@ namespace Starfall
                              L("安全护送奖金待交付 · 前往避险棚",
                                "SECURE BONUS ON DELIVERY · REACH REFUGE") :
                              L("送往远端避险棚", "DELIVER TO REMOTE REFUGE"));
+            if(FrostSignalActive && save.room==7)
+                return (FrostSignalAtHearth?
+                    L("公共余火已到站 · ", "CIVIC EMBER BANKED · "):
+                    L("护送公共余火 · ", "CIVIC EMBER RUN · "))+
+                    FrostSignalFlame.ToString("0")+"/100 · "+
+                    (FrostSignalAtHearth?
+                        L("可选择暖站用途", "CHOOSE HEARTH PURPOSE"):
+                        (int)Math.Ceiling(FrostSignalTime)+"s")+
+                    "\n"+
+                    (FrostSignalStage==2?
+                        FrostSignalGuardsScreened>0?
+                            L("同伴挡风 ","ALLY SCREENING ")+FrostSignalGuardsScreened+
+                                L(" 路守卫"," GUARD LANE(S)"):
+                            L("让同伴站在守卫与携火者之间",
+                              "POSITION ALLY BETWEEN GUARD AND EMBER"):
+                        FrostSignalWindbreakTime>0?
+                            L("防风护火 ", "WINDBREAK ")+
+                                FrostSignalWindbreakTime.ToString("0")+"s":
+                            L("小心严寒，沿山道护送", "CARRY THROUGH THE COLD"));
             if(TideSalvageActive && save.room==5)
                 return L("潮滩打捞 ", "SALVAGE ") +
                     (int)Math.Ceiling(TideSalvageTime) + "s · " +

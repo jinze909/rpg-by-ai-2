@@ -262,8 +262,8 @@ namespace Starfall
                 q.title=L("霜钟高原 · 公共余火","Frostchime · The Civic Ember");
                 q.category=L("护火实战 · 严寒生存","EMBER RUN · COLD SURVIVAL");
                 q.description=L(
-                    "原有高原守护者失去控制后，将民用火种由西岗送往南侧暖站。严寒使余温衰减，转折台仍有旧守卫。击败守卫后，可用月光草补火、耐力补火、耐力防风护火或不使用补给；最后选择居民疗养或巡路补给。",
-                    "After the original highland guardian falls, carry the civic ember from west to south in real cold. Defeat both guards, then choose a Moonherb refill, energy refill, timed windbreak, or no supplies before commissioning a clinic or road-crew fire.");
+                    "从西岗携带民用余火前往南侧暖站。严寒持续耗火；在转折台作战时，已招募的同伴若真正站在守卫与携火者之间，可挡住对应守卫增加的风损。击败两名守卫后选择补火或防风护火，抵达暖站再决定民用去向。",
+                    "Carry the civic ember from the west to the southern hearth. Cold always consumes flame. A recruited companion physically between a guard and the carrier screens only that guard's additional pressure. Defeat both guards, choose supplies or windbreak, then commission a clinic or beacons.");
                 q.room=7;q.locked=!Has("boss_7")||!CanEnter(7);
                 q.complete=FrostSignalComplete;
                 // "Started sometime in an earlier attempt" is a saved
@@ -293,10 +293,14 @@ namespace Starfall
                         "Ember safely deposited. Choose the public clinic or road beacons at the hearth."):
                     FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
                         " · 剩余 "+FrostSignalTime.ToString("0")+" 秒"+
-                        (FrostSignalWindbreakTime>0?" · 防风 "+FrostSignalWindbreakTime.ToString("0")+" 秒":""),
+                        (FrostSignalWindbreakTime>0?" · 防风 "+FrostSignalWindbreakTime.ToString("0")+" 秒":"")+
+                        (FrostSignalStage==2&&FrostSignalGuardsScreened>0?
+                            " · 同伴挡风 "+FrostSignalGuardsScreened:""),
                         "Ember "+FrostSignalFlame.ToString("0")+
                         " · "+FrostSignalTime.ToString("0")+"s remain"+
-                        (FrostSignalWindbreakTime>0?" · Windbreak "+FrostSignalWindbreakTime.ToString("0")+"s":"")):
+                        (FrostSignalWindbreakTime>0?" · Windbreak "+FrostSignalWindbreakTime.ToString("0")+"s":"")+
+                        (FrostSignalStage==2&&FrostSignalGuardsScreened>0?
+                            " · ALLY SCREEN "+FrostSignalGuardsScreened:"")):
                     L("前往西部守灯岗领取火种","Collect ember at the west signal");
                 q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；永久暖站服务",
                     "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; permanent local shelter service");
