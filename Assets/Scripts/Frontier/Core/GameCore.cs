@@ -33,12 +33,18 @@ namespace Starfall
         // A bite belongs to one simulation-time window, not every keyboard,
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
-        private float fishNextBiteAt;
+        private float fishNextBiteAt, fishBiteExpiresAt;
+        // The fish lets go after one real timing opportunity. These clocks
+        // belong to the current cast only; no SaveData field is introduced.
+        public const float FishBiteWindow = 2.7f;
+        public float FishBiteTimeRemaining { get { return FishLineReady ?
+            Math.Max(0f,fishBiteExpiresAt-fishTime) : 0f; } }
         public float FishTarget { get { return save != null && save.reducedMotion ? .5f :
             .5f + .16f * (float)Math.Sin(fishTime * .67f +
                 fishHits * 2.1f - fishMisses * .8f); } }
         public float FishWindowRadius { get { return .18f - fishHits * .022f; } }
-        public bool FishLineReady { get { return mode == "fish" && fishTime >= fishNextBiteAt; } }
+        public bool FishLineReady { get { return mode == "fish" &&
+            fishTime >= fishNextBiteAt && fishTime < fishBiteExpiresAt; } }
         private string currentMode = "title";
         public string mode
         {
@@ -194,7 +200,7 @@ namespace Starfall
             // None of these transient inputs belong to persisted SaveData.
             aim = dashDirection = new Point(1, 0);
             aimTarget = null;
-            fishTime = fishCursor = fishNextBiteAt = 0;
+            fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
             fishHits = fishMisses = 0;
             toast = ""; toastTime = 0;
             // Runtime audio consumes a pending queue, not just the current
@@ -616,6 +622,19 @@ namespace Starfall
                     sound = "fishBite";
                 fishCursor = .5f + .5f * (float)Math.Sin(
                     fishTime * (2.5f + fishHits * .35f + fishMisses * .08f));
+                // Waiting indefinitely for perfect alignment made the lake
+                // noninteractive. Expired bites are genuine missed pulls, but
+                // can never charge twice or pay a catch reward.
+                if (fishTime >= fishBiteExpiresAt)
+                {
+                    FishMissedBite();
+                    if (fishMisses >= 3)
+                    {
+                        Close();
+                        Notify("鱼已经游走。下次听见咬钩声，要及时收线。",
+                            "The fish slipped away. Reel promptly on the next bite.");
+                    }
+                }
                 return;
             }
             if (mode != "world") return;
@@ -2877,7 +2896,9 @@ namespace Starfall
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
             if (action == "fish" && HasInventoryRoom(3, 1))
             { fishTime = fishCursor = 0; fishHits = fishMisses = 0;
-              fishNextBiteAt = .3f; mode = "fish"; }
+              fishNextBiteAt = .3f;
+              fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+              mode = "fish"; }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
             if (action.StartsWith("ally"))
@@ -2933,6 +2954,13 @@ namespace Starfall
             if (talent == 1) { save.maxHealth += 12; save.health = Math.Min(save.maxHealth, save.health + 12); }
             revision++; sound = "reward";
         }
+        private void FishMissedBite()
+        {
+            fishMisses++;
+            sound = "hurt";
+            fishNextBiteAt = fishTime + .34f;
+            fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+        }
         public void FishHit()
         {
             if (!FishLineReady) return;
@@ -2940,9 +2968,13 @@ namespace Starfall
             // pressing gamepad A and clicking Reel in the same frame cannot
             // fake three catches or exhaust the three misses instantly.
             bool hooked = Math.Abs(fishCursor - FishTarget) <= FishWindowRadius;
-            if (hooked) { fishHits++; sound = "reward"; }
-            else { fishMisses++; sound = "hurt"; }
-            fishNextBiteAt = fishTime + .34f;
+            if (hooked)
+            {
+                fishHits++; sound = "reward";
+                fishNextBiteAt = fishTime + .34f;
+                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+            }
+            else FishMissedBite();
             if (fishHits >= 3)
             {
                 // Normal play enters this minigame only when a fish slot was

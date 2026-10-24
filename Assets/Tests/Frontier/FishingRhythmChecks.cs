@@ -121,6 +121,64 @@ namespace Starfall.Tests
                 "Next actual bite emits a fresh cue without altering the reward state");
         }
 
+
+        public static void FishingUnansweredBitesReallyExpireAndEndTheCast(Campaign data)
+        {
+            var g=Fresh(data);
+            int fish=g.save.inventory[3],coins=g.save.coins;
+            Action(g,"fish","fish");
+            Check(g.mode=="fish"&&!g.FishLineReady,
+                "The initial float must begin before any live bite");
+            for(int missed=0;missed<3;missed++)
+            {
+                int count=0;
+                while(!g.FishLineReady&&g.mode=="fish"&&count++<90)
+                    g.Tick(.05f,new Point());
+                Check(g.FishLineReady&&
+                    g.FishBiteTimeRemaining>GameCore.FishBiteWindow-.08f,
+                    "A fresh live bite opens a measurable full reaction window");
+                float previous=g.FishBiteTimeRemaining;
+                g.Tick(.05f,new Point());
+                Check(g.FishBiteTimeRemaining<previous,
+                    "The live float drains its visible reaction time each simulation tick");
+                count=0;
+                while(g.FishLineReady&&count++<90)
+                    g.Tick(.05f,new Point());
+                Check(g.fishMisses==missed+1&&g.fishHits==0,
+                    "Missing the live bite is exactly one real miss, not an endless free catch");
+                if(missed<2)
+                    Check(g.mode=="fish"&&!g.FishLineReady,
+                        "Between bites the next opening requires a new audible bite");
+            }
+            Check(g.mode=="world"&&g.save.inventory[3]==fish&&
+                g.save.coins==coins,
+                "Three expired bites end the real cast without fish, coins or bounty rewards");
+            g.FishHit();
+            Check(g.fishMisses==3&&g.save.inventory[3]==fish,
+                "Replaying reel input after a timed-out cast cannot create a fish");
+        }
+
+        public static void FishingLateInputCannotStealNextBiteOrExtendExpiry(Campaign data)
+        {
+            var g=Fresh(data);Action(g,"fish","fish");
+            ReachFishingBite(g,true);
+            float remaining=g.FishBiteTimeRemaining;
+            for(int i=0;i<30;i++)g.FishHit();
+            Check(g.fishHits==1&&g.fishMisses==0&&
+                !g.FishLineReady&&g.FishBiteTimeRemaining==0f,
+                "Only one real reel resolves a bite and closes its reaction window");
+            for(int i=0;i<10;i++)g.FishHit();
+            Check(g.fishHits==1&&g.fishMisses==0,
+                "Button mashing between bites cannot shift the next expiry or double-credit");
+            int ticks=0;
+            while(!g.FishLineReady&&ticks++<90)g.Tick(.05f,new Point());
+            Check(g.FishLineReady&&g.FishBiteTimeRemaining>remaining*.4f,
+                "The next fish creates a fresh, independent reaction opportunity");
+            while(g.FishLineReady&&ticks++<200)g.Tick(.05f,new Point());
+            Check(g.fishHits==1&&g.fishMisses==1,
+                "The subsequent unanswered bite expires once without retracting the earlier success");
+        }
+
         public static void ReducedMotionFishingKeepsReadableSteadyBite(Campaign data)
         {
             var game=Fresh(data);
