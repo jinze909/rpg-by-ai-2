@@ -1991,7 +1991,9 @@ namespace Starfall
             // hull, raid phase and actual positional bodyguard state visible
             // regardless of which long-term quest the player tracks.
             if(MineConvoyActive && save.room==3)
-                return L("矿工护送 · ", "MINECART ESCORT · ") +
+                return (MineConvoyStage==4?
+                    L("矿车已到站 · ", "CART ARRIVED · "):
+                    L("矿工护送 · ", "MINECART ESCORT · ")) +
                     (MineConvoyStage==4?L("已到站", "ARRIVED"):
                         (int)Math.Ceiling(MineConvoyTime)+"s")+
                     " · "+L("车厢 ", "HULL ")+

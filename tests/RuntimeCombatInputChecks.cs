@@ -3815,6 +3815,53 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live frost ember joins the civic hearth with accurate task and world cues");
     }
 
+
+    private static void LiveMinecartBodyguardIsVisibleInRealWorldHud(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;g.mode="world";g.save.english=true;
+        g.save.stage=3;g.save.room=3;
+        g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+        g.save.flags.Remove("mineconvoy_complete");
+        g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
+        WorldObject junction=null;
+        foreach(WorldObject site in g.Map.objects)
+            if(site.id=="mineconvoy_2")junction=site;
+        Check(junction!=null,"Ironreach still contains the actual contested rail junction");
+        Point cart=new Point(junction.x,junction.y);
+        g.save.x=cart.x+1.25f;g.save.y=cart.y;
+        var raider=new Enemy(91300,0,cart.x+3f,cart.y,95f)
+            {stun=100f,timer=100f};
+        Check(g.CanStand(cart)&&g.CanStand(g.Position)&&
+            g.CanStand(raider.Position),
+            "Hero, original cart station and real sabotage lane fit authored Ironreach terrain");
+        g.enemies.Add(raider);
+        typeof(GameCore).GetField("<MineConvoyStage>k__BackingField",Private).SetValue(g,2);
+        typeof(GameCore).GetField("<MineCartPosition>k__BackingField",Private).SetValue(g,cart);
+        typeof(GameCore).GetField("<MineConvoyIntegrity>k__BackingField",Private).SetValue(g,74f);
+        typeof(GameCore).GetField("<MineConvoyTime>k__BackingField",Private).SetValue(g,88f);
+        Check(g.MineConvoyBodyguarding && g.Conditions().Contains("INTERCEPTING"),
+            "Actual staged game core recognizes a real playable bodyguard position");
+        Set(app,"camera",cart);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("MINECART ESCORT")) &&
+            GUI.commands.Exists(s=>s.Contains("INTERCEPTING")) &&
+            GUI.commands.Exists(s=>s.Contains("You are intercepting")),
+            "Actual GameView draws emergency cart protection in its HUD and quest guidance");
+        g.save.y=cart.y+1.5f;
+        Check(!g.MineConvoyBodyguarding,"Walking outside the real impact lane ends interception");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("STAND BETWEEN RAIDER AND CART")) &&
+            GUI.commands.Exists(s=>s.Contains("Stand between raiders")),
+            "The production HUD reacts immediately when the hero leaves the defensive lane");
+        g.save.english=false;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("矿工护送")) &&
+            GUI.commands.Exists(s=>s.Contains("挡住袭击者破坏路线")),
+            "The same shipped world screen provides real Chinese tactical feedback");
+        Console.WriteLine("PASS Live minecart positional bodyguard and bilingual tactical overlay");
+    }
+
     private static void MineConvoySafeArrivalHoldsUntilPhysicalHandoff(FrontierRuntime app)
     {
         Prepare(app);
@@ -5845,7 +5892,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BankedFrostEmberMovesWorldIndicatorToHearth, LiveMinecartBodyguardIsVisibleInRealWorldHud, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
