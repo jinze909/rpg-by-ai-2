@@ -3846,18 +3846,18 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("MINECART ESCORT")) &&
             GUI.commands.Exists(s=>s.Contains("INTERCEPTING")) &&
-            GUI.commands.Exists(s=>s.Contains("You are intercepting")),
+            GUI.commands.Exists(s=>s.Contains("The Miners' Last Shift")),
             "Actual GameView draws emergency cart protection in its HUD and quest guidance");
         g.save.y=cart.y+1.5f;
         Check(!g.MineConvoyBodyguarding,"Walking outside the real impact lane ends interception");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("STAND BETWEEN RAIDER AND CART")) &&
-            GUI.commands.Exists(s=>s.Contains("Stand between raiders")),
+            GUI.commands.Exists(s=>s.Contains("The Miners' Last Shift")),
             "The production HUD reacts immediately when the hero leaves the defensive lane");
         g.save.english=false;
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("矿工护送")) &&
-            GUI.commands.Exists(s=>s.Contains("挡住袭击者破坏路线")),
+            GUI.commands.Exists(s=>s.Contains("挡在袭击者与矿车之间")),
             "The same shipped world screen provides real Chinese tactical feedback");
         Console.WriteLine("PASS Live minecart positional bodyguard and bilingual tactical overlay");
     }
