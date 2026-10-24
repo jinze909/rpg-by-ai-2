@@ -4695,7 +4695,7 @@ namespace Starfall.Tests
                 Check(heal.released&&g.reliefFollowerSafety>=60f&&
                     g.save.health==originalHealth&&
                     g.effects.Exists(e=>e.reliefMissionOwned&&e.kind=="number"&&
-                        e.text.Contains("包扎")),
+                        e.text.StartsWith(g.L("包扎 +","TREATED +"))),
                     "Actual Mira contact treats civilian safety without falsely healing the hero");
                 // Once the rescue is over, the same patient cannot be
                 // treated forever via stale coordinates or retained action.
@@ -4728,7 +4728,7 @@ namespace Starfall.Tests
                 Check(interrupted.released&&blocked.reliefFollowerSafety==50f&&
                     (float)cadence.GetValue(blocked)<=.22f&&
                     !blocked.effects.Exists(e=>e.reliefMissionOwned&&
-                        e.kind=="number"&&e.text.Contains("包扎")),
+                        e.kind=="number"&&e.text.StartsWith(blocked.L("包扎 +","TREATED +"))),
                     "A mid-cast closed wall cancels civilian treatment and refunds unspent heal cadence");
                 rows[10]=new string('.',30);
                 var hero=Fresh(data);
