@@ -145,7 +145,7 @@ namespace Starfall
         private void TickPolish(float dt)
         {
             TickRoadwardenTrial(dt);
-            TickWayfarerEncounter();
+            TickWayfarerEncounter(dt);
             TickReliefMission(dt);
             TickAtlasEcho(dt);
             TickRootHarmonyTrial(dt);

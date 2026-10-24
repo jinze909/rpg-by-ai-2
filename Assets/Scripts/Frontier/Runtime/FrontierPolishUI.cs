@@ -222,6 +222,13 @@ namespace Starfall
                     Bar(p.x - 35, p.y + 11, 70, Game.WayfarerIntegrity / 100f, safety, 6);
                     Text(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
                         (int)Math.Ceiling(Game.WayfarerIntegrity) + "%", 10, safety, TextAnchor.MiddleCenter);
+                    if(Game.WayfarerCoverTime>0)
+                    {
+                        Ring(new Point(o.x,o.y),.73f,mint,24);
+                        Text(p.x - 48,p.y - 116,96,20,
+                            Game.L("掩护 ","COVER ")+(int)Math.Ceiling(Game.WayfarerCoverTime)+"s",
+                            11,mint,TextAnchor.MiddleCenter);
+                    }
                 }
                 return true;
             }

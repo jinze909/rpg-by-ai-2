@@ -10,6 +10,14 @@ namespace Starfall
         private float wayfarerIntegrity;
         private bool wayfarerWarned;
         private bool wayfarerAidUsed;
+        // Physical command, ephemeral and non-serialized like the live ambush.
+        private bool wayfarerCoverUsed;
+        private float wayfarerCoverTime;
+        public float WayfarerCoverTime { get { return wayfarerCoverTime; } }
+        public bool WayfarerCoverAvailable
+        { get { return wayfarerEncounterRoom!=0 &&
+            save.room==wayfarerEncounterRoom && !wayfarerCoverUsed &&
+            !Dying && !practicing && save.energy>=20f; } }
         // An empty enemy list is not evidence that both travelers' raiders
         // died in player combat. Keep confirmations transient, like the ambush.
         private int wayfarerConfirmedKills;
@@ -32,6 +40,7 @@ namespace Starfall
             effects.RemoveAll(e => e.wayfarerOwned);
             wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
             wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerCoverUsed=false;wayfarerCoverTime=0f;
             wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
@@ -114,9 +123,13 @@ namespace Starfall
                 var options = new List<Choice> { C("继续守护", "Keep defending", "close") };
                 if (wayfarerIntegrity < 100 && !wayfarerAidUsed)
                     options.Add(C("紧急援助：1份物资恢复35安全度", "Field aid: 1 supply restores 35 safety", "wayfarer_aid"));
+                if(WayfarerCoverAvailable)
+                    options.Add(C("布置临时掩护 · 耐力20 · 8秒减伤",
+                        "Rally cover · 20 energy · 8s half damage",
+                        "wayfarer_cover"));
                 options.Add(C("撤离战斗", "Withdraw", "wayfarer_abandon"));
-                Dialog(o.name, o.en, "伏击者正试图袭击旅人！旅人安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。即使敌人已蓄力，也可站到敌人与旅人之间挡下攻击。安全度归零即失败；受伤后可紧急援助一次。",
-                    "Raiders are attacking the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Stand between a raider and me to intercept even a committed strike. Reaching zero fails the rescue; one field aid is available after injury.",
+                Dialog(o.name, o.en, "伏击者袭击旅人！安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。你可以站在敌人与旅人之间拦截攻击，也可靠近旅人花20耐力部署一次8秒减伤掩护。" + (wayfarerCoverTime>0?" 掩护剩余 "+(int)Math.Ceiling(wayfarerCoverTime)+" 秒。":"") + "受伤后还可用一份物资紧急援助。",
+                    "Raiders attack the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept real strikes, or rally once beside the traveler for 20 energy: 8s of half damage." + (wayfarerCoverTime>0?" Cover: "+(int)Math.Ceiling(wayfarerCoverTime)+"s left.":"") + " One supply can heal after injury.",
                     options.ToArray());
                 return true;
             }
@@ -143,6 +156,21 @@ namespace Starfall
         { return PhysicalRefugeReach(npc,2.1001f); }
         private bool ChooseWayfarer(string action)
         {
+            if (action == "wayfarer_cover")
+            {
+                if(!WayfarerCoverAvailable)return true;
+                Point traveler=ObjectPoint(wayfarerEncounterRoom,
+                    "wayfarer"+wayfarerEncounterRoom,new Point(-100,-100));
+                if(!CanReachWayfarer(traveler))return true;
+                save.energy-=20f;wayfarerCoverUsed=true;
+                wayfarerCoverTime=8f;
+                effects.Add(new Effect("discover",traveler,.55f)
+                    {wayfarerOwned=true});
+                sound="guard";revision++;
+                Notify("临时掩护已架起！8秒内旅人实际受击减半；近身拦截仍可完全保护旅人。",
+                    "Cover rallied! Actual traveler strike damage halves for 8s. Bodyguard interception still prevents contact.");
+                return true;
+            }
             if (action == "wayfarer_reward")
             {
                 if (!WayfarerFinalRewardPending || save.room < 1 ||
@@ -229,6 +257,7 @@ namespace Starfall
             wayfarerEncounterRoom = room;
             wayfarerIntegrity = 100;
             wayfarerWarned = wayfarerAidUsed = false;
+            wayfarerCoverUsed=false;wayfarerCoverTime=0f;
             wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
             {
@@ -240,8 +269,8 @@ namespace Starfall
                     wayfarerOwned = true });
             }
             TrackQuest("wayfarers"); sound = "quest"; revision++;
-            Notify("守住旅人安全度！敌人会冲向旅人，拦截并击退他们。",
-                "Protect the traveler! Raiders will rush them; intercept and defeat both.");
+            Notify("守住旅人！可用身体拦截，或靠近旅人花20耐力部署一次8秒减伤掩护。",
+                "Protect the traveler! Intercept strikes or rally one 8-second cover for 20 energy nearby.");
             return true;
         }
         // Test candidate actor roots against a FULL walkable local route to
@@ -308,7 +337,13 @@ namespace Starfall
             Point npc = ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, new Point(-100, -100));
             if ((attacker.Position - npc).Length > 2.2f || !ClearAttackPath(attacker.Position, npc)) return;
             if (InterceptWayfarerStrike(attacker, npc)) return;
-            wayfarerIntegrity = Math.Max(0, wayfarerIntegrity - (attacker.kind == 2 ? 24 : 18));
+            int baseDamage=attacker.kind==2?24:18;
+            int actualDamage=wayfarerCoverTime>0?(baseDamage+1)/2:baseDamage;
+            wayfarerIntegrity=Math.Max(0,wayfarerIntegrity-actualDamage);
+            if(wayfarerCoverTime>0)
+                effects.Add(new Effect("number",npc,.45f,
+                    L("掩护减伤 -"+(baseDamage-actualDamage),
+                      "COVER -"+(baseDamage-actualDamage))) {wayfarerOwned=true});
             // The area warning belongs to enemy windup, before contact.
             // On an ACTUAL civilian hit show a brief impact, not a new
             // red prediction that lingers after damage has landed.
@@ -328,11 +363,12 @@ namespace Starfall
                     "Traveler in danger! Intercept the remaining raiders.");
             }
         }
-        private void TickWayfarerEncounter()
+        private void TickWayfarerEncounter(float dt)
         {
             if (wayfarerEncounterRoom == 0) return;
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
+            wayfarerCoverTime=Math.Max(0f,wayfarerCoverTime-dt);
             int first=82000+wayfarerEncounterRoom*10;
             bool anyStillAlive=false;
             // Validate BOTH authored identities before waiting for either.
