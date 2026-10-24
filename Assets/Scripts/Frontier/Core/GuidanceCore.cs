@@ -882,7 +882,10 @@ namespace Starfall
                         foreach(Enemy e in enemies)
                         {
                             int patrolIndex;
+                            Enemy registered;
                             if(!ridgeWatchIds.TryGetValue(e.id,out patrolIndex)||
+                                !ridgeWatchActors.TryGetValue(e.id,out registered)||
+                                !Object.ReferenceEquals(registered,e)||
                                 Has("ridge_watch_"+next+"_"+patrolIndex)||e.hp<=0f)
                                 continue;
                             float distance=(e.Position-Position).Length;
@@ -890,11 +893,24 @@ namespace Starfall
                             nearest=distance;
                             q.target=e.Position;
                         }
+                        // If the final uncleared patrol is missing because
+                        // its local path was temporarily sealed, show the
+                        // ACTUAL authored clearing instead of falsely marking
+                        // the mission complete or borrowing another actor.
+                        if(nearest==float.MaxValue)
+                        {
+                            Point? pending=RidgeWatchNextMissingFoot(next);
+                            if(pending.HasValue)q.target=pending.Value;
+                        }
                     }
                 }
                 q.next=q.complete?L("全部七处野外巡路已经安全","All seven high-trail watches are clear"):
                     next<0?L("先连通高地两端路标，并击败地区守护者",
                         "Link both ridge markers and defeat a regional guardian first"):
+                    next==save.room&&RidgeWatchPatrolsAwaitingFooting(next)>0&&
+                        RidgeWatchProgress(next)+RidgeWatchPatrolsAwaitingFooting(next)==3?
+                        L("最后一处巡路暂时封闭。待道路恢复，击败重新出现的巡敌。",
+                          "The last clearing is blocked. Once the path reopens, defeat the returning patrol."):
                     next==save.room?L("前往仍在活动的真实巡敌处，清理剩余危险",
                         "Reach the living hostile patrols and clear the remaining danger"):
                     L("前往已联通高地的地区，清理居民通道",

@@ -3612,6 +3612,15 @@ namespace Starfall.Tests
                 Check(g.RidgeWatchProgress(1)==2&&!g.RidgeWatchComplete(1)&&
                     g.save.coins==coins+12&&g.save.shards==shards,
                     "Only two normal enemy loot payments occur; the unique three-patrol reward is NOT granted");
+                g.TrackQuest("ridge_watch");
+                var waiting=g.GetQuest("ridge_watch");
+                Check(waiting.next.Contains("暂时封闭")&&
+                    (waiting.target-new Point(101.5f,61.5f)).Length<.001f,
+                    "Real quest compass marks blocked missing clearing, never a dead patrol or misleading completion");
+                g.save.english=true;
+                Check(g.GetQuest("ridge_watch").next.Contains("last clearing is blocked"),
+                    "Actual English quest objective tells the player to return after the route reopens");
+                g.save.english=false;
                 rows=(string[])original.rows.Clone();
                 data.maps[1].rows=rows;
                 g.save.x=original.spawnX;g.save.y=original.spawnY;
@@ -3623,6 +3632,8 @@ namespace Starfall.Tests
                 Check(missing!=null&&g.CanStand(missing.Position)&&
                     (missing.Position-new Point(101.5f,61.5f)).Length<=4.25f,
                     "The recovered patrol stands on genuine local footing, not arbitrary fallback scenery");
+                Check((g.GetQuest("ridge_watch").target-missing.Position).Length<.001f,
+                    "World compass automatically switches back to the genuine live patrol after terrain reopens");
                 strike.Invoke(g,new object[]{missing,9999f,true,null,null});
                 Check(g.RidgeWatchProgress(1)==3&&g.RidgeWatchComplete(1)&&
                     g.save.shards==shards+1&&g.save.coins==coins+46,

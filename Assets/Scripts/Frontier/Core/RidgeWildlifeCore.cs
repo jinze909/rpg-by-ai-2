@@ -68,6 +68,29 @@ namespace Starfall
                 Object.ReferenceEquals(actual,enemy)&&
                 !Has("ridge_watch_"+save.room+"_"+index);
         }
+        // A blocked live clearing must not hide an outstanding third kill.
+        // The map can reopen while the hero remains in the same scene.
+        private int RidgeWatchPatrolsAwaitingFooting(int room)
+        {
+            if(room!=ridgeWatchRoom||save.room!=room||
+                !Object.ReferenceEquals(ridgeWatchMap,Map)||
+                RidgeWatchComplete(room))return 0;
+            int count=0;
+            for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                if(!Has("ridge_watch_"+room+"_"+i)&&
+                    !ridgeWatchIds.ContainsValue(i))count++;
+            return count;
+        }
+        private Point? RidgeWatchNextMissingFoot(int room)
+        {
+            if(room!=ridgeWatchRoom||save.room!=room||
+                !Object.ReferenceEquals(ridgeWatchMap,Map))return null;
+            for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                if(!Has("ridge_watch_"+room+"_"+i)&&
+                    !ridgeWatchIds.ContainsValue(i))
+                    return RidgeWildlifeSpawns[i];
+            return null;
+        }
         private string RidgeWatchHint(int room,bool english)
         {
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
@@ -75,12 +98,16 @@ namespace Starfall
             if(RidgeWatchComplete(room))
                 return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\n\n"+ridgeWatchStoryEn[room-1]:
                     "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\n\n"+ridgeWatchStoryZh[room-1];
-            int available=ridgeWatchRoom==room&&
-                Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
-            return english?"\n\nRidge watch: clear the real hostile patrols beyond the markers ("+
-                RidgeWatchProgress(room)+"/"+available+"). First-clear supplies await.":
-                "\n\n高地巡守：清除路标外的实际巡敌（"+
-                RidgeWatchProgress(room)+"/"+available+"）。首次完成有补给奖励。";
+            int waiting=RidgeWatchPatrolsAwaitingFooting(room);
+            return english?"\n\nRidge watch: clear all three real patrols ("+
+                RidgeWatchProgress(room)+"/3)."+
+                (waiting>0?" A blocked clearing is delaying "+waiting+
+                    " remaining patrol; it will rejoin when the ground opens.":"")+
+                " First-clear supplies await.":
+                "\n\n高地巡守：击败全部三名真实巡敌（"+
+                RidgeWatchProgress(room)+"/3）。"+
+                (waiting>0?" 有"+waiting+"名巡敌所在道路暂时封闭，通路恢复后会重新出现。":"")+
+                "首次完成有补给奖励。";
         }
         private void OnRidgeWatchEnemyDefeated(Enemy enemy)
         {
