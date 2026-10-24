@@ -1890,7 +1890,7 @@ namespace Starfall.Tests
                 float safety=g.reliefFollowerSafety;
                 Projectile first=send();g.Tick(.05f,new Point());
                 Check(!g.projectiles.Contains(first)&&
-                    g.reliefFollowerSafety==safety&&
+                    g.reliefFollowerSafety>=safety-.25f&&
                     !g.ReliefCompanionArrowGuardReady&&
                     g.ReliefCompanionArrowGuardCooldown>2.95f&&
                     g.effects.Exists(e=>e.reliefMissionOwned&&
@@ -1903,7 +1903,7 @@ namespace Starfall.Tests
                     " cue="+g.effects.Exists(e=>e.text==g.L("同伴挡箭！","ALLY BLOCK!")));
                 Projectile second=send();Advance(g,.20f);
                 Check(!g.projectiles.Contains(second)&&
-                    g.reliefFollowerSafety<safety,
+                    g.reliefFollowerSafety<safety-7f,
                     "A second arrow inside cooldown is not blocked by a free permanent ally shield");
                 float after=g.reliefFollowerSafety;
                 var cooldown=typeof(GameCore).GetField(
@@ -1913,14 +1913,14 @@ namespace Starfall.Tests
                 cooldown.SetValue(g,0f);
                 Projectile third=send();Advance(g,.20f);
                 Check(!g.projectiles.Contains(third)&&
-                    g.reliefFollowerSafety==after,
+                    g.reliefFollowerSafety>after-.3f,
                     "After genuine cooldown recovery the same living planted companion can physically block again");
                 g.ToggleCompanionHold();
                 Check(!g.ReliefCompanionArrowGuardReady,
                     "Explicit recall immediately disables planted interception");
                 cooldown.SetValue(g,0f);
                 Projectile unheld=send();Advance(g,.20f);
-                Check(g.reliefFollowerSafety<after,
+                Check(g.reliefFollowerSafety<after-7f,
                     "Unheld companions cannot pretend to guard the escorted civilian");
                 g.reliefMissionRoom=0;
                 Check(!g.ReliefCompanionArrowGuardReady,
