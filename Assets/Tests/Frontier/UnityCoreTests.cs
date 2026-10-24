@@ -84,6 +84,8 @@ namespace Starfall.Tests
         [Test] public void TemporarilySealedRidgePatrolCanRejoinBeforeFinalReward() { CoreChecks.RidgeWatchMissingBlockedPatrolRejoinsRealThreeGuardObjective(Data()); }
         [Test] public void RestoredRidgeSnapshotsRejectReusedIdAndWrongCombatProfile() { CoreChecks.RidgeWatchWorldSnapshotRejectsImpostorWithReusedPatrolId(Data()); }
         [Test] public void DuplicateActorIdsNeverForgeRidgeWatchCredit() { CoreChecks.RidgeWatchCannotCreditAnotherActorWithReusedNumericId(Data()); }
+        [Test] public void LakeKitchenTradeMakesStewAndPermanentFoodUpgrade() { CoreChecks.PublicFishKitchenCreatesRealRepeatableStewAndUpgradedFood(Data()); }
+        [Test] public void LakeKitchenTradeRejectsFullBagAndRemoteChoices() { CoreChecks.PublicFishKitchenRejectsStaleChoicesAndInventoryOverflow(Data()); }
         [Test] public void PrecisionLakeFishingAwardsTwoRealFishWithTightTiming() { CoreChecks.PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Data()); }
         [Test] public void PrecisionFishingFailurePreservesOrdinaryLakePlay() { CoreChecks.PrecisionLakeFishingRespectsBagFailuresAndOrdinaryCasting(Data()); }
         [Test] public void LiveHighlandEmberCompassFollowsNextObjectiveAndSave() { CoreChecks.LiveFrostSignalNavigationTracksActualCarriedEmber(Data()); }

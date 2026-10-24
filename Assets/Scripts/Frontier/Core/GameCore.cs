@@ -34,6 +34,13 @@ namespace Starfall
         // cast only, never a SaveData v2 field or permanent unlock.
         public bool FishExpertCast { get; private set; }
         public int FishCatchReward { get { return FishExpertCast ? 2 : 1; } }
+        // The public fish kitchen uses an existing v2 string flag so old
+        // saves receive baseline stew unchanged until the player stocks it.
+        public bool PublicFishKitchenStocked
+        { get { return Has("fish_kitchen_supplied"); } }
+        public int StewHealing { get { return PublicFishKitchenStocked?65:55; } }
+        public float StewBuffSeconds
+        { get { return PublicFishKitchenStocked?105f:90f; } }
         // A bite belongs to one simulation-time window, not every keyboard,
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
@@ -2551,6 +2558,12 @@ namespace Starfall
                         C("精准垂钓 · 鱼袋需两格", "Precision cast · need two slots", "fish_expert")
                 };
                 if (!Has("ally_2")) list.Add(C("支线：交付银鳍鱼 ×3", "Commission: deliver 3 Silverfin", "ally2"));
+                else list.Add(C(save.inventory[3]>=2&&save.inventory[6]<9999?
+                    "公共鱼汤 · 鱼×2 → 炖汤×1":
+                    "公共鱼汤 · 需要鱼×2及炖汤空位",
+                    save.inventory[3]>=2&&save.inventory[6]<9999?
+                    "Public kitchen · 2 fish for 1 stew":
+                    "Public kitchen · need 2 fish and stew space","fish_kitchen"));
                 list.Add(C("再见", "Goodbye", "close"));
                 string fishermanZh=Has("ally_2")?
                     "岸边的锅里翻着热气。\n\n“孩子们昨晚总算喝上了鱼汤。现在你若再抛竿，听见水面扑通一响就收线，别让鱼儿叼着钩跑了。”":
@@ -2564,6 +2577,15 @@ namespace Starfall
                     "A few leaves drift in the cooking pot.\n\n'More children reached the shelter tonight. I still need three Silverfin. Reel when you hear the splash, with the float inside the teal band. Three good pulls will land one fish.'";
                 fishermanZh+="\n\n“想试试树桩边那股急水？青色窗口窄得多。三次钩准，能拉上两条；没有鱼饵也能试。”";
                 fishermanEn+="\n\n'Try the swift water by the stump? The teal window is narrower. Land three hooks and you can pull in two fish. No bait needed.'";
+                if(Has("ally_2"))
+                {
+                    fishermanZh+=PublicFishKitchenStocked?
+                        "\n\n“公用的汤锅又满了。你带两条鱼来，我给你留一碗炖汤；厨房每次都多分些给需要的人。”":
+                        "\n\n“如果再带两条鱼，公用汤锅就能重新开火。我会给你留一碗炖汤。往后同样的食材，大家能做得更好。”";
+                    fishermanEn+=PublicFishKitchenStocked?
+                        "\n\n'The shared pot is simmering again. Bring me two Silverfin and I'll save you a bowl. We keep enough for those still hungry.'":
+                        "\n\n'Bring two more Silverfin and we can restart the public kitchen. I'll set aside a bowl for you. Once we have a steady stock, every stew goes further.'";
+                }
                 Dialog(o.name,o.en,fishermanZh,fishermanEn,list.ToArray());return;
             }
             if (kind == "forge")
@@ -2786,7 +2808,7 @@ namespace Starfall
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
-                (action == "fish" || action == "fish_expert") || action == "deliver" ||
+                (action == "fish" || action == "fish_expert" || action == "fish_kitchen") || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
                 action == "continue" || action == "swordlesson_start" ||
@@ -2928,6 +2950,39 @@ namespace Starfall
             if (action == "cook" && HasInventoryRoom(6, 1) && Spend(0, 0, 2, 1, 0)) { save.inventory[6]++; sound = "reward"; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buymeal" && HasInventoryRoom(6, 1) && Spend(0, 0, 0, 0, 0, ShopStewCost)) { save.inventory[6]++; Notify("暖潮炖汤 ×1", "Tide stew ×1"); }
             if (action == "buywood" && HasInventoryRoom(0, 4) && Spend(0, 0, 0, 0, 0, ShopTimberCost)) { save.inventory[0] += 4; Notify("木材 ×4", "Timber ×4"); }
+            if (action == "fish_kitchen")
+            {
+                // This is a real-world handoff at Old Tide's original
+                // fishing station. Direct/forged ChooseCore calls and
+                // cached choices at an unrelated NPC must not exchange fish.
+                WorldObject source=pendingDialogueSource;
+                if(save.room!=0||!Has("ally_2")||Dying||practicing||
+                    source==null||source.kind!="fish"||
+                    pendingDialogueSourceRoom!=save.room||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source))return;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("现场救援或附近敌人未解除，暂时无法交付鱼获。",
+                        "Finish fieldwork and clear nearby danger before supplying the kitchen.");
+                    return;
+                }
+                // Check capacity BEFORE spending any fish; a full stew
+                // stack must never swallow precious earned catches.
+                if(!HasInventoryRoom(6,1)||!Spend(0,0,0,2,0))return;
+                save.inventory[6]++;revision++;sound="reward";
+                if(!PublicFishKitchenStocked)
+                {
+                    Flag("fish_kitchen_supplied");
+                    RecordMoment("老潮用你交来的两条银鳍鱼重新点燃了湖畔公共汤锅。镇上的炖汤从此能照顾更多赶路的人。",
+                        "Old Tide reopened the lakeside public kitchen with your two Silverfin. Every bowl of stew can now sustain travelers longer.");
+                    Notify("公共厨房重新开火：炖汤×1！以后炖汤恢复65生命，攻击增益持续105秒。",
+                        "Public kitchen reopened: +1 stew! Future stew heals 65 HP and boosts damage for 105s.");
+                }
+                else Notify("交付银鳍鱼×2，换得暖潮炖汤×1。公用汤锅继续为镇民开火。",
+                    "Supplied two Silverfin for one Tide stew. The public kitchen keeps feeding the town.");
+                return;
+            }
             if (action == "fish" || action == "fish_expert")
             {
                 bool expert=action=="fish_expert";
@@ -2978,8 +3033,13 @@ namespace Starfall
             if (practicing || Dying) return;
             if (mode != "world" && mode != "inventory") return;
             if (save.inventory[6] <= 0) { Notify("没有炖汤了。旅店可以制作或出售。", "No stew left. Visit Ari at the inn."); return; }
-            save.inventory[6]--; save.health = Clamp(save.health + 55, 0, save.maxHealth); save.energy = 100;
-            save.foodUntil = save.totalTime + 90; revision++; sound = "reward"; Notify("生命 +55，耐力回满，攻击增强 90 秒。", "+55 health, full energy, stronger attacks for 90 seconds.");
+            save.inventory[6]--;
+            save.health=Clamp(save.health+StewHealing,0,save.maxHealth);
+            save.energy=100;
+            save.foodUntil=save.totalTime+StewBuffSeconds;
+            revision++;sound="reward";
+            Notify("生命 +"+StewHealing+"，耐力回满，攻击增强 "+(int)StewBuffSeconds+" 秒。",
+                "+"+StewHealing+" health, full energy, stronger attacks for "+(int)StewBuffSeconds+" seconds.");
         }
         public void Equip(int weapon)
         {
