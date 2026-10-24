@@ -3859,5 +3859,57 @@ namespace Starfall.Tests
                 c=>c.action=="ridge_watch_track")<0,
                 "Completed watch must not advertise another repeatable task");
         }
+
+        public static void RidgeWatchFieldAidPaysForCappedHealthAndBlocksLiveThreats(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.save.flags.Add("ridge_watch_complete_1");
+            g.Enter(1);g.enemies.Clear();
+            WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="ridgemarker");
+            Check(marker!=null,"Actual highland field marker exists");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.health=35;g.save.energy=40;g.save.inventory[2]=3;
+            g.Talk(marker);
+            int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_field_aid");
+            Check(choice>=0,"Liberated route provides a real paid field-aid choice");
+            g.Choose(choice);
+            Check(g.save.health==65&&g.save.energy==70&&g.save.inventory[2]==2,
+                "One real Moonherb restores 30 HP and 30 energy");
+            g.Talk(marker);
+            choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_field_aid");
+            g.save.x=marker.x+8f;g.Choose(choice);
+            Check(g.save.health==65&&g.save.inventory[2]==2,
+                "Stale remote interaction never consumes supplies or heals");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.health=g.save.maxHealth;g.save.energy=100f;
+            g.Talk(marker);g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_field_aid"));
+            Check(g.save.inventory[2]==2,"Full supplies preserve valuable herbs");
+            g.save.health=50;g.save.energy=50;
+            Enemy nearby=new Enemy(79999,0,marker.x+.7f,marker.y,50);
+            g.enemies.Add(nearby);
+            Check(!g.SafeTravel,"A hostile in melee range must make the aid station unsafe");
+            g.Talk(marker);g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_field_aid"));
+            Check(g.save.inventory[2]==2&&g.save.health==50,
+                "Active threats cannot exploit a field aid station");
+            g.enemies.Remove(nearby);g.save.inventory[2]=0;
+            g.Talk(marker);g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_field_aid"));
+            Check(g.save.health==50,"No herb means no magical free recovery");
+            g.save.inventory[2]=1;
+            g.Talk(marker);g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_field_aid"));
+            Check(g.save.health==80&&g.save.energy==80&&g.save.inventory[2]==0,
+                "Cleared station correctly resumes paid herbal service");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.RidgeWatchComplete(1)&&restored.save.health==80&&
+                restored.save.inventory[2]==0,
+                "Original save format retains recovered HP and material payment");
+        }
     }
 }

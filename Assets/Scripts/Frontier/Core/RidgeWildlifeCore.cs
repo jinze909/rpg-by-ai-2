@@ -31,8 +31,8 @@ namespace Starfall
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
                 return "";
             if(RidgeWatchComplete(room))
-                return english?"\n\nRidge watch: cleared. +2 energy/sec while exploring the outer high trails.":
-                    "\n\n高地巡守：已完成。在外环高处步道探索时耐力恢复 +2/秒。";
+                return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.":
+                    "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。";
             int available=ridgeWatchRoom==room&&
                 Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
             return english?"\n\nRidge watch: clear the real hostile patrols beyond the markers ("+

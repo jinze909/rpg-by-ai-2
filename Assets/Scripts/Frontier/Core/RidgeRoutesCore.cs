@@ -76,6 +76,9 @@ namespace Starfall
                 Choice depart=C("继续步行","Keep walking","close");
                 Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
                     new Choice[]{crossing,C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
+                    RidgeWatchComplete(room)?
+                    new Choice[]{crossing,C("巡守补给 · 月光草 ×1",
+                        "Warden field aid · 1 Moonherb","ridge_field_aid"),depart}:
                     new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 12 耐力。"+
@@ -99,10 +102,10 @@ namespace Starfall
         }
         private bool ChooseRidge(string action)
         {
-            if(action!="ridge_travel"&&action!="ridge_watch_track")
-                return false;
+            if(action!="ridge_travel"&&action!="ridge_watch_track"&&
+                action!="ridge_field_aid")return false;
             int room=save.room;
-            if(action=="ridge_watch_track")
+            if(action=="ridge_watch_track"||action=="ridge_field_aid")
             {
                 // Never let an unrelated NPC, remote/stale page or a
                 // synthesized choice change the tracked story objective.
@@ -112,10 +115,41 @@ namespace Starfall
                     !SourceBelongsToActiveMap(speaker)||
                     !HasPhysicalInteractionReach(speaker)||
                     !RidgeLinked(room)||!Has("boss_"+room)||
-                    RidgeWatchComplete(room)||Dying||practicing)return true;
-                TrackQuest("ridge_watch");
-                Notify("巡守任务已追踪。导航将指向仍然活动的高地敌人。",
-                    "Ridge watch tracked. Navigation now follows living patrol enemies.");
+                    Dying||practicing)return true;
+                if(action=="ridge_watch_track")
+                {
+                    if(RidgeWatchComplete(room))return true;
+                    TrackQuest("ridge_watch");
+                    Notify("巡守任务已追踪。导航将指向仍然活动的高地敌人。",
+                        "Ridge watch tracked. Navigation now follows living patrol enemies.");
+                    return true;
+                }
+                // Securing the ridge opens a real, repeatable field service.
+                // The health/energy transaction is guarded by the ORIGINAL
+                // spoken marker, safe civilian fieldwork and actual materials.
+                if(!RidgeWatchComplete(room))return true;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("现场任务或敌人尚未解除，暂时无法安全领取巡守补给。",
+                        "Active fieldwork or nearby hostiles prevent safe ridge aid.");
+                    return true;
+                }
+                if(save.health>=save.maxHealth&&save.energy>=100f)
+                {
+                    Notify("生命和耐力已满，保留月光草下次使用。",
+                        "Health and energy are full; keep the Moonherb for later.");
+                    return true;
+                }
+                if(!Spend(0,0,1,0,0))return true;
+                float oldHealth=save.health;
+                save.health=Math.Min(save.maxHealth,save.health+30f);
+                save.energy=Math.Min(100f,save.energy+30f);
+                effects.Add(new Effect("number",Position,.75f,
+                    L("巡守补给 +"+(int)(save.health-oldHealth)+" 生命",
+                      "WARDEN AID +"+(int)(save.health-oldHealth)+" HP")));
+                sound="reward";
+                Notify("巡守草药补给：回复最多 30 生命与 30 耐力。",
+                    "Warden aid restores up to 30 health and 30 energy.");
                 return true;
             }
             if(room<0||room>7||!RidgeLinked(room)||Dying||practicing)return true;
