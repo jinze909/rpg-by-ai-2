@@ -85,6 +85,14 @@ namespace Starfall
         private MapData companionFocusMap;
         private int companionFocusRoom=-1,companionFocusGeneration=-1;
         private float companionFocusSeconds;
+        // Coordination belongs to the same live eight-second mark. Real
+        // hero contact exposes the foe; only a subsequent real ally contact
+        // can cash it out, once, even across multiple piercing arrows.
+        private bool companionFocusExposed,companionFocusComboSpent;
+        public bool CompanionFocusExposed
+        {get{return CompanionFocusActive&&companionFocusExposed&&!companionFocusComboSpent;}}
+        public bool CompanionFocusComboSpent
+        {get{return CompanionFocusActive&&companionFocusComboSpent;}}
         public float CompanionFocusSeconds
         {get{return CompanionFocusActive?companionFocusSeconds:0f;}}
         public bool CompanionFocusActive
@@ -109,6 +117,7 @@ namespace Starfall
             companionFocusSave=null;companionFocusMap=null;
             companionFocusRoom=companionFocusGeneration=-1;
             companionFocusSeconds=0f;
+            companionFocusExposed=companionFocusComboSpent=false;
         }
         private void PrepareCompanionFocusCandidate(Point? cursor)
         {
@@ -141,10 +150,44 @@ namespace Starfall
             companionFocusMap=Map;companionFocusRoom=save.room;
             companionFocusGeneration=companionPresentationGeneration;
             companionFocusSeconds=8f;
+            companionFocusExposed=companionFocusComboSpent=false;
             revision++;
             Notify("同伴集火已标记！8秒内优先攻击目标，紧急威胁仍会先拦截。",
                 "Companion focus marked! Prioritize this foe for 8s; imminent threats still come first.");
         }
+
+        // Called ONLY inside Hit's authoritative, positive-HP contact
+        // transaction. No HUD click, windup, unreleased arrow, stagger
+        // effect, missed cast or fake actor ID can earn the combo.
+        private float ResolveCompanionFocusContact(Enemy enemy,
+            ImpactProfile impact)
+        {
+            if(!CompanionFocusActive||
+                !System.Object.ReferenceEquals(enemy,companionFocusTarget)||
+                impact==null)return 1f;
+            if(impact.playerOwned)
+            {
+                if(!companionFocusExposed&&!companionFocusComboSpent)
+                {
+                    companionFocusExposed=true;revision++;
+                    effects.Add(new Effect("number",enemy.Position,.8f,
+                        L("协同破绽","ALLY OPENING")));
+                }
+                return 1f;
+            }
+            if(!companionFocusExposed||companionFocusComboSpent)
+                return 1f;
+            companionFocusComboSpent=true;revision++;
+            // Full owner-aware interruption retracts only this target's
+            // unspent danger warning; preserve the original focus timer
+            // and allow normal auto-fire to keep its tactical priority.
+            ApplyEnemyControl(enemy,enemy.boss?.28f:.75f);
+            effects.Add(new Effect("number",enemy.Position,.85f,
+                L("协同打击！","COORDINATED HIT!")));
+            sound="skill";
+            return 1.35f;
+        }
+
         private MapData abyssMap;
         private bool previousLowTide;
         public static readonly Point[] RaceRoute = { new Point(8, 18), new Point(8, 5), new Point(23, 5), new Point(30, 18), new Point(14, 18) };

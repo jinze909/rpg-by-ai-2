@@ -993,6 +993,9 @@ namespace Starfall
                 damage *= 1.25f;
                 effects.Add(new Effect("number", e.Position, .7f, L("破绽", "OPEN")));
             }
+            // The eight-second manual focus becomes a two-body combat
+            // opportunity only through genuine hero AND ally contacts.
+            damage *= ResolveCompanionFocusContact(e,profile);
             bool crit = Random() < profile.criticalChance;
             if (crit) damage *= 1.7f;
             if (e.staggerRecovery <= 0) e.stagger += damage * (profile.weapon == 0 ? .7f : .45f) * (profile.weapon == 0 && profile.style == 2 ? 1.4f : 1);
