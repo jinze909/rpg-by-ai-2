@@ -59,14 +59,17 @@ namespace Starfall
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
-                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive || Game.OuterPatrolActive)
+                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive ||
+                    Game.OuterPatrolActive || Game.MineConvoyActive)
                     rects.Add(new Rect(380, 22, 520, 65));
             }
             else
             {
                 rects.Add(new Rect(24,24,298,104)); rects.Add(new Rect(1008,24,248,191)); rects.Add(new Rect(1008,233,248,248));
                 rects.Add(new Rect(342,696,596,80)); rects.Add(new Rect(972,718,284,52));
-                if (Game.save.room >= 5 || Game.save.teaUntil > Game.save.totalTime) rects.Add(new Rect(24,145,298,60));
+                if (Game.save.room >= 5 || Game.MineConvoyActive ||
+                    Game.save.teaUntil > Game.save.totalTime)
+                    rects.Add(new Rect(24,145,298,60));
                 if (Game.save.showGuidance && Game.TutorialStep < 8 && !Game.practicing) rects.Add(new Rect(24,474,298,204));
             }
             rects.AddRange(worldOverlayRegions); return rects;
@@ -169,7 +172,8 @@ namespace Starfall
                         Math.Ceiling(Game.riposteTime*10f)/10f+"s",
                     12,gold);
             }
-            QuestGuide guide = Game.CurrentGuide;
+            QuestGuide guide = Game.MineConvoyActive?
+                Game.GetQuest("mine_convoy"):Game.CurrentGuide;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
             Text(1041,56,136,23,(int)(guide.Progress*100)+"%  ·  "+Game.L("查看步骤","View steps"),11,paper);
@@ -257,6 +261,33 @@ namespace Starfall
                         Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
+            }
+            else if (Game.MineConvoyActive && Game.save.room==3)
+            {
+                // During real combat, the compact HUD replaces exploration.
+                // The physical cart, its independent raider pressure and
+                // bodyguard contacts must still remain visible to players.
+                float hull=Game.MineConvoyIntegrity;
+                Color accent=hull<25f?PixelArt.C("#ec7668"):hull<45f?gold:mint;
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                    new Color(accent.r,accent.g,accent.b,.7f));
+                Text(393,25,494,26,
+                    Game.MineConvoyStage==4?
+                        Game.L("矿车已到站 · 前往南侧矿棚登记",
+                            "CART ARRIVED · REGISTER AT DEPOT"):
+                        Game.L("矿工护送 · ","MINECART ESCORT · ")+
+                            Math.Ceiling(Game.MineConvoyTime)+"s",
+                    15,paper,TextAnchor.MiddleCenter);
+                Text(398,49,481,18,
+                    Game.L("车厢 ","HULL ")+Math.Ceiling(hull)+"/80"+
+                    (Game.MineConvoyStage!=2?"":
+                        Game.MineConvoyBodyguarding?
+                            Game.L(" · 正在拦截 "," · INTERCEPTING ")+
+                                Game.MineConvoyProtectedLanes+"/"+Game.MineConvoyThreatLanes:
+                            Game.L(" · 挡在袭击者与矿车之间",
+                                " · STAND BETWEEN RAIDER AND CART")),
+                    11,accent,TextAnchor.MiddleCenter);
+                Bar(401,71,478,hull/80f,accent,7);
             }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));
