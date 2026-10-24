@@ -1345,8 +1345,8 @@ namespace Starfall
                     "POST-FINALE MAIN STORY · PUBLIC HEARING");
                 q.locked=!HearingReady;
                 q.complete=HearingComplete;
-                q.description=L("星雨、公开重建和厄洛的民用余量协议已经完成，但居民没有放弃自己说话的权利。在镇内公开听证台接下新章，分别去密林、遗迹与矿场，让莫芽、阿菱、维恩亲自选择各地区公共服务重点。三位签名后回镇作出真正的医疗开放或紧急储备取舍，获得会在现场产生效果的公共设施。已有证词、救助与旧结局不会被重新覆盖。",
-                    "After the first storm, open reconstruction and Orrin's civilian accord, the three living witnesses deserve independent voices. Start the hearing in Emberfall, return physically to Moya, Arin and Venn for their own choices, and publish either open medical access or emergency energy reserves. New regional public services actually function; older stories and endings remain intact.");
+                q.description=L("莉雅准备将城外三地的照明与补给写进公开协议。莫芽要修复林根，阿菱怕涨潮时又有人被拦在渡口，维恩坚持让工人自己保管停机钥匙。去密林、遗迹和矿场听他们亲口说，再回余烬镇决定医疗灯和应急供能该先照顾谁。",
+                    "Lyra is drawing up a public agreement for the roads beyond Emberfall. Moya needs the forest roots tended, Arin fears another flood at the crossing, and Venn insists the workers keep the shutdown key. Hear each of them in person, then return to decide whether the town lamps serve the medics or the next evacuation.");
                 q.steps.Add(new QuestStep(L("接受余烬镇公开听证","Open the Emberfall public hearing"),
                     Has("hearing_started")));
                 for(int i=1;i<=3;i++)

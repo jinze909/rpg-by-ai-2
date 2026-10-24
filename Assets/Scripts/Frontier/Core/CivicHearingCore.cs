@@ -119,9 +119,18 @@ namespace Starfall
                 }
                 if(HearingSignatures<3)
                 {
+                    string[] placeZh={"","莫芽（荆棘密林）","阿菱（沉没遗迹）","维恩（赤铁矿场）"};
+                    string[] placeEn={"","Moya in Thornwood","Arin at the drowned crossing","Venn at Ironreach"};
+                    string missingZh="",missingEn="";
+                    for(int i=1;i<=3;i++)
+                        if(HearingVoice(i)==0)
+                        {
+                            if(missingZh.Length>0){missingZh+="、";missingEn+=", ";}
+                            missingZh+=placeZh[i];missingEn+=placeEn[i];
+                        }
                     Dialog(o.name,o.en,
-                        "已经有 "+HearingSignatures+"/3 位地区居民亲自署名。你不能替缺席者投票；请回到密林、渡口、矿场，分别听他们自己说完。",
-                        HearingSignatures+"/3 living residents signed their own positions. You cannot vote for anyone who is not here. Return to Thornwood, the crossing and the mine.",
+                        "莉雅把已签的纸仔细收好，又翻出空白页。\n\n“还差"+missingZh+"的回信。我不能替他们写。你若还要走那些路，替我问问他们，愿意把名字签在哪一条下面。”",
+                        "Lyra folds the signed sheets and lays the blank ones beside them.\n\n'We still need word from "+missingEn+". I can't put their names there for them. If you're heading that way, ask which promise they're prepared to sign.'",
                         C("追踪尚未签字的居民","Track remaining witnesses","hearing_track"),
                         C("稍后再来","Later","close"));return true;
                 }

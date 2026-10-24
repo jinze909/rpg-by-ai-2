@@ -131,6 +131,34 @@ namespace Starfall.Tests
                 "Earned public verdict actually changes original bilingual ending epilogue");
         }
 
+        public static void UnfinishedCivicHearingNamesOnlyMissingWitnessesInWorld(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            foreach(string flag in new[]{"afterlight_complete","afterlight_started",
+                "storm_started","storm_complete","storm_orrin_open",
+                "hearing_started","hearing_voice_1_care","hearing_voice_3_watch"})
+                g.save.flags.Add(flag);
+            WorldObject dais=Object(g,"hearingdais");
+            g.save.x=dais.x;g.save.y=dais.y;
+            Check(g.HearingReady&&g.HearingSignatures==2,
+                "A genuine partly signed hearing has exactly one missing regional witness");
+            g.Talk(dais);
+            Check(g.conversation!=null &&
+                g.conversation.text.Contains("阿菱") &&
+                !g.conversation.text.Contains("莫芽") &&
+                !g.conversation.text.Contains("维恩") &&
+                g.conversation.textEn.Contains("Arin") &&
+                !g.conversation.textEn.Contains("Moya") &&
+                !g.conversation.textEn.Contains("Venn") &&
+                Array.Exists(g.conversation.choices,c=>c.action=="hearing_track"),
+                "Lyra asks only for the actual absent signatory instead of repeating all three names");
+            QuestGuide q=g.GetQuest("hearing");
+            Check(q.room==2 && q.description.Contains("停机钥匙") &&
+                !q.description.Contains("真正的") &&
+                !q.description.Contains("游戏"),
+                "The journal points physically to the missing speaker with grounded, non-meta quest prose");
+        }
+
         public static void ChapterSevenRegionalPoliciesActuallyAlterHealingEnergyAndWorkshopYields(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=1;
