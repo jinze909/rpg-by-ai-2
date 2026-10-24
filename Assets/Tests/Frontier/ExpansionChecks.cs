@@ -4022,6 +4022,7 @@ namespace Starfall.Tests
                 // open sword reach EAST. Reuse that map evidence instead of
                 // assuming the town contains an arbitrary eastern wall.
                 var blocked=Fresh(data,profession);
+                blocked.Equip(0); // All three professions, the actual sword.
                 blocked.enemies.Clear();blocked.projectiles.Clear();
                 blocked.save.x=10.5f;blocked.save.y=10.5f;
                 blocked.save.english=true;
@@ -4047,6 +4048,7 @@ namespace Starfall.Tests
                     "No counterfeit counter VFX appears on a wall impact");
 
                 var open=Fresh(data,profession);
+                open.Equip(0); // Match the same genuine sword profile.
                 open.enemies.Clear();open.projectiles.Clear();
                 open.save.x=10.5f;open.save.y=10.5f;
                 open.save.english=true;
