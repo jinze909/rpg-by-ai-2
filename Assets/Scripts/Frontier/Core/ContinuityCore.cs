@@ -85,12 +85,27 @@ namespace Starfall
         { Point delta=target-enemy.Position;return delta.Length<EnemyMeleeRadius&&delta.Normalized.x*enemy.facing.x+delta.Normalized.y*enemy.facing.y>EnemyMeleeCosine; }
         public void SetAim(Point direction)
         { if (Finite(direction.x) && Finite(direction.y) && direction.Length > .05f) aim = direction.Normalized; }
+        // Hold Shift to move faster at an actual energy cost. Fatigue is a
+        // transient latch: once exhausted, recovery to 35 energy is required
+        // before another burst. No new field or migration in SaveData v2.
+        public bool Sprinting { get; private set; }
+        public bool SprintFatigued { get; private set; }
+        public const float SprintEnergyRate=22f;
+        public const float SprintSpeedFactor=1.5f;
+        public const float SprintRestartEnergy=35f;
         private void ResetContinuity()
-        { walkDistance = gateOpeningTime = 0; footContacts = 0; locomotionFacing = aim; aimTarget=null; }
+        {
+            walkDistance = gateOpeningTime = 0; footContacts = 0;
+            locomotionFacing = aim; aimTarget=null;
+            Sprinting=false;SprintFatigued=false;
+        }
         private void TickMovement(float dt, Point movement, Point? explicitAim,
-            float hitLockedDt)
+            float hitLockedDt,bool sprintHeld)
         {
             Point start=Position;
+            Sprinting=false;
+            if(SprintFatigued&&save.energy>=SprintRestartEnergy)
+                SprintFatigued=false;
             bool wasDashing=dashTime>0;
             if(explicitAim.HasValue)SetAim(explicitAim.Value);
             else if(movement.Length>.1f &&
@@ -122,8 +137,35 @@ namespace Starfall
                     MobilityRule mobility=PlayerMobility;
                     if(mobility==MobilityRule.Full||
                        mobility==MobilityRule.Reduced)
-                        Move(movement*freeDt*Speed*
-                            (mobility==MobilityRule.Reduced?.7f:1f));
+                    {
+                        // Sprint never speeds up a cast, planted combat
+                        // recovery, recoil, dash, or an invalid actor root.
+                        bool sprint=sprintHeld&&!practicing&&
+                            playerAction==null&&
+                            mobility==MobilityRule.Full&&
+                            movement.Length>.1f&&!SprintFatigued&&
+                            save.energy>=10f&&CanStand(Position);
+                        Point beforeWalk=Position;
+                        float factor=sprint?SprintSpeedFactor:
+                            mobility==MobilityRule.Reduced?.7f:1f;
+                        Move(movement*freeDt*Speed*factor);
+                        if(sprint)
+                        {
+                            float actual=(Position-beforeWalk).Length;
+                            float planned=movement.Length*freeDt*Speed*factor;
+                            // Charge for actual footsteps only: a sealed
+                            // gate, body obstacle or blocked wall cannot
+                            // siphon energy while the player is stationary.
+                            if(actual>.0001f&&planned>.0001f)
+                            {
+                                Sprinting=true;
+                                float portion=Clamp(actual/planned,0f,1f);
+                                save.energy=Math.Max(0f,save.energy-
+                                    SprintEnergyRate*freeDt*portion);
+                                if(save.energy<10f)SprintFatigued=true;
+                            }
+                        }
+                    }
                     if(mobility==MobilityRule.AttackMovement)
                     {
                         ActorAction action=playerAction;

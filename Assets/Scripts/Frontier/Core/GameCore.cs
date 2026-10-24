@@ -587,7 +587,8 @@ namespace Starfall
             }
         }
 
-        public void Tick(float dt, Point movement, Point? explicitAim = null)
+        public void Tick(float dt, Point movement, Point? explicitAim = null,
+            bool sprintHeld = false)
         {
             dt = Finite(dt) ? Clamp(dt, 0, .05f) : 0;
             if (dt <= 0) return;
@@ -660,7 +661,7 @@ namespace Starfall
                     TrailCircuitComplete(save.room) ? 2 : 0) + (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
-            TickMovement(dt, movement, explicitAim, hitLockedDt);
+            TickMovement(dt, movement, explicitAim, hitLockedDt, sprintHeld);
             // An UNRELEASED action is planted through hit recoil. Only
             // the unlocked remainder may advance its contact/damage clock;
             // already-released animation recovery keeps its old duration.

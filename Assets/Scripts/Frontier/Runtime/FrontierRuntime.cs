@@ -146,11 +146,17 @@ namespace Starfall
             lastPointer = pointer; pointerSeen = true;
             for (int i = 0; i < 8; i++) if (PadDown(i)) controllerUsed = true;
             Point? frameAim = InputAim();
+            // Hold-to-sprint never changes modal menu focus. Continuous
+            // input is sampled once per rendered frame and replayed through
+            // exactly the same bounded substeps as ordinary walking.
+            bool sprintHeld=beganInWorld&&
+                (Input.GetKey(KeyCode.LeftShift)||
+                 Input.GetKey(KeyCode.RightShift));
             float timeLeft = frameDelta;
             while (timeLeft > .00001f)
             {
                 float step = Math.Min(.05f, timeLeft);
-                Game.Tick(step, movement, frameAim);
+                Game.Tick(step, movement, frameAim, sprintHeld);
                 timeLeft -= step;
             }
             // Spawn from actual GameCore foot contacts, never from IMGUI
