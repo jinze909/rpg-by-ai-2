@@ -290,6 +290,11 @@ namespace Starfall
                     Game.L(" · 米拉正在包扎"," · MIRA TREATING"):
                     Game.CompanionRescueCoverInFlight?
                     Game.L(" · 掩护箭矢飞行中"," · COVER SHOT EN ROUTE"):"";
+                if(Game.ReliefCompanionArrowGuardReady)
+                    status+=Game.L(" · 同伴挡箭待命"," · ALLY GUARD READY");
+                else if(Game.ReliefCompanionArrowGuardPositioned)
+                    status+=Game.L(" · 挡箭冷却 "," · GUARD RECHARGE ")+
+                        Game.ReliefCompanionArrowGuardCooldown.ToString("0.0")+"s";
                 Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
                     new Color(accent.r,accent.g,accent.b,.7f));
                 Text(394,25,492,26,

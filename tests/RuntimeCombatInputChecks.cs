@@ -6330,6 +6330,45 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Bilingual narrative boundaries, complete text and production dialogue choice");
     }
 
+    private static void PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue(FrontierRuntime app)
+    {
+        Prepare(app,1);
+        var g=app.Game;g.Enter(1);g.mode="world";g.enemies.Clear();
+        g.save.flags.Add("companion_1");g.SelectCompanion(1);
+        g.save.x=16.5f;g.save.y=10.5f;
+        g.companionPosition=new Point(12.5f,10.5f);
+        g.reliefMissionRoom=1;g.reliefMissionWave=3;
+        g.reliefMissionTime=70f;g.reliefFollowerSafety=70f;
+        g.reliefFollowerPosition=new Point(13.75f,10.5f);
+        g.reliefFollowerWaiting=true;
+        g.ToggleCompanionHold();
+        Check(g.ReliefCompanionArrowGuardReady,
+            "Real hold and current civilian geometry arm world arrow guard");
+        g.save.english=true;GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("ALLY GUARD READY"))&&
+              GUI.commands.Exists(c=>c.Contains("ARROW GUARD")),
+            "Actual combat and world-space GUIs show an eligible English planted ally");
+        var guardCooldown=typeof(GameCore).GetField(
+            "reliefCompanionArrowGuardCooldown",Private);
+        Check(guardCooldown!=null,"Live companion guard is a transient C# cooldown");
+        guardCooldown.SetValue(g,2.4f);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("GUARD RECHARGE 2.4s"))&&
+              GUI.commands.Exists(c=>c.Contains("GUARD IN 2.4s"))&&
+              !GUI.commands.Exists(c=>c.Contains("ALLY GUARD READY")),
+            "A spent interception paints its genuine live recharge rather than a fake ready badge");
+        g.save.english=false;GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("挡箭冷却 2.4s")),
+            "The same spent guard presents truthful Chinese recharge");
+        g.ToggleCompanionHold();
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("挡箭冷却"))&&
+              !GUI.commands.Exists(c=>c.Contains("挡箭就绪"))&&
+              !GUI.commands.Exists(c=>c.Contains("ARROW GUARD")),
+            "Real companion recall removes the actual planted world guard, with no phantom indicator");
+        Console.WriteLine("PASS Planted civilian arrow guard world and compact combat HUD in both languages");
+    }
+
     private static void LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible(FrontierRuntime app)
     {
         Prepare(app,1);
@@ -6375,7 +6414,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

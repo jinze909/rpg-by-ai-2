@@ -606,6 +606,21 @@ namespace Starfall
             if (Game.ReliefEscortActive)
             {
                 Point escort = Game.reliefFollowerPosition;
+                if(Game.ReliefCompanionArrowGuardPositioned)
+                {
+                    // World-space readiness must come from the ORIGINAL
+                    // planted companion foot, never a decorative shield at
+                    // the civilian or a passive invulnerability indicator.
+                    bool ready=Game.ReliefCompanionArrowGuardReady;
+                    Point blocker=Game.companionPosition;
+                    Ring(blocker,.4f,ready?mint:gold,20);
+                    Point badge=ScreenPoint(blocker);
+                    Text(badge.x-58,badge.y-104,116,22,
+                        ready?Game.L("挡箭就绪","ARROW GUARD"):
+                            Game.L("挡箭冷却 ","GUARD IN ")+
+                                Game.ReliefCompanionArrowGuardCooldown.ToString("0.0")+"s",
+                        11,ready?mint:gold,TextAnchor.MiddleCenter);
+                }
                 // Sprite is depth-sorted with the world, not drawn over hero.
                 Ring(escort, .35f, mint, 16);
                 if (Game.reliefClimateKitTime > 0)
