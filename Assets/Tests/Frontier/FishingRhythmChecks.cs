@@ -43,7 +43,12 @@ namespace Starfall.Tests
                 g.StewBuffSeconds==105f&&
                 g.save.moments.Count==Math.Min(8,beforeMoments+1)&&
                 g.save.moments.Exists(m=>m.en.Contains("public kitchen")),
-                "First real fish delivery stocks the kitchen, produces one edible stew, records its civic impact and upgrades food");
+                "First real fish delivery stocks the kitchen, produces one edible stew, records its civic impact and upgrades food; observed stocked="+g.PublicFishKitchenStocked+
+                ", fish="+g.save.inventory[3]+", stew="+g.save.inventory[6]+
+                ", heal="+g.StewHealing+", duration="+g.StewBuffSeconds+
+                ", moments="+g.save.moments.Count+", previous="+beforeMoments+
+                ", hasMoment="+g.save.moments.Exists(m=>m.en.Contains("public kitchen"))+
+                ", mode="+g.mode+", toast="+g.toast);
             g.save.health=10;g.save.energy=20;g.save.totalTime=40;
             g.Eat();
             Check(g.save.health==75&&g.save.energy==100f&&
