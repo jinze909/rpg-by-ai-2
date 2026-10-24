@@ -906,23 +906,23 @@ public static class RuntimeContinuityChecks
         Set(app,"camera",enemy.Position);
         g.save.reducedMotion=true;
         ClearDraw();Call(app,"DrawEnemyActor",enemy);
-        int ringed=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
-            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
-        int body=GUI.textureCalls.Count(c=>c.texture!=Texture2D.whiteTexture);
+        int ringed=GUI.textureCalls.FindAll(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f).Count;
+        int body=GUI.textureCalls.FindAll(c=>c.texture!=Texture2D.whiteTexture).Count;
         Check(ringed>=16&&body>0,
             "Actual reduced-motion monster render retains real body and visible fixed quest ring");
         g.save.flags.Add("ridge_watch_1_0");
         ClearDraw();Call(app,"DrawEnemyActor",enemy);
-        int credited=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
-            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
+        int credited=GUI.textureCalls.FindAll(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f).Count;
         Check(ringed-credited==16&&!g.IsActiveRidgeWatchPatrol(enemy)&&
-            GUI.textureCalls.Count(c=>c.texture!=Texture2D.whiteTexture)==body,
+            GUI.textureCalls.FindAll(c=>c.texture!=Texture2D.whiteTexture).Count==body,
             "Credited patrol drops exactly one ring without changing painted monster frames");
         g.save.flags.Remove("ridge_watch_1_0");
         g.save.flags.Add("ridge_watch_complete_1");
         ClearDraw();Call(app,"DrawEnemyActor",enemy);
-        int complete=GUI.textureCalls.Count(c=>c.texture==Texture2D.whiteTexture&&
-            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f);
+        int complete=GUI.textureCalls.FindAll(c=>c.texture==Texture2D.whiteTexture&&
+            Math.Abs(c.rect.width-4f)<.001f&&Math.Abs(c.rect.height-4f)<.001f).Count;
         Check(complete==credited,
             "Fully cleared watch never draws a misleading hostile objective ring");
         Console.WriteLine("PASS actual ridge watch combat body, fixed ring, credited removal and sprite preservation");

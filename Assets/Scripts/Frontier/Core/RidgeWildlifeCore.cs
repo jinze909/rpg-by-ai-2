@@ -65,8 +65,8 @@ namespace Starfall
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
                 return "";
             if(RidgeWatchComplete(room))
-                return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\\n\\n"+ridgeWatchStoryEn[room-1]:
-                    "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\\n\\n"+ridgeWatchStoryZh[room-1];
+                return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\n\n"+ridgeWatchStoryEn[room-1]:
+                    "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\n\n"+ridgeWatchStoryZh[room-1];
             int available=ridgeWatchRoom==room&&
                 Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
             return english?"\n\nRidge watch: clear the real hostile patrols beyond the markers ("+
@@ -82,10 +82,19 @@ namespace Starfall
             int index;
             if(!ridgeWatchIds.TryGetValue(enemy.id,out index))return;
             string flag="ridge_watch_"+save.room+"_"+index;
-            if(!Has(flag))Flag(flag);
+            bool first=!Has(flag);
+            if(first)Flag(flag);
             if(RidgeWatchComplete(save.room)||ridgeWatchIds.Count==0)return;
             foreach(int place in ridgeWatchIds.Values)
-                if(!Has("ridge_watch_"+save.room+"_"+place))return;
+                if(!Has("ridge_watch_"+save.room+"_"+place))
+                {
+                    // A partial, actually credited patrol kill advances the
+                    // public journal in real time. Never replay this notice
+                    // when an already-cleared actor respawns.
+                    if(first)Notify("高地巡守进度 "+RidgeWatchProgress(save.room)+"/3。继续清理附近敌人。",
+                        "Ridge watch "+RidgeWatchProgress(save.room)+"/3. Clear the remaining patrols.");
+                    return;
+                }
             Flag("ridge_watch_complete_"+save.room);
             CreditCoins(28);CreditShards(1);AddXp(40);
             RecordMoment(ridgeWatchStoryZh[save.room-1],

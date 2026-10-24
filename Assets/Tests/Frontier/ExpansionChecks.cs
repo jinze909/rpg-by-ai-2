@@ -3603,6 +3603,9 @@ namespace Starfall.Tests
                 strike.Invoke(g,new object[]{target,999f,true,null,null});
                 Check(g.RidgeWatchProgress(1)==k+1,
                     "Each actually defeated mapped patrol advances exactly one stop");
+                if(k<ids.Count-1)
+                    Check(g.toast.Contains((k+1)+"/3"),
+                        "A real partial enemy defeat announces the new objective progress");
                 if(k==0&&ids.Count>1)
                 {
                     g.PrepareSave();
