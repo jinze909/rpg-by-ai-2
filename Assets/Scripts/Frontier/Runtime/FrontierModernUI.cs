@@ -245,6 +245,9 @@ namespace Starfall
             if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
+            else if(Game.PersonalNavigationActive)
+                Text(1024,178,166,12,Game.L("个人路线","PERSONAL PIN"),
+                    9,mint,TextAnchor.MiddleCenter);
             Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
         }
@@ -259,7 +262,8 @@ namespace Starfall
         }
         private List<Point> NavigationRoute()
         {
-            if (Game == null || !Game.save.showGuidance)
+            if (Game == null || (!Game.save.showGuidance &&
+                !Game.PersonalNavigationActive))
             {
                 navigationRouteCache.Clear(); navigationRouteCacheValid = false;
                 return navigationRouteCache;
@@ -313,7 +317,8 @@ namespace Starfall
         }
         private bool HasBlockedNavigationRoute(Point target)
         {
-            if (Game == null || Game.mode != "world" || !Game.save.showGuidance ||
+            if (Game == null || Game.mode != "world" ||
+                (!Game.save.showGuidance && !Game.PersonalNavigationActive) ||
                 float.IsNaN(target.x) || float.IsInfinity(target.x) ||
                 float.IsNaN(target.y) || float.IsInfinity(target.y)) return false;
             return (target - Game.Position).Length > 3f &&
@@ -326,7 +331,8 @@ namespace Starfall
             List<Point> route = NavigationRoute();
             if (route.Count == 0) return;
             float dot = Math.Max(1.5f, Math.Min(3f, tileSize * .36f));
-            Color routeColor = PixelArt.C("#e8bd62");
+            Color routeColor = Game.PersonalNavigationActive ? mint :
+                PixelArt.C("#e8bd62");
             foreach (Point point in route)
             {
                 int tileX = (int)Math.Floor(point.x), tileY = (int)Math.Floor(point.y);
@@ -383,7 +389,8 @@ namespace Starfall
         }
         private void DrawNavigationTargetMarker()
         {
-            if (Game == null || Game.mode != "world" || !Game.save.showGuidance) return;
+            if (Game == null || Game.mode != "world" ||
+                (!Game.save.showGuidance && !Game.PersonalNavigationActive)) return;
             Point? target = Game.NavigationTarget();
             if (!target.HasValue || float.IsNaN(target.Value.x) || float.IsInfinity(target.Value.x) ||
                 float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y)) return;
@@ -425,7 +432,8 @@ namespace Starfall
                 Point edge = new Point(
                     Math.Max(left, Math.Min(right, centerX + direction.x * scale)),
                     Math.Max(top, Math.Min(bottom, centerY + direction.y * scale)));
-                Color edgeColor = PixelArt.C(routeBlocked ? "#ff6961" : "#f2d48b");
+                Color edgeColor = routeBlocked?PixelArt.C("#ff6961"):
+                    Game.PersonalNavigationActive?mint:PixelArt.C("#f2d48b");
                 DrawNavigationEdgeArrow(edge, direction, edgeColor, tx <= ty);
                 if (routeBlocked)
                     DrawNavigationBlockedCross(edge - direction.Normalized * 13f, edgeColor);
@@ -436,7 +444,7 @@ namespace Starfall
                 DrawNavigationBlockedCross(screen, PixelArt.C("#ff6961"));
                 return;
             }
-            Color marker = PixelArt.C("#e8bd62");
+            Color marker = Game.PersonalNavigationActive?mint:PixelArt.C("#e8bd62");
             Ring(target.Value, .38f, new Color(marker.r, marker.g, marker.b, .82f), 12);
             Box(screen.x - 1.5f, screen.y - 1.5f, 3f, 3f, ink);
         }
@@ -471,9 +479,11 @@ namespace Starfall
                         o.kind.StartsWith("portal")?mint:gold);
             }
             Point? goal=Game.NavigationTarget();
-            if(goal.HasValue&&Game.save.showGuidance&&goal.Value.x>=left&&goal.Value.x<left+cellsX&&
+            if(goal.HasValue&&(Game.save.showGuidance||Game.PersonalNavigationActive)&&
+                goal.Value.x>=left&&goal.Value.x<left+cellsX&&
                 goal.Value.y>=top&&goal.Value.y<top+cellsY)
-                Box(x0+(goal.Value.x-left)*cell-3,y0+(goal.Value.y-top)*cell-3,7,7,gold);
+                Box(x0+(goal.Value.x-left)*cell-3,y0+(goal.Value.y-top)*cell-3,7,7,
+                    Game.PersonalNavigationActive?mint:gold);
             Box(x0+(Game.save.x-left)*cell-3,y0+(Game.save.y-top)*cell-3,6,6,paper);
         }
         private void MiniTerrain(float x0, float y0, float size)
@@ -482,7 +492,14 @@ namespace Starfall
             DrawNavigationRoute(x0, y0, size, 0, 0,
                 Game.Map.rows[0].Length, Game.Map.rows.Length);
             foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
-            Point? goal = Game.NavigationTarget(); if (goal.HasValue && Game.save.showGuidance) { Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7, gold); Box(x0 + goal.Value.x * size - 1, y0 + goal.Value.y * size - 1, 3, 3, ink); } Box(x0 + Game.save.x * size - 2, y0 + Game.save.y * size - 2, 5, 5, paper);
+            Point? goal = Game.NavigationTarget(); if (goal.HasValue &&
+                (Game.save.showGuidance || Game.PersonalNavigationActive))
+            {
+                Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7,
+                    Game.PersonalNavigationActive?mint:gold);
+                Box(x0 + goal.Value.x * size - 1, y0 + goal.Value.y * size - 1, 3, 3, ink);
+            }
+            Box(x0 + Game.save.x * size - 2, y0 + Game.save.y * size - 2, 5, 5, paper);
         }
         private void DrawInventory()
         {
@@ -615,7 +632,7 @@ namespace Starfall
         }
         private void DrawMap()
         {
-            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("世界路线与本地地图 · 金色为任务目标，白色为你的位置", "World routes and local terrain · gold: objective · ivory: you")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
+            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("地图上点击当前地区的可通行地点设置个人标记 · 青色为个人路线", "Click a walkable tile in your current region to pin it · teal: personal route")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
             Card(866, 178, 351, 510);
@@ -623,7 +640,26 @@ namespace Starfall
             MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
             Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
             float terrainScale = WorldStreaming.PreviewScale(m.rows[0].Length,m.rows.Length,306,207);
-            if (selectedRegion == Game.save.room) MiniTerrain(888, 264, terrainScale);
+            if (selectedRegion == Game.save.room)
+            {
+                MiniTerrain(888, 264, terrainScale);
+                // Transparent interactive terrain surface; never replace
+                // the authored map preview with a generic button graphic.
+                // IMGUI consumes one true map click, not held mouse movement.
+                Rect terrainHit=new Rect(888,264,
+                    m.rows[0].Length*terrainScale,m.rows.Length*terrainScale);
+                if (!replacePrompt && saveConfirmation==null &&
+                    GUI.Button(terrainHit,"",new GUIStyle()))
+                {
+                    Point cursor=MouseVirtual();
+                    if(cursor.x>=terrainHit.x&&cursor.y>=terrainHit.y&&
+                        cursor.x<terrainHit.x+terrainHit.width&&
+                        cursor.y<terrainHit.y+terrainHit.height)
+                        Game.PlaceLocalWaymark(new Point(
+                            (cursor.x-888)/terrainScale,
+                            (cursor.y-264)/terrainScale));
+                }
+            }
             else
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
@@ -632,7 +668,24 @@ namespace Starfall
                     Box(888 + q.target.x * terrainScale - 3,
                         264 + q.target.y * terrainScale - 3, 7, 7, gold);
             }
-            Text(888, 492, 306, 101, Game.CanEnter(selectedRegion) ? Game.L(m.subtitle, m.suben) : Game.RouteHint(selectedRegion, Game.save.english), 16, muted);
+            Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
+                Game.L(m.subtitle,m.suben):
+                Game.RouteHint(selectedRegion,Game.save.english), 15, muted);
+            if(selectedRegion==Game.save.room)
+            {
+                if(Game.HasLocalWaymark)
+                {
+                    if(Button(888,571,306,35,
+                        Game.L("清除个人地图标记","Clear personal map pin")))
+                        Game.ClearLocalWaymark();
+                }
+                else Text(888,569,306,38,
+                    Game.L("点击上方地图设置步行目标","Click map to set a walking target"),
+                    12,mint,TextAnchor.MiddleCenter);
+            }
+            else Text(888,569,306,38,
+                Game.L("只能标记当前所在地区","Pins available in current region only"),
+                12,muted,TextAnchor.MiddleCenter);
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
             if (Button(888, 616, 306, 47,
                 selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") :

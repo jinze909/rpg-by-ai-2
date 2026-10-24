@@ -20,6 +20,16 @@ namespace Starfall
             }
         }
         public bool HasLocalWaymark { get { return LocalWaymark.HasValue; } }
+        public bool PersonalNavigationActive
+        {
+            get
+            {
+                Point? mark=LocalWaymark;
+                Point? target=mark.HasValue?NavigationTarget():null;
+                return mark.HasValue&&target.HasValue&&
+                    (target.Value-mark.Value).Length<.001f;
+            }
+        }
         private void ResetLocalWaymark()
         {
             localWaymarkSet=false;
