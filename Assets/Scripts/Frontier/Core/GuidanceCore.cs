@@ -1903,8 +1903,8 @@ namespace Starfall
                 q.title = L("失联旅人的归途", "The Missing Travelers");
                 q.category = L("旅途支线", "ROADSIDE STORY");
                 q.locked = !Has("scout_saved");
-                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或保护旅人安全度并击退两名掠夺者。受伤后可花一份材料紧急援助一次。",
-                    "Three travelers need help in Thornwood, the Ruins and the Mine. Donate two supplies, or protect their safety meter while defeating two raiders. Spend one supply for a single emergency aid after injury.");
+                q.description = L("密林、遗迹、矿场的三名旅人需要援助。捐出两份材料，或保护旅人安全度并击退两名掠夺者。可站位拦截真正的攻击，靠近旅人花20耐力启动一次8秒掩护，或在受伤后消耗一份材料紧急援助。",
+                    "Three travelers need help across Thornwood, the Ruins and the Mine. Donate two supplies, or defend against two real raiders. Physically intercept strikes, rally one eight-second cover beside the traveler for 20 energy, or use one supply for emergency aid after injury.");
                 int next = 0;
                 for (int region = 1; region <= 3; region++)
                 {
@@ -1919,7 +1919,14 @@ namespace Starfall
                 q.target = ObjectPoint(q.room, "wayfarer" + q.room, new Point(15, 14));
                 q.next = q.locked ? L("先救回密林的公会侦察员", "Rescue the guild scout first") :
                     q.complete ? L("三名旅人已经平安出发", "All three travelers are safe") :
-                    wayfarerEncounterRoom != 0 ? L("保护旅人安全度，击退两名伏击者", "Keep the traveler safe; defeat both raiders") :
+                    wayfarerEncounterRoom != 0 ? (WayfarerCoverTime>0 ?
+                        L("掩护还剩 "+(int)Math.Ceiling(WayfarerCoverTime)+"秒 · 击退两名伏击者",
+                          "Cover "+(int)Math.Ceiling(WayfarerCoverTime)+"s · defeat both raiders") :
+                        WayfarerCoverAvailable ?
+                            L("走近旅人架设一次减伤掩护，或站在前方拦截掠夺者",
+                              "Rally cover beside the traveler or intercept raiders in the lane") :
+                            L("保护旅人安全度，击退两名伏击者",
+                              "Keep the traveler safe; defeat both raiders")) :
                     L("找旅人交谈：物资援助或战斗守护", "Talk to the traveler: donate supplies or defend");
                 q.reward = L("每人20硬币、1碎片、25经验；全部完成额外技能点1、炖汤1",
                     "Each: 20 coins, 1 shard, 25 XP; all three: 1 talent point and 1 stew");
