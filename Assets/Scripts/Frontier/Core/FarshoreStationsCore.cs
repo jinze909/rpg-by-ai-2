@@ -530,10 +530,22 @@ namespace Starfall
                 (reliefMissionWave == 3 ? IsReliefMissionEnemy(attacker) :
                     !IsReliefMissionEnemy(attacker))) return;
             Point civilians = reliefFollowerPosition;
-            float radius = attacker.kind == 2 ? EnemyAreaRadius(attacker) : 2.1f;
-            if ((attacker.Position - civilians).Length >= radius ||
-                !ClearAttackPath(attacker.Position, civilians) ||
-                InterceptReliefCivilianStrike(attacker, civilians)) return;
+            if (!Finite(civilians.x)||!Finite(civilians.y)||
+                !Finite(attacker.x)||!Finite(attacker.y)||
+                !CanStand(attacker.Position)||!CanStand(civilians))
+                return;
+            // Match the EXACT contact used for the living hero: a heavy
+            // damages inside its telegraphed, LOCKED impact circle, not an
+            // unrelated disk around the enemy's current boots. A melee
+            // raider uses its real forward arc, never an omnidirectional
+            // 2.1-tile aura behind its weapon.
+            if (attacker.kind==2 ?
+                (!Finite(attacker.target.x)||!Finite(attacker.target.y)||
+                 (civilians-attacker.target).Length>=EnemyAreaRadius(attacker)) :
+                !InEnemyMeleeArc(attacker,civilians))
+                return;
+            if (!ClearAttackPath(attacker.Position,civilians) ||
+                InterceptReliefCivilianStrike(attacker,civilians))return;
             float loss = (attacker.kind == 2 ? 22f : 14f) * ReliefCombatThreatScale;
             if (reliefWardTime > 0) loss *= .55f;
             reliefFollowerSafety = Math.Max(0, reliefFollowerSafety - loss);

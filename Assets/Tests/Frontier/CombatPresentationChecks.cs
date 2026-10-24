@@ -1638,6 +1638,74 @@ namespace Starfall.Tests
                 "An archer aimed at an old off-hero point does not receive false threat priority");
         }
 
+        public static void RescueMeleeAndHeavyUseTheirTrueTelegraphedContactGeometry(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] row=new string('.',30).ToCharArray();
+                    if(y==0||y==rows.Length-1)
+                        for(int x=0;x<row.Length;x++)row[x]='#';
+                    else {row[0]='#';row[row.Length-1]='#';}
+                    rows[y]=new string(row);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=19.5f,spawnY=17.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var game=Fresh(data);game.Enter(1);game.enemies.Clear();
+                game.save.x=19.5f;game.save.y=17.5f;
+                game.save.reducedMotion=true;
+                game.reliefMissionRoom=1;game.reliefMissionWave=3;
+                game.reliefMissionTime=90f;game.reliefFollowerSafety=90f;
+                game.reliefFollowerPosition=new Point(14.5f,10.5f);
+                game.reliefFollowerWaiting=true;
+                var strike=typeof(GameCore).GetMethod("DamageReliefCivilian",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                Check(strike!=null&&game.CanStand(game.reliefFollowerPosition),
+                    "Exercise authoritative rescue HP transaction on real walkable terrain");
+                var heavy=new Enemy(99791,2,12.9f,10.5f,999f)
+                {state=1,timer=.1f,windupDuration=.65f,
+                 targetingReliefCivilian=true,
+                 target=new Point(10.8f,10.5f),
+                 facing=new Point(1,0)};
+                Check((heavy.Position-game.reliefFollowerPosition).Length<
+                    GameCore.EnemyAreaRadius(heavy)&&
+                    (heavy.target-game.reliefFollowerPosition).Length>
+                    GameCore.EnemyAreaRadius(heavy),
+                    "Resident stands near heavy boots but outside the actually drawn danger circle");
+                float before=game.reliefFollowerSafety;
+                strike.Invoke(game,new object[]{heavy});
+                Check(game.reliefFollowerSafety==before,
+                    "A rescue heavy cannot hit civilians OUTSIDE its warned target circle");
+                heavy.target=game.reliefFollowerPosition;
+                strike.Invoke(game,new object[]{heavy});
+                Check(game.reliefFollowerSafety<before,
+                    "The same real heavy damages civilians INSIDE the warned circle");
+                game.reliefFollowerSafety=90f;
+                var melee=new Enemy(99792,0,13.4f,10.5f,999f)
+                {state=1,timer=.1f,windupDuration=.65f,
+                 targetingReliefCivilian=true,
+                 target=game.reliefFollowerPosition,
+                 facing=new Point(-1,0)};
+                strike.Invoke(game,new object[]{melee});
+                Check(game.reliefFollowerSafety==90f,
+                    "A rescue melee enemy cannot strike a resident standing behind its forward sword arc");
+                melee.Face(new Point(1,0));
+                strike.Invoke(game,new object[]{melee});
+                Check(game.reliefFollowerSafety<90f,
+                    "Turning the same melee enemy toward the resident restores genuine physical attack contact");
+                game.reliefFollowerSafety=90f;
+                game.reliefMissionRoom=0;
+                strike.Invoke(game,new object[]{melee});
+                Check(game.reliefFollowerSafety==90f,
+                    "Inactive rescue cannot spend safety on a stale pending swing");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void CompanionProtectsActualRescueCivilianBeforeIdleEnemies(Campaign data)
         {
             MapData old=data.maps[1];
