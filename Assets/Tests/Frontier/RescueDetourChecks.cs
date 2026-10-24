@@ -128,6 +128,13 @@ namespace Starfall.Tests
             try
             {
                 string[] rows=RescueDetourArena(true,true);
+                // Only a single stone corner may catch the BODY: the thin
+                // horizontal ray above it remains entirely unobstructed.
+                for(int y=2;y<16;y++)
+                {
+                    char[] clear=rows[y].ToCharArray(); clear[8]='.';
+                    rows[y]=new string(clear);
+                }
                 char[] wall=rows[8].ToCharArray(); wall[8]='#';
                 rows[8]=new string(wall);
                 var game=RescueDetourGame(data,rows);
