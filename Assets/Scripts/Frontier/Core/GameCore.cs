@@ -2163,6 +2163,18 @@ namespace Starfall
             Notify("请先走近目标再交互。","Move closer to the target before interacting.");
             return false;
         }
+        // A shared physical selection score for fixed map objects AND
+        // temporary mission actors. The E prompt and the actual interaction
+        // must resolve the same look-direction preference.
+        private float InteractionTargetScore(Point target,Point facing)
+        {
+            Point delta=target-Position;
+            float d=delta.Length;
+            if(!Finite(d))return float.MaxValue;
+            if(d<=.25f)return d-.45f;
+            float face=(delta.x*facing.x+delta.y*facing.y)/d;
+            return d-.30f*face;
+        }
         public WorldObject Nearest()
         {
             WorldObject best=null;
@@ -2179,14 +2191,9 @@ namespace Starfall
                 // hero was looking directly at NPC A.
                 if(!IsObjectPresent(o) ||
                     !HasPhysicalInteractionReach(new Point(o.x,o.y)))continue;
-                Point delta=new Point(o.x,o.y)-Position;
-                float d=delta.Length;
-                // Orientation may decide ONLY nearby competing targets.
-                // Standing almost on an actor always takes precedence over
-                // a more distant actor even if the hero is looking elsewhere.
-                float face=d>.25f ?
-                    (delta.x*facing.x+delta.y*facing.y)/d : 0f;
-                float score=d<=.25f?d-.45f:d-.30f*face;
+                // Face preference never overrides a nearly-overlapping
+                // actor; identical logic is used by moving rescue civilians.
+                float score=InteractionTargetScore(new Point(o.x,o.y),facing);
                 if(score<bestScore-.0001f)
                 {
                     best=o;
@@ -2207,7 +2214,7 @@ namespace Starfall
             if(d>=1.7f || !ClearAttackPath(Position,reliefFollowerPosition))
                 return false;
             if(nearby==null)return true;
-            float other=(Position-new Point(nearby.x,nearby.y)).Length;
+            Point nearbyPoint=new Point(nearby.x,nearby.y);
             // The civilian is deliberately staged at the SAME physical
             // location as a regional survey landmark (relay1, receiver,
             // bell2). That original map prop remains valid for exploration,
@@ -2216,9 +2223,15 @@ namespace Starfall
                 nearby.kind==FieldSurveyLandmarks[save.room-5] &&
                 (new Point(nearby.x,nearby.y)-reliefFollowerPosition).Length<.35f;
             if(sharedMissionMarker && d<.9f)return true;
-            // If a real NPC is closer, never substitute the survivor.
-            // This rule applies in all three mission waves equally.
-            return d<other-.1f;
+            // The moving civilian must compete by the SAME facing-aware
+            // score as Nearest(), otherwise the E prompt may point at a
+            // merchant while Interact() silently opens the rescue speaker.
+            // Retain a small .1 point margin for the map object, so exact
+            // overlaps remain stable except for the authored survey landmark.
+            Point facing=aim.Normalized;
+            float civilianScore=InteractionTargetScore(reliefFollowerPosition,facing);
+            float mapScore=InteractionTargetScore(nearbyPoint,facing);
+            return civilianScore<mapScore-.1f;
         }
         public void Interact()
         {

@@ -6010,5 +6010,68 @@ namespace Starfall.Tests
                 "Hold/follow orders do not mutate the saved party selection");
         }
 
+
+        public static void RescueInteractionUsesSameFacingScoreAsNpcPrompt(Campaign data)
+        {
+            // At this physical junction the rescuer faces the civilian to
+            // the EAST, while a valid named inn guest stands slightly nearer
+            // to the SOUTH. The previous raw-distance override opened the
+            // wrong NPC even though the facing-aware Nearest() prompt did not.
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                var innGuest=new WorldObject{
+                    id="legitimateInnGuest",kind="innGuest",
+                    name="Field Archivist",en="Field Archivist",
+                    x=10.5f,y=11.45f
+                };
+                data.maps[1]=new MapData{
+                    id=1,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{innGuest},
+                    decor=new Decoration[0]
+                };
+                foreach(int wave in new[]{1,2,3})
+                {
+                    var g=Fresh(data,0);
+                    g.enemies.Clear();
+                    g.save.room=1;
+                    g.save.x=10.5f;g.save.y=10.5f;
+                    g.reliefMissionRoom=1;g.reliefMissionWave=wave;
+                    g.reliefMissionTime=90f;
+                    g.reliefFollowerSafety=80f;
+                    g.reliefFollowerPosition=new Point(11.6f,10.5f);
+                    Check(g.CanStand(g.Position)&&
+                        g.CanStand(g.reliefFollowerPosition)&&
+                        g.Nearest()!=null,
+                        "An authentic town speaker and mission civilian share an open physical reach");
+                    g.SetAim(new Point(1,0));
+                    Check(g.Nearest()==innGuest&&
+                        g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                        "Facing the moving rescue actor overrides slightly closer off-axis map prop");
+                    g.Interact();
+                    Check(g.mode=="dialog"&&g.conversation!=null&&
+                        g.conversation.speaker!="Field Archivist",
+                        "The real E interaction opens the selected moving civilian, not the unrelated NPC");
+                    g.Close();
+                    g.SetAim(new Point(0,1));
+                    Check(g.Nearest()==innGuest&&
+                        !g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                        "Facing the nearer map NPC retains its legitimate E target");
+                    g.Interact();
+                    Check(g.mode=="dialog"&&g.conversation!=null&&
+                        g.conversation.speaker=="Field Archivist",
+                        "The real E key opens the named map NPC, not another rescuer");
+                }
+            }
+            finally { data.maps[1]=old; }
+        }
     }
 }
