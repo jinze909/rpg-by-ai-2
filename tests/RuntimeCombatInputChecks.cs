@@ -6255,6 +6255,58 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Long dialogue PageUp, Backspace and production pointer previous-page navigation");
     }
 
+    // Exercises the same bilingual reader used in Frontier.unity, not an
+    // alternate test-only pagination widget. Narrative and choices survive.
+    private static void DialoguePaginationPreservesBilingualStoryAndChoice(FrontierRuntime app)
+    {
+        var chinese=new StringBuilder();
+        var english=new StringBuilder();
+        for(int i=0;i<34;i++)
+        {
+            chinese.Append("巡夜人说：“东门的灯还亮着。”我们沿城墙继续巡查。");
+            english.Append("The watch captain checked the eastern gate before dawn. ");
+        }
+        string original=chinese.ToString(),translated=english.ToString();
+        var cn=DialogueLayout.Pages(original);
+        var en=DialogueLayout.Pages(translated);
+        Check(cn.Count>1 && en.Count>1,"Both shipped localizations must require genuine reader pagination");
+        Check(string.Concat(cn.ToArray())==original && string.Concat(en.ToArray())==translated,
+            "Every sentence, quote, punctuation mark and space survives dialogue page turns");
+        Check(DialogueLayout.Pages(original,true).Count>=cn.Count &&
+              DialogueLayout.Pages(translated,true).Count>=en.Count,
+            "Accessible large text must never be allocated fewer pages");
+        for(int i=1;i<cn.Count;i++)
+            Check("，。、！？：；）】”’」』".IndexOf(cn[i][0])<0,
+                "Chinese closing punctuation and quotation cannot begin a reading page");
+        for(int i=1;i<en.Count;i++)
+            Check(!(char.IsLetter(en[i-1][en[i-1].Length-1])&&char.IsLetter(en[i][0])),
+                "A normal-length English word cannot be torn in half across pages");
+        string unicode=new string('星',340)+"🕯️\r\n"+new string('光',360);
+        var unicodePages=DialogueLayout.Pages(unicode);
+        Check(string.Concat(unicodePages.ToArray())==unicode,
+            "Astral glyphs, combining marks and explicit CRLF remain lossless");
+        for(int i=1;i<unicodePages.Count;i++)
+            Check(!char.IsLowSurrogate(unicodePages[i][0]) &&
+                  !char.IsHighSurrogate(unicodePages[i-1][unicodePages[i-1].Length-1]) &&
+                  !(unicodePages[i-1].EndsWith("\r") && unicodePages[i].StartsWith("\n")),
+                "A page may never bisect a Unicode surrogate or CRLF pair");
+
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=false;game.save.largeText=false;
+        game.mode="dialog";
+        game.conversation=new Conversation("巡夜人","Watch captain",original,translated,
+            new Choice("我去检查东门","I'll check the gate","close"));
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==0,
+            "The production UI cannot expose a conversation response before its full story");
+        for(int i=1;i<cn.Count;i++)Call(app,"AdvanceDialogue");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==1,
+            "The final page must still reveal its real actionable response");
+        Console.WriteLine("PASS Bilingual narrative boundaries, complete text and production dialogue choice");
+    }
+
     private static int[] EnumerableIndices(int count)
     {
         int[] result=new int[count];
@@ -6266,7 +6318,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

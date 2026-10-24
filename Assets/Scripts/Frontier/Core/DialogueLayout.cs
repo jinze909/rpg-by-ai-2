@@ -18,24 +18,95 @@ namespace Starfall
         public static float ChoiceWidth(int visible, float totalWidth, float gap)
         { int cols = ChoiceColumns(visible); return (totalWidth - (cols - 1) * gap) / cols; }
 
-        // Conservative weighted line budgets preserve all text and reserve a separate choice area.
+        // Weighted visual line budgets used by the *shipped* dialogue card.
+        // Keep the source text byte-for-byte readable across successive pages:
+        // English words, Chinese sentence stops, CRLF and astral characters
+        // must not be broken merely because a line's estimated width expired.
+        private static bool DialogueSentenceStop(char c, string text, int next)
+        {
+            if(c=='.' && next<text.Length && char.IsDigit(text[next])) return false;
+            return "。！？!?；;.".IndexOf(c)>=0;
+        }
+        private static bool DialogueClosing(char c)
+        { return "，。、！？：；）】”’」』,.!?;:%".IndexOf(c)>=0; }
+        private static bool DialogueOpening(char c)
+        { return "（【“‘「『(".IndexOf(c)>=0; }
+        private static bool DialogueCombining(char c)
+        {
+            System.Globalization.UnicodeCategory type=char.GetUnicodeCategory(c);
+            return type==System.Globalization.UnicodeCategory.NonSpacingMark ||
+                type==System.Globalization.UnicodeCategory.SpacingCombiningMark ||
+                type==System.Globalization.UnicodeCategory.EnclosingMark;
+        }
+        private static int PreviousDialogueScalar(string text,int end)
+        {
+            int previous=end-1;
+            return previous>0 && char.IsLowSurrogate(text[previous]) &&
+                char.IsHighSurrogate(text[previous-1]) ? previous-1 : previous;
+        }
         public static List<string> Pages(string text, bool largeText = false)
         {
-            var pages = new List<string>(); if (string.IsNullOrEmpty(text)) { pages.Add(""); return pages; }
-            int start = 0, i = 0, lines = 1, lastSpace = -1; float units = 0, width = largeText ? 73 : 78; int maxLines = largeText ? 7 : 8;
-            while (i < text.Length)
+            var pages=new List<string>();
+            if(string.IsNullOrEmpty(text)){pages.Add("");return pages;}
+            float width=largeText?73f:78f;
+            int maxLines=largeText?7:8;
+            int start=0;
+            while(start<text.Length)
             {
-                char c = text[i]; float add = c >= 0x2e80 ? 2 : char.IsUpper(c) ? 1.2f : .93f;
-                if (c == '\n') { lines++; units = 0; } else { units += add; if (units > width) { lines++; units = add; } }
-                if (char.IsWhiteSpace(c)) lastSpace = i;
-                if (lines > maxLines)
+                int i=start,lines=1,lastSentence=-1,lastWord=-1;
+                float units=0f;
+                bool paragraphLimit=false;
+                while(i<text.Length)
                 {
-                    int end = lastSpace > start && i - lastSpace < 28 ? lastSpace + 1 : i; if (end <= start) end = i + 1;
-                    pages.Add(text.Substring(start, end - start)); start = end; i = end; lines = 1; units = 0; lastSpace = -1; continue;
+                    char c=text[i];
+                    if(c=='\r'||c=='\n')
+                    {
+                        // A Windows line ending is one paragraph boundary,
+                        // never two lines or two different reading pages.
+                        i+=(c=='\r' && i+1<text.Length && text[i+1]=='\n')?2:1;
+                        lines++;units=0f;lastSentence=lastWord=i;
+                        if(lines>maxLines){paragraphLimit=true;break;}
+                        continue;
+                    }
+                    int size=char.IsHighSurrogate(c) && i+1<text.Length &&
+                        char.IsLowSurrogate(text[i+1])?2:1;
+                    float add=DialogueCombining(c)?0f:
+                        size==2 || c>=0x2e80?2f:char.IsUpper(c)?1.2f:.93f;
+                    if(units+add>width)
+                    {
+                        if(lines>=maxLines)break;
+                        lines++;units=0f;
+                    }
+                    units+=add;
+                    i+=size;
+                    if(char.IsWhiteSpace(c))lastWord=i;
+                    if(DialogueSentenceStop(c,text,i))lastSentence=i;
                 }
-                i++;
+                if(i>=text.Length){pages.Add(text.Substring(start));break;}
+                int end=i;
+                if(!paragraphLimit)
+                {
+                    // A nearby authored sentence stop is preferable to a
+                    // mid-phrase break; otherwise finish the last whole word.
+                    // Do not turn a remote full stop into a tiny page.
+                    if(lastSentence>start && i-lastSentence<=54)end=lastSentence;
+                    else if(lastWord>start && i-lastWord<=32)end=lastWord;
+                    // Never strand a closing Chinese mark or its quotation
+                    // at the beginning of the following dialogue page.
+                    while(end>start+1 && end<text.Length &&
+                        (DialogueClosing(text[end])||DialogueCombining(text[end])))
+                        end=PreviousDialogueScalar(text,end);
+                    // Similarly keep an opening quotation with its phrase.
+                    if(end>start+1 && DialogueOpening(text[end-1]))
+                        end=PreviousDialogueScalar(text,end);
+                }
+                if(end<=start)
+                    end=start+(char.IsHighSurrogate(text[start]) &&
+                        start+1<text.Length && char.IsLowSurrogate(text[start+1])?2:1);
+                pages.Add(text.Substring(start,end-start));
+                start=end;
             }
-            if (start < text.Length) pages.Add(text.Substring(start)); return pages;
+            return pages;
         }
     }
 }
