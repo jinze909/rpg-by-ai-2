@@ -3628,5 +3628,46 @@ namespace Starfall.Tests
             Check(g.RidgeWatchComplete(1)&&g.save.shards==earnedShards&&
                 !g.RidgeWatchComplete(2),"Repeated kills never duplicate the survey bonus");
         }
+
+        public static void RidgeWatchJournalTracksLiveEnemiesAndSaveProgress(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var q=g.GetQuest("ridge_watch");
+            Check(!q.locked&&!q.complete&&q.room==1&&q.steps.Count==7&&
+                Array.IndexOf(GameCore.QuestIds,"ridge_watch")>=0,
+                "New optional hunt is a selectable real journal objective");
+            var idsField=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var ids=(Dictionary<int,int>)idsField.GetValue(g);
+            Check(ids.Count>1,"Highland quest has multiple physical patrols to follow");
+            Check(g.enemies.Exists(e=>ids.ContainsKey(e.id)&&
+                (e.Position-q.target).Length<.01f),
+                "Tracked journal routes toward an actually living hostile actor");
+            g.TrackQuest("ridge_watch");
+            Check(g.save.trackedQuest=="ridge_watch"&&
+                g.NavigationTarget().HasValue,
+                "Real world guidance accepts the new journal quest");
+            Enemy first=g.enemies.Find(e=>ids.ContainsKey(e.id)&&
+                (e.Position-q.target).Length<.01f);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            hit.Invoke(g,new object[]{first,999f,true,null,null});
+            var next=g.GetQuest("ridge_watch");
+            Check(next.steps[0].text.Contains("1/3")&&
+                g.enemies.Exists(e=>ids.ContainsKey(e.id)&&
+                    (e.Position-next.target).Length<.01f)&&
+                (first.Position-next.target).Length>.01f,
+                "After a combat defeat, the live waypoint changes to an undefeated patrol");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            restored.Start();
+            Check(restored.save.trackedQuest=="ridge_watch"&&
+                restored.GetQuest("ridge_watch").steps[0].text.Contains("1/3"),
+                "Existing v2 save files preserve tracked watch and per-actor progress");
+        }
     }
 }

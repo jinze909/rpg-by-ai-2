@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -825,6 +825,62 @@ namespace Starfall
                     L("去最远端建成开放的公共避险棚","Restore the outermost civilian shelter");
                 q.reward=L("每地硬币22、碎片1、经验60与永久暖棚；八地技能点1，旅店归档再得硬币80、碎片3、经验50",
                     "Each: 22 coins, 1 shard, 60 XP and refuge; eight: +1 talent. Inn publication: 80 coins, 3 shards, 50 XP.");
+                return q;
+            }
+
+
+            if(id=="ridge_watch")
+            {
+                q.title=L("高地巡守 · 民用通道","Ridge Watch · Civilian High Trails");
+                q.category=L("开放地图 · 巡路战斗","OPEN WORLD · PATROL COMBAT");
+                q.description=L("两端高地路标已联通、地区守护者已经击败后，真正清理第五圈路外巡敌，为居民恢复偏远高路。每处击杀记录可以延续到旧存档，只有原有敌人的实际战斗死亡才算。",
+                    "After both ridge markers are linked and the regional guardian has fallen, defeat the actual high-trail hostiles so residents can use the far approaches. Each real combat kill is saved in existing progress flags.");
+                q.reward=L("每地首次清除巡敌：硬币28、碎片1、经验40；不重复结算",
+                    "First cleared patrol per region: 28 coins, 1 shard, 40 XP; never farmable");
+                q.locked=true;q.complete=true;
+                int next=-1;
+                for(int i=1;i<=7;i++)
+                {
+                    bool ready=RidgeLinked(i)&&Has("boss_"+i);
+                    bool cleared=RidgeWatchComplete(i);
+                    q.steps.Add(new QuestStep(L(data.maps[i].name,data.maps[i].en)+
+                        "  "+RidgeWatchProgress(i)+"/3",cleared));
+                    if(!cleared)q.complete=false;
+                    if(ready)q.locked=false;
+                    if(ready&&!cleared&&CanEnter(i)&&
+                        (next<0||i==save.room))next=i;
+                }
+                q.room=next<0?save.room:next;
+                q.target=Position;
+                if(next>=0)
+                {
+                    q.target=ObjectPoint(next,"ridgemarker",new Point(80.5f,66.5f));
+                    // In the actual region point at a currently alive, uncredited
+                    // spawned patrol instead of a static marker or a corpse.
+                    if(next==save.room&&ridgeWatchRoom==save.room&&
+                        Object.ReferenceEquals(ridgeWatchMap,Map))
+                    {
+                        float nearest=float.MaxValue;
+                        foreach(Enemy e in enemies)
+                        {
+                            int patrolIndex;
+                            if(!ridgeWatchIds.TryGetValue(e.id,out patrolIndex)||
+                                Has("ridge_watch_"+next+"_"+patrolIndex)||e.hp<=0f)
+                                continue;
+                            float distance=(e.Position-Position).Length;
+                            if(distance>=nearest)continue;
+                            nearest=distance;
+                            q.target=e.Position;
+                        }
+                    }
+                }
+                q.next=q.complete?L("全部七处野外巡路已经安全","All seven high-trail watches are clear"):
+                    next<0?L("先连通高地两端路标，并击败地区守护者",
+                        "Link both ridge markers and defeat a regional guardian first"):
+                    next==save.room?L("前往仍在活动的真实巡敌处，清理剩余危险",
+                        "Reach the living hostile patrols and clear the remaining danger"):
+                    L("前往已联通高地的地区，清理居民通道",
+                        "Travel to the linked highland region and clear its civilian passage");
                 return q;
             }
 
