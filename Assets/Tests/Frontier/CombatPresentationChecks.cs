@@ -4691,12 +4691,19 @@ namespace Starfall.Tests
                 Check(heal!=null&&heal.kind=="heal"&&!heal.released&&
                     heal.target.HasValue,
                     "Actual automatic healing pose targets a wounded rescue civilian rather than an invented actor");
+                float beforeContact=g.reliefFollowerSafety;
                 Advance(g,.16f);
-                Check(heal.released&&g.reliefFollowerSafety>=60f&&
-                    g.save.health==originalHealth&&
-                    g.effects.Exists(e=>e.reliefMissionOwned&&e.kind=="number"&&
-                        e.text.StartsWith(g.L("包扎 +","TREATED +"))),
-                    "Actual Mira contact treats civilian safety without falsely healing the hero");
+                bool treatmentCue=g.effects.Exists(e=>e.reliefMissionOwned&&
+                    e.kind=="number"&&e.text.StartsWith(g.L("包扎 +","TREATED +")));
+                Check(heal.released&&
+                    g.reliefFollowerSafety>beforeContact+4f&&
+                    g.save.health==originalHealth&&treatmentCue,
+                    "Mira contact must raise real safety without healing hero: "+
+                    "release="+heal.released+" safetyBefore="+beforeContact+
+                    " safetyAfter="+g.reliefFollowerSafety+
+                    " hero="+g.save.health+" expectedHero="+originalHealth+
+                    " cue="+treatmentCue+" mission="+g.reliefMissionRoom+
+                    " wave="+g.reliefMissionWave);
                 // Once the rescue is over, the same patient cannot be
                 // treated forever via stale coordinates or retained action.
                 g.companionAction=null;
