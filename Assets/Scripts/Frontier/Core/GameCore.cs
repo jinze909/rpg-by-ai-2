@@ -682,6 +682,7 @@ namespace Starfall
             TickBufferedSkill(dt, skillReadyDelay);
             TickBufferedAttack(dt, attackReadyDelay);
             UpdateEnemies(dt); if (Dying) return;
+            TickRidgeWatchPatrols(dt);
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
             TickOuterPatrol(dt);
             TickAfterlightWatch(dt);

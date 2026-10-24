@@ -77,6 +77,46 @@ namespace Starfall
                 Object.ReferenceEquals(ridgeWatchMap,Map))return;
             SpawnRidgeWildlife();
         }
+        // Actual linked-ridge patrols pace a short, foot-clear corridor
+        // instead of being stationary targets. This is not a teleport or
+        // an alternate combat loop: regular enemy AI takes priority whenever
+        // a player approaches, an attack begins, or the actor is interrupted.
+        // Use the accepted moveTime / moving / facing presentation path so
+        // SpriteRenderer and the existing fallback show real walking art.
+        private void TickRidgeWatchPatrols(float dt)
+        {
+            if(mode!="world"||ridgeWatchRoom!=save.room||
+                !Object.ReferenceEquals(ridgeWatchMap,Map)||dt<=0f)return;
+            foreach(Enemy enemy in enemies)
+            {
+                int index;
+                if(!ridgeWatchIds.TryGetValue(enemy.id,out index)||
+                    enemy.hp<=0f||enemy.boss||enemy.state!=0||
+                    enemy.stun>.0001f||enemy.hitTime>.0001f||
+                    enemy.releaseTime>.0001f||
+                    (Position-enemy.Position).Length<9f)continue;
+                Point anchor=RidgeWildlifeSpawns[index];
+                // Returning combat enemies cannot be silently dragged across
+                // walls or snapped back to the authored anchor.
+                if((enemy.Position-anchor).Length>2.5f)continue;
+                float phase=save.totalTime*.45f+index*.8f;
+                float offset=(float)Math.Sin(phase)*1.6f;
+                Point desired=index==1?
+                    new Point(anchor.x,anchor.y+offset):
+                    new Point(anchor.x+offset,anchor.y);
+                Point delta=desired-enemy.Position;
+                if(delta.Length<.02f)continue;
+                Point before=enemy.Position;
+                Point stepped=SweepActor(before,delta.Normalized*
+                    Math.Min(delta.Length,1.05f*dt));
+                Point traveled=stepped-before;
+                if(traveled.Length<.001f)continue;
+                enemy.x=stepped.x;enemy.y=stepped.y;
+                enemy.moving=true;
+                enemy.moveTime+=traveled.Length;
+                enemy.Face(traveled);
+            }
+        }
         private void SpawnRidgeWildlife()
         {
             ResetRidgeWatch();

@@ -3757,5 +3757,57 @@ namespace Starfall.Tests
             Check(guardian.enemies.Count==afterBoss,
                 "Later ridge dialogues do not duplicate a live post-Boss encounter");
         }
+
+        public static void RidgeWatchPatrolsWalkUsingRealEnemyMovementAndYieldToCombat(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var field=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            var tracked=(Dictionary<int,int>)field.GetValue(g);
+            Check(tracked.Count==3,"Three real ridge enemies occupy authored foot corridors");
+            Enemy scout=null;
+            foreach(Enemy e in g.enemies)
+                if(tracked.ContainsKey(e.id)&&tracked[e.id]==0){scout=e;break;}
+            Check(scout!=null,"Actual first patrol participates in the live enemy list");
+            var anchor=new Point(101.5f,61.5f);
+            g.save.x=12.5f;g.save.y=14.5f;
+            Point before=scout.Position;
+            for(int step=0;step<100;step++)
+            {
+                g.Tick(.05f,new Point());
+                Check(g.CanStand(scout.Position)&&
+                    (scout.Position-anchor).Length<=2.5f,
+                    "Patrol stride remains on walkable ground near its authored high trail");
+            }
+            Check((scout.Position-before).Length>.35f&&
+                scout.moveTime>.35f&&
+                (scout.facing).Length>.9f,
+                "Actual existing enemy walked on patrol and advanced the body animation gait");
+            float oldGait=scout.moveTime;
+            Point frozen=scout.Position;
+            scout.stun=2f;
+            for(int t=0;t<12;t++)g.Tick(.05f,new Point());
+            Check((scout.Position-frozen).Length<.00001f&&
+                Math.Abs(scout.moveTime-oldGait)<.00001f,
+                "A stunned hostile never patrols or manufactures walking frames");
+            scout.stun=0f;
+            g.save.x=scout.x+2.4f;g.save.y=scout.y;
+            var last=scout.Position;
+            g.Tick(.05f,new Point());
+            Check((scout.Position-last).Length<.2f,
+                "Within combat sight, ordinary enemy AI governs the actor instead of double-moving it");
+            int count=g.enemies.Count;
+            var room=g.save.room;
+            g.Enter(0);
+            Check(g.save.room==0&&g.enemies.Count<=count,
+                "Departing the region retires transient patrol gait without spawning actors in town");
+            g.Enter(room);
+            Check(((Dictionary<int,int>)field.GetValue(g)).Count==3,
+                "Returning to a surveyed highland retains one genuine set of patrols");
+        }
     }
 }
