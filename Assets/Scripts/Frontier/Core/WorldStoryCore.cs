@@ -199,26 +199,26 @@ namespace Starfall
             if (section == "origins")
             {
                 titleZh = "旧日编年"; titleEn = "Before the Fall";
-                descriptionZh = "星陨不是第一次错误，只是多年未曾纠正的调谐，终于在七日前一起断裂。";
-                descriptionEn = "The Starfall was not the first mistake. Seven days ago, years of neglected imbalances finally fractured.";
+                descriptionZh = "最早几页有烧焦的边、渡河的泥痕，还有九年前就该被划掉的调度指令。";
+                descriptionEn = "The earliest pages carry scorched edges, river mud and a dispatch order that should have been crossed out nine years ago.";
             }
             else if (section == "campaign")
             {
                 titleZh = "星核四章"; titleEn = "The Four Starcores";
-                descriptionZh = "从一位失踪侦察员开始，追查森林、河水和矿机被抽走的供给。只能阅读已经走到的真相。";
-                descriptionEn = "The investigation begins with a missing scout. Accounts appear as their truths are discovered.";
+                descriptionZh = "这几页夹着侦察员的铅笔拓图、渡口湿透的印章和矿场工时表。未找到的纸页还空着。";
+                descriptionEn = "Pencil rubbings from a missing scout, a drowned ferry seal and a shift ledger are bound together here. The missing pages are still blank.";
             }
             else if (section == "farshore")
             {
                 titleZh = "远岸证词"; titleEn = "Letters from Afar";
-                descriptionZh = "灯照向哪里？谁喝得到水？被封在钟声下的人叫什么名字？三份记录必须放在同一张桌前。";
-                descriptionEn = "Who sees the light, receives the water, and gets named beneath the bells? Three records belong at one table.";
+                descriptionZh = "三份笔迹各不相同。雾港记潮，沙海记水，高原记谁没有回来。纸角还留着争论时擦破的孔。";
+                descriptionEn = "Three different hands: tides at Mistport, water in the desert, names of the missing in the highlands. Eraser holes mark where the writers argued.";
             }
             else if (section == "after")
             {
                 titleZh = "归乡与余波"; titleEn = "Homeward and After";
-                descriptionZh = "并不是只有星核能改变世界。一张地图、一座信标、一条未封锁的道路，都在说明另一种防线。";
-                descriptionEn = "A map, a beacon and an open road can also change the frontier.";
+                descriptionZh = "后半册的纸换了好几批，几张路图仍沾着泥。最末页是守夜人的维修签名。";
+                descriptionEn = "The later sheets use several kinds of paper. Mud clings to the road maps; maintenance signatures fill the final page.";
             }
             else { WorldChronicleMenu(); return; }
 
@@ -312,62 +312,62 @@ namespace Starfall
             {
                 if (save.harborPledge == 1)
                 {
-                    zh += "\n\n【守灯优先】你将有限的零件先交给守灯会，重新点亮外海航道。摆渡盟仍要逐个寻找失联的人；船册不会把那些等待抹掉。";
-                    en += "\n\n[Lights first] You gave the scarce parts to the Lamplighters to reopen the sea lanes. The Ferry Union still has people to find, and the log cannot erase those left waiting.";
+                    zh += "\n\n守灯会维修领料单：你将有限的零件先交给守灯会，重新点亮外海航道。摆渡盟仍要逐个寻找失联的人；船册不会把那些等待抹掉。";
+                    en += "\n\nLamplighters' repair ledger: You gave the scarce parts to the Lamplighters to reopen the sea lanes. The Ferry Union still has people to find, and the log cannot erase those left waiting.";
                 }
                 else if (save.harborPledge == 2)
                 {
-                    zh += "\n\n【救援优先】你先让摆渡盟接回被困旅客。海上的灯列还需要修复，而获救者也终于能讲述潮水改变的那一夜。";
-                    en += "\n\n[Rescue first] You helped the Ferry Union bring stranded passengers home before restoring the lights. The sea lanes still need repair, but survivors can now testify about the changing tide.";
+                    zh += "\n\n摆渡盟回航登记：你先让摆渡盟接回被困旅客。海上的灯列还需要修复，而获救者也终于能讲述潮水改变的那一夜。";
+                    en += "\n\nFerry Union return manifest: You helped the Ferry Union bring stranded passengers home before restoring the lights. The sea lanes still need repair, but survivors can now testify about the changing tide.";
                 }
                 else if (save.harborPledge == 3)
                 {
-                    zh += "\n\n【协同方案】你让灯塔维修和渡船救援共用一份紧张的物资表。两边都不能假装自己的安全是唯一需要守护的。";
-                    en += "\n\n[Shared priority] You split scarce supplies between lighthouse repairs and ferry rescues. Neither side could call its own safety the only kind worth protecting.";
+                    zh += "\n\n港务联署备忘：你让灯塔维修和渡船救援共用一份紧张的物资表。两边都不能假装自己的安全是唯一需要守护的。";
+                    en += "\n\nJoint harbor memorandum: You split scarce supplies between lighthouse repairs and ferry rescues. Neither side could call its own safety the only kind worth protecting.";
                 }
             }
             else if (page == "desert")
             {
                 if (save.desertChoice == 1)
                 {
-                    zh += "\n\n【绿洲优先】你把蓄光池的补给转向活人居住的绿洲。山野议会得到一份公开的调度账，也必须负责让供水持续运转。";
-                    en += "\n\n[Oasis first] You redirected the reservoir toward living oasis communities. The Assembly gained a public allocation ledger and the responsibility to keep the water flowing.";
+                    zh += "\n\n绿洲蓄水簿：你把蓄光池的补给转向活人居住的绿洲。山野议会得到一份公开的调度账，也必须负责让供水持续运转。";
+                    en += "\n\nOasis cistern log: You redirected the reservoir toward living oasis communities. The Assembly gained a public allocation ledger and the responsibility to keep the water flowing.";
                 }
                 else if (save.desertChoice == 2)
                 {
-                    zh += "\n\n【航路优先】你保留机器对远岸灯网的供能，帮助船只辨认归途；但旧城主的指令不再能代替活人的监督。";
-                    en += "\n\n[Routes first] You retained power for the navigation lights so ships could find home. The dead ruler's old instruction no longer substitutes for oversight by the living.";
+                    zh += "\n\n外海灯网值班记录：你保留机器对远岸灯网的供能，帮助船只辨认归途；但旧城主的指令不再能代替活人的监督。";
+                    en += "\n\nOffshore lightwatch log: You retained power for the navigation lights so ships could find home. The dead ruler's old instruction no longer substitutes for oversight by the living.";
                 }
             }
             else if (page == "mountain")
             {
                 if (save.mountainChoice == 1)
                 {
-                    zh += "\n\n【证据封存】你将原始名单交给议会保存，作为推动修正撤离制度的证据。名字没有公开，保管的人因此更有责任作出改变。";
-                    en += "\n\n[Evidence preserved] You entrusted the original names to the council as evidence for evacuation reform. The names remain protected, and their keepers are responsible for acting on them.";
+                    zh += "\n\n山野议会封存簿：你将原始名单交给议会保存，作为推动修正撤离制度的证据。名字没有公开，保管的人因此更有责任作出改变。";
+                    en += "\n\nCouncil sealed register: You entrusted the original names to the council as evidence for evacuation reform. The names remain protected, and their keepers are responsible for acting on them.";
                 }
                 else if (save.mountainChoice == 2)
                 {
-                    zh += "\n\n【公开名单】你让失踪者的名字刻在所有人都能读到的路碑上。钟声不再只掩盖事故，也提醒后人记住每个人。";
-                    en += "\n\n[Names made public] You had the missing names set where every traveler can read them. The bells no longer only conceal a disaster; they ask people to remember each life.";
+                    zh += "\n\n高原路碑铭文：你让失踪者的名字刻在所有人都能读到的路碑上。钟声不再只掩盖事故，也提醒后人记住每个人。";
+                    en += "\n\nHighland waystone inscription: You had the missing names set where every traveler can read them. The bells no longer only conceal a disaster; they ask people to remember each life.";
                 }
             }
             else if (page == "covenant")
             {
                 if (save.frontierEnding == 1)
                 {
-                    zh += "\n\n【共同水渠】摆渡盟负责管道，旧灯缆成为输水材料，沙海得到新的种子。农田会多收获药草，但远海的灯仍需要节制供能。";
-                    en += "\n\n[Shared canals] The Ferry Union manages pipes made partly from old lamp cables, while new seeds reach the desert. Farms gain extra herbs; distant lights still need careful power use.";
+                    zh += "\n\n共同水渠的施工单：摆渡盟负责管道，旧灯缆成为输水材料，沙海得到新的种子。农田会多收获药草，但远海的灯仍需要节制供能。";
+                    en += "\n\nShared canals work order: The Ferry Union manages pipes made partly from old lamp cables, while new seeds reach the desert. Farms gain extra herbs; distant lights still need careful power use.";
                 }
                 else if (save.frontierEnding == 2)
                 {
-                    zh += "\n\n【轮值灯网】三地轮流负责航路灯列，并公开每次交班的耗材与风险。灯没有永远不灭的主人，只有必须有人接起的下一班。";
-                    en += "\n\n[Rotating lightwatch] Three regions share navigation shifts and publish their supplies and risks. No keeper owns the lights forever; each has to hand them on.";
+                    zh += "\n\n灯网交班簿：三地轮流负责航路灯列，并公开每次交班的耗材与风险。灯没有永远不灭的主人，只有必须有人接起的下一班。";
+                    en += "\n\nRotating lightwatch handover: Three regions share navigation shifts and publish their supplies and risks. No keeper owns the lights forever; each has to hand them on.";
                 }
                 else if (save.frontierEnding == 3)
                 {
-                    zh += "\n\n【开放星路】米拉、伊沃与森共同管理渡船、水渠和路碑。能源账向所有人开放，同伴配合与公共委托也因此得到实际改善。";
-                    en += "\n\n[Open starroads] Mira, Ivo and Sen jointly care for ferries, canals and the memorial road. Energy accounts are public, and companions and community contracts benefit from their cooperation.";
+                    zh += "\n\n开放星路签名册：米拉、伊沃与森共同管理渡船、水渠和路碑。能源账向所有人开放，同伴配合与公共委托也因此得到实际改善。";
+                    en += "\n\nOpen starroads signatures: Mira, Ivo and Sen jointly care for ferries, canals and the memorial road. Energy accounts are public, and companions and community contracts benefit from their cooperation.";
                 }
             }
             else if (page == "ending")
@@ -375,7 +375,7 @@ namespace Starfall
                 // The chosen ending is still the player's ending. This
                 // retrospective only records the civic work completed after
                 // it; browsing never awards progress or changes SaveData.
-                zh += "\n\n【结局之后，公共承诺仍需维护】";
+                zh += "\n\n余烬镇工务交班簿（当日抄录）：\n";
                 zh += CivicConduitComplete ?
                     "三处阀门已重新调谐。" : "三处阀门仍待现场调谐。";
                 zh += "公共避险棚已建成 " + FarShelterCount +
@@ -385,9 +385,9 @@ namespace Starfall
                 zh += "余光设施已有 " + AfterlightRestored + "/3 处恢复运行。";
                 zh += Has("afterlight_complete") ?
                     "维护公约已公布。" : "维护公约仍待居民签署。";
-                zh += "这些进度不会改写你选择的结局，却决定它能否成为日常生活。";
+                zh += "页角压着一支用短了的铅笔，留给明天的值班人。";
 
-                en += "\n\n[After the ending, public promises still need caretakers] ";
+                en += "\n\nEmberfall works ledger (today\u0027s copy):\n";
                 en += CivicConduitComplete ?
                     "All three valves have been retuned." :
                     "The three valves are still waiting for physical tuning.";
@@ -401,7 +401,7 @@ namespace Starfall
                 en += Has("afterlight_complete") ?
                     " The maintenance charter has been published." :
                     " Residents still need to sign the maintenance charter.";
-                en += " These milestones do not replace your chosen ending; they determine how fully it reaches daily life.";
+                en += " A worn pencil is tucked into the margin for tomorrow\u0027s watchkeeper.";
             }
         }
         private void WorldChroniclePage(string page)

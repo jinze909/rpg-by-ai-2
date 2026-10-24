@@ -518,7 +518,7 @@ namespace Starfall.Tests
                 g.conversation.en.Contains("The Frontier You Chose") &&
                 StoryChoicePresent(g, "story_read_civic_aftermath"),
                 "The ending links backward to Chapter Twelve in the same chronological order");
-            Check(g.conversation.textEn.Contains("[After the ending, public promises still need caretakers]") &&
+            Check(g.conversation.textEn.Contains("Emberfall works ledger (today\u0027s copy)") &&
                 g.conversation.textEn.Contains("All three valves have been retuned.") &&
                 g.conversation.textEn.Contains("The public audit is still pending."),
                 "The ending summary distinguishes a completed grid from pending civic services");
@@ -640,14 +640,14 @@ namespace Starfall.Tests
             g.save.flags.Add("harbor_report");
             g.save.flags.Add("desert_report");
             g.save.flags.Add("mountain_report");
-            string[] harborZh = { "", "守灯优先", "救援优先", "协同方案" };
-            string[] harborEn = { "", "Lights first", "Rescue first", "Shared priority" };
-            string[] desertZh = { "", "绿洲优先", "航路优先" };
-            string[] desertEn = { "", "Oasis first", "Routes first" };
-            string[] mountainZh = { "", "证据封存", "公开名单" };
-            string[] mountainEn = { "", "Evidence preserved", "Names made public" };
-            string[] councilZh = { "", "共同水渠", "轮值灯网", "开放星路" };
-            string[] councilEn = { "", "Shared canals", "Rotating lightwatch", "Open starroads" };
+            string[] harborZh = { "", "守灯会维修领料单", "摆渡盟回航登记", "港务联署备忘" };
+            string[] harborEn = { "", "Lamplighters\u0027 repair ledger", "Ferry Union return manifest", "Joint harbor memorandum" };
+            string[] desertZh = { "", "绿洲蓄水簿", "外海灯网值班记录" };
+            string[] desertEn = { "", "Oasis cistern log", "Offshore lightwatch log" };
+            string[] mountainZh = { "", "山野议会封存簿", "高原路碑铭文" };
+            string[] mountainEn = { "", "Council sealed register", "Highland waystone inscription" };
+            string[] councilZh = { "", "共同水渠的施工单", "灯网交班簿", "开放星路签名册" };
+            string[] councilEn = { "", "Shared canals work order", "Rotating lightwatch handover", "Open starroads signatures" };
             int coins = g.save.coins, shards = g.save.shards, talent = g.save.skillPoints;
             int flags = g.save.flags.Count;
             for (int variant = 1; variant <= 3; variant++)
