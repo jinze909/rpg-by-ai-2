@@ -2175,6 +2175,61 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real fishing dock, E and pointer bite gating with actual IMGUI enabled state");
     }
 
+    private static void LiveJourneyJournalExplainsAndTracksRealStory(FrontierRuntime app)
+    {
+        Prepare(app);
+        var game=app.Game;
+        game.save.english=true;
+        game.save.stage=3;
+        game.save.ending=1;
+        game.save.trackedQuest="main";
+        game.mode="journal";
+        Set(app,"journalTab",3);
+        Set(app,"journeyShowRecap",true);
+        Set(app,"journeyRecapIndex",-1);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();
+        Event.current.type=EventType.Repaint;
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Chapter Five")) &&
+            GUI.commands.Exists(x=>x.Contains("After the core decision")) &&
+            GUI.commands.Exists(x=>x.Contains("Next:")),
+            "The actual Journey screen explains the unlocked historical cause and a live next step");
+        Check(!GUI.commands.Exists(x=>x.Contains("Chapter Eleven")),
+            "A new postwar save never exposes future chapter names on the Journey screen");
+        var track=GUI.buttonCalls.Find(x=>Math.Abs(x.rect.x-480)<.01f &&
+            Math.Abs(x.rect.y-652)<.01f);
+        Check(track!=null&&track.enabled,
+            "The actual story recap provides an enabled Track button for an unlocked live chapter");
+        GUI.queuedClick=new Rect(480,652,210,30);
+        Call(app,"OnGUI");
+        Check(!GUI.queuedClick.HasValue &&
+            game.save.trackedQuest=="afterlight",
+            "Clicking real Story recap Track routes into the existing quest compass");
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        GUI.queuedClick=new Rect(297,652,83,30);
+        Call(app,"OnGUI");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Chapter Four")) &&
+            game.save.trackedQuest=="afterlight",
+            "Reading a completed chapter moves back through real history without changing tracking");
+        track=GUI.buttonCalls.Find(x=>Math.Abs(x.rect.x-480)<.01f &&
+            Math.Abs(x.rect.y-652)<.01f);
+        Check(track!=null&&!track.enabled,
+            "Completed historical chapters cannot restart old rewards via a disabled Track button");
+        GUI.queuedClick=new Rect(497,285,193,33);
+        Call(app,"OnGUI");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Changes you made")),
+            "Switching tabs reveals the preserved original world-response report");
+        GUI.queuedClick=new Rect(297,285,189,33);
+        Call(app,"OnGUI");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Chapter Four")) &&
+            game.save.coins==coins && game.save.flags.Count==flags,
+            "Returning to the dynamic story reader leaves prior progress and inventory untouched");
+        Console.WriteLine("PASS Live Journey story recap, spoiler gate, historical pages and physical Track/UI toggle");
+    }
+
     private static void FishingSuspendsOnFocusLossAndResumesOnReturn(FrontierRuntime app)
     {
         Prepare(app);
@@ -5573,7 +5628,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveFishingReelUsesRealBiteAndProductionHud,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
