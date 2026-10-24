@@ -346,7 +346,24 @@ namespace Starfall
                 Dialog(o.name, o.en, notesZh[signal] + (first ? "\n\n信号已记录：12硬币、1碎片、15经验。到炉火旅店拼合三段路线。" : Has("survey_complete") ? "\n\n归乡星图已连通。附近安全时，可以沿信号返回旅店。" : "\n\n讯息已记录，可在旅店的星图桌查看进度。") + RoadwardenTrialHint(signal, false), notesEn[signal] + (first ? "\n\nSignal recorded: 12 coins, 1 shard, 15 XP. Assemble all three at the Hearth Inn." : Has("survey_complete") ? "\n\nThe homeward chart is linked. Return to the inn when nearby enemies are clear." : "\n\nSignal already recorded. Check the chart table at the Hearth Inn.") + RoadwardenTrialHint(signal, true), signalChoices.ToArray());
                 return true;
             }
-            if (o.kind == "mentor") { Dialog(o.name, o.en, "先练习命中，再观察预告并闪避，最后用职业技能完成挑战。训练无伤害，不消耗物资；首次完成获得技能点1、硬币15。", "Hit a dummy, read a telegraph and dodge, then land your class technique. Practice costs no health or supplies. First clear: 1 point and 15 coins.", C("开始练习", "Start practice", "practice"), C("稍后", "Later", "close")); return true; }
+
+            if (o.kind == "mentor")
+            {
+                var options=new System.Collections.Generic.List<Choice>();
+                if(!SpecialistDrillActive)
+                    options.Add(C("基础战斗训练","Basic combat course","practice"));
+                if(save.profession>0)
+                    options.Add(SpecialistDrillActive?
+                        C("结束Q实战考核","Abort Q proficiency","specialist_drill_abort"):
+                        C(SpecialistDrillComplete?"Q实战复练 · 无重复奖励":"Q实战考核 · 首次永久节省5耐力",
+                            SpecialistDrillComplete?"Replay Q proficiency · no duplicate reward":
+                            "Q proficiency · permanently save 5 energy","specialist_drill_start"));
+                options.Add(C("以后再来","Later","close"));
+                Dialog(o.name,o.en,
+                    "木桩训练能教会你攻防。游侠和法师还有一场更难的考核：得靠三次分别释放的Q真的打中靶子，一轮箭雨不能算成三次。",
+                    "The basic course teaches strikes and dodges. Rangers and arcanists can take a harder trial: land three separate genuine Q contacts, not three arrows from one volley.",
+                    options.ToArray());return true;
+            }
             if (o.kind == "returnscout")
             { if (!Has("scout_saved")) return true; Dialog(o.name, o.en, "我回来了。你替我打开的是回家的路。公会的记录里现在有我的名字；也请记住，被星核伤害的土地上还住着人。", "I'm home. You opened my way back. My name is in the guild records now. Remember: people live on the land the cores are draining.", C(Has("scout_gift") ? "一路平安" : "收下谢礼：炖汤1", Has("scout_gift") ? "Stay safe" : "Accept thanks: 1 stew", "scoutgift")); return true; }
             if (o.kind.StartsWith("seal"))

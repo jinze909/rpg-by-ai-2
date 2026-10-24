@@ -233,7 +233,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation();
             RootsongPulseCooldown=0;
-            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson();
+            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
             ResetContinuity(); ResetLocalWaymark(); ResetRidgeWatch(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -699,6 +699,7 @@ namespace Starfall
             attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
             TickSwordLesson(dt);
+            TickSpecialistDrill(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
@@ -853,7 +854,7 @@ namespace Starfall
         }
         public void Skill(Point? direction = null)
         {
-            float cost = Relic(4) ? 50 : 40;
+            float cost = ClassSkillEnergyCost;
             if (mode != "world" || Dying) return;
             if(!CanStand(Position))
             {
@@ -891,7 +892,7 @@ namespace Starfall
         }
         private void StartSkill(Point direction, Point? target)
         {
-            float cost = Relic(4) ? 50 : 40;
+            float cost = ClassSkillEnergyCost;
             ClearBufferedSkill();
             // An accepted Q may wait 200ms for a visible previous action.
             // Recheck the physical root at DISPATCH as well: no charged
@@ -1013,6 +1014,7 @@ namespace Starfall
                     L("破势","BREAK")));
             }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
+            OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
             // distinct combat element, but only after the authoritative HP,
             // stagger, critical and cover checks have actually succeeded.
@@ -2809,7 +2811,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -2837,7 +2839,8 @@ namespace Starfall
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
                 action == "continue" || action == "swordlesson_start" ||
-                action == "swordlesson_veteran_start" || action == "practice" ||
+                action == "swordlesson_veteran_start" || action == "specialist_drill_start" ||
+                action == "specialist_drill_abort" || action == "practice" ||
                 action == "scoutgift" || action == "survey_finish" ||
                 action == "survey_home" || action.StartsWith("survey_to_") ||
                 action == "dispatch_recap" || action == "farshore_relief_routes" ||
@@ -2918,6 +2921,7 @@ namespace Starfall
         private void ChooseCore(string action)
         {
             if (ChooseSwordLesson(action)) return;
+            if (ChooseSpecialistDrill(action)) return;
             if (ChooseFrostSignal(action)) return;
             if (ChooseMineConvoy(action)) return;
             if (ChooseFloodArchive(action)) return;

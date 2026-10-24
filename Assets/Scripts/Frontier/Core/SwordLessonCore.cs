@@ -21,6 +21,122 @@ namespace Starfall
                 if(o.kind=="forge")return new Point(o.x,o.y);
             return new Point(7,8);
         }
+
+        // Three SEPARATE genuine Q contacts on an authored practice-yard
+        // dummy; a Ranger volley never scores five for one physical cast.
+        public bool SpecialistDrillActive{get;private set;}
+        public int SpecialistDrillHits{get;private set;}
+        public float SpecialistDrillTime{get;private set;}
+        private int specialistDrillProfession=-1;
+        private Enemy specialistDrillTarget;
+        private ImpactProfile specialistDrillLastImpact;
+        public bool SpecialistDrillComplete
+        {get{return save.profession>0&&Has("specialist_drill_"+save.profession);}}
+        public float ClassSkillEnergyCost
+        {get{return (Relic(4)?50f:40f)-(SpecialistDrillComplete?5f:0f);}}
+        private Point SpecialistMentorFoot()
+        {
+            foreach(WorldObject o in data.maps[0].objects)
+                if(o.kind=="mentor")return new Point(o.x,o.y);
+            return new Point(11,14);
+        }
+        private void ResetSpecialistDrill()
+        {
+            if(specialistDrillTarget!=null)enemies.Remove(specialistDrillTarget);
+            specialistDrillTarget=null;specialistDrillLastImpact=null;
+            SpecialistDrillActive=false;SpecialistDrillHits=0;
+            SpecialistDrillTime=0;specialistDrillProfession=-1;
+        }
+        private bool ChooseSpecialistDrill(string action)
+        {
+            if(action!="specialist_drill_start"&&action!="specialist_drill_abort")return false;
+            if(save.room!=0||Dying||practicing||
+                (Position-SpecialistMentorFoot()).Length>1.75f)return true;
+            if(action=="specialist_drill_abort")
+            {
+                if(SpecialistDrillActive)
+                {
+                    ResetSpecialistDrill();revision++;
+                    Notify("艾妲收起练习靶。随时可以再试。",
+                        "Ada retires the practice target. Retry whenever ready.");
+                }
+                return true;
+            }
+            if(save.profession<=0||SpecialistDrillActive||SwordLessonActive||
+                FieldWorkPreventsRest||!SafeTravel||
+                save.health<=10||save.energy<ClassSkillEnergyCost)return true;
+            if(!CanStand(new Point(14,13))||!CanStand(new Point(16,13)))return true;
+            SpecialistDrillActive=true;SpecialistDrillTime=42;
+            SpecialistDrillHits=0;specialistDrillProfession=save.profession;
+            specialistDrillLastImpact=null;
+            save.x=14;save.y=13;skillCooldown=0;save.energy=100;
+            specialistDrillTarget=new Enemy(98810+save.profession,0,16,13,20000)
+                {stun=120,timer=120};
+            enemies.Add(specialistDrillTarget);
+            TrackQuest("specialist_drill");revision++;sound="quest";
+            Notify(save.profession==1?
+                "游侠：让三次分别释放的Q箭雨真正命中练习靶。":
+                "法师：用三次独立施放的Q星火命中练习靶。",
+                save.profession==1?
+                "Ranger: land three distinct Q volleys, not five arrows from one cast.":
+                "Arcanist: land three separately cast Q bursts on the target.");
+            return true;
+        }
+        private void TickSpecialistDrill(float dt)
+        {
+            if(!SpecialistDrillActive)return;
+            if(save.room!=0||Dying||practicing||
+                save.profession!=specialistDrillProfession||
+                (Position-SpecialistMentorFoot()).Length>7.5f||
+                specialistDrillTarget==null||!enemies.Contains(specialistDrillTarget)||
+                specialistDrillTarget.hp<=0)
+            {
+                ResetSpecialistDrill();revision++;
+                Notify("已离开训练场，考核结束。",
+                    "Leaving the practice yard ends the drill safely.");
+                return;
+            }
+            SpecialistDrillTime-=dt;
+            if(SpecialistDrillTime<=0)
+            {
+                ResetSpecialistDrill();revision++;
+                Notify("时间到了。三次Q都必须真正打中靶子。",
+                    "Time expired. All three Q casts must really hit.");
+            }
+        }
+        private void OnSpecialistDrillHit(Enemy target,ImpactProfile impact,bool technique)
+        {
+            if(!SpecialistDrillActive||!technique||impact==null||
+                !impact.playerOwned||
+                impact.profession!=specialistDrillProfession||
+                !Object.ReferenceEquals(target,specialistDrillTarget)||
+                Object.ReferenceEquals(impact,specialistDrillLastImpact))return;
+            specialistDrillLastImpact=impact;SpecialistDrillHits++;revision++;
+            if(SpecialistDrillHits<3)
+            {
+                Notify("实际命中 "+SpecialistDrillHits+"/3，等待下一次Q。",
+                    "Real contacts "+SpecialistDrillHits+"/3. Ready the next Q.");
+                return;
+            }
+            int profession=specialistDrillProfession;
+            bool first=!Has("specialist_drill_"+profession);
+            ResetSpecialistDrill();
+            if(first)
+            {
+                Flag("specialist_drill_"+profession);CreditCoins(35);AddXp(60);
+                RecordMoment(profession==1?
+                    "游侠在艾妲的靶场用三次箭雨真正命中目标，改良了战技的耐力消耗。":
+                    "法师在艾妲的靶场用三次星火真正命中目标，改良了战技的耐力消耗。",
+                    profession==1?
+                    "Three real volleys struck Ada's practice target, refining the ranger's energy use.":
+                    "Three real arcane bursts struck Ada's target, refining the arcanist's energy use.");
+                Notify("职业考核通过：硬币+35、经验+60，Q永久节省5耐力。",
+                    "Class trial cleared: +35 coins, +60 XP and permanent Q cost -5.");
+            }
+            else Notify("实战复练完成！不重复领取奖励。",
+                "Proficiency replay complete. No duplicate reward.");
+            sound="reward";revision++;
+        }
         private void ResetSwordLesson()
         {
             SwordLessonActive=false;SwordLessonHits=0;SwordLessonTime=0;
