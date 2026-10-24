@@ -139,12 +139,29 @@ namespace Starfall
         public bool reliefFollowerMoving, reliefFollowerFacingLeft;
         private float reliefFollowerBlockedSeconds;
         private bool reliefFollowerBlockedNotice;
-        // Transient, live-collision route hint. Replan every quarter-second
-        // when a wall blocks the direct escort line (or immediately when a
-        // waypoint is reached or becomes impassable). Never enter SaveData.
-        private Point reliefFollowerRouteWaypoint, reliefFollowerRouteTarget;
+        // Reuse a complete transient footpath. Never store it in SaveData.
+        private readonly List<Point> reliefFollowerRoute = new List<Point>();
+        private int reliefFollowerRouteIndex;
+        private Point reliefFollowerRouteTarget;
         private float reliefFollowerRouteRefresh;
-        private bool reliefFollowerRouteFound;
+        private void ClearReliefFollowerRoute()
+        {
+            reliefFollowerRoute.Clear();
+            reliefFollowerRouteIndex = 0;
+            reliefFollowerRouteRefresh = 0;
+        }
+        // A projectile's thin center ray is not a civilian's body.
+        // Sample the actual footprint before attempting direct movement or
+        // trusting a cached waypoint beside a newly closed wall.
+        private bool ReliefActorLineWalkable(Point from, Point to)
+        {
+            if (!CanStand(from) || !CanStand(to)) return false;
+            Point delta = to - from;
+            int samples = Math.Max(1, (int)Math.Ceiling(delta.Length / .12f));
+            for (int i=1; i<=samples; i++)
+                if (!CanStand(from + delta * (i / (float)samples))) return false;
+            return true;
+        }
         public bool ReliefEscortRouteStalled
         {
             get { return ReliefEscortActive && !reliefFollowerWaiting &&
@@ -221,7 +238,7 @@ namespace Starfall
             reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
             reliefFollowerFacingLeft = false;
             reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
-            reliefFollowerRouteRefresh = 0; reliefFollowerRouteFound = false;
+            ClearReliefFollowerRoute();
             reliefFollowerWaiting = reliefMedicalUsed = false;
             reliefHurryTime = 0; reliefHurryUsed = false;
             reliefEvadeCooldown = 0;
@@ -289,6 +306,7 @@ namespace Starfall
             reliefTimeWarning = reliefMissionTime <= 30;
             reliefSafetyWarning = reliefFollowerSafety <= 30;
             reliefFollowerMoving = false; reliefFollowerWalkDistance = 0;
+            ClearReliefFollowerRoute();
             revision++;
         }
         private bool SpawnReliefMissionWave()
@@ -663,7 +681,7 @@ namespace Starfall
                 reliefFollowerWalkDistance = 0; reliefFollowerMoving = false;
                 reliefFollowerFacingLeft = false;
                 reliefFollowerBlockedSeconds = 0; reliefFollowerBlockedNotice = false;
-                reliefFollowerRouteRefresh = 0; reliefFollowerRouteFound = false;
+                ClearReliefFollowerRoute();
                 reliefFollowerWaiting = reliefMedicalUsed = false;
                 reliefHurryTime = 0; reliefHurryUsed = false;
                 reliefClimateKitTime = 0; reliefClimateKitUsed = false;
@@ -687,7 +705,7 @@ namespace Starfall
             reliefFollowerMoving = false;
             // A resident previously walked straight into every real corner.
             // A nearby hero on the OTHER side of a wall is not a safe arrival.
-            bool obstructed = !ClearAttackPath(reliefFollowerPosition, Position);
+            bool obstructed = !ReliefActorLineWalkable(reliefFollowerPosition, Position);
             reliefFollowerRouteRefresh = Math.Max(0, reliefFollowerRouteRefresh - dt);
             if (!reliefFollowerWaiting && !ReliefEscortUnderAttack &&
                 reliefCivilianHitTime <= 0 && (follow.Length > 1.3f || obstructed))
@@ -701,27 +719,34 @@ namespace Starfall
                 Point destination = Position;
                 if (obstructed)
                 {
-                    if (reliefFollowerRouteRefresh <= 0 ||
-                        (reliefFollowerRouteFound &&
-                         ((reliefFollowerRouteWaypoint - reliefFollowerPosition).Length < .18f ||
-                          !CanStand(reliefFollowerRouteWaypoint))) ||
-                        (Position - reliefFollowerRouteTarget).Length > 1.4f)
+                    // Step through the entire collision-valid detour without
+                    // restarting full-map search at each tile boundary.
+                    while (reliefFollowerRouteIndex < reliefFollowerRoute.Count &&
+                        (reliefFollowerRoute[reliefFollowerRouteIndex] -
+                         reliefFollowerPosition).Length < .18f)
+                        reliefFollowerRouteIndex++;
+                    bool hasWaypoint = reliefFollowerRouteIndex < reliefFollowerRoute.Count;
+                    bool replan = reliefFollowerRouteRefresh <= 0 ||
+                        (Position - reliefFollowerRouteTarget).Length > 1.4f ||
+                        (reliefFollowerRoute.Count > 0 && !hasWaypoint) ||
+                        (hasWaypoint && !ReliefActorLineWalkable(reliefFollowerPosition,
+                            reliefFollowerRoute[reliefFollowerRouteIndex]));
+                    if (replan)
                     {
-                        List<Point> route = NavigationPathFrom(reliefFollowerPosition, Position, true);
-                        reliefFollowerRouteFound = route.Count > 0;
-                        reliefFollowerRouteWaypoint = reliefFollowerRouteFound ?
-                            route[0] : reliefFollowerPosition;
+                        List<Point> route = NavigationPathFrom(reliefFollowerPosition,
+                            Position, true);
+                        reliefFollowerRoute.Clear();
+                        reliefFollowerRoute.AddRange(route);
+                        reliefFollowerRouteIndex = 0;
                         reliefFollowerRouteTarget = Position;
-                        reliefFollowerRouteRefresh = .25f;
+                        // Poll genuinely sealed areas but never freeze a
+                        // removed wall or reopened gate into route state.
+                        reliefFollowerRouteRefresh = route.Count > 0 ? .65f : .35f;
                     }
-                    destination = reliefFollowerRouteFound ?
-                        reliefFollowerRouteWaypoint : reliefFollowerPosition;
+                    destination = reliefFollowerRouteIndex < reliefFollowerRoute.Count ?
+                        reliefFollowerRoute[reliefFollowerRouteIndex] : reliefFollowerPosition;
                 }
-                else
-                {
-                    reliefFollowerRouteRefresh = 0;
-                    reliefFollowerRouteFound = false;
-                }
+                else ClearReliefFollowerRoute();
                 Point toward = destination - reliefFollowerPosition;
                 float step = obstructed ? dt * walk :
                     Math.Min(dt * walk, Math.Max(0, follow.Length - 1.3f));
@@ -855,11 +880,13 @@ namespace Starfall
             if (action == "relief_wait")
             {
                 reliefFollowerWaiting = true; reliefFollowerMoving = false;
+                ClearReliefFollowerRoute();
                 Notify("居民会在此等候。清理道路后回来接应。", "Civilian waiting here. Return after clearing the route.");
             }
             else if (action == "relief_follow")
             {
                 reliefFollowerWaiting = false;
+                ClearReliefFollowerRoute();
                 Notify("居民重新跟随你。", "The civilian resumes following you.");
             }
             else if (action == "relief_evasive_step")
@@ -912,7 +939,7 @@ namespace Starfall
                 }
                 save.energy-=15;reliefEvadeCooldown=3.5f;
                 reliefFollowerPosition=best;
-                reliefFollowerRouteRefresh=0;reliefFollowerRouteFound=false;
+                ClearReliefFollowerRoute();
                 reliefFollowerWalkDistance+=(best-start).Length;
                 reliefFollowerMoving=true;
                 if(Math.Abs(best.x-start.x)>.015f)
