@@ -4732,11 +4732,15 @@ namespace Starfall.Tests
                 char[] wall=rows[10].ToCharArray();wall[14]='#';
                 rows[10]=new string(wall);
                 Advance(blocked,.16f);
-                Check(interrupted.released&&blocked.reliefFollowerSafety==50f&&
+                Check(interrupted.released&&
+                    blocked.reliefFollowerSafety<=50f+.001f&&
                     (float)cadence.GetValue(blocked)<=.22f&&
                     !blocked.effects.Exists(e=>e.reliefMissionOwned&&
                         e.kind=="number"&&e.text.StartsWith(blocked.L("包扎 +","TREATED +"))),
-                    "A mid-cast closed wall cancels civilian treatment and refunds unspent heal cadence");
+                    "A closed wall must not heal residents even as real weather drains safety: "+
+                    "released="+interrupted.released+
+                    " safety="+blocked.reliefFollowerSafety+
+                    " cadence="+cadence.GetValue(blocked));
                 rows[10]=new string('.',30);
                 var hero=Fresh(data);
                 hero.Enter(1);hero.enemies.Clear();
