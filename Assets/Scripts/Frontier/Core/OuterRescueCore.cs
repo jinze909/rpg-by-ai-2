@@ -5,25 +5,28 @@ namespace Starfall
     // New physical locations are reached in-world, not auto-awarded on load.
     public sealed partial class GameCore
     {
+        // Each regional log is something a traveler can actually find and
+        // read: a physical clue, the damaged signal, then its abandoned chest.
+        // Existing routes, interactions, rewards and persistent flags stay intact.
         private static readonly string[,] OuterLogZh = {
-            {"旧运河的潮水表与镇内档案不符。有人把居民自建的泄洪渠从图上删掉了。", "引水警灯的灯座完好，只少了一枚零件。把警报还给住在城外的人。", "储物箱里有洪水夜留下的草药与旧手套，它们属于当时没被登记的守渠人。"},
-            {"断裂树根里夹着避难名单。风暴期间有陌生人替伤者引路，却未留下姓名。", "一盏林梢灯仍能连接上一个庇护点。修好它，晚归的人就不会走向荆棘。", "巡林物资封在潮湿木匣里。没人来收，但补给永远比一份好看的统计表重要。"},
-            {"老船票背面写着真实退潮时间，比运输船队的报表早整整一刻钟。", "修复低潮信标，下一艘摆渡船就不用再听从错误的航路命令。", "药材和船钉被装进同一个救援箱——救回岸边的人，比恢复旧秩序更重要。"},
-            {"停机名单里有十二个签名，第一位签署者是矿场最年轻的学徒。", "工棚号灯只差一枚零件；工人不应再等远处的监工允许撤离。", "救援物资被锁在矿车后，里面还存着最后一班工人的护目镜。"},
-            {"民用避难登记只写着人数，没有留下多少人曾为他人打开城门。", "外墙的疏散灯本应由居民维护，而不是由一个秘密命令决定何时亮起。", "医药箱表面有磨损的徽章；守卫和难民曾同时使用它。"},
-            {"船难手记详细记录了转向北岸的最后一次求救，不是船员逃亡的证明。", "归航灯可以从远处看见，恢复它意味着不用再靠被篡改的名册认路。", "救援箱的浮木刻有失踪者名字，里面的食物原本准备给获救的孩子。"},
-            {"旧配水笔记把每一口井分为商队与平民，后者的数字被空白替代。", "点亮绿洲信号灯，缺水的人才能在风暴里找到共享水站。", "沙海救援箱装着未交付的草药，也装着无声的供水请求。"},
-            {"求救纸条被冰雪压住，留下的是附近有人生火的方向，不是错误的撤离路线。", "风雪指路灯被拆走一枚零件，只要重新点亮，下一位旅人就有路可回。", "高地补给箱里还有未用完的取暖材料，适合转送到最近的避寒棚。"}
+            {"水位刻线到了第三道铁环，镇里的潮表却只记到第二道。有人用煤灰在石壁上写着：那夜水已经进屋。", "桥东的玻璃灯罩还在，底座只缺一枚零件。灯亮起来，渠外的木屋就能先看见涨水。", "箱盖上刻着“桥下六户”。两双湿手套裹着药草，手套的主人一直没来取。"},
+            {"断根里夹着一张避难名单，最后三个名字被雨浸透。旁边有人补写：他们往北走了。", "两棵树间的灯绳还绷着，林梢灯却灭了。修好它，夜归的人才能看清通往庇护点的岔路。", "潮湿木匣里有草药和一张手绘图，三处可以避雨的树洞都被仔细圈了起来。"},
+            {"旧船票背面记着一次提前十五分钟的退潮。船长用红笔划掉了印在正面的官方时刻。", "木桩上还钉着渡船的旧航线牌。低潮信标缺一枚零件，修好后，摆渡人就能依真实潮位靠岸。", "药草与船钉塞在同一只救援箱里，下面压着写有四个乘客名字的半张舱单。"},
+            {"停机名单有十二个签名，最先签字的是学徒。名字旁边留着一行很小的字：先把伤员送出去。", "工棚号灯的铁架被烟熏黑，线圈还在，只缺替换零件。它曾照着矿工走过紧急出口。", "矿车后锁着几副护目镜和一包绷带。一副小号护目镜的绑带已经缝过两次。"},
+            {"旧登记册只写“撤离四十三人”。夹在书页里的便签又添了六个名字：这些人留在门外帮忙开锁。", "外墙疏散灯的开关被封条盖住。撕开封条，换好零件，城门两侧的人都能看见灯。", "药箱上的徽章磨得只剩半圈金边。里面的绷带分别标着守卫营房和城外帐篷的日期。"},
+            {"最后一艘船的航海手记写着“北岸有火光，改向救人”。港务记录却把这次转向记成了擅自离航。", "归航灯塔的旧反光镜还对着海面，灯芯却熄了。只要修好它，夜航船就能看见进港水道。", "浮木上刻着失踪船员的名字。木箱底部还压着给获救孩子准备的干粮袋。"},
+            {"配水簿上每口井都有两栏：商队和居民。居民那一栏被整页墨迹盖住，页角却还留着井水的数字。", "绿洲路口的信号灯被风沙埋到半腰。替它换好零件，迷路的人才找得到共享水站。", "箱里有包好的药草和一只空水壶。壶口绑着纸条：给南边那户还在等水的人。"},
+            {"雪里露出半截求救纸条：往背风坡走，炉火还没灭。箭头却被后来贴上的撤离告示盖住了。", "雪路上的指灯只剩灯架，缺一枚零件。风再大，点亮它也能从远处看见通向暖棚的山脊。", "补给箱里留着干柴、布条和半块火石。盖子内侧画了一条通往最近暖棚的细线。"}
         };
         private static readonly string[,] OuterLogEn = {
-            {"The canal's flood gauge contradicts the official chart. Someone erased a civilian-built spillway.", "The warning lamp needs one spare part. Give the flood alert back to families living outside the walls.", "Medicinal supplies were left for flood wardens whose names never entered the town ledger."},
-            {"A shelter roll is wedged between broken roots. Anonymous neighbors guided the injured here.", "One repaired canopy lamp can connect two safe shelters, rather than send late travelers into thorns.", "The wardens left real supplies behind; they matter more than a flattering report."},
-            {"The handwritten ebb tide precedes the shipping schedule by fifteen minutes.", "Repairing the low-tide signal means the next ferry need not follow a false navigation order.", "The chest combines herbs with ferry rivets. Rescue matters more than restoring the old manifest."},
-            {"Twelve miners signed the shutdown list. The youngest apprentice signed first.", "The evacuation lamp lacks one part. Workers should not need an overseer's approval to escape.", "The chest holds emergency worksite supplies and the goggles of the last shift."},
-            {"The civilian roster counted bodies, but not those who opened the gates for others.", "This evacuation light belongs to the residents, not another sealed military order.", "An old, worn badge marks the medical chest shared by guards and refugees."},
-            {"A survivor's letter records the last boat's turn north. It was rescue, not desertion.", "Restore the homeward lamp so vessels no longer rely on an altered passenger list.", "Names are carved into the rescue float, beside provisions for children taken ashore."},
-            {"The water ledger counted merchants and families differently; residents were left as blanks.", "Relight the oasis signal so thirsty families can find the shared well during a sandstorm.", "The desert chest holds undelivered medicine and another quiet request for fair water."},
-            {"A distress note points to the nearest hearth, not to the official evacuation corridor.", "Replace the snowline lamp's missing part so the next traveler has a safe bearing.", "The mountain supplies still hold fuel for a nearby warming shelter."}
+            {"The flood reached the third iron ring. The town gauge stops at the second. Someone wrote in charcoal on the stone: the water was already inside our homes.", "The glass lantern still hangs east of the bridge. Its socket needs one spare part. Lit again, it could warn the houses beyond the canal before the water rises.", "SIX HOMES BELOW THE BRIDGE is carved on the lid. Two pairs of wet gloves wrap the herbs. Nobody came back for them."},
+            {"A shelter list is wedged into a broken root. Rain washed out the last three names. Someone added: they went north.", "The rope is still taut between two trees, but the canopy lantern has gone dark. Relight it so late travelers can see the fork toward shelter.", "Herbs and a hand-drawn map fill the damp box. Three hollow trees where people could escape the rain are circled carefully."},
+            {"A ferry ticket has an ebb time scribbled on the back, fifteen minutes earlier than scheduled. The captain crossed out the printed time in red.", "The ferry's old route sign is still nailed to a post. Its ebb signal needs one part; once repaired, the ferryman can steer by the actual tide.", "Herbs and boat rivets share the rescue chest. Half a passenger manifest lies underneath, with four names still legible."},
+            {"Twelve names fill the shutdown petition. An apprentice signed first and wrote in tiny letters: get the injured outside before anything else.", "Soot blackens the work-shed lamp. The coil survived; one replacement part is missing. It once lit the emergency exit for the miners.", "Goggles and bandages were locked behind the mine cart. The strap on one small pair of goggles has been stitched twice."},
+            {"The old ledger says FORTY-THREE EVACUATED. A note tucked inside adds six names: the people who stayed outside to work the jammed lock.", "A seal covers the evacuation lamp's switch. Break the seal and replace the part, and people on both sides of the wall can see the light.", "Only half the gold rim of the badge remains. Bandages inside are dated for both the guard barracks and the tents beyond the wall."},
+            {"The last boat's log reads: FIRE ON THE NORTH SHORE, TURNING TO RESCUE. The harbor office recorded that same turn as desertion.", "The homeward lantern's old mirror still faces the sea; its wick is dark. Repair it so boats at night can find the harbor channel.", "Missing sailors' names are carved into a float. Below it lies a packet of dry food prepared for children brought ashore."},
+            {"Each well has two columns in the water ledger: caravans and residents. Ink blots out the residents' share, but the figures survive in the margin.", "Sand has buried half the oasis signal. A replacement part would let travelers find the shared water station again.", "Wrapped herbs and an empty canteen lie inside. A note tied to its neck says: for the family south of here still waiting for water."},
+            {"A distress note sticks out of the snow: take the lee slope; the hearth is still burning. A later evacuation notice was pasted over its arrow.", "Only the snowline lamp's frame remains. One part would restore a light visible along the ridge, even in a high wind.", "Dry firewood, cloth strips and half a flint remain in the chest. A narrow line inside the lid points toward the nearest warming shelter."}
         };
         public bool OuterLogFound(int room)
         { return room>=0&&room<8&&Has("outer_log_"+room); }
