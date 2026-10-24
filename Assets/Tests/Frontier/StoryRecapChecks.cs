@@ -79,6 +79,32 @@ namespace Starfall.Tests
                 "Switching back to Chinese preserves the same chapter order and actual progress");
         }
 
+        public static void StoryRecapDistinguishesTheThreeActualEndings(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.stage=3;
+            game.save.flags.Add("triad_complete");
+            Check(!game.StoryRecap()[3].summary.Contains("归还星核") &&
+                !game.StoryRecap()[3].summary.Contains("保留了屏障"),
+                "The finale does not reveal unchosen ending consequences");
+            game.save.ending=1;
+            string returning=game.StoryRecap()[3].summary;
+            game.save.ending=2;
+            string keeping=game.StoryRecap()[3].summary;
+            game.save.ending=3;
+            string sharing=game.StoryRecap()[3].summary;
+            Check(returning.Contains("河流与土地开始恢复") &&
+                keeping.Contains("对城外人开放庇护") &&
+                sharing.Contains("公共水泵") &&
+                returning!=keeping && keeping!=sharing,
+                "Every saved original ending receives its own truthful account of the lasting decision");
+            game.save.english=true;
+            game.save.ending=2;
+            Check(game.StoryRecap()[3].summary.Contains("You kept the shield") &&
+                !game.StoryRecap()[3].summary.Contains("你保留了屏障"),
+                "The specific past ending is also readable in English without a duplicated Chinese suffix");
+        }
+
         public static void StoryRecapNeverRewritesExistingSaveOrQuestTracking(Campaign data)
         {
             var game=Fresh(data);

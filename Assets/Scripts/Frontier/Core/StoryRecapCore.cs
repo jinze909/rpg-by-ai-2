@@ -32,6 +32,23 @@ namespace Starfall
                 L(summaryZh,summaryEn),next,questId,complete));
         }
 
+        // Only after the original finale may the chronicle name WHICH ending
+        // was chosen. This reflects the actual Epilogue, not a generic
+        // "victory" that erases its distinct ecological and civic effects.
+        private string EndingRecapSuffix()
+        {
+            if(save.ending==1)return L(
+                " 你归还星核，堡垒屏障逐渐熄灭，河流与土地开始恢复；居民建立公共避难所承担新的风险。",
+                " You returned the cores. The citadel shield faded as rivers recovered; residents built shared shelters to face the remaining risks.");
+            if(save.ending==2)return L(
+                " 你保留了屏障，也要求堡垒对城外人开放庇护；外部河流仍在变浅，莉雅公开屏障耗能的账目。",
+                " You kept the shield but opened its refuge to outsiders. Rivers beyond the wall still decline, so Lyra publishes its energy cost.");
+            if(save.ending==3)return L(
+                " 你和同伴把星核能源逐步改为公共水泵、渡船与道路，并由居民共同维护，不再由堡垒独自决定。",
+                " You and your allies turned core power toward public pumps, ferries and roads under resident stewardship, not the citadel alone.");
+            return "";
+        }
+
         // Order is historical, visibility is NOT: the journal may only recap
         // chapters already reached or genuinely unlocked in this save slot.
         // No downstream chapter name, choice or outcome leaks on a new game.
@@ -71,12 +88,14 @@ namespace Starfall
             if(save.stage>=3)
                 AddRecapBeat(beats,4,"第四章 · 三核真相",
                     "Chapter Four · The Three-Core Truth",
-                    Has("triad_complete")?
+                    (Has("triad_complete")?
                         "莉雅已经公开森林、水路与矿工的原始记录。它们都指向同一取舍：屏障保护城内，却让城外居民付出代价。":
-                        "三枚星核都被送往堡垒。前往与厄洛对峙之前，可以帮莉雅核对森林、水路和矿工的记录，让决定建立在真实证词上。",
-                    Has("triad_complete")?
+                        "三枚星核都被送往堡垒。前往与厄洛对峙之前，可以帮莉雅核对森林、水路和矿工的记录，让决定建立在真实证词上。") +
+                        (save.english ? "" : EndingRecapSuffix()),
+                    (Has("triad_complete")?
                         "Lyra published the records of forests, crossings and miners. The shield protects the citadel while people outside pay its cost.":
-                        "All three cores feed the citadel. Before confronting Orrin, help Lyra verify the forests', crossings' and miners' testimony.",
+                        "All three cores feed the citadel. Before confronting Orrin, help Lyra verify the forests', crossings' and miners' testimony.") +
+                        (save.english ? EndingRecapSuffix() : ""),
                     "main",save.ending>0,
                     "你已作出星核抉择；世界将继续回应这项决定。",
                     "You chose the cores' future; the world continues to respond.");
