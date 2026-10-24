@@ -2171,7 +2171,7 @@ public static class RuntimeCombatInputChecks
 
     private static void ManualCompanionFocusDisplaysAndRetiresRealWorldMarker(FrontierRuntime app)
     {
-        Prepare(app,1);
+        Prepare(app,2);
         var g=app.Game;g.Enter(0);g.enemies.Clear();
         g.save.flags.Add("companion_1");
         g.SelectCompanion(1);
@@ -2193,12 +2193,25 @@ public static class RuntimeCombatInputChecks
         Check(g.CompanionFocusActive&&g.IsCompanionFocusTarget(foe),
             "Actual Z ally order with three emitted arrows marks its real enemy object");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(c=>c.Contains("FOCUS FIRE")),
-            "Production English world draw shows the physically committed focus order");
+        Check(GUI.commands.Exists(c=>c.Contains("FOCUS FIRE"))&&
+            GUI.commands.Exists(c=>c.Contains("HERO HIT TO EXPOSE")),
+            "Production English world draw shows real focus and its physical first-hit requirement");
+        // A genuine Arcanist Q area contact, not a scripted change of
+        // mark state, must flip the rendered instruction.
+        g.projectiles.Clear();
+        g.save.energy=100;g.Skill(new Point(-1,0));
+        for(int tick=0;tick<9;tick++)g.Tick(.05f,new Point());
+        Check(g.CompanionFocusExposed&&!g.CompanionFocusComboSpent,
+            "Real player Q contact primes the actual enemy's coordinated opening");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("OPENING"))&&
+            GUI.commands.Exists(c=>c.Contains("ALLY HIT NEEDED")),
+            "Production GameView advances from focus advice to authentic exposed target state");
         g.save.english=false;
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(c=>c.Contains("同伴集火")),
-            "Production Chinese world draw displays the same real marked opponent");
+        Check(GUI.commands.Exists(c=>c.Contains("同伴集火"))&&
+            GUI.commands.Exists(c=>c.Contains("破绽已制造")),
+            "Chinese world draw shows the actual earned first stage of a coordinated contact");
         g.enemies.Remove(foe);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(c=>c.Contains("同伴集火")),

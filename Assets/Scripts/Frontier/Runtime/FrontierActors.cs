@@ -1140,6 +1140,16 @@ namespace Starfall
                     Game.L("同伴集火 · "+Game.CompanionFocusSeconds.ToString("0")+"秒",
                         "FOCUS FIRE · "+Game.CompanionFocusSeconds.ToString("0")+"s"),
                     12,gold,TextAnchor.MiddleCenter);
+                // Directly reflect the two REAL damage contacts, not a
+                // scripted cutscene or newly authored monster paint.
+                Text(p.x-86,p.y-110,172,22,
+                    Game.CompanionFocusComboSpent ?
+                        Game.L("协同命中","COMBO LANDED") :
+                        Game.CompanionFocusExposed ?
+                        Game.L("破绽已制造 · 等待同伴命中","OPENING · ALLY HIT NEEDED") :
+                        Game.L("主角命中制造破绽","HERO HIT TO EXPOSE"),
+                    11,Game.CompanionFocusComboSpent?mint:gold,
+                    TextAnchor.MiddleCenter);
             }
             if(!drawingOutline&&Game.IsSpecialistDrillTarget(e))
             {
