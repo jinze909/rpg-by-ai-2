@@ -658,7 +658,6 @@ namespace Starfall
                         .6f, L("连携终结", "CHAIN FINISH")));
                 return;
             }
-            CommitRiposte(a);
             bool swordHitsCover;
             Point swordContact=SwordVfxContact(Position,a.direction,
                 out swordHitsCover);
@@ -669,14 +668,31 @@ namespace Starfall
             else
                 effects.Add(new Effect("slash",swordContact,.22f)
                     {direction=a.direction,variant=a.combo});
+            // A windup that puts the sword directly into solid stone has
+            // NOT spent the player's earned counter. A real side-contact
+            // target may still be reachable around the obstruction: let
+            // its independent physical line-of-sight earn the counter.
+            // Never multiply damage before confirming one genuine swing
+            // or an actually hittable opponent.
+            if(!swordHitsCover)CommitRiposte(a);
+            bool madeRealContact=false;
             foreach (Enemy e in enemies.ToArray())
             {
                 Point d = e.Position - Position;
-                if (d.Length < (a.combo == 2 ? 2.2f : 1.85f) &&
+                if (e.hp>0 && d.Length < (a.combo == 2 ? 2.2f : 1.85f) &&
                     d.Normalized.x * a.direction.x +
                     d.Normalized.y * a.direction.y > -.15f &&
                     ClearAttackPath(Position, e.Position))
+                {
+                    if(swordHitsCover&&!madeRealContact)CommitRiposte(a);
+                    madeRealContact=true;
                     Hit(e, a.damage, false, null, a.impact);
+                }
+            }
+            if(swordHitsCover&&!madeRealContact)
+            {
+                a.blockedAtContact=true;
+                a.riposteArmed=false;
             }
         }
         private void ReleaseSkill(ActorAction a)
