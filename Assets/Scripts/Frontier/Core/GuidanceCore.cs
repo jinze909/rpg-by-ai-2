@@ -2076,9 +2076,20 @@ namespace Starfall
             {
                 int n = int.Parse(id.Substring(4)), item = n == 1 ? 2 : n == 2 ? 3 : 4, count = n == 1 ? 6 : n == 2 ? 3 : 5;
                 q.category = L("镇民委托", "TOWN REQUEST"); q.title = new[] { "", L("杏的药草", "An's Moonherbs"), L("老潮的鲜鱼", "Old Tide's Silverfin"), L("诺尔的零件", "Noll's Spare Parts") }[n];
-                q.description = L("为镇里的居民准备一份补给，帮助边境恢复日常生活。", "Gather supplies for a resident and help the town return to everyday life."); q.complete = Has("ally_" + n);
+                q.complete = Has("ally_" + n);
+                q.description = n == 2 ?
+                    q.complete ?
+                        L("老潮已经把三条银鳍鱼熬成热汤，避难所的孩子们终于吃上了一顿晚饭。",
+                          "Old Tide cooked the three Silverfin for the shelter children. Their supper is finally warm.") :
+                    save.inventory[3] >= 3 ?
+                        L("三条银鳍鱼已装进鱼袋。老潮正在东湖边等着，趁汤锅还热，送去给避难所的孩子们。",
+                          "Three Silverfin are in your bag. Old Tide is waiting by the east lake with the pot on.") :
+                        L("老潮答应为避难所的孩子们煮汤。去镇东湖边等鱼咬钩；听到水声就及时收线，别等鱼儿松开钩。",
+                          "Old Tide promised the shelter children fish stew. Cast at the east lake; reel promptly when you hear the splash, before the fish lets go.") :
+                    L("为镇里的居民准备一份补给，帮助边境恢复日常生活。",
+                      "Gather supplies for a resident and help the town return to everyday life.");
                 q.steps.Add(new QuestStep(L(GameItemsZh(item), GameItemsEn(item)) + " " + Math.Min(count, save.inventory[item]) + "/" + count, save.inventory[item] >= count || q.complete));
-                q.steps.Add(new QuestStep(L("返回余烬镇交付", "Deliver in Emberfall"), q.complete)); q.reward = L("镇民支持 · 硬币与经验", "Town support · coins and experience");
+                q.steps.Add(new QuestStep(L("返回余烬镇交付", "Deliver in Emberfall"), q.complete)); q.reward = L("镇民支持 · 40硬币 · 技能点1", "Town support · 40 coins · 1 skill point");
                 q.target = ObjectPoint(0, n == 1 ? "garden" : n == 2 ? "fish" : "forge", new Point(18, 14));
                 if (!q.complete && save.inventory[item] < count && n != 2) { q.room = save.room > 0 && save.room < 8 ? save.room : 1; q.target = ResourcePoint(q.room, n == 1 ? "herb" : "ore"); }
                 q.next = q.complete ? L("委托已完成", "Request complete") : save.inventory[item] >= count ? L("返回镇民处交付材料", "Deliver your supplies in town") : n == 2 ? L("到镇东湖边钓鱼", "Fish at the eastern lake") : L("采集材料；旅店休息可更新采集点", "Gather supplies; inn rest renews nodes"); return q;

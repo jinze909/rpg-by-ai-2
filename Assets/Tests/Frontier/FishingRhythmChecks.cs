@@ -216,6 +216,10 @@ namespace Starfall.Tests
             WorldObject pond=Object(g,"fish");
             g.enemies.Clear();
             g.save.x=pond.x;g.save.y=pond.y;
+            QuestGuide empty=g.GetQuest("ally2");
+            Check(!empty.complete&&empty.description.Contains("及时收线")&&
+                empty.reward.Contains("40硬币")&&empty.reward.Contains("技能点1"),
+                "The tracked town request explains the real bite clock and exact old one-time rewards");
             g.Talk(pond);
             Check(g.conversation!=null &&
                 g.conversation.text.Contains("三条银鳍鱼")&&
@@ -231,6 +235,10 @@ namespace Starfall.Tests
                 "Full fish storage is shown as a non-cast option without hiding the existing commission");
             g.Close();
             g.save.inventory[3]=3;
+            QuestGuide filled=g.GetQuest("ally2");
+            Check(filled.description.Contains("三条银鳍鱼")&&
+                filled.next.Contains("交付"),
+                "Quest journal recognizes that three physical fish are ready for delivery");
             g.Talk(pond);
             Check(g.conversation.text.Contains("都齐了") &&
                 g.conversation.textEn.Contains("All three?"),
@@ -242,6 +250,9 @@ namespace Starfall.Tests
             Check(g.Has("ally_2")&&g.save.inventory[3]==0&&
                 g.save.coins==beforeCoins+40,
                 "Existing fish commission pays exactly once and consumes exactly three real catches");
+            QuestGuide done=g.GetQuest("ally2");
+            Check(done.complete&&done.description.Contains("吃上了一顿晚饭"),
+                "Finished fish commission journal reflects the actual fulfilled shelter meal");
             g.Close();g.Talk(pond);
             Check(g.conversation.text.Contains("孩子们昨晚") &&
                 g.conversation.textEn.Contains("fish stew last night")&&
