@@ -410,24 +410,24 @@ namespace Starfall
             switch (page)
             {
                 case "origin":
-                    headingZh = "星陨后的第七天"; headingEn = "Day Seven after Starfall";
-                    zh = "七日前，夜空和大地同时迸出星色裂光。森林生出荆棘，河道淹没石桥，矿机忘记停工。堡垒称此事为星陨，要求继续回收星核，为护城屏障供能。\n\n你带着失踪巡路员的旧信来到余烬镇。莉雅先请你救出密林侦察员。故事始于有人等不到回家的人，不是预言。";
-                    en = "Seven days ago light fractured across sky and soil. Thorns blocked forests, rivers crossed ruined bridges, and mining machines forgot to stop. The citadel named the disaster Starfall and ordered more cores for its shield.\n\nYou carried an unsent roadwarden letter into Emberfall. Lyra asked you to bring the missing scout home. This story begins with people waiting, not a prophecy.";
+                    headingZh="星陨后的第七天"; headingEn="Seven Days After Starfall";
+                    zh="余烬镇公会值夜簿，第七日。\n\n第二更，矿场钟又响了。守夜人说矿机自星陨以来没停过。旧桥被冲断后，西岸的车夫只能把空车赶回来。密林入口的路牌缠满了荆棘，已经看不清字。\n\n巡路员未归。随行的最后一封信已由陌生旅人送抵公会。莉雅在信封背面记了一句：“人先找回来。其他的，回来再说。”";
+                    en="Emberfall Guild, night ledger. Seventh day.\n\nThe mine bell sounded again during the second watch. The machinery has not stopped since Starfall. With Old Bridge down, the ferrymen sent their empty carts home. Thorns have wrapped around the sign at the forest gate until its lettering is gone.\n\nThe roadwarden is overdue. A stranger delivered his last letter to the guild. On the back of the envelope Lyra wrote: “Bring him home first. The rest can wait.”";
                     break;
                 case "roots":
-                    headingZh = "星根与七锚"; headingEn = "Starroot and the Seven Anchors";
-                    zh = "边境地下的星根是一张分配潮水、热量和生机的活脉络。先民为它建立七处调谐锚点，凝结的核心叫星核。星晶只是能量溢出形成的矿物，不是可以无限采集的恩赐。\n\n把一处锚点的能源送往堡垒，就会改变另一处水与土地的供给。所谓更强大的屏障，可能意味着更贫瘠的道路。";
-                    en = "Starroot is a living network moving tides, heat and life beneath the frontier. Ancient engineers built seven balancing anchors; their condensed regulators are the starcores. Starcrystals are surplus deposits, not an unlimited blessing.\n\nFeeding one region's anchor to the citadel changes the water and soil of another. A brighter shield may mean a poorer road outside.";
+                    headingZh="星根与七锚"; headingEn="Starroot and the Seven Anchors";
+                    zh="旧调谐手册，封页缺失。\n\n“七处锚点互为牵引。抽走其中一处星核，应先调低其余六处的负荷。否则水位、地温、根系生长将先后出现偏差。”\n\n页边用另一种墨水补写：“堡垒征收星核，未附调谐记录。”\n\n纸角夹着一粒星晶。它只是脉络周围析出的矿物，却被旧手册反复圈了红线：不可将矿物与锚点核心混记。";
+                    en="An old calibration manual, cover missing.\n\n“The seven anchors pull against one another. Before removing a starcore, reduce the load on the six remaining stations. Otherwise water levels, ground heat and root growth will drift.”\n\nA different hand has written in the margin: “The citadel requisitioned the core. No calibration record attached.”\n\nA starcrystal is pressed into the corner of the page. The manual circles the same warning twice: mineral deposits are not to be entered in the ledger as anchor cores.";
                     break;
                 case "orders":
-                    headingZh = "九年前的命令"; headingEn = "An Order Nine Years Old";
-                    zh = "玻璃沙海的旧城主死去已经九年。蓄光机仍遵守最后一条命令：每天替主人留下水与光。没有人改变命令，空城便继续得到补给，活人却走在无水的沙海。\n\n七日前的星陨使这些旧系统更加不稳。它们不是突然变坏，而是太久没有人问过：这台机器现在替谁工作？";
-                    en = "The ruler of the Glass Desert's old city died nine years ago. Its light reservoir still follows one instruction: keep water and light for its master. The empty city remains supplied while living travelers cross the thirsting dunes.\n\nThe Starfall seven days ago destabilized such systems. They did not suddenly turn evil. No one had asked whom they were serving now.";
+                    headingZh="九年前的命令"; headingEn="An Order Nine Years Old";
+                    zh="玻璃沙海蓄光机维护记录，第九年。\n\n“城主专用蓄水槽：水位正常。西南居民槽：无维护拨款。远行供给：暂停。”\n\n值班人的字越写越小。末尾有一行被重重划掉：“城主已经死了，为什么还在给他的空屋送水？”\n\n七日前星陨后，机器仍照旧分水。最后一次维护签名停在九年前。";
+                    en="Glass Desert reservoir maintenance log, year nine.\n\n“Governor's private cistern: level normal. Southwest civilian cistern: no maintenance allocation. Traveler ration: suspended.”\n\nThe watchkeeper's handwriting grows smaller down the page. A line has been scratched out: “The governor is dead. Why are we still filling his empty house?”\n\nAfter Starfall, the valves kept the same schedule. The last maintenance signature is nine years old.";
                     break;
                 case "wardens":
-                    headingZh = "巡路队最后的信"; headingEn = "The Wardens' Last Letters";
-                    zh = "巡路员曾替公会测绘矿脉，后来发现地图上只许画堡垒的货路，不许画村庄的逃生路。有人在旧信、信标和地图里藏下另一套路线：药送给需要的人，船留给无钱渡河的人，机器应该由活着的人决定用途。\n\n他们失踪了，路线却留着。救回侦察员后，你第一次知道这封信并非只为莉雅而写。";
-                    en = "The wardens mapped ore for the guild until they found that escape routes to villages had been left out. They hid another network in letters, beacons and charts: medicine for those in need, passage for those without coins, and machines answerable to living people.\n\nThe patrol disappeared, but the routes survived. The rescued scout reveals that the letter was meant for more than Lyra.";
+                    headingZh="巡路队最后的信"; headingEn="The Wardens' Last Letters";
+                    zh="巡路队的旧地图背面有一条被刮掉的线，从旧桥通向密林北坡。墨痕下还留着三个字：担架可行。\n\n第二张纸写着：“公会准许标矿车路线，不准标村民撤离路。我照画了两份。一份交差，一份埋在第三座信标下。”\n\n信的末尾没有署名，只有一句：“如果回来的是别人，别只把货路交给他。”";
+                    en="The back of an old roadwarden map shows a route scraped nearly clean, running from Old Bridge to the northern slope of Thornwood. Three words survive beneath the ink: Stretcher route passable.\n\nOn a second sheet: “The guild approved ore-cart roads, not village escape routes. I drew two maps. One for the office; one buried beneath the third beacon.”\n\nThe letter is unsigned. Its final line reads: “If someone else brings this home, don't hand them only the freight map.”";
                     break;
                 case "testimonies":
                     headingZh="未被计入的人：三位活着的证人";
@@ -462,29 +462,35 @@ namespace Starfall
                         (AllWitnessesFiled?"\nThree living signatures now accompany Lyra's Chapter Four audit and weaken the guardian's security.":"\nThese accounts are incomplete. Machines cannot sign for the living.");
                     break;
                 case "forest":
-                    headingZh = "荆棘密林：森林在守护什么"; headingEn = "Thornwood: What the Forest Defends";
-                    zh = "矿工按命令切开两棵老树，根脉中的星晶让兽群陷入狂暴。黑荆巨兽守在星核旁，挡住的不是人类本身，而是继续伤害根系的采掘。\n\n救侦察员、击退巨兽并调谐祭坛后，你获得第一枚星核。它被送去公会暂管，但是否继续为堡垒供能，仍是一个未回答的问题。";
-                    en = "Mining cuts severed ancient roots and starcrystal surges maddened the beasts. The Briar Beast guarded its core against further extraction, not humanity itself.\n\nYou rescued the scout, quieted the beast and took the first starcore into temporary guild custody. Whether it would keep feeding the shield was still unresolved.";
+                    headingZh="荆棘密林：斧痕"; headingEn="Thornwood: Marks in the Roots";
+                    zh="侦察员的现场札记。\n\n“被砍倒的两株老树，树皮内侧有整齐的铁镐痕。越往祭坛走，兽群越不肯让路。黑荆巨兽一直守着根脉裂开的地方。”\n\n树根间还嵌着小块星晶。札记到这里戛然而止，末页浸透了雨水。"+
+                        (Has("core_1")?"\n\n公会后来补了一笔：祭坛已调谐，第一枚星核交由公会保管。":"\n\n祭坛封锁记录尚未完结。");
+                    en="Field notes from the missing scout.\n\n“The two fallen trees show clean pickaxe marks under the bark. The closer I get to the altar, the less the animals will let me pass. The Briar Beast stays by the torn roots.”\n\nSmall starcrystals are lodged between those roots. The notes stop here, the last sheet soaked through with rain."+
+                        (Has("core_1")?"\n\nA later guild entry confirms the altar was tuned and the first core taken into custody.":"\n\nThe record of the sealed altar ends here.");
                     break;
                 case "ruins":
-                    headingZh = "沉没遗迹：谁有钥匙"; headingEn = "Drowned Ruins: Who Holds the Key";
-                    zh = "先民用日、月、潮三个记号按次序打开水闸。后来守卫只承认公会印章；印章消失的一夜，无数人被关在涨潮的桥外。\n\n你恢复碑序，击退依旧守护旧命令的溺水守卫。第二枚星核和浅水接通能力揭示了同一个道理：机关可以记住次序，但人必须记得次序为何存在。";
-                    en = "Ancient sluices opened to a Sun, Moon and Tide sequence. Later, officials replaced consent with a guild seal. When the seal vanished, people waited outside the floodgates.\n\nYou restored the tablets and defeated a sentinel still defending an obsolete order. The second core teaches that mechanisms remember sequences; people must remember their purpose.";
+                    headingZh="沉没遗迹：闸门钥匙"; headingEn="Drowned Ruins: The Sluice Key";
+                    zh="渡口旧碑的拓片，日、月、潮三个符号都磨得很浅。\n\n旁边的守卫换班簿写着：“今夜不见公会印章者，一律不准过闸。”下一页纸被水泡烂，只剩下“儿童”和“桥西”等几个字。"+
+                        (Has("core_2")?"\n\n新的登记补在拓片后：碑序已经复位，溺水守卫解除，第二枚星核取出。":"\n\n水闸内侧的记录尚无后页。");
+                    en="A rubbing from the old ferry tablet. The symbols for Sun, Moon and Tide are worn almost flat.\n\nBeside it, a guard's shift log reads: “No guild seal, no passage tonight.” Water has eaten the following page. Only “children” and “west bank” remain legible."+
+                        (Has("core_2")?"\n\nA later entry confirms the tablet sequence restored, the drowned sentinel removed and the second core recovered.":"\n\nNo later crossing record has been recovered.");
                     break;
                 case "mine":
-                    headingZh = "赤铁矿场：不许停机"; headingEn = "Ironreach: Never Stop Working";
-                    zh = "自动监工仍把星晶送往堡垒。矿工缺水、断桥缺零件，机器却从未被允许停下来。矿场的一张工时表还擦掉了为妹妹点灯的工人名字。\n\n你修好升降机，击败铸铁监工，取回第三枚星核。诺尔说得对：技术不会自己选择善恶，但握着图纸的人必须作出选择。";
-                    en = "The Iron Overseer still shipped crystals to the shield. Workers lacked water, broken bridges lacked parts, but no one had authorized the machines to stop. A miner's timesheet even erased the man who lent light to his sister.\n\nYou repaired the lift, defeated the overseer and recovered the third core. Technology does not choose sides by itself; the person holding the plan must.";
+                    headingZh="赤铁矿场：末班工时"; headingEn="Ironreach: The Last Shift";
+                    zh="矿场工时表，最末页。\n\n“升降机故障。冷却阀无权手动开启。配额照旧。”\n\n一个工人把妹妹的名字写在工时格里，又用指甲刮掉了。旁边留着一幅歪歪扭扭的小灯。"+
+                        (Has("core_3")?"\n\n诺尔后来在表背面补了一行：升降机修复，铸铁监工停机，第三枚星核已送出矿场。":"\n\n升降井下仍缺最后一份停机记录。");
+                    en="Ironreach shift ledger, final page.\n\n“Lift broken. Cooling valves may not be opened manually. Quota unchanged.”\n\nA worker wrote his sister's name in the hours column, then scraped it away with a fingernail. Beside it is a crooked drawing of a little lamp."+
+                        (Has("core_3")?"\n\nNoll later added: lift repaired, Iron Overseer shut down, third core removed from the mine.":"\n\nThe last shutdown log from below the lift is still missing.");
                     break;
                 case "citadel":
-                    headingZh = "厄洛与最后的城墙"; headingEn = "Orrin and the Last Wall";
-                    zh = "厄洛不是谎称自己救过人。他亲眼见过城墙之外的死亡，才决定绝不能让屏障熄灭。现在他知道屏障正在从森林、河流与村庄抽走生机，却害怕停机的代价更加惨烈。\n\n你可以用战斗迫使他面对后果；如果带来了三地证词和已经运转的共同协定，也能证明“没有别的选择”并非事实。星核最终的去向仍由你决定。";
-                    en = "Orrin really did save lives behind his wall. Having seen what happened beyond it, he swore the shield would never fail again. He now knows it drains forests, rivers and villages, but fears stopping it even more.\n\nYou may defeat him in battle. With the original regional evidence and a working covenant, you can also prove that another path exists. You still decide where the cores belong.";
+                    headingZh="堡垒：屏障日志"; headingEn="Citadel: Shield Watch";
+                    zh="堡垒屏障的值守日志，两页使用了不同的印章。\n\n“外环冲击，三号居民区无伤亡。屏障负荷不得低于警戒线。”\n\n第二页是莉雅送来的外地记录：密林根脉受损、河水上涌、矿工无法停机。两张纸上写着同一个日期。\n\n厄洛在页边留下批注：“若再停屏障，城内的人由谁保护？”没有人替他回答。";
+                    en="Two pages from the citadel shield watch, stamped by different offices.\n\n“Outer-ring impact. No losses in residential sector three. Shield output must not fall beneath the alert threshold.”\n\nThe second page came from Lyra: broken forest roots, rising river water, miners unable to stop the machines. Both reports bear the same date.\n\nIn the margin Orrin wrote, “If I shut the shield down again, who protects the people inside?” No reply is recorded.";
                     break;
                 case "harbor":
-                    headingZh = "雾港：两种颜色的灯"; headingEn = "Mistport: Two Colors of Light";
-                    zh = "白灯让远海船只找到航路，青灯告诉落水者岸上仍有人等待。堡垒每次加压，水位账目就会少一行。米拉的弟弟曾要求修灯，后来带孩子们去了北岸，没有再回来。\n\n守灯和救援可能争同一份零件。你必须在灯塔、避难乘客和潮壳海兽之间作出实际取舍，取得带着名字的水位记录。";
-                    en = "White lamps guide ships offshore. Teal lamps tell people in the water that someone is waiting. Each shield surge cost the tide ledger a line. Mira's brother asked for repairs, then took children north and never returned.\n\nLighthouses and rescues compete for the same parts. Your choices preserve a log of both the living and the missing.";
+                    headingZh="雾港：两盏灯"; headingEn="Mistport: Two Lanterns";
+                    zh="米拉的灯塔记录，两栏用不同颜色的墨水写成。\n\n“白灯亮：远海货船报平安。青灯灭：北岸救生艇未归。”\n\n每次堡垒要求加压，水位栏就多一道横线。米拉弟弟的名字停在第三页——他带几个孩子去北岸后，再没人替他续写那一栏。\n\n灯座下还压着一张零件领用单。白灯与救生艇申请了同一批铜线。";
+                    en="Mira's lighthouse log has two columns in different ink.\n\n“White lamp lit: offshore freighter reported safe. Teal lamp dark: northern rescue skiff overdue.”\n\nEach citadel power surge adds another line to the tide column. Mira's brother's name stops on page three. He took several children north; nobody signed for his return.\n\nA parts requisition is tucked beneath the lantern bracket. The white lamp and the rescue skiff both requested the same copper wire.";
                     break;
                 case "desert":
                     headingZh = "玻璃沙海：为谁留水"; headingEn = "Glass Desert: Who Receives Water";
@@ -497,9 +503,9 @@ namespace Starfall
                     en = "Sen discovers the low chimes can steady cracking ice and drown out voices beneath it. The Frost Prelate fears that exposing the evacuation failure will break the community; the missing have families who deserve the truth.\n\nYou restore the bells and recover the names. You may preserve the evidence privately for reform or carve it in public.";
                     break;
                 case "covenant":
-                    headingZh = "三方协定：让人拥有决定权"; headingEn = "The Council: A Share in Decisions";
-                    zh = "雾港的水位、沙海的调度、高原的名单必须同时上桌。守灯会承认航路也有代价，摆渡盟承认停灯会伤及远海的人，山野议会承认复苏土地仍需要技术。\n\n共同水渠、轮值灯网或开放星路是三种不同的治理协议。这份协定解决“谁来管理”，而堡垒的星核结局解决“力量往哪里去”。";
-                    en = "The harbor tide ledger, desert allocation log and mountain names share one table. Lamplighters, ferrymen and villagers acknowledge what each has neglected.\n\nShared canals, rotating lightwatch and open starroads are different governance contracts. The council answers who decides. The starcore ending answers where the power goes.";
+                    headingZh="远岸议定书"; headingEn="The Farshore Agreement";
+                    zh="议事桌上留着三份沾水的记录：雾港水位、沙海配水、高原巡路名单。写字的人互相改了好几次草稿。\n\n守灯人要求保留外海白灯；摆渡人问谁来救落水的孩子；高原的代表说，不修路，连修灯的铜线也送不到。\n\n最后一页列出三套可供表决的安排：共同水渠、轮值灯网、开放星路。签名栏原本留给堡垒的总管，如今划开成三栏。";
+                    en="Three damp records lie on the council table: Mistport tides, desert water rations and highland road names. The writers have corrected one another's drafts several times.\n\nThe lamplighters insist on the offshore beacon. The ferrymen ask who will pull children out of the water. The highland delegates point out that broken roads will keep the repair wire from arriving at all.\n\nThe last sheet lists three arrangements for a vote: shared canals, rotating lightwatch, open starroads. What was once one signature line for the citadel steward has been divided into three.";
                     break;
                 case "signal":
                     headingZh = "归乡星图：第二套道路"; headingEn = "Homeward Chart: Another Network";
@@ -1068,13 +1074,22 @@ namespace Starfall
                         "\n[Charter pending] Once all three sites work, return to the guild to publish responsibility for their upkeep.";
                     break;
                 case "ending":
-                    headingZh = "你决定的边境"; headingEn = "The Frontier You Chose";
-                    if (save.ending == 1)
-                    { zh = "你将星核重新接回地方锚点，城墙屏障不再替所有人决定归途。土地开始复苏，风险仍在；厄洛第一次离开城墙，学着同邻居种树。"; en = "You returned the cores to their local anchors. The shield no longer decides everyone's future. The land begins to heal, though danger remains. Orrin learns to plant a tree beyond his wall."; }
-                    else if (save.ending == 2)
-                    { zh = "你保留屏障，也逼迫堡垒打开大门容纳更多人。短期的安全真实存在，但被抽取的土地还在承担代价。这个选择不是幸福的终点，而是一份尚未还清的账。"; en = "You kept the shield and opened the citadel to more people. Its safety is real, and so is the debt still paid by the outer land. The argument has not been settled."; }
+                    headingZh="你决定的边境";headingEn="The Frontier You Chose";
+                    if(save.ending==1)
+                    {
+                        zh="北坡锚点维护簿。\n\n“土温连续回升三日。根系已见新芽。夜间仍需派人在镇口值守。”\n\n厄洛的名字第一次出现在城外巡查栏旁。墨迹还没干。";
+                        en="Northern anchor maintenance log.\n\n“Soil temperature rising for three days. New root shoots visible. Town gate still needs a night watch.”\n\nOrrin's name appears beside an inspection beyond the wall for the first time. The ink has not dried.";
+                    }
+                    else if(save.ending==2)
+                    {
+                        zh="堡垒收容登记。\n\n“新开南门，今晨入城三十七人。外河水位又降半尺。粮仓申请追加两车面粉。”\n\n值班员在空白处写了一行：“明天门外还有多少人？”";
+                        en="Citadel refuge register.\n\n“South gate opened. Thirty-seven people admitted this morning. The outer river dropped another half-foot. Granary requests two more wagons of flour.”\n\nIn the margin the clerk wrote, “How many will be waiting outside tomorrow?”";
+                    }
                     else
-                    { zh = "杏让药物走向村庄，老潮把食物送过河，诺尔将耗能机器改造成共用水泵。星核慢慢回到居民之间，厄洛拆下第一段城墙。没有一夜解决全部问题，终于有人愿意一起承担。"; en = "An sends medicine beyond authorized roads. Old Tide ferries food. Noll rebuilds generators as public pumps. The cores return to communities and Orrin removes the first wall. Shared work, not one victory, begins the change."; }
+                    {
+                        zh="余烬镇公共工地领料单。\n\n“杏领走草药四捆，渡口急用。老潮借用木板六片修船。诺尔取水泵阀门两套，夜里归还。”\n\n最下面一行是厄洛写的：“拆下第一段旧城墙的砖，送往北侧避险棚。”";
+                        en="Emberfall public works requisition.\n\n“An: four bundles of herbs for the ferry sick. Old Tide: six planks for boat repairs. Noll: two water-pump valves, return after the night shift.”\n\nOrrin added the last line: “Send bricks from the first dismantled wall section to the northern shelter.”";
+                    }
                     break;
                 default: WorldChronicleMenu(); return;
             }

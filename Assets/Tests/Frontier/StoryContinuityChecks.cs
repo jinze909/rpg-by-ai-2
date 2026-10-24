@@ -1088,5 +1088,35 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void ChroniclePrimaryDocumentsRespectDiscoveryAndChoice(Campaign data)
+        {
+            var g=Fresh(data);
+            WorldObject book=Object(g,"worldchronicle");
+            g.save.x=book.x;g.save.y=book.y;g.Talk(book);
+            ChooseStoryChoice(g,"story_section_origins");
+            ChooseStoryChoice(g,"story_read_origin");
+            Check(g.conversation.text.Contains("值夜簿") &&
+                !g.conversation.text.Contains("一句话看懂") &&
+                !g.conversation.text.Contains("故事始于") &&
+                g.conversation.textEn.Contains("night ledger"),
+                "Beginning of chronicle reads as an in-world night ledger in both languages");
+            ChooseStoryChoice(g,"story_menu");
+
+            g.save.flags.Add("boss_1");
+            ChooseStoryChoice(g,"story_section_campaign");
+            ChooseStoryChoice(g,"story_read_forest");
+            Check(g.conversation.text.Contains("侦察员的现场札记") &&
+                !g.conversation.text.Contains("第一枚星核交由公会保管"),
+                "A newly defeated guardian cannot counterfeit a not-yet-recovered core");
+            g.save.flags.Add("core_1");
+            ChooseStoryChoice(g,"story_menu");
+            ChooseStoryChoice(g,"story_section_campaign");
+            ChooseStoryChoice(g,"story_read_forest");
+            Check(g.conversation.text.Contains("第一枚星核交由公会保管") &&
+                g.conversation.textEn.Contains("first core"),
+                "Later discovery updates the same archive page without rewriting save data");
+            Check(g.save.version==2,"Revised journal keeps original v2 save schema");
+        }
     }
 }
