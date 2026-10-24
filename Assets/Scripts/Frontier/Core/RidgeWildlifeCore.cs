@@ -31,13 +31,13 @@ namespace Starfall
             if(room<1||room>7||!RidgeLinked(room)||!Has("boss_"+room))
                 return "";
             if(RidgeWatchComplete(room))
-                return english?"\\n\\nRidge watch: cleared. +2 energy/sec while exploring the outer high trails.":
-                    "\\n\\n高地巡守：已完成。在外环高处步道探索时耐力恢复 +2/秒。";
+                return english?"\n\nRidge watch: cleared. +2 energy/sec while exploring the outer high trails.":
+                    "\n\n高地巡守：已完成。在外环高处步道探索时耐力恢复 +2/秒。";
             int available=ridgeWatchRoom==room&&
                 Object.ReferenceEquals(ridgeWatchMap,Map)?ridgeWatchIds.Count:3;
-            return english?"\\n\\nRidge watch: clear the real hostile patrols beyond the markers ("+
+            return english?"\n\nRidge watch: clear the real hostile patrols beyond the markers ("+
                 RidgeWatchProgress(room)+"/"+available+"). First-clear supplies await.":
-                "\\n\\n高地巡守：清除路标外的实际巡敌（"+
+                "\n\n高地巡守：清除路标外的实际巡敌（"+
                 RidgeWatchProgress(room)+"/"+available+"）。首次完成有补给奖励。";
         }
         private void OnRidgeWatchEnemyDefeated(Enemy enemy)

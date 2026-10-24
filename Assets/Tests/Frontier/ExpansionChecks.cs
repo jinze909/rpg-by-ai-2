@@ -3809,5 +3809,55 @@ namespace Starfall.Tests
             Check(((Dictionary<int,int>)field.GetValue(g)).Count==3,
                 "Returning to a surveyed highland retains one genuine set of patrols");
         }
+
+        public static void RidgeWatchMarkerTracksLivePatrolWithoutBorrowingAnotherDialogue(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="ridgemarker");
+            Check(marker!=null,"Real highland marker exists for track choice");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.trackedQuest="main";
+            g.Talk(marker);
+            int choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_watch_track");
+            Check(choice>=0&&g.conversation.textEn.Contains("\n\nRidge watch:")&&
+                !g.conversation.textEn.Contains("\\n\\n"),
+                "An available ridge marker offers live tracking with real paragraph breaks");
+            g.save.x=marker.x+8f;
+            g.Choose(choice);
+            Check(g.save.trackedQuest=="main"&&g.mode=="world",
+                "A stale marker dialogue cannot secretly reassign the active journal");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.Talk(marker);
+            choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_watch_track");
+            g.Choose(choice);
+            Check(g.save.trackedQuest=="ridge_watch"&&
+                g.GetQuest("ridge_watch").room==1,
+                "A genuine physical marker explicitly tracks the field encounter");
+            var ids=(Dictionary<int,int>)typeof(GameCore)
+                .GetField("ridgeWatchIds",BindingFlags.NonPublic|BindingFlags.Instance)
+                .GetValue(g);
+            var target=g.NavigationTarget();
+            Check(target.HasValue&&g.enemies.Exists(e=>ids.ContainsKey(e.id)&&
+                (e.Position-target.Value).Length<.01f),
+                "Tracking from the world marker connects to the live enemy navigation system");
+            // The handler must never grant the new action from a fabricated
+            // choice that is not attached to an actual ridge speaker.
+            g.save.trackedQuest="main";
+            var handler=typeof(GameCore).GetMethod("ChooseRidge",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            handler.Invoke(g,new object[]{"ridge_watch_track"});
+            Check(g.save.trackedQuest=="main",
+                "Direct unowned commands cannot counterfeit a pinned ridge interaction");
+            g.save.flags.Add("ridge_watch_complete_1");
+            g.Talk(marker);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ridge_watch_track")<0,
+                "Completed watch must not advertise another repeatable task");
+        }
     }
 }

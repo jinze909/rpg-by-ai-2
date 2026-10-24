@@ -69,14 +69,21 @@ namespace Starfall
             };
             if(RidgeLinked(room))
             {
+                // Keep ordinary crossing first. An unlocked, uncleared
+                // highland also lets the player track the living patrol
+                // directly from this real marker without searching the log.
+                Choice crossing=C("穿越巡路 · 耐力 12","Cross route · 12 energy","ridge_travel");
+                Choice depart=C("继续步行","Keep walking","close");
+                Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
+                    new Choice[]{crossing,C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
+                    new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 12 耐力。"+
                     (first?"\n\n这处地标首次记录：经验 +9。线路连通：硬币 +20、碎片 +1、经验 +24。":""),
                     en[room]+RidgeWatchHint(room,true)+
                     "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for 12 energy."+
                     (first?"\n\nFirst visit: +9 XP. Route linked: +20 coins, +1 shard, +24 XP.":""),
-                    C("穿越巡路 · 耐力 12","Cross route · 12 energy","ridge_travel"),
-                    C("继续步行","Keep walking","close"));
+                    choices);
                 return true;
             }
             Dialog(o.name,o.en,zh[room]+
@@ -92,8 +99,25 @@ namespace Starfall
         }
         private bool ChooseRidge(string action)
         {
-            if(action!="ridge_travel")return false;
+            if(action!="ridge_travel"&&action!="ridge_watch_track")
+                return false;
             int room=save.room;
+            if(action=="ridge_watch_track")
+            {
+                // Never let an unrelated NPC, remote/stale page or a
+                // synthesized choice change the tracked story objective.
+                WorldObject speaker=pendingDialogueSource;
+                if(speaker==null||pendingDialogueSourceRoom!=room||
+                    speaker.kind!="ridgemarker"||
+                    !SourceBelongsToActiveMap(speaker)||
+                    !HasPhysicalInteractionReach(speaker)||
+                    !RidgeLinked(room)||!Has("boss_"+room)||
+                    RidgeWatchComplete(room)||Dying||practicing)return true;
+                TrackQuest("ridge_watch");
+                Notify("巡守任务已追踪。导航将指向仍然活动的高地敌人。",
+                    "Ridge watch tracked. Navigation now follows living patrol enemies.");
+                return true;
+            }
             if(room<0||room>7||!RidgeLinked(room)||Dying||practicing)return true;
             WorldObject start=null,end=null;
             foreach(WorldObject o in Map.objects)
