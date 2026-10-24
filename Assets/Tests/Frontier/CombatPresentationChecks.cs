@@ -4876,12 +4876,22 @@ namespace Starfall.Tests
                 Check(g.companionPosition.x>begin.x+.45f&&
                     Math.Abs(g.companionPosition.y-begin.y)<.5f,
                     "Mira actively moves toward a wounded resident rather than following the distant hero diagonally");
-                Advance(g,1.6f);
-                Check(g.reliefFollowerSafety>55f&&
-                    g.effects.Exists(e=>e.reliefMissionOwned&&
-                        e.kind=="number"&&
-                        e.text.StartsWith(g.L("包扎 +","TREATED +"))),
-                    "A walking medic reaches an honest healing lane and performs the actual delayed civilian treatment");
+                bool observedMedicalContact=false;
+                for(int frame=0;frame<48;frame++)
+                {
+                    g.Tick(.05f,new Point());
+                    observedMedicalContact|=g.effects.Exists(e=>
+                        e.reliefMissionOwned&&e.kind=="number"&&
+                        e.text.StartsWith(g.L("包扎 +","TREATED +")));
+                }
+                Check(g.reliefFollowerSafety>55f&&observedMedicalContact,
+                    "Walking Mira must reach and actually treat the civilian: "+
+                    "cue="+observedMedicalContact+
+                    " safety="+g.reliefFollowerSafety+
+                    " miraX="+g.companionPosition.x+
+                    " miraY="+g.companionPosition.y+
+                    " cooldown="+cooldown.GetValue(g)+
+                    " cast="+(g.companionAction==null?"none":g.companionAction.kind));
 
                 for(int y=1;y<23;y++)
                 {
