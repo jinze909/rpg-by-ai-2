@@ -4563,7 +4563,9 @@ public static class RuntimeCombatInputChecks
             g.save.energy=60;g.save.x=start.x-.3f;g.save.y=start.y;
             var attacker=new Enemy(3443,0,start.x+1.2f,start.y,90);
             attacker.state=1;attacker.targetingReliefCivilian=true;
-            attacker.target=start;g.enemies.Add(attacker);
+            attacker.timer=.5f;attacker.windupDuration=.65f;
+            attacker.target=start;attacker.Face(start-attacker.Position);
+            g.enemies.Add(attacker);
             Check(g.ReliefEscortEvadeAvailable,
                 "An actual living right-hand raider commits to the same real resident");
             CallCore(g,"TalkRescuedCivilian");
@@ -4630,7 +4632,9 @@ public static class RuntimeCombatInputChecks
             var attacker=new Enemy(3442,0,prisoner.x-.2f,
                 prisoner.y,60);
             attacker.state=1;attacker.targetingReliefCivilian=true;
-            attacker.target=prisoner;g.enemies.Add(attacker);
+            attacker.timer=.5f;attacker.windupDuration=.65f;
+            attacker.target=prisoner;attacker.Face(prisoner-attacker.Position);
+            g.enemies.Add(attacker);
             Check(g.ReliefEscortEvadeAvailable,
                 "A committed attack still offers the manual tactical command while surrounded");
             CallCore(g,"TalkRescuedCivilian");
