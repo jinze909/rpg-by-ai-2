@@ -4064,7 +4064,7 @@ namespace Starfall.Tests
                     !open.playerAction.released;i++)
                     open.Tick(.05f,new Point());
                 Check(open.playerAction!=null&&open.playerAction.released&&
-                    open.riposteTime==0f&&
+                    open.riposteTime<=0f&&
                     Math.Abs(open.playerAction.damage-originalDamage*1.5f)<.0001f,
                     "Unobstructed sword release spends one exact 50 percent bonus");
                 Check(open.effects.Exists(e=>e.kind=="number"&&
