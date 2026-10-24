@@ -67,6 +67,11 @@ namespace Starfall
         public bool FrostSignalComplete { get { return Has("frostsignal_complete"); } }
         public int FrostSignalOutcome
         { get { return Has("frostsignal_clinic")?1:Has("frostsignal_guides")?2:0; } }
+        // A quality delivery or one honest later repair strengthens both
+        // public-service variants. Existing completed v2 saves lack this flag
+        // and retain their original service until voluntarily upgraded.
+        public bool FrostSignalHearthBright
+        { get { return FrostSignalComplete && Has("frostsignal_bright"); } }
         public bool IsFrostSignalEnemy(Enemy e)
         { return e!=null&&e.id>=91400&&e.id<91410; }
         private WorldObject FrostSignalPost(int number)
@@ -227,14 +232,30 @@ namespace Starfall
             }
             if(FrostSignalComplete)
             {
-                Dialog(o.name,o.en,
-                    FrostSignalOutcome==1?
-                    "这里的公共火种现在由居民维护，暖站附近安全时能为伤者恢复生命。":
-                    "这里的灯火归巡路队维护，暖站附近安全时能为远行者恢复耐力。",
-                    FrostSignalOutcome==1?
-                    "Civilians now tend this public fire, with safe healing near the hearth.":
-                    "Roadwardens now tend the signal flames, restoring stamina near safe hearths.",
-                    C("阅读居民记录","Read the civic record","close"));return true;
+                string zh=FrostSignalOutcome==1?
+                    "居民在三处旧火讯站照料伤者，只有路上安全时才提供救护。":
+                    "巡路队在三处旧火讯站为远行者补充耐力，只有路上安全时才开放。";
+                string en=FrostSignalOutcome==1?
+                    "Residents treat the injured at three old signal posts, when the road is safe.":
+                    "Road crews restore travelers' energy at three signal posts, when the road is safe.";
+                if(FrostSignalHearthBright)
+                {
+                    zh+="\n\n火焰稳定，暖站的照护比初建时更可靠。";
+                    en+="\n\nThe banked flame now supports stronger public care.";
+                    Dialog(o.name,o.en,zh,en,
+                        C("阅读居民记录","Read the civic record","close"));
+                }
+                else if(at==3)
+                {
+                    zh+="\n\n火苗仍弱。交来两株月光草，我们就能把公共炉火养稳。";
+                    en+="\n\nThe flame is still weak. Two Moonherbs can steady the public fire.";
+                    Dialog(o.name,o.en,zh,en,
+                        C("月光草2 · 养稳炉火","Tend flame · 2 Moonherbs","frostsignal_tend"),
+                        C("暂不修复","Not now","close"));
+                }
+                else Dialog(o.name,o.en,zh,en,
+                    C("阅读居民记录","Read the civic record","close"));
+                return true;
             }
             if(!FrostSignalActive)
             {
@@ -245,8 +266,8 @@ namespace Starfall
                         C("返回火种源","Return to source","close"));return true;
                 }
                 Dialog(o.name,o.en,
-                    "从西部岗取得余火，100秒内送到南侧暖站。真实寒冷会使火种衰减，旧转折台有两名巡防敌人；战斗时余火耗得更快。击败守卫后，可以选择花一株药草补充火种、花耐力节约药草、或者直接冒险前进。失败可重新尝试。",
-                    "Carry a live ember from the west to the southern civilian hearth within 100s. Real cold erodes the flame and two actual raiders contest the switchyard; fighting nearby burns it faster. After defeating the guards, spend a Moonherb or energy to replenish it, or continue without supplies. Failed runs may be retried.",
+                    "从西部岗取火，100秒内送到南侧暖站。严寒会耗损火种，转折台有两名守卫，战斗时火种烧得更快。击败他们后可用药草或耐力补火，也可以直接赶路。送达时余温达到70，暖站会更可靠；火苗不足也能日后用两株月光草养稳。失败可重新取火。",
+                    "Carry a live ember from the west to the southern civilian hearth within 100s. Real cold erodes the flame and two actual raiders contest the switchyard; fighting nearby burns it faster. After defeating the guards, choose supplies or continue. Deliver 70+ flame for stronger public care, or tend the hearth later with two Moonherbs. Failed runs can be retried.",
                     C("领取余火","Carry the ember","frostsignal_start"),
                     C("暂缓","Not yet","close"));return true;
             }
@@ -307,6 +328,28 @@ namespace Starfall
             if(save.room!=7||Dying||practicing)return true;
             WorldObject west=FrostSignalPost(1),mid=FrostSignalPost(2),end=FrostSignalPost(3);
             if(west==null||mid==null||end==null)return true;
+            if(action=="frostsignal_tend")
+            {
+                // Commit must recheck the physical hearth side, live safety
+                // and actual inventory. This also offers legacy v2 saves a
+                // one-time voluntary upgrade without migrating their schema.
+                if(!FrostSignalComplete||FrostSignalHearthBright||
+                    !CanReachFrostSignalPost(end)||!SafeTravel||
+                    FieldWorkPreventsRest)return true;
+                if(save.inventory[2]<2)
+                {
+                    Notify("需要两株月光草才能把公共炉火养稳。",
+                        "Bring two Moonherbs to tend the public flame.");
+                    return true;
+                }
+                save.inventory[2]-=2;Flag("frostsignal_bright");
+                revision++;sound="reward";
+                RecordMoment("居民用月光草养稳了霜钟暖站的火，三处公共火讯站的照护更加可靠。",
+                    "Residents tended Frostchime's public fire with Moonherb, strengthening all three signal posts.");
+                Notify("暖站已修复。三处公共火讯站现在提供更强的安全照护。",
+                    "Hearth restored. The three public posts now offer stronger care when safe.");
+                return true;
+            }
             if(action=="frostsignal_start")
             {
                 if(FrostSignalActive||FrostSignalComplete||!Has("boss_7")||
@@ -370,6 +413,7 @@ namespace Starfall
                 float quality=FrostSignalFlame;
                 ResetFrostSignal();
                 Flag(action);Flag("frostsignal_complete");
+                if(quality>=70f)Flag("frostsignal_bright");
                 CreditCoins(quality>=50?65:55);CreditShards(2);AddXp(85);
                 revision++;sound="reward";
                 RecordMoment(action=="frostsignal_clinic"?

@@ -1519,9 +1519,9 @@ namespace Starfall
             if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
             {
                 if(FrostSignalOutcome==1&&save.health>0&&save.health<save.maxHealth)
-                    save.health=Math.Min(save.maxHealth,save.health+dt*1.35f);
+                    save.health=Math.Min(save.maxHealth,save.health+dt*(FrostSignalHearthBright?1.85f:1.35f));
                 else if(FrostSignalOutcome==2)
-                    save.energy=Math.Min(100,save.energy+dt*3.6f);
+                    save.energy=Math.Min(100,save.energy+dt*(FrostSignalHearthBright?4.8f:3.6f));
             }
             if(MineConvoyRefuge&&!practicing&&!racing&&SafeTravel&&
                 save.health>0&&save.health<save.maxHealth)

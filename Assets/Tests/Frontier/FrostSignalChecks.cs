@@ -742,5 +742,109 @@ namespace Starfall.Tests
                 "Old v2 save keeps the permanent roadwarden choice, never transient windbreak");
         }
 
+ 
+        public static void HighlandPublicHearthQualityAndPhysicalTendingImproveRealService(Campaign data)
+        {
+            foreach(int branch in new[]{1,2})
+            {
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("desert_report");
+                g.Enter(7);g.enemies.Clear();
+                g.save.flags.Add("boss_7");g.invulnerable=200;
+                WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+                g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+                Check(FrostChoice(g,"frostsignal_start"),"Real west post starts carried fire");
+                g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+                var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);
+                Check(guards.Count==2,"Midpoint actually spawns both original guards");
+                g.Close();
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                foreach(Enemy guard in guards)
+                    hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+                g.hitStop=0;g.Talk(mid);
+                Check(FrostChoice(g,"frostsignal_free")&&g.FrostSignalStage==3,
+                    "Genuine defender kills release the southbound route");
+                g.save.cold=95;
+                for(int i=0;i<550&&g.FrostSignalActive&&g.FrostSignalFlame>60;i++)
+                    g.Tick(.05f,new Point());
+                Check(g.FrostSignalStage==3&&g.FrostSignalFlame>35&&
+                    g.FrostSignalFlame<70&&g.FrostSignalTime>0,
+                    "Real severe cold, not an invented reward flag, lowers arrival quality");
+                g.save.x=south.x;g.save.y=south.y;
+                g.Tick(.05f,new Point());
+                Check(g.FrostSignalAtHearth,"Low-flame delivery must still bank physically");
+                g.Talk(south);
+                Check(FrostChoice(g,branch==1?"frostsignal_clinic":"frostsignal_guides")&&
+                    g.FrostSignalComplete&&!g.FrostSignalHearthBright&&
+                    g.save.version==2,
+                    "A modest real delivery earns the original permanent service but no premium tier");
+                Check(g.GetQuest("frost_signal").target.x==south.x&&
+                    g.GetQuest("frost_signal").next.Contains("月光草"),
+                    "Completed dim-hearth journal guides the optional physical repair");
+                g.enemies.Clear();g.save.cold=0;
+                g.save.health=50;g.save.energy=0;
+                g.Tick(.05f,new Point());
+                float baseline=branch==1?g.save.health-50:g.save.energy;
+                g.Talk(south);
+                Check(g.conversation!=null&&
+                    Array.Exists(g.conversation.choices,c=>c.action=="frostsignal_tend"),
+                    "The original completed public hearth offers an actual two-herb repair");
+                g.save.inventory[2]=1;
+                Check(FrostChoice(g,"frostsignal_tend")&&
+                    !g.FrostSignalHearthBright&&g.save.inventory[2]==1,
+                    "An unaffordable repair must never create a free public upgrade");
+                g.save.inventory[2]=2;g.Talk(south);
+                g.save.x=west.x;g.save.y=west.y;
+                Check(FrostChoice(g,"frostsignal_tend")&&
+                    !g.FrostSignalHearthBright&&g.save.inventory[2]==2,
+                    "A cached repair button cannot charge remotely from another mountain post");
+                g.save.x=south.x;g.save.y=south.y;
+                g.Talk(south);
+                Check(FrostChoice(g,"frostsignal_tend")&&
+                    g.FrostSignalHearthBright&&g.save.inventory[2]==0,
+                    "Physical safe hearth consumes two real Moonherbs once");
+                g.enemies.Clear();g.save.health=50;g.save.energy=0;
+                g.Tick(.05f,new Point());
+                float improved=branch==1?g.save.health-50:g.save.energy;
+                Check(improved>baseline+(branch==1?.017f:.04f),
+                    "Tended service must deliver measurably stronger real health or energy on Tick");
+                g.Talk(south);
+                Check(!Array.Exists(g.conversation.choices,c=>c.action=="frostsignal_tend"),
+                    "A bright hearth cannot charge again or advertise repeatable repair");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.FrostSignalHearthBright&&
+                    restored.FrostSignalOutcome==branch&&restored.FrostSignalComplete&&
+                    !restored.FrostSignalActive,
+                    "Actual enhanced service and existing outcome survive old v2 save reload");
+            }
+        }
+        public static void HighlandFullFlameDeliveryEarnsBrightServiceWithoutMaterials(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.Enter(7);g.enemies.Clear();
+            g.save.flags.Add("boss_7");g.invulnerable=200;
+            WorldObject west=FrostPost(g,1),mid=FrostPost(g,2),south=FrostPost(g,3);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start"),"West post yields authentic ember");
+            g.save.x=mid.x;g.save.y=mid.y;g.Talk(mid);
+            var guards=g.enemies.FindAll(g.IsFrostSignalEnemy);g.Close();
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            foreach(Enemy guard in guards)
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            g.Talk(mid);Check(FrostChoice(g,"frostsignal_free"),
+                "Defenders must be defeated before premium delivery");
+            g.save.x=south.x;g.save.y=south.y;
+            int herbs=g.save.inventory[2];
+            g.Talk(south);
+            Check(FrostChoice(g,"frostsignal_clinic")&&
+                g.FrostSignalHearthBright&&g.FrostSignalComplete&&
+                g.save.inventory[2]==herbs&&g.save.version==2,
+                "High-quality original delivery automatically powers a brighter service without charging materials");
+        }
     }
 }

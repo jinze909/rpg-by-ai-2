@@ -283,12 +283,15 @@ namespace Starfall
                 // western pickup post makes the 100-second timed delivery
                 // appear to go backward. Stage 2 stays at that junction
                 // until two actual guards fall and supplies are chosen.
-                int post=FrostSignalStage==3?3:
-                    FrostSignalStage>=1?2:1;
+                int post=q.complete&&!FrostSignalHearthBright?3:
+                    FrostSignalStage==3?3:FrostSignalStage>=1?2:1;
                 foreach(WorldObject o in data.maps[7].objects)
                     if(o.id=="frostsignal_"+post){q.target=new Point(o.x,o.y);break;}
                 q.next=q.locked?L("先击败高原守护者","First defeat the original Frostchime guardian"):
-                    q.complete?L("民用火堆已重燃","Public hearth restored"):
+                    q.complete?(FrostSignalHearthBright?
+                        L("公共暖站已稳定","The public hearth burns steadily"):
+                        L("南侧暖站仍可用两株月光草养稳火苗",
+                            "Tend the southern hearth with two Moonherbs")):
                     FrostSignalAtHearth?L("余火已安置于南侧暖站。请到现场决定疗养站或巡路灯网。",
                         "Ember safely deposited. Choose the public clinic or road beacons at the hearth."):
                     FrostSignalActive?L("余温 "+FrostSignalFlame.ToString("0")+
@@ -302,8 +305,8 @@ namespace Starfall
                         (FrostSignalStage==2&&FrostSignalGuardsScreened>0?
                             " · ALLY SCREEN "+FrostSignalGuardsScreened:"")):
                     L("前往西部守灯岗领取火种","Collect ember at the west signal");
-                q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；永久暖站服务",
-                    "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; permanent local shelter service");
+                q.reward=L("首次55硬币、2碎片、85经验；余温50以上额外10硬币；余温70以上增强永久暖站服务，较弱的炉火日后可用两株月光草修复",
+                    "First clear: 55 coins, 2 shards, 85 XP; 10 extra coins at 50+ flame; 70+ flame strengthens lasting public care, otherwise tend it later for two Moonherbs");
                 return q;
             }
             if(id=="mine_convoy")

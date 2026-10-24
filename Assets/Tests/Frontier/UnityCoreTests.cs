@@ -78,6 +78,8 @@ namespace Starfall.Tests
         [Test] public void SwordGuardCoolsDownAcrossARealArrowVolley() { CoreChecks.MultipleHostileShotsRespectActualGuardCooldown(Data()); }
         [Test] public void SwordGuardReallyTurnsIncomingArrowsIntoCounterShots() { CoreChecks.SwordGuardReflectsRealHostileShotsWithResourceAndDirection(Data()); }
         [Test] public void SwordGuardRejectsSideHitsAndOtherProfessions() { CoreChecks.SwordGuardDoesNotReflectSideShotsOrBypassClassAndCooldown(Data()); }
+        [Test] public void DimHighlandHearthCanBePhysicallyTendedForPermanentService() { CoreChecks.HighlandPublicHearthQualityAndPhysicalTendingImproveRealService(Data()); }
+        [Test] public void HighFlameDeliveryEarnsRealStrongerCivicService() { CoreChecks.HighlandFullFlameDeliveryEarnsBrightServiceWithoutMaterials(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
         [Test] public void LiveHighlandEmberCompassFollowsNextObjectiveAndSave() { CoreChecks.LiveFrostSignalNavigationTracksActualCarriedEmber(Data()); }
         [Test] public void LiveHighlandCachedEmberAndClinicActionsNeedOpenPhysicalLane() { CoreChecks.HighlandEmberCachedChoicesCannotCommitAcrossClosedPosts(Data()); }
