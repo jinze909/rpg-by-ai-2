@@ -114,6 +114,15 @@ namespace Starfall
         }
         public string toast = "";
         public Conversation conversation;
+        // A direct in-world journal handoff requests one transient selection
+        // without mutating trackedQuest, quest flags or SaveData v2.
+        private string journalFocusRequest;
+        public string TakeJournalFocusRequest()
+        {
+            string requested=journalFocusRequest;
+            journalFocusRequest=null;
+            return requested;
+        }
         // Transient identity of the interacted NPC, not the nearest NPC on each render.
         public WorldObject conversationSource;
         // Dialogue is bound to BOTH the real source object and the map in
@@ -275,6 +284,7 @@ namespace Starfall
             conversationSourceWasReachable = false;
             conversationSourceRoom = pendingDialogueSourceRoom = -1;
             conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
+            journalFocusRequest=null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
@@ -323,6 +333,7 @@ namespace Starfall
         public void Close()
         {
             if(mode=="fish")FishExpertCast=false;
+            journalFocusRequest=null;
             conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
             conversationSourceRoom = -1;
@@ -3269,7 +3280,12 @@ namespace Starfall
                 if(action=="inn_routelead")ShowInnGuestRouteLead(host);
                 else if(action=="inn_news")ShowInnGuestChronicle(host);
                 else if(action=="inn_topics")ShowInnGuestTopics(host);
-                else mode="journal";
+                else
+                {
+                    journalFocusRequest=Array.IndexOf(QuestIds,save.trackedQuest)>=0?
+                        save.trackedQuest:"main";
+                    mode="journal";
+                }
                 return;
             }
             if (ChooseSwordLesson(action)) return;

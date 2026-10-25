@@ -5316,8 +5316,16 @@ public static class RuntimeCombatInputChecks
             g.save.coins==coins&&g.save.shards==shards&&
             g.save.flags.Count==flags&&g.save.version==2,
             "Journal handoff never changes quest selection, rewards, old saves or story flags");
-        Set(app,"journalTab",0);GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.buttonCalls.Count>0,"Real journal becomes a playable IMGUI menu");
+        Set(app,"journalTab",1);Set(app,"journalOnlyActionable",true);
+        Set(app,"selectedQuest",7);Set(app,"questPage",2);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        int expectedIndex=Array.IndexOf(GameCore.QuestIds,g.save.trackedQuest);
+        Check(GUI.buttonCalls.Count>0&&
+            (int)typeof(FrontierRuntime).GetField("journalTab",Private).GetValue(app)==0&&
+            (int)typeof(FrontierRuntime).GetField("selectedQuest",Private).GetValue(app)==expectedIndex&&
+            (int)typeof(FrontierRuntime).GetField("questPage",Private).GetValue(app)==expectedIndex/14&&
+            !(bool)typeof(FrontierRuntime).GetField("journalOnlyActionable",Private).GetValue(app),
+            "The live NPC journal action focuses the exact tracked quest instead of an unrelated previous tab/page");
         g.Close();g.save.english=false;g.Interact();
         Check(g.mode=="dialog"&&g.conversation.text.Contains("旅人把热汤")&&
             g.conversationSource==guest,

@@ -855,6 +855,22 @@ namespace Starfall
         }
         private void DrawJournal()
         {
+            // A real NPC's direct journal handoff focuses the exact saved
+            // quest, even if this menu was last viewed on Records/Journey
+            // or filtered to only unlocked quests. Consume once; normal
+            // manual journal navigation is otherwise unchanged.
+            string requested=Game.TakeJournalFocusRequest();
+            if(!string.IsNullOrEmpty(requested))
+            {
+                int index=Array.IndexOf(GameCore.QuestIds,requested);
+                if(index>=0)
+                {
+                    journalTab=0;
+                    journalOnlyActionable=false;
+                    selectedQuest=index;
+                    questPage=index/14;
+                }
+            }
             Window(Game.L("任务手帐", "Adventure journal"), Game.L("追踪任何一条故事 · 指引会自动切换到下一步", "Track a story · navigation follows its next unfinished step")); string[] tabs = { Game.L("任务", "Quests"), Game.L("世界记录", "Records"), Game.L("阵营协定", "Factions"), Game.L("冒险足迹", "Journey") };
             for (int i = 0; i < tabs.Length; i++) if (Button(279 + i * 238, 172, 222, 37, tabs[i], journalTab == i)) journalTab = i;
             if (journalTab == 3) { DrawJourney(); return; }

@@ -47,6 +47,29 @@ namespace Starfall.Tests
         {
             TalkNearObject(g, Object(g, kind));
         }
+        // Story outcomes are now optional in the real guest's topic menu,
+        // not a compulsory monologue on every E press. Keep every original
+        // outcome assertion, but select the in-game news choice with genuine
+        // NPC physical reach and source verification before reading it.
+        private static void ReadInnNews(GameCore game, WorldObject traveler)
+        {
+            Check(traveler!=null&&traveler.kind=="innGuest",
+                "News must come from the original inn traveler");
+            Check(PlaceWithinTalkReach(game,traveler),
+                "Inn traveler must have a physically reachable conversation position");
+            game.Talk(traveler);
+            Check(game.mode=="dialog"&&game.conversation!=null&&
+                game.conversationSource==traveler,
+                "The original traveler starts the physical dialogue");
+            int news=Array.FindIndex(game.conversation.choices,
+                choice=>choice.action=="inn_news");
+            Check(news>=0,"The news topic is a real playable NPC choice");
+            game.Choose(news);
+            Check(game.mode=="dialog"&&game.conversation!=null&&
+                game.conversationSource==traveler&&
+                game.conversation.speaker==traveler.name,
+                "The unchanged historical dialogue belongs to the original live traveler");
+        }
         private static bool ChoiceNeedsPhysicalSource(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
@@ -696,7 +719,7 @@ namespace Starfall.Tests
             Check(done.complete&&done.reward.Contains("药草急救点")&&
                 done.next.Contains("急救"),
                 "The real tracked quest reports the earned repeatable field service, not merely a one-time currency payout");
-            g.Talk(inn);
+            ReadInnNews(g,inn);
             Check(g.conversation!=null&&g.conversation.text.Contains("急救包")&&
                 g.conversation.textEn.Contains("field kits"),
                 "The original night-traveler now explains earned field treatment in natural bilingual dialogue");

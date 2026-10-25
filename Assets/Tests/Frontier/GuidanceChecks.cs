@@ -1127,14 +1127,14 @@ namespace Starfall.Tests
                 "The public energy benefit cannot activate remotely across Emberfall");
             g.Enter(9);g.enemies.Clear();
             var guest=Object(g,"innGuest");g.save.x=guest.x;g.save.y=guest.y;
-            g.Talk(guest);
+            ReadInnNews(g,guest);
             Check(g.conversation.text.Contains("旅人可以质疑过载命令")&&
                 g.conversation.textEn.Contains("challenge an overload order"),
                 "The original living inn guest acknowledges the player's public-oversight ending in both languages");
             g.Close();
             g.save.flags.Remove("last_directive_open");
             g.save.flags.Add("last_directive_shelter");
-            g.Talk(guest);
+            ReadInnNews(g,guest);
             Check(g.conversation.text.Contains("无条件的紧急庇护")&&
                 g.conversation.textEn.Contains("unconditional emergency refuge"),
                 "The alternative emergency-shelter ending has different meaningful NPC dialogue");
@@ -2129,7 +2129,7 @@ namespace Starfall.Tests
                 g.Talk(beacon); g.Choose(0);
                 Check(g.save.coins == coins && g.save.shards == shards, "Re-reading a beacon cannot farm supplies");
                 if (room < 3) Check(g.GetQuest("signals").room == room + 1, "Guidance advances to the next missing signal");
-                if (room == 1) { g.Enter(9); g.Talk(Object(g, "innGuest")); Check(g.conversation.textEn.Contains("Once all three signals") && g.conversation.textEn.Contains("Coming home with a story"), "Traveler offers a mid-quest clue without losing original advice"); g.Close(); }
+                if (room == 1) { g.Enter(9); ReadInnNews(g,Object(g, "innGuest")); Check(g.conversation.textEn.Contains("Once all three signals") && g.conversation.textEn.Contains("Coming home with a story"), "Traveler offers a mid-quest clue without losing original advice"); g.Close(); }
             }
             Check(g.save.coins == startingCoins + 36 && g.save.shards == startingShards + 3, "Each beacon grants its one-time supplies");
             Check(g.GetQuest("signals").room == 9 && !g.GetQuest("signals").complete, "The collected signals lead to the inn");
@@ -2142,7 +2142,7 @@ namespace Starfall.Tests
             g.save.english = false;
             Check(Math.Abs(g.Speed - baseSpeed - .25f) < .001f, "The permanent exploration reward changes actual movement");
             Check(g.save.coins == startingCoins + 96 && g.save.shards == startingShards + 8 && g.save.skillPoints >= startingPoints + 1, "Completion grants the advertised rewards");
-            g.Talk(Object(g, "innGuest")); Check(g.conversation.textEn.Contains("helped three late travelers") && g.conversation.textEn.Contains("Coming home with a story"), "Inn traveler acknowledges the completed chart while preserving original guidance"); g.Close();
+            ReadInnNews(g,Object(g, "innGuest")); Check(g.conversation.textEn.Contains("helped three late travelers") && g.conversation.textEn.Contains("Coming home with a story"), "Inn traveler acknowledges the completed chart while preserving original guidance"); g.Close();
             int finalCoins = g.save.coins, finalShards = g.save.shards, finalPoints = g.save.skillPoints;
             g.Talk(desk); Check(g.conversation.choices[0].action == "close", "Finished chart cannot be redeemed again"); g.Choose(0);
             Check(g.save.coins == finalCoins && g.save.shards == finalShards && g.save.skillPoints == finalPoints, "Inn revisits cannot duplicate rewards");
@@ -2278,7 +2278,7 @@ namespace Starfall.Tests
                 "The promise permanently discounts inn stew and explains the benefit");
             g.Enter(9); g.enemies.Clear();
             WorldObject traveler = Object(g, "innGuest");
-            TalkNearObject(g, traveler);
+            ReadInnNews(g, traveler);
             Check(g.conversation.textEn.Contains("discounts stew by two coins"),
                 "The inn traveler acknowledges the decoded promise");
             g.Close();
@@ -2376,7 +2376,7 @@ namespace Starfall.Tests
                 g.save.coins == totalCoins + 105 && g.save.shards == totalShards + 9 &&
                 g.save.skillPoints == totalPoints + 1,
                 "All three defenses grant the one-time full-vigil talent reward");
-            g.Enter(9); g.Talk(Object(g, "innGuest"));
+            g.Enter(9); ReadInnNews(g,Object(g, "innGuest"));
             Check(g.conversation.textEn.Contains("All three beacons are defended") &&
                 g.conversation.textEn.Contains("Coming home with a story"),
                 "The inn acknowledges the vigil while preserving original traveler advice");
@@ -3421,7 +3421,7 @@ namespace Starfall.Tests
                 "All audit regions and the published result survive the original SaveData v2 reload");
             resumed.save.room=9;WorldObject resumedInn=Object(resumed,"innGuest");
             resumed.save.x=resumedInn.x;resumed.save.y=resumedInn.y;
-            resumed.Talk(resumedInn);
+            ReadInnNews(resumed,resumedInn);
             Check(resumed.conversation!=null&&
                 resumed.conversation.textEn.Contains("three-region road audit is now on the public record")&&
                 resumed.conversation.textEn.Contains("field kits"),
