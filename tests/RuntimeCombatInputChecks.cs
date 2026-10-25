@@ -1917,7 +1917,7 @@ public static class RuntimeCombatInputChecks
         }
         Check(found,"Authentic harbor map has a defensible casting lane and separate threatened flank");
         g.save.x=hero.x;g.save.y=hero.y;
-        typeof(GameCore).GetField("companionPosition",Private).SetValue(g,ally);
+        g.companionPosition=ally;
         Enemy sealedBoss=new Enemy(99901,3,caster.x,caster.y,900,true)
             {state=1,timer=.10f,windupDuration=1.1f,target=hero+new Point(1,0)};
         Enemy realBoss=new Enemy(99902,3,realCaster.x,realCaster.y,900,true)
