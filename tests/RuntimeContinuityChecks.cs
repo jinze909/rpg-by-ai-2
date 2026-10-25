@@ -500,6 +500,52 @@ public static class RuntimeContinuityChecks
         // five-pixel broken-route glyph; all nine must remain in the safe view.
         return count == 9;
     }
+    public static void OptedInRemoteRouteRendersWithGeneralGuidanceOff(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.save.flags.Add("intro");g.save.flags.Add("scout_saved");
+        g.save.stage=4;g.Enter(9);g.enemies.Clear();
+        g.save.english=true;g.save.showGuidance=false;g.mode="world";
+        Check(!g.PlayerRequestedNavigationActive,
+            "Turning off generic guidance alone must not create player-owned navigation");
+        ClearDraw();Call(app,"MiniTerrainWindow",1024f,42f);
+        Check(NavigationRouteDots(3f)==0,
+            "Ordinary story route stays hidden when general guidance is off");
+        g.TrackQuest("trail_circuits");g.mode="journal";
+        Check(g.GetQuest("trail_circuits").room!=g.save.room&&
+            g.PlaceQuestApproachWaymark("trail_circuits"),
+            "The original regional survey offers a real accepted remote journal route");
+        g.mode="world";
+        Check(g.PlayerRequestedNavigationActive&&
+            !g.PersonalNavigationActive&&g.QuestApproachTravelHandoffPending&&
+            !g.save.showGuidance,
+            "An approved distant route exists before any local pin even with general guidance off");
+        Point? target=g.NavigationTarget();
+        Check(target.HasValue,"An actual map portal is the accepted quest's present bearing");
+        var physical=g.NavigationPath(target.Value);
+        Check(physical.Count>0,"The original Inn has a collision-aware walk to the outbound portal");
+        ClearDraw();Call(app,"MiniTerrainWindow",1024f,42f);
+        Check(NavigationRouteDots(3f)>0,
+            "Live minimap draws actual walking breadcrumbs for the approved remote route");
+        ClearDraw();Call(app,"MiniTerrain",888f,264f,2f);
+        Check(NavigationRouteDots(1.5f)>0,
+            "Local full map also draws approved remote route independently of generic guidance");
+        Set(app,"camera",target.Value);
+        ClearDraw();Call(app,"DrawNavigationTargetMarker");
+        Check(NavigationRouteDots(4f)==12||NavigationEdgeArrowPixels()==4,
+            "World renderer draws real opted-in objective marker even while general guidance stays OFF");
+        Check(g.ClearLocalWaymark()&&!g.PlayerRequestedNavigationActive,
+            "Canceling remote auto-follow restores ordinary guidance preference");
+        ClearDraw();Call(app,"MiniTerrainWindow",1024f,42f);
+        Check(NavigationRouteDots(3f)==0&&!g.HasLocalWaymark&&
+            g.save.trackedQuest=="trail_circuits"&&!g.save.showGuidance&&
+            g.save.version==2,
+            "Cancellation hides the route without changing tracking, preferences or SaveData v2");
+        g.Close();
+        Console.WriteLine("PASS Explicit distant quest route renders genuine HUD/full-map/world navigation with general guidance disabled");
+    }
+
     public static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);

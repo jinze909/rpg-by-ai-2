@@ -8542,7 +8542,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyWaytrailCueTracksCivicAudit,
             CivicAftermathChronicleReflectsLiveInfrastructure,
             CivicAftercareRoadAuditIsTrackableAndOneTime,
-            RuntimeContinuityChecks.NavigationRouteGuidance };
+            RuntimeContinuityChecks.NavigationRouteGuidance, RuntimeContinuityChecks.OptedInRemoteRouteRendersWithGeneralGuidanceOff };
         int failures = 0;
         foreach (var test in cases)
         {

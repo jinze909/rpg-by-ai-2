@@ -507,7 +507,7 @@ namespace Starfall
         private List<Point> NavigationRoute()
         {
             if (Game == null || (!Game.save.showGuidance &&
-                !Game.PersonalNavigationActive))
+                !Game.PlayerRequestedNavigationActive))
             {
                 navigationRouteCache.Clear(); navigationRouteCacheValid = false;
                 return navigationRouteCache;
@@ -562,7 +562,7 @@ namespace Starfall
         private bool HasBlockedNavigationRoute(Point target)
         {
             if (Game == null || Game.mode != "world" ||
-                (!Game.save.showGuidance && !Game.PersonalNavigationActive) ||
+                (!Game.save.showGuidance && !Game.PlayerRequestedNavigationActive) ||
                 float.IsNaN(target.x) || float.IsInfinity(target.x) ||
                 float.IsNaN(target.y) || float.IsInfinity(target.y)) return false;
             // A personal pin can still have a PARTIAL best-effort HUD
@@ -643,7 +643,7 @@ namespace Starfall
         private void DrawNavigationTargetMarker()
         {
             if (Game == null || Game.mode != "world" ||
-                (!Game.save.showGuidance && !Game.PersonalNavigationActive)) return;
+                (!Game.save.showGuidance && !Game.PlayerRequestedNavigationActive)) return;
             Point? target = Game.NavigationTarget();
             if (!target.HasValue || float.IsNaN(target.Value.x) || float.IsInfinity(target.Value.x) ||
                 float.IsNaN(target.Value.y) || float.IsInfinity(target.Value.y)) return;
@@ -732,7 +732,7 @@ namespace Starfall
                         o.kind.StartsWith("portal")?mint:gold);
             }
             Point? goal=Game.NavigationTarget();
-            if(goal.HasValue&&(Game.save.showGuidance||Game.PersonalNavigationActive)&&
+            if(goal.HasValue&&(Game.save.showGuidance||Game.PlayerRequestedNavigationActive)&&
                 goal.Value.x>=left&&goal.Value.x<left+cellsX&&
                 goal.Value.y>=top&&goal.Value.y<top+cellsY)
                 Box(x0+(goal.Value.x-left)*cell-3,y0+(goal.Value.y-top)*cell-3,7,7,
@@ -746,7 +746,7 @@ namespace Starfall
                 Game.Map.rows[0].Length, Game.Map.rows.Length);
             foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
             Point? goal = Game.NavigationTarget(); if (goal.HasValue &&
-                (Game.save.showGuidance || Game.PersonalNavigationActive))
+                (Game.save.showGuidance || Game.PlayerRequestedNavigationActive))
             {
                 Box(x0 + goal.Value.x * size - 3, y0 + goal.Value.y * size - 3, 7, 7,
                     Game.PersonalNavigationActive?mint:gold);

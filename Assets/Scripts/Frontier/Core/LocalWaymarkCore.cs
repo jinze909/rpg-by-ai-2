@@ -69,6 +69,10 @@ namespace Starfall
             }
         }
         public bool HasLocalWaymark { get { return LocalWaymark.HasValue; } }
+        // A deliberately accepted distant quest route remains visible
+        // even when general story guidance was turned off by the player.
+        public bool PlayerRequestedNavigationActive
+        { get { return PersonalNavigationActive||QuestApproachTravelHandoffPending; } }
         public bool PersonalNavigationActive
         {
             get
