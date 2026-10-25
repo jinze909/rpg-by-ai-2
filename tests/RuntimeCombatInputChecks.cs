@@ -2935,16 +2935,18 @@ public static class RuntimeCombatInputChecks
         Prepare(app);
         GameCore game=app.Game;
         game.save.english=true;game.save.flags.Add("intro");
-        game.save.flags.Remove("trail_circuit_0_1");
-        game.save.flags.Remove("trail_circuit_0_2");
-        game.save.flags.Remove("trail_circuit_0_3");
+        int room=game.save.room;
+        Check(room>=0&&room<8,"The review scenario is an outdoor survey region");
+        game.save.flags.Remove("trail_circuit_"+room+"_1");
+        game.save.flags.Remove("trail_circuit_"+room+"_2");
+        game.save.flags.Remove("trail_circuit_"+room+"_3");
         game.save.trackedQuest="main";
         Point origin=game.Position;
         WorldObject first=null,second=null;
-        foreach(WorldObject o in game.data.maps[0].objects)
+        foreach(WorldObject o in game.data.maps[room].objects)
         {
-            if(o.id=="trailcircuit_0_1")first=o;
-            if(o.id=="trailcircuit_0_2")second=o;
+            if(o.id=="trailcircuit_"+room+"_1")first=o;
+            if(o.id=="trailcircuit_"+room+"_2")second=o;
         }
         Check(first!=null&&second!=null,"The campaign has two genuine sequential route markers");
         Point oldFirst=new Point(first.x,first.y),oldSecond=new Point(second.x,second.y);
@@ -2988,7 +2990,7 @@ public static class RuntimeCombatInputChecks
             Point initial=game.LocalWaymark.Value;
             int coins=game.save.coins,originalFlags=game.save.flags.Count;
             game.mode="world";
-            game.save.flags.Add("trail_circuit_0_1");
+            game.save.flags.Add("trail_circuit_"+room+"_1");
             QuestGuide advanced=game.GetQuest("trail_circuits");
             Check((advanced.target-candidates[1]).Length<.001f,
                 "First survey advances the genuine guide to the second marker");
@@ -3007,20 +3009,20 @@ public static class RuntimeCombatInputChecks
                 !game.QuestApproachNavigationActive,
                 "Explicit manual pin replacement revokes story-follow ownership");
             game.mode="world";
-            game.save.flags.Add("trail_circuit_0_2");
+            game.save.flags.Add("trail_circuit_"+room+"_2");
             for(int i=0;i<28;i++)game.Tick(.05f,new Point());
             Check(game.HasLocalWaymark&&
                 (game.LocalWaymark.Value-initial).Length<.001f&&
                 game.save.version==2,
                 "Further story progress cannot retarget a hand-placed pin or change SaveData v2");
             game.mode="map";game.ClearLocalWaymark();
-            game.save.flags.Remove("trail_circuit_0_2");
+            game.save.flags.Remove("trail_circuit_"+room+"_2");
             game.mode="journal";
             Check(game.PlaceQuestApproachWaymark("trail_circuits"),
                 "An authorized quest pin can be created independently");
             game.mode="world";
-            for(int room=0;room<8;room++)
-                game.save.flags.Add("trail_circuit_"+room+"_3");
+            for(int region=0;region<8;region++)
+                game.save.flags.Add("trail_circuit_"+region+"_3");
             Check(game.GetQuest("trail_circuits").complete,
                 "The authentic fully surveyed field quest is completed");
             for(int i=0;i<28;i++)game.Tick(.05f,new Point());
