@@ -117,6 +117,7 @@ namespace Starfall
         // A direct in-world journal handoff requests one transient selection
         // without mutating trackedQuest, quest flags or SaveData v2.
         private string journalFocusRequest;
+        private int innJobPage;
         public string TakeJournalFocusRequest()
         {
             string requested=journalFocusRequest;
@@ -285,6 +286,7 @@ namespace Starfall
             conversationSourceRoom = pendingDialogueSourceRoom = -1;
             conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
             journalFocusRequest=null;
+            innJobPage=0;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
@@ -2725,15 +2727,17 @@ namespace Starfall
             int insert=existing.Length;
             if(insert>0&&existing[insert-1].action=="close")insert--;
             bool hasClose=insert<existing.Length;
-            Choice[] choices=new Choice[existing.Length+3+(hasClose?0:1)];
+            Choice[] choices=new Choice[existing.Length+4+(hasClose?0:1)];
             Array.Copy(existing,0,choices,0,insert);
             choices[insert]=C("接下来该走哪条路？",
                 "Which road should I take next?","inn_routelead");
             choices[insert+1]=C("有什么新消息？",
                 "What news came in?","inn_news");
-            choices[insert+2]=C("我去看看任务手帐",
+            choices[insert+2]=C("还有哪些差事缺人？",
+                "Any other jobs need doing?","inn_jobboard");
+            choices[insert+3]=C("我去看看任务手帐",
                 "I'll check my journal","inn_openjournal");
-            Array.Copy(existing,insert,choices,insert+3,existing.Length-insert);
+            Array.Copy(existing,insert,choices,insert+4,existing.Length-insert);
             if(!hasClose)choices[choices.Length-1]=C("先告辞","Leave","close");
             return choices;
         }
@@ -2748,6 +2752,86 @@ namespace Starfall
             choices[insert]=C("再问些别的","Ask something else","inn_topics");
             Array.Copy(existing,insert,choices,insert+1,existing.Length-insert);
             return choices;
+        }
+        // A genuine mission index, not a new quest/reward system. Select
+        // only unfinished unlocked objectives in already accessible
+        // regions. Construct on demand: returning to the inn after a
+        // physical quest or a gate change immediately updates the board.
+        private List<string> AvailableInnJobs()
+        {
+            List<string> local=new List<string>();
+            List<string> distant=new List<string>();
+            foreach(string id in QuestIds)
+            {
+                if(id==save.trackedQuest)continue;
+                QuestGuide q=GetQuest(id);
+                if(q==null||q.locked||q.complete||q.room<0||
+                    q.room>=data.maps.Length||!CanEnter(q.room))
+                    continue;
+                if(q.room==save.room)local.Add(id);
+                else distant.Add(id);
+            }
+            local.AddRange(distant);
+            return local;
+        }
+        private void ShowInnGuestJobBoard(WorldObject o)
+        {
+            List<string> available=AvailableInnJobs();
+            const int pageSize=4;
+            int pages=Math.Max(1,(available.Count+pageSize-1)/pageSize);
+            innJobPage=Math.Max(0,Math.Min(pages-1,innJobPage));
+            int start=innJobPage*pageSize;
+            List<Choice> options=new List<Choice>();
+            for(int i=start;i<Math.Min(start+pageSize,available.Count);i++)
+            {
+                string id=available[i];
+                QuestGuide q=GetQuest(id);
+                string locality=q.room==save.room?
+                    L(" · 附近"," · nearby"):
+                    L(" · "+data.maps[q.room].name,
+                      " · "+data.maps[q.room].en);
+                // A selection is a concrete tracking request. Do not
+                // invent a new quest ID or silently accept the reward.
+                options.Add(C(q.title+locality,q.title+locality,
+                    "inn_job_"+id));
+            }
+            if(innJobPage>0)
+                options.Add(C("上一页","Previous jobs","inn_jobs_prev"));
+            if(innJobPage+1<pages)
+                options.Add(C("下一页","More jobs","inn_jobs_next"));
+            options.Add(C("再问些别的","Ask something else","inn_topics"));
+            options.Add(C("先告辞","Leave","close"));
+            Dialog(o.name,o.en,
+                available.Count==0?
+                    "旅人翻了翻柜台后面的旧夹子。\\n\\n“眼下能走的路上，没有新的差事。等路开了再来问我。”":
+                    "旅人把几张路单平摊在桌上。\\n\\n“这些地方已经能走了。想接着查哪一件，你自己挑；没开放的路我可不敢让你去。”",
+                available.Count==0?
+                    "The traveler flips through the folder behind the counter.\\n\\n“No more jobs along the open roads. Try me after a crossing opens.”":
+                    "The traveler spreads several route slips across the table.\\n\\n“These roads are open. Pick the lead you want to follow; I'm not sending anyone through a sealed gate.”",
+                options.ToArray());
+        }
+        private void TrackInnGuestJob(WorldObject o,string id)
+        {
+            if(Array.IndexOf(QuestIds,id)<0)return;
+            // Recompute on selection, not just when the old dialogue was
+            // painted; finishing the job or sealing a region mid-menu
+            // invalidates a cached button.
+            List<string> now=AvailableInnJobs();
+            int index=innJobPage*4;
+            int end=Math.Min(index+4,now.Count);
+            bool offered=false;
+            for(int i=index;i<end;i++)
+                if(now[i]==id){offered=true;break;}
+            if(!offered)return;
+            TrackQuest(id);
+            if(save.trackedQuest!=id)return;
+            QuestGuide q=GetQuest(id);
+            Dialog(o.name,o.en,
+                "旅人把那张路单推到你手边。\\n\\n“记好了。别光记地名，到了地方看清楚要找什么。”",
+                "The traveler slides the chosen route slip toward you.\\n\\n“It's yours. Read the details before you go; a place name won't tell you what to look for.”",
+                C("翻开这件事的手帐","Open this quest in my journal","inn_openjournal"),
+                C("还有别的差事吗？","Any other jobs?","inn_jobboard"),
+                C("先告辞","Leave","close"));
         }
         private void ShowInnGuestTopics(WorldObject o)
         {
@@ -3270,7 +3354,10 @@ namespace Starfall
             // The topic menu must remain bound to the actual inn traveler,
             // not an unrelated NPC or a previously removed world actor.
             if(action=="inn_routelead"||action=="inn_news"||
-                action=="inn_topics"||action=="inn_openjournal")
+                action=="inn_topics"||action=="inn_openjournal"||
+                action=="inn_jobboard"||action=="inn_jobs_next"||
+                action=="inn_jobs_prev"||
+                action.StartsWith("inn_job_",StringComparison.Ordinal))
             {
                 WorldObject host=pendingDialogueSource;
                 if(host==null||host.kind!="innGuest"||
@@ -3280,6 +3367,19 @@ namespace Starfall
                 if(action=="inn_routelead")ShowInnGuestRouteLead(host);
                 else if(action=="inn_news")ShowInnGuestChronicle(host);
                 else if(action=="inn_topics")ShowInnGuestTopics(host);
+                else if(action=="inn_jobboard")ShowInnGuestJobBoard(host);
+                else if(action=="inn_jobs_next")
+                {
+                    if(innJobPage<(AvailableInnJobs().Count-1)/4)innJobPage++;
+                    ShowInnGuestJobBoard(host);
+                }
+                else if(action=="inn_jobs_prev")
+                {
+                    innJobPage=Math.Max(0,innJobPage-1);
+                    ShowInnGuestJobBoard(host);
+                }
+                else if(action.StartsWith("inn_job_",StringComparison.Ordinal))
+                    TrackInnGuestJob(host,action.Substring("inn_job_".Length));
                 else
                 {
                     journalFocusRequest=Array.IndexOf(QuestIds,save.trackedQuest)>=0?
