@@ -874,8 +874,15 @@ namespace Starfall
                 Text(888,484,306,31,
                     Game.L("正在查看：","INSPECTING: ")+inspectedMap.title,
                     13,PixelArt.C("#dcb1ff"),TextAnchor.MiddleCenter);
-                Text(888,513,306,43,inspectedMap.next,12,muted,
+                Text(888,511,306,26,inspectedMap.next,11,muted,
                     TextAnchor.MiddleCenter);
+                bool currentlyTracked=Game.save.trackedQuest==inspectedMap.id;
+                if(Button(888,541,306,24,
+                    currentlyTracked?Game.L("正在追踪此任务","TRACKING THIS QUEST"):
+                        inspectedMap.complete?Game.L("任务已完成","QUEST COMPLETE"):
+                        Game.L("追踪这条任务","TRACK INSPECTED QUEST"),
+                    currentlyTracked,!currentlyTracked&&!inspectedMap.complete))
+                    Game.TrackQuest(inspectedMap.id);
             }
             else if(mapTileCursor.Active&&selectedRegion==Game.save.room)
             {

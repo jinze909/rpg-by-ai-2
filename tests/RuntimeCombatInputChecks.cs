@@ -2662,6 +2662,54 @@ public static class RuntimeCombatInputChecks
     }
 
 
+
+    private static void InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.flags.Add("intro");game.save.english=true;
+        game.save.trackedQuest="main";
+        int index=Array.IndexOf(GameCore.QuestIds,"trail_circuits");
+        Check(index>=0,"Original field expedition is registered for map quest promotion");
+        game.mode="journal";
+        Set(app,"journalTab",0);Set(app,"selectedQuest",index);
+        Set(app,"questPage",index/14);
+        GUI.queuedClick=new Rect(927,647,263,31);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(game.mode=="map"&&game.save.trackedQuest=="main",
+            "The selected quest is first inspected independently of player quest tracking");
+        Point origin=game.Position;
+        Point tile=new Point((float)Math.Floor(origin.x)+.5f,
+            (float)Math.Floor(origin.y)+.5f);
+        Check(game.PlaceLocalWaymark(tile)&&game.HasLocalWaymark,
+            "A player-authored physical map pin can coexist with quest inspection");
+        Point savedPin=game.LocalWaymark.Value;
+        GUI.buttonCalls.Clear();GUI.commands.Clear();Call(app,"OnGUI");
+        var action=GUI.buttonCalls.Find(b=>Math.Abs(b.rect.x-888)<.01f&&
+            Math.Abs(b.rect.y-541)<.01f);
+        Check(action!=null&&action.enabled&&
+            GUI.commands.Exists(x=>x.Contains("TRACK INSPECTED QUEST")),
+            "Live map exposes an explicit, enabled track control for the inspected unfinished mission");
+        int coins=game.save.coins;
+        GUI.queuedClick=new Rect(888,541,306,24);
+        Call(app,"OnGUI");
+        Check(!GUI.queuedClick.HasValue&&
+            game.save.trackedQuest=="trail_circuits"&&
+            game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-savedPin).Length<.001f&&
+            game.save.coins==coins&&game.save.version==2,
+            "Only the deliberately clicked track control changes the tracked mission; personal pin and saved economy remain intact");
+        GUI.buttonCalls.Clear();GUI.commands.Clear();Call(app,"OnGUI");
+        action=GUI.buttonCalls.Find(b=>Math.Abs(b.rect.x-888)<.01f&&
+            Math.Abs(b.rect.y-541)<.01f);
+        Check(action!=null&&!action.enabled&&
+            GUI.commands.Exists(x=>x.Contains("TRACKING THIS QUEST")),
+            "The same inspected map shows tracked status without offering a duplicate action");
+        game.Close();
+        Console.WriteLine("PASS Explicit map quest tracking preserves personal waypoint, economy, and SaveData v2");
+    }
+
     private static void JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking(
         FrontierRuntime app)
     {
@@ -7209,7 +7257,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
