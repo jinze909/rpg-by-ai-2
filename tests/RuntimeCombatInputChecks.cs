@@ -5249,6 +5249,97 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Physical runtime Shift/L3 sprint, HUD, fatigue and modal input isolation");
     }
 
+    private static void InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.room=9;g.mode="world";g.save.english=true;
+        WorldObject guest=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.kind=="innGuest"){guest=o;break;}
+        Check(guest!=null,"The authored Hearth Inn has its original night traveler");
+        bool found=false;
+        for(float dx=-1.5f;dx<=1.5f&&!found;dx+=.25f)
+        for(float dy=-1.5f;dy<=1.5f;dy+=.25f)
+        {
+            g.save.x=guest.x+dx;g.save.y=guest.y+dy;
+            if(g.CanStand(g.Position)&&g.Nearest()==guest)
+            {found=true;break;}
+        }
+        Check(found,"The real night traveler is physically reachable by world E");
+        int coins=g.save.coins,shards=g.save.shards,flags=g.save.flags.Count;
+        g.Interact();
+        Check(g.mode=="dialog"&&g.conversationSource==guest&&
+            g.conversation.speaker==guest.name&&
+            !g.conversation.textEn.Contains("The warden's letter finally"),
+            "The actual E interaction opens the concise traveler instead of dumping all chapters");
+        int road=-1,news=-1,journal=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+        {
+            string action=g.conversation.choices[i].action;
+            if(action=="inn_routelead")road=i;
+            if(action=="inn_news")news=i;
+            if(action=="inn_openjournal")journal=i;
+        }
+        Check(road>=0&&news>=0&&journal>=0,
+            "Three actual authored topics preserve a direct journal handoff");
+        g.Choose(road);
+        Check(g.mode=="dialog"&&g.conversationSource==guest&&
+            g.conversation.speaker==guest.name&&
+            g.conversation.textEn.Contains("journal"),
+            "Road advice uses current live quest context and the original traveler identity");
+        int back=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="inn_topics")back=i;
+        Check(back>=0,"The branch has an explicit way back to the same speaker");
+        g.Choose(back);
+        news=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="inn_news")news=i;
+        Check(news>=0,"The original published chronicle remains discoverable");
+        g.Choose(news);
+        Check(g.conversationSource==guest&&
+            g.conversation.textEn.Contains("The warden's letter finally found")&&
+            g.conversation.speaker==guest.name,
+            "The full legacy chapter aftermath is retained as opt-in dialogue");
+        back=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="inn_topics")back=i;
+        Check(back>=0,"Chapter news can return without re-opening another NPC");
+        g.Choose(back);
+        journal=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="inn_openjournal")journal=i;
+        Check(journal>=0,"The topical menu keeps an actual journal action");
+        g.Choose(journal);
+        Check(g.mode=="journal"&&g.conversation==null&&
+            g.save.coins==coins&&g.save.shards==shards&&
+            g.save.flags.Count==flags&&g.save.version==2,
+            "Journal handoff never changes quest selection, rewards, old saves or story flags");
+        Set(app,"journalTab",0);GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.buttonCalls.Count>0,"Real journal becomes a playable IMGUI menu");
+        g.Close();g.save.english=false;g.Interact();
+        Check(g.mode=="dialog"&&g.conversation.text.Contains("旅人把热汤")&&
+            g.conversationSource==guest,
+            "Chinese speaker reuses the same concise authored interaction");
+        g.Close();g.save.english=true;g.Interact();
+        int stale=-1;
+        for(int i=0;i<g.conversation.choices.Length;i++)
+            if(g.conversation.choices[i].action=="inn_news")stale=i;
+        Check(stale>=0,"The traveler has a source-bound news action");
+        WorldObject[] original=g.Map.objects;
+        try
+        {
+            g.Map.objects=Array.FindAll(original,o=>!Object.ReferenceEquals(o,guest));
+            g.Choose(stale);
+            Check(g.mode=="world"&&g.conversation==null&&
+                g.save.coins==coins&&g.save.flags.Count==flags,
+                "Removing the exact source rejects an old topic instead of opening an unrelated NPC");
+        }
+        finally{g.Map.objects=original;}
+        Console.WriteLine("PASS Original inn traveler E topics, source-bound dialogue, bilingual prose, optional chronicle and live journal handoff");
+    }
+
     private static void NearbyNpcHudMatchesRealKeyboardInteraction(FrontierRuntime app)
     {
         Prepare(app);
@@ -7868,7 +7959,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

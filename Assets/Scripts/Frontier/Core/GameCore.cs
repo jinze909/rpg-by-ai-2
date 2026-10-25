@@ -2704,6 +2704,91 @@ namespace Starfall
             mode = "map";
         }
 
+
+        private Choice[] InnGuestBaseChoices()
+        {
+            // Preserve already published civic-service and close choices.
+            // Insert two topics and a direct journal handoff before Leave.
+            Choice[] existing=CivicAftercareInnChoices();
+            if(existing==null)existing=new Choice[0];
+            int insert=existing.Length;
+            if(insert>0&&existing[insert-1].action=="close")insert--;
+            bool hasClose=insert<existing.Length;
+            Choice[] choices=new Choice[existing.Length+3+(hasClose?0:1)];
+            Array.Copy(existing,0,choices,0,insert);
+            choices[insert]=C("接下来该走哪条路？",
+                "Which road should I take next?","inn_routelead");
+            choices[insert+1]=C("有什么新消息？",
+                "What news came in?","inn_news");
+            choices[insert+2]=C("我去看看任务手帐",
+                "I'll check my journal","inn_openjournal");
+            Array.Copy(existing,insert,choices,insert+3,existing.Length-insert);
+            if(!hasClose)choices[choices.Length-1]=C("先告辞","Leave","close");
+            return choices;
+        }
+        private Choice[] InnGuestNewsChoices()
+        {
+            Choice[] existing=CivicAftercareInnChoices();
+            if(existing==null)existing=new Choice[0];
+            int insert=existing.Length;
+            if(insert>0&&existing[insert-1].action=="close")insert--;
+            Choice[] choices=new Choice[existing.Length+1];
+            Array.Copy(existing,0,choices,0,insert);
+            choices[insert]=C("再问些别的","Ask something else","inn_topics");
+            Array.Copy(existing,insert,choices,insert+1,existing.Length-insert);
+            return choices;
+        }
+        private void ShowInnGuestTopics(WorldObject o)
+        {
+            Dialog(o.name,o.en,
+                "旅人把热汤往你面前推了推，自己坐回炉边。\n\n“外头起风了。你是来歇脚，还是找路？”",
+                "The traveler pushes the warm stew closer, then settles beside the fire.\n\n“Wind's picking up. Here to rest your feet, or looking for a road?”",
+                InnGuestBaseChoices());
+        }
+        private void ShowInnGuestRouteLead(WorldObject o)
+        {
+            QuestGuide guide=CurrentGuide;
+            bool actionable=!guide.locked&&!guide.complete;
+            bool remote=actionable&&guide.room!=save.room&&
+                guide.room>=0&&guide.room<data.maps.Length;
+            string zh=actionable?
+                remote?
+                    "旅人拿炭笔在桌上划了两道。\n\n“你还要去"+data.maps[guide.room].name+
+                    "。先走已经开放的路口。具体要找谁、交什么东西，翻开手帐看看，别凭我的旧地图找。”":
+                    "旅人看了一眼你摊开的地图。\n\n“要办的事就在这片地方。先把手帐翻到正在追的那页；到了地方记得跟人说话，别光盯着路标。”":
+                "旅人把铅笔搁下。\n\n“你追着的那件事暂时没有下一步。手帐里要是还有没办完的委托，挑一件再出门。”";
+            string en=actionable?
+                remote?
+                    "The traveler marks two lines on the table with charcoal.\n\n“You're headed for "+
+                    data.maps[guide.room].en+
+                    ". Take the open crossing. Check your journal for who you need and what to carry; my map is old.”":
+                    "The traveler glances at your open map.\n\n“What you're after is in this area. Check the quest you're following. When you arrive, talk to someone—a marker won't answer you.”":
+                "The traveler sets down the pencil.\n\n“That errand has no next step for now. See if you've left another job unfinished in your journal.”";
+            Dialog(o.name,o.en,zh,en,
+                C("翻开任务手帐","Open my journal","inn_openjournal"),
+                C("还有别的事要问","Ask something else","inn_topics"),
+                C("先告辞","Leave","close"));
+        }
+        private void ShowInnGuestChronicle(WorldObject o)
+        {
+                    Dialog(o.name, o.en, "巡路员留下的信，最后还是找到了收信的人。你要去的那些地方，我也走过。\n\n白天看道路，夜里看灯。遇到举锤的敌人，先看它的手；遇到射手，先看弓弦。能回来讲故事，比走得快更重要。" + (Has("survey_complete") ? "\n\n你留在旅店的归乡星图，已经帮三个夜归的人绕过塌桥。谢谢你没有让巡路队的名字被遗忘。星图桌现在能连接三座信标，附近安全时可以快速往返。" : Has("survey_1") || Has("survey_2") || Has("survey_3") ? "\n\n我听说你找到旧巡路信标。三段信号都齐了，就去旅店的星图桌看看。" : "") + (Has("dispatch_complete") ? "\n\n你解开了三封旧信。旅店愿意给守路人热汤优惠两枚硬币，愿所有人都能找到归途。" : Has("dispatch_6") || Has("dispatch_7") || Has("dispatch_8") ? "\n\n你已经解开一封旧信。其余两封也许能回答它留下的问题。" : "") + RoadwardenVigilInnNote(false) +
+                    (RootsongComplete?"\n\n密林古树重新合唱了。侦察员说这是孩子们曾用来找到庇护的三声归途，恢复的树荫还能让旅人安全休息。":"") +
+                    (FloodArchiveComplete?(FloodArchiveChoice==1?
+                        "\n\n沉桥那些被遗漏的名字终于写进公用渡口名册；摆渡人现在在潮标旁照顾伤者。":
+                        "\n\n摆渡人用你保存的原始水图训练学徒，退潮时能更安全地带旅人回岸。"):"") +
+                    (LastDirectiveComplete?
+                        (LastDirectiveChoice==1?
+                            "\n\n旅店的新留言板写着公开审议流程：旅人可以质疑过载命令，而巡路队不用再偷偷保留证据。":
+                            "\n\n堡垒已承诺无条件的紧急庇护：先让迷路的人有地方过夜，再让居民决定如何修补归途。"):"") + CivicAftercareInnNote(false), "The warden's letter finally found its recipient. I once walked the roads ahead of you.\n\nWatch the roads by day, and the lamps at night. Read a hammer's lift and an archer's bowstring. Coming home with a story matters more than traveling fast." + (Has("survey_complete") ? "\n\nThe chart you left at the inn helped three late travelers avoid the broken bridge. Thank you for keeping the wardens remembered. The chart table now links the three beacons for safe travel." : Has("survey_1") || Has("survey_2") || Has("survey_3") ? "\n\nI hear you found an old road beacon. Once all three signals are recovered, visit the chart table here at the inn." : "") + (Has("dispatch_complete") ? "\n\nYou decoded all three letters. The inn now discounts stew by two coins for those who keep the road open." : Has("dispatch_6") || Has("dispatch_7") || Has("dispatch_8") ? "\n\nYou decoded one old letter. The others may answer its questions." : "") + RoadwardenVigilInnNote(true) +
+                    (RootsongComplete?"\n\nThe ancient Thornwood trunks are singing again. The scout remembers their three notes guiding children home; the repaired roots now offer travelers a safe pause.":"") +
+                    (FloodArchiveComplete?(FloodArchiveChoice==1?
+                        "\n\nThe once-erased ferry families are now on public rolls. The ferrymen tend the wounded at the restored tideposts.":
+                        "\n\nThe ferrymen now teach apprentices using the original tide charts you preserved, making the ebb crossing safer."):"") +
+                    (LastDirectiveComplete?
+                        (LastDirectiveChoice==1?
+                            "\n\nThe inn displays the new public review process. Any traveler can challenge an overload order without hiding the evidence.":
+                            "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):"") + CivicAftercareInnNote(true), InnGuestNewsChoices()); return;
+        }
         private void TalkCore(WorldObject o)
         {
             if (TalkPolish(o)) return;
@@ -2725,23 +2810,7 @@ namespace Starfall
             string kind = o.kind;
             if (kind == "innGuest")
             {
-                Dialog(o.name, o.en, "巡路员留下的信，最后还是找到了收信的人。你要去的那些地方，我也走过。\n\n白天看道路，夜里看灯。遇到举锤的敌人，先看它的手；遇到射手，先看弓弦。能回来讲故事，比走得快更重要。" + (Has("survey_complete") ? "\n\n你留在旅店的归乡星图，已经帮三个夜归的人绕过塌桥。谢谢你没有让巡路队的名字被遗忘。星图桌现在能连接三座信标，附近安全时可以快速往返。" : Has("survey_1") || Has("survey_2") || Has("survey_3") ? "\n\n我听说你找到旧巡路信标。三段信号都齐了，就去旅店的星图桌看看。" : "") + (Has("dispatch_complete") ? "\n\n你解开了三封旧信。旅店愿意给守路人热汤优惠两枚硬币，愿所有人都能找到归途。" : Has("dispatch_6") || Has("dispatch_7") || Has("dispatch_8") ? "\n\n你已经解开一封旧信。其余两封也许能回答它留下的问题。" : "") + RoadwardenVigilInnNote(false) +
-                (RootsongComplete?"\n\n密林古树重新合唱了。侦察员说这是孩子们曾用来找到庇护的三声归途，恢复的树荫还能让旅人安全休息。":"") +
-                (FloodArchiveComplete?(FloodArchiveChoice==1?
-                    "\n\n沉桥那些被遗漏的名字终于写进公用渡口名册；摆渡人现在在潮标旁照顾伤者。":
-                    "\n\n摆渡人用你保存的原始水图训练学徒，退潮时能更安全地带旅人回岸。"):"") +
-                (LastDirectiveComplete?
-                    (LastDirectiveChoice==1?
-                        "\n\n旅店的新留言板写着公开审议流程：旅人可以质疑过载命令，而巡路队不用再偷偷保留证据。":
-                        "\n\n堡垒已承诺无条件的紧急庇护：先让迷路的人有地方过夜，再让居民决定如何修补归途。"):"") + CivicAftercareInnNote(false), "The warden's letter finally found its recipient. I once walked the roads ahead of you.\n\nWatch the roads by day, and the lamps at night. Read a hammer's lift and an archer's bowstring. Coming home with a story matters more than traveling fast." + (Has("survey_complete") ? "\n\nThe chart you left at the inn helped three late travelers avoid the broken bridge. Thank you for keeping the wardens remembered. The chart table now links the three beacons for safe travel." : Has("survey_1") || Has("survey_2") || Has("survey_3") ? "\n\nI hear you found an old road beacon. Once all three signals are recovered, visit the chart table here at the inn." : "") + (Has("dispatch_complete") ? "\n\nYou decoded all three letters. The inn now discounts stew by two coins for those who keep the road open." : Has("dispatch_6") || Has("dispatch_7") || Has("dispatch_8") ? "\n\nYou decoded one old letter. The others may answer its questions." : "") + RoadwardenVigilInnNote(true) +
-                (RootsongComplete?"\n\nThe ancient Thornwood trunks are singing again. The scout remembers their three notes guiding children home; the repaired roots now offer travelers a safe pause.":"") +
-                (FloodArchiveComplete?(FloodArchiveChoice==1?
-                    "\n\nThe once-erased ferry families are now on public rolls. The ferrymen tend the wounded at the restored tideposts.":
-                    "\n\nThe ferrymen now teach apprentices using the original tide charts you preserved, making the ebb crossing safer."):"") +
-                (LastDirectiveComplete?
-                    (LastDirectiveChoice==1?
-                        "\n\nThe inn displays the new public review process. Any traveler can challenge an overload order without hiding the evidence.":
-                        "\n\nThe citadel has confirmed unconditional emergency refuge: shelter the stranded first, then let residents decide how to rebuild."):"") + CivicAftercareInnNote(true), CivicAftercareInnChoices()); return;
+                ShowInnGuestTopics(o);return;
             }
             if (kind.StartsWith("portal"))
             {
@@ -3094,6 +3163,7 @@ namespace Starfall
         private static bool RequiresWorldSourceReach(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
+            if(action.StartsWith("inn_",StringComparison.Ordinal))return true;
             // Choices whose handlers do not independently validate their target.
             if (action.StartsWith("goto") || action == "routes" ||
                 action == "rest" || action == "scout" || action == "engine" ||
@@ -3186,6 +3256,22 @@ namespace Starfall
 
         private void ChooseCore(string action)
         {
+            // The topic menu must remain bound to the actual inn traveler,
+            // not an unrelated NPC or a previously removed world actor.
+            if(action=="inn_routelead"||action=="inn_news"||
+                action=="inn_topics"||action=="inn_openjournal")
+            {
+                WorldObject host=pendingDialogueSource;
+                if(host==null||host.kind!="innGuest"||
+                    pendingDialogueSourceRoom!=save.room||
+                    !SourceBelongsToActiveMap(host)||
+                    !HasPhysicalInteractionReach(host))return;
+                if(action=="inn_routelead")ShowInnGuestRouteLead(host);
+                else if(action=="inn_news")ShowInnGuestChronicle(host);
+                else if(action=="inn_topics")ShowInnGuestTopics(host);
+                else mode="journal";
+                return;
+            }
             if (ChooseSwordLesson(action)) return;
             if (ChooseSpecialistDrill(action)) return;
             if (ChooseFrostSignal(action)) return;
