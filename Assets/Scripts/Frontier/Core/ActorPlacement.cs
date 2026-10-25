@@ -31,7 +31,12 @@ namespace Starfall
         private Point UncrowdedEnemyFoot(Point proposed)
         {
             Point safe=SafeActorFoot(proposed);
-            bool occupied=false;
+            // A newly spawned foe must not materialize INSIDE the hero's
+            // or an active companion's hurtbox after a save restoration.
+            // This applies only to overlapping feet, not normal nearby
+            // enemies; legitimate close-range battles stay unchanged.
+            bool occupied=(safe-Position).Length<.95f||
+                save.companion>=0&&(safe-companionPosition).Length<.95f;
             foreach(Enemy other in enemies)
                 if(other!=null&&other.hp>0&&
                     (other.Position-safe).Length<.95f)
@@ -45,7 +50,10 @@ namespace Starfall
                 Point option=new Point(
                     (float)Math.Floor(safe.x)+dx+.5f,
                     (float)Math.Floor(safe.y)+dy+.5f);
-                if(!Fits(option)||!ActorHasLocalRoute(safe,option,4))
+                if(!Fits(option)||!ActorHasLocalRoute(safe,option,4)||
+                    (option-Position).Length<1.05f||
+                    save.companion>=0&&
+                    (option-companionPosition).Length<1.05f)
                     continue;
                 bool clear=true;
                 foreach(Enemy other in enemies)
