@@ -605,19 +605,20 @@ public static class RuntimeContinuityChecks
             Point? goal=g.NavigationTarget();
             Check(goal.HasValue&&(goal.Value-center).Length<.001f,
                 "The original authored quest uses the relocated original portal");
-            Check(g.NavigationPathFrom(g.Position,center,true).Count==0&&
-                g.NavigationPath(center).Count>0,
-                "Blocked original portal has only a misleading partial legacy compass route");
+            Check(g.NavigationPathFrom(g.Position,center,true).Count==0,
+                "The sealed original portal has no complete physical walking approach");
             var preview=(List<Point>)Call(app,"NavigationRoute");
-            Check(preview.Count>0,
-                "Optional generic story hint retains its original best-effort trail");
+            Check(preview.Count==g.NavigationPath(center).Count&&
+                !Get<bool>(app,"navigationRouteStrictQuestFinish"),
+                "Generic optional guidance retains its original best-effort policy, including valid empty fallbacks");
             g.mode="journal";g.save.showGuidance=false;
             Check(g.PlaceQuestApproachWaymark("trail_circuits"),
                 "Player explicitly accepts the same genuine remote quest");
             g.mode="world";
             var strict=(List<Point>)Call(app,"NavigationRoute");
-            Check(strict.Count==0&&g.PlayerRequestedNavigationActive,
-                "Player-approved route invalidates prior partial-path cache and rejects sealed finish");
+            Check(strict.Count==0&&g.PlayerRequestedNavigationActive&&
+                Get<bool>(app,"navigationRouteStrictQuestFinish"),
+                "Player-approved navigation switches the live cache to strict physical finish and rejects sealed entry");
             Check((bool)Call(app,"HasBlockedNavigationRoute",center),
                 "A sealed player-approved portal is an actual blocked route, never an arrived route");
             ClearDraw();Call(app,"DrawMinimap");
