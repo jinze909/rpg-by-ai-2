@@ -1817,8 +1817,20 @@ public static class RuntimeCombatInputChecks
         Enemy second=new Enemy(99132,1,submerged.x,submerged.y,80);
         first.state=second.state=1;
         g.enemies.Add(first);g.enemies.Add(second);
+        // These were valid before the surge but must not survive a
+        // forced relocation into different collision geometry.
+        var staleAllyRoute=(Queue<Point>)CoreField(g,"companionFollowRoute");
+        staleAllyRoute.Enqueue(new Point(submerged.x+3,submerged.y));
+        typeof(GameCore).GetField("companionUnreachableGoal",Private)
+            .SetValue(g,true);
+        typeof(GameCore).GetField("companionBlockedRouteRetry",Private)
+            .SetValue(g,2.5f);
         int coins=g.save.coins,shards=g.save.shards;
         CallCore(g,"RecoverTideActors");
+        Check(staleAllyRoute.Count==0&&
+            !(bool)CoreField(g,"companionUnreachableGoal")&&
+            (float)CoreField(g,"companionBlockedRouteRetry")==0f,
+            "Forced allied relocation discards obsolete footpath and stale failure cooldown");
         Check(g.CanStand(first.Position)&&g.CanStand(second.Position)&&
             g.CanStand(g.companionPosition),
             "Rising water evacuates both real enemies and the companion to playable dry ground");
@@ -1888,12 +1900,20 @@ public static class RuntimeCombatInputChecks
         g.reliefFollowerPosition=shoal;
         g.reliefFollowerWaiting=true;
         g.reliefFollowerMoving=true;g.reliefFollowerWalkDistance=2.3f;
+        var staleCivilianRoute=(List<Point>)CoreField(g,"reliefFollowerRoute");
+        staleCivilianRoute.Add(new Point(shoal.x+4,shoal.y));
+        typeof(GameCore).GetField("reliefFollowerBlockedSeconds",Private)
+            .SetValue(g,2.5f);
         int coins=g.save.coins,shards=g.save.shards;
         Check(g.ReliefEscortActive&&!g.CanStand(shoal)&&
             (bank-allyBank).Length>=.95f,
             "A real waiting evacuee is submerged beside separately positioned enemies and companion");
         CallCore(g,"RecoverTideActors");
         Point resident=g.reliefFollowerPosition;
+        Check(staleCivilianRoute.Count==0&&
+            (float)CoreField(g,"reliefFollowerBlockedSeconds")==0f&&
+            g.reliefFollowerWaiting,
+            "Rising-tide evacuee drops obsolete walking and stuck-route caches without losing WAIT order");
         Check(g.CanStand(resident)&&
             (resident-guard.Position).Length>=.95f&&
             (resident-g.companionPosition).Length>=.95f&&

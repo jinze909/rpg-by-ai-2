@@ -301,6 +301,14 @@ namespace Starfall
                     companionPosition,null,true);
                 companionAction = null; companionAutoTarget = null;
                 companionMoving = false; companionMoveTime = 0f;
+                // Forced surf relocation is not a step along the previous
+                // path: stale queue/corner goals can otherwise walk the ally
+                // straight back into the shoal on the following tick.
+                // Preserve actual hold orders and the party identity.
+                ClearCompanionFollowRoute();
+                ClearCompanionCornerPlan();
+                companionUnreachableGoal=false;
+                companionBlockedRouteRetry=0f;
                 if (unspentCommand) companionCooldown = 0f;
                 if (unspentAuto)
                     companionAttack = Math.Min(companionAttack, .22f);
@@ -323,6 +331,13 @@ namespace Starfall
                 // safety, mission time and saved rescue checkpoint format.
                 reliefFollowerMoving = false;
                 reliefFollowerWalkDistance = 0f;
+                // The survivor's pre-flood route and stalled-route timer
+                // are no longer anchored at the current physical feet.
+                // Recompute next tick, but retain explicit WAIT/FOLLOW and
+                // the exact protected mission clock and safety.
+                ClearReliefFollowerRoute();
+                reliefFollowerBlockedSeconds=0f;
+                reliefFollowerBlockedNotice=false;
             }
         }
     }
