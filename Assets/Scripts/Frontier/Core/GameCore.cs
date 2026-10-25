@@ -1281,6 +1281,25 @@ namespace Starfall
                 !Finite(enemy.windupDuration);
             bool invalidRecoil = !Finite(enemy.recoil.x) ||
                 !Finite(enemy.recoil.y);
+            bool invalidTarget = !Finite(enemy.target.x) ||
+                !Finite(enemy.target.y);
+            bool invalidFacing = !Finite(enemy.facing.x) ||
+                !Finite(enemy.facing.y);
+            bool invalidAttackTravel =
+                !Finite(enemy.attackOrigin.x) ||
+                !Finite(enemy.attackOrigin.y) ||
+                !Finite(enemy.attackDestination.x) ||
+                !Finite(enemy.attackDestination.y);
+            // An otherwise finite clock does not make a NaN target or
+            // off-map dash endpoint safe. Cancel the pending action before
+            // it can draw a warning, cast a boss circle or fire a missile.
+            // The next ordinary AI acquisition gets a clean finite intent.
+            if (invalidTarget) enemy.target = enemy.Position;
+            if (invalidFacing) enemy.Face(new Point(1f,0f));
+            if (invalidAttackTravel)
+                enemy.attackOrigin = enemy.attackDestination = enemy.Position;
+            if (invalidTarget || invalidFacing || invalidAttackTravel)
+                invalidActionClock = true;
 
             if (!Finite(enemy.flash)) enemy.flash = 0f;
             if (!Finite(enemy.stagger)) enemy.stagger = 0f;
