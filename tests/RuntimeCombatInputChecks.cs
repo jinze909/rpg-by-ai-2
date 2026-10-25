@@ -1766,11 +1766,15 @@ public static class RuntimeCombatInputChecks
         Check(g.CanStand(first.Position)&&g.CanStand(second.Position)&&
             g.CanStand(g.companionPosition),
             "Rising water evacuates both real enemies and the companion to playable dry ground");
+        // Actor placement rejects separation BELOW .95 tile; distinct
+        // neighboring tile centers are exactly 1.0 tile apart and valid.
+        // Requiring 1.05 here would incorrectly report two neighboring
+        // safe cells as overlapping even though the actual hurtboxes do not.
         Check((first.Position-second.Position).Length>=.95f&&
-            (first.Position-g.companionPosition).Length>=1.05f&&
-            (second.Position-g.companionPosition).Length>=1.05f&&
-            (g.companionPosition-g.Position).Length>=1.05f,
-            "Dry-bank evacuation reserves a separate physical foot for every combatant");
+            (first.Position-g.companionPosition).Length>=.95f&&
+            (second.Position-g.companionPosition).Length>=.95f&&
+            (g.companionPosition-g.Position).Length>=.95f,
+            "Dry-bank evacuation reserves physically separate live collision footprints (>=.95 tile)");
         Check((bool)CallCore(g,"ActorHasLocalRoute",first.Position,second.Position,4)&&
             (bool)CallCore(g,"ActorHasLocalRoute",first.Position,g.companionPosition,4),
             "Relocations remain on the connected bank rather than jumping to another terrain island");
