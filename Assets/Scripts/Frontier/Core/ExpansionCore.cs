@@ -1427,6 +1427,50 @@ namespace Starfall
             return foe!=null&&enemies.Contains(foe)&&
                 OuterPatrolUncoveredStockStrike(foe);
         }
+        // Closing tide, a raised gate or a collapsed ledge can invalidate
+        // an ally's EXISTING foot without the hero crossing the room. Resolve
+        // the collision in a small neighborhood of the OLD foot, never at
+        // an arbitrary distant formation socket; that would be a teleport.
+        // This is temporary actor state and changes no SaveData v2 fields.
+        private bool TryRecoverCompanionFoot()
+        {
+            if(CanStand(companionPosition))return true;
+            Point original=companionPosition;
+            if(!Finite(original.x)||!Finite(original.y))return false;
+            float[] radii={.3f,.6f,.9f,1.2f,1.5f};
+            for(int radius=0;radius<radii.Length;radius++)
+                for(int direction=0;direction<16;direction++)
+                {
+                    float angle=direction*(float)(Math.PI/8);
+                    Point step=new Point((float)Math.Cos(angle),
+                        (float)Math.Sin(angle))*radii[radius];
+                    Point foot=original+step;
+                    if(!CanStand(foot)||
+                        (foot-Position).Length<.7f)continue;
+                    bool occupied=false;
+                    foreach(Enemy foe in enemies)
+                    {
+                        if(foe==null||foe.hp<=0f||
+                            !Finite(foe.x)||!Finite(foe.y))continue;
+                        if((foe.Position-foot).Length<(foe.boss?.88f:.58f))
+                        {occupied=true;break;}
+                    }
+                    if(occupied)continue;
+                    // A recovery is not a real step or an attack release.
+                    // Cancel stale cast/route targets and replant the gait.
+                    companionPosition=foot;
+                    companionMoveTime=0f;
+                    companionMoving=false;
+                    companionAction=null;
+                    companionAutoTarget=null;
+                    ClearCompanionCornerPlan();
+                    ClearCompanionFollowRoute();
+                    companionPresentationGeneration++;
+                    companionAttack=Math.Max(companionAttack,.2f);
+                    return true;
+                }
+            return false;
+        }
         private void TickCompanion(float dt)
         {
             companionMoving = false;
@@ -1447,6 +1491,17 @@ namespace Starfall
             }
             if (save.companion < 0 || practicing)
             { companionAction = null; companionAutoTarget = null; return; }
+            if(!TryRecoverCompanionFoot())
+            {
+                // No legal foot nearby: stay on the original side of the
+                // obstacle. A blocked root cannot fire, heal or path-warp.
+                companionAction=null;companionAutoTarget=null;
+                ClearCompanionCornerPlan();
+                ClearCompanionFollowRoute();
+                companionMoveTime=0f;
+                companionAttack=Math.Max(companionAttack,.2f);
+                return;
+            }
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
             companionCornerPostShotSeconds=Math.Max(0f,
                 companionCornerPostShotSeconds-dt);
@@ -1691,10 +1746,10 @@ namespace Starfall
                 usingFollowWaypoint?.045f:.3f;
             if (!Fits(companionPosition))
             {
-                companionPosition = follow; // Recovery only, never catch-up warp.
-                // A collision recovery is NOT a physical footstep. Restart
-                // the source contact phase at the valid planted root.
-                companionMoveTime = 0f;
+                // Defensive fallback: keep the original foot if no nearby
+                // standable ground exists. Never snap to a distant waypoint.
+                companionMoveTime=0f;
+                return;
             }
             else if (delta.Length > stoppingDistance)
             {

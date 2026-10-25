@@ -635,6 +635,41 @@ namespace Starfall.Tests
                 "Published register neither repeats its reward nor reopens a stale publication decision");
         }
 
+        public static void CompanionBlockedFootRecoversLocallyWithoutCrossMapWarp(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);g.enemies.Clear();
+            Check(g.save.companion==0,"The genuine recruited companion joins the playable party");
+            Point distant=new Point(-8,-8);
+            g.companionPosition=distant;
+            g.Tick(.05f,new Point());
+            Check((g.companionPosition-distant).Length<.001f&&
+                !g.companionMoving,
+                "An off-map invalid ally cannot warp to the hero through the follow-target recovery branch");
+            Point invalid=new Point();
+            bool found=false;
+            for(int y=4;y<g.Map.rows.Length-4&&!found;y++)
+                for(int x=4;x<g.Map.rows[y].Length-4&&!found;x++)
+                {
+                    Point p=new Point(x+.5f,y+.5f);
+                    if(g.CanStand(p)||(p-g.Position).Length<4f)continue;
+                    for(int d=0;d<4&&!found;d++)
+                    {
+                        Point[] around={new Point(1,0),new Point(-1,0),
+                            new Point(0,1),new Point(0,-1)};
+                        if(g.CanStand(p+around[d])){invalid=p;found=true;}
+                    }
+                }
+            Check(found,"A real authored obstacle has a valid neighboring recovery foot");
+            g.companionPosition=invalid;
+            g.companionMoveTime=37f;
+            g.Tick(.02f,new Point());
+            Check(g.CanStand(g.companionPosition)&&
+                (g.companionPosition-invalid).Length<=1.5001f&&
+                !g.companionMoving&&g.companionMoveTime==0f,
+                "Terrain-invalidated party member safely replants within 1.5 tiles without a fake walk animation");
+        }
+
         public static void PublishedRoadAuditOffersRealCostedCivilianFirstAid(Campaign data)
         {
             int[] regions={0,3,5};
