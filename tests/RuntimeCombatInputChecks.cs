@@ -1280,6 +1280,62 @@ public static class RuntimeCombatInputChecks
     }
 
 
+
+    private static void UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        var g=app.Game;g.enemies.Clear();
+        int room=g.save.room;
+        foreach(string flag in new[]{"outer_log_","outer_relay_",
+            "outer_cache_","outer_patrol_done_"})
+            if(!g.Has(flag+room))g.save.flags.Add(flag+room);
+        WorldObject lamp=Array.Find(g.Map.objects,o=>o.kind=="outerrelay"),
+            chest=Array.Find(g.Map.objects,o=>o.kind=="outercache"),
+            post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+        Check(lamp!=null&&chest!=null&&post!=null,
+            "All three authentic shipped delivery sources exist in the chosen visual-review map");
+        g.save.x=lamp.x;g.save.y=lamp.y;
+        g.Talk(lamp);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_delivery_start");
+        Check(start>=0,"Restored lamp exposes its authentic live courier choice");
+        g.Choose(start);
+        Check(g.OuterDeliveryActive&&g.save.trackedQuest=="outer_delivery"&&
+            (g.NavigationTarget().Value-new Point(chest.x,chest.y)).Length<.01f,
+            "Real source starts delivery and moves the actual pinned compass to the real chest");
+        Set(app,"camera",new Point(lamp.x,lamp.y));
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("急送中")),
+            "Live region world draws its real remaining-time label over the originating signal");
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("MEDICINE RUN")),
+            "Production signal mission clock has a genuine English translation");
+        g.save.x=chest.x;g.save.y=chest.y;
+        g.Talk(chest);
+        int pickup=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_delivery_pickup");
+        Check(pickup>=0,"Only the physical cache gives the mission pickup action");
+        g.Choose(pickup);
+        Check(g.OuterDeliveryStage==2&&
+            (g.NavigationTarget().Value-new Point(post.x,post.y)).Length<.01f,
+            "Actual pickup redirects the production compass to the defended post");
+        Set(app,"camera",new Point(post.x,post.y));
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("Deliver dressings here")),
+            "Live watch scene shows the stage-two handoff rather than a fake chest pickup");
+        g.save.x=post.x;g.save.y=post.y;g.Talk(post);
+        g.Choose(Array.FindIndex(g.conversation.choices,
+            c=>c.action=="outer_delivery_deliver"));
+        Check(!g.OuterDeliveryActive&&g.OuterDeliveryDone(room),
+            "Actual production dialogue completes the original post handoff");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(c=>c.Contains("Deliver dressings here"))&&
+            !GUI.commands.Exists(c=>c.Contains("MEDICINE RUN")),
+            "Mission visuals stop immediately after authentic one-time completion");
+        Console.WriteLine("PASS true three-stop timed medicine courier uses bilingual world markers and two real stage waypoints");
+    }
+
     private static void RealSignalSideCampCueRequiresMaterialSafeAndReachableMast(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -6592,7 +6648,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

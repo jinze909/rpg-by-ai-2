@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route", "specialist_drill" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route", "specialist_drill" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -1142,6 +1142,53 @@ namespace Starfall
                         "Challenge three live raiders at a defended outpost");
                 q.reward=L("每处首次获胜：硬币26、碎片2、经验60，强化安全恢复；八处再得技能点1",
                     "First clear each: 26 coins, 2 shards, 60 XP, better local care; all eight: +1 talent");
+                return q;
+            }
+
+
+            if(id=="outer_delivery")
+            {
+                q.title=L("巡路队 · 药布急送","Roadwardens · Urgent Dressings");
+                q.category=L("限时野外急送 · 实地三站","TIMED FIELD COURIER · THREE REAL STOPS");
+                q.description=L(
+                    "修复信号灯、领回旧救援箱并守住补给岗后，巡路队会在灯下托付新的医药急送。必须在90秒内亲自从南边救援箱取得药布，再送往北边补给岗。走捷径切地区或让旅途超时都不算交付；失败后仍能重新启程。",
+                    "Once the lamp, chest and defended post are secured, take an urgent delivery from the wardens at the lamp. Within 90 seconds, collect dressings from the physical chest to the south and deliver them to the defended watch to the north. Region travel and expired runs never grant completion; retry without losing earlier supplies.");
+                q.locked=OuterPatrolWins==0;
+                q.complete=OuterDeliveryWins==8;
+                int next=-1;
+                string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场",
+                    "堡垒外环","雾港","玻璃沙海","霜钟高原"};
+                string[] en={"Canal","Thornwood","Ruins","Ironreach",
+                    "Citadel","Mistport","Glasswind","Frostchime"};
+                for(int room=0;room<8;room++)
+                {
+                    bool done=OuterDeliveryDone(room);
+                    bool available=OuterPatrolDone(room)&&OuterCacheRecovered(room);
+                    q.steps.Add(new QuestStep(L(zh[room],en[room])+
+                        (done?" ✓":available?" · 可以接受急送":" · 先修灯取箱并守岗"),done));
+                    if(next<0&&!done&&available&&CanEnter(room))
+                        next=room;
+                }
+                q.room=OuterDeliveryActive?save.room:next<0?0:next;
+                q.target=new Point(18,15);
+                string location=OuterDeliveryActive?
+                    (outerDeliveryStage==1?"outercache":"outerwatch"):"outerrelay";
+                if(OuterDeliveryActive||next>=0)
+                    foreach(WorldObject o in data.maps[q.room].objects)
+                        if(o.kind==location)
+                        {q.target=new Point(o.x,o.y);break;}
+                q.next=q.complete?L("八地急送已全部交付","All eight medicine runs delivered"):
+                    OuterDeliveryActive?
+                        L("剩余 "+Math.Ceiling(outerDeliverySeconds)+" 秒 · "+
+                            (outerDeliveryStage==1?"到南边救援箱取药布":"向北返回已守住的补给岗交药"),
+                          Math.Ceiling(outerDeliverySeconds)+"s left · "+
+                            (outerDeliveryStage==1?"Retrieve dressings at the southern chest":"Deliver the dressings north at the defended watch")):
+                    next<0?L("先守住一座救援补给岗",
+                        "Defend a relief outpost to unlock courier missions"):
+                    L("在修好的信号灯旁接受九十秒急送",
+                        "Start the 90-second run at the repaired lamp");
+                q.reward=L("每处真实交付：硬币24、经验40；八地全部送达再得技能点1。",
+                    "Each authentic delivery: 24 coins and 40 XP; all eight earn one extra skill point.");
                 return q;
             }
 
@@ -2492,6 +2539,7 @@ namespace Starfall
             // away to an unrelated stale journal waypoint. Original tracked
             // quest selection is left untouched after combat.
             if(OuterPatrolActive)return outerPatrolPost;
+            if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.

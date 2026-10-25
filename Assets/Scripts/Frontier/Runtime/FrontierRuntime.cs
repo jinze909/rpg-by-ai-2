@@ -944,6 +944,10 @@ namespace Starfall
                             " · "+Math.Ceiling(Game.OuterPatrolBraceIntegrity)+"B":""),
                         11,Game.OuterPatrolIntegrity<=30f?
                             new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
+                else if(Game.OuterDeliveryActive&&Game.OuterDeliveryStage==2)
+                    Text(p.x-87,p.y-112,174,22,
+                        Game.L("把药布交给值守员","Deliver dressings here"),
+                        11,gold,TextAnchor.MiddleCenter);
                 else if(done)
                     Text(p.x-79,p.y-104,158,18,
                         flawless?Game.L("无损守卫徽章 · 荣誉补给岗",
@@ -969,6 +973,11 @@ namespace Starfall
                         float pulse=.18f+.09f*(1+Mathf.Sin(clock*2.4f));
                         Ring(new Point(o.x,o.y-1),.8f,new Color(mint.r,mint.g,mint.b,pulse),18);
                     }
+                    if(Game.OuterDeliveryActive)
+                        Text(p.x-106,p.y-111,212,20,
+                            Game.L("急送中 · 剩余 ","MEDICINE RUN · ")+
+                            Math.Ceiling(Game.OuterDeliverySeconds)+"s",
+                            11,gold,TextAnchor.MiddleCenter);
                     // The genuine recovery service appears in GameView only
                     // while the player occupies its safe, unobstructed zone.
                     // Always show this fixed-size cue in reduced-motion mode.
@@ -1004,6 +1013,11 @@ namespace Starfall
                     PropImage(kind=="outerlog"?"bookshelf":"barrel",0,
                         p.x-34,p.y-71,68,76,
                         recorded?new Color(.68f,.82f,.75f,.82f):Color.white);
+                    if(kind=="outercache"&&Game.OuterDeliveryActive&&
+                        Game.OuterDeliveryStage==1)
+                        Text(p.x-95,p.y-112,190,20,
+                            Game.L("取走待送的药布","Collect the dressings"),
+                            11,gold,TextAnchor.MiddleCenter);
                 }
                 if(!recorded)Diamond(p.x,p.y-68,5,gold);
                 return;

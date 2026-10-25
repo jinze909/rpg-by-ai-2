@@ -165,6 +165,7 @@ namespace Starfall
                 if(source.kind!="outerrelay"||!OuterDeliveryAvailable)return true;
                 outerDeliveryRoom=save.room;outerDeliveryStage=1;
                 outerDeliverySeconds=90f;revision++;sound="quest";
+                TrackQuest("outer_delivery");
                 Notify("巡路队急送开始：90秒内到南边旧药箱取药，再送到北边已守住的哨岗。",
                     "Roadwarden run started: collect dressings from the southern chest and deliver to the northern defended post within 90 seconds.");
                 return true;
