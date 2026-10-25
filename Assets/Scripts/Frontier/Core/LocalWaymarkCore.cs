@@ -114,6 +114,13 @@ namespace Starfall
                     "No physical walking route to that pin. Choose a reachable tile.");
                 return false;
             }
+            return CommitLocalWaymark(requested,false);
+        }
+        // Shared commit point for both explicit map pins and the journal's
+        // quest approach button. Neither caller can enter here before a
+        // fresh physical-route check. This function never writes SaveData.
+        private bool CommitLocalWaymark(Point requested,bool questApproach)
+        {
             localWaymarkFoot=new Point(
                 (float)Math.Floor(requested.x)+.5f,
                 (float)Math.Floor(requested.y)+.5f);
@@ -123,9 +130,40 @@ namespace Starfall
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=1f;
             revision++;sound="ui";
-            Notify("已设置本地标记。返回世界后，跟随地图上的路线前往。",
+            if(questApproach)
+                Notify("已规划通往任务的步行接近点。返回世界后跟随个人导航，到达后与目标交互。",
+                    "Quest walking approach pinned. Follow your personal route in the world, then interact with the objective.");
+            else Notify("已设置本地标记。返回世界后，跟随地图上的路线前往。",
                 "Local map pin set. Return to the world and follow its route.");
             return true;
+        }
+        // The journal may explicitly request a local quest's physically
+        // walkable approach without temporarily spoofing map mode or
+        // changing trackedQuest. An existing personal pin survives every
+        // invalid, locked, unreachable or changed objective.
+        public bool PlaceQuestApproachWaymark(string questId)
+        {
+            if((mode!="map"&&mode!="journal")||Dying||practicing||
+                string.IsNullOrEmpty(questId)||
+                Array.IndexOf(QuestIds,questId)<0)return false;
+            QuestGuide quest=GetQuest(questId);
+            if(quest==null||quest.locked||quest.complete||
+                quest.room!=save.room)return false;
+            var walking=NavigationPathFrom(Position,quest.target,true);
+            if(walking.Count==0)
+            {
+                Notify("当前没有通往此任务的完整步行接近路线。可能已在目标旁，或需要先开放道路。",
+                    "No complete walking approach right now. You may already be nearby, or a road must open first.");
+                return false;
+            }
+            Point approach=walking[walking.Count-1];
+            if(InspectLocalWaymark(approach)!=WaymarkRouteStatus.Available)
+            {
+                Notify("道路状况已改变，原有个人标记已保留。",
+                    "Walking conditions changed. Your previous personal pin is retained.");
+                return false;
+            }
+            return CommitLocalWaymark(approach,true);
         }
         private void TickLocalWaymark(float dt)
         {

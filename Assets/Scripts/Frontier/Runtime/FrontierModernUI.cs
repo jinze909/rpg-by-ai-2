@@ -920,13 +920,25 @@ namespace Starfall
             if(Button(515,644,85,32,Game.L("下页","Next"),false,
                 questPage<questPages-1))
             {questPage++;selectedQuest=visibleQuestIndices[questPage*questsPerPage];}
-            QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 464); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
+            QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 510); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
             float stepPitch = Math.Min(34f, 133f / Math.Max(1, q.steps.Count));
             for (int i = 0; i < q.steps.Count; i++)
                 Text(650, 482 + i * stepPitch, 542, Math.Min(33f, stepPitch),
                     (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text,
                     15, q.steps[i].done ? mint : paper);
             Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); mapInspectedQuestId=q.id; }
+            // One-tap local navigation from the actual journal selection.
+            // The core validates current eligibility and rechecks walking
+            // collision only on click, never on every IMGUI repaint.
+            if(Button(650,693,540,32,
+                Game.L(Game.HasLocalWaymark?
+                    "替换个人标记：导航至本地区任务接近点":
+                    "导航至本地区任务接近点",
+                    Game.HasLocalWaymark?
+                    "REPLACE PIN · ROUTE TO LOCAL QUEST":
+                    "PIN ROUTE TO LOCAL QUEST"),false,
+                !q.locked&&!q.complete&&q.room==Game.save.room))
+                Game.PlaceQuestApproachWaymark(q.id);
         }
         private void DrawMap()
         {

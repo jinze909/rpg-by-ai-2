@@ -2867,6 +2867,68 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live map objective clicks inspect unlocked missions without replacing personal navigation");
     }
 
+    private static void JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.flags.Add("intro");
+        game.save.english=true;
+        game.save.showGuidance=false;
+        game.save.trackedQuest="main";
+        game.mode="map";
+        Point origin=game.Position;
+        Point initial=new Point((float)Math.Floor(origin.x)+.5f,
+            (float)Math.Floor(origin.y)+.5f);
+        Check(game.PlaceLocalWaymark(initial),
+            "Existing personal map destination is placed before reading journal");
+        Point retained=game.LocalWaymark.Value;
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        game.mode="journal";
+        Check(!game.PlaceQuestApproachWaymark("not_an_authored_quest")&&
+            game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-retained).Length<.001f,
+            "The journal cannot pin invented quest IDs or erase valid personal navigation");
+        string questId=null;Point destination=new Point();
+        foreach(string id in GameCore.QuestIds)
+        {
+            QuestGuide q=game.GetQuest(id);
+            if(q.locked||q.complete||q.room!=game.save.room)continue;
+            List<Point> path=game.NavigationPathFrom(origin,q.target,true);
+            if(path.Count==0)continue;
+            Point approach=path[path.Count-1];
+            if(game.InspectLocalWaymark(approach)!=WaymarkRouteStatus.Available)
+                continue;
+            questId=id;destination=approach;break;
+        }
+        Check(questId!=null,
+            "A currently unlocked, unfinished local quest has a real walkable journal approach");
+        int index=Array.IndexOf(GameCore.QuestIds,questId);
+        Set(app,"journalTab",0);Set(app,"journalOnlyActionable",false);
+        Set(app,"selectedQuest",index);Set(app,"questPage",index/14);
+        GUI.buttonCalls.Clear();GUI.commands.Clear();Call(app,"OnGUI");
+        var action=GUI.buttonCalls.Find(b=>Math.Abs(b.rect.x-650)<.001f&&
+            Math.Abs(b.rect.y-693)<.001f&&
+            Math.Abs(b.rect.width-540)<.001f);
+        Check(action!=null&&action.enabled&&
+            GUI.commands.Exists(x=>x.Contains("REPLACE PIN")),
+            "The actual journal shows an explicit enabled local navigation replacement");
+        GUI.queuedClick=new Rect(650,693,540,32);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(game.mode=="journal"&&game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-destination).Length<.001f&&
+            game.save.trackedQuest=="main"&&
+            game.save.coins==coins&&game.save.flags.Count==flags&&
+            game.save.version==2,
+            "The real journal click establishes the physically reachable objective approach without changing mode, tracking or rewards");
+        game.mode="world";
+        Check(!game.PlaceQuestApproachWaymark(questId)&&
+            (game.LocalWaymark.Value-destination).Length<.001f,
+            "World attacks or modal transitions cannot fake a journal pin operation");
+        game.Close();
+        Console.WriteLine("PASS Journal local-quest route button pins a real physical approach and preserves mission tracking and SaveData v2");
+    }
+
     private static void QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking(
         FrontierRuntime app)
     {
@@ -7605,7 +7667,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
