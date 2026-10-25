@@ -1149,8 +1149,8 @@ namespace Starfall
             {
                 q.title=L("边境求援灯 · 遗失的信号","Frontier Rescue Lights · Lost Signals");
                 q.category=L("探索支线 · 野外修复","EXPLORATION · FIELD REPAIRS");
-                q.description=L("每片边境的第四圈都有南侧的遇险记录、东部失明的信号灯和救援物资。先调查记录，消耗一枚零件修复信号，再领取未送出的救援箱。",
-                    "The outer fourth ring holds a lost log, a dark eastern relay and a relief cache. Recover the log, repair the relay with one spare part, then retrieve its relief supplies.");
+                q.description=L("每片边境都有被遗忘的遇险记录、坏掉的信号灯和无人领取的救援箱。找到记录，再用一枚零件点亮信号。修好的灯不仅指路，周围安全时还能让人在灯下恢复生命和耐力。最后带走救援箱。",
+                    "Each region holds a lost rescue record, an unlit signal and a relief chest nobody collected. Find the log and repair the light with one spare part. The lit mast marks the route and offers health and energy recovery while the area is safe. Then claim the chest.");
                 q.locked=!Has("intro");q.complete=OuterRescueCount==8;
                 int room=-1,phase=0;
                 string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
@@ -1172,8 +1172,8 @@ namespace Starfall
                     phase==0?L("前往南部外环寻找书面证据","Find the southern outer-ring log"):
                     phase==1?L("抵达东侧信号灯并使用一枚零件","Repair the eastern beacon using one part"):
                     L("寻找东南救援箱，领取救援物资","Recover the southeastern relief cache");
-                q.reward=L("各地硬币18、材料2、经验22；八地全修复获得额外技能点",
-                    "Each region: 18 coins, 2 materials, 22 XP; all eight: +1 talent point");
+                q.reward=L("每盏修好的信号灯提供安全休整；每处救援箱获得硬币18、材料2、经验22。八地全部完成，额外获得1点技能点。",
+                    "Each repaired light becomes a safe rest point; each recovered chest grants 18 coins, 2 materials, 22 XP. Complete all eight for an extra talent point.");
                 return q;
             }
 

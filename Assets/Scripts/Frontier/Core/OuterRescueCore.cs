@@ -71,13 +71,18 @@ namespace Starfall
             if(o.kind=="outerlog")
             {
                 bool first=!OuterLogFound(room);
-                if(first){Flag("outer_log_"+room);AddXp(8);sound="reward";}
+                if(first)
+                {
+                    Flag("outer_log_"+room);AddXp(8);sound="reward";
+                    Notify("线索已录入巡路队档案 · 经验 +8",
+                        "Clue entered in the roadwardens' ledger · +8 XP");
+                }
                 Dialog(titleZh,titleEn,OuterLogZh[room,0]+
-                    (first?"\n\n首次记录：经验 +8。继续前往东侧的失明信号灯。":
-                    "\n\n线索已记录，继续查找失明的信号灯。"),
+                    (first?"\n\n册页背面指向东北方的旧信号灯。那里还欠一次修理。":
+                    "\n\n这份纸上的字迹你认得。信号灯仍在东北方。"),
                     OuterLogEn[room,0]+
-                    (first?"\n\nFirst discovery: +8 XP. Seek the dark eastern beacon.":
-                    "\n\nEvidence recorded. Find the unlit rescue beacon."),
+                    (first?"\n\nThe back of the page points toward the old signal light northeast of here. It still needs repair.":
+                    "\n\nYou recognize the writing. The signal light is still northeast of here."),
                     C("记录线索","Record evidence","close"));
                 return true;
             }
@@ -94,11 +99,11 @@ namespace Starfall
                     return true;
                 }
                 Dialog(titleZh,titleEn,OuterLogZh[room,1]+
-                    (recorded?"\n\n灯已经重新亮起。救援箱的位置可以辨认。":
-                        "\n\n消耗 1 个零件点亮信号，开放最后一段救援记录。"),
+                    (recorded?"\n\n灯火稳了。救援箱在东南侧；四周安全时，也能在灯下歇一会儿。":
+                        "\n\n灯座的线圈少一枚零件。修好它，东南侧的救援箱才能按旧规取走。"),
                     OuterLogEn[room,1]+
-                    (recorded?"\n\nThe repaired lamp points toward the last rescue chest.":
-                        "\n\nSpend one spare part to restore the signal and reveal the final rescue leg."),
+                    (recorded?"\n\nThe light holds steady. The rescue chest lies southeast. When the road is quiet, you can rest here.":
+                        "\n\nOne spare part is missing from the socket. Repair it, and the relief chest southeast of here can be claimed."),
                     C(recorded?"保持信号畅通":"维修信号灯 · 零件×1",
                       recorded?"Maintain the signal":"Repair signal · 1 spare part",
                       recorded?"close":"outer_repair"),
@@ -108,8 +113,14 @@ namespace Starfall
             if(!OuterRelayRestored(room))
             {
                 Dialog(titleZh,titleEn,
-                    "救援箱的封条需要信号站的通行标记。先调查南侧旧记录，再修复东侧求援灯。",
-                    "The rescue cache requires a verified relay signal. Find the southern log, then repair the eastern beacon.",
+                    OuterLogZh[room,2]+
+                    (OuterLogFound(room)?
+                        "\n\n箱口的封条还压着。东北方向的求援灯亮起来后，才有人能核对这批物资。":
+                        "\n\n封条上的编号被泥盖住了。先去西南边找原始记录，再到东北的灯架核对。"),
+                    OuterLogEn[room,2]+
+                    (OuterLogFound(room)?
+                        "\n\nThe seal is still fastened. Nobody can sign out these supplies until the rescue light to the northeast is lit.":
+                        "\n\nMud covers the seal number. Find the old log southwest of here, then check the light to the northeast."),
                     C("继续调查","Continue searching","close"));
                 return true;
             }
@@ -134,13 +145,15 @@ namespace Starfall
                 { Flag("outer_rescues_complete");CreditSkillPoints(1);revision++; }
                 RecordMoment("第 "+(room+1)+" 片边境的求援灯已恢复，救援箱里留下的人名与物资都被找回。",
                     "The remote rescue signal and relief chest were recovered in region "+(room+1)+".");
+                Notify("救援物资已登记 · 硬币 +18、材料 +2、经验 +22",
+                    "Relief supplies recorded · +18 coins, +2 materials, +22 XP");
             }
             Dialog(titleZh,titleEn,OuterLogZh[room,2]+
-                (firstCache?"\n\n完成地区救援线路：硬币 +18、材料 +2、经验 +22。":
-                "\n\n这里的救援物资已经被登记和转移。"),
+                (firstCache?"\n\n你将箱盖扣好，在巡路簿上抄下了那些没等到归来的人名。":
+                "\n\n箱盖上还有你留下的记号；这批物资已被转运。"),
                 OuterLogEn[room,2]+
-                (firstCache?"\n\nRegional rescue complete: +18 coins, +2 materials, +22 XP.":
-                "\n\nThese supplies have already been recovered and documented."),
+                (firstCache?"\n\nYou close the lid and copy the names of those who never returned into the roadwardens' book.":
+                "\n\nYour mark is still on the lid. These supplies have already been carried away."),
                 C("记下归途","Record the route","close"));
             return true;
         }
@@ -158,8 +171,8 @@ namespace Starfall
             if(!Spend(0,0,0,0,1))return true;
             Flag("outer_relay_"+save.room);
             revision++;sound="reward";
-            Notify("求援灯已恢复！现在可以前往救援箱。",
-                "Rescue beacon restored! The relief cache can now be opened.");
+            Notify("求援灯重新亮了。安全时可在灯下休整，再往东南找救援箱。",
+                "The rescue light is burning again. Rest here when safe, then head southeast for the relief chest.");
             return true;
         }
     }

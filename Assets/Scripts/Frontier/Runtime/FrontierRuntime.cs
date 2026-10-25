@@ -969,6 +969,17 @@ namespace Starfall
                         float pulse=.18f+.09f*(1+Mathf.Sin(clock*2.4f));
                         Ring(new Point(o.x,o.y-1),.8f,new Color(mint.r,mint.g,mint.b,pulse),18);
                     }
+                    // The genuine recovery service appears in GameView only
+                    // while the player occupies its safe, unobstructed zone.
+                    // Always show this fixed-size cue in reduced-motion mode.
+                    if(recorded&&Game.OuterRelayRestRefuge)
+                    {
+                        Ring(new Point(o.x,o.y),.4f,
+                            new Color(mint.r,mint.g,mint.b,.48f),16);
+                        Text(p.x-87,p.y-107,174,19,
+                            Game.L("可以在灯下歇脚","Rest beside the light"),
+                            11,mint,TextAnchor.MiddleCenter);
+                    }
                 }
                 else
                 {
