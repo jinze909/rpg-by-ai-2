@@ -28,6 +28,11 @@ public static class RuntimeCombatInputChecks
     private static void Prepare(FrontierRuntime app, int profession = 1)
     {
         Input.Clear(); GUI.queuedClick = null;
+        // Each scenario owns its own input session. A failed prior
+        // assertion must not strand a transient map cursor over the next
+        // scenario's otherwise valid physical mouse hit surface.
+        ((MapTileCursor)typeof(FrontierRuntime).GetField(
+            "mapTileCursor",Private).GetValue(app)).Cancel();
         GUI.commands.Clear(); GUI.textureCalls.Clear(); GUI.buttonCalls.Clear();
         Screen.width = 1280; Screen.height = 800; Time.unscaledDeltaTime = .02f;
         app.BeginVisualReview(profession, 1); app.VisualReviewPaused = false;
@@ -4058,7 +4063,8 @@ public static class RuntimeCombatInputChecks
         Point blocked=cursor.Destination;
         int bx=(int)blocked.x,by=(int)blocked.y;
         string[] rows=game.Map.rows;
-        char[] row=rows[by].ToCharArray();
+        string originalRow=rows[by];
+        char[] row=originalRow.ToCharArray();
         try
         {
             row[bx]='#';rows[by]=new string(row);
@@ -4069,8 +4075,7 @@ public static class RuntimeCombatInputChecks
         }
         finally
         {
-            row[bx]=game.Map.rows[by][bx]=='#'?'.':row[bx];
-            rows[by]=new string(row);
+            rows[by]=originalRow;
         }
         cursor.Move(-2,0);
         Point second=new Point();bool found=false;
@@ -4125,6 +4130,22 @@ public static class RuntimeCombatInputChecks
         string[] old=m.rows;
         try
         {
+            // The initial selected tile is the HERO's own tile. Blocking
+            // it should correctly report hero footing, not a bad target.
+            // Move to another genuinely reachable cell before sealing it.
+            Point nearby=new Point();bool nearbyFound=false;
+            for(int dy=-3;dy<=3&&!nearbyFound;dy++)
+            for(int dx=-3;dx<=3&&!nearbyFound;dx++)
+            {
+                Point candidate=game.Position+new Point(dx,dy);
+                if((candidate-game.Position).Length<1.1f||
+                    game.InspectLocalWaymark(candidate)!=WaymarkRouteStatus.Available)
+                    continue;
+                nearby=candidate;nearbyFound=true;
+            }
+            Check(nearbyFound,"The original map offers a second distinct reachable preview cell");
+            cursor.Move((int)(nearby.x-cursor.Destination.x),
+                (int)(nearby.y-cursor.Destination.y));
             int x=(int)cursor.Destination.x,y=(int)cursor.Destination.y;
             var rows=(string[])old.Clone();
             char[] cells=rows[y].ToCharArray();
