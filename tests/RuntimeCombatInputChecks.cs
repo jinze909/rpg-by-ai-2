@@ -3662,7 +3662,7 @@ public static class RuntimeCombatInputChecks
                 g.conversation.speaker==source.name&&
                 g.conversation.en==source.en&&
                 g.conversation.text.Contains(tokens[index])&&
-                System.Object.ReferenceEquals(CoreField(g,"conversationSource"),source),
+                System.Object.ReferenceEquals(g.conversationSource,source),
                 "Success handoff keeps the real accepted speaker and source instead of jumping to another NPC");
             g.Close();
             g.Talk(source);
