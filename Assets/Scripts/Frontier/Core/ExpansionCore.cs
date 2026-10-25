@@ -685,14 +685,20 @@ namespace Starfall
         {
             foreach(Point offset in companionOffsets)
                 if(Fits(Position+offset))return Position+offset;
-            // A previously planted ally remains valid if the nearby route
-            // narrows. Do not teleport the sprite to another slot when the
-            // same legal foot already has room to stand.
+            // In a narrow corridor a diagonal formation may not fit, but
+            // a closer cardinal socket can. Try those reachable formation
+            // goals BEFORE retaining the follower's own planted foot.
+            // Previously, once the ally was within six tiles, returning its
+            // current foot as the goal silently disabled all further walking.
+            // These are navigation GOALS, never teleport destinations.
+            foreach(Point offset in companionNarrowOffsets)
+                if(Fits(Position+offset))return Position+offset;
+            // Only when NO legal socket fits should the existing safe foot
+            // remain the next goal. Keep this rescue path for genuinely
+            // enclosed one-cell geography rather than merging with the hero.
             Point previous=companionPosition-Position;
             if(Fits(companionPosition)&&previous.Length>=.9f&&
                 previous.Length<6f)return companionPosition;
-            foreach(Point offset in companionNarrowOffsets)
-                if(Fits(Position+offset))return Position+offset;
             // Fully sealed single-cell geometry is handled by the existing
             // SafeActorFoot/recovery; avoid introducing a new saved location.
             return Position;
