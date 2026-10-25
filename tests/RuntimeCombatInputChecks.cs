@@ -2934,7 +2934,9 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         GameCore game=app.Game;
-        game.save.english=true;game.mode="map";
+        game.save.flags.Add("intro");
+        game.save.english=true;game.save.showGuidance=false;
+        game.mode="map";
         Set(app,"selectedRegion",game.save.room);
         game.save.trackedQuest="main";
         Point origin=game.Position;
@@ -2944,56 +2946,61 @@ public static class RuntimeCombatInputChecks
             "An existing personal destination is preserved unless replacement succeeds");
         Point retained=game.LocalWaymark.Value;
         int coins=game.save.coins,flags=game.save.flags.Count;
-        QuestGuide probe=new QuestGuide {id="approach_probe",
-            room=game.save.room,locked=false,complete=false};
+        QuestGuide probe=null;
         List<Point> expected=null;
-        for(int radius=3;radius<=9&&expected==null;radius++)
-            for(int dx=-radius;dx<=radius&&expected==null;dx++)
-                for(int dy=-radius;dy<=radius;dy++)
-                {
-                    if(Math.Abs(dx)!=radius&&Math.Abs(dy)!=radius)continue;
-                    Point goal=new Point((float)Math.Floor(origin.x)+dx+.5f,
-                        (float)Math.Floor(origin.y)+dy+.5f);
-                    if(goal.x<1||goal.y<1||
-                        goal.x>=game.Map.rows[0].Length-1||
-                        goal.y>=game.Map.rows.Length-1)continue;
-                    List<Point> path=game.NavigationPathFrom(origin,goal,true);
-                    if(path.Count<2)continue;
-                    if(game.InspectLocalWaymark(path[path.Count-1])!=
-                        WaymarkRouteStatus.Available)continue;
-                    probe.target=goal;expected=path;break;
-                }
-        Check(expected!=null,
-            "An authored terrain has a real, unsealed multi-step walking approach");
+        // Use an ACTUAL authored quest, not a made-up object that would
+        // bypass the same-ID, same-stage validations as the live UI.
+        foreach(string id in GameCore.QuestIds)
+        {
+            QuestGuide candidate=game.GetQuest(id);
+            if(candidate.locked||candidate.complete||
+                candidate.room!=game.save.room)continue;
+            List<Point> path=game.NavigationPathFrom(origin,candidate.target,true);
+            if(path.Count==0||game.InspectLocalWaymark(
+                path[path.Count-1])!=WaymarkRouteStatus.Available)continue;
+            probe=candidate;expected=path;break;
+        }
+        Check(probe!=null,
+            "The live map has a current, unlocked quest with a physically walkable approach");
         Point predicted=expected[expected.Count-1];
-        QuestGuide locked=new QuestGuide {id="locked",
-            room=game.save.room,target=probe.target,locked=true};
-        QuestGuide completed=new QuestGuide {id="finished",
-            room=game.save.room,target=probe.target,complete=true};
-        QuestGuide remote=new QuestGuide {id="remote",room=game.save.room+1,
+        QuestGuide forged=new QuestGuide {id="not_an_authored_quest",
+            room=game.save.room,target=probe.target};
+        QuestGuide locked=new QuestGuide {id=probe.id,room=game.save.room,
+            target=probe.target,locked=true};
+        QuestGuide completed=new QuestGuide {id=probe.id,room=game.save.room,
+            target=probe.target,complete=true};
+        QuestGuide remote=new QuestGuide {id=probe.id,room=game.save.room+1,
             target=probe.target};
-        QuestGuide blocked=new QuestGuide {id="blocked",room=game.save.room,
-            target=new Point(-40,-40)};
-        Check(!(bool)Call(app,"PinQuestWalkingApproach",locked)&&
+        Check(!(bool)Call(app,"PinQuestWalkingApproach",forged)&&
+            !(bool)Call(app,"PinQuestWalkingApproach",locked)&&
             !(bool)Call(app,"PinQuestWalkingApproach",completed)&&
             !(bool)Call(app,"PinQuestWalkingApproach",remote)&&
-            !(bool)Call(app,"PinQuestWalkingApproach",blocked)&&
             game.HasLocalWaymark&&
             (game.LocalWaymark.Value-retained).Length<.001f,
-            "Locked, completed, remote and physically blocked quests never replace an existing pin");
-        Check((bool)Call(app,"PinQuestWalkingApproach",probe)&&
+            "Map entry rejects forged, locked, finished and remote objectives without changing a valid pin");
+        // The ACTUAL map button must call the same GameCore operation as
+        // the journal button, without changing the tracked quest.
+        Set(app,"mapInspectedQuestId",probe.id);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        var action=GUI.buttonCalls.Find(b=>Math.Abs(b.rect.x-888)<.001f&&
+            Math.Abs(b.rect.y-693)<.001f&&Math.Abs(b.rect.width-306)<.001f);
+        Check(action!=null&&action.enabled&&
+            GUI.commands.Exists(x=>x.Contains("REPLACE PIN")),
+            "Production map presents an enabled explicit route replacement for the reachable quest");
+        GUI.queuedClick=new Rect(888,693,306,32);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(game.HasLocalWaymark&&
             (game.LocalWaymark.Value-predicted).Length<.001f,
-            "An explicitly selected quest replaces the personal destination with its last reachable physical tile");
+            "The actual map pin button reaches the same validated physical tile as the journal");
         Check(game.PersonalNavigationActive&&
             game.NavigationTarget().HasValue&&
             (game.NavigationTarget().Value-predicted).Length<.001f,
             "A quest approach pin actually takes over normal in-world compass routing");
-        GUI.commands.Clear();Call(app,"OnGUI");
         Check(game.save.trackedQuest=="main"&&game.save.coins==coins&&
             game.save.flags.Count==flags&&game.save.version==2,
-            "Quest route pin does not change quest tracking, story completion, rewards or SaveData v2");
+            "Map quest route pin does not change tracked quest, story rewards or SaveData v2");
         game.Close();
-        Console.WriteLine("PASS Explicit quest approach pin uses collision-verified terrain and drives the world compass without changing tracked quest");
+        Console.WriteLine("PASS Map and journal share authored-quest physical waypoint routing with live map click and save safety");
     }
 
     private static void InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting(

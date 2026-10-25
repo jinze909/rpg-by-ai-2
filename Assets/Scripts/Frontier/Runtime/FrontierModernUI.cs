@@ -219,13 +219,10 @@ namespace Starfall
                 quest.room!=selectedRegion||
                 selectedRegion!=Game.save.room||Game.Dying||Game.practicing)
                 return false;
-            List<Point> route=Game.NavigationPathFrom(
-                Game.Position,quest.target,true);
-            if(route.Count==0)return false;
-            Point approach=route[route.Count-1];
-            if(Game.InspectLocalWaymark(approach)!=WaymarkRouteStatus.Available)
-                return false;
-            return Game.PlaceLocalWaymark(approach);
+            // The journal and map MUST call the same authored-ID-only
+            // collision check and transactional waypoint commit. A forged
+            // QuestGuide or expired map preview cannot bypass GameCore.
+            return Game.PlaceQuestApproachWaymark(quest.id);
         }
         private bool PinInspectedQuestWalkingApproach()
         {
