@@ -207,6 +207,30 @@ namespace Starfall
             Game.sound="ui";
             return true;
         }
+        // A preview alone cannot guide the live world compass after the
+        // map closes. A deliberate click may turn a verified reachable
+        // approach into the EXISTING transient local pin. Check the full
+        // physical path again at commit time; sealed gates, changing water
+        // or new collision must never replace a previously valid pin.
+        private bool PinQuestWalkingApproach(QuestGuide quest)
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+                quest==null||quest.locked||quest.complete||
+                quest.room!=selectedRegion||
+                selectedRegion!=Game.save.room||Game.Dying||Game.practicing)
+                return false;
+            List<Point> route=Game.NavigationPathFrom(
+                Game.Position,quest.target,true);
+            if(route.Count==0)return false;
+            Point approach=route[route.Count-1];
+            if(Game.InspectLocalWaymark(approach)!=WaymarkRouteStatus.Available)
+                return false;
+            return Game.PlaceLocalWaymark(approach);
+        }
+        private bool PinInspectedQuestWalkingApproach()
+        {
+            return PinQuestWalkingApproach(InspectedMapQuest());
+        }
         private void OpenInspectedMapQuestInJournal()
         {
             if(Game==null||Game.mode!="map"||mapTileCursor.Active||
@@ -942,7 +966,7 @@ namespace Starfall
                 Game.L("查看当前位置：炉火旅店","Current room: Hearth Inn"),
                 selectedRegion==9,!mapTileCursor.Active))
                 selectedRegion=9;
-            Card(866, 178, 351, 510);
+            Card(866, 178, 351, 564);
             // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
             MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
             Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
@@ -1183,6 +1207,26 @@ namespace Starfall
                         Game.CompanionHoldingPosition?
                         "ALLY HOLD · P/X move post":"ALLY HOLD · P/X choose post")))
                     BeginCompanionMapPost();
+            }
+            // The map preview is not saved tracking. An explicit second
+            // action guides the hero in-world using the same collision-safe
+            // personal pin as a direct tile click, without retargeting.
+            if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
+                inspectedMap!=null&&!inspectedMap.complete)
+            {
+                List<Point> walk=InspectedQuestWalkingRoute(inspectedMap);
+                bool walkable=walk.Count>0;
+                string prompt=walkable?
+                    Game.L(Game.HasLocalWaymark?
+                        "替换标记：前往任务可达接近点":
+                        "设导航：前往任务可达接近点",
+                        Game.HasLocalWaymark?
+                        "REPLACE PIN · WALKABLE QUEST APPROACH":
+                        "PIN WALKABLE QUEST APPROACH"):
+                    Game.L("已接近目标或目前无可达路线",
+                        "NEARBY OR NO VERIFIED WALKING ROUTE");
+                if(Button(888,693,306,32,prompt,false,walkable))
+                    PinInspectedQuestWalkingApproach();
             }
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
             if (Button(888, 616, 306, 47,

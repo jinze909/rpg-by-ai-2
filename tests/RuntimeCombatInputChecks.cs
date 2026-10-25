@@ -2867,6 +2867,73 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live map objective clicks inspect unlocked missions without replacing personal navigation");
     }
 
+    private static void QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.english=true;game.mode="map";
+        Set(app,"selectedRegion",game.save.room);
+        game.save.trackedQuest="main";
+        Point origin=game.Position;
+        Point oldPin=new Point((float)Math.Floor(origin.x)+.5f,
+            (float)Math.Floor(origin.y)+.5f);
+        Check(game.PlaceLocalWaymark(oldPin)&&game.HasLocalWaymark,
+            "An existing personal destination is preserved unless replacement succeeds");
+        Point retained=game.LocalWaymark.Value;
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        QuestGuide probe=new QuestGuide {id="approach_probe",
+            room=game.save.room,locked=false,complete=false};
+        List<Point> expected=null;
+        for(int radius=3;radius<=9&&expected==null;radius++)
+            for(int dx=-radius;dx<=radius&&expected==null;dx++)
+                for(int dy=-radius;dy<=radius;dy++)
+                {
+                    if(Math.Abs(dx)!=radius&&Math.Abs(dy)!=radius)continue;
+                    Point goal=new Point((float)Math.Floor(origin.x)+dx+.5f,
+                        (float)Math.Floor(origin.y)+dy+.5f);
+                    if(goal.x<1||goal.y<1||
+                        goal.x>=game.Map.rows[0].Length-1||
+                        goal.y>=game.Map.rows.Length-1)continue;
+                    List<Point> path=game.NavigationPathFrom(origin,goal,true);
+                    if(path.Count<2)continue;
+                    if(game.InspectLocalWaymark(path[path.Count-1])!=
+                        WaymarkRouteStatus.Available)continue;
+                    probe.target=goal;expected=path;break;
+                }
+        Check(expected!=null,
+            "An authored terrain has a real, unsealed multi-step walking approach");
+        Point predicted=expected[expected.Count-1];
+        QuestGuide locked=new QuestGuide {id="locked",
+            room=game.save.room,target=probe.target,locked=true};
+        QuestGuide completed=new QuestGuide {id="finished",
+            room=game.save.room,target=probe.target,complete=true};
+        QuestGuide remote=new QuestGuide {id="remote",room=game.save.room+1,
+            target=probe.target};
+        QuestGuide blocked=new QuestGuide {id="blocked",room=game.save.room,
+            target=new Point(-40,-40)};
+        Check(!(bool)Call(app,"PinQuestWalkingApproach",locked)&&
+            !(bool)Call(app,"PinQuestWalkingApproach",completed)&&
+            !(bool)Call(app,"PinQuestWalkingApproach",remote)&&
+            !(bool)Call(app,"PinQuestWalkingApproach",blocked)&&
+            game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-retained).Length<.001f,
+            "Locked, completed, remote and physically blocked quests never replace an existing pin");
+        Check((bool)Call(app,"PinQuestWalkingApproach",probe)&&
+            (game.LocalWaymark.Value-predicted).Length<.001f,
+            "An explicitly selected quest replaces the personal destination with its last reachable physical tile");
+        Check(game.PersonalNavigationActive&&
+            game.NavigationTarget().HasValue&&
+            (game.NavigationTarget().Value-predicted).Length<.001f,
+            "A quest approach pin actually takes over normal in-world compass routing");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(game.save.trackedQuest=="main"&&game.save.coins==coins&&
+            game.save.flags.Count==flags&&game.save.version==2,
+            "Quest route pin does not change quest tracking, story completion, rewards or SaveData v2");
+        game.Close();
+        Console.WriteLine("PASS Explicit quest approach pin uses collision-verified terrain and drives the world compass without changing tracked quest");
+    }
+
     private static void InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting(
         FrontierRuntime app)
     {
@@ -7538,7 +7605,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
