@@ -24,6 +24,13 @@ namespace Starfall
         private string localWaymarkQuestId;
         private Point localWaymarkQuestTarget;
         private bool localWaymarkQuestArrived;
+        // A new quest stage may be physically inaccessible behind a sealed
+        // gate. Retain the previous pin as a recoverable fallback but NEVER
+        // present it as the active stage's interaction target.
+        private bool localWaymarkQuestStageRoutePending;
+        public bool QuestApproachNextStageBlocked
+        { get { return QuestApproachNavigationActive &&
+            localWaymarkQuestStageRoutePending; } }
         public bool QuestApproachNavigationActive
         { get { return LocalWaymark.HasValue &&
             !string.IsNullOrEmpty(localWaymarkQuestId); } }
@@ -75,6 +82,7 @@ namespace Starfall
             localWaymarkQuestId=null;
             localWaymarkQuestTarget=new Point();
             localWaymarkQuestArrived=false;
+            localWaymarkQuestStageRoutePending=false;
         }
         public bool ClearLocalWaymark()
         {
@@ -151,6 +159,7 @@ namespace Starfall
             localWaymarkQuestTarget=string.IsNullOrEmpty(questId)?
                 new Point():GetQuest(questId).target;
             localWaymarkQuestArrived=false;
+            localWaymarkQuestStageRoutePending=false;
             localWaymarkFoot=new Point(
                 (float)Math.Floor(requested.x)+.5f,
                 (float)Math.Floor(requested.y)+.5f);
@@ -208,7 +217,8 @@ namespace Starfall
             Point? mark=LocalWaymark;
             if(!mark.HasValue)return;
             bool fromQuest=!string.IsNullOrEmpty(localWaymarkQuestId);
-            if((Position-mark.Value).Length<=.85f &&
+            if(!localWaymarkQuestStageRoutePending &&
+                (Position-mark.Value).Length<=.85f &&
                ReliefActorLineWalkable(Position,mark.Value))
             {
                 if(!fromQuest)
@@ -248,6 +258,10 @@ namespace Starfall
                 }
                 if((current.target-localWaymarkQuestTarget).Length>.001f)
                 {
+                    // A successfully completed earlier interaction no
+                    // longer applies to this next stage, even if its new
+                    // approach is blocked and the fallback pin stays put.
+                    localWaymarkQuestArrived=false;
                     Point newFoot;
                     if(TryQuestApproachFoot(current.target,out newFoot))
                     {
@@ -257,6 +271,7 @@ namespace Starfall
                         localWaymarkFoot=newFoot;
                         localWaymarkQuestTarget=current.target;
                         localWaymarkQuestArrived=false;
+                        localWaymarkQuestStageRoutePending=false;
                         localWaymarkBlocked=false;
                         revision++;sound="ui";
                         Notify("任务进入新阶段，个人导航已更新到下一个可达目标。",
@@ -267,11 +282,12 @@ namespace Starfall
                     {
                         // Do not navigate toward the previous quest step
                         // when the new objective is behind a closed gate.
-                        if(!localWaymarkBlocked)
+                        if(!localWaymarkQuestStageRoutePending)
                         {
+                            localWaymarkQuestStageRoutePending=true;
                             localWaymarkBlocked=true;revision++;
-                            Notify("任务目标已更新，但新路线暂时不通。原有标记已保留。",
-                                "Quest objective changed, but its route is blocked. Previous pin retained.");
+                            Notify("下一阶段道路暂未开放；旧导航仅作记录，不再指向当前任务目标。",
+                                "The next stage is inaccessible. The old marker is retained for reference, not as the active quest destination.");
                         }
                         return;
                     }

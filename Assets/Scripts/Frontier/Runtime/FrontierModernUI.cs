@@ -472,6 +472,8 @@ namespace Starfall
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
             else if(Game.PersonalNavigationActive)
                 Text(1024,178,166,12,
+                    Game.QuestApproachNextStageBlocked?
+                        Game.L("下一阶段道路受阻","NEXT QUEST STEP BLOCKED"):
                     Game.QuestApproachAwaitingInteraction?
                         Game.L("已到任务点 · 请交互","AT QUEST · INTERACT"):
                     Game.QuestApproachNavigationActive?
@@ -1208,6 +1210,9 @@ namespace Starfall
             if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
                 Game.HasLocalWaymark)
                 Text(888,605,306,11,
+                    Game.QuestApproachNextStageBlocked?
+                        Game.L("下一阶段路线暂未开放 · 可取消导航或等待道路恢复",
+                            "Next quest route blocked · cancel or wait for the road"):
                     Game.QuestApproachAwaitingInteraction?
                         Game.L("已抵达任务接近点 · 与目标交互继续剧情",
                             "At quest approach · interact to advance"):

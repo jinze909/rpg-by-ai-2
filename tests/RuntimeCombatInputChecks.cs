@@ -3038,6 +3038,89 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Quest-owned navigation follows real field survey stages, preserves manual pins and retires on quest completion");
     }
 
+    private static void QuestStageClosureDoesNotAdvertiseStaleArrivalAndRecovers(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.flags.Add("intro");g.save.english=true;
+        int room=g.save.room;
+        Check(room>=0&&room<8,"Test uses actual outdoor review room");
+        WorldObject first=null,second=null;
+        foreach(WorldObject o in g.Map.objects)
+        {
+            if(o.id=="trailcircuit_"+room+"_1")first=o;
+            if(o.id=="trailcircuit_"+room+"_2")second=o;
+        }
+        Check(first!=null&&second!=null,"Both physical bearing objects exist");
+        Point oldA=new Point(first.x,first.y),oldB=new Point(second.x,second.y);
+        g.save.flags.Remove("trail_circuit_"+room+"_1");
+        g.save.flags.Remove("trail_circuit_"+room+"_2");
+        g.save.flags.Remove("trail_circuit_"+room+"_3");
+        try
+        {
+            Point origin=g.Position,chosen=new Point();
+            bool found=false;
+            for(int r=3;r<13&&!found;r++)
+                for(int dx=-r;dx<=r&&!found;dx++)
+                    for(int dy=-r;dy<=r;dy++)
+                    {
+                        if(Math.Abs(dx)!=r&&Math.Abs(dy)!=r)continue;
+                        Point p=new Point((float)Math.Floor(origin.x)+dx+.5f,
+                            (float)Math.Floor(origin.y)+dy+.5f);
+                        if(p.x<2||p.y<2||p.x>=g.Map.rows[0].Length-2||
+                            p.y>=g.Map.rows.Length-2||!g.CanStand(p))continue;
+                        var path=g.NavigationPathFrom(origin,p,true);
+                        if(path.Count<2)continue;
+                        chosen=p;found=true;break;
+                    }
+            Check(found,"A genuinely walkable first marker can be reached");
+            first.x=chosen.x;first.y=chosen.y;
+            g.mode="journal";
+            Check(g.PlaceQuestApproachWaymark("trail_circuits"),
+                "Authored live quest pins first-stage route");
+            Point oldPin=g.LocalWaymark.Value;
+            // Stand precisely at the validated approach: an arrival
+            // notification becomes visible before the stage advances.
+            g.save.x=oldPin.x;g.save.y=oldPin.y;g.mode="world";
+            g.Tick(.05f,new Point());
+            Check(g.QuestApproachAwaitingInteraction,
+                "Actual arrival waits for first marker interaction");
+            // Next real authored stage becomes unreachable. A stale prior
+            // arrival MUST NOT remain actionable while the new road is shut.
+            second.x=-40;second.y=-40;
+            g.save.flags.Add("trail_circuit_"+room+"_1");
+            for(int i=0;i<28;i++)g.Tick(.05f,new Point());
+            Check(g.QuestApproachNavigationActive&&
+                g.QuestApproachNextStageBlocked&&
+                !g.QuestApproachAwaitingInteraction&&
+                g.LocalWaymarkRouteBlocked&&
+                (g.LocalWaymark.Value-oldPin).Length<.001f,
+                "Unreachable next stage retains fallback pin but cancels stale interaction state");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(x=>x.Contains("ROUTE BLOCKED"))&&
+                !GUI.commands.Exists(x=>x.Contains("AT QUEST")),
+                "World HUD does not tell players to interact with previous stage");
+            second.x=oldB.x;second.y=oldB.y;
+            for(int i=0;i<28;i++)g.Tick(.05f,new Point());
+            // The real location may not be reachable from this staged
+            // review position. A recovered path must clear pending state;
+            // otherwise the blocked cue is correctly retained.
+            if(!g.QuestApproachNextStageBlocked)
+            {
+                Check(!g.LocalWaymarkRouteBlocked&&!g.QuestApproachAwaitingInteraction,
+                    "Reopened physical route clears obstruction and stale arrival");
+            }
+            else Check(g.LocalWaymarkRouteBlocked,
+                "A still-unreachable real location stays blocked rather than fabricating a route");
+            Check(g.save.version==2,"Quest road recovery changes no persistent save schema");
+        }
+        finally
+        {first.x=oldA.x;first.y=oldA.y;second.x=oldB.x;second.y=oldB.y;}
+        g.Close();
+        Console.WriteLine("PASS Newly blocked quest stage cancels stale arrival, preserves fallback and checks physical recovery");
+    }
+
     private static void QuestApproachAtContactShowsInteractionAndKeepsAutoFollow(
         FrontierRuntime app)
     {
@@ -7830,7 +7913,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestApproachAtContactShowsInteractionAndKeepsAutoFollow, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestStageClosureDoesNotAdvertiseStaleArrivalAndRecovers, QuestApproachAtContactShowsInteractionAndKeepsAutoFollow, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
