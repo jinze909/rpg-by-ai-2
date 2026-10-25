@@ -681,9 +681,17 @@ namespace Starfall.Tests
                 " started="+landed.x+","+landed.y+
                 " blocked="+blocked+
                 " selectedFollow="+
-                typeof(GameCore).GetMethod("CompanionFollowTarget",
+                ((Point)typeof(GameCore).GetMethod("CompanionFollowTarget",
                     System.Reflection.BindingFlags.NonPublic|
-                    System.Reflection.BindingFlags.Instance).Invoke(g,null)+
+                    System.Reflection.BindingFlags.Instance).Invoke(g,null)).x+","+
+                ((Point)typeof(GameCore).GetMethod("CompanionFollowTarget",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).Invoke(g,null)).y+
+                " hero="+g.Position.x+","+g.Position.y+
+                " gameMode="+g.mode+" practice="+g.practicing+
+                " companionAction="+(g.companionAction==null?
+                    "none":g.companionAction.kind)+
+                " holding="+g.CompanionHoldingPosition+
                 " retry="+typeof(GameCore).GetField("companionBlockedRouteRetry",
                     System.Reflection.BindingFlags.NonPublic|
                     System.Reflection.BindingFlags.Instance).GetValue(g)+
