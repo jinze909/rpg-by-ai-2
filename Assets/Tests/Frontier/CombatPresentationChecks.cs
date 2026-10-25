@@ -4101,6 +4101,100 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void CourierAndProtectedOutpostRoutesLandActualCompanionsSafely(Campaign data)
+        {
+            foreach(bool protectedOutpost in new[]{false,true})
+            {
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.stage=3;
+                foreach(string flag in new[]{
+                    "intro","exp_intro","harbor_report","desert_report",
+                    "outer_log_0","outer_relay_0","outer_log_5",
+                    "outer_relay_5","outer_patrol_done_0","outer_patrol_done_5",
+                    "companion_1"})
+                    if(!g.Has(flag))g.save.flags.Add(flag);
+                g.save.companion=1;
+                string sourceKind=protectedOutpost?"outerwatch":"outerrelay";
+                var source=Object(g,sourceKind);
+                g.save.x=source.x;g.save.y=source.y;
+                g.Talk(source);
+                string rootAction=protectedOutpost?
+                    "outer_watch_routes":"outer_signal_routes";
+                string ringAction=protectedOutpost?
+                    "outer_watch_ring_1":"outer_signal_ring_1";
+                string targetAction=protectedOutpost?
+                    "outer_watch_to_5":"outer_signal_to_5";
+                int menu=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==rootAction);
+                Check(menu>=0,"Actual source station exposes its own legitimate courier board");
+                g.Choose(menu);
+                int page=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==ringAction);
+                Check(page>=0,"Real source maintains original signed route-page selection");
+                g.Choose(page);
+                int destination=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==targetAction);
+                Check(destination>=0,"The genuine repaired/defended farshore endpoint is selectable");
+                g.Choose(destination);
+                Check(g.save.room==5&&g.save.companion==1&&
+                    g.CanStand(g.Position)&&g.CanStand(g.companionPosition),
+                    "Cross-region travel preserves actual recruited companion and legal live map footing");
+                WorldObject endpoint=Object(g,sourceKind);
+                Check((g.Position-new Point(endpoint.x,endpoint.y)).Length<3.05f,
+                    "Party lands near the actual destination, not an invented coordinate");
+                Check((g.Position-g.companionPosition).Length>.45f&&
+                    (g.Position-g.companionPosition).Length<1.35f,
+                    "A joined companion uses a separate adjacent physical arrival foot beside the protagonist");
+                Check(g.save.version==2,
+                    "Cross-region party travel never changes legacy save serialization or permanent progress");
+            }
+        }
+
+        public static void BlockedDestinationFallsBackToOriginalWalkableRegionSpawn(Campaign data)
+        {
+            MapData map=data.maps[5];
+            string[] originalRows=(string[])map.rows.Clone();
+            try
+            {
+                WorldObject lamp=null;
+                foreach(WorldObject o in map.objects)
+                    if(o.kind=="outerrelay"){lamp=o;break;}
+                Check(lamp!=null,"Destination region has a genuinely authored remote signal");
+                int lx=(int)lamp.x,ly=(int)lamp.y;
+                for(int y=ly-5;y<=ly+5;y++)
+                {
+                    char[] wall=map.rows[y].ToCharArray();
+                    for(int x=lx-5;x<=lx+5;x++)wall[x]='#';
+                    map.rows[y]=new string(wall);
+                }
+                var g=Fresh(data);g.enemies.Clear();g.save.stage=3;
+                foreach(string flag in new[]{
+                    "intro","exp_intro","harbor_report","desert_report",
+                    "outer_log_0","outer_relay_0","outer_relay_5",
+                    "companion_1"})
+                    if(!g.Has(flag))g.save.flags.Add(flag);
+                g.save.companion=1;
+                var source=Object(g,"outerrelay");
+                g.save.x=source.x;g.save.y=source.y;
+                g.Talk(source);
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_signal_routes"));
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_signal_ring_1"));
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_signal_to_5"));
+                Check(g.save.room==5&&g.CanStand(g.Position)&&
+                    (g.Position-new Point(lamp.x,lamp.y)).Length>5f,
+                    "Blocked signal approach keeps Enter's genuine safe regional arrival instead of forcing a wall landing");
+                Check(g.save.companion==1&&
+                    g.CanStand(g.companionPosition)&&
+                    g.save.version==2,
+                    "A physically blocked destination never erases or embeds the recruited companion");
+            }
+            finally{map.rows=originalRows;}
+        }
+
         public static void RepairedSignalsOpenActualSafeTwoEndpointCourierRoads(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();

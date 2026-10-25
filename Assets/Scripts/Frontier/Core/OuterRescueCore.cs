@@ -192,11 +192,14 @@ namespace Starfall
                     HasPhysicalInteractionReach(lamp))return true;
             return false;
         }
-        private bool LandAtRepairedSignal()
+        // Both courier lights AND previously defended regional outposts
+        // use one authoritative party-safe arrival. A restored v2 journey
+        // cannot lose a companion at the spawn or overlap a living enemy.
+        private bool TryLandTravelPartyAtPost(string postKind)
         {
             WorldObject lamp=null;
             foreach(WorldObject point in Map.objects)
-                if(point.kind=="outerrelay"){lamp=point;break;}
+                if(point.kind==postKind){lamp=point;break;}
             if(lamp==null)return false;
             Point center=new Point(lamp.x,lamp.y);
             Point[] offsets={new Point(0f,1f),new Point(1f,0f),
@@ -312,7 +315,7 @@ namespace Starfall
             // protections. Only land at the physical new light afterward.
             Enter(room);
             if(save.room!=room||save.room==origin)return true;
-            bool landed=LandAtRepairedSignal();
+            bool landed=TryLandTravelPartyAtPost("outerrelay");
             revision++;sound="travel";
             Notify(landed?
                     "沿巡路队的救援道抵达下一盏信号灯。":

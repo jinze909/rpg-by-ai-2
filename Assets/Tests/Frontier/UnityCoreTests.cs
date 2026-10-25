@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void SignalAndProtectedRoutesLandWithActualLivingCompanions() { CoreChecks.CourierAndProtectedOutpostRoutesLandActualCompanionsSafely(Data()); }
+        [Test] public void BlockedRemoteLandingSafelyUsesTrueRegionalEntrance() { CoreChecks.BlockedDestinationFallsBackToOriginalWalkableRegionSpawn(Data()); }
         [Test] public void RepairedLampsConnectOnlyPhysicalUnlockedSafeCourierRoads() { CoreChecks.RepairedSignalsOpenActualSafeTwoEndpointCourierRoads(Data()); }
         [Test] public void CourierRoadsCannotIgnoreCombatLocksOrStaleSignalSources() { CoreChecks.SignalRoadRejectsCombatLockedRegionAndStaleSource(Data()); }
         [Test] public void AllEightPhysicalRescueCacheBearingsMatchQuestGuidance() { CoreChecks.EightRescueRoutesKeepHonestPhysicalLogSignalChestDirections(Data()); }

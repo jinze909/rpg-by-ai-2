@@ -446,64 +446,10 @@ namespace Starfall
             int origin=save.room;
             Enter(room); // Preserve all original region, mission and save rules.
             if(save.room!=room||save.room==origin)return true;
-            WorldObject destination=null;
-            foreach(WorldObject site in Map.objects)
-                if(site.kind=="outerwatch"){destination=site;break;}
-            // Existing safe map spawn is the fallback if the authored post
-            // becomes blocked, flooded or too crowded when new actors load.
-            // Never put the protagonist atop an enemy or inside a closed gate.
-            bool landed=false;
-            if(destination!=null)
-            {
-                Point center=new Point(destination.x,destination.y);
-                Point[] positions={
-                    center+new Point(0f,1f),center+new Point(1f,0f),
-                    center+new Point(-1f,0f),center+new Point(0f,-1f),
-                    center+new Point(1f,1f),center+new Point(-1f,1f),
-                    center+new Point(1f,-1f),center+new Point(-1f,-1f),
-                    center+new Point(0f,2f),center+new Point(2f,0f),
-                    center+new Point(-2f,0f),center+new Point(0f,-2f)
-                };
-                Point safest=new Point();float bestClearance=-1f;
-                foreach(Point foot in positions)
-                {
-                    if(!CanStand(foot)||!ActorHasLocalRoute(foot,center,4))
-                        continue;
-                    float clearance=9999f;
-                    foreach(Enemy e in enemies)
-                        if(e.hp>0)clearance=Math.Min(clearance,
-                            (e.Position-foot).Length);
-                    if(clearance<4f||clearance<=bestClearance)continue;
-                    safest=foot;bestClearance=clearance;landed=true;
-                }
-                if(landed)
-                {
-                    save.x=safest.x;save.y=safest.y;
-                    // Enter() correctly reset the old companion's action at
-                    // the map spawn. Reattach its physical feet at the *new*
-                    // arrival only when a truly free ally spot exists.
-                    if(save.companion>=0)
-                    {
-                        Point[] allyOffsets={new Point(-.7f,0f),
-                            new Point(.7f,0f),new Point(0f,1f),
-                            new Point(0f,-1f)};
-                        foreach(Point offset in allyOffsets)
-                        {
-                            Point ally=safest+offset;
-                            if(!CanStand(ally))continue;
-                            bool occupied=false;
-                            foreach(Enemy foe in enemies)
-                                if(foe.hp>0&&(foe.Position-ally).Length<2.6f)
-                                {occupied=true;break;}
-                            if(occupied)continue;
-                            companionPosition=ally;
-                            companionMoving=false;companionMoveTime=0f;
-                            companionPresentationGeneration++;
-                            break;
-                        }
-                    }
-                }
-            }
+            // Share the physical, local-route and companion-clearance
+            // algorithm with restored signal-courier travel. When a
+            // destination is crowded, Enter's safe map spawn remains.
+            bool landed=TryLandTravelPartyAtPost("outerwatch");
             revision++;sound="travel";
             Notify(landed?"已抵达实际守护过的救援岗。":
                     "前方补给点暂时拥挤，已在本地区安全入口落脚。",
