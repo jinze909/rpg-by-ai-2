@@ -119,6 +119,7 @@ namespace Starfall
         private string journalFocusRequest;
         private int innJobPage;
         private string innPreviewQuestId;
+        private string innFollowQuestId;
         public string TakeJournalFocusRequest()
         {
             string requested=journalFocusRequest;
@@ -289,6 +290,7 @@ namespace Starfall
             journalFocusRequest=null;
             innJobPage=0;
             innPreviewQuestId=null;
+            innFollowQuestId=null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
@@ -2779,6 +2781,7 @@ namespace Starfall
         private void ShowInnGuestJobBoard(WorldObject o)
         {
             innPreviewQuestId=null;
+            innFollowQuestId=null;
             List<string> available=AvailableInnJobs();
             const int pageSize=4;
             int pages=Math.Max(1,(available.Count+pageSize-1)/pageSize);
@@ -2851,16 +2854,54 @@ namespace Starfall
             TrackQuest(id);
             if(save.trackedQuest!=id)return;
             innPreviewQuestId=null;
+            innFollowQuestId=id;
             Dialog(o.name,o.en,
                 "旅人把路单交还给你。\n\n“记好了。到地方看清楚，回来也好说给其他人听。”",
                 "The traveler hands the slip back.\n\n“It's yours. Take a proper look when you get there—and tell the others what you find.”",
+                C("改用这件事的路线","Use this quest's navigation","inn_follow_"+id),
                 C("翻开这件事的手帐","Open this quest in my journal","inn_openjournal"),
                 C("还有别的差事吗？","Any other jobs?","inn_jobboard"),
+                C("先告辞","Leave","close"));
+        }
+        private void RouteInnGuestJob(WorldObject o,string id)
+        {
+            if(innFollowQuestId!=id||save.trackedQuest!=id||
+                Array.IndexOf(QuestIds,id)<0)return;
+            QuestGuide q=GetQuest(id);
+            if(q.locked||q.complete)return;
+            if(q.room==save.room)
+            {
+                Point approach;
+                if(!TryQuestApproachFoot(q.target,out approach))
+                {
+                    // Never replace a deliberate personal pin with a
+                    // quest target behind a closed gate or invalid foot.
+                    Dialog(o.name,o.en,
+                        "旅人摇摇头。\n\n“这边的路还不通。你的旧标记我没动；先看看手帐，找找别的走法。”",
+                        "The traveler shakes their head.\n\n“That approach is still blocked. I left your old pin alone. Check your journal for another route.”",
+                        C("翻开任务手帐","Open my journal","inn_openjournal"),
+                        C("还有别的事要问","Ask something else","inn_topics"),
+                        C("先告辞","Leave","close"));
+                    return;
+                }
+                CommitLocalWaymark(approach,id);
+            }
+            else
+                // Cross-region routes need the actual open portal; don't
+                // fabricate a local waypoint in an inaccessible region.
+                ClearLocalWaymark();
+            innFollowQuestId=null;
+            Dialog(o.name,o.en,
+                "旅人把手指移向门口。\n\n“好。旧的个人标记已让路。去看手帐上的路，别从封住的岔路硬闯。”",
+                "The traveler points to the door.\n\n“Right. Your old personal marker won't get in the way. Follow the journal route and leave sealed crossings alone.”",
+                C("翻开任务手帐","Open my journal","inn_openjournal"),
+                C("还有别的事要问","Ask something else","inn_topics"),
                 C("先告辞","Leave","close"));
         }
         private void ShowInnGuestTopics(WorldObject o)
         {
             innPreviewQuestId=null;
+            innFollowQuestId=null;
             Dialog(o.name,o.en,
                 "旅人把热汤往你面前推了推，自己坐回炉边。\n\n“外头起风了。你是来歇脚，还是找路？”",
                 "The traveler pushes the warm stew closer, then settles beside the fire.\n\n“Wind's picking up. Here to rest your feet, or looking for a road?”",
@@ -3384,6 +3425,7 @@ namespace Starfall
                 action=="inn_jobboard"||action=="inn_jobs_next"||
                 action=="inn_jobs_prev"||
                 action.StartsWith("inn_confirm_",StringComparison.Ordinal)||
+                action.StartsWith("inn_follow_",StringComparison.Ordinal)||
                 action.StartsWith("inn_job_",StringComparison.Ordinal))
             {
                 WorldObject host=pendingDialogueSource;
@@ -3407,6 +3449,8 @@ namespace Starfall
                 }
                 else if(action.StartsWith("inn_confirm_",StringComparison.Ordinal))
                     ConfirmInnGuestJob(host,action.Substring("inn_confirm_".Length));
+                else if(action.StartsWith("inn_follow_",StringComparison.Ordinal))
+                    RouteInnGuestJob(host,action.Substring("inn_follow_".Length));
                 else if(action.StartsWith("inn_job_",StringComparison.Ordinal))
                     TrackInnGuestJob(host,action.Substring("inn_job_".Length));
                 else

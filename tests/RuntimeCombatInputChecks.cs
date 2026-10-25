@@ -5381,6 +5381,11 @@ public static class RuntimeCombatInputChecks
             {found=true;break;}
         }
         Check(found,"Board can be reached by ordinary physical world interaction");
+        g.mode="map";
+        Check(g.PlaceLocalWaymark(g.Position)&&g.HasLocalWaymark,
+            "A genuine player-owned map pin exists before accepting new work");
+        Point originalPin=g.LocalWaymark.Value;
+        g.mode="world";
         int beforeCoins=g.save.coins,beforeShards=g.save.shards,
             beforeFlags=g.save.flags.Count;
         int[] inventory=(int[])g.save.inventory.Clone();
@@ -5443,8 +5448,28 @@ public static class RuntimeCombatInputChecks
         for(int i=0;i<inventory.Length;i++)
             Check(inventory[i]==g.save.inventory[i],
                 "Quest discovery must never issue supplies or consume crafting materials");
+        Check(g.HasLocalWaymark&&
+            (g.LocalWaymark.Value-originalPin).Length<.001f,
+            "Tracking a new job alone does not steal a hand-placed personal pin");
+        int follow=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="inn_follow_"+chosen);
+        Check(follow>=0,"NPC offers an explicit, separate route-ownership choice");
+        g.Choose(follow);
+        Check(g.save.trackedQuest==chosen&&
+            g.save.coins==beforeCoins&&g.save.flags.Count==beforeFlags,
+            "Changing the navigation owner neither changes chosen job nor rewards");
+        if(quest.room!=g.save.room)
+            Check(!g.HasLocalWaymark,
+                "Cross-region job route clears the old pin only after explicit player consent");
+        else if(g.HasLocalWaymark)
+            Check(g.QuestApproachNavigationActive&&
+                g.PersonalNavigationActive,
+                "Nearby eligible quest uses a freshly validated physical approach rather than an old manual destination");
+        else Check(g.conversation.textEn.Contains("blocked"),
+            "Inaccessible local quest leaves a meaningful navigation-blocked explanation");
         int open=Array.FindIndex(g.conversation.choices,
             c=>c.action=="inn_openjournal");
+        Check(open>=0,"After assigning route the exact journal remains accessible");
         g.Choose(open);
         Check(g.mode=="journal"&&g.conversation==null,
             "Selecting the job permits the authenticated journal handoff");
