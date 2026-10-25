@@ -7883,6 +7883,69 @@ namespace Starfall.Tests
                 "A genuinely different cursor target still controls the next aimed volley");
         }
 
+
+        public static void CompanionTacticalPostWalksThroughRealTerrainAndRespectsOrders(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);g.enemies.Clear();
+            Point start=g.companionPosition;
+            Point destination=new Point();
+            bool found=false;
+            // Only authentic reachable map cells can become tactical posts.
+            for(int distance=2;distance<=5&&!found;distance++)
+            for(int dy=-distance;dy<=distance&&!found;dy++)
+            for(int dx=-distance;dx<=distance&&!found;dx++)
+            {
+                Point candidate=new Point((float)Math.Floor(start.x)+dx+.5f,
+                    (float)Math.Floor(start.y)+dy+.5f);
+                if((candidate-start).Length<2.4f||
+                    !g.InspectCompanionHoldPost(candidate))continue;
+                destination=candidate;found=true;
+            }
+            Check(found&&g.save.version==2,
+                "Existing game region has a genuinely reachable tactical post");
+            g.mode="map";
+            Check(g.AssignCompanionHoldPost(destination)&&
+                g.CompanionHoldingPosition&&
+                (g.CompanionHoldPosition-destination).Length<.001f&&
+                (g.companionPosition-start).Length<.001f,
+                "Assigning a post anchors the instruction without teleporting the original companion");
+            string[] rows=g.Map.rows;
+            int x=(int)destination.x,y=(int)destination.y;
+            string oldRow=rows[y];
+            char[] sealedTile=oldRow.ToCharArray();sealedTile[x]='#';
+            rows[y]=new string(sealedTile);
+            bool blocked=false;
+            try
+            {
+                blocked=!g.InspectCompanionHoldPost(destination)&&
+                    !g.AssignCompanionHoldPost(destination)&&
+                    g.CompanionHoldingPosition&&
+                    (g.CompanionHoldPosition-destination).Length<.001f;
+            }
+            finally{rows[y]=oldRow;}
+            Check(blocked,"Blocked map destinations cannot overwrite a live hold order");
+            Check(!g.AssignCompanionHoldPost(new Point(float.NaN,12))&&
+                g.CompanionHoldingPosition,
+                "Corrupt target coordinates never create companion orders");
+            g.Close();
+            Point before=g.companionPosition;
+            for(int step=0;step<250&&
+                (g.companionPosition-destination).Length>.35f;step++)
+                g.Tick(.02f,new Point());
+            Check((g.companionPosition-before).Length>.3f&&
+                (g.companionPosition-destination).Length<.5f&&
+                g.CanStand(g.companionPosition),
+                "The companion actually walks through safe ground to its selected tactical post");
+            g.ToggleCompanionHold();
+            Check(!g.CompanionHoldingPosition,"Returning to normal follow clears the issued tactical post");
+            g.mode="map";g.AssignCompanionHoldPost(destination);
+            g.Enter(1);
+            Check(!g.CompanionHoldingPosition&&g.save.version==2&&
+                g.save.companion==0,
+                "Cross-region travel retires the temporary tactical post and retains companion identity/v2 saves");
+        }
+
         public static void CompanionHoldPositionIsTransientAndResumesPhysicalFollowing(Campaign data)
         {
             var g=Fresh(data);

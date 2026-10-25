@@ -782,6 +782,84 @@ namespace Starfall
             companionHoldRoom=-1;
             companionHoldGeneration=-1;
         }
+        // An explicit tactical post belongs to this exact live companion
+        // and region. Preview is side-effect free; the actual command never
+        // teleports a companion or creates a v2 quest/save field.
+        public bool InspectCompanionHoldPost(Point requested,
+            System.Collections.Generic.List<Point> route=null)
+        {
+            if(route!=null)route.Clear();
+            if(save==null||save.companion<0||Dying||practicing||
+                OuterPatrolActive||!Finite(requested.x)||!Finite(requested.y)||
+                !Fits(companionPosition)||!CanStand(companionPosition))
+                return false;
+            MapData map=Map;
+            if(map==null||map.rows==null||map.rows.Length==0||
+                string.IsNullOrEmpty(map.rows[0])||
+                requested.x<0||requested.y<0||
+                requested.x>=map.rows[0].Length||
+                requested.y>=map.rows.Length)return false;
+            Point post=new Point((float)Math.Floor(requested.x)+.5f,
+                (float)Math.Floor(requested.y)+.5f);
+            if(!CanStand(post)||!Fits(post))return false;
+            // Only physical connections earn orders. A tile that is
+            // standable across a wall is NOT a valid tactical destination.
+            if((post-companionPosition).Length<=.12f)
+            {
+                if(route!=null)route.Add(post);
+                return true;
+            }
+            bool direct=(post-companionPosition).Length<=1.2f&&
+                CompanionFollowSegmentClear(companionPosition,post);
+            if(direct)
+            {
+                if(route!=null)route.Add(post);
+                return true;
+            }
+            var path=NavigationPathFrom(companionPosition,post,true);
+            if(path.Count==0)return false;
+            if(route!=null)
+            {
+                route.AddRange(path);
+                route.Add(post);
+            }
+            return true;
+        }
+        public bool AssignCompanionHoldPost(Point requested)
+        {
+            if((mode!="map"&&mode!="world"&&mode!="companions")||
+                Dying||practicing||save.companion<0)return false;
+            if(OuterPatrolActive)
+            {
+                Notify("补给守卫任务中无法重新指定驻守点。",
+                    "Finish the supply defense before assigning a new post.");
+                return false;
+            }
+            if(!InspectCompanionHoldPost(requested))
+            {
+                Notify("无法走到该驻守点。请选择同伴可抵达的道路。",
+                    "Your companion cannot walk to that post. Choose reachable ground.");
+                return false;
+            }
+            Point post=new Point((float)Math.Floor(requested.x)+.5f,
+                (float)Math.Floor(requested.y)+.5f);
+            // The old hold stays untouched on a failed attempt above.
+            // Upon acceptance the original follow planner walks there
+            // through its ordinary physical swept-foot route.
+            ClearCompanionFollowRoute();
+            ClearCompanionCornerPlan();
+            companionHoldFoot=post;
+            companionHoldSave=save;
+            companionHoldMap=Map;
+            companionHoldRoom=save.room;
+            companionHoldGeneration=companionPresentationGeneration;
+            companionHoldActive=true;
+            Notify("已指定同伴驻守点。同行者会沿道路前往。按 P 恢复跟随。",
+                "Tactical post assigned. Your companion will walk there. Press P to follow.");
+            revision++;sound="skill";
+            return true;
+        }
+
         public void ToggleCompanionHold()
         {
             if((mode!="world"&&mode!="companions")||Dying||practicing||
