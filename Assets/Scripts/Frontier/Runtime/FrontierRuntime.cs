@@ -979,6 +979,15 @@ namespace Starfall
                         Text(p.x-87,p.y-107,174,19,
                             Game.L("可以在灯下歇脚","Rest beside the light"),
                             11,mint,TextAnchor.MiddleCenter);
+                        // This is a material-priced active field choice, not
+                        // the free passive refuge pulse. Only advertise it
+                        // when the hero has wood, a physically reachable lamp
+                        // and a genuine combat-safe field moment.
+                        if(Game.OuterSignalCampReady)
+                            Text(p.x-95,p.y-147,190,19,
+                                Game.L("可以搭棚短休 · 木材×1",
+                                    "Field rest ready · 1 timber"),
+                                10,mint,TextAnchor.MiddleCenter);
                         // Show travel only when at least one OTHER restored
                         // signal is actually unlocked AND the local source
                         // can be interacted with. Reduced Motion retains

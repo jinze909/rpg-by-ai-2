@@ -63,6 +63,22 @@ namespace Starfall
             }
         }
 
+        // Runtime and HUD share the same exact source/terrain,
+        // safety and inventory predicate. A waypoint outside the actual
+        // interaction circle does not advertise an actionable paid rest.
+        public bool OuterSignalCampReady
+        {
+            get
+            {
+                if(mode!="world"||save.inventory[0]<1||
+                    !OuterRelayRestRefuge)return false;
+                foreach(WorldObject signal in Map.objects)
+                    if(signal.kind=="outerrelay"&&
+                        HasPhysicalInteractionReach(signal))return true;
+                return false;
+            }
+        }
+
         private bool TalkOuterRescue(WorldObject o)
         {
             if(o.kind!="outerlog"&&o.kind!="outerrelay"&&o.kind!="outercache")return false;
