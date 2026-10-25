@@ -979,6 +979,15 @@ namespace Starfall
                         Text(p.x-87,p.y-107,174,19,
                             Game.L("可以在灯下歇脚","Rest beside the light"),
                             11,mint,TextAnchor.MiddleCenter);
+                        // Show travel only when at least one OTHER restored
+                        // signal is actually unlocked AND the local source
+                        // can be interacted with. Reduced Motion retains
+                        // the steady legible label without animated blinking.
+                        if(Game.OuterSignalRouteReady)
+                            Text(p.x-100,p.y-126,200,18,
+                                Game.L("巡路队的灯路已连通",
+                                    "Warden signal roads connected"),
+                                10,mint,TextAnchor.MiddleCenter);
                     }
                 }
                 else

@@ -100,10 +100,10 @@ namespace Starfall
                     return true;
                 }
                 string noteZh=OuterLogZh[room,1]+
-                    (recorded?"\n\n灯火稳了。救援箱在正南方；四周安全时，也能在灯下歇一会儿。":
+                    (recorded?"\n\n灯火稳了。救援箱在正南方；四周安全时，也能在灯下歇一会儿。"+(OuterSignalRouteReady?"\n\n你看见巡路队新贴的行车牌：沿已点亮的灯，可搭他们的车走下一段救援路。":""):
                         "\n\n灯座的线圈少一枚零件。修好它，正南方的救援箱才能按旧规取走。");
                 string noteEn=OuterLogEn[room,1]+
-                    (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here.":
+                    (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here."+(OuterSignalRouteReady?"\n\nThe roadwardens posted a new cart schedule. Their couriers travel between repaired lamps.":""):
                         "\n\nOne spare part is missing from the socket. Repair it, and the relief chest directly south of here can be claimed.");
                 if(recorded)
                     Dialog(titleZh,titleEn,noteZh,noteEn,
@@ -169,6 +169,19 @@ namespace Starfall
         // supply routes. This is not a global teleport menu: the current
         // player must stand at their OWN repaired light, with a safe lane,
         // and both endpoints must already be permanently repaired.
+        public bool OuterSignalRouteReady
+        {
+            get
+            {
+                // OnGUI shows a route cue only at a physically usable
+                // restored source, with at least one legal second endpoint.
+                if(mode!="world"||!CanUseOuterSignalRoads())return false;
+                for(int room=0;room<8;room++)
+                    if(room!=save.room&&OuterRelayRestored(room)&&
+                        CanEnter(room))return true;
+                return false;
+            }
+        }
         private bool CanUseOuterSignalRoads()
         {
             if(save.room<0||save.room>=8||!OuterRelayRestored(save.room)||
