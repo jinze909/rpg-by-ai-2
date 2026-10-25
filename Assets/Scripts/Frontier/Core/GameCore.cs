@@ -3147,7 +3147,37 @@ namespace Starfall
                 if (!Has("ally_1")) list.Add(C("支线：交付月光草 ×6", "Commission: deliver 6 Moonherbs", "ally1"));
                 list.Add(C(save.plantedAt < 0 ? "种植 · 种子 ×1" : "收获 / 查看生长", save.plantedAt < 0 ? "Plant · 1 seed" : "Harvest / check growth", save.plantedAt < 0 ? "plant" : "harvest"));
                 list.Add(C("买种子 · 5 硬币", "Buy seeds · 5 coins", "seeds")); list.Add(C("再见", "Goodbye", "close"));
-                Dialog(o.name, o.en, "我需要六株月光草，为受伤的居民配药。你可以在野外采集，也可以种植：一粒种子，60 秒后收获。\n\n人们受伤的时候，最需要的从来不是一面更高的墙。", "I need six Moonherbs for the wounded. Gather them in the wild, or grow your own: one seed, sixty seconds.\n\nWhen people are hurt, a higher wall is rarely what they need.", list.ToArray()); return;
+                // The field medic's request is resolved only once. Never
+                // keep asking for six herbs after the town has received them.
+                // The bed itself remains a repeatable, real crop system.
+                bool clinicSupplied=Has("ally_1");
+                string gardenZh=clinicSupplied?
+                    "杏掀开晒药的布帘。几包晾好的月光草挂在横梁上。\n\n“你送来的那六株已经熬成药，今早给桥边两个伤者换过了。剩下的地我还留着，你要种什么，自己挑。”":
+                    save.inventory[2]>=6?
+                    "杏放下捣药杵，看看你背包里露出的草叶。\n\n“六株凑齐了？先给我吧。桥边的人昨夜烧得厉害，锅里的水我都准备好了。”":
+                    "杏跪在田埂边，把一株被踩折的月光草扶正。\n\n“桥边还有人等药。我需要六株月光草，野地里能找，自己种也行。一粒种子下土，六十秒就能收。”";
+                string gardenEn=clinicSupplied?
+                    "An lifts the cloth over her drying rack. Bundles of Moonherb hang from the beam.\n\n“The six you brought went straight into medicine. Two people by the bridge got fresh dressings this morning. The other beds are yours to plant.”":
+                    save.inventory[2]>=6?
+                    "An sets down her pestle and looks at the herbs in your bag.\n\n“You have all six? Let me take them. The patients by the bridge had a bad night, and the water's already boiling.”":
+                    "An kneels by the garden wall and props up a trampled Moonherb.\n\n“People by the bridge still need medicine. Six Moonherbs. Find them wild or grow them here. One seed takes sixty seconds.”";
+                if(save.plantedAt>=0f)
+                {
+                    int remaining=(int)Math.Ceiling(Math.Max(0f,
+                        60f-(save.totalTime-save.plantedAt)));
+                    gardenZh+=remaining>0?
+                        "\n\n杏摸了摸湿土。“这一畦还差"+remaining+"秒。先让根扎稳。”":
+                        "\n\n杏拨开叶子看了一眼。“长成了。来收吧，别让它烂在土里。”";
+                    gardenEn+=remaining>0?
+                        "\n\nAn presses a finger into the damp soil. “Another "+remaining+" seconds. Give the roots time.”":
+                        "\n\nAn parts the leaves. “Ready to pick. Don't leave it to rot in the soil.”";
+                }
+                else
+                {
+                    gardenZh+="\n\n“这里还留着空畦。一粒种子就能重新种。”";
+                    gardenEn+="\n\n“There's an empty bed here if you've got a seed.”";
+                }
+                Dialog(o.name,o.en,gardenZh,gardenEn,list.ToArray()); return;
             }
             if (kind == "fish")
             {
