@@ -413,14 +413,16 @@ namespace Starfall
                 "A civilian parcel reached the public refuge on foot."+
                     (secured?" Both pursuing raiders were truly defeated; the road was secured.":"")+
                     (pristine?" At least 90% of the medicines arrived for local refuge care.":""));
-            Notify(secured?
+            // Notify replaces the visible toast: keep actual payment AND
+            // the newly earned local-care benefit in one receipt.
+            Notify((secured?
                 "救援包与安全护送完成：硬币35、碎片1、经验53！":
-                "救援包已交接：硬币25、碎片1、经验38！",
-                secured?
+                "救援包已交接：硬币25、碎片1、经验38！")+
+                (pristine?"\n药品完好：本地避险棚添柴休息额外恢复10生命。":""),
+                (secured?
                 "Secure delivery! +35 coins, +1 shard, +53 XP!":
-                "Parcel delivered: +25 coins, +1 shard, +38 XP!");
-            if(pristine)Notify("药品完好：本地避险棚每次添柴休息额外恢复10生命。",
-                "Medicine intact: each timber-fueled rest at this refuge restores 10 extra HP.");
+                "Parcel delivered: +25 coins, +1 shard, +38 XP!")+
+                (pristine?"\nMedicine intact: +10 HP per timber-fueled rest at this refuge.":""));
             return true;
         }
     }

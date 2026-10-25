@@ -92,6 +92,17 @@ namespace Starfall
                         "WARD "+(int)Math.Ceiling(Game.FarCourierGuardLeft)+"s"),
                     12,mint,TextAnchor.MiddleCenter);
             }
+            else
+            {
+                // Players can read the actual >=90% medical reward threshold
+                // before deciding whether to fight, evade or repair cargo.
+                // Share the ward's row; never overprint its safety clock.
+                Text(screen.x-96,screen.y-108,192,19,
+                    integrity>=90?
+                        Game.L("药品完好 · 本地疗养 +10","MEDICINE INTACT · CARE +10"):
+                        Game.L("药品受损 · 仍可交付","MEDICINE DAMAGED · DELIVERY OK"),
+                    11,integrity>=90?mint:gold,TextAnchor.MiddleCenter);
+            }
             Text(screen.x-83,screen.y-86,166,21,
                 Game.L("救援包 "+(int)Math.Ceiling(integrity)+"% · "+
                     (int)Game.FarCourierTimeLeft+"秒",
