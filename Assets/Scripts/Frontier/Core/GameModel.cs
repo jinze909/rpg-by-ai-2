@@ -225,6 +225,9 @@ namespace Starfall
         // the floor pylon; identical-looking Boss or scripted rifts persist.
         // This is transient hazard state, never a SaveData v2 field.
         public bool abyssStormOwned;
+        // Ground patterns remember the exact live Boss that cast them.
+        // This is combat-only identity, never part of SaveData v2.
+        public Enemy bossOwner;
         // Transient ownership prevents encounter hazards surviving retirement.
         public bool atlasEchoOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
     }

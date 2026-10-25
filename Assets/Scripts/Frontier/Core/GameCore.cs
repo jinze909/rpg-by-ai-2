@@ -1149,6 +1149,11 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
+            // Defeating a guardian also ends its unresolved timed ground
+            // strikes. Keep ambient storms and another live guardian's
+            // warnings: numeric IDs alone are not unique across encounters.
+            if (e.boss)
+                hazards.RemoveAll(h => Object.ReferenceEquals(h.bossOwner, e));
             OnAtlasEchoEnemyDefeated(e);
             OnCommonsRelayEnemyDefeated(e);
             OnWitnessEnemyDefeated(e);

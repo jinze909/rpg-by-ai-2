@@ -2526,10 +2526,11 @@ namespace Starfall
             tickingHazards.Clear();
         }
         private void AddHazard(Point p, float radius, float delay, float damage,
-            string kind, bool abyssStormOwned = false)
+            string kind, bool abyssStormOwned = false, Enemy bossOwner = null)
         {
             hazards.Add(new Hazard { position = p, radius = radius, timer = delay,
-                damage = damage, kind = kind, abyssStormOwned = abyssStormOwned });
+                damage = damage, kind = kind, abyssStormOwned = abyssStormOwned,
+                bossOwner = bossOwner });
         }
         public static int HazardTheme(Hazard hazard)
         { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : hazard.kind == "bell" ? 7 : 8; }
@@ -2552,13 +2553,13 @@ namespace Starfall
                     // Final-phase contacts travel along the lane in sequence;
                     // each circle is warned before its own delayed impact.
                     float sweepDelay = e.BossPhase == 3 ? (i + 1) * .22f : 0;
-                    AddHazard(e.target + offset, radius, delay + sweepDelay, damage, kind);
+                    AddHazard(e.target + offset, radius, delay + sweepDelay, damage, kind, false, e);
                 }
             }
             if (save.room == 7 || save.room == 8)
             {
                 Point center = Position;
-                AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift");
+                AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift", false, e);
                 if (save.room == 8 && InAbyss && save.abyssFloor == 6 && e.BossPhase >= 2)
                 {
                     // Paired roots close on the player; alternate the axis each release.
@@ -2566,11 +2567,11 @@ namespace Starfall
                     for (int side = -1; side <= 1; side += 2)
                     {
                         Point outer = center + axis * (side * 2.8f);
-                        if (Fits(outer)) AddHazard(outer, 1.05f, 1.85f, 16 + save.abyssRisk * 3, "root");
+                        if (Fits(outer)) AddHazard(outer, 1.05f, 1.85f, 16 + save.abyssRisk * 3, "root", false, e);
                         if (e.BossPhase == 3)
                         {
                             Point inner = center + axis * (side * 1.5f);
-                            if (Fits(inner)) AddHazard(inner, .9f, 2.25f, 16 + save.abyssRisk * 3, "root");
+                            if (Fits(inner)) AddHazard(inner, .9f, 2.25f, 16 + save.abyssRisk * 3, "root", false, e);
                         }
                     }
                 }
@@ -2586,7 +2587,7 @@ namespace Starfall
                     {
                         if (i == safeExit) continue;
                         float delay = 1.75f + (e.BossPhase == 3 ? strike * .22f : 0);
-                        AddHazard(center + directions[i] * 3.5f, 1.1f, delay, 14, "bell");
+                        AddHazard(center + directions[i] * 3.5f, 1.1f, delay, 14, "bell", false, e);
                         strike++;
                     }
                 }
