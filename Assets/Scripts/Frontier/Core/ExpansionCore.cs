@@ -1851,7 +1851,36 @@ namespace Starfall
                 Point heading = DirectionTo(companionPosition, follow), before = companionPosition;
                 Point next = SweepActor(before, heading * Math.Min(delta.Length, dt * (Speed + 1)));
                 Point travelled = next - before;
-                if (travelled.Length > .001f) { companionPosition = next; companionMoving = true; companionMoveTime += travelled.Length; companionAim = travelled.Normalized; }
+                if (travelled.Length > .001f)
+                {
+                    companionPosition=next;
+                    companionMoving=true;
+                    companionMoveTime+=travelled.Length;
+                    companionAim=travelled.Normalized;
+                    // The actor really advanced: a stale blocked-route
+                    // warning must not persist through usable ground.
+                    companionUnreachableGoal=false;
+                }
+                else
+                {
+                    // The cached waypoint or nominal endpoint looked
+                    // legal, but the LIVE actor sweep could not move one
+                    // measurable millimeter. Stop reusing that same false
+                    // route, and give changing gates / occupants time
+                    // before trying another actual foot path.
+                    ClearCompanionFollowRoute();
+                    MapData current=Map;
+                    int width=current.rows[0].Length;
+                    companionBlockedRouteSave=save;
+                    companionBlockedRouteMap=current;
+                    companionBlockedRouteRoom=save.room;
+                    companionBlockedRouteGeneration=companionPresentationGeneration;
+                    companionBlockedRouteGoalCell=
+                        (int)Math.Floor(followGoal.y)*width+
+                        (int)Math.Floor(followGoal.x);
+                    companionBlockedRouteRetry=.45f;
+                    companionUnreachableGoal=true;
+                }
             }
             if (companionAttack > 0) return;
             string kind = null; Point direction = aim;Point? attackTarget=null;
