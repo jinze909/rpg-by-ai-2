@@ -2788,6 +2788,20 @@ namespace Starfall
             local.AddRange(distant);
             return local;
         }
+        // QuestGuide localizes at creation time. Produce distinct read-only
+        // snapshots for each dialogue language, rather than putting the
+        // currently selected language into both Conversation fields.
+        // Restore the player's setting even if a quest query fails.
+        private QuestGuide InnJobGuideInLanguage(string id,bool english)
+        {
+            bool previous=save.english;
+            try
+            {
+                save.english=english;
+                return GetQuest(id);
+            }
+            finally { save.english=previous; }
+        }
         private void ShowInnGuestJobBoard(WorldObject o)
         {
             innPreviewQuestId=null;
@@ -2801,14 +2815,16 @@ namespace Starfall
             for(int i=start;i<Math.Min(start+pageSize,available.Count);i++)
             {
                 string id=available[i];
-                QuestGuide q=GetQuest(id);
-                string locality=q.room==save.room?
-                    L(" · 附近"," · nearby"):
-                    L(" · "+data.maps[q.room].name,
-                      " · "+data.maps[q.room].en);
-                // A selection is a concrete tracking request. Do not
-                // invent a new quest ID or silently accept the reward.
-                options.Add(C(q.title+locality,q.title+locality,
+                QuestGuide zh=InnJobGuideInLanguage(id,false);
+                QuestGuide en=InnJobGuideInLanguage(id,true);
+                QuestGuide q=save.english?en:zh;
+                string zhRegion=q.room==save.room?
+                    " · 附近":" · "+data.maps[q.room].name;
+                string enRegion=q.room==save.room?
+                    " · nearby":" · "+data.maps[q.room].en;
+                // A selection is a concrete tracking request. Keep each
+                // language's authored quest title and region readable.
+                options.Add(C(zh.title+zhRegion,en.title+enRegion,
                     "inn_job_"+id));
             }
             if(innJobPage>0)
@@ -2841,16 +2857,14 @@ namespace Starfall
             // CURRENT board page and still physically accessible when
             // the detail slip is opened.
             if(!InnJobStillOffered(id))return;
-            QuestGuide q=GetQuest(id);
+            QuestGuide zh=InnJobGuideInLanguage(id,false);
+            QuestGuide en=InnJobGuideInLanguage(id,true);
             innPreviewQuestId=id;
-            string title=q.title;
-            string next=q.next;
-            string reward=q.reward;
             Dialog(o.name,o.en,
-                title+"\n\n"+L("下一步：","Next: ")+next+
-                "\n\n"+L("报酬：","Reward: ")+reward,
-                title+"\n\n"+L("下一步：","Next: ")+next+
-                "\n\n"+L("报酬：","Reward: ")+reward,
+                zh.title+"\n\n下一步："+zh.next+
+                "\n\n报酬："+zh.reward,
+                en.title+"\n\nNext: "+en.next+
+                "\n\nReward: "+en.reward,
                 C("追踪这件事","Track this job","inn_confirm_"+id),
                 C("先看看其他路单","Back to the job board","inn_jobboard"),
                 C("先告辞","Leave","close"));

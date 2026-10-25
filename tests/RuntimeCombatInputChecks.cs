@@ -5409,6 +5409,10 @@ public static class RuntimeCombatInputChecks
         Check(first>=0&&Array.IndexOf(GameCore.QuestIds,chosen)>=0,
             "The board lists genuine authored quest IDs, not decorative missions");
         QuestGuide quest=g.GetQuest(chosen);
+        Check(g.conversation.choices[first].label!=g.conversation.choices[first].en&&
+            !g.conversation.choices[first].label.Contains(" · nearby")&&
+            !g.conversation.choices[first].en.Contains(" · 附近"),
+            "Live job board presents separate localized quest titles and map labels");
         Check(!quest.locked&&!quest.complete&&g.CanEnter(quest.room)&&
             chosen!=originallyTracked,
             "Only currently open, unfinished, accessible work may be offered");
@@ -5427,6 +5431,13 @@ public static class RuntimeCombatInputChecks
             Check(first>=0,"Returning to page one restores the original quest choices");
         }
         g.Choose(first);
+        Check(g.conversation.text.Contains("下一步：")&&
+            g.conversation.text.Contains("报酬：")&&
+            g.conversation.textEn.Contains("Next: ")&&
+            g.conversation.textEn.Contains("Reward: ")&&
+            !g.conversation.text.Contains("Next: ")&&
+            !g.conversation.textEn.Contains("下一步：")&&g.save.english,
+            "Inn mission details keep true Chinese and English records independently without toggling the player's setting");
         Check(g.mode=="dialog"&&g.conversationSource==guest&&
             g.save.trackedQuest==originallyTracked&&
             g.conversation.textEn.Contains("Next:")&&
