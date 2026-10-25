@@ -621,6 +621,26 @@ public static class RuntimeContinuityChecks
                 "Player-approved navigation switches the live cache to strict physical finish and rejects sealed entry");
             Check((bool)Call(app,"HasBlockedNavigationRoute",center),
                 "A sealed player-approved portal is an actual blocked route, never an arrived route");
+            // Actual practice combat owns the world compass during an
+            // encounter. Even if its target happens to occupy the same
+            // world coordinate as the exit, that target cannot inherit the
+            // player quest's route policy. Use a separate physical target
+            // to exercise the renderer's owner boundary.
+            g.practicing=true;g.enemies.Add(new Enemy(9127,0,center.x+.5f,center.y,200));
+            Point? combatGoal=g.NavigationTarget();
+            Check(combatGoal.HasValue&&
+                (combatGoal.Value-center).Length>.1f&&
+                !g.PlayerRequestedRemoteExitTarget(combatGoal.Value),
+                "Real practice combat overrides the pending quest's portal target");
+            var combatPath=(List<Point>)Call(app,"NavigationRoute");
+            Check(!Get<bool>(app,"navigationRouteStrictQuestFinish")&&
+                combatPath.Count==g.NavigationPath(combatGoal.Value).Count,
+                "Combat targets retain their original best-effort navigation instead of an unrelated strict portal search");
+            g.practicing=false;g.enemies.Clear();
+            var restoredPolicy=(List<Point>)Call(app,"NavigationRoute");
+            Check(Get<bool>(app,"navigationRouteStrictQuestFinish")&&
+                restoredPolicy.Count==0,
+                "After practice the pending quest immediately regains strict exit validation");
             ClearDraw();Call(app,"DrawMinimap");
             Check(GUI.commands.Exists(s=>s.Contains("ROUTE BLOCKED"))&&
                 NavigationRouteDots(3f)==0,

@@ -2626,6 +2626,21 @@ namespace Starfall
             return best;
         }
 
+        // Share the genuine authored inter-region exit lookup with the
+        // renderer's navigation-owner test. Timed combat and rescue targets
+        // must never be mistaken for the exit of a pending side quest.
+        private Point? QuestRegionExitTarget(QuestGuide q)
+        {
+            if(q==null||q.locked||q.complete||q.room==save.room)return null;
+            foreach(var o in Map.objects)
+                if(o.kind=="portal"+q.room)return new Point(o.x,o.y);
+            foreach(var o in Map.objects)
+                if(o.kind=="portal0")return new Point(o.x,o.y);
+            if(save.room==0&&q.room==8)
+                return ObjectPoint(0,"abyssEntry",new Point(31,14));
+            if(save.room==0&&q.room>=5)return new Point(26,9);
+            return null;
+        }
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
@@ -2674,11 +2689,8 @@ namespace Starfall
             Point? personal=LocalWaymark;
             if(personal.HasValue&&!FieldWorkPreventsRest)return personal;
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
-            if (q.room == save.room) return q.target;
-            foreach (var o in Map.objects) if (o.kind == "portal" + q.room) return new Point(o.x, o.y);
-            foreach (var o in Map.objects) if (o.kind == "portal0") return new Point(o.x, o.y);
-            if (save.room == 0 && q.room == 8) return ObjectPoint(0, "abyssEntry", new Point(31, 14));
-            if (save.room == 0 && q.room >= 5) return new Point(26, 9); return null;
+            if(q.room==save.room)return q.target;
+            return QuestRegionExitTarget(q);
         }
         public List<Point> NavigationPath(Point target)
         {

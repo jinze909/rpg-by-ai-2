@@ -30,6 +30,17 @@ namespace Starfall
         // Zero BFS steps can mean we already stand beside the real portal.
         // Expose the precise physical-side test for the world HUD without
         // letting a closed wall masquerade as a completed route.
+        // Only the authored outbound portal is entitled to strict
+        // destination validation. A live timed defense, rescue or practice
+        // target outranks travel and keeps its own routing semantics.
+        public bool PlayerRequestedRemoteExitTarget(Point target)
+        {
+            if(!QuestApproachTravelHandoffPending||
+                QuestApproachTravelArrivalBlocked)return false;
+            QuestGuide current=GetQuest(localWaymarkTravelQuestId);
+            Point? exit=QuestRegionExitTarget(current);
+            return exit.HasValue&&(exit.Value-target).Length<.001f;
+        }
         public bool PlayerRouteExitWithinInteractionReach(Point target)
         {
             return QuestApproachTravelHandoffPending&&

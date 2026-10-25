@@ -538,7 +538,7 @@ namespace Starfall
             // accepted cross-region route MUST physically reach the portal's
             // interaction side. Cached permissive paths cannot be reused
             // after the player takes ownership of that destination.
-            bool strictQuestFinish=Game.QuestApproachTravelHandoffPending;
+            bool strictQuestFinish=Game.PlayerRequestedRemoteExitTarget(goal.Value);
             if (navigationRouteCacheValid && object.ReferenceEquals(navigationRouteMap, map) &&
                 object.ReferenceEquals(navigationRouteRows, map.rows) &&
                 NavigationRouteRowsUnchanged(map.rows) &&
@@ -581,7 +581,7 @@ namespace Starfall
             // core is authoritative; never display the partial line as open.
             if(Game.PersonalNavigationActive && Game.LocalWaymarkRouteBlocked)
                 return true;
-            if(Game.QuestApproachTravelHandoffPending)
+            if(Game.PlayerRequestedRemoteExitTarget(target))
             {
                 // A partial walk to the near side of a sealed exit is never
                 // a valid player-approved route. Zero steps only count as
