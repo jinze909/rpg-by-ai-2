@@ -251,7 +251,18 @@ namespace Starfall
             return false;
         }
         public void TrackQuest(string id)
-        { if (Array.IndexOf(QuestIds, id) < 0 || GetQuest(id).locked) return; save.trackedQuest = id; save.frontierFocus = id == "shore"; TutorialAction(2); revision++; }
+        {
+            if(Array.IndexOf(QuestIds,id)<0||GetQuest(id).locked)return;
+            // A pending distant route belongs to its chosen tracked quest.
+            // Switching focus through the journal or a genuine mission
+            // must revoke that old intent immediately, even while paused
+            // in a menu where world ticks cannot perform stale cleanup.
+            // Hand-placed pins and explicit local quest routes are separate.
+            if(QuestApproachTravelHandoffPending&&localWaymarkTravelQuestId!=id)
+                ClearLocalWaymark();
+            save.trackedQuest=id;save.frontierFocus=id=="shore";
+            TutorialAction(2);revision++;
+        }
         private Point ObjectPoint(int room, string kind, Point fallback)
         { foreach (var o in data.maps[room].objects) if (o.kind == kind) return new Point(o.x, o.y); return fallback; }
         private Point ResourcePoint(int room, string kind)
