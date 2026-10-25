@@ -3577,6 +3577,38 @@ namespace Starfall
             }
         }
 
+        private void ShowTownAllyCommissionHandoff(int id)
+        {
+            // A completed commission is a real conversation with the person
+            // who accepted it, not a floating generic reward or a menu
+            // accidentally reopened under another NPC's name. Choose()
+            // captured this exact live map source before closing its menu.
+            WorldObject host=pendingDialogueSource;
+            string expected=id==1?"garden":id==2?"fish":id==3?"forge":"";
+            if(string.IsNullOrEmpty(expected)||host==null||
+                host.kind!=expected||pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(host)||
+                !HasPhysicalInteractionReach(host))return;
+            string zh,en;
+            if(id==1)
+            {
+                zh="杏把六株月光草扎成一束，放进冒着热气的药锅。\n\n“我这就送去桥边。你帮的不是我，是那些等药的人。等你回来，这片地还会为你留着。”";
+                en="An ties the six Moonherbs together and lowers them into her steaming pot.\n\n“I'll take this to the patients by the bridge. You didn't do it for me. The garden will still be here when you return.”";
+            }
+            else if(id==2)
+            {
+                zh="老潮把三条银鳍鱼放进锅，先舀出一小碗留在炉边。\n\n“避难棚里还有孩子等饭。我先送过去。这碗给你，别饿着肚子往密林里跑。”";
+                en="Old Tide puts the three Silverfin into the pot and saves a small bowl by the stove.\n\n“There are children waiting at the shelter. I'll get this to them. Take your bowl before you head into the woods.”";
+            }
+            else
+            {
+                zh="诺尔接过五个零件，用手拧了拧泵轴，终于听见水沿着管壁流过去。\n\n“成了。明天早晨镇口就能接上水。你要走哪条远路，先来把武器修牢。”";
+                en="Noll fits the five parts around the pump shaft. Water finally rattles through the pipe.\n\n“It's running. By morning the street will have water again. Before your next journey, bring your weapon by.”";
+            }
+            Dialog(host.name,host.en,zh,en,
+                C("继续赶路","Back to the road","close"));
+        }
+
         private void ChooseCore(string action)
         {
             // The topic menu must remain bound to the actual inn traveler,
@@ -3739,7 +3771,13 @@ namespace Starfall
                 int id = int.Parse(action.Substring(4));
                 if (Has("ally_" + id)) return;
                 if (Spend(0, 0, id == 1 ? 6 : 0, id == 2 ? 3 : 0, id == 3 ? 5 : 0))
-                { Flag("ally_" + id); CreditCoins(40); CreditInventory(6, 1); CreditSkillPoints(1); sound = "reward"; Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。", "Commission complete! An ally, 40 coins and 1 skill point."); }
+                {
+                    Flag("ally_" + id); CreditCoins(40); CreditInventory(6, 1);
+                    CreditSkillPoints(1); sound = "reward";
+                    Notify("支线完成！获得同伴支持、40 硬币和 1 技能点。",
+                        "Commission complete! An ally, 40 coins and 1 skill point.");
+                    ShowTownAllyCommissionHandoff(id);
+                }
             }
             if (action == "boss")
             {
