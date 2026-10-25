@@ -12,6 +12,7 @@ namespace Starfall
         private float navigationRepeat, pressedTime;
         private bool focusVisible, controllerUsed, drawingModal;
         private readonly CompanionButtonGesture companionPadGesture = new CompanionButtonGesture();
+        private readonly MapTileCursor mapTileCursor = new MapTileCursor();
         private string ControlId(float x, float y, float w, float h) { return x.ToString(CultureInfo.InvariantCulture) + ":" + y.ToString(CultureInfo.InvariantCulture) + ":" + w.ToString(CultureInfo.InvariantCulture) + ":" + h.ToString(CultureInfo.InvariantCulture); }
         private string InputScope()
         { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage + "/choices/" + dialogueChoicePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }
@@ -54,7 +55,51 @@ namespace Starfall
         private void UpdateMenuInput(float dt)
         {
             pressedTime = Math.Max(0, pressedTime - dt); navigationRepeat = Math.Max(0, navigationRepeat - dt); confirmControl = null;
-            navigation.Scope(InputScope()); if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
+            navigation.Scope(InputScope());
+            // Gamepad and pure keyboard players can place the SAME validated
+            // personal map pin as mouse users. While a tile is being selected,
+            // d-pad/stick movement MUST NOT move menu focus or fire another
+            // mapped action. B/Escape cancel; A/Enter confirm precisely once.
+            if(mapTileCursor.Active)
+            {
+                if(Game.mode!="map"||selectedRegion!=Game.save.room)
+                    mapTileCursor.Cancel();
+                else
+                {
+                    if(Input.GetKeyDown(KeyCode.Escape)||PadDown(1))
+                    {mapTileCursor.Cancel();return;}
+                    if(Input.GetKeyDown(KeyCode.Return)||
+                        Input.GetKeyDown(KeyCode.Space)||PadDown(0))
+                    {
+                        if(Game.PlaceLocalWaymark(mapTileCursor.Destination))
+                            mapTileCursor.Cancel();
+                        return;
+                    }
+                    int moveX=0,moveY=0;
+                    if(Input.GetKeyDown(KeyCode.LeftArrow))moveX--;
+                    if(Input.GetKeyDown(KeyCode.RightArrow))moveX++;
+                    if(Input.GetKeyDown(KeyCode.UpArrow))moveY--;
+                    if(Input.GetKeyDown(KeyCode.DownArrow))moveY++;
+                    float dx=Input.GetAxisRaw("Debug Horizontal"),
+                        dy=Input.GetAxisRaw("Debug Vertical");
+                    if(Math.Abs(dx)<.5f&&Math.Abs(dy)<.5f)
+                    {dx=Input.GetAxisRaw("Horizontal");dy=Input.GetAxisRaw("Vertical");}
+                    if(moveX==0&&moveY==0&&navigationRepeat<=0f&&
+                        (Math.Abs(dx)>.5f||Math.Abs(dy)>.5f))
+                    {
+                        if(Math.Abs(dx)>Math.Abs(dy))moveX=Math.Sign(dx);
+                        else moveY=-Math.Sign(dy);
+                        navigationRepeat=.14f;
+                    }
+                    if(moveX!=0||moveY!=0)
+                    {
+                        mapTileCursor.Move(moveX,moveY);
+                        Game.sound="ui";
+                    }
+                    return;
+                }
+            }
+            if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
             if (PadDown(0) || PadDown(1) || PadDown(4) || PadDown(5) || PadDown(7)) controllerUsed = true;
             bool controllerBack=PadDown(1);
             if (controllerBack || Input.GetKeyDown(KeyCode.Escape))

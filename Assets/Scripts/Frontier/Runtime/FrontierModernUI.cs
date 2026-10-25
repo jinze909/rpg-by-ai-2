@@ -677,8 +677,8 @@ namespace Starfall
         }
         private void DrawMap()
         {
-            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("地图上点击当前地区的可通行地点设置个人标记 · 青色为个人路线", "Click a walkable tile in your current region to pin it · teal: personal route")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
-            for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i)) selectedRegion = i; }
+            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击地图标记 · 也可用方向键或手柄选择具体格子", "Click map to pin · or choose a tile with keyboard/gamepad")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
+            for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i, !mapTileCursor.Active)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
             Card(866, 178, 351, 510);
             // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
@@ -688,12 +688,21 @@ namespace Starfall
             if (selectedRegion == Game.save.room)
             {
                 MiniTerrain(888, 264, terrainScale);
+                if(mapTileCursor.Active)
+                {
+                    Point tile=mapTileCursor.Destination;
+                    Point mark=new Point(888+tile.x*terrainScale,
+                        264+tile.y*terrainScale);
+                    Color cursorColor=Game.CanStand(tile)?mint:PixelArt.C("#ff6961");
+                    Frame(mark.x-6,mark.y-6,12,12,cursorColor);
+                    Box(mark.x-1.5f,mark.y-1.5f,3,3,cursorColor);
+                }
                 // Transparent interactive terrain surface; never replace
                 // the authored map preview with a generic button graphic.
                 // IMGUI consumes one true map click, not held mouse movement.
                 Rect terrainHit=new Rect(888,264,
                     m.rows[0].Length*terrainScale,m.rows.Length*terrainScale);
-                if (!replacePrompt && saveConfirmation==null &&
+                if (!mapTileCursor.Active && !replacePrompt && saveConfirmation==null &&
                     GUI.Button(terrainHit,"",new GUIStyle()))
                 {
                     Point cursor=MouseVirtual();
@@ -718,17 +727,25 @@ namespace Starfall
                 Game.RouteHint(selectedRegion,Game.save.english), 15, muted);
             if(selectedRegion==Game.save.room)
             {
-                if(Game.HasLocalWaymark)
+                if(mapTileCursor.Active)
+                    Text(888,569,306,42,
+                        Game.L("方向键/摇杆移动 · Enter/A确认 · Esc/B取消",
+                            "Arrows/stick: move · Enter/A: pin · Esc/B: cancel"),
+                        12,mint,TextAnchor.MiddleCenter);
+                else if(Game.HasLocalWaymark)
                 {
-                    if(Button(888,571,306,35,
+                    if(Button(888,571,145,35,Game.L("移动标记","Move pin")))
+                    {mapTileCursor.Begin(Game.Position,m.rows[0].Length,m.rows.Length);navigationRepeat=0;}
+                    if(Button(1044,571,150,35,
                         Game.LocalWaymarkRouteBlocked ?
-                            Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
-                            Game.L("清除个人地图标记","Clear personal map pin")))
+                            Game.L("清除封路标记","Clear blocked pin") :
+                            Game.L("清除个人标记","Clear pin")))
                         Game.ClearLocalWaymark();
                 }
-                else Text(888,569,306,38,
-                    Game.L("点击上方地图设置步行目标","Click map to set a walking target"),
-                    12,mint,TextAnchor.MiddleCenter);
+                else if(Button(888,571,306,35,
+                    Game.L("用键盘/手柄选择地图格子",
+                        "Choose a map tile (keyboard/gamepad)")))
+                {mapTileCursor.Begin(Game.Position,m.rows[0].Length,m.rows.Length);navigationRepeat=0;}
             }
             else Text(888,569,306,38,
                 Game.L("只能标记当前所在地区","Pins available in current region only"),
@@ -738,8 +755,8 @@ namespace Starfall
                 selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") :
                     rescueTravelLock ? Game.L("救援中无法旅行", "Rescue in progress") :
                         Game.L("快速旅行", "Fast travel"),
-                true, selectedRegion == Game.save.room ||
-                    !rescueTravelLock && Game.CanEnter(selectedRegion) && Game.SafeTravel))
+                true, !mapTileCursor.Active&&(selectedRegion == Game.save.room ||
+                    !rescueTravelLock && Game.CanEnter(selectedRegion) && Game.SafeTravel)))
             {
                 if (selectedRegion == Game.save.room) Game.Close();
                 else { Game.Enter(selectedRegion); camera = CameraTarget(); }

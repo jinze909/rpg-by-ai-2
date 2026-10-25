@@ -8,6 +8,34 @@ namespace Starfall
         public Point Center { get { return new Point(x + w / 2, y + h / 2); } }
     }
     // Geometry belongs to the view; focus and navigation rules can be tested without Unity.
+
+    // A gamepad/keyboard map picker has actual tile coordinates, never GUI
+    // pixel coordinates or an automatically accepted pin. Confirmation still
+    // uses GameCore.PlaceLocalWaymark's real walkability and route checks.
+    public sealed class MapTileCursor
+    {
+        private int tileX,tileY,width,height;
+        public bool Active { get; private set; }
+        public Point Destination { get { return new Point(tileX+.5f,tileY+.5f); } }
+        public void Begin(Point position,int mapWidth,int mapHeight)
+        {
+            Cancel();
+            if(mapWidth<=0||mapHeight<=0||
+                float.IsNaN(position.x)||float.IsNaN(position.y)||
+                float.IsInfinity(position.x)||float.IsInfinity(position.y))return;
+            width=mapWidth;height=mapHeight;
+            tileX=(int)Math.Max(0,Math.Min(width-1,Math.Floor(position.x)));
+            tileY=(int)Math.Max(0,Math.Min(height-1,Math.Floor(position.y)));
+            Active=true;
+        }
+        public void Move(int dx,int dy)
+        {
+            if(!Active)return;
+            tileX=(int)Math.Max(0L,Math.Min((long)width-1,(long)tileX+dx));
+            tileY=(int)Math.Max(0L,Math.Min((long)height-1,(long)tileY+dy));
+        }
+        public void Cancel(){Active=false;tileX=tileY=width=height=0;}
+    }
     public sealed class MenuNavigation
     {
         private readonly List<FocusControl> controls = new List<FocusControl>();

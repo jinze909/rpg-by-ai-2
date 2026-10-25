@@ -167,6 +167,40 @@ namespace Starfall.Tests
                 "World exploration unlock guidance neither changes SaveData v2 nor replaces the active quest");
         }
 
+
+        public static void KeyboardAndGamepadMapCursorUsesRealPhysicalPinRules(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                GameCore g=WaymarkFixture(data);
+                var cursor=new MapTileCursor();
+                cursor.Begin(g.Position,g.Map.rows[0].Length,g.Map.rows.Length);
+                Check(cursor.Active&&(cursor.Destination-g.Position).Length<.001f,
+                    "Controller cursor begins at the actual hero tile, not a fake UI waypoint");
+                cursor.Move(6,0);
+                Check((cursor.Destination-new Point(14.5f,8.5f)).Length<.001f,
+                    "Six directional presses select a precise, physically representable map cell");
+                g.mode="map";
+                Check(g.PlaceLocalWaymark(cursor.Destination)&&g.HasLocalWaymark,
+                    "Confirm uses the original walking-reachable GameCore pin transaction");
+                cursor.Move(1000000,-1000000);
+                Check((cursor.Destination-new Point(33.5f,.5f)).Length<.001f &&
+                    !g.PlaceLocalWaymark(cursor.Destination) &&
+                    (g.LocalWaymark.Value-new Point(14.5f,8.5f)).Length<.001f,
+                    "Controller cursor is bounded, but blocked border tiles cannot overwrite a valid pin");
+                cursor.Cancel();
+                Check(!cursor.Active,"Cancellation exits tile editing without erasing the actual player pin");
+                cursor.Begin(new Point(float.NaN,1),34,34);
+                Check(!cursor.Active,"Invalid input never creates a phantom editor cursor");
+                g.Close();
+                Check(!g.PlaceLocalWaymark(new Point(16.5f,8.5f)) &&
+                    g.HasLocalWaymark && g.save.version==2,
+                    "Map mode is required for all input types, with original SaveData unchanged");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void PlayerWaymarkIsRealReachableGoalAndClearsOnWalkingArrival(Campaign data)
         {
             MapData old=data.maps[1];
