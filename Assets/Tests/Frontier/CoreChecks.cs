@@ -509,11 +509,11 @@ namespace Starfall.Tests
                 Check(g.SkillQueued&&g.playerAction==null&&
                     Math.Abs(g.skillCooldown-.16f)<.0001f&&g.save.energy==100,
                     "Class "+profession+" accepts a late Q intent without paying or starting it prematurely");
-                g.Tick(.1f,new Point());
+                Advance(g,.1f);
                 Check(g.SkillQueued&&g.playerAction==null&&g.skillCooldown>.05f&&
                     g.save.energy>=100-.001f,
                     "Class "+profession+" does not fire before the original cooldown expires");
-                g.Tick(.07f,new Point());
+                Advance(g,.07f);
                 Check(!g.SkillQueued&&g.playerAction!=null&&
                     g.playerAction.kind=="skill"&&
                     g.playerAction.direction.y<-.99f&&
@@ -543,10 +543,10 @@ namespace Starfall.Tests
             var spam=Fresh(data,1);spam.enemies.Clear();
             spam.skillCooldown=.18f;spam.save.energy=100;
             spam.Skill(new Point(0,-1));
-            spam.Tick(.10f,new Point());
+            Advance(spam,.10f);
             spam.SetAimTarget(new Point(25,17));
             spam.Skill(new Point(1,0));
-            spam.Tick(.09f,new Point());
+            Advance(spam,.09f);
             Check(spam.playerAction!=null&&spam.playerAction.kind=="skill"&&
                 spam.playerAction.direction.x>.99f&&
                 spam.playerAction.target.HasValue&&
