@@ -201,6 +201,46 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void InvalidPursuitTargetsNeverPoisonLiveMovement(Campaign data)
+        {
+            MapData original = data.maps[0];
+            try
+            {
+                string[] rows = new string[16];
+                for(int y=0;y<16;y++)
+                {
+                    char[] tiles=new string('.',16).ToCharArray();
+                    for(int x=0;x<16;x++)
+                        if(x<2||x>=14||y<2||y>=14)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[0]=new MapData {
+                    id=0,spawnX=5.5f,spawnY=6.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]
+                };
+                var g=new GameCore(data);
+                Point from=new Point(5.5f,6.5f);
+                Point[] bad={
+                    new Point(float.NaN,6.5f),
+                    new Point(float.PositiveInfinity,6.5f),
+                    new Point(7.5f,float.NegativeInfinity),
+                    new Point(float.MaxValue,6.5f),
+                    new Point(100000000f,6.5f),
+                    new Point(-.5f,6.5f)
+                };
+                foreach(Point target in bad)
+                {
+                    Point heading=g.DirectionTo(from,target);
+                    Check(heading.Length==0f && heading.x==0f && heading.y==0f,
+                        "Invalid or retired off-map pursuit targets must not move an actual enemy or companion");
+                }
+                Point after=g.DirectionTo(from,new Point(9.5f,6.5f));
+                Check(after.x>.99f && Math.Abs(after.y)<.001f,
+                    "Valid on-map pursuit still travels straight immediately after rejected targets");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void NarrowWallCornersForceRealPursuitDetours(Campaign data)
         {
             // The real collision footprint brushes this single masonry tile

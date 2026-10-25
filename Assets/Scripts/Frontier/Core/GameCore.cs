@@ -385,6 +385,16 @@ namespace Starfall
         }
         public Point DirectionTo(Point from, Point to)
         {
+            // Live escort/civilian targets can be retired between decision and
+            // movement. Never feed a corrupt/off-map target into the chase
+            // sampler: an infinity can make a direction nonfinite and a very
+            // large finite coordinate can request billions of footprint probes.
+            if (!Finite(from.x) || !Finite(from.y) ||
+                !Finite(to.x) || !Finite(to.y)) return new Point();
+            int width = Map.rows[0].Length, height = Map.rows.Length;
+            if (from.x < 0 || from.y < 0 || to.x < 0 || to.y < 0 ||
+                from.x >= width || to.x >= width ||
+                from.y >= height || to.y >= height) return new Point();
             Point direct = (to - from).Normalized;
             // A clear first step is insufficient: it can oscillate against a wall
             // instead of committing to the corridor around it (seeded abyss rooms).
@@ -403,7 +413,6 @@ namespace Starfall
                     { clear = false; break; }
             }
             if (clear) return direct;
-            int width = Map.rows[0].Length, height = Map.rows.Length;
             int sx = (int)Math.Floor(from.x), sy = (int)Math.Floor(from.y);
             int tx = (int)Math.Floor(to.x), ty = (int)Math.Floor(to.y);
             if (sx < 0 || sy < 0 || tx < 0 || ty < 0 || sx >= width || tx >= width || sy >= height || ty >= height) return direct;
