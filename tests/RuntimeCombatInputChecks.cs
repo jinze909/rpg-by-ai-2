@@ -5948,6 +5948,21 @@ public static class RuntimeCombatInputChecks
         g.mode="world";GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT")),
             "The actual world minimap explains the multi-hop transfer to the player");
+        g.practicing=true;
+        g.enemies.Add(new Enemy(9157,0,13,14,180));
+        Point? combatTarget=g.NavigationTarget();
+        Check(combatTarget.HasValue&&
+            !g.PlayerRequestedRemoteExitTarget(combatTarget.Value),
+            "Real training combat takes over the navigation compass, not the pending quest portal");
+        GUI.commands.Clear();Call(app,"DrawMinimap");
+        Check(!GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT"))&&
+            !GUI.commands.Exists(s=>s.Contains("REMOTE QUEST · AUTO-ROUTE"))&&
+            g.QuestApproachTravelHandoffPending,
+            "Production minimap prioritizes active combat without canceling the queued quest");
+        g.practicing=false;g.enemies.Clear();
+        GUI.commands.Clear();Call(app,"DrawMinimap");
+        Check(GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT")),
+            "Distant journey reappears when the real higher-priority combat target ends");
         g.mode="map";GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT")),
             "The full world map shows the same physical next transfer");

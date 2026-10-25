@@ -468,6 +468,12 @@ namespace Starfall
             Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073"));
             MiniTerrainWindow(1024, 42);
             Point? objective = Game.NavigationTarget();
+            // Emergency rescue, combat and training can temporarily own the
+            // compass even while a remote quest is queued. Its upcoming
+            // transfer must not masquerade as the CURRENT tactical goal.
+            bool remoteOwnsCompass=Game.QuestApproachTravelHandoffPending&&
+                (!objective.HasValue||
+                    Game.PlayerRequestedRemoteExitTarget(objective.Value));
             if(Game.QuestApproachTravelArrivalBlocked && !objective.HasValue)
                 Text(1024,178,166,12,
                     Game.L("到达目标地区 · 路线封闭","QUEST ARRIVAL BLOCKED"),
@@ -479,7 +485,7 @@ namespace Starfall
             else if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
-            else if(Game.QuestApproachTravelHandoffPending)
+            else if(remoteOwnsCompass)
                 Text(1024,178,166,12,
                     Game.L("跨区任务 · 到达后接续","REMOTE QUEST · AUTO-ROUTE"),
                     9,mint,TextAnchor.MiddleCenter);
@@ -497,7 +503,7 @@ namespace Starfall
             // The committed route may contain several genuine crossings.
             // Show its immediate authored stop, even when optional general
             // guidance is OFF, without ever implying fast-travel happened.
-            if(Game.QuestApproachTravelHandoffPending)
+            if(remoteOwnsCompass)
                 Text(1024,204,166,11,Game.RemoteQuestNextStop,9,mint,TextAnchor.MiddleCenter);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
         }
