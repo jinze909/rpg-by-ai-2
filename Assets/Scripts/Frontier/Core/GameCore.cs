@@ -3278,7 +3278,7 @@ namespace Starfall
                     "Half a dismantled pump takes up the forge floor. Noll taps its split bearing with one knuckle.\n\n“Still five parts short. The citadel keeps its machines running while our town can't draw water. Help me fix this one first?”";
                 if(MineConvoyComplete)
                 {
-                    forgeZh+="\n\n诺尔把一根旧矿梁推到工作台上。“矿工平安回来，还把好木头带回了镇上。以后每次强化，我能少收你一份木材。”";
+                    forgeZh+="\n\n诺尔把一根旧矿梁推到工作台上。“最后一班矿工安全归来，还把好木头带回了镇上。以后每次强化，我能少收你一份木材。”";
                     forgeEn+="\n\nNoll rolls a salvaged mine beam onto the bench. “The miners made it home with good timber. One less plank for every upgrade from now on.”";
                 }
                 else

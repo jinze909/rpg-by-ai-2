@@ -3607,7 +3607,7 @@ public static class RuntimeCombatInputChecks
         g.save.flags.Add("mineconvoy_complete");
         g.save.profession=g.save.weapon=0;
         g.Talk(smith);
-        Check(g.conversation.text.Contains("矿工平安回来")&&
+        Check(g.conversation.text.Contains("最后一班矿工安全归来")&&
             g.conversation.textEn.Contains("One less plank")&&
             g.conversation.text.Contains(g.SwordGuardArrowEnergy+"点耐力")&&
             g.conversation.textEn.Contains(g.SwordGuardMeleeEnergy+""),
