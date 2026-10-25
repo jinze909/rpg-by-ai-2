@@ -3537,7 +3537,7 @@ public static class RuntimeCombatInputChecks
         g.Talk(medic);
         Check(g.conversation!=null&&
             g.conversation.text.Contains("六株月光草")&&
-            g.conversation.choices.Any(c=>c.action=="ally1"),
+            Array.Exists(g.conversation.choices,c=>c.action=="ally1"),
             "Unfinished clinic request and six-herb handoff remain available");
         g.Close();
         g.save.inventory[2]=6;
@@ -3551,22 +3551,22 @@ public static class RuntimeCombatInputChecks
         g.Talk(medic);
         Check(g.conversation.text.Contains("已经熬成药")&&
             !g.conversation.text.Contains("我需要六株")&&
-            !g.conversation.choices.Any(c=>c.action=="ally1")&&
-            g.conversation.choices.Any(c=>c.action=="plant"),
+            !Array.Exists(g.conversation.choices,c=>c.action=="ally1")&&
+            Array.Exists(g.conversation.choices,c=>c.action=="plant"),
             "Fulfilled clinic never repeats a dead commission; productive garden survives");
         g.Close();
         g.save.plantedAt=90f;
         g.Talk(medic);
         Check(g.conversation.text.Contains("还差50秒")&&
             g.conversation.textEn.Contains("50 seconds")&&
-            g.conversation.choices.Any(c=>c.action=="harvest"),
+            Array.Exists(g.conversation.choices,c=>c.action=="harvest"),
             "Living garden explains the remaining growth period in both languages");
         g.Close();
         g.save.totalTime=160f;
         g.Talk(medic);
         Check(g.conversation.text.Contains("长成了")&&
             g.conversation.textEn.Contains("Ready to pick")&&
-            g.conversation.choices.Any(c=>c.action=="harvest")&&
+            Array.Exists(g.conversation.choices,c=>c.action=="harvest")&&
             g.save.version==2,
             "Ready crop has a distinct harvest line with unchanged actions and save schema");
         g.Close();
