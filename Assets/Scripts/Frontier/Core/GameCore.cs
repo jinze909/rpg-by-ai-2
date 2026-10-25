@@ -1306,7 +1306,44 @@ namespace Starfall
         private bool EnemyBowFlightLaneClear(Enemy enemy,Point target)
         {
             return enemy!=null&&enemy.kind==1&&!enemy.boss&&
-                PhysicalBowLaneFromFoot(enemy.Position,target);
+                PhysicalBowLaneFromFoot(enemy.Position,target)&&
+                FriendlyBodyBowLaneClear(enemy.Position,target,enemy);
+        }
+        // A moving friendly raider is real physical cover, not merely an
+        // after-release accident. Ordinary archers should seek another bow
+        // angle rather than waste every draw into the same friendly body.
+        // Probe the authored bow-hand muzzle and genuine target direction;
+        // only bodies entering BEFORE the hero's small hit-circle block aim.
+        // The actual projectile sweep remains the authority if actors move.
+        private bool FriendlyBodyBowLaneClear(Point foot,Point target,Enemy shooter)
+        {
+            if(shooter==null)return true;
+            Point aim=target-foot;
+            if(aim.Length<.001f||!Finite(aim.x)||!Finite(aim.y))return false;
+            Projectile arrow=WeaponShot(foot,1,aim.Normalized,5f,10f,target);
+            Point flight=target-arrow.position;
+            float length=flight.Length;
+            if(!Finite(length)||length<.001f)return false;
+            Point forward=flight.Normalized;
+            float victimEntry=length-.38f;
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||other.hp<=0||other.boss||
+                    Object.ReferenceEquals(other,shooter)||
+                    !CanStand(other.Position))continue;
+                Point delta=other.Position-arrow.position;
+                float radius=.5f+arrow.Radius;
+                float along=delta.x*forward.x+delta.y*forward.y;
+                if(along+radius<=0f)continue;
+                float perp=delta.x*forward.y-delta.y*forward.x;
+                if(Math.Abs(perp)>=radius)continue;
+                float first=along-(float)Math.Sqrt(
+                    Math.Max(0,radius*radius-perp*perp));
+                if(first+.00001f<victimEntry&&
+                    ClearAttackPath(arrow.position,other.Position))
+                    return false;
+            }
+            return true;
         }
         // For selecting a NEW real firing foot, evaluate the same arrow
         // footprint without mutating another enemy actor's live position.
@@ -1396,6 +1433,46 @@ namespace Starfall
             return new Point();
         }
 
+        // Living cover moves during a fight. If ordinary terrain is already
+        // clear but a teammate fills the bow lane, find a reachable side
+        // root using the SAME four-step physical foot corridor as stone-cover
+        // planning. No instantaneous sidestep or teleport.
+        private Point ArcherLivingCoverGoal(Enemy shooter,Point target)
+        {
+            Point from=shooter.Position;
+            Point sight=target-from;
+            if(sight.Length<.1f||!CanStand(from)||
+                !ClearAttackPath(from,target))return new Point();
+            Point heading=sight.Normalized;
+            Projectile shot=WeaponShot(from,1,heading,5f,10f,target);
+            if((target-shot.position).Length>5f*shot.life)
+                return new Point();
+            Point side=new Point(-heading.y,heading.x);
+            bool positiveOpen=true,negativeOpen=true;
+            for(int ring=1;ring<=4;ring++)
+            {
+                float reach=ring*.55f;
+                for(int sign=0;sign<2;sign++)
+                {
+                    if(sign==0&&!positiveOpen||sign==1&&!negativeOpen)
+                        continue;
+                    Point foot=from+(sign==0?side:side*-1f)*reach;
+                    if(!ArcherWalkCorridorClear(from,foot))
+                    {
+                        if(sign==0)positiveOpen=false;
+                        else negativeOpen=false;
+                        continue;
+                    }
+                    if(ClearAttackPath(foot,target)&&
+                        PhysicalBowLaneFromFoot(foot,target)&&
+                        FriendlyBodyBowLaneClear(foot,target,shooter))
+                        return foot;
+                }
+                if(!positiveOpen&&!negativeOpen)break;
+            }
+            return new Point();
+        }
+
         // Preserve the original two-Point direct probe/test contract.
         private Point ArcherPhysicalCornerSidestep(Point from,Point target)
         {
@@ -1417,10 +1494,14 @@ namespace Starfall
             if(sameOwner&&(plan.goal-from).Length>.09f&&
                 ArcherWalkCorridorClear(from,plan.goal)&&
                 ClearAttackPath(plan.goal,target)&&
-                PhysicalBowLaneFromFoot(plan.goal,target))
+                PhysicalBowLaneFromFoot(plan.goal,target)&&
+                FriendlyBodyBowLaneClear(plan.goal,target,enemy))
                 return (plan.goal-from).Normalized;
             plan.active=false;
             Point next=ArcherPhysicalCornerGoal(from,target);
+            if(next.Length<.01f||
+                !FriendlyBodyBowLaneClear(next,target,enemy))
+                next=ArcherLivingCoverGoal(enemy,target);
             if(next.Length<.01f||(next-from).Length<.09f)
                 return new Point();
             plan.save=save;

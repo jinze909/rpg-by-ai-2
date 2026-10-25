@@ -2131,6 +2131,90 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    for(int x=2;x<=22;x++)if(y>=2&&y<=22)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=16.5f;g.save.y=10.5f;
+                g.invulnerable=100f;g.save.reducedMotion=true;
+                var archer=new Enemy(84911,1,10.5f,10.5f,300f){timer=0};
+                var screen=new Enemy(84912,0,13.5f,10.5f,300f)
+                    {stun=99f,timer=999f,staggerRecovery=99f};
+                g.enemies.Add(archer);g.enemies.Add(screen);
+                var bodyLane=typeof(GameCore).GetMethod("EnemyBowFlightLaneClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var terrainLane=typeof(GameCore).GetMethod("PhysicalBowLaneFromFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(bodyLane!=null&&terrainLane!=null&&
+                    (bool)terrainLane.Invoke(g,new object[]{archer.Position,g.Position})&&
+                    !(bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "Terrain-only shot may be open, but a living nearer raider must physically block the true bow lane");
+                Point initial=archer.Position;
+                g.Tick(.05f,new Point());
+                Check(archer.state==0&&archer.moving&&
+                    Math.Abs(archer.y-initial.y)>.01f&&
+                    Math.Abs(archer.x-initial.x)<.02f&&
+                    g.CanStand(archer.Position),
+                    "Genuine archer AI repositions sideways on open terrain instead of preparing a shot through a friend");
+                bool winding=false;
+                for(int i=0;i<130;i++)
+                {
+                    g.Tick(.05f,new Point());
+                    Check(g.CanStand(archer.Position),
+                        "Archer's real lateral path never leaves physically walkable footing");
+                    if(archer.state==1){winding=true;break;}
+                }
+                Check(winding&&
+                    (bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "Archer earns a windup only after reaching a real, unblocked side shooting corridor");
+                Point oldScreen=screen.Position;
+                // The intervening unit re-enters the committed shooting ray
+                // after the archer starts its draw: the costly unreleased
+                // attack must retract, then reacquire when that unit moves.
+                screen.x=archer.x+(g.Position.x-archer.x)*.5f;
+                screen.y=archer.y+(g.Position.y-archer.y)*.5f;
+                Check(g.CanStand(screen.Position)&&
+                    !(bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "Moving ally now blocks the archer's live committed shot");
+                int bullets=g.projectiles.Count;
+                g.Tick(.02f,new Point());
+                Check(archer.state==0&&g.projectiles.Count==bullets &&
+                    archer.timer<=.22f,
+                    "A newly blocked real 650ms draw cancels without launching into a teammate");
+                // Pull the ally out of the shot after the cancellation.
+                screen.x=oldScreen.x;screen.y=oldScreen.y+3f;
+                Check(g.CanStand(screen.Position)&&
+                    (bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "An actually opened lane is shootable again");
+                for(int i=0;i<15&&archer.state!=1;i++)
+                    g.Tick(.05f,new Point());
+                Check(archer.state==1,
+                    "Same surviving archer reacquires the opening on its original short polling cooldown");
+                for(int i=0;i<20&&g.projectiles.Count==bullets;i++)
+                    g.Tick(.05f,new Point());
+                Check(g.projectiles.Exists(p=>p.visual=="enemyArrow"&&
+                    Object.ReferenceEquals(p.hostileShooter,archer)),
+                    "Recovered archer releases an ACTUAL traveling hostile shot bound to its physical identity");
+                Check(g.save.version==2,
+                    "Living cover tactical decisions remain transient and preserve legacy saves");
+            }
+            finally {data.maps[0]=original;}
+        }
+
         public static void EnemyArcherFindsMultiTileLateralFiringCorridor(Campaign data)
         {
             MapData original=data.maps[0];
