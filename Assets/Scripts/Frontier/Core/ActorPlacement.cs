@@ -28,7 +28,8 @@ namespace Starfall
         // non-overlapping original foot unchanged. Only separate genuinely
         // overlapping actors, into a nearby tile in the SAME reachable
         // pocket; never move one through a wall to fill a different island.
-        private Point UncrowdedEnemyFoot(Point proposed)
+        private Point UncrowdedEnemyFoot(Point proposed,
+            Enemy relocatingEnemy=null,bool relocatingCompanion=false)
         {
             Point safe=SafeActorFoot(proposed);
             // A newly spawned foe must not materialize INSIDE the hero's
@@ -36,9 +37,10 @@ namespace Starfall
             // This applies only to overlapping feet, not normal nearby
             // enemies; legitimate close-range battles stay unchanged.
             bool occupied=(safe-Position).Length<.95f||
-                save.companion>=0&&(safe-companionPosition).Length<.95f;
+                save.companion>=0&&!relocatingCompanion&&
+                (safe-companionPosition).Length<.95f;
             foreach(Enemy other in enemies)
-                if(other!=null&&other.hp>0&&
+                if(other!=null&&other!=relocatingEnemy&&other.hp>0&&
                     (other.Position-safe).Length<.95f)
                 {occupied=true;break;}
             if(!occupied)return safe;
@@ -52,12 +54,12 @@ namespace Starfall
                     (float)Math.Floor(safe.y)+dy+.5f);
                 if(!Fits(option)||!ActorHasLocalRoute(safe,option,4)||
                     (option-Position).Length<1.05f||
-                    save.companion>=0&&
+                    save.companion>=0&&!relocatingCompanion&&
                     (option-companionPosition).Length<1.05f)
                     continue;
                 bool clear=true;
                 foreach(Enemy other in enemies)
-                    if(other!=null&&other.hp>0&&
+                    if(other!=null&&other!=relocatingEnemy&&other.hp>0&&
                        (other.Position-option).Length<.95f)
                     {clear=false;break;}
                 if(clear)return option;
@@ -209,7 +211,11 @@ namespace Starfall
                 // the old danger circle remains visible after the forced
                 // retreat despite no strike ever being released.
                 RemoveEnemyPendingWarning(enemy);
-                Point p = SafeActorFoot(enemy.Position); enemy.x = p.x; enemy.y = p.y;
+                // The water may strand several living enemies on the same
+                // former shoal; evacuate each to a distinct connected dry
+                // foot without counting its own invalid old position.
+                Point p = UncrowdedEnemyFoot(enemy.Position,enemy);
+                enemy.x = p.x; enemy.y = p.y;
                 enemy.moving = enemy.backpedaling = false; enemy.state = 0; enemy.releaseTime = 0;
                 enemy.targetingWayfarer = enemy.targetingReliefCivilian =
                     enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
@@ -228,7 +234,11 @@ namespace Starfall
                 bool unspentAuto = companionAction != null &&
                     companionAction.kind != "command" &&
                     !companionAction.released;
-                companionPosition = SafeActorFoot(companionPosition);
+                // Evacuate last, after enemies have claimed real dry feet.
+                // Ignore only the ally's OWN submerged former position;
+                // still avoid the hero and all live combatants.
+                companionPosition = UncrowdedEnemyFoot(
+                    companionPosition,null,true);
                 companionAction = null; companionAutoTarget = null;
                 companionMoving = false; companionMoveTime = 0f;
                 if (unspentCommand) companionCooldown = 0f;
