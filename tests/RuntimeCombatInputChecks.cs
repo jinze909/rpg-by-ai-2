@@ -2717,6 +2717,63 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live journal available/all filter hides inaccessible quests without altering original campaign records");
     }
 
+
+    private static void InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.english=true;game.mode="map";
+        Set(app,"selectedRegion",game.save.room);
+        game.save.trackedQuest="main";
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        Point origin=game.Position;
+        QuestGuide probe=new QuestGuide {id="preview_probe",room=game.save.room};
+        List<Point> expected=null;
+        // Pick a real walkable destination in the existing loaded scene,
+        // avoiding test-only geometry that bypasses the production collision.
+        for(int radius=2;radius<=8&&expected==null;radius++)
+            for(int dx=-radius;dx<=radius&&expected==null;dx++)
+                for(int dy=-radius;dy<=radius;dy++)
+                {
+                    if(Math.Abs(dx)!=radius&&Math.Abs(dy)!=radius)continue;
+                    Point target=new Point(
+                        (float)Math.Floor(origin.x)+dx+.5f,
+                        (float)Math.Floor(origin.y)+dy+.5f);
+                    if(target.x<1||target.y<1||
+                        target.x>=game.Map.rows[0].Length-1||
+                        target.y>=game.Map.rows.Length-1)continue;
+                    List<Point> attempt=game.NavigationPathFrom(origin,target,true);
+                    if(attempt.Count>=2){expected=attempt;probe.target=target;break;}
+                }
+        Check(expected!=null,"The real scene has a physically reachable route for inspected quest preview");
+        var first=(List<Point>)Call(app,"InspectedQuestWalkingRoute",probe);
+        Check(first.Count==expected.Count&&
+            (first[first.Count-1]-expected[expected.Count-1]).Length<.001f,
+            "Quest preview follows the real full-finish collision path, not a straight line");
+        var again=(List<Point>)Call(app,"InspectedQuestWalkingRoute",probe);
+        Check(object.ReferenceEquals(first,again),
+            "Repeated Layout/Repaint reuses the inspected route instead of rerunning pathfinding");
+        QuestGuide different=new QuestGuide {id="another_preview",room=probe.room,
+            target=probe.target};
+        var next=(List<Point>)Call(app,"InspectedQuestWalkingRoute",different);
+        Check(!object.ReferenceEquals(first,next)&&next.Count==expected.Count,
+            "Changing inspected quest invalidates the cached route even at the same coordinates");
+        QuestGuide impossible=new QuestGuide {id="blocked_preview",room=probe.room,
+            target=new Point(-10,-10)};
+        var blocked=(List<Point>)Call(app,"InspectedQuestWalkingRoute",impossible);
+        Check(blocked.Count==0,
+            "An invalid or inaccessible objective never paints a fictitious route");
+        different.room=game.save.room==0?1:0;
+        Check(((List<Point>)Call(app,"InspectedQuestWalkingRoute",different)).Count==0,
+            "Inspecting a different region cannot reuse a local walking route");
+        Check(game.save.trackedQuest=="main"&&game.save.coins==coins&&
+            game.save.flags.Count==flags&&game.save.version==2,
+            "The quest preview never changes tracked mission, rewards or SaveData v2");
+        game.Close();
+        Console.WriteLine("PASS Inspected map quest draws cached physically reachable routes without retargeting or bypassing gates");
+    }
+
     private static void InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin(
         FrontierRuntime app)
     {
@@ -7311,7 +7368,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,

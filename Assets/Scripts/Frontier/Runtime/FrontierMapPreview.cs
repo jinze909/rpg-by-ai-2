@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 namespace Starfall
 {
@@ -36,6 +37,74 @@ namespace Starfall
                 return code*31+seen;
             }
         }
+
+        // Separate from the active navigation/personal pin: this preview shows
+        // where the *inspected* quest can be physically approached. Cache the
+        // actual collision-aware search across IMGUI Layout/Repaint passes.
+        private List<Point> inspectedQuestWalk = new List<Point>();
+        private GameCore inspectedWalkOwner;
+        private MapData inspectedWalkMap;
+        private string[] inspectedWalkRowSnapshot;
+        private Decoration[] inspectedWalkDecor;
+        private string inspectedWalkQuestId;
+        private int inspectedWalkRoom=-1,inspectedWalkFloor=-1;
+        private int inspectedWalkStartX=int.MinValue,inspectedWalkStartY=int.MinValue;
+        private Point inspectedWalkTarget;
+        private bool inspectedWalkLowTide,inspectedWalkGate,inspectedWalkBridge,inspectedWalkSeal;
+        private bool InspectedWalkRowsUnchanged(MapData map)
+        {
+            if(map==null||map.rows==null||inspectedWalkRowSnapshot==null||
+                map.rows.Length!=inspectedWalkRowSnapshot.Length)return false;
+            for(int i=0;i<map.rows.Length;i++)
+                if(!object.ReferenceEquals(map.rows[i],inspectedWalkRowSnapshot[i]))
+                    return false;
+            return true;
+        }
+        private List<Point> InspectedQuestWalkingRoute(QuestGuide quest)
+        {
+            if(Game==null||quest==null||quest.locked||quest.complete||
+                Game.mode!="map"||quest.room!=Game.save.room)
+            {
+                inspectedQuestWalk.Clear();
+                inspectedWalkOwner=null;
+                return inspectedQuestWalk;
+            }
+            MapData map=Game.Map;
+            int room=Game.save.room;
+            int startX=(int)Math.Floor(Game.Position.x);
+            int startY=(int)Math.Floor(Game.Position.y);
+            bool lowTide=Game.LowTide,gate=Game.GateBarrierActive;
+            bool bridge=Game.Has("far_bridge_"+room),seal=Game.Has("seal_"+room);
+            if(!object.ReferenceEquals(inspectedWalkOwner,Game)||
+                !object.ReferenceEquals(inspectedWalkMap,map)||
+                !object.ReferenceEquals(inspectedWalkDecor,map.decor)||
+                inspectedWalkRoom!=room||inspectedWalkFloor!=Game.save.abyssFloor||
+                inspectedWalkQuestId!=quest.id||
+                inspectedWalkStartX!=startX||inspectedWalkStartY!=startY||
+                (inspectedWalkTarget-quest.target).Length>.001f||
+                inspectedWalkLowTide!=lowTide||inspectedWalkGate!=gate||
+                inspectedWalkBridge!=bridge||inspectedWalkSeal!=seal||
+                !InspectedWalkRowsUnchanged(map))
+            {
+                // requirePhysicalFinish forbids a best-effort line across a
+                // closed gate; interaction targets may be approached adjacent
+                // to an occupied/object tile without standing on the object.
+                inspectedQuestWalk=Game.NavigationPathFrom(
+                    Game.Position,quest.target,true);
+                inspectedWalkOwner=Game;
+                inspectedWalkMap=map;
+                inspectedWalkDecor=map.decor;
+                inspectedWalkRoom=room;inspectedWalkFloor=Game.save.abyssFloor;
+                inspectedWalkQuestId=quest.id;
+                inspectedWalkStartX=startX;inspectedWalkStartY=startY;
+                inspectedWalkTarget=quest.target;
+                inspectedWalkLowTide=lowTide;inspectedWalkGate=gate;
+                inspectedWalkBridge=bridge;inspectedWalkSeal=seal;
+                inspectedWalkRowSnapshot=map.rows==null?null:(string[])map.rows.Clone();
+            }
+            return inspectedQuestWalk;
+        }
+
         private void ReleaseTerrainPreview()
         {
             if(terrainPreview!=null)UnityEngine.Object.Destroy(terrainPreview);

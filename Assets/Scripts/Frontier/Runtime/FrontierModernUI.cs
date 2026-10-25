@@ -856,9 +856,21 @@ namespace Starfall
                 QuestGuide inspected=InspectedMapQuest();
                 if(inspected!=null)
                 {
+                    Color inspection=PixelArt.C("#dcb1ff");
+                    // Lilac breadcrumbs are a fully reachable physical
+                    // approach to the journal-selected objective, not the
+                    // gold tracked compass or turquoise player-authored pin.
+                    // While positioning a pin/post, show only its own route.
+                    if(!mapTileCursor.Active)
+                        foreach(Point step in InspectedQuestWalkingRoute(inspected))
+                        {
+                            float x=888+step.x*terrainScale;
+                            float y=264+step.y*terrainScale;
+                            float dot=Math.Max(1.5f,Math.Min(2.5f,terrainScale*.65f));
+                            Box(x-dot*.5f,y-dot*.5f,dot,dot,inspection);
+                        }
                     float gx=888+inspected.target.x*terrainScale,
                         gy=264+inspected.target.y*terrainScale;
-                    Color inspection=PixelArt.C("#dcb1ff");
                     Frame(gx-6.5f,gy-6.5f,13,13,inspection);
                     Box(gx-2,gy-2,4,4,inspection);
                 }
