@@ -665,12 +665,21 @@ namespace Starfall.Tests
                 g.companionPosition.x>6.5f&&g.companionPosition.x<9f,
                 "An unreachable formation socket leads the companion along genuine foot travel to the near-side frontier");
             Point landed=g.companionPosition;
-            Advance(g,1.1f);
+            bool blocked=g.CompanionRouteBlocked;
+            // A truthful warning only appears after a genuine attempted
+            // blocked foot route, not after an arbitrary wall-clock delay.
+            for(int frame=0;frame<150&&!blocked;frame++)
+            {
+                g.Tick(.02f,new Point());
+                blocked=g.CompanionRouteBlocked;
+            }
             Check(g.CanStand(g.companionPosition)&&
                 g.companionPosition.x<9f&&
-                (g.companionPosition-landed).Length<1.3f&&
-                g.CompanionRouteBlocked,
-                "A sealed crossing visibly reports actual unreachable ground without shuffling through tiles");
+                (g.companionPosition-landed).Length<1.3f&&blocked,
+                "A sealed crossing must eventually report actual unreachable ground without shuffling through tiles; foot="+
+                g.companionPosition.x+","+g.companionPosition.y+
+                " started="+landed.x+","+landed.y+
+                " blocked="+blocked);
             char[] opened=rows[7].ToCharArray();opened[9]='.';
             rows[7]=new string(opened);
             Advance(g,3.1f);
