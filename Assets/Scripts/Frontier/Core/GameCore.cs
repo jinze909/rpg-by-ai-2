@@ -41,6 +41,14 @@ namespace Starfall
         public int StewHealing { get { return PublicFishKitchenStocked?65:55; } }
         public float StewBuffSeconds
         { get { return PublicFishKitchenStocked?105f:90f; } }
+        // A meal is not a frame-by-frame heal button: the same physical
+        // bowl cannot be eaten dozens of times during one enemy windup.
+        // This short clock lives only in the active play session, never
+        // changes the serialized SaveData v2 contract.
+        private float stewCooldown;
+        public float StewCooldownLeft { get { return Math.Max(0f,stewCooldown); } }
+        public float StewAttackBuffLeft
+        { get { return save==null?0f:Math.Max(0f,save.foodUntil-save.totalTime); } }
         // A bite belongs to one simulation-time window, not every keyboard,
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
@@ -219,6 +227,7 @@ namespace Starfall
             fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
             fishHits = fishMisses = 0;FishExpertCast=false;
             FishFeedbackZh=FishFeedbackEn="";
+            stewCooldown=0;
             toast = ""; toastTime = 0;
             // Runtime audio consumes a pending queue, not just the current
             // sound name. Neither old combat cues nor dialogue clicks may
@@ -695,6 +704,9 @@ namespace Starfall
             if (Dying) { deathTime -= dt; if (deathTime <= 0) CompleteDeath(); return; }
             bool beganInPractice = practicing;
             save.totalTime += dt;
+            // Advance consumption recovery in genuine world time. Inventory,
+            // pause and dialogue do not secretly exhaust the recovery clock.
+            stewCooldown=Math.Max(0f,stewCooldown-dt);
             // Resolve changed world collision before any body, missile or contact advances.
             TickTideTransition(); Point beforeMove = Position;
             // A held LMB is sampled every frame. Once the hero escapes a
@@ -3240,10 +3252,27 @@ namespace Starfall
             if (practicing || Dying) return;
             if (mode != "world" && mode != "inventory") return;
             if (save.inventory[6] <= 0) { Notify("没有炖汤了。旅店可以制作或出售。", "No stew left. Visit Ari at the inn."); return; }
+            if (StewCooldownLeft>0)
+            {
+                Notify("刚喝完炖汤，再过 "+(int)Math.Ceiling(StewCooldownLeft)+" 秒才能继续进食。",
+                    "Finish eating before using another stew ("+(int)Math.Ceiling(StewCooldownLeft)+"s).");
+                return;
+            }
+            // Do not silently throw away a scarce crafted stew when health,
+            // stamina AND the entire earned combat food buff are already full.
+            // Players may still intentionally refresh an expired buff.
+            if(save.health>=save.maxHealth && save.energy>=100 &&
+                StewAttackBuffLeft>0)
+            {
+                Notify("生命、耐力与炖汤效果仍充足；这碗先留着。",
+                    "Already fully nourished. Save this stew for later.");
+                return;
+            }
             save.inventory[6]--;
             save.health=Clamp(save.health+StewHealing,0,save.maxHealth);
             save.energy=100;
             save.foodUntil=save.totalTime+StewBuffSeconds;
+            stewCooldown=3f;
             revision++;sound="reward";
             Notify("生命 +"+StewHealing+"，耐力回满，攻击增强 "+(int)StewBuffSeconds+" 秒。",
                 "+"+StewHealing+" health, full energy, stronger attacks for "+(int)StewBuffSeconds+" seconds.");

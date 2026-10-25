@@ -598,6 +598,45 @@ namespace Starfall.Tests
             Check(g.save.coins == coins && g.Allies == 1 && g.save.skillPoints == 1, "Commission rewards");
             g.Learn(1); Check(g.save.skillPoints == 0 && g.save.maxHealth == 152, "Talent allocation");
         }
+        public static void StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.inventory[6]=4;
+            g.save.health=10;g.save.energy=20;
+            int start=g.save.inventory[6];
+            g.Eat();
+            Check(g.save.inventory[6]==start-1&&
+                Math.Abs(g.save.health-65)<.01f&&g.save.energy==100&&
+                g.StewCooldownLeft>=2.99f&&g.StewAttackBuffLeft>89,
+                "A real stew restores its established resources, buff and starts one recovery clock");
+            float buffUntil=g.save.foodUntil;
+            g.Eat();
+            Check(g.save.inventory[6]==start-1&&
+                Math.Abs(g.save.foodUntil-buffUntil)<.001f&&
+                g.StewCooldownLeft>2.9f,
+                "Repeated pressed F during one combat beat never consumes a second stew or extends the attack buff");
+            g.mode="inventory";g.Tick(.05f,new Point());
+            Check(g.StewCooldownLeft>=2.99f,
+                "Opening the inventory pauses recovery instead of silently advancing food use");
+            g.mode="world";
+            Advance(g,3.1f);
+            Check(g.StewCooldownLeft==0f,
+                "Real world frames unlock another meal after exactly three seconds");
+            g.save.health=g.save.maxHealth;g.save.energy=100;
+            g.Eat();
+            Check(g.save.inventory[6]==start-1&&
+                Math.Abs(g.save.foodUntil-buffUntil)<.001f,
+                "Full health, full energy and a live attack buff preserve costly crafted food");
+            g.save.foodUntil=g.save.totalTime-.01f;
+            g.Eat();
+            Check(g.save.inventory[6]==start-2&&g.StewAttackBuffLeft>89f&&
+                g.StewCooldownLeft>=2.99f,
+                "A fully healed warrior may consume one meal to regain a genuinely expired attack buff");
+            g.Load(g.save);
+            Check(g.save.version==2&&g.StewCooldownLeft==0f,
+                "Food cooldown is transient and cannot contaminate a loaded v2 slot");
+        }
+
         public static void DailyLife(Campaign data)
         {
             var g = Fresh(data); Action(g, "garden", "plant"); Check(g.save.plantedAt == 0 && g.save.inventory[7] == 2, "Planting");
