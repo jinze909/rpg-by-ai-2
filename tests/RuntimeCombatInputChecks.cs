@@ -1,6 +1,7 @@
 // Runs actual FrontierRuntime.Update/OnGUI against controllable Unity declarations.
 // This is an offline input regression harness, not Unity Player verification.
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
 using System.Text;
