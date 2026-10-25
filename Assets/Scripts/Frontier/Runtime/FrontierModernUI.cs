@@ -801,16 +801,30 @@ namespace Starfall
                 // IMGUI consumes one true map click, not held mouse movement.
                 Rect terrainHit=new Rect(888,264,
                     m.rows[0].Length*terrainScale,m.rows.Length*terrainScale);
-                if (!mapTileCursor.Active && !replacePrompt && saveConfirmation==null &&
+                if ((!mapTileCursor.Active||mapCursorCompanionPost) &&
+                    !replacePrompt && saveConfirmation==null &&
                     GUI.Button(terrainHit,"",new GUIStyle()))
                 {
                     Point cursor=MouseVirtual();
                     if(cursor.x>=terrainHit.x&&cursor.y>=terrainHit.y&&
                         cursor.x<terrainHit.x+terrainHit.width&&
                         cursor.y<terrainHit.y+terrainHit.height)
-                        Game.PlaceLocalWaymark(new Point(
-                            (cursor.x-888)/terrainScale,
-                            (cursor.y-264)/terrainScale));
+                    {
+                        Point tile=new Point((cursor.x-888)/terrainScale,
+                            (cursor.y-264)/terrainScale);
+                        if(mapTileCursor.Active&&mapCursorCompanionPost)
+                        {
+                            // Mouse selection issues the SAME physical
+                            // companion order as controller A. A blocked
+                            // click leaves the old post and editor intact.
+                            if(Game.AssignCompanionHoldPost(tile))
+                            {
+                                mapTileCursor.Cancel();
+                                mapCursorCompanionPost=false;
+                            }
+                        }
+                        else Game.PlaceLocalWaymark(tile);
+                    }
                 }
             }
             else
