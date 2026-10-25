@@ -4204,10 +4204,30 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 var ordinary=Fresh(data);
-                ordinary.save.room=room;ordinary.enemies.Clear();
+                ordinary.save.room=room;
+                ordinary.enemies.Clear();ordinary.projectiles.Clear();
+                ordinary.hazards.Clear();
                 ordinary.save.flags.Add("outer_patrol_done_"+room);
                 WorldObject post=Object(ordinary,"outerwatch");
-                ordinary.save.x=post.x;ordinary.save.y=post.y;
+                bool nearSafe=false;
+                // Original authored watch props sometimes occupy colliders
+                // or stand beside a sealed road. Position the hero at a
+                // genuinely walkable near-side service foot, rather than
+                // pretending every prop center is a legal player position.
+                for(float radius=0f;radius<=3f&&!nearSafe;radius+=.5f)
+                    for(int direction=0;direction<16&&!nearSafe;direction++)
+                    {
+                        float angle=(float)(direction*Math.PI/8);
+                        Point candidate=new Point(post.x+
+                            radius*(float)Math.Cos(angle),
+                            post.y+radius*(float)Math.Sin(angle));
+                        if(!ordinary.CanStand(candidate))continue;
+                        ordinary.save.x=candidate.x;ordinary.save.y=candidate.y;
+                        if(ordinary.OuterPatrolRefuge)nearSafe=true;
+                    }
+                Check(nearSafe,"Shipped regional outpost must have a real near-side safe service foot in room "+room+
+                    " room="+ordinary.save.room+" done="+ordinary.OuterPatrolDone(room)+
+                    " mode="+ordinary.mode+" safe="+ordinary.SafeTravel);
                 ordinary.save.health=50f;ordinary.save.energy=20f;
                 var delivered=new GameCore(data,CloneSave(ordinary.save));
                 delivered.Close();delivered.enemies.Clear();
