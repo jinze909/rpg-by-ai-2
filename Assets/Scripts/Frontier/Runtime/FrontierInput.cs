@@ -46,6 +46,9 @@ namespace Starfall
                 dialoguePage = dialogueChoicePage = 0;
                 confirmControl = null;
             }
+            // Never carry an old journal inspection through a different
+            // menu, dialogue or scripted transition into a later map view.
+            if(Game!=null&&Game.mode!="map")mapInspectedQuestId=null;
             drawnScope = InputScope(); navigation.Scope(drawnScope);
             drawnControls.Clear(); drawingModal = false;
         }

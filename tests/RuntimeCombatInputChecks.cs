@@ -2661,6 +2661,49 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real fishing dock, E and pointer bite gating with actual IMGUI enabled state");
     }
 
+
+    private static void JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.flags.Add("intro");game.save.english=true;
+        game.save.trackedQuest="main";
+        int selection=Array.IndexOf(GameCore.QuestIds,"trail_circuits");
+        Check(selection>=0,"The original eight-region field quest is registered");
+        QuestGuide expected=game.GetQuest("trail_circuits");
+        Check(!expected.locked&&expected.room>=0&&
+            expected.room<game.data.maps.Length,
+            "Journal test uses a genuine unlocked field quest and its real region");
+        game.mode="journal";
+        Set(app,"journalTab",0);
+        Set(app,"selectedQuest",selection);
+        Set(app,"questPage",selection/14);
+        int coins=game.save.coins,flagCount=game.save.flags.Count;
+        GUI.queuedClick=new Rect(927,647,263,31);
+        Call(app,"OnGUI");
+        Check(game.mode=="map"&&
+            (string)typeof(FrontierRuntime).GetField(
+                "mapInspectedQuestId",Private).GetValue(app)=="trail_circuits"&&
+            game.save.trackedQuest=="main"&&
+            (int)typeof(FrontierRuntime).GetField(
+                "selectedRegion",Private).GetValue(app)==expected.room,
+            "Show destination opens the SELECTED quest's region without silently changing the tracked main story");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(command=>command.Contains("INSPECTING:"))&&
+            GUI.commands.Exists(command=>command.Contains(expected.title)),
+            "The actual map labels the inspected field quest rather than only the old tracked quest");
+        Check(game.save.trackedQuest=="main"&&
+            game.save.coins==coins&&game.save.flags.Count==flagCount,
+            "Inspecting the independent quest marker neither awards resources nor changes v2 quest flags");
+        Call(app,"OpenMenu","map");
+        Check(typeof(FrontierRuntime).GetField(
+            "mapInspectedQuestId",Private).GetValue(app)==null,
+            "A normal map open cannot inherit a stale journal-only inspected target");
+        game.Close();
+        Console.WriteLine("PASS Journal Show destination maps selected physical quest independently of tracked objective");
+    }
+
     private static void LiveJourneyJournalExplainsAndTracksRealStory(FrontierRuntime app)
     {
         Prepare(app);
@@ -7166,7 +7209,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,

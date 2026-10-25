@@ -111,6 +111,20 @@ namespace Starfall
             }
             return mapCursorPreviewStatus;
         }
+        // The journal's inspected destination is an ephemeral viewing
+        // context, not a second tracked quest and never serialized to v2.
+        // It lets the map display the quest ACTUALLY selected in the journal
+        // even when another mission or a personal pin owns the world compass.
+        private string mapInspectedQuestId;
+        private QuestGuide InspectedMapQuest()
+        {
+            if(Game==null||Game.mode!="map"||
+                string.IsNullOrEmpty(mapInspectedQuestId))return null;
+            if(Array.IndexOf(GameCore.QuestIds,mapInspectedQuestId)<0)
+                return null;
+            QuestGuide quest=Game.GetQuest(mapInspectedQuestId);
+            return !quest.locked&&quest.room==selectedRegion?quest:null;
+        }
         private Conversation lastConversation;
         // The IMGUI path repaints repeatedly even when the NPC and narration
         // are unchanged. Cache only page layout, never dialogue actions/state.
@@ -184,6 +198,10 @@ namespace Starfall
             if (Game == null || Game.Dying) return;
             if (mode == "pause" && Game.mode != "title") settingsParent = "world";
             if (mode == "saves") RefreshSlots();
+            // A normal M / other-menu navigation starts a fresh map view;
+            // only the journal's explicit Show destination installs an
+            // inspected quest after opening it.
+            if(mode=="map")mapInspectedQuestId=null;
             Game.mode = mode;
             if (mode == "inventory") Game.TutorialAction(6);
         }
@@ -748,7 +766,7 @@ namespace Starfall
                 Text(650, 482 + i * stepPitch, 542, Math.Min(33f, stepPitch),
                     (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text,
                     15, q.steps[i].done ? mint : paper);
-            Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); }
+            Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); mapInspectedQuestId=q.id; }
         }
         private void DrawMap()
         {
@@ -796,6 +814,15 @@ namespace Starfall
                     Frame(mark.x-6,mark.y-6,12,12,cursorColor);
                     Box(mark.x-1.5f,mark.y-1.5f,3,3,cursorColor);
                 }
+                QuestGuide inspected=InspectedMapQuest();
+                if(inspected!=null)
+                {
+                    float gx=888+inspected.target.x*terrainScale,
+                        gy=264+inspected.target.y*terrainScale;
+                    Color inspection=PixelArt.C("#dcb1ff");
+                    Frame(gx-6.5f,gy-6.5f,13,13,inspection);
+                    Box(gx-2,gy-2,4,4,inspection);
+                }
                 // Transparent interactive terrain surface; never replace
                 // the authored map preview with a generic button graphic.
                 // IMGUI consumes one true map click, not held mouse movement.
@@ -830,12 +857,27 @@ namespace Starfall
             else
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
-                QuestGuide q = Game.CurrentGuide;
-                if (q.room == selectedRegion && !q.complete)
-                    Box(888 + q.target.x * terrainScale - 3,
-                        264 + q.target.y * terrainScale - 3, 7, 7, gold);
+                QuestGuide inspected=InspectedMapQuest();
+                QuestGuide q=inspected??Game.CurrentGuide;
+                if(q.room==selectedRegion&&!q.locked)
+                {
+                    Color marker=inspected!=null?PixelArt.C("#dcb1ff"):gold;
+                    float gx=888+q.target.x*terrainScale,
+                        gy=264+q.target.y*terrainScale;
+                    if(inspected!=null)Frame(gx-6.5f,gy-6.5f,13,13,marker);
+                    Box(gx-3,gy-3,7,7,marker);
+                }
             }
-            if(mapTileCursor.Active&&selectedRegion==Game.save.room)
+            QuestGuide inspectedMap=InspectedMapQuest();
+            if(inspectedMap!=null&&!mapTileCursor.Active)
+            {
+                Text(888,484,306,31,
+                    Game.L("正在查看：","INSPECTING: ")+inspectedMap.title,
+                    13,PixelArt.C("#dcb1ff"),TextAnchor.MiddleCenter);
+                Text(888,513,306,43,inspectedMap.next,12,muted,
+                    TextAnchor.MiddleCenter);
+            }
+            else if(mapTileCursor.Active&&selectedRegion==Game.save.room)
             {
                 WaymarkRouteStatus viability=RefreshMapCursorPreview();
                 string message=viability==WaymarkRouteStatus.Available?
@@ -860,7 +902,7 @@ namespace Starfall
                 Text(888,487,306,75,message,14,
                     viability==WaymarkRouteStatus.Available?mint:PixelArt.C("#ff6961"));
             }
-            else Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
+            else if(inspectedMap==null) Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
                 Game.L(m.subtitle,m.suben):
                 Game.RouteHint(selectedRegion,Game.save.english), 15, muted);
             if(selectedRegion==Game.save.room)
