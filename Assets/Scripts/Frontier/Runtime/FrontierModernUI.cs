@@ -40,6 +40,7 @@ namespace Starfall
         private Decoration[] navigationRouteDecor;
         private bool navigationRouteCacheValid, navigationRouteLowTide, navigationRouteGateBarrier;
         private bool navigationRouteFarBridge, navigationRouteSeal;
+        private bool navigationRouteStrictQuestFinish;
         private int navigationRouteRoom = -1, navigationRouteFloor = -1;
         private int navigationRouteStartX = int.MinValue, navigationRouteStartY = int.MinValue;
         // Moving objectives (practice targets, the physical mine cart) can
@@ -533,6 +534,11 @@ namespace Starfall
             bool lowTide = Game.LowTide, gateBarrier = Game.GateBarrierActive;
             bool farBridge = Game.Has("far_bridge_" + Game.save.room);
             bool seal = Game.Has("seal_" + Game.save.room);
+            // Unlike optional best-effort story hints, an explicitly
+            // accepted cross-region route MUST physically reach the portal's
+            // interaction side. Cached permissive paths cannot be reused
+            // after the player takes ownership of that destination.
+            bool strictQuestFinish=Game.QuestApproachTravelHandoffPending;
             if (navigationRouteCacheValid && object.ReferenceEquals(navigationRouteMap, map) &&
                 object.ReferenceEquals(navigationRouteRows, map.rows) &&
                 NavigationRouteRowsUnchanged(map.rows) &&
@@ -541,13 +547,17 @@ namespace Starfall
                 navigationRouteStartX == startX && navigationRouteStartY == startY &&
                 navigationRouteTargetX == targetX && navigationRouteTargetY == targetY &&
                 navigationRouteLowTide == lowTide && navigationRouteGateBarrier == gateBarrier &&
-                navigationRouteFarBridge == farBridge && navigationRouteSeal == seal)
+                navigationRouteFarBridge == farBridge && navigationRouteSeal == seal &&
+                navigationRouteStrictQuestFinish == strictQuestFinish)
                 return navigationRouteCache;
 
             // Replace the cached list only when the path must actually be
             // rebuilt. This keeps a measurable, allocation-free hit path and
             // lets the runtime regression prove idle ticks do not run another BFS.
-            navigationRouteCache = new List<Point>(Game.NavigationPath(goal.Value));
+            navigationRouteCache = new List<Point>(
+                strictQuestFinish?
+                    Game.NavigationPathFrom(Game.Position,goal.Value,true):
+                    Game.NavigationPath(goal.Value));
             navigationRouteMap = map; navigationRouteRows = map.rows;
             navigationRouteRowSnapshot = (string[])map.rows.Clone();
             navigationRouteDecor = map.decor; navigationRouteRoom = Game.save.room;
@@ -556,6 +566,7 @@ namespace Starfall
             navigationRouteTargetX = targetX; navigationRouteTargetY = targetY;
             navigationRouteLowTide = lowTide; navigationRouteGateBarrier = gateBarrier;
             navigationRouteFarBridge = farBridge; navigationRouteSeal = seal;
+            navigationRouteStrictQuestFinish=strictQuestFinish;
             navigationRouteCacheValid = true;
             return navigationRouteCache;
         }
@@ -570,6 +581,14 @@ namespace Starfall
             // core is authoritative; never display the partial line as open.
             if(Game.PersonalNavigationActive && Game.LocalWaymarkRouteBlocked)
                 return true;
+            if(Game.QuestApproachTravelHandoffPending)
+            {
+                // A partial walk to the near side of a sealed exit is never
+                // a valid player-approved route. Zero steps only count as
+                // arrival when the actual exit is within unobstructed reach.
+                return NavigationRoute().Count==0 &&
+                    !Game.PlayerRouteExitWithinInteractionReach(target);
+            }
             return (target - Game.Position).Length > 3f &&
                 NavigationRoute().Count == 0;
         }

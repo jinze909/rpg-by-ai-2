@@ -561,6 +561,90 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS Explicit distant quest route renders genuine HUD/full-map/world navigation with general guidance disabled");
     }
 
+    public static void RemoteJourneyDoesNotPresentSealedPortalAsOpenRoute(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.save.flags.Add("intro");g.save.flags.Add("scout_saved");
+        g.save.stage=4;g.Enter(9);g.enemies.Clear();
+        g.save.english=true;
+        WorldObject portal=null;
+        foreach(var actor in g.Map.objects)
+            if(actor.kind=="portal0"){portal=actor;break;}
+        Check(portal!=null,"Actual Inn map owns the outbound regional portal");
+        Point previous=new Point(portal.x,portal.y);
+        string[] savedRows=(string[])g.Map.rows.Clone();
+        try
+        {
+            Point center=new Point();
+            bool found=false;
+            for(int y=5;y<g.Map.rows.Length-5&&!found;y++)
+            for(int x=5;x<g.Map.rows[0].Length-5&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if(!g.CanStand(p)||(p-g.Position).Length<8f)continue;
+                var full=g.NavigationPathFrom(g.Position,p,true);
+                if(full.Count<=5)continue;
+                center=p;found=true;
+            }
+            Check(found,"The shipped Inn offers a genuinely reachable distant interior test site");
+            portal.x=center.x;portal.y=center.y;
+            // Build a fully closed five-by-five tile ring around the
+            // relocated ORIGINAL portal, keeping the center standable.
+            int cx=(int)center.x,cy=(int)center.y;
+            for(int y=cy-2;y<=cy+2;y++)
+            {
+                char[] cells=g.Map.rows[y].ToCharArray();
+                for(int x=cx-2;x<=cx+2;x++)
+                    if(x==cx-2||x==cx+2||y==cy-2||y==cy+2)
+                        cells[x]='#';
+                g.Map.rows[y]=new string(cells);
+            }
+            g.TrackQuest("trail_circuits");
+            g.save.showGuidance=true;g.mode="world";
+            Point? goal=g.NavigationTarget();
+            Check(goal.HasValue&&(goal.Value-center).Length<.001f,
+                "The original authored quest uses the relocated original portal");
+            Check(g.NavigationPathFrom(g.Position,center,true).Count==0&&
+                g.NavigationPath(center).Count>0,
+                "Blocked original portal has only a misleading partial legacy compass route");
+            var preview=(List<Point>)Call(app,"NavigationRoute");
+            Check(preview.Count>0,
+                "Optional generic story hint retains its original best-effort trail");
+            g.mode="journal";g.save.showGuidance=false;
+            Check(g.PlaceQuestApproachWaymark("trail_circuits"),
+                "Player explicitly accepts the same genuine remote quest");
+            g.mode="world";
+            var strict=(List<Point>)Call(app,"NavigationRoute");
+            Check(strict.Count==0&&g.PlayerRequestedNavigationActive,
+                "Player-approved route invalidates prior partial-path cache and rejects sealed finish");
+            Check((bool)Call(app,"HasBlockedNavigationRoute",center),
+                "A sealed player-approved portal is an actual blocked route, never an arrived route");
+            ClearDraw();Call(app,"DrawMinimap");
+            Check(GUI.commands.Exists(s=>s.Contains("ROUTE BLOCKED"))&&
+                NavigationRouteDots(3f)==0,
+                "Real production HUD shows blocked status without fake breadcrumbs");
+            // The gate physically reopens; cached rows must invalidate on
+            // their original identities and the approved route must recover.
+            g.Map.rows=savedRows;
+            var clear=(List<Point>)Call(app,"NavigationRoute");
+            Check(clear.Count>0&&
+                g.NavigationPathFrom(g.Position,center,true).Count>0,
+                "Physically opened destination restores the real complete walking route");
+            ClearDraw();Call(app,"DrawMinimap");
+            Check(!GUI.commands.Exists(s=>s.Contains("ROUTE BLOCKED"))&&
+                NavigationRouteDots(3f)>0,
+                "Minimap returns to walkable route only after actual collision geometry opens");
+        }
+        finally
+        {
+            g.Map.rows=savedRows;
+            portal.x=previous.x;portal.y=previous.y;
+        }
+        g.Close();
+        Console.WriteLine("PASS Requested regional route refuses a sealed portal frontier, invalidates permissive cache, recovers on reopening");
+    }
+
     public static void NavigationRouteGuidance(FrontierRuntime app)
     {
         Prepare(app, 0);

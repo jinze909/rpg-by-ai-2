@@ -27,6 +27,15 @@ namespace Starfall
         { get { return !string.IsNullOrEmpty(localWaymarkTravelQuestId); } }
         public bool QuestApproachTravelArrivalBlocked
         { get { return QuestApproachTravelHandoffPending&&localWaymarkTravelArrivalBlocked; } }
+        // Zero BFS steps can mean we already stand beside the real portal.
+        // Expose the precise physical-side test for the world HUD without
+        // letting a closed wall masquerade as a completed route.
+        public bool PlayerRouteExitWithinInteractionReach(Point target)
+        {
+            return QuestApproachTravelHandoffPending&&
+                CanStand(Position)&&(Position-target).Length<=1.8f&&
+                ReliefActorLineWalkable(Position,target);
+        }
         // Transient origin of a quest-generated waypoint. Manual pins must
         // NEVER be retargeted by story progress; neither value is serialized.
         private string localWaymarkQuestId;
