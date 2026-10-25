@@ -841,6 +841,19 @@ namespace Starfall
             Point next=companionPosition+
                 direction*Math.Min(delta.Length,Math.Max(.001f,dt*(Speed+1)));
             bool terrainStepClear=Fits(next);
+            // The formation path and actual locomotion MUST agree about
+            // the actor's next physical sweep. An endpoint can fit while
+            // the real swept capsule/terrain collision refuses the stride:
+            // treating only Fits(next) as clear trapped allies at walls
+            // without ever attempting a legal detour or showing the true
+            // blocked-route cue.
+            if(terrainStepClear)
+            {
+                Point swept= SweepActor(companionPosition,
+                    next-companionPosition);
+                terrainStepClear=Finite(swept.x)&&Finite(swept.y)&&
+                    (swept-next).Length<=.012f;
+            }
             bool actorStepClear=terrainStepClear&&
                 CompanionFollowSegmentClear(companionPosition,next);
             if(actorStepClear)
