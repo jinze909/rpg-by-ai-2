@@ -752,7 +752,15 @@ namespace Starfall
             // explain itself without spamming/overwriting unrelated toasts.
             if(blockedFootingNoticeShown && CanStand(Position))
                 blockedFootingNoticeShown=false;
-            attackCooldown -= dt; dashCooldown -= dt; skillCooldown -= dt; invulnerable -= dt; guardTime -= dt;
+            attackCooldown -= dt; dashCooldown -= dt;
+            // At 20ms/50ms updates a cooldown can land at 0.00000001f
+            // instead of zero. Buffered Q's readiness uses a 10us
+            // tolerance; keep the authoritative StartSkill (>0) guard
+            // consistent so that an otherwise legitimate queued cast is
+            // not silently rejected at its exact contact boundary.
+            skillCooldown=Math.Max(0f,skillCooldown-dt);
+            if(skillCooldown<=.00001f)skillCooldown=0f;
+            invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
             TickSwordLesson(dt);
             TickSpecialistDrill(dt);
