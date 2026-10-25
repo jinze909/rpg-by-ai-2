@@ -522,7 +522,11 @@ namespace Starfall.Tests
                     "Class "+profession+" dispatches exactly one Q at its legitimate readiness boundary; "+ 
                     "action="+(g.playerAction==null?"none":g.playerAction.kind)+
                     " cooldown="+g.skillCooldown+" energy="+g.save.energy+
-                    " queued="+g.SkillQueued);
+                    " queued="+g.SkillQueued+" position="+g.Position.x+","+g.Position.y+
+                    " standable="+g.CanStand(g.Position)+" mode="+g.mode+
+                    " hit="+g.playerHitTime+" stop="+g.hitStop+
+                    " dash="+g.dashTime+" blocked="+g.ActionTransitionBlocked+
+                    " invuln="+g.invulnerable);
                 ActorAction first=g.playerAction;
                 g.Tick(.09f,new Point());
                 Check(g.playerAction==first&&!g.SkillQueued&&
