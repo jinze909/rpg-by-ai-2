@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void IntactCourierMedicineRestoresOnlyItsReceivingRefuge() { CoreChecks.IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Data()); }
         [Test] public void CompletedRegionalCourierGrantsOnlyPhysicalSafeOutpostCare() { CoreChecks.EarnedCourierMedicineActuallyImprovesOnlySafeLocalTreatment(Data()); }
         [Test] public void EightLivingRegionsRequireThreeRealCourierHandOffs() { CoreChecks.ActualRegionalMedicineRunNeedsThreePhysicalStops(Data()); }
         [Test] public void MedicineCourierDeniesStaleActionsTravelAndTimeoutExploits() { CoreChecks.MedicineCourierProtectsWorldTravelAndRejectsStaleParcels(Data()); }

@@ -134,6 +134,10 @@ namespace Starfall
         public bool FarCourierStamped {get{return FarCourierActive&&courierStamped;}}
         public bool FarCourierDelivered(int room)
         {return room>=0&&room<8&&Has("far_courier_"+room);}
+        // A genuinely well-preserved delivery leaves usable medical supplies
+        // at THIS community refuge. Stored in existing SaveData v2 flags.
+        public bool FarCourierPristine(int room)
+        {return room>=0&&room<8&&Has("far_courier_pristine_"+room);}
         public int FarCourierDeliveredCount
         {get{int n=0;for(int i=0;i<8;i++)if(FarCourierDelivered(i))n++;return n;}}
         private void ResetFarCourier()
@@ -271,13 +275,19 @@ namespace Starfall
                 "封条完整！这份物资确实经由居民修好的桥面送达。"+
                     (FarCourierSecuredInFlight?
                         "你亲自击败了两名劫匪，交接时还能领取一次性安全护送奖金。":
-                        "你选择谨慎绕过追兵，仍可正常交付全部物资。"):
+                        "你选择谨慎绕过追兵，仍可正常交付全部物资。")+
+                    (courierIntegrity>=90?
+                        "药箱仍有至少九成完好，居民能把完整药品留给本地避险棚。":
+                        "药箱在途中受损，但居民仍会接收剩余的必需品。"):
                 "救援包仍在，但需要从北向南经过新桥，并在中途居民检查台核验封条。",
                 ready?
                 "The parcel truly crossed the civilian bridge."+
                     (FarCourierSecuredInFlight?
                         " You defeated both real raiders; a one-time secure-route bonus is available at delivery.":
-                        " You avoided the pursuers and can still complete the full delivery."):
+                        " You avoided the pursuers and can still complete the full delivery.")+
+                    (courierIntegrity>=90?
+                        " At least 90% of the medicine survived; this refuge can keep its treatment stock.":
+                        " Some medicine was damaged, but the remaining supplies can still be handed over."):
                 "You must cross the real bridge on foot AND obtain a seal from the community checkpoint.",
                 C(ready?"亲手交接救援包":"查看运送条件",
                     ready?"Hand over supplies":"Review delivery route","far_courier_deliver"),
@@ -383,8 +393,11 @@ namespace Starfall
             if(!SafeTravel)
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
             bool secured=FarCourierSecuredInFlight;
+            bool pristine=courierIntegrity>=90;
             ResetFarCourier();
-            Flag("far_courier_"+room);CreditCoins(25);CreditShards(1);
+            Flag("far_courier_"+room);
+            if(pristine)Flag("far_courier_pristine_"+room);
+            CreditCoins(25);CreditShards(1);
             AddXp(38);
             if(secured)
             {
@@ -395,15 +408,19 @@ namespace Starfall
             if(FarCourierDeliveredCount==8&&!Has("far_courier_all"))
             {Flag("far_courier_all");CreditSkillPoints(1);revision++;}
             RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。"+
-                    (secured?"两名追兵确实被击败，这条补给路已被护卫清理。":""),
+                    (secured?"两名追兵确实被击败，这条补给路已被护卫清理。":"")+
+                    (pristine?"药箱保留九成以上药品，供本地避险棚长期使用。":""),
                 "A civilian parcel reached the public refuge on foot."+
-                    (secured?" Both pursuing raiders were truly defeated; the road was secured.":""));
+                    (secured?" Both pursuing raiders were truly defeated; the road was secured.":"")+
+                    (pristine?" At least 90% of the medicines arrived for local refuge care.":""));
             Notify(secured?
                 "救援包与安全护送完成：硬币35、碎片1、经验53！":
                 "救援包已交接：硬币25、碎片1、经验38！",
                 secured?
                 "Secure delivery! +35 coins, +1 shard, +53 XP!":
                 "Parcel delivered: +25 coins, +1 shard, +38 XP!");
+            if(pristine)Notify("药品完好：本地避险棚每次添柴休息额外恢复10生命。",
+                "Medicine intact: each timber-fueled rest at this refuge restores 10 extra HP.");
             return true;
         }
     }

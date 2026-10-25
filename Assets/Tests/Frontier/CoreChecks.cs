@@ -3988,14 +3988,18 @@ namespace Starfall.Tests
                 g.Talk(shelter);
                 choose=Array.FindIndex(g.conversation.choices,c=>c.action=="far_courier_deliver");
                 Check(choose>=0,"Actual refuge dialogue offers parcel delivery");
+                bool medicineIntact=g.FarCourierIntegrity>=90;
                 g.Choose(choose);
+                Check(g.FarCourierPristine(room)==medicineIntact,
+                    "Only genuinely delivered cargo with at least 90 percent integrity preserves local medical stock");
                 Check(g.FarCourierDelivered(room)&&!g.FarCourierActive&&
                     g.save.coins==coins+25&&g.save.shards==shards+1,
                     "Only legitimate foot delivery grants one real permanent reward");
                 GameCore reload=new GameCore(data,g.save);
                 Check(reload.save.version==2&&reload.FarCourierDelivered(room)&&
+                    reload.FarCourierPristine(room)==medicineIntact&&
                     !reload.FarCourierActive,
-                    "Old save v2 restores delivery only, never an invented held parcel");
+                    "SaveData v2 restores only earned completed delivery and medicine, never held cargo");
                 g.Talk(shelter);g.Close();
                 Check(g.save.coins==coins+25,"Parcel delivery rewards cannot repeat");
             }
@@ -4003,6 +4007,44 @@ namespace Starfall.Tests
             for(int i=0;i<8;i++)all.save.flags.Add("far_courier_"+i);
             Check(!all.GetQuest("far_couriers").complete&&all.FarCourierDeliveredCount==8,
                 "Eight delivered parcels still require formal publication at the existing Inn");
+        }
+
+
+        public static void IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.save.room=0;
+            g.save.flags.Add("far_dial_0");
+            g.save.flags.Add("far_shelter_0");
+            g.save.flags.Add("far_courier_pristine_0");
+            g.save.inventory[0]=3;
+            g.enemies.Clear();
+            WorldObject first=Object(g,"farshelter");
+            g.save.x=first.x;g.save.y=first.y;
+            g.save.health=15;
+            g.Talk(first);
+            Check(g.conversation!=null&&g.conversation.zh.Contains("额外恢复生命 +10"),
+                "Refuge dialogue announces the real, locally earned medicine bonus");
+            int rest=Array.FindIndex(g.conversation.choices,x=>x.action=="far_rest");
+            Check(rest>=0,"Actual restored refuge exposes its existing paid rest");
+            g.Choose(rest);
+            Check(Math.Abs(g.save.health-60)<.01f&&g.save.inventory[0]==2,
+                "Intact supply adds exactly 10 HP to the actual 35 HP rest at its receiving refuge");
+            g.Close();
+            g.save.room=1;g.save.flags.Add("far_dial_1");g.save.flags.Add("far_shelter_1");
+            WorldObject second=Object(g,"farshelter");
+            g.save.x=second.x;g.save.y=second.y;g.save.health=15;
+            g.Talk(second);
+            Check(!g.conversation.zh.Contains("额外恢复生命 +10"),
+                "One region's intact medicine cannot leak across the eight local refuges");
+            rest=Array.FindIndex(g.conversation.choices,x=>x.action=="far_rest");
+            g.Choose(rest);
+            Check(Math.Abs(g.save.health-50)<.01f&&g.save.inventory[0]==1,
+                "Unserved or old-v2 refuge retains its full original 35 HP timber cost");
+            GameCore reload=new GameCore(data,g.save);
+            Check(reload.save.version==2&&reload.FarCourierPristine(0)&&
+                  !reload.FarCourierPristine(1),
+                "Pristine-local medicine survives the original v2 save format only where earned");
         }
 
         public static void PublicParcelCharterRequiresEveryGenuineDeliveryAndImprovesShelters(Campaign data)
