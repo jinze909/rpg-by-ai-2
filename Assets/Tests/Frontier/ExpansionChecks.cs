@@ -485,17 +485,17 @@ namespace Starfall.Tests
                 Check(g.hazards.Count == (phase == 1 ? 1 : 4),
                     "First phase preserves one frost mark; later phases add three bells");
                 Hazard mark = g.hazards[0];
-                Check(mark.kind == "rift" && Math.Abs(mark.position.x - 20) < .001f &&
-                      Math.Abs(mark.position.y - 12) < .001f && Math.Abs(mark.radius - 2) < .001f &&
+                Check(mark.kind == "rift" && Math.Abs(mark.position.x - 15) < .001f &&
+                      Math.Abs(mark.position.y - 8) < .001f && Math.Abs(mark.radius - 2) < .001f &&
                       Math.Abs(mark.timer - 1.5f) < .001f && Math.Abs(mark.damage - (20 + phase * 2)) < .001f,
-                    "The original frost mark and damage remain intact");
+                    "The frost mark keeps its original damage and the locked windup position");
                 if (phase == 1) continue;
                 int safe = (cycle - 1) % 4, strike = 0;
                 for (int i = 0; i < 4; i++)
                 {
                     if (i == safe) continue;
                     Hazard bell = g.hazards[++strike];
-                    Point expected = new Point(20, 12) + directions[i] * 3.5f;
+                    Point expected = boss.target + directions[i] * 3.5f;
                     float delay = 1.75f + (phase == 3 ? (strike - 1) * .22f : 0);
                     Check(Math.Abs(bell.position.x - expected.x) < .001f &&
                           Math.Abs(bell.position.y - expected.y) < .001f,
@@ -559,6 +559,19 @@ namespace Starfall.Tests
                     }
                 }
             }
+            // Moving the hero after a marked cast must not move the
+            // Root Reaper's original collapse footprint.
+            g.save.abyssFloor = 6;
+            g.save.x = 35; g.save.y = 15;
+            boss.target = new Point(29, 9);
+            boss.hp = 120; boss.cycle = 1;
+            g.hazards.Clear();
+            release.Invoke(g, new object[] { boss });
+            Check(g.hazards.Count == 5 &&
+                Math.Abs(g.hazards[0].position.x - 29) < .001f &&
+                Math.Abs(g.hazards[0].position.y - 9) < .001f &&
+                Math.Abs(g.hazards[1].position.x - 26.2f) < .01f,
+                "Moving away during the cast cannot secretly pull the Root Reaper's marked pincer to a new foot");
             g.save.abyssFloor = 5;
             boss.hp = 120;
             g.hazards.Clear();

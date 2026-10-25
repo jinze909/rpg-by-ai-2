@@ -2558,7 +2558,11 @@ namespace Starfall
             }
             if (save.room == 7 || save.room == 8)
             {
-                Point center = Position;
+                // The red pre-release ring locks onto the hero at windup.
+                // Frost bells and Abyss roots must land around that SAME
+                // declared position. Retargeting to the hero's new foot at
+                // release makes a successful dodge look like a failure.
+                Point center = e.target;
                 AddHazard(center, 2, 1.5f, 20 + e.BossPhase * 2, "rift", false, e);
                 if (save.room == 8 && InAbyss && save.abyssFloor == 6 && e.BossPhase >= 2)
                 {
