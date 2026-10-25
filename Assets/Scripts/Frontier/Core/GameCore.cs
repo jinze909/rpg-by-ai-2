@@ -3017,6 +3017,12 @@ namespace Starfall
         private void ResolveRestTimeSkip(float elapsed)
         {
             save.totalTime += elapsed;
+            // Rest spends actual world time without simulating combat frames.
+            // Food and tea recovery are not attack timers: leaving them
+            // frozen after a 45-second inn rest falsely locks already eaten
+            // supplies when the hero has fully rested.
+            stewCooldown = Math.Max(0f, stewCooldown - elapsed);
+            teaCooldown = Math.Max(0f, teaCooldown - elapsed);
             // Twenty minutes of camp rest (or forty-five at the inn) is a
             // real jump in world tide time. Do NOT defer collision recovery
             // to the next rendered Tick: companions/enemies can otherwise

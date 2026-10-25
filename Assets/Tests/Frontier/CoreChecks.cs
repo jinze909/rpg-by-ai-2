@@ -907,6 +907,35 @@ namespace Starfall.Tests
             Check(!g.CanDrinkTea,"A load cannot invent tea when stock is exhausted");
         }
 
+
+        public static void InnRestSettlesRealConsumableRecoveryWithoutDuplicatingStock(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.tea=3;g.save.inventory[6]=3;
+            g.save.health=35;g.save.energy=20;
+            g.Eat();
+            g.save.energy=15;
+            g.DrinkTea();
+            Check(g.TeaCooldownLeft>=GameCore.TeaCooldownSeconds-.01f&&
+                g.StewCooldownLeft>=2.99f,
+                "Drinking one tea and eating one stew establishes two real recovery windows");
+            int remainingTea=g.save.tea,remainingStew=g.save.inventory[6];
+            float teaUntil=g.save.teaUntil,foodUntil=g.save.foodUntil;
+            float before=g.save.totalTime;
+            Action(g,"rest","rest");
+            Check(g.save.totalTime>=before+44.99f,
+                "Paid safe inn rest advances the established world clock");
+            Check(g.TeaCooldownLeft==0f&&g.StewCooldownLeft==0f,
+                "A genuine 45-second rest clears both short consumable recovery windows");
+            Check(g.save.tea==remainingTea&&g.save.inventory[6]==remainingStew&&
+                g.save.teaUntil==teaUntil&&g.save.foodUntil==foodUntil,
+                "Rest settles clocks without giving free supplies or artificially extending buffs");
+            g.mode="world";g.save.health=g.save.maxHealth;g.save.energy=100;
+            g.DrinkTea();g.Eat();
+            Check(g.save.tea==remainingTea&&g.save.inventory[6]==remainingStew,
+                "Rest does not allow wasting fully effective consumables");
+        }
+
         public static void DailyLife(Campaign data)
         {
             var g = Fresh(data); Action(g, "garden", "plant"); Check(g.save.plantedAt == 0 && g.save.inventory[7] == 2, "Planting");
