@@ -19,6 +19,16 @@ namespace Starfall
         private MapData localWaymarkMap;
         private bool localWaymarkBlocked;
         private float localWaymarkRouteRecheck;
+        // Transient origin of a quest-generated waypoint. Manual pins must
+        // NEVER be retargeted by story progress; neither value is serialized.
+        private string localWaymarkQuestId;
+        private Point localWaymarkQuestTarget;
+        private bool localWaymarkQuestArrived;
+        public bool QuestApproachNavigationActive
+        { get { return LocalWaymark.HasValue &&
+            !string.IsNullOrEmpty(localWaymarkQuestId); } }
+        public bool QuestApproachAwaitingInteraction
+        { get { return QuestApproachNavigationActive && localWaymarkQuestArrived; } }
         public bool LocalWaymarkRouteBlocked
         { get { return LocalWaymark.HasValue && localWaymarkBlocked; } }
         public Point? LocalWaymark
@@ -49,6 +59,9 @@ namespace Starfall
             localWaymarkFoot=new Point();
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=0f;
+            localWaymarkQuestId=null;
+            localWaymarkQuestTarget=new Point();
+            localWaymarkQuestArrived=false;
         }
         public bool ClearLocalWaymark()
         {
@@ -114,13 +127,17 @@ namespace Starfall
                     "No physical walking route to that pin. Choose a reachable tile.");
                 return false;
             }
-            return CommitLocalWaymark(requested,false);
+            return CommitLocalWaymark(requested,null);
         }
         // Shared commit point for both explicit map pins and the journal's
         // quest approach button. Neither caller can enter here before a
         // fresh physical-route check. This function never writes SaveData.
-        private bool CommitLocalWaymark(Point requested,bool questApproach)
+        private bool CommitLocalWaymark(Point requested,string questId)
         {
+            localWaymarkQuestId=questId;
+            localWaymarkQuestTarget=string.IsNullOrEmpty(questId)?
+                new Point():GetQuest(questId).target;
+            localWaymarkQuestArrived=false;
             localWaymarkFoot=new Point(
                 (float)Math.Floor(requested.x)+.5f,
                 (float)Math.Floor(requested.y)+.5f);
@@ -130,7 +147,7 @@ namespace Starfall
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=1f;
             revision++;sound="ui";
-            if(questApproach)
+            if(!string.IsNullOrEmpty(questId))
                 Notify("已规划通往任务的步行接近点。返回世界后跟随个人导航，到达后与目标交互。",
                     "Quest walking approach pinned. Follow your personal route in the world, then interact with the objective.");
             else Notify("已设置本地标记。返回世界后，跟随地图上的路线前往。",
@@ -141,6 +158,21 @@ namespace Starfall
         // walkable approach without temporarily spoofing map mode or
         // changing trackedQuest. An existing personal pin survives every
         // invalid, locked, unreachable or changed objective.
+        // Resolve a physically verified interaction-side footing. A hero
+        // already standing next to the objective has no BFS steps, but is
+        // ALREADY at the valid interaction side rather than unreachable.
+        private bool TryQuestApproachFoot(Point objective,out Point foot)
+        {
+            foot=new Point();
+            var route=NavigationPathFrom(Position,objective,true);
+            if(route.Count>0) foot=route[route.Count-1];
+            else if((Position-objective).Length<=1.8f &&
+                CanStand(Position)&&ReliefActorLineWalkable(Position,objective))
+                foot=new Point((float)Math.Floor(Position.x)+.5f,
+                    (float)Math.Floor(Position.y)+.5f);
+            else return false;
+            return InspectLocalWaymark(foot)==WaymarkRouteStatus.Available;
+        }
         public bool PlaceQuestApproachWaymark(string questId)
         {
             if((mode!="map"&&mode!="journal")||Dying||practicing||
@@ -149,40 +181,89 @@ namespace Starfall
             QuestGuide quest=GetQuest(questId);
             if(quest==null||quest.locked||quest.complete||
                 quest.room!=save.room)return false;
-            var walking=NavigationPathFrom(Position,quest.target,true);
-            if(walking.Count==0)
+            Point approach;
+            if(!TryQuestApproachFoot(quest.target,out approach))
             {
-                Notify("当前没有通往此任务的完整步行接近路线。可能已在目标旁，或需要先开放道路。",
-                    "No complete walking approach right now. You may already be nearby, or a road must open first.");
+                Notify("没有通往此任务的完整步行接近路线。旧标记未被替换。",
+                    "No verified walking approach to this quest. Your previous pin is retained.");
                 return false;
             }
-            Point approach=walking[walking.Count-1];
-            if(InspectLocalWaymark(approach)!=WaymarkRouteStatus.Available)
-            {
-                Notify("道路状况已改变，原有个人标记已保留。",
-                    "Walking conditions changed. Your previous personal pin is retained.");
-                return false;
-            }
-            return CommitLocalWaymark(approach,true);
+            return CommitLocalWaymark(approach,questId);
         }
         private void TickLocalWaymark(float dt)
         {
             Point? mark=LocalWaymark;
             if(!mark.HasValue)return;
+            bool fromQuest=!string.IsNullOrEmpty(localWaymarkQuestId);
             if((Position-mark.Value).Length<=.85f &&
                ReliefActorLineWalkable(Position,mark.Value))
             {
-                ResetLocalWaymark();
-                revision++;sound="quest";
-                Notify("已到达个人标记位置。", "Personal map destination reached.");
-                return;
+                if(!fromQuest)
+                {
+                    ResetLocalWaymark();
+                    revision++;sound="quest";
+                    Notify("已到达个人标记位置。", "Personal map destination reached.");
+                    return;
+                }
+                // A quest's approached marker is not the quest itself.
+                // Keep it through interaction so completing this stage
+                // can send the player to the NEXT actual objective.
+                if(!localWaymarkQuestArrived)
+                {
+                    localWaymarkQuestArrived=true;
+                    revision++;sound="quest";
+                    Notify("已到任务接近点，请与目标交互；下一阶段会自动更新导航。",
+                        "At the quest approach. Interact with the objective; navigation will follow the next stage.");
+                }
             }
+            else if(fromQuest) localWaymarkQuestArrived=false;
             // Local pins must survive closed tidal gates and temporary road
             // barriers. Recheck the complete physical route at a low fixed
             // rate instead of calling the 120x80 BFS every render/sim tick.
             localWaymarkRouteRecheck-=dt;
             if(localWaymarkRouteRecheck>0f)return;
             localWaymarkRouteRecheck=1.25f;
+            if(fromQuest)
+            {
+                QuestGuide current=GetQuest(localWaymarkQuestId);
+                if(current.locked||current.complete||current.room!=save.room)
+                {
+                    ResetLocalWaymark();revision++;
+                    Notify("任务已完成或转移至其他地区，已清除旧任务导航。",
+                        "Quest completed or moved to another region; old quest navigation cleared.");
+                    return;
+                }
+                if((current.target-localWaymarkQuestTarget).Length>.001f)
+                {
+                    Point newFoot;
+                    if(TryQuestApproachFoot(current.target,out newFoot))
+                    {
+                        // An authoritative step transition must never use
+                        // the stale cached pin's obstacle state. Revalidate
+                        // before replacing it, just like a deliberate click.
+                        localWaymarkFoot=newFoot;
+                        localWaymarkQuestTarget=current.target;
+                        localWaymarkQuestArrived=false;
+                        localWaymarkBlocked=false;
+                        revision++;sound="ui";
+                        Notify("任务进入新阶段，个人导航已更新到下一个可达目标。",
+                            "Quest advanced. Your personal route now follows the next reachable objective.");
+                        mark=LocalWaymark;
+                    }
+                    else
+                    {
+                        // Do not navigate toward the previous quest step
+                        // when the new objective is behind a closed gate.
+                        if(!localWaymarkBlocked)
+                        {
+                            localWaymarkBlocked=true;revision++;
+                            Notify("任务目标已更新，但新路线暂时不通。原有标记已保留。",
+                                "Quest objective changed, but its route is blocked. Previous pin retained.");
+                        }
+                        return;
+                    }
+                }
+            }
             bool direct=(Position-mark.Value).Length<=1.8f &&
                 ReliefActorLineWalkable(Position,mark.Value);
             bool reachable=CanStand(Position) && CanStand(mark.Value) &&

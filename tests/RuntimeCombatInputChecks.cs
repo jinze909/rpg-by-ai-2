@@ -2929,6 +2929,113 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Journal local-quest route button pins a real physical approach and preserves mission tracking and SaveData v2");
     }
 
+    private static void QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.english=true;game.save.flags.Add("intro");
+        game.save.flags.Remove("trail_circuit_0_1");
+        game.save.flags.Remove("trail_circuit_0_2");
+        game.save.flags.Remove("trail_circuit_0_3");
+        game.save.trackedQuest="main";
+        Point origin=game.Position;
+        WorldObject first=null,second=null;
+        foreach(WorldObject o in game.data.maps[0].objects)
+        {
+            if(o.id=="trailcircuit_0_1")first=o;
+            if(o.id=="trailcircuit_0_2")second=o;
+        }
+        Check(first!=null&&second!=null,"The campaign has two genuine sequential route markers");
+        Point oldFirst=new Point(first.x,first.y),oldSecond=new Point(second.x,second.y);
+        try
+        {
+            // Exercise real authored quest stage logic on real collision
+            // terrain; only relocate objects inside the disposable fixture.
+            List<Point> candidates=new List<Point>();
+            for(int radius=3;radius<=13&&candidates.Count<2;radius++)
+                for(int dx=-radius;dx<=radius&&candidates.Count<2;dx++)
+                    for(int dy=-radius;dy<=radius;dy++)
+                    {
+                        if(Math.Abs(dx)!=radius&&Math.Abs(dy)!=radius)continue;
+                        Point candidate=new Point(
+                            (float)Math.Floor(origin.x)+dx+.5f,
+                            (float)Math.Floor(origin.y)+dy+.5f);
+                        if(candidate.x<2||candidate.y<2||
+                           candidate.x>=game.Map.rows[0].Length-2||
+                           candidate.y>=game.Map.rows.Length-2||
+                           !game.CanStand(candidate))continue;
+                        List<Point> route=game.NavigationPathFrom(origin,candidate,true);
+                        if(route.Count<2)continue;
+                        if(game.InspectLocalWaymark(route[route.Count-1])!=
+                            WaymarkRouteStatus.Available)continue;
+                        if(candidates.Count>0&&
+                            (candidate-candidates[0]).Length<4)continue;
+                        candidates.Add(candidate);break;
+                    }
+            Check(candidates.Count==2,
+                "Two separate physically reachable bearings exist in the live terrain");
+            first.x=candidates[0].x;first.y=candidates[0].y;
+            second.x=candidates[1].x;second.y=candidates[1].y;
+            QuestGuide start=game.GetQuest("trail_circuits");
+            Check(!start.locked&&!start.complete&&start.room==game.save.room&&
+                (start.target-candidates[0]).Length<.001f,
+                "Authentic trail quest targets its first unfinished marker");
+            game.mode="journal";
+            Check(game.PlaceQuestApproachWaymark("trail_circuits")&&
+                game.QuestApproachNavigationActive,
+                "Journal-created waypoint retains transient provenance for its authored quest");
+            Point initial=game.LocalWaymark.Value;
+            int coins=game.save.coins,originalFlags=game.save.flags.Count;
+            game.mode="world";
+            game.save.flags.Add("trail_circuit_0_1");
+            QuestGuide advanced=game.GetQuest("trail_circuits");
+            Check((advanced.target-candidates[1]).Length<.001f,
+                "First survey advances the genuine guide to the second marker");
+            List<Point> physical=game.NavigationPathFrom(origin,advanced.target,true);
+            Check(physical.Count>0,"Advanced stage has a real physically reachable path");
+            Point expected=physical[physical.Count-1];
+            for(int i=0;i<28;i++)game.Tick(.05f,new Point());
+            Check(game.QuestApproachNavigationActive&&
+                (game.LocalWaymark.Value-expected).Length<.001f&&
+                (game.LocalWaymark.Value-initial).Length>1f&&
+                game.save.trackedQuest=="main"&&game.save.coins==coins&&
+                game.save.flags.Count==originalFlags+1,
+                "Quest route follows next physical bearing without altering saved tracking or rewards");
+            game.mode="map";
+            Check(game.PlaceLocalWaymark(initial)&&
+                !game.QuestApproachNavigationActive,
+                "Explicit manual pin replacement revokes story-follow ownership");
+            game.mode="world";
+            game.save.flags.Add("trail_circuit_0_2");
+            for(int i=0;i<28;i++)game.Tick(.05f,new Point());
+            Check(game.HasLocalWaymark&&
+                (game.LocalWaymark.Value-initial).Length<.001f&&
+                game.save.version==2,
+                "Further story progress cannot retarget a hand-placed pin or change SaveData v2");
+            game.mode="map";game.ClearLocalWaymark();
+            game.save.flags.Remove("trail_circuit_0_2");
+            game.mode="journal";
+            Check(game.PlaceQuestApproachWaymark("trail_circuits"),
+                "An authorized quest pin can be created independently");
+            game.mode="world";
+            for(int room=0;room<8;room++)
+                game.save.flags.Add("trail_circuit_"+room+"_3");
+            Check(game.GetQuest("trail_circuits").complete,
+                "The authentic fully surveyed field quest is completed");
+            for(int i=0;i<28;i++)game.Tick(.05f,new Point());
+            Check(!game.QuestApproachNavigationActive&&!game.HasLocalWaymark,
+                "Quest-owned navigation retires after its original quest is complete");
+        }
+        finally
+        {
+            first.x=oldFirst.x;first.y=oldFirst.y;
+            second.x=oldSecond.x;second.y=oldSecond.y;
+        }
+        game.Close();
+        Console.WriteLine("PASS Quest-owned navigation follows real field survey stages, preserves manual pins and retires on quest completion");
+    }
+
     private static void QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking(
         FrontierRuntime app)
     {
@@ -7674,7 +7781,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
