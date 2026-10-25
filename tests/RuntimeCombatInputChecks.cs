@@ -2771,6 +2771,27 @@ public static class RuntimeCombatInputChecks
         Check(game.save.trackedQuest=="main"&&game.save.coins==coins&&
             game.save.flags.Count==flags&&game.save.version==2,
             "The quest preview never changes tracked mission, rewards or SaveData v2");
+        // Exercise the actual Frontier.unity IMGUI map renderer, not only
+        // the helper. Its status must be visible and distinguish reachable
+        // targets from a blocked or adjacent objective.
+        QuestGuide displayed=null;
+        foreach(string id in GameCore.QuestIds)
+        {
+            QuestGuide candidate=game.GetQuest(id);
+            if(!candidate.locked&&!candidate.complete&&
+                candidate.room==game.save.room){displayed=candidate;break;}
+        }
+        Check(displayed!=null,"At least one unlocked quest can be inspected on the active map");
+        Set(app,"mapInspectedQuestId",displayed.id);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();
+        Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("WALKABLE APPROACH")||
+            x.Contains("NEAR OBJECTIVE")||
+            x.Contains("NO VERIFIED WALKING APPROACH")),
+            "The live map identifies whether the inspected objective has a verified walkable approach");
+        Check(game.save.trackedQuest=="main"&&game.save.coins==coins&&
+            game.save.flags.Count==flags,
+            "Displaying route availability does not redirect player navigation or mutate quest progress");
         game.Close();
         Console.WriteLine("PASS Inspected map quest draws cached physically reachable routes without retargeting or bypassing gates");
     }

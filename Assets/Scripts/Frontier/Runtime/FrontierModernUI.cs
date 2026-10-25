@@ -862,13 +862,33 @@ namespace Starfall
                     // gold tracked compass or turquoise player-authored pin.
                     // While positioning a pin/post, show only its own route.
                     if(!mapTileCursor.Active)
-                        foreach(Point step in InspectedQuestWalkingRoute(inspected))
+                    {
+                        List<Point> approach=InspectedQuestWalkingRoute(inspected);
+                        foreach(Point step in approach)
                         {
                             float x=888+step.x*terrainScale;
                             float y=264+step.y*terrainScale;
                             float dot=Math.Max(1.5f,Math.Min(2.5f,terrainScale*.65f));
                             Box(x-dot*.5f,y-dot*.5f,dot,dot,inspection);
                         }
+                        // Status sits between the region heading and terrain,
+                        // never over a marker, pin action or tactical cursor.
+                        // No path does NOT mean the player can walk through a
+                        // gate: keep the uncertainty explicit.
+                        string approachLabel=inspected.complete?
+                            Game.L("已完成任务 · 地图记录","COMPLETE QUEST · MAP RECORD"):
+                            approach.Count>0?
+                                Game.L("目标路线可达 · "+approach.Count+" 步",
+                                    "WALKABLE APPROACH · "+approach.Count+" steps"):
+                            (Game.Position-inspected.target).Length<=1.8f?
+                                Game.L("已接近目标 · 现场确认交互",
+                                    "NEAR OBJECTIVE · CHECK INTERACTION"):
+                                Game.L("没有确认可行走路线 · 检查道路",
+                                    "NO VERIFIED WALKING APPROACH");
+                        Text(888,244,306,17,approachLabel,10,
+                            approach.Count>0?inspection:muted,
+                            TextAnchor.MiddleCenter);
+                    }
                     float gx=888+inspected.target.x*terrainScale,
                         gy=264+inspected.target.y*terrainScale;
                     Frame(gx-6.5f,gy-6.5f,13,13,inspection);
