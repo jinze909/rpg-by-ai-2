@@ -1085,6 +1085,18 @@ namespace Starfall
                         audited ? Game.L("复核 ✓", "AUDIT ✓") :
                                   Game.L("复核 ?", "AUDIT ?"),
                         9, audited ? mint : gold, TextAnchor.MiddleCenter);
+                    // Show an actual civilian field-kit service only AFTER
+                    // the public record is published. Draw on the authored
+                    // world marker itself; do not add a second actor, alter
+                    // golden-hero sprites or fake a free/unconditional heal.
+                    // Static geometry remains legible in reduced-motion mode.
+                    if(audited && Game.Has("civic_aftercare_published"))
+                    {
+                        Ring(new Point(o.x,o.y),.59f,mint,16);
+                        Text(p.x-76,p.y-121,152,18,
+                            Game.L("居民急救 · 药草1","FIELD KIT · 1 HERB"),
+                            10,mint,TextAnchor.MiddleCenter);
+                    }
                 }
                 return;
             }
