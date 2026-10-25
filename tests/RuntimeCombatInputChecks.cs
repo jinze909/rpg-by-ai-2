@@ -4030,7 +4030,7 @@ public static class RuntimeCombatInputChecks
         var cursor=(MapTileCursor)field.GetValue(app);
         Check(cursor.Active,"Controller-friendly tile selection opens from the actual map button");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(x=>x.Contains("WALKABLE"))&&
+        Check(GUI.commands.Exists(command=>command.Contains("WALKABLE"))&&
             (WaymarkRouteStatus)typeof(FrontierRuntime).GetField(
                 "mapCursorPreviewStatus",Private).GetValue(app)==WaymarkRouteStatus.Available,
             "Real map selector reports reachable footing before accepting a pin");
@@ -4052,14 +4052,14 @@ public static class RuntimeCombatInputChecks
             char[] cells=rows[y].ToCharArray();
             cells[x]='#';rows[y]=new string(cells);m.rows=rows;
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(GUI.commands.Exists(x=>x.Contains("BLOCKED TILE"))&&
+            Check(GUI.commands.Exists(command=>command.Contains("BLOCKED TILE"))&&
                 (WaymarkRouteStatus)typeof(FrontierRuntime).GetField(
                     "mapCursorPreviewStatus",Private).GetValue(app)==WaymarkRouteStatus.DestinationBlocked&&
                 list.Count==0&&!game.HasLocalWaymark,
                 "Terrain changing under a selected tile immediately invalidates the preview without inventing an accepted pin");
             m.rows=old;
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(GUI.commands.Exists(x=>x.Contains("WALKABLE"))&&list.Count>0,
+            Check(GUI.commands.Exists(command=>command.Contains("WALKABLE"))&&list.Count>0,
                 "Reopening the same terrain restores preview and physical breadcrumbs");
         }
         finally{m.rows=old;}
