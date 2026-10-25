@@ -679,7 +679,17 @@ namespace Starfall.Tests
                 "A sealed crossing must eventually report actual unreachable ground without shuffling through tiles; foot="+
                 g.companionPosition.x+","+g.companionPosition.y+
                 " started="+landed.x+","+landed.y+
-                " blocked="+blocked);
+                " blocked="+blocked+
+                " selectedFollow="+
+                typeof(GameCore).GetMethod("CompanionFollowTarget",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).Invoke(g,null)+
+                " retry="+typeof(GameCore).GetField("companionBlockedRouteRetry",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).GetValue(g)+
+                " blockedCore="+typeof(GameCore).GetField("companionUnreachableGoal",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance).GetValue(g));
             char[] opened=rows[7].ToCharArray();opened[9]='.';
             rows[7]=new string(opened);
             Advance(g,3.1f);
