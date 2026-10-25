@@ -129,10 +129,16 @@ namespace Starfall
             // check alone could greenlight an unreachable entire arena.
             // A FULL physical finish is required; a closest-reachable BFS
             // frontier does not prove an enemy can ever engage the hero.
-            if(!CanStand(Position)||!CanStand(boss.Position)||
-                (boss.Position-Position).Length>1.8f&&
-                NavigationPathFrom(boss.Position,Position,true).Count==0)
+            if(!CanStand(Position)||!CanStand(boss.Position))
                 return false;
+            // A nearby fighter is NOT proof of an open arena: two feet
+            // 1.5 tiles apart can stand on opposite sides of a sealed wall.
+            // Zero path steps are legitimate only for a genuine nearby
+            // connected footprint, never for a thin-wall summon exploit.
+            bool heroAccessible=(boss.Position-Position).Length<=1.8f?
+                ActorHasLocalRoute(boss.Position,Position,5):
+                NavigationPathFrom(boss.Position,Position,true).Count>0;
+            if(!heroAccessible)return false;
             Point[] candidates = {
                 new Point(-2f,1f), new Point(2f,1f), new Point(-2f,-1f),
                 new Point(2f,-1f), new Point(0f,2.5f), new Point(0f,-2.5f),
