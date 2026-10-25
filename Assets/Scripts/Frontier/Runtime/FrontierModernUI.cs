@@ -180,6 +180,11 @@ namespace Starfall
                             Game.L("按住 Shift 疾跑 · 松开恢复步行",
                                 "Hold SHIFT to sprint · release to walk"),
                     12,Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
+                if(Game.StewAttackBuffLeft>0)
+                    Text(32,127,288,17,
+                        Game.L("炖汤增伤 · 剩余 ","STEW ATTACK BOOST · ")+
+                            (int)Math.Ceiling(Game.StewAttackBuffLeft)+"s",
+                        11,mint);
                 DrawMinimap(); QuestGuide q = Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.MineConvoyActive ? Game.GetQuest("mine_convoy") :
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
@@ -192,7 +197,7 @@ namespace Starfall
                 if (Game.save.room >= 5 || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.MineConvoyActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
                 ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= Game.ClassSkillEnergyCost, () => Game.Skill(InputAim(true)), 3.5f, Game.L("耐力不足", "Low energy"));
-                ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", 0, Game.save.inventory[6] > 0 && !Game.practicing, () => Game.Eat());
+                ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", Game.StewCooldownLeft, Game.CanEatStew || Game.StewCooldownLeft>0 && Game.save.inventory[6]>0, () => Game.Eat(), 3f, Game.L("效果仍在","Buff active"));
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", 0, Game.save.tea > 0 && !Game.practicing, () => Game.DrinkTea());
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
                 ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
@@ -530,7 +535,15 @@ namespace Starfall
             string[] zh = { "建设与制作的基础材料。探索木堆，或向铁匠购买。", "用于武器、修理与记忆锻印。采集星晶矿获得。", "用于料理、救援与镇民委托。药田种植与野外采集获得。", Game.PublicFishKitchenStocked?"镇东湖边钓获。公共厨房每两条鱼可换一碗炖汤。":"镇东湖边钓获。料理与老潮的委托需要它。完成老潮委托后可为公共厨房供鱼。", "矿点会提供备用零件。修理机关、制作武器与城镇建设需要它。", "冒险背包中的星核碎片。远岸记忆碎片与硬币另有独立余额，可在侧栏查看。", "恢复"+Game.StewHealing+"生命与全部耐力，攻击增强"+(int)Game.StewBuffSeconds+"秒。按F使用。", "到杏的药田种植。生长60秒，成熟后收获药草与新种子。" };
             string[] en = { "A building and crafting material. Gather timber or buy it from Noll.", "For weapons, repairs and relic forging. Gather starcrystal veins.", "For cooking, rescues and town requests. Grow or gather Moonherbs.", Game.PublicFishKitchenStocked?"Catch in the eastern lake. Two Silverfin supply the kitchen for one stew.":"Catch in the eastern lake. Cook with them or complete Old Tide's request to supply the public kitchen.", "Ore veins yield spare parts. Used in repairs, weapons and town projects.", "Starcore shards in your pack. Distant-shores memory shards and coins are separate balances in the sidebar.", "Restores "+Game.StewHealing+" health and full energy; boosts damage for "+(int)Game.StewBuffSeconds+" seconds. Press F.", "Plant in An's garden. Harvest after 60 seconds for herbs and new seeds." };
             Text(947, 369, 246, 152, Game.L(zh[selectedItem], en[selectedItem]), 17, muted);
-            if (Button(947, 546, 246, 35, Game.L("使用炖汤 × ", "Use stew × ") + Game.save.inventory[6], false, Game.save.inventory[6] > 0 && !Game.practicing)) Game.Eat();
+            if (Game.StewAttackBuffLeft>0)
+                Text(947,524,246,17,
+                    Game.L("攻击增益剩余 ","Attack boost left ")+
+                    (int)Math.Ceiling(Game.StewAttackBuffLeft)+"s",11,mint);
+            string mealButton=Game.StewCooldownLeft>0?
+                Game.L("进食恢复中 ","Recovering ")+
+                    (int)Math.Ceiling(Game.StewCooldownLeft)+"s":
+                Game.L("使用炖汤 × ", "Use stew × ")+Game.save.inventory[6];
+            if (Button(947, 546, 246, 35, mealButton, false, Game.CanEatStew)) Game.Eat();
             if (Button(947, 590, 246, 35, Game.L("使用凉茶 × ", "Use tea × ") + Game.save.tea, false, Game.save.tea > 0 && !Game.practicing)) Game.DrinkTea();
             Text(947, 642, 246, 40, Game.L("旅店休息可更新野外采集点。", "Inn rest renews resource nodes."), 12, muted);
         }

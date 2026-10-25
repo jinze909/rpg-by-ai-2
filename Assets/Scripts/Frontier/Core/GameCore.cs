@@ -49,6 +49,17 @@ namespace Starfall
         public float StewCooldownLeft { get { return Math.Max(0f,stewCooldown); } }
         public float StewAttackBuffLeft
         { get { return save==null?0f:Math.Max(0f,save.foodUntil-save.totalTime); } }
+        public bool CanEatStew
+        {
+            get
+            {
+                return save!=null&&!Dying&&!practicing&&
+                    (mode=="world"||mode=="inventory")&&
+                    save.inventory[6]>0&&StewCooldownLeft<=0&&
+                    (save.health<save.maxHealth||save.energy<100||
+                     StewAttackBuffLeft<=0);
+            }
+        }
         // A bite belongs to one simulation-time window, not every keyboard,
         // controller or pointer event in the same frame. Transient and never
         // persisted: closing the lake mini-game abandons only the active cast.
