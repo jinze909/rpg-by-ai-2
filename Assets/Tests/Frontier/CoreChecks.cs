@@ -4023,7 +4023,7 @@ namespace Starfall.Tests
             g.save.x=first.x;g.save.y=first.y;
             g.save.health=15;
             g.Talk(first);
-            Check(g.conversation!=null&&g.conversation.zh.Contains("额外恢复生命 +10"),
+            Check(g.conversation!=null&&g.conversation.text.Contains("额外恢复生命 +10"),
                 "Refuge dialogue announces the real, locally earned medicine bonus");
             int rest=Array.FindIndex(g.conversation.choices,x=>x.action=="far_rest");
             Check(rest>=0,"Actual restored refuge exposes its existing paid rest");
@@ -4035,7 +4035,7 @@ namespace Starfall.Tests
             WorldObject second=Object(g,"farshelter");
             g.save.x=second.x;g.save.y=second.y;g.save.health=15;
             g.Talk(second);
-            Check(!g.conversation.zh.Contains("额外恢复生命 +10"),
+            Check(!g.conversation.text.Contains("额外恢复生命 +10"),
                 "One region's intact medicine cannot leak across the eight local refuges");
             rest=Array.FindIndex(g.conversation.choices,x=>x.action=="far_rest");
             g.Choose(rest);
