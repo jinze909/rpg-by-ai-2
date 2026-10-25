@@ -5422,12 +5422,24 @@ public static class RuntimeCombatInputChecks
             Check(first>=0,"Returning to page one restores the original quest choices");
         }
         g.Choose(first);
+        Check(g.mode=="dialog"&&g.conversationSource==guest&&
+            g.save.trackedQuest==originallyTracked&&
+            g.conversation.textEn.Contains("Next:")&&
+            g.conversation.textEn.Contains("Reward:")&&
+            g.conversation.textEn.Contains(quest.title)&&
+            g.save.coins==beforeCoins&&g.save.shards==beforeShards&&
+            g.save.flags.Count==beforeFlags,
+            "Browsing opens true mission details and rewards without changing tracked quests");
+        int confirm=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="inn_confirm_"+chosen);
+        Check(confirm>=0,"Only the explicit confirmation tracks a board mission");
+        g.Choose(confirm);
         Check(g.save.trackedQuest==chosen&&g.mode=="dialog"&&
             g.conversationSource==guest&&
             Array.Exists(g.conversation.choices,c=>c.action=="inn_openjournal")&&
             g.save.coins==beforeCoins&&g.save.shards==beforeShards&&
             g.save.flags.Count==beforeFlags&&g.save.version==2,
-            "Selecting real work tracks only the chosen quest, with no instant loot or story skips");
+            "Explicit confirmed job tracks only the original quest and never grants unearned loot");
         for(int i=0;i<inventory.Length;i++)
             Check(inventory[i]==g.save.inventory[i],
                 "Quest discovery must never issue supplies or consume crafting materials");

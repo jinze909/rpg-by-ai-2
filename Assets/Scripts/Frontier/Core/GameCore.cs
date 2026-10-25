@@ -118,6 +118,7 @@ namespace Starfall
         // without mutating trackedQuest, quest flags or SaveData v2.
         private string journalFocusRequest;
         private int innJobPage;
+        private string innPreviewQuestId;
         public string TakeJournalFocusRequest()
         {
             string requested=journalFocusRequest;
@@ -287,6 +288,7 @@ namespace Starfall
             conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
             journalFocusRequest=null;
             innJobPage=0;
+            innPreviewQuestId=null;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
@@ -2776,6 +2778,7 @@ namespace Starfall
         }
         private void ShowInnGuestJobBoard(WorldObject o)
         {
+            innPreviewQuestId=null;
             List<string> available=AvailableInnJobs();
             const int pageSize=4;
             int pages=Math.Max(1,(available.Count+pageSize-1)/pageSize);
@@ -2803,38 +2806,61 @@ namespace Starfall
             options.Add(C("先告辞","Leave","close"));
             Dialog(o.name,o.en,
                 available.Count==0?
-                    "旅人翻了翻柜台后面的旧夹子。\\n\\n“眼下能走的路上，没有新的差事。等路开了再来问我。”":
-                    "旅人把几张路单平摊在桌上。\\n\\n“这些地方已经能走了。想接着查哪一件，你自己挑；没开放的路我可不敢让你去。”",
+                    "旅人翻了翻柜台后面的旧夹子。\n\n“眼下能走的路上，没有新的差事。等路开了再来问我。”":
+                    "旅人把几张路单平摊在桌上。\n\n“这些地方已经能走了。想接着查哪一件，你自己挑；没开放的路我可不敢让你去。”",
                 available.Count==0?
-                    "The traveler flips through the folder behind the counter.\\n\\n“No more jobs along the open roads. Try me after a crossing opens.”":
-                    "The traveler spreads several route slips across the table.\\n\\n“These roads are open. Pick the lead you want to follow; I'm not sending anyone through a sealed gate.”",
+                    "The traveler flips through the folder behind the counter.\n\n“No more jobs along the open roads. Try me after a crossing opens.”":
+                    "The traveler spreads several route slips across the table.\n\n“These roads are open. Pick the lead you want to follow; I'm not sending anyone through a sealed gate.”",
                 options.ToArray());
+        }
+        private bool InnJobStillOffered(string id)
+        {
+            if(Array.IndexOf(QuestIds,id)<0)return false;
+            List<string> jobs=AvailableInnJobs();
+            int start=innJobPage*4;
+            for(int i=start;i<Math.Min(start+4,jobs.Count);i++)
+                if(jobs[i]==id)return true;
+            return false;
         }
         private void TrackInnGuestJob(WorldObject o,string id)
         {
-            if(Array.IndexOf(QuestIds,id)<0)return;
-            // Recompute on selection, not just when the old dialogue was
-            // painted; finishing the job or sealing a region mid-menu
-            // invalidates a cached button.
-            List<string> now=AvailableInnJobs();
-            int index=innJobPage*4;
-            int end=Math.Min(index+4,now.Count);
-            bool offered=false;
-            for(int i=index;i<end;i++)
-                if(now[i]==id){offered=true;break;}
-            if(!offered)return;
+            // Browsing is non-mutating. A mission must be both on the
+            // CURRENT board page and still physically accessible when
+            // the detail slip is opened.
+            if(!InnJobStillOffered(id))return;
+            QuestGuide q=GetQuest(id);
+            innPreviewQuestId=id;
+            string title=q.title;
+            string next=q.next;
+            string reward=q.reward;
+            Dialog(o.name,o.en,
+                title+"\n\n"+L("下一步：","Next: ")+next+
+                "\n\n"+L("报酬：","Reward: ")+reward,
+                title+"\n\n"+L("下一步：","Next: ")+next+
+                "\n\n"+L("报酬：","Reward: ")+reward,
+                C("追踪这件事","Track this job","inn_confirm_"+id),
+                C("先看看其他路单","Back to the job board","inn_jobboard"),
+                C("先告辞","Leave","close"));
+        }
+        private void ConfirmInnGuestJob(WorldObject o,string id)
+        {
+            if(innPreviewQuestId!=id||!InnJobStillOffered(id))
+                return;
+            // TrackQuest is the original authority for authored quest
+            // locks and tutorial state. No progress/loot is fabricated.
             TrackQuest(id);
             if(save.trackedQuest!=id)return;
-            QuestGuide q=GetQuest(id);
+            innPreviewQuestId=null;
             Dialog(o.name,o.en,
-                "旅人把那张路单推到你手边。\\n\\n“记好了。别光记地名，到了地方看清楚要找什么。”",
-                "The traveler slides the chosen route slip toward you.\\n\\n“It's yours. Read the details before you go; a place name won't tell you what to look for.”",
+                "旅人把路单交还给你。\n\n“记好了。到地方看清楚，回来也好说给其他人听。”",
+                "The traveler hands the slip back.\n\n“It's yours. Take a proper look when you get there—and tell the others what you find.”",
                 C("翻开这件事的手帐","Open this quest in my journal","inn_openjournal"),
                 C("还有别的差事吗？","Any other jobs?","inn_jobboard"),
                 C("先告辞","Leave","close"));
         }
         private void ShowInnGuestTopics(WorldObject o)
         {
+            innPreviewQuestId=null;
             Dialog(o.name,o.en,
                 "旅人把热汤往你面前推了推，自己坐回炉边。\n\n“外头起风了。你是来歇脚，还是找路？”",
                 "The traveler pushes the warm stew closer, then settles beside the fire.\n\n“Wind's picking up. Here to rest your feet, or looking for a road?”",
@@ -3357,6 +3383,7 @@ namespace Starfall
                 action=="inn_topics"||action=="inn_openjournal"||
                 action=="inn_jobboard"||action=="inn_jobs_next"||
                 action=="inn_jobs_prev"||
+                action.StartsWith("inn_confirm_",StringComparison.Ordinal)||
                 action.StartsWith("inn_job_",StringComparison.Ordinal))
             {
                 WorldObject host=pendingDialogueSource;
@@ -3378,6 +3405,8 @@ namespace Starfall
                     innJobPage=Math.Max(0,innJobPage-1);
                     ShowInnGuestJobBoard(host);
                 }
+                else if(action.StartsWith("inn_confirm_",StringComparison.Ordinal))
+                    ConfirmInnGuestJob(host,action.Substring("inn_confirm_".Length));
                 else if(action.StartsWith("inn_job_",StringComparison.Ordinal))
                     TrackInnGuestJob(host,action.Substring("inn_job_".Length));
                 else
