@@ -1171,7 +1171,7 @@ namespace Starfall
                     room<0?L("继续解锁地区后调查余下的旧信号","Unlock the remaining regions to continue"):
                     phase==0?L("前往南部外环寻找书面证据","Find the southern outer-ring log"):
                     phase==1?L("抵达东侧信号灯并使用一枚零件","Repair the eastern beacon using one part"):
-                    L("寻找东南救援箱，领取救援物资","Recover the southeastern relief cache");
+                    L("沿信号灯向南寻找救援箱","Follow the signal south to the relief chest");
                 q.reward=L("每盏修好的信号灯提供安全休整；每处救援箱获得硬币18、材料2、经验22。八地全部完成，额外获得1点技能点。",
                     "Each repaired light becomes a safe rest point; each recovered chest grants 18 coins, 2 materials, 22 XP. Complete all eight for an extra talent point.");
                 return q;

@@ -99,10 +99,10 @@ namespace Starfall
                     return true;
                 }
                 Dialog(titleZh,titleEn,OuterLogZh[room,1]+
-                    (recorded?"\n\n灯火稳了。救援箱在东南侧；四周安全时，也能在灯下歇一会儿。":
+                    (recorded?"\n\n灯火稳了。救援箱在正南方；四周安全时，也能在灯下歇一会儿。":
                         "\n\n灯座的线圈少一枚零件。修好它，东南侧的救援箱才能按旧规取走。"),
                     OuterLogEn[room,1]+
-                    (recorded?"\n\nThe light holds steady. The rescue chest lies southeast. When the road is quiet, you can rest here.":
+                    (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here.":
                         "\n\nOne spare part is missing from the socket. Repair it, and the relief chest southeast of here can be claimed."),
                     C(recorded?"保持信号畅通":"维修信号灯 · 零件×1",
                       recorded?"Maintain the signal":"Repair signal · 1 spare part",
@@ -115,11 +115,11 @@ namespace Starfall
                 Dialog(titleZh,titleEn,
                     OuterLogZh[room,2]+
                     (OuterLogFound(room)?
-                        "\n\n箱口的封条还压着。东北方向的求援灯亮起来后，才有人能核对这批物资。":
+                        "\n\n箱口的封条还压着。北边的求援灯亮起来后，才有人能核对这批物资。":
                         "\n\n封条上的编号被泥盖住了。先去西南边找原始记录，再到东北的灯架核对。"),
                     OuterLogEn[room,2]+
                     (OuterLogFound(room)?
-                        "\n\nThe seal is still fastened. Nobody can sign out these supplies until the rescue light to the northeast is lit.":
+                        "\n\nThe seal is still fastened. Nobody can sign out these supplies until the rescue light to the north is lit.":
                         "\n\nMud covers the seal number. Find the old log southwest of here, then check the light to the northeast."),
                     C("继续调查","Continue searching","close"));
                 return true;
@@ -171,8 +171,8 @@ namespace Starfall
             if(!Spend(0,0,0,0,1))return true;
             Flag("outer_relay_"+save.room);
             revision++;sound="reward";
-            Notify("求援灯重新亮了。安全时可在灯下休整，再往东南找救援箱。",
-                "The rescue light is burning again. Rest here when safe, then head southeast for the relief chest.");
+            Notify("求援灯重新亮了。安全时可在灯下休整，再向南找救援箱。",
+                "The rescue light is burning again. Rest here when safe, then head south for the relief chest.");
             return true;
         }
     }

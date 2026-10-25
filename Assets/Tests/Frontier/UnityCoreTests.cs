@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void AllEightPhysicalRescueCacheBearingsMatchQuestGuidance() { CoreChecks.EightRescueRoutesKeepHonestPhysicalLogSignalChestDirections(Data()); }
         [Test] public void RemoteRescueLightsShelterAgainstRealClimateOnlyOnSafeNearSide() { CoreChecks.RestoredRemoteWarningLampsReallyShelterAgainstRegionClimate(Data()); }
         [Test] public void RepairedSignalsActuallyProvidePhysicalSafeFieldCare() { CoreChecks.RepairedOuterBeaconsProvideActualSafeNearsideRespite(Data()); }
         [Test] public void ChokedArchersWaitForMovingAlliesBeforeRealShoot() { CoreChecks.NoSideLaneArchersWaitForMovingFrontlineWithoutBodyWarp(Data()); }

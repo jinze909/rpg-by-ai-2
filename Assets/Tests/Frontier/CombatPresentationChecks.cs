@@ -3963,6 +3963,51 @@ namespace Starfall.Tests
 
 
 
+
+        public static void EightRescueRoutesKeepHonestPhysicalLogSignalChestDirections(Campaign data)
+        {
+            // The original room assets, NOT screen prose or an invented
+            // test map, determine where the player's real objectives lie.
+            // The log is southwest of the lamp, while the cache is almost
+            // directly SOUTH of it (not southeast as older hints claimed).
+            for(int room=0;room<8;room++)
+            {
+                WorldObject log=null,beacon=null,chest=null;
+                foreach(WorldObject o in data.maps[room].objects)
+                {
+                    if(o.kind=="outerlog")log=o;
+                    if(o.kind=="outerrelay")beacon=o;
+                    if(o.kind=="outercache")chest=o;
+                }
+                Check(log!=null&&beacon!=null&&chest!=null&&
+                    beacon.x>log.x+5f&&beacon.y<log.y-5f&&
+                    chest.y>beacon.y+5f&&
+                    Math.Abs(chest.x-beacon.x)<3f,
+                    "All eight original outer routes must have their real southeast-to-signal and southern-chest landmarks");
+                var g=Fresh(data);
+                g.save.stage=3;
+                foreach(string unlock in new[]{
+                    "intro","exp_intro","harbor_report","desert_report"})
+                    if(!g.Has(unlock))g.save.flags.Add(unlock);
+                for(int oldRoom=0;oldRoom<room;oldRoom++)
+                    foreach(string phase in new[]{"outer_log_","outer_relay_","outer_cache_"})
+                        g.save.flags.Add(phase+oldRoom);
+                g.save.flags.Add("outer_log_"+room);
+                g.save.flags.Add("outer_relay_"+room);
+                QuestGuide route=g.GetQuest("outer_rescue");
+                Check(!route.locked&&route.room==room&&
+                    (route.target-new Point(chest.x,chest.y)).Length<.01f&&
+                    route.next.Contains("南"),
+                    "Chinese navigation points to the SAME actual next southern rescue chest for each live region");
+                g.save.english=true;
+                QuestGuide english=g.GetQuest("outer_rescue");
+                Check(english.room==room&&
+                    (english.target-route.target).Length<.01f&&
+                    english.next.ToLowerInvariant().Contains("south"),
+                    "English navigation resolves to the exact same real physical cache and honest cardinal direction");
+            }
+        }
+
         public static void RestoredRemoteWarningLampsReallyShelterAgainstRegionClimate(Campaign data)
         {
             for(int room=6;room<=7;room++)
@@ -4146,6 +4191,18 @@ namespace Starfall.Tests
                 g.enemies.Clear();
                 Check(g.OuterRelayRestRefuge,
                     "The same repaired signal works again when real combat ends");
+                // This is an old SaveData v2 file, not a new recovery flag.
+                // Loading the unchanged original progress MUST restore the
+                // physical service, while switching slot flags cannot.
+                GameCore reloaded=new GameCore(data,CloneSave(g.save));
+                reloaded.Close();reloaded.enemies.Clear();
+                Check(reloaded.save.version==2&&reloaded.save.room==0&&
+                    reloaded.OuterRelayRestRefuge,
+                    "A saved legacy repair flag rehydrates the real field refuge at the same physical mast");
+                reloaded.save.flags.Remove("outer_relay_0");
+                Check(!reloaded.OuterRelayRestRefuge&&
+                    g.OuterRelayRestRefuge,
+                    "A second save slot without the flag never inherits the first slot's restored service");
                 g.save.room=1;
                 Check(!g.OuterRelayRestRefuge&&g.save.version==2,
                     "No repaired-light benefits leak into an unrelated or uncompleted region");
