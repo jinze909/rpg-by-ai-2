@@ -59,6 +59,7 @@ namespace Starfall
         private int mapCursorPreviewRoom=-1,mapCursorPreviewRevision=-1;
         private Point mapCursorPreviewTarget,mapCursorPreviewStart;
         private bool mapCursorPreviewTide,mapCursorPreviewGate;
+        private bool mapCursorPreviewCompanion;
         private bool MapCursorPreviewRowsUnchanged(MapData map)
         {
             if(map==null||map.rows==null||mapCursorPreviewRowSnapshot==null||
@@ -77,20 +78,27 @@ namespace Starfall
                 return WaymarkRouteStatus.InvalidRequest;
             }
             MapData map=Game.Map;
-            Point goal=mapTileCursor.Destination,from=Game.Position;
+            Point goal=mapTileCursor.Destination;
+            Point from=mapCursorCompanionPost?Game.companionPosition:Game.Position;
             bool tide=Game.LowTide,gate=Game.GateBarrierActive;
             if(!object.ReferenceEquals(Game,mapCursorPreviewOwner)||
                 !object.ReferenceEquals(map,mapCursorPreviewMap)||
                 mapCursorPreviewRoom!=Game.save.room||
                 mapCursorPreviewRevision!=Game.revision||
+                mapCursorPreviewCompanion!=mapCursorCompanionPost||
                 (goal-mapCursorPreviewTarget).Length>.001f||
                 (from-mapCursorPreviewStart).Length>.001f||
                 tide!=mapCursorPreviewTide||gate!=mapCursorPreviewGate||
                 !MapCursorPreviewRowsUnchanged(map))
             {
-                mapCursorPreviewStatus=Game.InspectLocalWaymark(
+                if(mapCursorCompanionPost)
+                    mapCursorPreviewStatus=Game.InspectCompanionHoldPost(
+                        goal,mapCursorPreviewPath)?
+                        WaymarkRouteStatus.Available:WaymarkRouteStatus.NoWalkingRoute;
+                else mapCursorPreviewStatus=Game.InspectLocalWaymark(
                     goal,mapCursorPreviewPath);
                 mapCursorPreviewOwner=Game;
+                mapCursorPreviewCompanion=mapCursorCompanionPost;
                 mapCursorPreviewMap=map;
                 mapCursorPreviewRoom=Game.save.room;
                 mapCursorPreviewRevision=Game.revision;
@@ -734,7 +742,7 @@ namespace Starfall
         }
         private void DrawMap()
         {
-            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击地图标记 · R/Y调整标记 · Shift+方向键快速移动", "Click to pin · R/Y to reposition · Shift+arrows to jump")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
+            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击地图标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click to pin · R/Y move personal pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i, !mapTileCursor.Active)) selectedRegion = i; }
             if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
             Card(866, 178, 351, 510);
@@ -745,6 +753,15 @@ namespace Starfall
             if (selectedRegion == Game.save.room)
             {
                 MiniTerrain(888, 264, terrainScale);
+                if(Game.CompanionHoldingPosition)
+                {
+                    // The purple post belongs to the recruited companion,
+                    // not a second player or a fake quest objective.
+                    Point post=Game.CompanionHoldPosition;
+                    float px=888+post.x*terrainScale,py=264+post.y*terrainScale;
+                    Frame(px-5,py-5,10,10,PixelArt.C("#bb9df2"));
+                    Box(px-1.5f,py-1.5f,3,3,PixelArt.C("#bb9df2"));
+                }
                 if(mapTileCursor.Active)
                 {
                     WaymarkRouteStatus viability=RefreshMapCursorPreview();
@@ -757,13 +774,15 @@ namespace Starfall
                             float x=888+step.x*terrainScale;
                             float y=264+step.y*terrainScale;
                             float dot=Math.Max(1.5f,Math.Min(2.5f,terrainScale*.65f));
-                            Box(x-dot*.5f,y-dot*.5f,dot,dot,mint);
+                            Box(x-dot*.5f,y-dot*.5f,dot,dot,
+                                mapCursorCompanionPost?PixelArt.C("#bb9df2"):mint);
                         }
                     Point tile=mapTileCursor.Destination;
                     Point mark=new Point(888+tile.x*terrainScale,
                         264+tile.y*terrainScale);
                     Color cursorColor=viability==WaymarkRouteStatus.Available?
-                        mint:PixelArt.C("#ff6961");
+                        mapCursorCompanionPost?PixelArt.C("#bb9df2"):mint:
+                        PixelArt.C("#ff6961");
                     Frame(mark.x-6,mark.y-6,12,12,cursorColor);
                     Box(mark.x-1.5f,mark.y-1.5f,3,3,cursorColor);
                 }
@@ -796,14 +815,20 @@ namespace Starfall
             {
                 WaymarkRouteStatus viability=RefreshMapCursorPreview();
                 string message=viability==WaymarkRouteStatus.Available?
-                    Game.L("路线畅通 · "+mapCursorPreviewPath.Count+" 步，按确认设置",
-                        "WALKABLE · "+mapCursorPreviewPath.Count+" steps · confirm to pin"):
+                    mapCursorCompanionPost?
+                        Game.L("同伴路线可达 · "+mapCursorPreviewPath.Count+" 步，确认下达驻守令",
+                            "ALLY ROUTE OPEN · "+mapCursorPreviewPath.Count+" steps · confirm post"):
+                        Game.L("路线畅通 · "+mapCursorPreviewPath.Count+" 步，按确认设置",
+                            "WALKABLE · "+mapCursorPreviewPath.Count+" steps · confirm to pin"):
                     viability==WaymarkRouteStatus.DestinationBlocked?
                         Game.L("此格无法站立，请选择可通行的地面",
                             "BLOCKED TILE · move to walkable ground"):
                     viability==WaymarkRouteStatus.NoWalkingRoute?
-                        Game.L("道路不通 · 当前位置无法步行到达",
-                            "NO WALKING ROUTE · choose another tile"):
+                        mapCursorCompanionPost?
+                            Game.L("同伴无法抵达 · 更换驻守点",
+                                "ALLY CANNOT REACH · choose another post"):
+                            Game.L("道路不通 · 当前位置无法步行到达",
+                                "NO WALKING ROUTE · choose another tile"):
                     viability==WaymarkRouteStatus.HeroFootingBlocked?
                         Game.L("脚下地形封闭，暂时无法规划路线",
                             "FOOTING BLOCKED · no route from here"):
@@ -818,8 +843,11 @@ namespace Starfall
             {
                 if(mapTileCursor.Active)
                     Text(888,569,306,42,
-                        Game.L("方向键/摇杆选择 · Shift/LB/RB快移 · Enter/A确认 · Esc/B取消",
-                            "Arrows/stick: move · Shift/LB/RB: jump · A: pin · B: cancel"),
+                        mapCursorCompanionPost?
+                            Game.L("同伴驻守 · 方向键移动 · A确认 · B取消",
+                                "ALLY POST · arrows: move · A: assign · B: cancel"):
+                            Game.L("方向键/摇杆选择 · Shift/LB/RB快移 · Enter/A确认 · Esc/B取消",
+                                "Arrows/stick: move · Shift/LB/RB: jump · A: pin · B: cancel"),
                         12,mint,TextAnchor.MiddleCenter);
                 else if(Game.HasLocalWaymark)
                 {
@@ -836,7 +864,8 @@ namespace Starfall
                 else if(Button(888,571,306,35,
                     Game.L("用键盘/手柄选择地图格子",
                         "Choose a map tile (keyboard/gamepad)")))
-                {mapTileCursor.Begin(Game.Position,m.rows[0].Length,m.rows.Length);navigationRepeat=0;}
+                {mapTileCursor.Begin(Game.Position,m.rows[0].Length,m.rows.Length);
+                 mapCursorCompanionPost=false;navigationRepeat=0;}
             }
             else Text(888,569,306,38,
                 Game.L("只能标记当前所在地区","Pins available in current region only"),
@@ -847,6 +876,19 @@ namespace Starfall
                     Game.L("按 R / 手柄 Y 可直接移动旧标记",
                         "R / gamepad Y: move existing pin without clearing"),
                     9,mint,TextAnchor.MiddleCenter);
+            // Keep the established full-width personal clear control at
+            // y=571; this separate 21px action cannot steal old mouse hits.
+            if(selectedRegion==Game.save.room&&
+                Game.save.companion>=0&&!Game.practicing&&!Game.Dying&&
+                !Game.OuterPatrolActive)
+            {
+                if(!mapTileCursor.Active&&Button(888,665,306,21,
+                    Game.L(Game.CompanionHoldingPosition?
+                        "同伴驻守点 · P/X 改变位置":"同伴战术驻守 · P/X 选点",
+                        Game.CompanionHoldingPosition?
+                        "ALLY HOLD · P/X move post":"ALLY HOLD · P/X choose post")))
+                    BeginCompanionMapPost();
+            }
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
             if (Button(888, 616, 306, 47,
                 selectedRegion == Game.save.room ? Game.L("返回本地区", "Return to region") :

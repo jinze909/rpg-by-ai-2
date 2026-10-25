@@ -13,6 +13,24 @@ namespace Starfall
         private bool focusVisible, controllerUsed, drawingModal;
         private readonly CompanionButtonGesture companionPadGesture = new CompanionButtonGesture();
         private readonly MapTileCursor mapTileCursor = new MapTileCursor();
+        // The same bounded tile selector edits two separate tactical orders.
+        // A rejected or cancelled edit must never erase the old player pin
+        // or companion hold. Neither target is written to SaveData v2.
+        private bool mapCursorCompanionPost;
+        private void BeginCompanionMapPost()
+        {
+            if(Game==null||Game.mode!="map"||
+                selectedRegion!=Game.save.room||Game.save.companion<0||
+                Game.practicing||Game.Dying||Game.OuterPatrolActive)return;
+            MapData map=Game.Map;
+            if(map==null||map.rows==null||map.rows.Length==0||
+                string.IsNullOrEmpty(map.rows[0]))return;
+            Point origin=Game.CompanionHoldingPosition?
+                Game.CompanionHoldPosition:Game.companionPosition;
+            mapTileCursor.Begin(origin,map.rows[0].Length,map.rows.Length);
+            mapCursorCompanionPost=mapTileCursor.Active;
+            navigationRepeat=0f;
+        }
         private string ControlId(float x, float y, float w, float h) { return x.ToString(CultureInfo.InvariantCulture) + ":" + y.ToString(CultureInfo.InvariantCulture) + ":" + w.ToString(CultureInfo.InvariantCulture) + ":" + h.ToString(CultureInfo.InvariantCulture); }
         private string InputScope()
         { return Game.mode + (Game.mode == "dialog" && Game.conversation != null ? "/" + Game.conversation.GetHashCode() + "/" + dialoguePage + "/choices/" + dialogueChoicePage : "") + (replacePrompt ? "/replace" : "") + (saveConfirmation != null ? "/confirm" : ""); }
@@ -73,8 +91,14 @@ namespace Starfall
                     if(Input.GetKeyDown(KeyCode.Return)||
                         Input.GetKeyDown(KeyCode.Space)||PadDown(0))
                     {
-                        if(Game.PlaceLocalWaymark(mapTileCursor.Destination))
+                        bool accepted=mapCursorCompanionPost?
+                            Game.AssignCompanionHoldPost(mapTileCursor.Destination):
+                            Game.PlaceLocalWaymark(mapTileCursor.Destination);
+                        if(accepted)
+                        {
                             mapTileCursor.Cancel();
+                            mapCursorCompanionPost=false;
+                        }
                         return;
                     }
                     // Six-tile map jumps prevent 120x80 annex navigation
@@ -108,6 +132,16 @@ namespace Starfall
                     return;
                 }
             }
+            // Map P / gamepad X issues the companion tactical post selector.
+            // Unlike the previous field hold command this can choose real
+            // terrain several bends away without teleporting the ally.
+            if(Game.mode=="map"&&selectedRegion==Game.save.room&&
+                (Input.GetKeyDown(KeyCode.P)||PadDown(2)))
+            {
+                if(PadDown(2))controllerUsed=true;
+                BeginCompanionMapPost();
+                return;
+            }
             // R / gamepad Y repositions an existing pin WITHOUT clearing
             // it first. Canceled or physically blocked edits retain the old
             // destination and its route; only explicit confirm commits.
@@ -123,6 +157,7 @@ namespace Starfall
                         Game.LocalWaymark.Value:Game.Position;
                     mapTileCursor.Begin(start,current.rows[0].Length,
                         current.rows.Length);
+                    mapCursorCompanionPost=false;
                     navigationRepeat=0f;
                 }
                 return;
