@@ -46,6 +46,63 @@ namespace Starfall
         // travel within one map tile. Half-tile buckets keep HUD repaints cheap
         // without leaving breadcrumbs pinned to the previous whole tile.
         private int navigationRouteTargetX = int.MinValue, navigationRouteTargetY = int.MinValue;
+
+        // Cache prospective physical routes for the cursor across Layout,
+        // Repaint and every idle OnGUI. Moving to another cell, opening a
+        // gate, changing tides or rebuilding rows invalidates the preview.
+        // This is separate from the committed HUD navigation-route cache.
+        private List<Point> mapCursorPreviewPath = new List<Point>();
+        private WaymarkRouteStatus mapCursorPreviewStatus = WaymarkRouteStatus.InvalidRequest;
+        private GameCore mapCursorPreviewOwner;
+        private MapData mapCursorPreviewMap;
+        private string[] mapCursorPreviewRowSnapshot;
+        private int mapCursorPreviewRoom=-1,mapCursorPreviewRevision=-1;
+        private Point mapCursorPreviewTarget,mapCursorPreviewStart;
+        private bool mapCursorPreviewTide,mapCursorPreviewGate;
+        private bool MapCursorPreviewRowsUnchanged(MapData map)
+        {
+            if(map==null||map.rows==null||mapCursorPreviewRowSnapshot==null||
+                map.rows.Length!=mapCursorPreviewRowSnapshot.Length)return false;
+            for(int i=0;i<map.rows.Length;i++)
+                if(!object.ReferenceEquals(map.rows[i],mapCursorPreviewRowSnapshot[i]))
+                    return false;
+            return true;
+        }
+        private WaymarkRouteStatus RefreshMapCursorPreview()
+        {
+            if(Game==null||!mapTileCursor.Active||Game.mode!="map"||
+               selectedRegion!=Game.save.room)
+            {
+                mapCursorPreviewPath.Clear();
+                return WaymarkRouteStatus.InvalidRequest;
+            }
+            MapData map=Game.Map;
+            Point goal=mapTileCursor.Destination,from=Game.Position;
+            bool tide=Game.LowTide,gate=Game.GateBarrierActive;
+            if(!object.ReferenceEquals(Game,mapCursorPreviewOwner)||
+                !object.ReferenceEquals(map,mapCursorPreviewMap)||
+                mapCursorPreviewRoom!=Game.save.room||
+                mapCursorPreviewRevision!=Game.revision||
+                (goal-mapCursorPreviewTarget).Length>.001f||
+                (from-mapCursorPreviewStart).Length>.001f||
+                tide!=mapCursorPreviewTide||gate!=mapCursorPreviewGate||
+                !MapCursorPreviewRowsUnchanged(map))
+            {
+                mapCursorPreviewStatus=Game.InspectLocalWaymark(
+                    goal,mapCursorPreviewPath);
+                mapCursorPreviewOwner=Game;
+                mapCursorPreviewMap=map;
+                mapCursorPreviewRoom=Game.save.room;
+                mapCursorPreviewRevision=Game.revision;
+                mapCursorPreviewTarget=goal;
+                mapCursorPreviewStart=from;
+                mapCursorPreviewTide=tide;
+                mapCursorPreviewGate=gate;
+                mapCursorPreviewRowSnapshot=map==null||map.rows==null?
+                    null:(string[])map.rows.Clone();
+            }
+            return mapCursorPreviewStatus;
+        }
         private Conversation lastConversation;
         // The IMGUI path repaints repeatedly even when the NPC and narration
         // are unchanged. Cache only page layout, never dialogue actions/state.
@@ -690,10 +747,23 @@ namespace Starfall
                 MiniTerrain(888, 264, terrainScale);
                 if(mapTileCursor.Active)
                 {
+                    WaymarkRouteStatus viability=RefreshMapCursorPreview();
+                    // Every turquoise breadcrumb is a genuine complete
+                    // walkable segment, not the best-effort quest compass
+                    // that might terminate on the far side of a sealed gate.
+                    if(viability==WaymarkRouteStatus.Available)
+                        foreach(Point step in mapCursorPreviewPath)
+                        {
+                            float x=888+step.x*terrainScale;
+                            float y=264+step.y*terrainScale;
+                            float dot=Math.Max(1.5f,Math.Min(2.5f,terrainScale*.65f));
+                            Box(x-dot*.5f,y-dot*.5f,dot,dot,mint);
+                        }
                     Point tile=mapTileCursor.Destination;
                     Point mark=new Point(888+tile.x*terrainScale,
                         264+tile.y*terrainScale);
-                    Color cursorColor=Game.CanStand(tile)?mint:PixelArt.C("#ff6961");
+                    Color cursorColor=viability==WaymarkRouteStatus.Available?
+                        mint:PixelArt.C("#ff6961");
                     Frame(mark.x-6,mark.y-6,12,12,cursorColor);
                     Box(mark.x-1.5f,mark.y-1.5f,3,3,cursorColor);
                 }
@@ -722,7 +792,26 @@ namespace Starfall
                     Box(888 + q.target.x * terrainScale - 3,
                         264 + q.target.y * terrainScale - 3, 7, 7, gold);
             }
-            Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
+            if(mapTileCursor.Active&&selectedRegion==Game.save.room)
+            {
+                WaymarkRouteStatus viability=RefreshMapCursorPreview();
+                string message=viability==WaymarkRouteStatus.Available?
+                    Game.L("路线畅通 · "+mapCursorPreviewPath.Count+" 步，按确认设置",
+                        "WALKABLE · "+mapCursorPreviewPath.Count+" steps · confirm to pin"):
+                    viability==WaymarkRouteStatus.DestinationBlocked?
+                        Game.L("此格无法站立，请选择可通行的地面",
+                            "BLOCKED TILE · move to walkable ground"):
+                    viability==WaymarkRouteStatus.NoWalkingRoute?
+                        Game.L("道路不通 · 当前位置无法步行到达",
+                            "NO WALKING ROUTE · choose another tile"):
+                    viability==WaymarkRouteStatus.HeroFootingBlocked?
+                        Game.L("脚下地形封闭，暂时无法规划路线",
+                            "FOOTING BLOCKED · no route from here"):
+                        Game.L("无效地图位置","INVALID MAP TILE");
+                Text(888,487,306,75,message,14,
+                    viability==WaymarkRouteStatus.Available?mint:PixelArt.C("#ff6961"));
+            }
+            else Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
                 Game.L(m.subtitle,m.suben):
                 Game.RouteHint(selectedRegion,Game.save.english), 15, muted);
             if(selectedRegion==Game.save.room)
