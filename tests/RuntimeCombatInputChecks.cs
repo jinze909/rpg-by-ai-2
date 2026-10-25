@@ -3038,6 +3038,78 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Quest-owned navigation follows real field survey stages, preserves manual pins and retires on quest completion");
     }
 
+    private static void TrackedQuestAutoFollowSurvivesRealCrossRegionStageChange(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.english=true;g.save.flags.Add("intro");
+        g.save.flags.Add("scout_saved");g.save.stage=4;
+        int room=g.save.room;
+        Check(room>=0&&room<8,"Use a live regional outdoor expedition");
+        WorldObject first=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.id=="trailcircuit_"+room+"_1"){first=o;break;}
+        Check(first!=null,"An existing campaign survey has a physical first-stage site");
+        Point original=new Point(first.x,first.y);
+        for(int stage=1;stage<=3;stage++)
+            g.save.flags.Remove("trail_circuit_"+room+"_"+stage);
+        try
+        {
+            bool found=false;
+            for(int radius=3;radius<=12&&!found;radius++)
+                for(int dx=-radius;dx<=radius&&!found;dx++)
+                    for(int dy=-radius;dy<=radius;dy++)
+                    {
+                        if(Math.Abs(dx)!=radius&&Math.Abs(dy)!=radius)continue;
+                        Point p=new Point((float)Math.Floor(g.Position.x)+dx+.5f,
+                            (float)Math.Floor(g.Position.y)+dy+.5f);
+                        if(p.x<2||p.y<2||p.x>=g.Map.rows[0].Length-2||
+                           p.y>=g.Map.rows.Length-2||!g.CanStand(p)||
+                           g.InspectLocalWaymark(p)!=WaymarkRouteStatus.Available)
+                            continue;
+                        first.x=p.x;first.y=p.y;
+                        if(g.GetQuest("trail_circuits").room==room)
+                        {found=true;break;}
+                    }
+            Check(found,"The real first-stage marker has an authentic local physical approach");
+            g.TrackQuest("trail_circuits");
+            g.mode="journal";
+            Check(g.PlaceQuestApproachWaymark("trail_circuits")&&
+                g.QuestApproachNavigationActive,
+                "Player explicitly enables quest navigation while locally tracking the field survey");
+            int coin=g.save.coins,shards=g.save.shards;
+            g.mode="world";
+            for(int stage=1;stage<=3;stage++)
+                g.save.flags.Add("trail_circuit_"+room+"_"+stage);
+            QuestGuide next=g.GetQuest("trail_circuits");
+            Check(!next.complete&&!next.locked&&next.room!=room&&
+                g.CanEnter(next.room),
+                "Original authored quest turns into an unlocked distant objective after the regional survey");
+            for(int i=0;i<28;i++)g.Tick(.05f,new Point());
+            Check(g.QuestApproachTravelHandoffPending&&!g.HasLocalWaymark&&
+                g.save.trackedQuest=="trail_circuits",
+                "Auto-follow converts the stale local pin into cross-region navigation when the next stage changes region");
+            int destination=next.room;
+            g.Enter(destination);
+            Check(g.save.room==destination&&
+                g.save.trackedQuest=="trail_circuits",
+                "Travel occurs through the real region transition without retargeting a saved quest");
+            if(g.HasLocalWaymark)
+                Check(g.QuestApproachNavigationActive&&
+                    !g.QuestApproachTravelHandoffPending&&
+                    g.InspectLocalWaymark(g.LocalWaymark.Value)==WaymarkRouteStatus.Available,
+                    "Authoritative destination route pins only physically walkable quest approach");
+            else Check(g.QuestApproachTravelHandoffPending,
+                "A still-sealed destination retains only pending navigation, not a fictional route");
+            Check(g.save.version==2&&g.save.coins==coin&&g.save.shards==shards,
+                "Regional quest-follow never grants loot or migrates SaveData");
+        }
+        finally{first.x=original.x;first.y=original.y;}
+        g.Close();
+        Console.WriteLine("PASS Tracked multi-region quest stage follows genuine regional gates and verifies new destination approach");
+    }
+
     private static void QuestStageClosureDoesNotAdvertiseStaleArrivalAndRecovers(
         FrontierRuntime app)
     {
@@ -8319,7 +8391,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestStageClosureDoesNotAdvertiseStaleArrivalAndRecovers, QuestApproachAtContactShowsInteractionAndKeepsAutoFollow, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, TrackedQuestAutoFollowSurvivesRealCrossRegionStageChange, QuestStageClosureDoesNotAdvertiseStaleArrivalAndRecovers, QuestApproachAtContactShowsInteractionAndKeepsAutoFollow, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,

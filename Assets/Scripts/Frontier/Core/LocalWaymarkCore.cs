@@ -304,11 +304,36 @@ namespace Starfall
             if(fromQuest)
             {
                 QuestGuide current=GetQuest(localWaymarkQuestId);
-                if(current.locked||current.complete||current.room!=save.room)
+                if(current.locked||current.complete)
                 {
                     ResetLocalWaymark();revision++;
-                    Notify("任务已完成或转移至其他地区，已清除旧任务导航。",
-                        "Quest completed or moved to another region; old quest navigation cleared.");
+                    Notify("任务已完成，旧任务导航已清除。",
+                        "Quest complete; its old navigation route has been cleared.");
+                    return;
+                }
+                if(current.room!=save.room)
+                {
+                    // A tracked quest can legitimately finish a stage here
+                    // and continue in another open region. Carry the same
+                    // explicit quest-follow ownership through real portals,
+                    // then inspect a NEW physical approach on arrival.
+                    // An independently pinned untracked quest never silently
+                    // becomes the active cross-region compass.
+                    if(save.trackedQuest==localWaymarkQuestId&&
+                        current.room>=0&&current.room<data.maps.Length&&
+                        CanEnter(current.room))
+                    {
+                        string continuingQuest=localWaymarkQuestId;
+                        QueueTravelQuestApproach(continuingQuest);
+                        Notify("当前阶段已经结束。沿开放的地区入口继续任务，抵达后将重新规划可行走路线。",
+                            "This quest stage is complete. Take an open crossing; its walking approach will update on arrival.");
+                    }
+                    else
+                    {
+                        ResetLocalWaymark();revision++;
+                        Notify("任务已转移到其他地区，旧的本地接近点已取消。",
+                            "Quest moved to another region; old local approach cleared.");
+                    }
                     return;
                 }
                 // Timed missions can return to a previous physical
