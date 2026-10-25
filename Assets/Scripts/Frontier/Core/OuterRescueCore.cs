@@ -106,11 +106,15 @@ namespace Starfall
                     (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here."+(OuterSignalRouteReady?"\n\nThe roadwardens posted a new cart schedule. Their couriers travel between repaired lamps.":""):
                         "\n\nOne spare part is missing from the socket. Repair it, and the relief chest directly south of here can be claimed.");
                 if(recorded)
-                    Dialog(titleZh,titleEn,noteZh,noteEn,
+                    Dialog(titleZh,titleEn,noteZh+
+                            "\n\n如果需要重新包扎伤口，可以花一捆木材在灯下支起短时挡风棚；巡路员会在你休整时替你守着道路。",
+                        noteEn+
+                            "\n\nA bundle of timber will hold a windbreak beside the lamp long enough to dress wounds. The roadwardens can watch the path while you rest.",
+                        C("搭棚休整 · 木材×1","Rest under the signal · 1 timber",
+                            "outer_signal_rest"),
                         C("查看修复的救援灯路网","Travel repaired rescue-light routes",
                             "outer_signal_routes"),
-                        C("保持信号畅通","Keep the signal burning","close"),
-                        C("稍后再来","Return later","close"));
+                        C("继续赶路","Keep moving","close"));
                 else
                     Dialog(titleZh,titleEn,noteZh,noteEn,
                         C("维修信号灯 · 零件×1","Repair signal · 1 spare part","outer_repair"),
@@ -328,6 +332,46 @@ namespace Starfall
         private bool ChooseOuterRescue(string action)
         {
             if(ChooseOuterSignalRoads(action))return true;
+            if(action=="outer_signal_rest")
+            {
+                // A prior world conversation does not authorize remote
+                // resting or a free time skip after its source vanishes.
+                // Choose() has closed the menu but retains the exact source
+                // for this one transaction. Do not trust kind/id alone.
+                WorldObject source=pendingDialogueSource;
+                bool authentic=source!=null&&source.kind=="outerrelay"&&
+                    SourceBelongsToActiveMap(source)&&
+                    HasPhysicalInteractionReach(source)&&
+                    CanUseOuterSignalRoads();
+                if(!authentic)
+                {
+                    Notify("要在修复的求援灯旁、未被阻隔的位置才能搭棚。",
+                        "Reach the real restored signal on open ground before making camp.");
+                    return true;
+                }
+                if(save.inventory[0]<1)
+                {
+                    Notify("没有足够的木材支起挡风棚。",
+                        "You need one timber to set up the windbreak.");
+                    return true;
+                }
+                // Spend exactly once AFTER source/combat/mission validation.
+                // Share the same temporal cleanup used by the original
+                // oasis, brazier and camp rest. The real tide advances too.
+                if(!Spend(1,0,0,0,0))return true;
+                ResolveRestTimeSkip(12f);
+                save.health=Math.Min(save.maxHealth,save.health+24f);
+                save.energy=Math.Min(100f,save.energy+34f);
+                if(save.room==6)
+                    save.heat=Math.Max(0f,save.heat-28f);
+                if(save.room==7)
+                    save.cold=Math.Max(0f,save.cold-28f);
+                effects.Add(new Effect("heal",Position,.7f));
+                sound="reward";revision++;
+                Notify("挡风棚已收好：伤口得到包扎，体力恢复，时间前进12秒。",
+                    "Signal-side rest complete: wounds dressed, energy restored, twelve seconds passed.");
+                return true;
+            }
             if(action!="outer_repair")return false;
             if(save.room<0||save.room>=8||Dying||practicing||
                 !OuterLogFound(save.room)||OuterRelayRestored(save.room))return true;

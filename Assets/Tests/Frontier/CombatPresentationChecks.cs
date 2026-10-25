@@ -4195,6 +4195,95 @@ namespace Starfall.Tests
             finally{map.rows=originalRows;}
         }
 
+
+        public static void RescueSignalsOfferActualCostedFieldRestAcrossLegacySaves(Campaign data)
+        {
+            // Use the REAL map lamp and normal dialogue/Choose handler.
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("outer_log_0");g.save.flags.Add("outer_relay_0");
+            var mast=Object(g,"outerrelay");
+            g.save.x=mast.x;g.save.y=mast.y;
+            g.save.inventory[0]=3;
+            g.save.health=35;g.save.energy=22;g.save.heat=0;g.save.cold=0;
+            g.save.totalTime=80f;
+            g.Talk(mast);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            Check(action>=0,"An actually repaired lamp offers its explicit timber-priced respite");
+            g.Choose(action);
+            Check(g.mode=="world"&&g.save.inventory[0]==2&&
+                Math.Abs(g.save.totalTime-92f)<.001f&&
+                Math.Abs(g.save.health-59f)<.001f&&
+                Math.Abs(g.save.energy-56f)<.001f&&
+                g.effects.Exists(f=>f.kind=="heal"),
+                "Real lamp rest spends one timber and advances the authentic twelve-second world clock with exactly 24 HP, 34 energy and visible healing");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));
+            saved.Close();saved.enemies.Clear();
+            Check(saved.save.version==2&&saved.OuterRelayRestored(0)&&
+                saved.save.inventory[0]==2&&
+                saved.save.health>=59f&&saved.save.totalTime==92f,
+                "Old SaveData v2 stores actual spent supplies and gains without a new rest field or free re-award");
+            g.save.inventory[0]=0;g.save.health=35;g.save.energy=22;
+            float time=g.save.totalTime;
+            g.Talk(mast);
+            action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            Check(action>=0,"Existing in-world rest dialogue remains visible when timber is missing");
+            g.Choose(action);
+            Check(g.save.inventory[0]==0&&g.save.totalTime==time&&
+                g.save.health==35&&g.save.energy==22,
+                "Without real timber no field time, recovery or phantom inventory transaction occurs");
+            g.save.flags.Remove("outer_relay_0");
+            g.Talk(mast);
+            Check(g.conversation!=null&&Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest")<0,
+                "A dark signal never offers a camp action that bypasses its original one-part repair");
+        }
+
+        public static void RescueSignalRestCannotBypassPhysicalCombatOrTimedFieldwork(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("outer_log_0");g.save.flags.Add("outer_relay_0");
+            WorldObject mast=Object(g,"outerrelay");
+            g.save.x=mast.x;g.save.y=mast.y;g.save.inventory[0]=5;
+            g.save.health=33;g.save.energy=29;g.save.totalTime=41f;
+            var enemy=new Enemy(99317,0,mast.x+1f,mast.y,80)
+                {stun=100,timer=100};
+            g.Talk(mast);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            Check(action>=0,"Lamp initially offers rest before genuine hostile arrival");
+            g.enemies.Add(enemy);
+            g.Choose(action);
+            Check(g.save.room==0&&g.save.inventory[0]==5&&
+                g.save.totalTime==41f&&g.save.health==33,
+                "Actual enemy arrival prevents paid time skips and recovery after a cached menu choice");
+            g.enemies.Clear();
+            g.Talk(mast);
+            action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            g.save.x=mast.x+10f;g.save.y=mast.y;
+            g.Choose(action);
+            Check(g.save.inventory[0]==5&&g.save.totalTime==41f,
+                "Leaving the original interacting light invalidates a stale camp choice");
+            g.save.x=mast.x;g.save.y=mast.y;
+            // Reuse the existing real outer-patrol active mission state.
+            // Even between waves a protected stock timer must not skip.
+            SetOuterPatrolLull(g,0);
+            g.Talk(mast);
+            action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            Check(action>=0,"A previously opened source retains its real dialogue");
+            g.Choose(action);
+            Check(g.save.inventory[0]==5&&g.save.totalTime==41f&&
+                g.save.health==33,
+                "Live stock-defense fieldwork prevents 12-second camping exploits");
+            ClearOuterPatrolLull(g);
+            Check(g.save.version==2,
+                "Rejecting unsafe camp choices never mutates the save schema");
+        }
+
         public static void RepairedSignalsOpenActualSafeTwoEndpointCourierRoads(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();
