@@ -219,10 +219,11 @@ namespace Starfall
             if(quest==null||quest.locked||quest.complete)return false;
             if(quest.room!=save.room)
             {
-                // The journal can request a remote follow only for its
-                // currently tracked, physically unlocked region. This is an
-                // explicit pin takeover, not an automatic quest selection.
-                if(mode!="journal"||save.trackedQuest!=questId||
+                // The journal OR the authenticated, inspected world map
+                // may request a distant follow. Only a currently tracked
+                // unlocked quest can take over the route, and the actual
+                // button must be explicitly pressed: browsing never does.
+                if(save.trackedQuest!=questId||
                     quest.room<0||quest.room>=data.maps.Length||
                     !CanEnter(quest.room))return false;
                 QueueTravelQuestApproach(questId);
