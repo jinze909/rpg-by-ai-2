@@ -208,8 +208,20 @@ namespace Starfall
                 string.IsNullOrEmpty(questId)||
                 Array.IndexOf(QuestIds,questId)<0)return false;
             QuestGuide quest=GetQuest(questId);
-            if(quest==null||quest.locked||quest.complete||
-                quest.room!=save.room)return false;
+            if(quest==null||quest.locked||quest.complete)return false;
+            if(quest.room!=save.room)
+            {
+                // The journal can request a remote follow only for its
+                // currently tracked, physically unlocked region. This is an
+                // explicit pin takeover, not an automatic quest selection.
+                if(mode!="journal"||save.trackedQuest!=questId||
+                    quest.room<0||quest.room>=data.maps.Length||
+                    !CanEnter(quest.room))return false;
+                QueueTravelQuestApproach(questId);
+                Notify("已接续跨地区任务路线。先经过开放的路口，抵达目标地区后再核验步行接近点。",
+                    "Remote quest route selected. Take an open crossing; a walkable approach will be checked on arrival.");
+                return true;
+            }
             Point approach;
             if(!TryQuestApproachFoot(quest.target,out approach))
             {

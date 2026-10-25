@@ -470,6 +470,10 @@ namespace Starfall
             if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
+            else if(Game.QuestApproachTravelHandoffPending)
+                Text(1024,178,166,12,
+                    Game.L("跨区任务 · 到达后接续","REMOTE QUEST · AUTO-ROUTE"),
+                    9,mint,TextAnchor.MiddleCenter);
             else if(Game.PersonalNavigationActive)
                 Text(1024,178,166,12,
                     Game.QuestApproachNextStageBlocked?
@@ -950,14 +954,22 @@ namespace Starfall
             // One-tap local navigation from the actual journal selection.
             // The core validates current eligibility and rechecks walking
             // collision only on click, never on every IMGUI repaint.
+            bool inRegion=q.room==Game.save.room;
+            bool canFollow=!q.locked&&!q.complete&&
+                (inRegion||(q.id==Game.save.trackedQuest&&
+                    q.room>=0&&q.room<Game.data.maps.Length&&
+                    Game.CanEnter(q.room)));
             if(Button(650,693,540,32,
-                Game.L(Game.HasLocalWaymark?
-                    "替换个人标记：导航至本地区任务接近点":
-                    "导航至本地区任务接近点",
-                    Game.HasLocalWaymark?
-                    "REPLACE PIN · ROUTE TO LOCAL QUEST":
-                    "PIN ROUTE TO LOCAL QUEST"),false,
-                !q.locked&&!q.complete&&q.room==Game.save.room))
+                inRegion?
+                    Game.L(Game.HasLocalWaymark?
+                        "替换个人标记：导航至本地区任务接近点":
+                        "导航至本地区任务接近点",
+                        Game.HasLocalWaymark?
+                        "REPLACE PIN · ROUTE TO LOCAL QUEST":
+                        "PIN ROUTE TO LOCAL QUEST"):
+                    Game.L("跟随跨地区任务 · 到达后接续步行路线",
+                        "FOLLOW REMOTE QUEST · AUTO-ROUTE ON ARRIVAL"),
+                false,canFollow))
                 Game.PlaceQuestApproachWaymark(q.id);
         }
         private void DrawMap()
