@@ -66,6 +66,8 @@ namespace Starfall
                     mapTileCursor.Cancel();
                 else
                 {
+                    if(PadDown(0)||PadDown(1)||PadDown(4)||PadDown(5))
+                        controllerUsed=true;
                     if(Input.GetKeyDown(KeyCode.Escape)||PadDown(1))
                     {mapTileCursor.Cancel();return;}
                     if(Input.GetKeyDown(KeyCode.Return)||
@@ -75,11 +77,18 @@ namespace Starfall
                             mapTileCursor.Cancel();
                         return;
                     }
+                    // Six-tile map jumps prevent 120x80 annex navigation
+                    // becoming hundreds of mandatory d-pad taps. Shoulders
+                    // scroll vertically; Shift+arrows works without a pad.
+                    int jump=Input.GetKey(KeyCode.LeftShift)||
+                        Input.GetKey(KeyCode.RightShift)?6:1;
                     int moveX=0,moveY=0;
-                    if(Input.GetKeyDown(KeyCode.LeftArrow))moveX--;
-                    if(Input.GetKeyDown(KeyCode.RightArrow))moveX++;
-                    if(Input.GetKeyDown(KeyCode.UpArrow))moveY--;
-                    if(Input.GetKeyDown(KeyCode.DownArrow))moveY++;
+                    if(Input.GetKeyDown(KeyCode.LeftArrow))moveX-=jump;
+                    if(Input.GetKeyDown(KeyCode.RightArrow))moveX+=jump;
+                    if(Input.GetKeyDown(KeyCode.UpArrow))moveY-=jump;
+                    if(Input.GetKeyDown(KeyCode.DownArrow))moveY+=jump;
+                    if(PadDown(4))moveY-=6;
+                    if(PadDown(5))moveY+=6;
                     float mapAxisX=Input.GetAxisRaw("Debug Horizontal"),
                         mapAxisY=Input.GetAxisRaw("Debug Vertical");
                     if(Math.Abs(mapAxisX)<.5f&&Math.Abs(mapAxisY)<.5f)
@@ -98,6 +107,25 @@ namespace Starfall
                     }
                     return;
                 }
+            }
+            // R / gamepad Y repositions an existing pin WITHOUT clearing
+            // it first. Canceled or physically blocked edits retain the old
+            // destination and its route; only explicit confirm commits.
+            if(Game.mode=="map"&&selectedRegion==Game.save.room&&
+                (Input.GetKeyDown(KeyCode.R)||PadDown(3)))
+            {
+                if(PadDown(3))controllerUsed=true;
+                MapData current=Game.Map;
+                if(current!=null&&current.rows!=null&&
+                    current.rows.Length>0&&current.rows[0]!=null)
+                {
+                    Point start=Game.LocalWaymark.HasValue?
+                        Game.LocalWaymark.Value:Game.Position;
+                    mapTileCursor.Begin(start,current.rows[0].Length,
+                        current.rows.Length);
+                    navigationRepeat=0f;
+                }
+                return;
             }
             if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
             if (PadDown(0) || PadDown(1) || PadDown(4) || PadDown(5) || PadDown(7)) controllerUsed = true;

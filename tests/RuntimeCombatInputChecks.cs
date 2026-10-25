@@ -4015,6 +4015,84 @@ public static class RuntimeCombatInputChecks
     }
 
 
+
+    private static void MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.enemies.Clear();game.projectiles.Clear();
+        game.save.english=true;game.mode="map";
+        Set(app,"selectedRegion",game.save.room);
+        Point original=new Point(
+            (float)Math.Floor(game.Position.x)+.5f,
+            (float)Math.Floor(game.Position.y)+.5f);
+        Check(game.PlaceLocalWaymark(original),
+            "A real original local pin can be placed before testing re-pin controls");
+        int flags=game.save.flags.Count;
+        Input.keys.Add(KeyCode.R);Update(app);
+        var f=typeof(FrontierRuntime).GetField("mapTileCursor",Private);
+        MapTileCursor cursor=(MapTileCursor)f.GetValue(app);
+        Check(cursor.Active&&(cursor.Destination-original).Length<.001f&&
+            game.HasLocalWaymark,
+            "R opens a physical tile editor at the previous pin without destroying that destination");
+        Point before=cursor.Destination;
+        Input.held.Add(KeyCode.LeftShift);
+        Input.keys.Add(KeyCode.RightArrow);Update(app);
+        Input.held.Clear();
+        Point jumped=cursor.Destination;
+        int maxX=game.Map.rows[0].Length-1;
+        Check(Math.Abs(jumped.x-(Math.Min(maxX,(int)before.x+6)+.5f))<.001f,
+            "Shift+Right jumps six bounded map tiles rather than one tiny step");
+        Input.keys.Add(KeyCode.JoystickButton4);Update(app);
+        Point shoulder=cursor.Destination;
+        Check(Math.Abs(shoulder.y-(Math.Max(0,(int)jumped.y-6)+.5f))<.001f,
+            "Gamepad LB rapidly moves the selected physical tile vertically");
+        Input.keys.Add(KeyCode.JoystickButton1);Update(app);
+        Check(!cursor.Active&&game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-original).Length<.001f,
+            "Canceling a moved map cursor never discards the previous player route");
+        Input.keys.Add(KeyCode.JoystickButton3);Update(app);
+        Check(cursor.Active&&(cursor.Destination-original).Length<.001f,
+            "Gamepad Y opens the same editor at the still-existing original destination");
+        cursor.Move(2,0);
+        Point blocked=cursor.Destination;
+        int bx=(int)blocked.x,by=(int)blocked.y;
+        string[] rows=game.Map.rows;
+        char[] row=rows[by].ToCharArray();
+        try
+        {
+            row[bx]='#';rows[by]=new string(row);
+            Input.keys.Add(KeyCode.JoystickButton0);Update(app);
+            Check(cursor.Active&&game.HasLocalWaymark&&
+                (game.LocalWaymark.Value-original).Length<.001f,
+                "An invalid re-pin confirmation must leave the last usable route intact");
+        }
+        finally
+        {
+            row[bx]=game.Map.rows[by][bx]=='#'?'.':row[bx];
+            rows[by]=new string(row);
+        }
+        cursor.Move(-2,0);
+        Point second=new Point();bool found=false;
+        for(int dy=-4;dy<=4&&!found;dy++)
+        for(int dx=-4;dx<=4&&!found;dx++)
+        {
+            Point candidate=original+new Point(dx,dy);
+            if((candidate-original).Length<.1f||
+                game.InspectLocalWaymark(candidate)!=WaymarkRouteStatus.Available)continue;
+            second=candidate;found=true;
+        }
+        Check(found,"The real map has a different reachable destination for a successful edit");
+        cursor.Move((int)(second.x-original.x),(int)(second.y-original.y));
+        Input.keys.Add(KeyCode.JoystickButton0);Update(app);
+        Check(!cursor.Active&&game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-second).Length<.001f&&
+            game.save.flags.Count==flags&&game.save.version==2,
+            "A second real pin commits once without an intervening clear or story/save mutation");
+        game.Close();
+        Console.WriteLine("PASS R/Y re-pin, keyboard rapid map travel, LB scrolling, cancel/reject preservation and valid replacement");
+    }
+
     private static void LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache(FrontierRuntime app)
     {
         Prepare(app);
@@ -6841,7 +6919,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
