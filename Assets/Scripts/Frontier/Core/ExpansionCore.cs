@@ -54,12 +54,12 @@ namespace Starfall
         private int companionBlockedRouteGeneration=-1;
         private int companionBlockedRouteGoalCell=-1;
         private float companionBlockedRouteRetry;
-        private bool companionBlockedAtFrontier;
+        private bool companionUnreachableGoal;
         public bool CompanionRouteBlocked
         {
             get
             {
-                return companionBlockedAtFrontier&&
+                return companionUnreachableGoal&&
                     companionBlockedRouteRetry>0f&&
                     save!=null&&save.companion>=0&&
                     !CompanionHoldingPosition&&!practicing&&
@@ -839,7 +839,7 @@ namespace Starfall
                 CompanionFollowSegmentClear(companionPosition,next);
             if(actorStepClear)
             {
-                companionBlockedAtFrontier=false;
+                companionUnreachableGoal=false;
                 // A newly opened doorway or a moving target can make the
                 // direct route preferable; do not keep steering toward an
                 // obsolete cached detour.
@@ -887,7 +887,7 @@ namespace Starfall
                     if(adjacent&&CompanionFollowSegmentClear(
                         companionPosition,first))
                     {
-                        companionBlockedAtFrontier=false;
+                        companionUnreachableGoal=false;
                         waypoint=first;
                         return true;
                     }
@@ -960,7 +960,11 @@ namespace Starfall
                 companionBlockedRouteGeneration=companionPresentationGeneration;
                 companionBlockedRouteGoalCell=goalCell;
                 companionBlockedRouteRetry=.55f;
-                companionBlockedAtFrontier=best==start;
+                // Even while walking toward the nearest reachable
+                // frontier, the actual requested formation goal was proven
+                // unreachable. Keep the user's truthful route warning until
+                // a real traversable path exists.
+                companionUnreachableGoal=true;
                 if(best!=start)found=best;
                 else
                 {
@@ -970,7 +974,7 @@ namespace Starfall
                     return true;
                 }
             }
-            else companionBlockedAtFrontier=false;
+            else companionUnreachableGoal=false;
 
             var reversed=new List<Point>();
             int cursor=found;

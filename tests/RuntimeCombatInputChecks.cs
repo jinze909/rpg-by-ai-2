@@ -4544,7 +4544,7 @@ public static class RuntimeCombatInputChecks
         set("companionBlockedRouteRoom",g.save.room);
         set("companionBlockedRouteGeneration",g.companionPresentationGeneration);
         set("companionBlockedRouteRetry",.55f);
-        set("companionBlockedAtFrontier",true);
+        set("companionUnreachableGoal",true);
         Check(g.CompanionRouteBlocked,
             "The real-world warning binds only to the currently saved owner, map and physical companion");
         GUI.commands.Clear();Call(app,"OnGUI");
@@ -4554,7 +4554,7 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("前方道路不通")&&s.Contains("请绕行")),
             "The same real world companion has a readable Chinese instruction");
-        set("companionBlockedAtFrontier",false);
+        set("companionUnreachableGoal",false);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(s=>s.Contains("前方道路不通")),
             "The world cue immediately disappears when the real route opens again");
