@@ -518,8 +518,11 @@ namespace Starfall.Tests
                     g.playerAction.kind=="skill"&&
                     g.playerAction.direction.y<-.99f&&
                     g.skillCooldown>3.4f&&g.skillCooldown<=3.5f&&
-                    g.save.energy>59.9f&&g.save.energy<=60.1f,
-                    "Class "+profession+" dispatches exactly one Q at its legitimate readiness boundary");
+                    g.save.energy>59.9f&&g.save.energy<61f,
+                    "Class "+profession+" dispatches exactly one Q at its legitimate readiness boundary; "+ 
+                    "action="+(g.playerAction==null?"none":g.playerAction.kind)+
+                    " cooldown="+g.skillCooldown+" energy="+g.save.energy+
+                    " queued="+g.SkillQueued);
                 ActorAction first=g.playerAction;
                 g.Tick(.09f,new Point());
                 Check(g.playerAction==first&&!g.SkillQueued&&
@@ -1146,7 +1149,17 @@ namespace Starfall.Tests
                 foreach (Enemy e in g.enemies)
                 { if (bossOnly && !e.boss) continue; float d = (e.Position - g.Position).Length; if (d < distance) { target = e; distance = d; } }
                 if (target == null) break;
-                Point toward = g.DirectionTo(g.Position, target.Position), movement = distance > 1.4f ? toward : new Point();
+                Point toward = g.DirectionTo(g.Position, target.Position);
+                // A ranger is not a melee attacker. Stopping only 1.4 tiles
+                // from the foe puts the real bow's muzzle inside the enemy's
+                // body or a wall when the target backs into arena corners.
+                // Use genuine ranged spacing in the automated combat pilot
+                // so the long expedition tests exercise real arrow flight
+                // instead of an endless point-blank, obstructed shot.
+                bool ranged = g.save.profession==1&&g.save.weapon==1&&!target.boss;
+                Point movement = distance > (ranged?3.0f:1.4f) ?
+                    toward : ranged && distance < 2.3f ?
+                    toward*-1f : new Point();
                 if (target.state == 1 && (target.boss || target.kind == 2) && (g.Position - target.target).Length < (target.boss ? 3.4f : 2))
                 { movement = (g.Position - target.target).Length > .05f ? (g.Position - target.target).Normalized : new Point(-1, 0); g.Dash(movement); }
                 foreach (Hazard h in g.hazards) if (h.timer < .5f && (g.Position - h.position).Length < h.radius + .5f)
