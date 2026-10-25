@@ -3262,11 +3262,36 @@ namespace Starfall
                         "swordlesson_veteran_start"));
                 }
                 list.Add(C("再见", "Goodbye", "close"));
-                Dialog(o.name, o.en, "短剑快，猎弓远，法杖能让星火在敌人间爆开。强化装备提升生命与攻击。\n\n我还需要五个零件修好镇里的水泵。堡垒里有那么多机器，小镇却没有一口能用的井。"+(MineConvoyComplete?"\n\n最后一班矿工安全归来，还带回能再次使用的木材；每次装备强化已额外节省一份木料。":"")+
-                    (save.profession==0&&save.weapon==0?"\n\n战士的Q技能会举起剑盾；正面迎接飞箭，消耗"+SwordGuardArrowEnergy+"耐力可弹回。正面挡下敌人的近身扑击则需"+SwordGuardMeleeEnergy+"耐力，并获得一次强化反击；侧后方和冷却期间只有通常的减伤效果。":""),
-
-                    "Swords are quick, bows reach far, and staves burst starfire between enemies. Upgrades improve health and damage.\n\nI also need five parts to repair our water pump. So many machines in the citadel, and no working well in town."+(MineConvoyComplete?"\n\nThe rescued miners brought reusable timber home. Every equipment upgrade now needs one less timber.":"")+
-                    (save.profession==0&&save.weapon==0?"\n\nYour Q raises a sword guard: face arrows to reflect them for 7 energy, or parry a frontal melee lunge for 9 energy and a powered riposte. Rear hits and contacts during cooldown only receive ordinary guard mitigation.":""), list.ToArray()); return;
+                // Noll is still a smith after the commission ends.
+                // Keep his repair story and his equipment lessons tied to
+                // the completed pump, rescued miners and live sword skills.
+                bool pumpWorking=Has("ally_3");
+                string forgeZh=pumpWorking?
+                    "诺尔从铁砧上拿起一枚磨平的垫圈，放进窗边的小木盒。\n\n“水泵今天没再漏。孩子们终于不用抬着桶去旧井排队了。你送来的零件，我挑好的都装上了；剩下的拿来修剑，别让它们生锈。”":
+                    save.inventory[4]>=5?
+                    "诺尔从水泵壳里探出头，手背沾着黑油。\n\n“五个零件都找齐了？放在这里。等我换好轴承，井水就能送到街口。”":
+                    "铁匠铺里只有半台拆开的水泵。诺尔用指节敲了敲裂开的轴承。\n\n“我还差五个零件。堡垒的机器一刻不停，咱们镇里连井水都打不上来。先帮我把泵修了，好吗？”";
+                string forgeEn=pumpWorking?
+                    "Noll drops a polished washer into a little box by the window.\n\n“The pump held all morning. Kids don't have to queue at the old well with buckets now. Your parts went into the bearings. Bring me any spares for your gear.”":
+                    save.inventory[4]>=5?
+                    "Noll pokes his head out of the dismantled pump, black grease on his wrist.\n\n“All five parts? Put them here. Once I replace the bearing, water can reach the street again.”":
+                    "Half a dismantled pump takes up the forge floor. Noll taps its split bearing with one knuckle.\n\n“Still five parts short. The citadel keeps its machines running while our town can't draw water. Help me fix this one first?”";
+                if(MineConvoyComplete)
+                {
+                    forgeZh+="\n\n诺尔把一根旧矿梁推到工作台上。“矿工平安回来，还把好木头带回了镇上。以后每次强化，我能少收你一份木材。”";
+                    forgeEn+="\n\nNoll rolls a salvaged mine beam onto the bench. “The miners made it home with good timber. One less plank for every upgrade from now on.”";
+                }
+                else
+                {
+                    forgeZh+="\n\n“短剑出手快，弓能在远处挡人，星火杖适合对付扎堆的敌人。要强化哪件，指给我看。”";
+                    forgeEn+="\n\n“Swords move fast. A bow buys distance. A starfire staff punishes enemies standing together. Show me what you want strengthened.”";
+                }
+                if(save.profession==0&&save.weapon==0)
+                {
+                    forgeZh+="\n\n他抬起木盾比了个正面格挡的姿势。“按Q迎箭，要留"+SwordGuardArrowEnergy+"点耐力；挡近身扑击得留"+SwordGuardMeleeEnergy+"点。看准正面出手，背后挨打可弹不开。”";
+                    forgeEn+="\n\nHe raises a practice shield. “Face the arrow and press Q; keep "+SwordGuardArrowEnergy+" energy for the deflection. A close lunge costs "+SwordGuardMeleeEnergy+". Your back can't parry for you.”";
+                }
+                Dialog(o.name,o.en,forgeZh,forgeEn,list.ToArray()); return;
             }
             if (kind == "cook") { Dialog(o.name, o.en, "暖潮炖汤：鱼1、药草2。回复"+StewHealing+"生命与耐力，增加攻击"+(int)StewBuffSeconds+"秒。F喝汤。"+(PublicFishKitchenStocked?"\n\n湖畔公共厨房已经恢复供应，所有炖汤都比过去更耐用。":"")+"\n\n星薄荷凉茶：药草2、星晶1。T喝茶，抗暑抗寒并增加耐力回复180秒。", "Stew: 1 fish, 2 herbs. Heals "+StewHealing+", refills energy and boosts damage for "+(int)StewBuffSeconds+" seconds. F drinks it."+(PublicFishKitchenStocked?"\n\nOld Tide's public kitchen is supplied again; all Tide stew goes further now.":"")+"\n\nTea: 2 herbs, 1 crystal. T drinks it for climate protection and faster energy recovery, 180 seconds.", C("制作炖汤", "Cook stew", "cook"), C("买炖汤 · " + ShopStewCost + " 硬币", "Buy stew · " + ShopStewCost + " coins", "buymeal"), C("买木材 ×4 · " + ShopTimberCost + " 硬币", "Buy timber ×4 · " + ShopTimberCost + " coins", "buywood"), C("制作凉茶", "Brew tea", "tea"), C("再见", "Goodbye", "close")); return; }
             if (kind == "scout")
