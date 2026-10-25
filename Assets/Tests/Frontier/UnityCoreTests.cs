@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void EightPhysicalSignalCampsReallyAdvanceTimeAndRelieveClimate() { CoreChecks.LiveEightRegionSignalCampsSpendMaterialsOnlyOnAuthenticRest(Data()); }
+        [Test] public void RealIncomingEnemyArrowBlocksWoodCampTimeSkipUntilGone() { CoreChecks.LampRestExposesNoFreeTimeSkipDuringRealHostileFlight(Data()); }
         [Test] public void RepairedLampsSpendRealTimberForTwelveSecondCampRecovery() { CoreChecks.RescueSignalsOfferActualCostedFieldRestAcrossLegacySaves(Data()); }
         [Test] public void SignalCampRejectsEnemyArrivalsStaleDistanceAndLiveMission() { CoreChecks.RescueSignalRestCannotBypassPhysicalCombatOrTimedFieldwork(Data()); }
         [Test] public void SignalAndProtectedRoutesLandWithActualLivingCompanions() { CoreChecks.CourierAndProtectedOutpostRoutesLandActualCompanionsSafely(Data()); }

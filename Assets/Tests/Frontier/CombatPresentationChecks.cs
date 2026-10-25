@@ -4196,6 +4196,93 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void LiveEightRegionSignalCampsSpendMaterialsOnlyOnAuthenticRest(Campaign data)
+        {
+            // Exercise every shipped mast, not a flat geometry surrogate:
+            // direct room load here mirrors existing regional fixture tests.
+            for(int room=0;room<8;room++)
+            {
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.room=room;g.save.flags.Add("outer_log_"+room);
+                g.save.flags.Add("outer_relay_"+room);
+                var mast=Object(g,"outerrelay");
+                g.save.x=mast.x;g.save.y=mast.y;
+                g.save.inventory[0]=2;
+                g.save.health=45f;g.save.energy=20f;
+                g.save.heat=room==6?70f:0f;
+                g.save.cold=room==7?75f:0f;
+                float oldHeat=g.save.heat,oldCold=g.save.cold;
+                float beforeTime=g.save.totalTime;
+                Check(g.CanStand(g.Position)&&g.OuterSignalCampReady,
+                    "Every genuine regional light allows a physical material-backed safe camp");
+                g.Talk(mast);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The real map signal opens a live source-bound field menu");
+                int action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_signal_rest");
+                Check(action>=0,
+                    "All eight restored rescue lights expose the same field-rest affordance");
+                g.Choose(action);
+                Check(g.save.inventory[0]==1&&
+                    Math.Abs(g.save.totalTime-beforeTime-12f)<.001f&&
+                    Math.Abs(g.save.health-69f)<.001f&&
+                    Math.Abs(g.save.energy-54f)<.001f&&
+                    g.save.version==2,
+                    "Actual rest in each region has one part-cost, twelve-second time jump and fixed physical recovery");
+                Check(room!=6||Math.Abs(g.save.heat-oldHeat+28f)<.001f,
+                    "Desert camp provides exactly the earned 28 heat relief, not global heat immunity");
+                Check(room!=7||Math.Abs(g.save.cold-oldCold+28f)<.001f,
+                    "Alpine camp provides exactly the earned 28 cold relief, not global cold immunity");
+                Check(room==6||Math.Abs(g.save.heat-oldHeat)<.001f,
+                    "Non-desert signals do not silently change heat scores");
+                Check(room==7||Math.Abs(g.save.cold-oldCold)<.001f,
+                    "Non-alpine signals do not silently change cold scores");
+                // Each region's genuine repaired flag persists in v2.
+                Check(g.OuterRelayRestored(room)&&
+                    g.save.flags.Contains("outer_relay_"+room),
+                    "Field rest never spends, unrepairs or double-awards a rescued light");
+            }
+        }
+
+        public static void LampRestExposesNoFreeTimeSkipDuringRealHostileFlight(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("outer_log_0");g.save.flags.Add("outer_relay_0");
+            var mast=Object(g,"outerrelay");
+            g.save.x=mast.x;g.save.y=mast.y;
+            g.save.health=60f;g.save.energy=45f;
+            g.save.inventory[0]=2;
+            g.save.totalTime=18f;
+            g.Talk(mast);
+            int choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            Check(choice>=0,"Signal field rest appears as a real pending dialogue choice");
+            // The shooter may have died and left no near hostile body.
+            // Even then an authentic in-flight arrow cannot be erased
+            // through a paid rest-time skip.
+            g.projectiles.Add(new Projectile{
+                position=g.Position+new Point(7f,0f),
+                velocity=new Point(-10f,0f),
+                damage=12f,life=1.8f,source="shot",
+                friendly=false,visual="enemyArrow"});
+            Check(!g.SafeTravel,
+                "Flight predictor recognizes a real soon-incoming arrow before it reaches the player");
+            g.Choose(choice);
+            Check(g.save.inventory[0]==2&&g.save.totalTime==18f&&
+                g.save.health==60f&&g.save.energy==45f,
+                "Active live arrow blocks time skipping, spending wood or healing");
+            g.projectiles.Clear();
+            Check(g.SafeTravel,
+                "The same source becomes safe after an actual projectile is retired");
+            g.Talk(mast);
+            choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_rest");
+            g.Choose(choice);
+            Check(g.save.inventory[0]==1&&g.save.totalTime==30f,
+                "After danger clears, a genuine physical rest may finally consume the single timber");
+        }
+
         public static void RescueSignalsOfferActualCostedFieldRestAcrossLegacySaves(Campaign data)
         {
             // Use the REAL map lamp and normal dialogue/Choose handler.
