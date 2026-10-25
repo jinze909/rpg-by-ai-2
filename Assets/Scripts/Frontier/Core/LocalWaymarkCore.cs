@@ -256,6 +256,27 @@ namespace Starfall
                         "Quest completed or moved to another region; old quest navigation cleared.");
                     return;
                 }
+                // Timed missions can return to a previous physical
+                // objective after a failed leg/retry. If a pending new-stage
+                // destination has moved back to the old coordinates, that
+                // does not mean the road magically reopened: revalidate its
+                // complete interaction-side physical approach before lifting
+                // the blocked HUD and restoring live guidance.
+                if(localWaymarkQuestStageRoutePending&&
+                    (current.target-localWaymarkQuestTarget).Length<=.001f)
+                {
+                    Point restoredFoot;
+                    if(!TryQuestApproachFoot(current.target,out restoredFoot))
+                        return;
+                    localWaymarkFoot=restoredFoot;
+                    localWaymarkQuestArrived=false;
+                    localWaymarkQuestStageRoutePending=false;
+                    localWaymarkBlocked=false;
+                    mark=LocalWaymark;
+                    revision++;sound="ui";
+                    Notify("任务重新回到可达目标，步行引导已经恢复。",
+                        "The quest returned to a reachable objective. Walking guidance has resumed.");
+                }
                 if((current.target-localWaymarkQuestTarget).Length>.001f)
                 {
                     // A successfully completed earlier interaction no

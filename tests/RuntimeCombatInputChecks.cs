@@ -3101,18 +3101,20 @@ public static class RuntimeCombatInputChecks
             Check(GUI.commands.Exists(x=>x.Contains("ROUTE BLOCKED"))&&
                 !GUI.commands.Exists(x=>x.Contains("AT QUEST")),
                 "World HUD does not tell players to interact with previous stage");
+            // The live objective can return to the former physical site
+            // after a retry. Previously the unchanged target coordinate
+            // bypassed the only recovery branch and stranded blocked state.
+            second.x=first.x;second.y=first.y;
+            for(int i=0;i<28;i++)g.Tick(.05f,new Point());
+            Check(!g.QuestApproachNextStageBlocked&&
+                !g.LocalWaymarkRouteBlocked&&g.QuestApproachNavigationActive&&
+                g.PersonalNavigationActive,
+                "A returned and genuinely walkable objective clears pending next-stage obstruction");
             second.x=oldB.x;second.y=oldB.y;
             for(int i=0;i<28;i++)g.Tick(.05f,new Point());
-            // The real location may not be reachable from this staged
-            // review position. A recovered path must clear pending state;
-            // otherwise the blocked cue is correctly retained.
-            if(!g.QuestApproachNextStageBlocked)
-            {
-                Check(!g.LocalWaymarkRouteBlocked&&!g.QuestApproachAwaitingInteraction,
-                    "Reopened physical route clears obstruction and stale arrival");
-            }
-            else Check(g.LocalWaymarkRouteBlocked,
-                "A still-unreachable real location stays blocked rather than fabricating a route");
+            if(g.QuestApproachNextStageBlocked)
+                Check(g.LocalWaymarkRouteBlocked,
+                    "A later still-inaccessible real objective stays blocked");
             Check(g.save.version==2,"Quest road recovery changes no persistent save schema");
         }
         finally
