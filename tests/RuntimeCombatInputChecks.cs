@@ -1652,8 +1652,8 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app,0);
         GameCore g=app.Game;
-        // Use all three shipped regional arenas. Their normal progression
-        // flags are supplied, instead of faking a room ID on a different map.
+        // Enter the shipped regional maps through their real progression
+        // gates: no synthetic room ID and no replacement collision scene.
         g.save.stage=4;
         if(!g.Has("exp_intro"))g.save.flags.Add("exp_intro");
         if(!g.Has("harbor_report"))g.save.flags.Add("harbor_report");
@@ -1661,8 +1661,8 @@ public static class RuntimeCombatInputChecks
         foreach(int region in new[]{5,6,7})
         {
             g.Enter(region);
-            Check(g.save.room==region,"Regional Boss hazard check entered the actual published arena");
-            g.enemies.Clear();g.hazards.Clear();
+            Check(g.save.room==region,"Regional Boss hazard test entered the actual arena");
+            g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
             MapData map=g.Map;
             string[] original=(string[])map.rows.Clone();
             Point bossFoot=new Point(),hero=new Point();
@@ -1677,20 +1677,19 @@ public static class RuntimeCombatInputChecks
                     continue;
                 bossFoot=left;hero=right;wall=x;found=true;
             }
-            Check(found,"Shipped regional arena has two real exposed Boss/hero feet");
+            Check(found,"Published regional arena provides exposed legal Boss and hero feet");
             g.save.x=hero.x;g.save.y=hero.y;
             Enemy boss=new Enemy(98170+region,3,bossFoot.x,bossFoot.y,999,true)
                 {hp=100,target=hero,cycle=2};
             g.enemies.Add(boss);
             try
             {
-                // The unlocked original casting lane still produces all
-                // authentic regional hazards (including high-phase extras).
-                CallCore(g,"BossExpansionAttack",boss);
+                boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
+                g.Tick(.02f,new Point());
                 int originalCount=g.hazards.Count;
-                Check(originalCount>=3,
-                    "A visible late-phase regional Boss still casts its complete real pattern");
-                g.hazards.Clear();
+                Check(boss.cycle==3&&originalCount>=3,
+                    "Live phase-three regional Boss releases complete ground-strike patterns");
+                g.hazards.Clear();g.projectiles.Clear();
                 for(int y=0;y<map.rows.Length;y++)
                 {
                     char[] row=map.rows[y].ToCharArray();
@@ -1698,33 +1697,27 @@ public static class RuntimeCombatInputChecks
                 }
                 Check(g.CanStand(hero)&&g.CanStand(bossFoot)&&
                     !(bool)CallCore(g,"ClearAttackPath",bossFoot,hero),
-                    "A raised full-height physical wall separates two valid feet after windup");
-                CallCore(g,"BossExpansionAttack",boss);
-                Check(g.hazards.Count==0,
-                    "A blocked Boss cannot plant new delayed hazards behind the closed wall");
-                if(region==7)
-                {
-                    // Exercise the actual shipped release path, not just
-                    // the private regional helper in isolation.
-                    boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
-                    boss.target=hero;
-                    g.Tick(.02f,new Point());
-                    Check(boss.cycle==3&&g.hazards.Count==0,
-                        "Real highland Boss finishes its normal combat cycle without ghost bell/rift contacts");
-                }
+                    "Closing full-height wall isolates two still-valid feet after Boss warning");
+                boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
+                boss.releaseTime=0f;boss.stun=0f;boss.hitTime=0f;
+                g.Tick(.02f,new Point());
+                Check(boss.cycle==4&&g.hazards.Count==0,
+                    "Actual sealed Boss release advances its cycle but creates no remote hazards");
                 map.rows=original;
                 Check((bool)CallCore(g,"ClearAttackPath",bossFoot,hero),
-                    "The original arena's legitimate physical casting lane was restored");
-                g.hazards.Clear();
-                CallCore(g,"BossExpansionAttack",boss);
-                Check(g.hazards.Count==originalCount,
-                    "Reopening the real arena restores every legitimate regional strike");
-                Check(g.save.version==2,"Regional combat never changes the existing save format");
+                    "Restoring the regional arena also restores its physical firing lane");
+                boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
+                boss.releaseTime=0f;boss.stun=0f;boss.hitTime=0f;
+                g.hazards.Clear();g.projectiles.Clear();
+                g.Tick(.02f,new Point());
+                Check(boss.cycle==5&&g.hazards.Count==originalCount,
+                    "Reopened authentic Boss release resumes every delayed regional strike");
+                Check(g.save.version==2,"No migration or new SaveData fields during combat");
             }
             finally {map.rows=original;}
         }
         g.Close();
-        Console.WriteLine("PASS real harbor/glass/highland Boss patterns cannot hit through newly sealed arenas, and resume on opening");
+        Console.WriteLine("PASS real harbor, glass and highland Boss releases stay physical across closed and reopened arenas");
     }
 
     private static void SpawnAndRecoveredAbyssEnemiesDoNotStackOnOneFoot(FrontierRuntime app)

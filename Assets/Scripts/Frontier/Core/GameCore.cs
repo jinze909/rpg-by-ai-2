@@ -1784,7 +1784,14 @@ namespace Starfall
                                     double heading = Math.Atan2(e.facing.y, e.facing.x);
                                     for (int shot = -1; shot <= 1; shot++) Fire(e, new Point((float)Math.Cos(heading + shot * .18), (float)Math.Sin(heading + shot * .18)), 6);
                                 }
-                                BossExpansionAttack(e);
+                                // Delayed ground strikes must still have a
+                                // physical caster-to-locked-target lane at
+                                // contact. A newly shut gate can otherwise
+                                // produce a remote hazard whose own center
+                                // later hits through the wall. Keep the Boss's
+                                // normal radial missiles and combat cycle.
+                                if (ClearAttackPath(e.Position, e.target))
+                                    BossExpansionAttack(e);
                                 int spokes = 4 + Math.Min(5, save.room) * 2 + e.BossPhase * 2;
                                 if (save.room >= 2 || e.BossPhase >= 2)
                                     for (int k = 0; k < spokes; k++) Fire(e, new Point((float)Math.Cos(k * Math.PI * 2 / spokes + e.cycle * .2), (float)Math.Sin(k * Math.PI * 2 / spokes + e.cycle * .2)), 3.5f + e.BossPhase * .4f);
