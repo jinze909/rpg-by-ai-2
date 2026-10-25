@@ -1733,7 +1733,13 @@ namespace Starfall
                 if (e.kind == 1 && !e.boss && (!wardAttacker||wardBow) &&
                     !travelerAttacker && !practicing &&
                     (reliefAttacker || escortPatrol ? distance < 3.4f : distance < 3f) &&
-                    (visible || reliefAttacker || escortPatrol))
+                    // A friendly body occluding the bow must NOT prevent
+                    // urgent defensive backpedaling from a close hero.
+                    // Preserve the old rule against retreating through
+                    // unreadable solid walls; only actual clear terrain
+                    // and mission exceptions permit the move.
+                    (visible || ClearAttackPath(e.Position,Position) ||
+                     reliefAttacker || escortPatrol))
                 {
                     // Backstep even with blocked LOS. Never counteract an
                     // actual retreat by walking toward the target this tick.
