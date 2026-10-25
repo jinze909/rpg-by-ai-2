@@ -628,7 +628,7 @@ namespace Starfall.Tests
                 g.Talk(marker);
                 int aid=Array.FindIndex(g.conversation.choices,
                     x=>x.action=="civic_aftercare_fieldaid");
-                Check(aid>=0&&g.conversation.text.Contains("药草1")&&
+                Check(aid>=0&&g.conversation.text.Contains("一份药草")&&
                     g.conversation.textEn.Contains("one herb"),
                     "Published audit connects one authentic local trail marker to bilingual costed gameplay");
                 // A stale choice may not heal the traveler from the far side
