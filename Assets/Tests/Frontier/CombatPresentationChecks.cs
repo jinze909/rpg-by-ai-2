@@ -3961,6 +3961,105 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void RepairedOuterBeaconsProvideActualSafeNearsideRespite(Campaign data)
+        {
+            MapData prior=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',25).ToCharArray();
+                    if(y>=2&&y<=22)for(int x=2;x<=22;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                WorldObject mast=new WorldObject{id="outer_0_1",
+                    kind="outerrelay",name="Water light",
+                    en="Water light",x=10.5f,y=10.5f};
+                data.maps[0]=new MapData{id=0,spawnX=12.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{mast},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(0);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=10.5f;
+                g.save.health=40f;g.save.energy=20f;
+                Check(g.CanStand(g.Position)&&g.CanStand(new Point(mast.x,mast.y))&&
+                    !g.OuterRelayRestRefuge,
+                    "Unrepaired remote rescue signal cannot provide free healing");
+                float baseline=g.save.health;
+                g.Tick(.5f,new Point());
+                Check(Math.Abs(g.save.health-baseline)<.001f,
+                    "Ordinary world time cannot silently heal at a dark beacon");
+                // Use the existing actual story transaction: reading its
+                // physical prior record permits one genuine spare-part repair.
+                g.save.flags.Add("outer_log_0");
+                g.save.x=11.5f;g.save.y=10.5f;
+                int spare=g.save.inventory[2];
+                g.Talk(mast);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Live, reachable beacon offers its genuine repair dialogue");
+                int repair=-1;
+                for(int i=0;i<g.conversation.choices.Length;i++)
+                    if(g.conversation.choices[i].action=="outer_repair")
+                        repair=i;
+                Check(repair>=0,"Unlit beacon must offer the original part-cost repair");
+                g.Choose(repair);g.Close();
+                Check(g.OuterRelayRestored(0)&&
+                    g.save.inventory[2]==spare-1&&g.save.version==2,
+                    "Repair spends one authentic component and uses only legacy-v2 quest flags");
+                g.save.x=12.5f;g.save.y=10.5f;
+                Check(g.OuterRelayRestRefuge,
+                    "Physically reachable repaired lamp immediately establishes its real rest station");
+                g.save.health=40f;g.save.energy=20f;
+                g.Tick(.5f,new Point());
+                Check(g.save.health>=40.5f&&g.save.health<=40.7f&&
+                    g.save.energy>28f,
+                    "Repaired lamp restores actual HP and extra endurance on a legitimate 500ms world tick");
+                g.save.x=18.5f;g.save.y=10.5f;g.save.health=40f;
+                Check(!g.OuterRelayRestRefuge,
+                    "Crossing beyond the actual mast radius cannot grant distant care");
+                g.Tick(.5f,new Point());
+                Check(Math.Abs(g.save.health-40f)<.001f,
+                    "Remote player receives no offscreen recovery despite a repaired flag");
+                // Same physical distance but opposite sides of a solid
+                // one-tile wall. Neither UI nor recovery can penetrate it.
+                g.save.x=12.5f;g.save.y=10.5f;g.save.health=40f;
+                for(int y=2;y<=22;y++)
+                {
+                    char[] rock=rows[y].ToCharArray();
+                    rock[11]='#';rows[y]=new string(rock);
+                }
+                Check(g.CanStand(g.Position)&&
+                    !g.OuterRelayRestRefuge,
+                    "The repaired signal cannot care for a character behind real terrain");
+                g.Tick(.5f,new Point());
+                Check(Math.Abs(g.save.health-40f)<.001f,
+                    "Closed-wall beacon cannot leak healing through terrain");
+                for(int y=2;y<=22;y++)
+                {
+                    char[] open=rows[y].ToCharArray();
+                    open[11]='.';rows[y]=new string(open);
+                }
+                Check(g.OuterRelayRestRefuge,
+                    "Opening the same passage restores the original near-side service");
+                var enemy=new Enemy(91901,0,13f,10.5f,200f)
+                    {stun=99f,timer=999f};
+                g.enemies.Add(enemy);
+                Check(!g.OuterRelayRestRefuge,
+                    "An actual nearby hostile suspends beacon recovery before damage");
+                g.Tick(.5f,new Point());
+                Check(Math.Abs(g.save.health-40f)<.001f,
+                    "Combat under the light does not grant free healing");
+                g.enemies.Clear();
+                Check(g.OuterRelayRestRefuge,
+                    "The same repaired signal works again when real combat ends");
+                g.save.room=1;
+                Check(!g.OuterRelayRestRefuge&&g.save.version==2,
+                    "No repaired-light benefits leak into an unrelated or uncompleted region");
+            }
+            finally {data.maps[0]=prior;}
+        }
+
         public static void HostileArrowsHavePhysicalFrontlineCoverWithoutFalseCredit(Campaign data)
         {
             // A player can lure a melee raider into an actual archer lane.

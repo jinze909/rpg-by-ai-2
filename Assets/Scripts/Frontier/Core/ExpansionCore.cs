@@ -2049,6 +2049,17 @@ namespace Starfall
                     save.health+dt*(1.2f+townReserve*.35f+(StormReliefAll?.75f:0f)+
                         (Has("storm_orrin_open")?StormOrrinReserve*.55f:0f)));
             }
+            // Relighting the eight abandoned warning masts establishes
+            // a physically reached pause along each remote rescue route.
+            // Neither offscreen progress nor close-by enemies can award
+            // field care. This uses the ALREADY SAVED relay flag.
+            if(OuterRelayRestRefuge)
+            {
+                if(save.health>0f&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,
+                        save.health+dt*1.1f);
+                save.energy=Math.Min(100f,save.energy+dt*3.0f);
+            }
             // The eight defended field caches are living outposts: a local
             // field-medic rest and supply pause, never combat healing or a
             // region-wide passive perk. No new permanent state or save format.

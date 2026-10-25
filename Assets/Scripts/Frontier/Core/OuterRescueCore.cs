@@ -41,6 +41,27 @@ namespace Starfall
                 return n; }
         }
 
+        // A repaired rescue light is a REAL field respite, not a map-wide
+        // buff. The actual player must stand beside its physical mast on
+        // walkable ground and share an unobstructed local route with it.
+        // An active raid, timed mission, race, practice or nearby enemy
+        // suspends recovery. Existing v2 flags are the only saved state.
+        public bool OuterRelayRestRefuge
+        {
+            get
+            {
+                if(mode!="world"||save.room<0||save.room>=8||
+                    !OuterRelayRestored(save.room)||Dying||practicing||
+                    racing||FieldWorkPreventsRest||OuterPatrolActive||
+                    !SafeTravel||Map.objects==null)return false;
+                foreach(WorldObject light in Map.objects)
+                    if(light.kind=="outerrelay"&&
+                        PhysicalRefugeReach(new Point(light.x,light.y),3.05f))
+                        return true;
+                return false;
+            }
+        }
+
         private bool TalkOuterRescue(WorldObject o)
         {
             if(o.kind!="outerlog"&&o.kind!="outerrelay"&&o.kind!="outercache")return false;
