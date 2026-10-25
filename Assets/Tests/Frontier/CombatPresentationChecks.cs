@@ -4261,13 +4261,31 @@ namespace Starfall.Tests
             // The shooter may have died and left no near hostile body.
             // Even then an authentic in-flight arrow cannot be erased
             // through a paid rest-time skip.
+            // On the actual large town map some bearings point through
+            // solid houses. Test a genuine unobstructed missile approach,
+            // not a wall-shielded arrow that is correctly nonthreatening.
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Point launch=new Point();
+            bool lane=false;
+            for(int direction=0;direction<24&&!lane;direction++)
+            {
+                float angle=(float)(direction*Math.PI*2/24);
+                Point candidate=g.Position+
+                    new Point((float)Math.Cos(angle),
+                        (float)Math.Sin(angle))*7f;
+                if(g.CanStand(candidate)&&
+                    (bool)clear.Invoke(g,new object[]{candidate,g.Position}))
+                {launch=candidate;lane=true;}
+            }
+            Check(lane,"Original live rescue lamp has at least one unobstructed seven-tile incoming shot lane");
             g.projectiles.Add(new Projectile{
-                position=g.Position+new Point(7f,0f),
-                velocity=new Point(-10f,0f),
+                position=launch,
+                velocity=(g.Position-launch).Normalized*10f,
                 damage=12f,life=1.8f,source="shot",
                 friendly=false,visual="enemyArrow"});
             Check(!g.SafeTravel,
-                "Flight predictor recognizes a real soon-incoming arrow before it reaches the player");
+                "Flight predictor recognizes a real unobstructed soon-incoming arrow before it reaches the player");
             g.Choose(choice);
             Check(g.save.inventory[0]==2&&g.save.totalTime==18f&&
                 g.save.health==60f&&g.save.energy==45f,
