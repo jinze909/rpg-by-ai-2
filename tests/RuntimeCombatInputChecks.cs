@@ -3095,12 +3095,20 @@ public static class RuntimeCombatInputChecks
                 g.QuestApproachNextStageBlocked&&
                 !g.QuestApproachAwaitingInteraction&&
                 g.LocalWaymarkRouteBlocked&&
-                (g.LocalWaymark.Value-oldPin).Length<.001f,
-                "Unreachable next stage retains fallback pin but cancels stale interaction state");
+                (g.LocalWaymark.Value-oldPin).Length<.001f&&
+                !g.NavigationTarget().HasValue&&!g.PersonalNavigationActive,
+                "Unreachable successor preserves fallback only as a record, never as the live objective");
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(GUI.commands.Exists(x=>x.Contains("ROUTE BLOCKED"))&&
-                !GUI.commands.Exists(x=>x.Contains("AT QUEST")),
-                "World HUD does not tell players to interact with previous stage");
+            Check(GUI.commands.Exists(x=>x.Contains("NEXT QUEST STEP BLOCKED"))&&
+                !GUI.commands.Exists(x=>x.Contains("AT QUEST"))&&
+                !GUI.commands.Exists(x=>x.Contains("ROUTE BLOCKED")),
+                "World HUD explicitly identifies the inaccessible NEW stage instead of routing to an obsolete site");
+            g.mode="map";Set(app,"selectedRegion",g.save.room);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(x=>x.Contains("Quest step blocked")&&
+                x.Contains("Clear old pin")),
+                "Actual map distinguishes the retained obsolete quest marker from a valid personal route");
+            g.mode="world";
             // The live objective can return to the former physical site
             // after a retry. Previously the unchanged target coordinate
             // bypassed the only recovery branch and stranded blocked state.

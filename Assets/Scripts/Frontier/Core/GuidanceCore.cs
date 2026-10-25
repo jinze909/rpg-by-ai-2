@@ -2653,6 +2653,12 @@ namespace Starfall
             // A personal pin temporarily takes over ordinary quest routing
             // but NEVER redirects an active timed escort, defense, rescue or
             // emergency. The player's original tracked quest is untouched.
+            // A blocked successor is NOT the old interaction target.
+            // Retain the previous pin in the map as a recoverable record,
+            // but do not paint misleading world arrows/breadcrumbs toward it.
+            // Higher-priority live rescues and climate emergencies above
+            // continue using their own authoritative targets.
+            if(QuestApproachNextStageBlocked)return null;
             Point? personal=LocalWaymark;
             if(personal.HasValue&&!FieldWorkPreventsRest)return personal;
             QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;

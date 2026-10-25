@@ -467,7 +467,11 @@ namespace Starfall
             Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073"));
             MiniTerrainWindow(1024, 42);
             Point? objective = Game.NavigationTarget();
-            if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
+            if(Game.QuestApproachNextStageBlocked && !objective.HasValue)
+                Text(1024,178,166,12,
+                    Game.L("下一任务阶段无法抵达","NEXT QUEST STEP BLOCKED"),
+                    9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
+            else if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
             else if(Game.QuestApproachTravelHandoffPending)
@@ -1219,6 +1223,8 @@ namespace Starfall
                     // prior pin and choose a fresh tile without ever altering
                     // the existing live-route transaction.
                     if(Button(888,571,306,35,
+                        Game.QuestApproachNextStageBlocked?
+                            Game.L("下一阶段封闭 · 清除旧标记","Quest step blocked · Clear old pin"):
                         Game.LocalWaymarkRouteBlocked ?
                             Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
                         Game.QuestApproachNavigationActive?
