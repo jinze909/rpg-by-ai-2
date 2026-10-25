@@ -2739,9 +2739,21 @@ public static class RuntimeCombatInputChecks
             Check(!candidate.locked&&!candidate.complete&&candidate.room==game.save.room,
                 "Regional map list never contains a locked, finished, or foreign objective");
         }
-        List<string> locked=(List<string>)Call(app,"AvailableMapQuestIds",8);
-        Check(!game.CanEnter(8)&&locked.Count==0,
-            "Future locked regions do not leak available quest titles");
+        Check(((List<string>)Call(app,"AvailableMapQuestIds",-1)).Count==0&&
+            ((List<string>)Call(app,"AvailableMapQuestIds",game.data.maps.Length)).Count==0,
+            "Invalid region indices cannot expose quest records");
+        for(int room=0;room<game.data.maps.Length;room++)
+        {
+            List<string> region=(List<string>)Call(app,"AvailableMapQuestIds",room);
+            Check(room==game.save.room||game.CanEnter(room)||region.Count==0,
+                "Only actual open regions can expose actionable quests");
+            foreach(string id in region)
+            {
+                QuestGuide candidate=game.GetQuest(id);
+                Check(!candidate.locked&&!candidate.complete&&candidate.room==room,
+                    "Every visible regional objective is unlocked, unfinished and in its indicated map");
+            }
+        }
         Point foot=game.Position;
         Point pin=new Point((float)Math.Floor(foot.x)+.5f,
             (float)Math.Floor(foot.y)+.5f);
