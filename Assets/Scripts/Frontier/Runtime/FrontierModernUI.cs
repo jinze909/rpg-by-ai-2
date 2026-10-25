@@ -283,14 +283,14 @@ namespace Starfall
         }
         private void ActionSlot(float x, string key, string label, string icon, float cooldown, bool resourceAvailable, Action act, float duration = 1, string unavailable = null, bool busy = false)
         {
-            // A real dodge can be queued during its last 140ms cooldown.
-            // Match the keyboard/gamepad window; do not extend the window
-            // for Q, consumables, companions, or any other action slot.
+            // The original clickable HUD uses the same grounded buffer
+            // windows as keyboard/pad inputs; drawing it never spends them.
             bool dodgeSlot=icon=="shield";
             bool skillSlot=icon=="sword"||icon=="bow"||icon=="staff";
             bool queued=(dodgeSlot&&Game.DodgeQueued)||
                 (skillSlot&&Game.SkillQueued);
-            bool bufferable=dodgeSlot&&Game.CanBufferDodge;
+            bool bufferable=dodgeSlot&&Game.CanBufferDodge||
+                skillSlot&&Game.CanBufferSkill;
             // The pending Q remains clickable for legitimate aim retarget;
             // only a queued dodge blocks another press. Neither can spend
             // twice before the authoritative GameCore release boundary.

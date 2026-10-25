@@ -145,6 +145,55 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Same-frame dodge+Q queues and casts after the dodge with held attack priority preserved");
     }
 
+
+    private static void HudQLateCooldownInputTriggersOneRealSkill(FrontierRuntime app)
+    {
+        foreach(int profession in new[]{0,1,2})
+        foreach(bool compact in new[]{false,true})
+        {
+            Prepare(app,profession);
+            GameCore g=app.Game;
+            g.enemies.Clear();g.projectiles.Clear();
+            g.playerAction=null;
+            g.skillCooldown=.16f;g.save.energy=100f;
+            Rect slot=compact?new Rect(430,732,78,50):
+                new Rect(354,699,109,75);
+            Input.mousePosition=new Vector3(slot.x+10,
+                Screen.height-slot.y-10,0);
+            Set(app,"combatHudTime",compact?3f:0f);
+            GUI.queuedClick=slot;GUI.commands.Clear();
+            Call(app,"OnGUI");
+            Check(GUI.queuedClick==null&&g.SkillQueued&&
+                g.playerAction==null&&g.save.energy==100f&&
+                Math.Abs(g.skillCooldown-.16f)<.0001f,
+                "Both live Q HUD layouts must accept genuine last-window input for class "+profession);
+            int starts=0;
+            for(int i=0;i<14;i++)
+            {
+                ActorAction before=g.playerAction;
+                Update(app);
+                ActorAction after=g.playerAction;
+                if(after!=null&&after!=before&&after.kind=="skill")starts++;
+            }
+            Check(starts==1&&!g.SkillQueued&&g.skillCooldown>3.1f&&
+                g.save.energy>=59.9f&&g.save.energy<65f,
+                "Late HUD Q dispatches once on legitimate cooldown expiry for class "+profession);
+        }
+        Prepare(app,1);
+        GameCore early=app.Game;early.enemies.Clear();
+        early.skillCooldown=.4f;early.save.energy=100f;
+        Rect unavailable=new Rect(354,699,109,75);
+        Set(app,"combatHudTime",0f);
+        Input.mousePosition=new Vector3(unavailable.x+10,
+            Screen.height-unavailable.y-10,0);
+        GUI.queuedClick=unavailable;Call(app,"OnGUI");
+        Check(GUI.queuedClick!=null&&!early.SkillQueued&&
+            early.playerAction==null&&early.save.energy==100f,
+            "HUD Q stays unavailable before its authentic late-cooldown window");
+        GUI.queuedClick=null;
+        Console.WriteLine("PASS Both Q HUD layouts buffer one real last-window cast for all three classes");
+    }
+
     private static void HudTechniqueCanQueue(FrontierRuntime app)
     {
         foreach (bool compact in new[] { false, true })
@@ -6941,7 +6990,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

@@ -84,6 +84,16 @@ namespace Starfall
         // queued direction/target and its original 200ms deadline are owned
         // by GameCore, never by repeated GUI draws or button clicks.
         public bool SkillQueued { get { return bufferedSkill != null; } }
+        // The Q action slot uses the SAME late-cooldown window as Skill().
+        // Rendering does not grant a cast, energy, immunity or cooldown.
+        public bool CanBufferSkill
+        {
+            get { return mode=="world"&&!Dying&&
+                save.energy>=ClassSkillEnergyCost&&
+                skillCooldown>.00001f&&
+                skillCooldown<=SkillBufferWindow+.00001f&&
+                CanStand(Position); }
+        }
         // Read-only preview of the ACCEPTED deferred Q aim. The player may
         // explicitly retarget the existing intent without extending its
         // fixed 200ms lifetime. No projectile, damage, cooldown or Sprite
