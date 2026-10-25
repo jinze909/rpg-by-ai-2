@@ -641,7 +641,7 @@ namespace Starfall
         }
         private void DrawCompanions()
         {
-            Window(Game.L("同行伙伴", "Companions"), Game.L("一次邀请一人 · Z 指令 / P 或世界中长按 RB 驻守、恢复跟随 · 羁绊强化效果", "One active companion · Z command / P or hold RB in the world to hold or follow · stronger bonds"));
+            Window(Game.L("同行伙伴", "Companions"), Game.L("Z 发动同伴技能 · P/RB 原地驻守 · 在地图上可指定真正的驻守点", "Z: ally skill · P/RB: hold here · set physical tactical posts on the world map"));
             string[] info = { Game.L("低生命时治疗。\nZ：治疗、耐力与护盾。\nP / 世界中长按 RB：驻守 / 恢复跟随。", "Heals you when hurt.\nZ: healing, energy and guard.\nP / hold RB in world: hold / follow."), Game.L("远程射击支援。\nZ：三发贯穿箭。\nP / 世界中长按 RB：驻守 / 恢复跟随。", "Ranged support shots.\nZ: three piercing arrows.\nP / hold RB in world: hold / follow."), Game.L("星火支援与冻结。\nZ：冻结与寒星领域。\nP / 世界中长按 RB：驻守 / 恢复跟随。", "Starfire and frost support.\nZ: freezing and a frost field.\nP / hold RB in world: hold / follow.") };
             for (int i = 0; i < 3; i++)
             {
@@ -657,6 +657,16 @@ namespace Starfall
                     Game.CompanionHoldingPosition ? "Resume following (P / hold RB in world)" : "Hold position (P / hold RB in world)"),
                 Game.CompanionHoldingPosition, Game.save.companion >= 0 && !Game.practicing))
                 Game.ToggleCompanionHold();
+            if(Button(756,702,461,29,
+                Game.L("在地图上指定同伴驻守位置",
+                    "Choose companion tactical post on map"),
+                false,Game.save.companion>=0&&!Game.practicing&&
+                    !Game.Dying&&!Game.OuterPatrolActive))
+            {
+                selectedRegion=Game.save.room;
+                OpenMenu("map");
+                BeginCompanionMapPost();
+            }
         }
         private void DrawLoadout()
         {
