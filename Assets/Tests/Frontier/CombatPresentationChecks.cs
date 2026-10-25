@@ -4204,6 +4204,14 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 var ordinary=Fresh(data);
+                // Loading a v2 snapshot is allowed only for campaign-
+                // unlocked regions. A fixture with room 5-7 but no actual
+                // progression is correctly relocated to Emberfall on
+                // reload; unlock the existing gates before comparing care.
+                ordinary.save.stage=3;
+                foreach(string flag in new[]{
+                    "exp_intro","harbor_report","desert_report"})
+                    if(!ordinary.Has(flag))ordinary.save.flags.Add(flag);
                 ordinary.save.room=room;
                 ordinary.enemies.Clear();ordinary.projectiles.Clear();
                 ordinary.hazards.Clear();
