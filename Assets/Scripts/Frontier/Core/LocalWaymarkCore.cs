@@ -265,6 +265,26 @@ namespace Starfall
             else return false;
             return InspectLocalWaymark(foot)==WaymarkRouteStatus.Available;
         }
+        // The world atlas can explicitly accept and follow a currently
+        // UNTRACKED remote quest in one deliberate action. This is not
+        // triggered by browsing, cycling, or inspecting a map marker.
+        // Validate everything BEFORE changing saved tracking or taking a
+        // previous personal pin; a rejected request is non-destructive.
+        public bool TrackAndFollowRemoteQuest(string questId)
+        {
+            if(mode!="map"||Dying||practicing||
+                string.IsNullOrEmpty(questId)||
+                Array.IndexOf(QuestIds,questId)<0)return false;
+            QuestGuide candidate=GetQuest(questId);
+            if(candidate.locked||candidate.complete||
+                candidate.room==save.room||candidate.room<0||
+                candidate.room>=data.maps.Length||
+                !CanEnter(candidate.room))return false;
+            TrackQuest(questId);
+            // Route selection below uses the exact same authenticated
+            // quest ID and physical arrival checks as journal routing.
+            return PlaceQuestApproachWaymark(questId);
+        }
         public bool PlaceQuestApproachWaymark(string questId)
         {
             if((mode!="map"&&mode!="journal")||Dying||practicing||

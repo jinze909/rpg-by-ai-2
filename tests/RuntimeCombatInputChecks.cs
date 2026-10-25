@@ -6012,6 +6012,58 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Real Mistport/Desert/Frostchime two-way quest itinerary and town courier handoff without teleport or save mutation");
     }
 
+    private static void WorldAtlasTrackAndFollowIsExplicitAndAtomic(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.flags.Add("intro");g.save.flags.Add("scout_saved");
+        g.save.stage=4;g.save.english=true;g.Enter(9);g.enemies.Clear();
+        g.mode="map";
+        Check(g.PlaceLocalWaymark(g.Position)&&g.HasLocalWaymark,
+            "A real player-authored pin exists before atlas mission selection");
+        Point prior=g.LocalWaymark.Value;
+        string originalQuest=g.save.trackedQuest;
+        Set(app,"selectedRegion",0);
+        Set(app,"mapInspectedQuestId","trail_circuits");
+        Check(!g.GetQuest("trail_circuits").locked&&
+            !g.GetQuest("trail_circuits").complete&&
+            g.GetQuest("trail_circuits").room==0&&
+            g.save.trackedQuest!="trail_circuits",
+            "The shipped survey is available but not previously tracked");
+        int beforeCoins=g.save.coins,flags=g.save.flags.Count;
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("TRACK & FOLLOW INSPECTED QUEST"))&&
+            g.HasLocalWaymark&&
+            (g.LocalWaymark.Value-prior).Length<.001f&&
+            g.save.trackedQuest==originalQuest,
+            "Browsing the map offers a combined action without mutating quest or manual pin");
+        Check(!g.TrackAndFollowRemoteQuest("not_an_authored_quest")&&
+            !g.TrackAndFollowRemoteQuest(originalQuest)&&
+            g.save.trackedQuest==originalQuest&&g.HasLocalWaymark,
+            "Unrecognized or non-remote requests cannot silently take map pin ownership");
+        GUI.queuedClick=new Rect(888,571,306,35);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(g.save.trackedQuest=="trail_circuits"&&
+            g.QuestApproachTravelHandoffPending&&!g.HasLocalWaymark&&
+            g.save.flags.Count==flags&&g.save.coins==beforeCoins&&
+            g.save.version==2,
+            "One actual map click authenticates mission tracking and its real transit without loot or save migration");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("Cancel pending remote quest route")),
+            "After combined acceptance the same atlas exposes explicit route cancellation");
+        g.mode="world";g.Enter(0);
+        Check(g.save.room==0&&g.save.trackedQuest=="trail_circuits",
+            "Original real region travel remains necessary after map acceptance");
+        if(g.HasLocalWaymark)
+            Check(g.QuestApproachNavigationActive&&
+                g.InspectLocalWaymark(g.LocalWaymark.Value)==WaymarkRouteStatus.Available,
+                "Arrival produces an actual verified objective approach");
+        else Check(g.QuestApproachTravelHandoffPending,
+            "A closed approach retains only pending intent without fake walking access");
+        g.Close();
+        Console.WriteLine("PASS One-click world atlas track-and-follow accepts only real unlocked remote quests, preserves browsing, save and physical travel");
+    }
+
     private static void NearbyNpcHudMatchesRealKeyboardInteraction(FrontierRuntime app)
     {
         Prepare(app);
@@ -8631,7 +8683,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, RealOuterShoreNavigationFollowsActualTransitLegs, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, RealOuterShoreNavigationFollowsActualTransitLegs, WorldAtlasTrackAndFollowIsExplicitAndAtomic, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

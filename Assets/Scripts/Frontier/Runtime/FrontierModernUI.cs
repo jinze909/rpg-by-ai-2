@@ -1289,17 +1289,20 @@ namespace Starfall
             }
             else if(!mapTileCursor.Active&&inspectedMap!=null&&
                 !inspectedMap.complete&&
-                inspectedMap.id==Game.save.trackedQuest&&
                 Game.CanEnter(inspectedMap.room)&&!Game.practicing&&!Game.Dying)
             {
                 // Choosing a remote quest on the world atlas is not a
                 // teleport and cannot fabricate a local destination.
                 // The player's second explicit click grants the same
                 // transient cross-region route that the journal uses.
+                bool alreadyTracked=Game.save.trackedQuest==inspectedMap.id;
                 if(Button(888,571,306,35,
-                    Game.L("跟随所选任务 · 跨区抵达后接续",
-                        "FOLLOW INSPECTED REMOTE QUEST")))
-                    Game.PlaceQuestApproachWaymark(inspectedMap.id);
+                    alreadyTracked?
+                        Game.L("跟随所选任务 · 跨区抵达后接续",
+                            "FOLLOW INSPECTED REMOTE QUEST"):
+                        Game.L("追踪并跟随所选跨区任务",
+                            "TRACK & FOLLOW INSPECTED QUEST")))
+                    Game.TrackAndFollowRemoteQuest(inspectedMap.id);
             }
             else Text(888,569,306,38,
                 Game.L("只能标记当前所在地区","Pins available in current region only"),
