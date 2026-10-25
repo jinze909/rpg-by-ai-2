@@ -936,6 +936,11 @@ namespace Starfall
                         Ring(Game.Position,.45f,
                             new Color(.56f,.98f,.76f),12);
                 }
+                if(done&&Game.OuterDeliveryDone(Game.save.room))
+                    Text(p.x-98,p.y-129,196,18,
+                        Game.L("急送药布已到 · 医疗补给增强",
+                            "DELIVERED · IMPROVED MEDICAL CARE"),
+                        10,mint,TextAnchor.MiddleCenter);
                 if(Game.OuterPatrolActive)
                     Text(p.x-79,p.y-107,158,20,
                         Math.Ceiling(Game.OuterPatrolTime)+"s · "+

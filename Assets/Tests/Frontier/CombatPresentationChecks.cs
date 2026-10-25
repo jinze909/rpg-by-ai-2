@@ -4198,6 +4198,45 @@ namespace Starfall.Tests
 
 
 
+
+        public static void EarnedCourierMedicineActuallyImprovesOnlySafeLocalTreatment(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                var ordinary=Fresh(data);
+                ordinary.save.room=room;ordinary.enemies.Clear();
+                ordinary.save.flags.Add("outer_patrol_done_"+room);
+                WorldObject post=Object(ordinary,"outerwatch");
+                ordinary.save.x=post.x;ordinary.save.y=post.y;
+                ordinary.save.health=50f;ordinary.save.energy=20f;
+                var delivered=new GameCore(data,CloneSave(ordinary.save));
+                delivered.Close();delivered.enemies.Clear();
+                delivered.save.flags.Add("outer_delivery_done_"+room);
+                Check(ordinary.OuterPatrolRefuge&&delivered.OuterPatrolRefuge,
+                    "Original eight staffed regional outposts allow authentic local recovery");
+                Advance(ordinary,1f);
+                Advance(delivered,1f);
+                Check(Math.Abs(delivered.save.health-ordinary.save.health-.45f)<.03f&&
+                    Math.Abs(delivered.save.energy-ordinary.save.energy-1.1f)<.03f,
+                    "Physically delivered medicine improves LOCAL healed HP by 0.45 per second and energy by 1.1 per second");
+                var saved=new GameCore(data,CloneSave(delivered.save));
+                Check(saved.OuterDeliveryDone(room)&&saved.save.version==2,
+                    "Post-delivery refuge strengthening survives the original SaveData v2 schema");
+
+                ordinary.save.health=delivered.save.health=40;
+                ordinary.save.energy=delivered.save.energy=25;
+                ordinary.save.x=delivered.save.x=post.x+9f;
+                ordinary.save.y=delivered.save.y=post.y;
+                ordinary.enemies.Clear();delivered.enemies.Clear();
+                Check(!ordinary.OuterPatrolRefuge&&!delivered.OuterPatrolRefuge,
+                    "Remote travelers cannot receive local watch medicine at a distance");
+                Advance(ordinary,.15f);Advance(delivered,.15f);
+                Check(Math.Abs(delivered.save.health-ordinary.save.health)<.001f&&
+                    Math.Abs(delivered.save.energy-ordinary.save.energy)<.001f,
+                    "Delivery does not grant a free region-wide HP or energy aura");
+            }
+        }
+
         public static void ActualRegionalMedicineRunNeedsThreePhysicalStops(Campaign data)
         {
             for(int room=0;room<8;room++)

@@ -335,6 +335,9 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     "居民已接管此处的物资与补给道路，安全时可恢复生命和耐力。"+
+                    (OuterDeliveryDone(room)?
+                        "你送来的药布已经分给病人。值守员留下一份在岗亭，日后可以更快处理旅人的伤口和疲惫。":
+                        "如果亲自从已修好的信号灯运一捆药布过来，这里还能多照顾几位伤员。")+
                     (OuterPatrolFlawlessDone(room)?
                         "本地已获得无损守卫徽章，安全时享受最高级医疗补给。":
                         "精英战无路障、无抢修并守住90%以上物资，可争取无损徽章并强化现场医疗。")+
@@ -342,6 +345,9 @@ namespace Starfall
                         "你击退过精英三人组，此处医疗与补给更充足。可重演训练，但不会重复获得奖品。":
                         "可发起 110 秒精英防卫：真正的重甲敌人会砸毁物资。首次获胜可强化补给点。"),
                     "Residents operate this defended supply route. Recover here when safe. "+
+                    (OuterDeliveryDone(room)?
+                        "The dressings you carried here are already helping travelers. The watchkeeper keeps a reserve for faster wound care and rest. ":
+                        "Bring dressings by hand from the restored lamp, and the watch can treat more injured travelers. ")+
                     (OuterPatrolFlawlessDone(room)?
                         "Flawless watch medal earned: improved local healing and energy support. ":
                         "Clear a veteran siege with >=90% stock and no barricade or patch for a flawless medal. ")+
