@@ -256,7 +256,13 @@ namespace Starfall
             // hero and enemies recover to the nearest walkable bank.
             if (ReliefEscortActive && !Fits(reliefFollowerPosition))
             {
-                reliefFollowerPosition = SafeActorFoot(reliefFollowerPosition);
+                // Civilians also occupy real collision space. An evacuation
+                // into the same dry-bank tile as a living enemy or an ally
+                // would strand the resident inside an active combat body.
+                // Reuse the physically connected, uncrowded relocation;
+                // this is NOT walking, a reward or a teleport to the hub.
+                reliefFollowerPosition =
+                    UncrowdedEnemyFoot(reliefFollowerPosition);
                 // This shoreline relocation is not a walked animation
                 // frame. Drop old gait distance and movement state while
                 // preserving the civilian's tactical WAIT/FOLLOW choice,
