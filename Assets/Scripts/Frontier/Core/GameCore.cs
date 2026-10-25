@@ -1796,7 +1796,24 @@ namespace Starfall
                                 // later hits through the wall. Keep the Boss's
                                 // normal radial missiles and combat cycle.
                                 if (ClearAttackPath(e.Position, e.target))
+                                {
+                                    int firstNewGroundStrike=hazards.Count;
                                     BossExpansionAttack(e);
+                                    // A legal locked center does not make every
+                                    // secondary tile on a broad tide/glass/bell
+                                    // pattern legal. A newly closed side wall
+                                    // may separate one flank from its caster.
+                                    // Cull only THIS release's unreachable
+                                    // circles, leaving older, other-owned and
+                                    // independent environmental hazards intact.
+                                    for(int index=hazards.Count-1;
+                                        index>=firstNewGroundStrike;index--)
+                                        if(System.Object.ReferenceEquals(
+                                                hazards[index].bossOwner,e) &&
+                                            !ClearAttackPath(e.Position,
+                                                hazards[index].position))
+                                            hazards.RemoveAt(index);
+                                }
                                 int spokes = 4 + Math.Min(5, save.room) * 2 + e.BossPhase * 2;
                                 if (save.room >= 2 || e.BossPhase >= 2)
                                     for (int k = 0; k < spokes; k++) Fire(e, new Point((float)Math.Cos(k * Math.PI * 2 / spokes + e.cycle * .2), (float)Math.Sin(k * Math.PI * 2 / spokes + e.cycle * .2)), 3.5f + e.BossPhase * .4f);
