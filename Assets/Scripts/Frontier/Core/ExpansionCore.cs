@@ -2535,6 +2535,14 @@ namespace Starfall
         { return hazard.kind == "tide" ? 5 : hazard.kind == "glass" ? 6 : hazard.kind == "bell" ? 7 : 8; }
         private void BossExpansionAttack(Enemy e)
         {
+            // Every regional pattern is born at the actual contact frame.
+            // Terrain may close AFTER the red warning was committed. A
+            // delayed tide, glass, bell or root circle planted on the far
+            // side would later hit the hero from its own center despite the
+            // guardian no longer having a physical casting lane. Retain the
+            // Boss's normal radial projectiles/cycle, but never create a
+            // new ground strike from an unreachable, stale locked target.
+            if (!ClearAttackPath(e.Position, e.target)) return;
             // The harbor beast and glass guardian learn to sweep the other axis
             // as their armor breaks. Warnings remain visible Hazard objects.
             if (save.room == 5 || save.room == 6)
