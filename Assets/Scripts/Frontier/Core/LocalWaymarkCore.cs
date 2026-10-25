@@ -2,6 +2,13 @@ using System;
 
 namespace Starfall
 {
+    // Read-only status for a prospective player pin. A reachable tile is
+    // distinct from a merely standable tile on an isolated/closed island.
+    public enum WaymarkRouteStatus
+    {
+        Available, InvalidRequest, HeroFootingBlocked, DestinationBlocked, NoWalkingRoute
+    }
+
     // Player-placed local map destination. Deliberately transient: reading
     // a map must never create a saved quest, story outcome or teleport.
     public sealed partial class GameCore
@@ -50,44 +57,68 @@ namespace Starfall
             revision++;
             return true;
         }
-        // Only the current opened local map accepts clicks. The clicked
-        // CELL centre is tested against the same full-body collisions used
-        // by normal walking, and the real physical route must connect.
-        public bool PlaceLocalWaymark(Point requested)
+        // Predict a pin using the EXACT walking rules that commit it. This
+        // never changes a save, quest, notification, current pin or global
+        // route: it is suitable for live map selection and accessibility UI.
+        // If requested, route receives physical step centers plus the
+        // destination itself, so a preview cannot stop short at a wall.
+        public WaymarkRouteStatus InspectLocalWaymark(Point requested,
+            System.Collections.Generic.List<Point> route=null)
         {
-            if(mode!="map"||Dying||practicing||
-               !Finite(requested.x)||!Finite(requested.y))return false;
+            if(route!=null)route.Clear();
+            if(!Finite(requested.x)||!Finite(requested.y))
+                return WaymarkRouteStatus.InvalidRequest;
             MapData map=Map;
             if(map==null||map.rows==null||map.rows.Length==0||
                map.rows[0]==null||requested.x<0||requested.y<0||
                requested.x>=map.rows[0].Length||requested.y>=map.rows.Length)
-                return false;
+                return WaymarkRouteStatus.InvalidRequest;
             Point destination=new Point(
                 (float)Math.Floor(requested.x)+.5f,
                 (float)Math.Floor(requested.y)+.5f);
-            if(!CanStand(Position))
+            if(!CanStand(Position))return WaymarkRouteStatus.HeroFootingBlocked;
+            if(!CanStand(destination))return WaymarkRouteStatus.DestinationBlocked;
+            bool adjacent=(Position-destination).Length<=1.2f &&
+                ReliefActorLineWalkable(Position,destination);
+            if(!adjacent)
+            {
+                var walking=NavigationPathFrom(Position,destination,true);
+                if(walking.Count==0)return WaymarkRouteStatus.NoWalkingRoute;
+                if(route!=null)route.AddRange(walking);
+            }
+            if(route!=null)route.Add(destination);
+            return WaymarkRouteStatus.Available;
+        }
+        // Only the current opened local map accepts clicks. Both mouse and
+        // keyboard/handpad must commit the identical inspected tile.
+        public bool PlaceLocalWaymark(Point requested)
+        {
+            if(mode!="map"||Dying||practicing)return false;
+            WaymarkRouteStatus status=InspectLocalWaymark(requested);
+            if(status==WaymarkRouteStatus.InvalidRequest)return false;
+            if(status==WaymarkRouteStatus.HeroFootingBlocked)
             {
                 Notify("脚下道路已被封锁。请先回到可站立的位置再设标记。",
                     "Your footing is blocked. Reach safe ground before setting a pin.");
                 return false;
             }
-            if(!CanStand(destination))
+            if(status==WaymarkRouteStatus.DestinationBlocked)
             {
                 Notify("此处不能站立。请在可通行的道路上设置标记。",
                     "That tile is blocked. Pin a walkable destination.");
                 return false;
             }
-            bool adjacent=(Position-destination).Length<=1.2f &&
-                ReliefActorLineWalkable(Position,destination);
-            if(!adjacent && NavigationPathFrom(Position,destination,true).Count==0)
+            if(status==WaymarkRouteStatus.NoWalkingRoute)
             {
                 Notify("这处地点当前无法步行抵达；请换一处可通行的位置。",
                     "No physical walking route to that pin. Choose a reachable tile.");
                 return false;
             }
-            localWaymarkFoot=destination;
+            localWaymarkFoot=new Point(
+                (float)Math.Floor(requested.x)+.5f,
+                (float)Math.Floor(requested.y)+.5f);
             localWaymarkRoom=save.room;
-            localWaymarkMap=map;
+            localWaymarkMap=Map;
             localWaymarkSet=true;
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=1f;

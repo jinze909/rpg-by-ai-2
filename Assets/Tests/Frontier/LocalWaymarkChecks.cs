@@ -201,6 +201,54 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+
+        public static void WaymarkPreviewUsesSameFullBodyRouteAndNeverCommitsGameplay(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                GameCore g=WaymarkFixture(data);g.mode="map";
+                var points=new System.Collections.Generic.List<Point>();
+                Point available=new Point(16.8f,8.1f);
+                int flags=g.save.flags.Count;
+                Check(g.InspectLocalWaymark(available,points)==WaymarkRouteStatus.Available &&
+                    points.Count>0 &&
+                    (points[points.Count-1]-new Point(16.5f,8.5f)).Length<.001f &&
+                    !g.HasLocalWaymark && flags==g.save.flags.Count,
+                    "Read-only route preview reports real physical finish, preserving original quest and pin state");
+                Check(g.PlaceLocalWaymark(available)&&g.LocalWaymark.HasValue,
+                    "The same inspected point can be committed via the physical pin API");
+                Point pin=g.LocalWaymark.Value;
+                Point wall=new Point(0.5f,8.5f);
+                Check(g.InspectLocalWaymark(wall,points)==WaymarkRouteStatus.DestinationBlocked &&
+                    points.Count==0&&(g.LocalWaymark.Value-pin).Length<.001f,
+                    "A visible wall may not masquerade as an available controller route");
+                for(int y=2;y<32;y++)
+                {
+                    char[] row=g.Map.rows[y].ToCharArray();
+                    row[13]='#';g.Map.rows[y]=new string(row);
+                }
+                Check(g.CanStand(new Point(18.5f,8.5f))&&
+                    g.InspectLocalWaymark(new Point(18.5f,8.5f),points)==WaymarkRouteStatus.NoWalkingRoute &&
+                    points.Count==0&&(g.LocalWaymark.Value-pin).Length<.001f,
+                    "A separately standable island is reported as unreachable before confirmation; preview never erases the pin");
+                Check(g.InspectLocalWaymark(new Point(float.NaN,2),points)==WaymarkRouteStatus.InvalidRequest&&
+                    g.InspectLocalWaymark(new Point(-1,2),points)==WaymarkRouteStatus.InvalidRequest,
+                    "Corrupt or out-of-map inputs never fabricate preview coordinates");
+                char[] home=g.Map.rows[8].ToCharArray();home[8]='#';
+                g.Map.rows[8]=new string(home);
+                Check(g.InspectLocalWaymark(new Point(11.5f,8.5f),points)==WaymarkRouteStatus.HeroFootingBlocked&&
+                    points.Count==0,"Sealed hero footing rejects routes before BFS");
+                home[8]='.';g.Map.rows[8]=new string(home);
+                Check(g.InspectLocalWaymark(new Point(11.5f,8.5f),points)==WaymarkRouteStatus.Available,
+                    "Reopening hero footing restores physically reachable local predictions");
+                Check(g.save.version==2&&g.save.trackedQuest=="main"&&
+                    g.save.flags.Count==flags,
+                    "Inspecting and retesting physical map routes never changes v2 save schema or narrative flags");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void PlayerWaymarkIsRealReachableGoalAndClearsOnWalkingArrival(Campaign data)
         {
             MapData old=data.maps[1];
