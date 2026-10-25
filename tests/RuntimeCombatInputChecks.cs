@@ -5338,7 +5338,7 @@ public static class RuntimeCombatInputChecks
         WorldObject[] original=g.Map.objects;
         try
         {
-            g.Map.objects=Array.FindAll(original,o=>!Object.ReferenceEquals(o,guest));
+            g.Map.objects=Array.FindAll(original,o=>!object.ReferenceEquals(o,guest));
             g.Choose(stale);
             Check(g.mode=="world"&&g.conversation==null&&
                 g.save.coins==coins&&g.save.flags.Count==flags,
