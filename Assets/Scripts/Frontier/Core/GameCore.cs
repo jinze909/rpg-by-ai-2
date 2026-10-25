@@ -608,9 +608,19 @@ namespace Starfall
             if (!CanEnter(room)) { Notify(RouteHint(room, false), RouteHint(room, true)); Close(); return; }
             if (room == 8 && save.abyssFloor == 0) { OpenAbyssEntrance(); return; }
             if (InAbyss && room != 8) { AbyssExitConversation(); return; }
+            // Only an explicitly chosen distant quest route may cross the
+            // transient reset on an ordinary successful region transition.
+            // Loading a save still calls ResetTransient without this handoff.
+            string travelQuestHandoff=localWaymarkTravelQuestId;
             save.room = room; save.x = Map.spawnX; save.y = Map.spawnY;
             save.snapshotRoom = -1; save.worldEnemies = null; save.savedRunes = 0;
             ResetTransient(); SpawnRoom(); mode = "world"; revision++; sound = "travel";
+            if(!string.IsNullOrEmpty(travelQuestHandoff))
+            {
+                localWaymarkTravelQuestId=travelQuestHandoff;
+                localWaymarkRouteRecheck=0f;
+                TryResumeTravelQuestApproach();
+            }
             Notify(Map.subtitle, Map.suben);
         }
         public void ReturnToTown()
@@ -2887,13 +2897,19 @@ namespace Starfall
                 CommitLocalWaymark(approach,id);
             }
             else
-                // Cross-region routes need the actual open portal; don't
-                // fabricate a local waypoint in an inaccessible region.
-                ClearLocalWaymark();
+                // Keep explicit, transient intent through real travel.
+                // Only install a physical waypoint after entering the
+                // destination region and validating its full walking route.
+                QueueTravelQuestApproach(id);
             innFollowQuestId=null;
+            bool distant=q.room!=save.room;
             Dialog(o.name,o.en,
-                "旅人把手指移向门口。\n\n“好。旧的个人标记已让路。去看手帐上的路，别从封住的岔路硬闯。”",
-                "The traveler points to the door.\n\n“Right. Your old personal marker won't get in the way. Follow the journal route and leave sealed crossings alone.”",
+                distant?
+                    "旅人把路单折好。\n\n“先走开放的路口。进了那片地方，我再帮你找能走到目标身边的路。”":
+                    "旅人把手指移向地图。\n\n“路已经标好了。到了地方，还得亲自去问。”",
+                distant?
+                    "The traveler folds the route slip.\n\n“Take the open crossing. Once you're there, we'll find a walkable way to the job.”":
+                    "The traveler taps the map.\n\n“Your route's marked. You'll still need to speak to someone when you arrive.”",
                 C("翻开任务手帐","Open my journal","inn_openjournal"),
                 C("还有别的事要问","Ask something else","inn_topics"),
                 C("先告辞","Leave","close"));

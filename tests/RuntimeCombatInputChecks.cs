@@ -5490,7 +5490,76 @@ public static class RuntimeCombatInputChecks
             c=>c.action=="inn_job_"+chosen),
             "The currently tracked quest no longer fills an alternate board slot");
         g.Close();
-        Console.WriteLine("PASS Hearth Inn fieldwork board pages real available quests, tracks precisely one and opens its real journal with no reward bypass");
+        // Distant route handoff must operate through the same real inn
+        // dialogue, map transitions and physical route implementation.
+        g.Interact();
+        int distantBoard=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="inn_jobboard");
+        Check(distantBoard>=0,"Inn remains an actual repeatable fieldwork service");
+        g.Choose(distantBoard);
+        string distantId=null;int distantChoice=-1;
+        for(int page=0;page<30&&distantId==null;page++)
+        {
+            for(int i=0;i<g.conversation.choices.Length;i++)
+            {
+                string action=g.conversation.choices[i].action;
+                if(!action.StartsWith("inn_job_",StringComparison.Ordinal))continue;
+                string id=action.Substring("inn_job_".Length);
+                QuestGuide candidate=g.GetQuest(id);
+                if(candidate.room==9||candidate.room==8||
+                   !g.CanEnter(candidate.room))continue;
+                distantId=id;distantChoice=i;break;
+            }
+            if(distantId!=null)break;
+            int next=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="inn_jobs_next");
+            if(next<0)break;
+            g.Choose(next);
+        }
+        Check(distantId!=null&&distantChoice>=0,
+            "The actual Inn board offers a reachable distant campaign job");
+        int distantRoom=g.GetQuest(distantId).room;
+        g.Choose(distantChoice);
+        int distantConfirm=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="inn_confirm_"+distantId);
+        Check(distantConfirm>=0,"Distant job still requires player confirmation");
+        g.Choose(distantConfirm);
+        int distantFollow=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="inn_follow_"+distantId);
+        Check(distantFollow>=0,"Distant job offers explicit route ownership");
+        g.Choose(distantFollow);
+        Check(g.QuestApproachTravelHandoffPending&&!g.HasLocalWaymark&&
+            g.save.trackedQuest==distantId,
+            "Consent queues a transient cross-region route without a fake current-room pin");
+        if(distantRoom!=0)
+        {
+            g.Enter(0);
+            Check(g.save.room==0&&g.QuestApproachTravelHandoffPending&&
+                !g.HasLocalWaymark,
+                "Passing through a real intermediate hub preserves distant route intent only");
+        }
+        g.Enter(distantRoom);
+        Check(g.save.room==distantRoom&&g.save.trackedQuest==distantId,
+            "Real region transition preserves the original authored tracked quest");
+        if(g.HasLocalWaymark)
+        {
+            Check(g.QuestApproachNavigationActive&&
+                !g.QuestApproachTravelHandoffPending&&
+                g.InspectLocalWaymark(g.LocalWaymark.Value)==WaymarkRouteStatus.Available,
+                "Open destination installs a fresh physically walkable quest approach");
+        }
+        else Check(g.QuestApproachTravelHandoffPending,
+            "Unreachable destination leaves route intent pending rather than forging a pin");
+        g.mode="map";
+        Check(g.PlaceLocalWaymark(g.Position)&&
+            !g.QuestApproachTravelHandoffPending&&
+            !g.QuestApproachNavigationActive,
+            "Deliberate new manual map pin cancels automatic quest handoff");
+        g.Close();g.Enter(9);
+        Check(!g.HasLocalWaymark&&!g.QuestApproachTravelHandoffPending&&
+            g.save.version==2,
+            "Travel cannot resurrect a route canceled by the player or change save format");
+        Console.WriteLine("PASS Hearth Inn fieldwork board, explicit cross-region route handoff, walkability and manual override without reward bypass");
     }
 
     private static void NearbyNpcHudMatchesRealKeyboardInteraction(FrontierRuntime app)

@@ -19,6 +19,11 @@ namespace Starfall
         private MapData localWaymarkMap;
         private bool localWaymarkBlocked;
         private float localWaymarkRouteRecheck;
+        // Accepted distant job's optional, unsaved navigation handoff.
+        // Never inherit it across a loaded save or override a manual pin.
+        private string localWaymarkTravelQuestId;
+        public bool QuestApproachTravelHandoffPending
+        { get { return !string.IsNullOrEmpty(localWaymarkTravelQuestId); } }
         // Transient origin of a quest-generated waypoint. Manual pins must
         // NEVER be retargeted by story progress; neither value is serialized.
         private string localWaymarkQuestId;
@@ -79,6 +84,7 @@ namespace Starfall
             localWaymarkFoot=new Point();
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=0f;
+            localWaymarkTravelQuestId=null;
             localWaymarkQuestId=null;
             localWaymarkQuestTarget=new Point();
             localWaymarkQuestArrived=false;
@@ -86,7 +92,7 @@ namespace Starfall
         }
         public bool ClearLocalWaymark()
         {
-            if(!localWaymarkSet)return false;
+            if(!localWaymarkSet && !QuestApproachTravelHandoffPending)return false;
             ResetLocalWaymark();
             revision++;
             return true;
@@ -155,6 +161,7 @@ namespace Starfall
         // fresh physical-route check. This function never writes SaveData.
         private bool CommitLocalWaymark(Point requested,string questId)
         {
+            localWaymarkTravelQuestId=null;
             localWaymarkQuestId=questId;
             localWaymarkQuestTarget=string.IsNullOrEmpty(questId)?
                 new Point():GetQuest(questId).target;
@@ -212,9 +219,45 @@ namespace Starfall
             }
             return CommitLocalWaymark(approach,questId);
         }
+        // Choosing distant work is not an immediate teleport or an invented
+        // map pin. Retain only the player's explicit routing intent until a
+        // real portal brings them into the target region.
+        private void QueueTravelQuestApproach(string questId)
+        {
+            ClearLocalWaymark();
+            localWaymarkTravelQuestId=questId;
+            localWaymarkRouteRecheck=0f;
+            revision++;
+        }
+        private void TryResumeTravelQuestApproach()
+        {
+            string id=localWaymarkTravelQuestId;
+            if(string.IsNullOrEmpty(id))return;
+            if(save.trackedQuest!=id||Array.IndexOf(QuestIds,id)<0)
+            { localWaymarkTravelQuestId=null;return; }
+            QuestGuide quest=GetQuest(id);
+            if(quest.locked||quest.complete)
+            { localWaymarkTravelQuestId=null;return; }
+            if(quest.room!=save.room)return;
+            Point foot;
+            // A closed gate or unreachable approach never becomes a fake
+            // waypoint. Retry on future world ticks after the road opens.
+            if(!TryQuestApproachFoot(quest.target,out foot))return;
+            CommitLocalWaymark(foot,id);
+        }
         private void TickLocalWaymark(float dt)
         {
             Point? mark=LocalWaymark;
+            if(!mark.HasValue && QuestApproachTravelHandoffPending)
+            {
+                localWaymarkRouteRecheck-=dt;
+                if(localWaymarkRouteRecheck<=0f)
+                {
+                    localWaymarkRouteRecheck=1.25f;
+                    TryResumeTravelQuestApproach();
+                }
+                return;
+            }
             if(!mark.HasValue)return;
             bool fromQuest=!string.IsNullOrEmpty(localWaymarkQuestId);
             if(!localWaymarkQuestStageRoutePending &&
