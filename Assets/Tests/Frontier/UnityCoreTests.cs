@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void EnemyPursuitChecksThinCornerCollisionAlongRealMovementSweep() { CoreChecks.NarrowWallCornersForceRealPursuitDetours(Data()); }
         [Test] public void CompanionCanWaitAtSealedRouteAndRejoinAfterOpening() { CoreChecks.CompanionUsesReachableFrontierUntilRealGateReopens(Data()); }
         [Test] public void CompanionClosedTerrainCannotTeleportAcrossMap() { CoreChecks.CompanionBlockedFootRecoversLocallyWithoutCrossMapWarp(Data()); }
         [Test] public void CivicAuditPublicationExplainsPermanentFieldAidService() { CoreChecks.PublishingRoadAuditAnnouncesItsRealFieldKitService(Data()); }

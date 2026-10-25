@@ -389,8 +389,19 @@ namespace Starfall
             // A clear first step is insufficient: it can oscillate against a wall
             // instead of committing to the corridor around it (seeded abyss rooms).
             bool clear = true; float span = (to - from).Length;
-            for (float step = .25f; step < span + .25f; step += .4f)
-                if (!Fits(from + direct * Math.Min(step, span))) { clear = false; break; }
+            // A four-tenths-unit sightline stride can entirely skip a thin
+            // corner contact even though movement uses a .12-unit swept foot.
+            // That falsely selects direct pursuit and makes the actor grind
+            // against the missed obstacle instead of taking the legal BFS
+            // detour. Match the production movement collision step and check
+            // the exact destination as the final sample.
+            if (Finite(span) && span > 0f)
+            {
+                int samples = Math.Max(1, (int)Math.Ceiling(span / .12f));
+                for (int sample = 1; sample <= samples; sample++)
+                    if (!Fits(from + direct * (span * (sample / (float)samples))))
+                    { clear = false; break; }
+            }
             if (clear) return direct;
             int width = Map.rows[0].Length, height = Map.rows.Length;
             int sx = (int)Math.Floor(from.x), sy = (int)Math.Floor(from.y);

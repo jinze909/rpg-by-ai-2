@@ -201,6 +201,57 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void NarrowWallCornersForceRealPursuitDetours(Campaign data)
+        {
+            // The real collision footprint brushes this single masonry tile
+            // for less than the old .4-world-unit pursuit sightline stride.
+            // Old steering returns a falsely clear diagonal and walks into it.
+            MapData original = data.maps[0];
+            try
+            {
+                string[] rows = new string[25];
+                for (int y = 0; y < rows.Length; y++)
+                {
+                    char[] cells = new string('.', 25).ToCharArray();
+                    for (int x = 0; x < 25; x++)
+                        if (x < 2 || x >= 23 || y < 2 || y >= 23)
+                            cells[x] = '#';
+                    if (y == 10) cells[9] = '#';
+                    rows[y] = new string(cells);
+                }
+                data.maps[0] = new MapData {
+                    id = 0, spawnX = 7.5f, spawnY = 13.5f,
+                    rows = rows, objects = new WorldObject[0],
+                    decor = new Decoration[0]
+                };
+                var g = new GameCore(data);
+                Point origin = new Point(7.31417f, 13.53110f);
+                Point target = new Point(12.06023f, 9.55577f);
+                Point direct = (target - origin).Normalized;
+                Check(g.CanStand(origin) && g.CanStand(target),
+                    "Both ends of the corner-pursuit fixture must have physical feet");
+                bool crossesWall = false;
+                float span = (target - origin).Length;
+                for (float distance = .06f; distance < span; distance += .06f)
+                    if (!g.CanStand(origin + direct * distance))
+                    { crossesWall = true; break; }
+                Check(crossesWall,
+                    "An unobstructed endpoint pair must still intersect the narrow solid corner");
+                Point detour = g.DirectionTo(origin, target);
+                Check(detour.x > .95f && Math.Abs(detour.y) < .1f,
+                    "Live pursuer takes the legal eastern first waypoint, not a diagonal through masonry");
+                for (int step = 1; step <= 8; step++)
+                    Check(g.CanStand(origin + detour * (.12f * step)),
+                        "The actual first pursuit step remains physically walkable");
+                char[] opened = rows[10].ToCharArray(); opened[9] = '.';
+                rows[10] = new string(opened);
+                Point reopened = g.DirectionTo(origin, target);
+                Check((reopened - direct).Length < .001f,
+                    "Removing the obstruction restores real direct pursuit immediately without a stale cached route");
+            }
+            finally { data.maps[0] = original; }
+        }
+
         public static void SealedPursuitRoutesToLegalFrontierAndReopensImmediately(Campaign data)
         {
             // Keep all authored campaign maps and story objects unchanged.
