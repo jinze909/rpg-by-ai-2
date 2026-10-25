@@ -2590,9 +2590,23 @@ namespace Starfall
             string rewardEn = first ? "\n\nFirst survey: +8 coins, +1 shard." +
                 (Has("waytrail_complete") ? " All old routes charted: +1 talent point." : "") : "";
             Dialog(o.name, o.en,
-                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh + charterZh + aftercareZh,
-                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn + aftercareEn,
-                C("记入旧路星图", "Record in the road chart", "close"));
+                (eastern ? eastZh[region] : southZh[region]) + closingZh + rewardZh + charterZh + aftercareZh+
+                    (Has("civic_aftercare_published")&&
+                     Has("civic_aftercare_waytrail_"+region)&&
+                     (region==0||region==3||region==5)?
+                     "\n\n居民在这里留下药箱：用一份药草处理伤口（生命 +36），同时缓解高温与寒冷各25；战斗中不能处理。":""),
+                (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn + aftercareEn+
+                    (Has("civic_aftercare_published")&&
+                     Has("civic_aftercare_waytrail_"+region)&&
+                     (region==0||region==3||region==5)?
+                     "\n\nResident aid kits: one herb treats wounds (+36 HP) and eases heat/cold (-25). Only safe field stops are treated.":""),
+                Has("civic_aftercare_published")&&
+                Has("civic_aftercare_waytrail_"+region)&&
+                (region==0||region==3||region==5)?
+                    C("使用巡路急救包 · 药草1",
+                        "Use field aid · 1 herb","civic_aftercare_fieldaid"):
+                    C("记入旧路星图","Record in the road chart","close"),
+                C("继续赶路","Continue on the road","close"));
             return true;
         }
 

@@ -598,6 +598,80 @@ namespace Starfall.Tests
             Check(g.save.coins == coins && g.Allies == 1 && g.save.skillPoints == 1, "Commission rewards");
             g.Learn(1); Check(g.save.skillPoints == 0 && g.save.maxHealth == 152, "Talent allocation");
         }
+        public static void PublishedRoadAuditOffersRealCostedCivilianFirstAid(Campaign data)
+        {
+            int[] regions={0,3,5};
+            foreach(int region in regions)
+            {
+                GameCore g=Fresh(data);
+                g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.save.room=region;g.enemies.Clear();
+                g.save.flags.Add("civic_conduit_complete");
+                g.save.flags.Add("civic_aftercare_started");
+                g.save.flags.Add("civic_aftercare_waytrail_"+region);
+                WorldObject marker=Array.Find(g.Map.objects,
+                    o=>o.kind=="waytrail");
+                Check(marker!=null,"A genuine existing road marker is present in every audited region");
+                g.save.flags.Add("waytrail_"+marker.id);
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.save.inventory[2]=2;
+                g.save.health=18;g.save.heat=38;g.save.cold=30;
+                g.Talk(marker);
+                Check(Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_aftercare_fieldaid")<0,
+                    "An unpublished route audit cannot provide the new staffed field aid");
+                g.Close();
+                g.save.flags.Add("civic_aftercare_published");
+                g.Talk(marker);
+                int aid=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_aftercare_fieldaid");
+                Check(aid>=0&&g.conversation.text.Contains("药草1")&&
+                    g.conversation.textEn.Contains("one herb"),
+                    "Published audit connects one authentic local trail marker to bilingual costed gameplay");
+                // A stale choice may not heal the traveler from the far side
+                // of the map, or spend herbs on an invalid interaction.
+                g.save.x=marker.x+14;
+                g.Choose(aid);
+                Check(g.save.inventory[2]==2&&g.save.health==18,
+                    "Walking away from a field-aid dialogue never consumes a herb or grants free health");
+                g.save.x=marker.x;g.save.y=marker.y;g.Talk(marker);
+                aid=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_aftercare_fieldaid");
+                g.enemies.Add(new Enemy(88001,0,marker.x+.5f,marker.y,30));
+                g.Choose(aid);
+                Check(g.save.inventory[2]==2&&g.save.health==18,
+                    "Real hostile pressure blocks field triage instead of permitting combat-time healing");
+                g.enemies.Clear();
+                g.Talk(marker);
+                aid=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_aftercare_fieldaid");
+                g.Choose(aid);
+                Check(g.save.inventory[2]==1&&
+                    Math.Abs(g.save.health-54)<.01f&&
+                    Math.Abs(g.save.heat-13)<.01f&&
+                    Math.Abs(g.save.cold-5)<.01f,
+                    "Paid field aid genuinely restores 36 HP and relieves 25 exposure with one real herb");
+                float healed=g.save.health;
+                g.save.health=g.save.maxHealth;
+                g.Talk(marker);
+                aid=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_aftercare_fieldaid");
+                g.Choose(aid);
+                Check(g.save.inventory[2]==1&&g.save.health==g.save.maxHealth,
+                    "A fully recovered traveler cannot waste an extra medicinal herb");
+                // The new remedy has no SaveData field and does not change
+                // the original quest publications or world entry gates.
+                GameCore reload=new GameCore(data,g.save);
+                Check(reload.save.version==2&&
+                    reload.Has("civic_aftercare_published")&&
+                    reload.save.room==region&&reload.save.inventory[2]==1,
+                    "Real v2 reload persists the spent herb and earned audit without a new save schema");
+            }
+        }
+
         public static void StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Campaign data)
         {
             GameCore g=Fresh(data);

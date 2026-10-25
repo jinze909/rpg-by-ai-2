@@ -138,6 +138,50 @@ namespace Starfall
         }
         private bool ChooseCivicAftercare(string action)
         {
+            if(action=="civic_aftercare_fieldaid")
+            {
+                int region=save.room;
+                WorldObject source=pendingDialogueSource;
+                // Bind the chosen remedy to the EXACT physical trail marker
+                // whose conversation offered it. An unrelated marker/NPC
+                // or moved/stale menu cannot impersonate a staffed station.
+                if(source==null||source.kind!="waytrail"||
+                    pendingDialogueSourceRoom!=region||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source)||
+                    !Has("civic_aftercare_published")||
+                    !Has("civic_aftercare_waytrail_"+region)||
+                    (region!=0&&region!=3&&region!=5)||
+                    Dying||practicing||racing)return true;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("巡路医疗包得在安全时使用；先完成正在进行的现场行动。",
+                        "The field kit is for secure stops. Finish live fieldwork and clear hostile attacks.");
+                    return true;
+                }
+                if(save.health>=save.maxHealth&&save.heat<20&&save.cold<20)
+                {
+                    Notify("目前没有需要处理的伤口或高温寒冷，留好这份药草。",
+                        "No wounds or serious heat/cold exposure. Save the herbs.");
+                    return true;
+                }
+                // One herb per actual use. This is repeatable community
+                // treatment, not an invented free heal or timed rest skip.
+                if(!Spend(0,0,1,0,0))return true;
+                float restored=Math.Min(36f,save.maxHealth-save.health);
+                save.health=Math.Min(save.maxHealth,save.health+36f);
+                save.heat=Math.Max(0,save.heat-25f);
+                save.cold=Math.Max(0,save.cold-25f);
+                effects.Add(new Effect("number",Position+new Point(0,-.8f),
+                    .7f,L("巡路急救 +"+(int)restored,
+                        "FIELD AID +"+(int)restored)));
+                sound="reward";revision++;
+                Notify("居民急救包：药草 -1，生命 +"+(int)restored+
+                    "，高温与寒冷各缓解25。",
+                    "Civilian field kit: -1 herb, +"+(int)restored+
+                    " HP, -25 heat and cold.");
+                return true;
+            }
             bool civicAction=action=="civic_aftercare_begin"||
                 action=="civic_aftercare_status"||
                 action=="civic_aftercare_publish";
