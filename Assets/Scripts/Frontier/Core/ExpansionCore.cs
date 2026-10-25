@@ -479,7 +479,7 @@ namespace Starfall
             foreach (EnemyRecord r in save.abyssEnemies)
             {
                 if (r == null || r.id < 1 || r.id > 99999 || !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0) continue;
-                Point p = SafeActorFoot(new Point(r.x, r.y));
+                Point p = UncrowdedEnemyFoot(new Point(r.x, r.y));
                 float maximum = Clamp(r.maxHp, 1, 5000);
                 var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, maximum, r.boss && save.abyssFloor == 6);
                 e.hp = Clamp(r.hp, .1f, maximum); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);

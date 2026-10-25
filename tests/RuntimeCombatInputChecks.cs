@@ -1592,6 +1592,70 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Boss summons require a real walking route to the hero, rejecting closed-wall islands and resuming after reopening");
     }
 
+    private static void SpawnAndRecoveredAbyssEnemiesDoNotStackOnOneFoot(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        GameCore g=app.Game;
+        g.save.frontierEnding=1;
+        g.save.abyssFloor=1;
+        g.save.abyssSnapshotFloor=-1;
+        g.Enter(8);
+        Check(g.save.room==8&&g.enemies.Count>0,
+            "Actual procedurally generated Abyss contains living combat actors");
+        Point at=new Point();bool found=false;
+        foreach(Enemy original in g.enemies)
+        {
+            Point p=original.Position;
+            if(!g.CanStand(p))continue;
+            for(int dy=-1;dy<=1&&!found;dy++)
+            for(int dx=-1;dx<=1&&!found;dx++)
+            {
+                if(dx==0&&dy==0)continue;
+                Point candidate=new Point(
+                    (float)Math.Floor(p.x)+dx+.5f,
+                    (float)Math.Floor(p.y)+dy+.5f);
+                if(g.CanStand(candidate)&&
+                    (bool)CallCore(g,"ActorHasLocalRoute",p,candidate,4))
+                {at=p;found=true;}
+            }
+            if(found)break;
+        }
+        Check(found,"A real generated Abyss foot has an accessible separate neighbor");
+        g.enemies.Clear();
+        Enemy first=(Enemy)CallCore(g,"CreatePlacedEnemy",8101,0,at,80f,false);
+        g.enemies.Add(first);
+        Enemy second=(Enemy)CallCore(g,"CreatePlacedEnemy",8102,1,at,85f,false);
+        Check((first.Position-second.Position).Length>=.95f&&
+            g.CanStand(second.Position)&&
+            (bool)CallCore(g,"ActorHasLocalRoute",first.Position,second.Position,4),
+            "Second production spawn avoids the first on the same reachable side of actual terrain");
+        g.enemies.Add(second);
+        Check(g.enemies.Count==2&&first.id==8101&&second.id==8102,
+            "Both combatants keep their own living identities and attack bodies");
+        g.enemies.Clear();
+        g.save.abyssSnapshotFloor=1;
+        g.save.abyssEnemies=new []{
+            new EnemyRecord{id=9001,kind=0,x=at.x,y=at.y,hp=37,maxHp=50},
+            new EnemyRecord{id=9002,kind=1,x=at.x,y=at.y,hp=44,maxHp=60}
+        };
+        int coins=g.save.coins,shards=g.save.shards;
+        Check((bool)CallCore(g,"RestoreAbyssEnemies")&&
+            g.enemies.Count==2,
+            "Real Abyss snapshot recovery restores both independently identified fighters");
+        Enemy a=g.enemies[0],b=g.enemies[1];
+        Check(a.id==9001&&b.id==9002&&
+            Math.Abs(a.hp-37f)<.001f&&Math.Abs(b.hp-44f)<.001f&&
+            Math.Abs(a.maxHp-50f)<.001f&&Math.Abs(b.maxHp-60f)<.001f,
+            "Recovery preserves the unique original enemy IDs, types and exact unspent health");
+        Check((a.Position-b.Position).Length>=.95f&&
+            (bool)CallCore(g,"ActorHasLocalRoute",a.Position,b.Position,4),
+            "Interrupted legacy snapshot's overlapping enemies recover to two connected physical combat tiles");
+        Check(g.save.version==2&&g.save.coins==coins&&g.save.shards==shards,
+            "Enemy recovery never modifies SaveData version or awards loot");
+        g.Close();
+        Console.WriteLine("PASS Shipped enemy spawning and real Abyss recovery separate overlapping live actors without lost IDs, HP or rewards");
+    }
+
     private static void CivicReserveCombatHudTracksGenuineReceiverObjective(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -8769,7 +8833,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, RealOuterShoreNavigationFollowsActualTransitLegs, WorldAtlasTrackAndFollowIsExplicitAndAtomic, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, BossSupportCannotSpawnAcrossAnIsolatedArena, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, BossSupportCannotSpawnAcrossAnIsolatedArena, SpawnAndRecoveredAbyssEnemiesDoNotStackOnOneFoot, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

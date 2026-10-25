@@ -22,9 +22,45 @@ namespace Starfall
             if (nearest == float.MaxValue) throw new InvalidOperationException("The region has no valid actor footing.");
             return result;
         }
+        // Several authored spawn points can collapse to the same safe
+        // footing after a tide/bridge change, and interrupted Abyss saves
+        // may contain two living enemies on one cell. Keep every valid
+        // non-overlapping original foot unchanged. Only separate genuinely
+        // overlapping actors, into a nearby tile in the SAME reachable
+        // pocket; never move one through a wall to fill a different island.
+        private Point UncrowdedEnemyFoot(Point proposed)
+        {
+            Point safe=SafeActorFoot(proposed);
+            bool occupied=false;
+            foreach(Enemy other in enemies)
+                if(other!=null&&other.hp>0&&
+                    (other.Position-safe).Length<.95f)
+                {occupied=true;break;}
+            if(!occupied)return safe;
+            for(int radius=1;radius<=4;radius++)
+            for(int dy=-radius;dy<=radius;dy++)
+            for(int dx=-radius;dx<=radius;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point option=new Point(
+                    (float)Math.Floor(safe.x)+dx+.5f,
+                    (float)Math.Floor(safe.y)+dy+.5f);
+                if(!Fits(option)||!ActorHasLocalRoute(safe,option,4))
+                    continue;
+                bool clear=true;
+                foreach(Enemy other in enemies)
+                    if(other!=null&&other.hp>0&&
+                       (other.Position-option).Length<.95f)
+                    {clear=false;break;}
+                if(clear)return option;
+            }
+            // A genuinely one-tile refuge must not silently delete a
+            // previously saved monster or teleport it behind solid walls.
+            return safe;
+        }
         private Enemy CreatePlacedEnemy(int id, int kind, Point proposed, float health, bool boss = false)
         {
-            Point p = SafeActorFoot(proposed);
+            Point p = UncrowdedEnemyFoot(proposed);
             return new Enemy(id, kind, p.x, p.y, health, boss);
         }
         // LOS alone is not a walkable route: a slit in a wall, tidewater
