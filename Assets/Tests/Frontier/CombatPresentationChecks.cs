@@ -3962,6 +3962,99 @@ namespace Starfall.Tests
 
 
 
+
+        public static void RestoredRemoteWarningLampsReallyShelterAgainstRegionClimate(Campaign data)
+        {
+            for(int room=6;room<=7;room++)
+            {
+                MapData former=data.maps[room];
+                try
+                {
+                    string[] rows=new string[25];
+                    for(int y=0;y<rows.Length;y++)
+                    {
+                        char[] cells=new string('#',25).ToCharArray();
+                        if(y>=2&&y<=22)
+                            for(int x=2;x<=22;x++)cells[x]='.';
+                        rows[y]=new string(cells);
+                    }
+                    WorldObject mast=new WorldObject{
+                        id="outer_"+room+"_1",kind="outerrelay",
+                        x=10.5f,y=10.5f,
+                        name="Relief lamp",en="Relief lamp"
+                    };
+                    data.maps[room]=new MapData{
+                        id=room,spawnX=12.5f,spawnY=10.5f,
+                        rows=rows,objects=new[]{mast},
+                        decor=new Decoration[0]
+                    };
+                    var g=Fresh(data);g.save.room=room;
+                    g.mode="world";g.enemies.Clear();
+                    g.save.x=12.5f;g.save.y=10.5f;
+                    g.invulnerable=100f;
+                    Check(g.CanStand(g.Position)&&
+                        g.CanStand(new Point(mast.x,mast.y))&&
+                        !g.OuterRelayRestRefuge,
+                        "The unrepaired real climate-region signal cannot falsely shelter a player");
+                    if(room==6)g.save.heat=50;
+                    else g.save.cold=50;
+                    Advance(g,.12f);
+                    float exposed=room==6?g.save.heat:g.save.cold;
+                    Check(exposed>50,
+                        "A truly exposed traveler accumulates local desert heat or mountain cold");
+                    g.save.flags.Add("outer_relay_"+room);
+                    if(room==6)g.save.heat=50;
+                    else g.save.cold=50;
+                    Check(g.OuterRelayRestRefuge,
+                        "Only an actually repaired and reachable mast provides local weather respite");
+                    Advance(g,.12f);
+                    float sheltered=room==6?g.save.heat:g.save.cold;
+                    Check(sheltered<50,
+                        "The same in-world repaired light now actively reduces its authentic climate meter");
+                    g.save.x=18.5f;g.save.y=10.5f;
+                    if(room==6)g.save.heat=50;
+                    else g.save.cold=50;
+                    Advance(g,.12f);
+                    float distant=room==6?g.save.heat:g.save.cold;
+                    Check(distant>50&&!g.OuterRelayRestRefuge,
+                        "A distant repaired lamp cannot provide map-wide climate immunity");
+                    g.save.x=12.5f;g.save.y=10.5f;
+                    for(int y=2;y<=22;y++)
+                    {
+                        char[] r=rows[y].ToCharArray();
+                        r[11]='#';rows[y]=new string(r);
+                    }
+                    Check(!g.OuterRelayRestRefuge,
+                        "A real wall separating lamp and traveler cancels service immediately");
+                    if(room==6)g.save.heat=50;
+                    else g.save.cold=50;
+                    Advance(g,.12f);
+                    float walled=room==6?g.save.heat:g.save.cold;
+                    Check(walled>50,
+                        "A closed wall cannot pass cooling or warmth from an out-of-reach light");
+                    for(int y=2;y<=22;y++)
+                    {
+                        char[] r=rows[y].ToCharArray();
+                        r[11]='.';rows[y]=new string(r);
+                    }
+                    g.enemies.Add(new Enemy(97311,0,13.5f,10.5f,300f)
+                        {stun=99f,timer=999f});
+                    Check(!g.OuterRelayRestRefuge,
+                        "A living close raider cancels nominal beacon safety");
+                    if(room==6)g.save.heat=50;
+                    else g.save.cold=50;
+                    Advance(g,.12f);
+                    float besieged=room==6?g.save.heat:g.save.cold;
+                    Check(besieged>50,
+                        "Tactical enemy pressure re-exposes real climate even at the repaired mast");
+                    g.enemies.Clear();
+                    Check(g.OuterRelayRestRefuge&&g.save.version==2,
+                        "Shelter resumes after actual combat with unchanged v2 save layout");
+                }
+                finally {data.maps[room]=former;}
+            }
+        }
+
         public static void RepairedOuterBeaconsProvideActualSafeNearsideRespite(Campaign data)
         {
             MapData prior=data.maps[0];

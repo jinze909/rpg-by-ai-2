@@ -1875,6 +1875,10 @@ namespace Starfall
             // against the exposed desert sun and highland wind. This is
             // current physical protection, not a global immunity reward.
             bool safeReliefShelter=OuterPatrolRefuge;
+            // The fixed warning-lamp mast becomes a genuine small weather
+            // respite after repair. No distant signal, wall-separated
+            // beacon, live raid or uncompleted region can shield anyone.
+            bool safeRescueLight=OuterRelayRestRefuge;
             bool tea = save.teaUntil > save.totalTime;
             bool activeShade=ShadedInDesert;
             // A short, earned cool breeze cushions one crossing out of an
@@ -1887,7 +1891,8 @@ namespace Starfall
                 shadeBreezeSeconds>0f;
             save.heat = Clamp(save.heat + dt * (save.room == 6 && !tea && !activeShade &&
                 !NearActiveFieldStation(6, FieldStationRefugeRadius(6)) &&
-                !GlasswindRefuge && !safeReliefShelter && !racing ?
+                !GlasswindRefuge && !safeReliefShelter &&
+                !safeRescueLight && !racing ?
                     (shadeCarry ? 0f : 1.3f) : -10f), 0, 100);
             // Both authored desert shade posts are genuine safe respite
             // sites. Unlike passive cooling, HP/energy restoration cannot
@@ -1903,7 +1908,8 @@ namespace Starfall
             else brazierEmberSeconds=Math.Max(0f,brazierEmberSeconds-dt);
             bool emberCarry=save.room==7 && !brazierWarmth &&
                 brazierEmberSeconds>0f;
-            bool warm = FrostSignalRefuge || brazierWarmth;
+            bool warm = FrostSignalRefuge || brazierWarmth ||
+                safeRescueLight;
             if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
             // Residual heat holds the cold meter steady during one short
             // crossing; it is NOT another permanent heater or HP immunity.
@@ -2053,7 +2059,7 @@ namespace Starfall
             // a physically reached pause along each remote rescue route.
             // Neither offscreen progress nor close-by enemies can award
             // field care. This uses the ALREADY SAVED relay flag.
-            if(OuterRelayRestRefuge)
+            if(safeRescueLight)
             {
                 if(save.health>0f&&save.health<save.maxHealth)
                     save.health=Math.Min(save.maxHealth,

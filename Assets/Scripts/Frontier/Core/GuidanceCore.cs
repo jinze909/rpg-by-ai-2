@@ -1149,8 +1149,8 @@ namespace Starfall
             {
                 q.title=L("边境求援灯 · 遗失的信号","Frontier Rescue Lights · Lost Signals");
                 q.category=L("探索支线 · 野外修复","EXPLORATION · FIELD REPAIRS");
-                q.description=L("每片边境都有被遗忘的遇险记录、坏掉的信号灯和无人领取的救援箱。找到记录，再用一枚零件点亮信号。修好的灯不仅指路，周围安全时还能让人在灯下恢复生命和耐力。最后带走救援箱。",
-                    "Each region holds a lost rescue record, an unlit signal and a relief chest nobody collected. Find the log and repair the light with one spare part. The lit mast marks the route and offers health and energy recovery while the area is safe. Then claim the chest.");
+                q.description=L("每片边境都有被遗忘的遇险记录、坏掉的信号灯和无人领取的救援箱。找到记录，再用一枚零件点亮信号。修好的灯不仅指路，周围安全时还能让人在灯下恢复生命和耐力；沙海和高原的信号灯也能避开风沙或寒气。最后带走救援箱。",
+                    "Each region holds a lost rescue record, an unlit signal and a relief chest nobody collected. Find the log and repair the light with one spare part. The lit mast marks the route and offers health and energy recovery while safe; in the desert or highlands it also shelters you from heat or cold. Then claim the chest.");
                 q.locked=!Has("intro");q.complete=OuterRescueCount==8;
                 int room=-1,phase=0;
                 string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
