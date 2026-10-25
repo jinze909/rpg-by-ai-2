@@ -51,7 +51,7 @@ namespace Starfall.Tests
                 Check(!q.locked&&!q.complete&&q.room==1&&
                     (q.target-ExplorationMarker(g,first[i])).Length<.001f,
                     "The "+quests[i]+" guide must use a physical local landmark instead of early-region backtracking");
-                Check((g.NavigationExplorationMarker(g,).Value-q.target).Length<.001f,
+                Check((g.NavigationTarget().Value-q.target).Length<.001f,
                     "The world compass must follow the actual selected local quest marker");
             }
             g.save.flags.Add("trail_circuit_1_1");
