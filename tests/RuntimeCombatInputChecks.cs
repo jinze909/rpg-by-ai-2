@@ -1234,8 +1234,12 @@ public static class RuntimeCombatInputChecks
         Prepare(app,0);
         var g=app.Game;g.enemies.Clear();g.save.stage=3;
         foreach(string flag in new[]{"intro","exp_intro","harbor_report",
-            "desert_report","outer_log_0","outer_relay_0","outer_relay_5"})
+            "desert_report","outer_relay_5"})
             if(!g.Has(flag))g.save.flags.Add(flag);
+        // VisualReview starts inside its selected region, not necessarily
+        // Emberfall. Both the source flag and its real Map must agree.
+        foreach(string flag in new[]{"outer_log_","outer_relay_"})
+            if(!g.Has(flag+g.save.room))g.save.flags.Add(flag+g.save.room);
         WorldObject mast=null;
         foreach(WorldObject o in g.Map.objects)
             if(o.kind=="outerrelay"){mast=o;break;}
