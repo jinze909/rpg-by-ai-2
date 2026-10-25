@@ -77,6 +77,16 @@ namespace Starfall
         {
             if (boss==null || !boss.boss || boss.hp<=0 || !enemies.Contains(boss)
                 || enemies.Count>=9)return false;
+            // The summon must reinforce a fight that physically connects
+            // to the hero, not fill an isolated pocket on the other side
+            // of a closed floodgate or a wall. The older local boss-to-spawn
+            // check alone could greenlight an unreachable entire arena.
+            // A FULL physical finish is required; a closest-reachable BFS
+            // frontier does not prove an enemy can ever engage the hero.
+            if(!CanStand(Position)||!CanStand(boss.Position)||
+                (boss.Position-Position).Length>1.8f&&
+                NavigationPathFrom(boss.Position,Position,true).Count==0)
+                return false;
             Point[] candidates = {
                 new Point(-2f,1f), new Point(2f,1f), new Point(-2f,-1f),
                 new Point(2f,-1f), new Point(0f,2.5f), new Point(0f,-2.5f),
