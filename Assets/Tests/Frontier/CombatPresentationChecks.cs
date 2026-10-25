@@ -2207,7 +2207,7 @@ namespace Starfall.Tests
                 for(int i=0;i<20&&g.projectiles.Count==bullets;i++)
                     g.Tick(.05f,new Point());
                 Check(g.projectiles.Exists(p=>p.visual=="enemyArrow"&&
-                    Object.ReferenceEquals(p.hostileShooter,archer)),
+                    System.Object.ReferenceEquals(p.hostileShooter,archer)),
                     "Recovered archer releases an ACTUAL traveling hostile shot bound to its physical identity");
                 Check(g.save.version==2,
                     "Living cover tactical decisions remain transient and preserve legacy saves");
