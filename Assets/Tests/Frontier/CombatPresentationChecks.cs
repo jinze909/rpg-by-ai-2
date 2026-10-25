@@ -3987,14 +3987,14 @@ namespace Starfall.Tests
                     !g.OuterRelayRestRefuge,
                     "Unrepaired remote rescue signal cannot provide free healing");
                 float baseline=g.save.health;
-                g.Tick(.5f,new Point());
+                Advance(g,.5f);
                 Check(Math.Abs(g.save.health-baseline)<.001f,
                     "Ordinary world time cannot silently heal at a dark beacon");
                 // Use the existing actual story transaction: reading its
                 // physical prior record permits one genuine spare-part repair.
                 g.save.flags.Add("outer_log_0");
                 g.save.x=11.5f;g.save.y=10.5f;
-                int spare=g.save.inventory[2];
+                int spare=g.save.inventory[4];
                 g.Talk(mast);
                 Check(g.mode=="dialog"&&g.conversation!=null,
                     "Live, reachable beacon offers its genuine repair dialogue");
@@ -4005,20 +4005,20 @@ namespace Starfall.Tests
                 Check(repair>=0,"Unlit beacon must offer the original part-cost repair");
                 g.Choose(repair);g.Close();
                 Check(g.OuterRelayRestored(0)&&
-                    g.save.inventory[2]==spare-1&&g.save.version==2,
+                    g.save.inventory[4]==spare-1&&g.save.version==2,
                     "Repair spends one authentic component and uses only legacy-v2 quest flags");
                 g.save.x=12.5f;g.save.y=10.5f;
                 Check(g.OuterRelayRestRefuge,
                     "Physically reachable repaired lamp immediately establishes its real rest station");
                 g.save.health=40f;g.save.energy=20f;
-                g.Tick(.5f,new Point());
+                Advance(g,.5f);
                 Check(g.save.health>=40.5f&&g.save.health<=40.7f&&
                     g.save.energy>28f,
                     "Repaired lamp restores actual HP and extra endurance on a legitimate 500ms world tick");
                 g.save.x=18.5f;g.save.y=10.5f;g.save.health=40f;
                 Check(!g.OuterRelayRestRefuge,
                     "Crossing beyond the actual mast radius cannot grant distant care");
-                g.Tick(.5f,new Point());
+                Advance(g,.5f);
                 Check(Math.Abs(g.save.health-40f)<.001f,
                     "Remote player receives no offscreen recovery despite a repaired flag");
                 // Same physical distance but opposite sides of a solid
@@ -4032,7 +4032,7 @@ namespace Starfall.Tests
                 Check(g.CanStand(g.Position)&&
                     !g.OuterRelayRestRefuge,
                     "The repaired signal cannot care for a character behind real terrain");
-                g.Tick(.5f,new Point());
+                Advance(g,.5f);
                 Check(Math.Abs(g.save.health-40f)<.001f,
                     "Closed-wall beacon cannot leak healing through terrain");
                 for(int y=2;y<=22;y++)
@@ -4047,7 +4047,7 @@ namespace Starfall.Tests
                 g.enemies.Add(enemy);
                 Check(!g.OuterRelayRestRefuge,
                     "An actual nearby hostile suspends beacon recovery before damage");
-                g.Tick(.5f,new Point());
+                Advance(g,.5f);
                 Check(Math.Abs(g.save.health-40f)<.001f,
                     "Combat under the light does not grant free healing");
                 g.enemies.Clear();
