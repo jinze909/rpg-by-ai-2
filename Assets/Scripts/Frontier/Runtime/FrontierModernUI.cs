@@ -128,6 +128,53 @@ namespace Starfall
             QuestGuide quest=Game.GetQuest(mapInspectedQuestId);
             return !quest.locked&&quest.room==selectedRegion?quest:null;
         }
+        // The map is a browsable quest index, not only a passive copy of
+        // the currently tracked compass. Read authored quest eligibility on
+        // demand: never expose locked or finished story objectives.
+        private List<string> AvailableMapQuestIds(int region)
+        {
+            var available=new List<string>();
+            if(Game==null||region<0||region>=Game.data.maps.Length||
+                (region!=Game.save.room&&!Game.CanEnter(region)))
+                return available;
+            foreach(string id in GameCore.QuestIds)
+            {
+                QuestGuide guide=Game.GetQuest(id);
+                if(!guide.locked&&!guide.complete&&guide.room==region)
+                    available.Add(id);
+            }
+            return available;
+        }
+        private void CycleMapRegionQuest(int direction,List<string> choices)
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+                choices==null||choices.Count==0||direction==0)return;
+            int index=choices.IndexOf(mapInspectedQuestId);
+            // When no quest was inspected, first Next selects the first
+            // result; first Previous selects the last, without saving.
+            if(index<0) index=direction>0?-1:0;
+            index=(index+(direction>0?1:-1)+choices.Count)%choices.Count;
+            mapInspectedQuestId=choices[index];
+            Game.sound="ui";
+        }
+        private void OpenInspectedMapQuestInJournal()
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+                string.IsNullOrEmpty(mapInspectedQuestId))return;
+            int index=Array.IndexOf(GameCore.QuestIds,mapInspectedQuestId);
+            if(index<0)return;
+            QuestGuide guide=Game.GetQuest(mapInspectedQuestId);
+            if(guide.locked||guide.room!=selectedRegion)return;
+            // Preserve the actual original quest index in the 60-item
+            // catalogue. A previous available-only filter might otherwise
+            // route its page number to the wrong quest.
+            journalTab=0;
+            journalOnlyActionable=false;
+            selectedQuest=index;
+            questPage=index/14;
+            mapInspectedQuestId=null;
+            OpenMenu("journal");
+        }
         private Conversation lastConversation;
         // The IMGUI path repaints repeatedly even when the NPC and narration
         // are unchanged. Cache only page layout, never dialogue actions/state.
@@ -811,7 +858,40 @@ namespace Starfall
         {
             Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击地图标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click to pin · R/Y move personal pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i, !mapTileCursor.Active)) selectedRegion = i; }
-            if (Game.save.room == 9 && Button(279, 657, 555, 31, Game.L("查看当前位置：炉火旅店", "Current room: Hearth Inn"), selectedRegion == 9)) selectedRegion = 9;
+            // Region-specific available quest browser. Explicit selection
+            // changes only the inspected map marker, never trackedQuest or
+            // the player's independent physical waypoint.
+            List<string> regionQuests=AvailableMapQuestIds(selectedRegion);
+            int regionQuestIndex=regionQuests.IndexOf(mapInspectedQuestId);
+            Card(279,637,555,65);
+            string regionQuestHeading=regionQuests.Count==0?
+                Game.L("本地区暂无可继续的任务",
+                    "No available quests in this region"):
+                regionQuestIndex<0?
+                    Game.L("本地区可推进任务 "+regionQuests.Count+" 项 · 选择浏览",
+                        regionQuests.Count+" available quests · choose one"):
+                    (regionQuestIndex+1)+"/"+regionQuests.Count+"  "+
+                        Game.GetQuest(mapInspectedQuestId).title;
+            Text(292,641,526,27,regionQuestHeading,14,
+                regionQuestIndex>=0?gold:muted,TextAnchor.MiddleCenter);
+            bool canBrowse=!mapTileCursor.Active&&regionQuests.Count>0;
+            if(Button(291,672,77,24,Game.L("上一个","Previous"),false,canBrowse))
+                CycleMapRegionQuest(-1,regionQuests);
+            if(Button(379,672,77,24,Game.L("下一个","Next"),false,canBrowse))
+                CycleMapRegionQuest(1,regionQuests);
+            bool inspecting=regionQuests.Contains(mapInspectedQuestId);
+            if(Button(467,672,169,24,Game.L("打开任务手帐","Open in journal"),
+                false,!mapTileCursor.Active&&inspecting))
+                OpenInspectedMapQuestInJournal();
+            if(Button(646,672,174,24,Game.L("返回追踪目标","Return to tracking"),
+                false,!mapTileCursor.Active&&inspecting))
+                mapInspectedQuestId=null;
+            // The inn is a real tenth room, not another overworld region.
+            // Keep its original map selector without obscuring the browser.
+            if(Game.save.room==9&&Button(279,706,555,25,
+                Game.L("查看当前位置：炉火旅店","Current room: Hearth Inn"),
+                selectedRegion==9,!mapTileCursor.Active))
+                selectedRegion=9;
             Card(866, 178, 351, 510);
             // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
             MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
@@ -1044,13 +1124,17 @@ namespace Starfall
                 if (selectedRegion == Game.save.room) Game.Close();
                 else { Game.Enter(selectedRegion); camera = CameraTarget(); }
             }
-            Text(282, 657, 554, 45,
-                Game.reliefMissionRoom != 0 ?
-                    Game.L("先完成居民撤离或到站台明确取消，再前往其他地区。",
-                        "Finish or explicitly cancel the rescue at its station before leaving the region.") :
-                    Game.SafeTravel ? Game.L("选择地区查看路线与目标。", "Select a region to inspect its route and target.") :
-                        Game.L("附近有敌人，快速旅行暂不可用。", "Enemies nearby; fast travel unavailable."),
-                14, muted);
+            if(Game.save.room!=9)
+                Text(282,707,554,24,
+                    Game.reliefMissionRoom!=0?
+                        Game.L("先完成救援或到站台取消，才能离开地区。",
+                            "Finish or cancel the rescue at its station before traveling."):
+                        Game.SafeTravel?
+                            Game.L("选择地区并浏览任务；地图查看不会改变追踪。",
+                                "Browse regional quests without changing tracking."):
+                            Game.L("附近有敌人，快速旅行暂不可用。",
+                                "Enemies nearby; fast travel unavailable."),
+                    11,muted,TextAnchor.MiddleCenter);
         }
         private void DrawDialogue()
         {

@@ -2719,6 +2719,75 @@ public static class RuntimeCombatInputChecks
     }
 
 
+    private static void MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.english=true;
+        game.save.flags.Add("intro");
+        game.save.trackedQuest="main";
+        game.mode="map";
+        Set(app,"selectedRegion",game.save.room);
+        Set(app,"mapInspectedQuestId",null);
+        List<string> options=(List<string>)Call(app,"AvailableMapQuestIds",game.save.room);
+        Check(options.Count>0,
+            "The live starting region has at least one available, unfinished quest");
+        foreach(string id in options)
+        {
+            QuestGuide candidate=game.GetQuest(id);
+            Check(!candidate.locked&&!candidate.complete&&candidate.room==game.save.room,
+                "Regional map list never contains a locked, finished, or foreign objective");
+        }
+        List<string> locked=(List<string>)Call(app,"AvailableMapQuestIds",8);
+        Check(!game.CanEnter(8)&&locked.Count==0,
+            "Future locked regions do not leak available quest titles");
+        Point foot=game.Position;
+        Point pin=new Point((float)Math.Floor(foot.x)+.5f,
+            (float)Math.Floor(foot.y)+.5f);
+        Check(game.PlaceLocalWaymark(pin)&&game.HasLocalWaymark,
+            "Personal navigation already exists before browsing regional missions");
+        Point savedPin=game.LocalWaymark.Value;
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        GUI.queuedClick=new Rect(379,672,77,24);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check((string)typeof(FrontierRuntime).GetField(
+                "mapInspectedQuestId",Private).GetValue(app)==options[0],
+            "Next regional quest chooses the first physically available authored mission");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("INSPECTING:"))&&
+            GUI.commands.Exists(x=>x.Contains(game.GetQuest(options[0]).title)),
+            "Actual IMGUI map exposes the selected regional mission and its destination");
+        GUI.queuedClick=new Rect(291,672,77,24);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        string last=options[options.Count-1];
+        Check((string)typeof(FrontierRuntime).GetField(
+                "mapInspectedQuestId",Private).GetValue(app)==last,
+            "Previous from first mission wraps to the last regional objective");
+        // Follow the real UI to the precise journal page even when an old
+        // journal view-only filter was previously enabled.
+        Set(app,"journalOnlyActionable",true);
+        GUI.queuedClick=new Rect(467,672,169,24);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        int selected=Array.IndexOf(GameCore.QuestIds,last);
+        Check(game.mode=="journal"&&
+            (int)typeof(FrontierRuntime).GetField(
+                "selectedQuest",Private).GetValue(app)==selected&&
+            (int)typeof(FrontierRuntime).GetField(
+                "questPage",Private).GetValue(app)==selected/14&&
+            !(bool)typeof(FrontierRuntime).GetField(
+                "journalOnlyActionable",Private).GetValue(app),
+            "Open in journal selects the exact original quest and correct page");
+        Check(game.save.trackedQuest=="main"&&
+            game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-savedPin).Length<.001f&&
+            game.save.coins==coins&&game.save.flags.Count==flags&&
+            game.save.version==2,
+            "Browsing and jumping to the journal never overwrites saved tracking, personal pin, or rewards");
+        game.Close();
+        Console.WriteLine("PASS Live region quest map browser cycles accessible objectives and opens their exact journal entries without save mutations");
+    }
+
     private static void InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting(
         FrontierRuntime app)
     {
@@ -7390,7 +7459,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
