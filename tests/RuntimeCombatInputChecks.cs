@@ -4608,6 +4608,20 @@ public static class RuntimeCombatInputChecks
         }
     }
 
+    private static void ReadOriginalInnNews(GameCore game,WorldObject inn)
+    {
+        game.Talk(inn);
+        Check(game.conversation!=null&&game.conversationSource==inn,
+            "The original inn traveler is the current living speaker");
+        int news=Array.FindIndex(game.conversation.choices,
+            c=>c.action=="inn_news");
+        Check(news>=0,"Real inn dialogue offers an optional historical news topic");
+        game.Choose(news);
+        Check(game.mode=="dialog"&&game.conversation!=null&&
+            game.conversationSource==inn,
+            "The current physical NPC retains the original historical dialogue");
+    }
+
     private static void CivicAftercareRoadAuditIsTrackableAndOneTime(FrontierRuntime app)
     {
         Prepare(app);
@@ -4633,7 +4647,7 @@ public static class RuntimeCombatInputChecks
                 "The new road audit cannot start before the public grid is restored");
 
             g.save.flags.Add("civic_conduit_complete");
-            g.Talk(inn);
+            ReadOriginalInnNews(g,inn);
             Check(g.conversation.text.Contains("旧路线图")&&
                 g.conversation.textEn.Contains("old route chart")&&
                 g.conversation.text.Contains("可选的三地巡路复核")&&
@@ -4671,7 +4685,7 @@ public static class RuntimeCombatInputChecks
                 }
                 if(i==1)
                 {
-                    g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
+                    g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;ReadOriginalInnNews(g,inn);
                     Check(g.conversation.text.Contains("2/3")&&
                         g.conversation.textEn.Contains("2/3"),
                         "The Inn's actual dialogue reports the saved two-of-three field audit progress");
@@ -4702,7 +4716,7 @@ public static class RuntimeCombatInputChecks
                 g.conversation.textEn.Contains("public record"),
                 "A field marker continues to acknowledge its region's published audit after quest completion");
             g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;
-            g.Talk(inn);
+            ReadOriginalInnNews(g,inn);
             Check(g.conversation.text.Contains("公开记录")&&
                 g.conversation.textEn.Contains("public record")&&
                 Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_status")>=0,
