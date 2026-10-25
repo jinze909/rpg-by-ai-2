@@ -44,6 +44,16 @@ namespace Starfall
         private int companionFollowRouteRoom = -1;
         private int companionFollowRouteGeneration = -1;
         private int companionFollowRouteGoalCell = -1;
+        // When a sealed bridge or living blockade makes a party-follow
+        // destination unreachable, a failed full-map search must not run
+        // again on EVERY movement tick. Briefly hold the nearest legal foot,
+        // recheck on map/owner/target changes, and retry changing terrain.
+        private SaveData companionBlockedRouteSave;
+        private MapData companionBlockedRouteMap;
+        private int companionBlockedRouteRoom=-1;
+        private int companionBlockedRouteGeneration=-1;
+        private int companionBlockedRouteGoalCell=-1;
+        private float companionBlockedRouteRetry;
         // A deliberate hold order is transient and tied to this exact party
         // body, room and map. It is never written to SaveData v2 and cannot
         // silently carry over through a save load or companion swap.
@@ -865,13 +875,30 @@ namespace Starfall
                     }
                 }
             }
+            // A sealed, unchanged destination cannot demand a whole-map
+            // BFS fifty times per second. Give the world a brief interval
+            // to change; newly open direct ground was checked above.
+            bool sameBlocked=companionBlockedRouteRetry>0f&&
+                System.Object.ReferenceEquals(companionBlockedRouteSave,save)&&
+                System.Object.ReferenceEquals(companionBlockedRouteMap,map)&&
+                companionBlockedRouteRoom==save.room&&
+                companionBlockedRouteGeneration==companionPresentationGeneration&&
+                companionBlockedRouteGoalCell==goalCell;
+            if(sameBlocked)
+            {
+                companionBlockedRouteRetry=Math.Max(0f,
+                    companionBlockedRouteRetry-dt);
+                waypoint=companionPosition;
+                return true;
+            }
             // Any stale, obstructed, moved-target or cross-session route is
             // discarded before replanning. A new map/search never shares a
             // persistent path with the previous save or companion identity.
             ClearCompanionFollowRoute();
 
             PreparePathSearch(width*height);
-            int head=0,tail=0,found=-1;
+            int head=0,tail=0,found=-1,best=start;
+            float bestDistance=delta.x*delta.x+delta.y*delta.y;
             pathQueue[tail++]=start;
             VisitPath(start,-1);
             while(head<tail&&found<0)
@@ -879,7 +906,14 @@ namespace Starfall
                 int node=pathQueue[head++];
                 int x=node%width,y=node/width;
                 Point center=new Point(x+.5f,y+.5f);
-                if(node!=start&&(center-target).Length<=.82f)
+                Point remaining=center-target;
+                float d2=remaining.x*remaining.x+remaining.y*remaining.y;
+                // If the actual destination is sealed, walk toward the
+                // physically reachable frontier rather than endlessly
+                // pushing into the wall at the starting foot.
+                if(node!=start&&d2<bestDistance-.3f)
+                {best=node;bestDistance=d2;}
+                if(node!=start&&d2<=.82f*.82f)
                 {found=node;break;}
                 for(int i=0;i<4;i++)
                 {
@@ -899,13 +933,23 @@ namespace Starfall
             }
             if(found<0)
             {
-                // If open terrain is blocked only by a living actor and no
-                // safe alternate path exists, plant here rather than clipping
-                // through it. Terrain-only blockage retains swept collision
-                // sliding so an unreachable objective cannot freeze the ally.
-                if(terrainStepClear)
-                {waypoint=companionPosition;return true;}
-                return false;
+                // Every explored candidate used the SAME swept-body route
+                // check, so best is a reachable side of the physical wall,
+                // never a center on the inaccessible side.
+                companionBlockedRouteSave=save;
+                companionBlockedRouteMap=map;
+                companionBlockedRouteRoom=save.room;
+                companionBlockedRouteGeneration=companionPresentationGeneration;
+                companionBlockedRouteGoalCell=goalCell;
+                companionBlockedRouteRetry=.55f;
+                if(best!=start)found=best;
+                else
+                {
+                    // Already on the nearest reachable frontier. Plant the
+                    // feet until the gate/tide or the hero's goal changes.
+                    waypoint=companionPosition;
+                    return true;
+                }
             }
 
             var reversed=new List<Point>();

@@ -635,6 +635,50 @@ namespace Starfall.Tests
                 "Published register neither repeats its reward nor reopens a stale publication decision");
         }
 
+        public static void CompanionUsesReachableFrontierUntilRealGateReopens(Campaign data)
+        {
+            // Isolated, test-only authored corridor. The production maps,
+            // scenes, and their original GUIDs are never modified.
+            Campaign isolated=new Campaign{title=data.title,titleEn=data.titleEn,
+                version=data.version,items=data.items,bosses=data.bosses,
+                lore=data.lore,maps=(MapData[])data.maps.Clone()};
+            int width=18,height=14;
+            string[] rows=new string[height];
+            for(int y=0;y<height;y++)
+            {
+                char[] tiles=new char[width];
+                for(int x=0;x<width;x++)
+                    tiles[x]=(x<2||y<2||x>=width-2||y>=height-2||x==9)?
+                        '#':'.';
+                rows[y]=new string(tiles);
+            }
+            isolated.maps[0]=new MapData{id=0,name="Test locked crossing",
+                en="Test locked crossing",rows=rows,
+                objects=new WorldObject[0],decor=new Decoration[0],
+                spawnX=13.5f,spawnY=7.5f};
+            var g=Fresh(isolated);
+            g.save.flags.Add("companion_0");g.SelectCompanion(0);
+            g.enemies.Clear();g.save.x=13.5f;g.save.y=7.5f;
+            g.companionPosition=new Point(4.5f,7.5f);
+            Advance(g,1.1f);
+            Check(g.CanStand(g.companionPosition)&&
+                g.companionPosition.x>6.5f&&g.companionPosition.x<9f,
+                "An unreachable formation socket leads the companion along genuine foot travel to the near-side frontier");
+            Point landed=g.companionPosition;
+            Advance(g,1.1f);
+            Check(g.CanStand(g.companionPosition)&&
+                g.companionPosition.x<9f&&
+                (g.companionPosition-landed).Length<1.3f,
+                "A sealed crossing never shuffles the ally through solid tiles or teleports them to the player");
+            char[] opened=rows[7].ToCharArray();opened[9]='.';
+            rows[7]=new string(opened);
+            Advance(g,3.1f);
+            Check(g.CanStand(g.companionPosition)&&
+                g.companionPosition.x>9.25f&&
+                (g.companionPosition-g.Position).Length<3.0f,
+                "Opening the existing route lets the same companion replan and physically reunite without room or save reload");
+        }
+
         public static void CompanionBlockedFootRecoversLocallyWithoutCrossMapWarp(Campaign data)
         {
             var g=Fresh(data);g.save.flags.Add("companion_0");
