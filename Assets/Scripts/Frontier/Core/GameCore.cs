@@ -1758,13 +1758,30 @@ namespace Starfall
                             // actual contact it becomes a short impact flash,
                             // not another 450ms "incoming" danger telegraph.
                             // This feedback shares the real damage target.
-                            var strikeEffect = new Effect("burst", e.target, .24f) {
-                                variant = e.boss ? save.room : 0, radius = radius };
-                            TagEnemyCombatEffect(strikeEffect, e,
-                                escortPatrol && e.targetingReliefCivilian);
-                            effects.Add(strikeEffect);
-                            if ((Position - e.target).Length < radius && ClearAttackPath(e.Position, Position)) Hurt(e.boss ? 22 + e.BossPhase * 3 : 14, "slam", (Position - e.Position).Normalized);
-                            else if (perfectDodgeArmed &&
+                            // A timed ring is anchored to the locked
+                            // target, not the enemy's moving feet. If a gate
+                            // closes across the cast during the windup, that
+                            // target no longer has a physical impact lane.
+                            // Suppress both its false burst painting and
+                            // its contact, while preserving the caster's
+                            // own honest enemyRelease animation.
+                            bool impactLaneOpen=ClearAttackPath(e.Position,e.target);
+                            if (impactLaneOpen)
+                            {
+                                var strikeEffect = new Effect("burst", e.target, .24f) {
+                                    variant = e.boss ? save.room : 0, radius = radius };
+                                TagEnemyCombatEffect(strikeEffect, e,
+                                    escortPatrol && e.targetingReliefCivilian);
+                                effects.Add(strikeEffect);
+                            }
+                            if (impactLaneOpen &&
+                                (Position - e.target).Length < radius &&
+                                ClearAttackPath(e.target,Position) &&
+                                ClearAttackPath(e.Position,Position))
+                                Hurt(e.boss ? 22 + e.BossPhase * 3 : 14,
+                                    "slam", (Position - e.Position).Normalized);
+                            else if (perfectDodgeArmed && impactLaneOpen &&
+                                ClearAttackPath(e.target,dashOrigin) &&
                                 ClearAttackPath(e.Position, dashOrigin))
                                 // Dodge counters are earned by escaping a
                                 // REAL strike, not by dashing outside a red
@@ -1795,7 +1812,7 @@ namespace Starfall
                                 // produce a remote hazard whose own center
                                 // later hits through the wall. Keep the Boss's
                                 // normal radial missiles and combat cycle.
-                                if (ClearAttackPath(e.Position, e.target))
+                                if (impactLaneOpen)
                                 {
                                     int firstNewGroundStrike=hazards.Count;
                                     BossExpansionAttack(e);

@@ -2470,6 +2470,10 @@ namespace Starfall
                         "rift", true);
                 }
             }
+            // Null placeholders are not an expired warning and have no
+            // contact clock; drop them from the source roster itself so
+            // renderers and later snapshots never encounter ghost entries.
+            hazards.RemoveAll(h=>h==null);
             tickingHazards.Clear();tickingHazards.AddRange(hazards);
             foreach (Hazard h in tickingHazards)
             {

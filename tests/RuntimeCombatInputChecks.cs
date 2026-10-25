@@ -1685,8 +1685,12 @@ public static class RuntimeCombatInputChecks
             try
             {
                 boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
+                g.effects.Clear();
                 g.Tick(.02f,new Point());
                 int originalCount=g.hazards.Count;
+                Check(g.effects.Exists(fx=>fx.kind=="burst" &&
+                    (fx.position-hero).Length<.01f),
+                    "An exposed real locked target still receives the authored impact flash");
                 Check(boss.cycle==3&&originalCount>0,
                     "Live regional Boss releases every physically exposed strike, without requiring side-wall penetration");
                 g.hazards.Clear();g.projectiles.Clear();
@@ -1701,7 +1705,11 @@ public static class RuntimeCombatInputChecks
                 boss.state=1;boss.timer=.01f;boss.windupDuration=1.1f;
                 boss.releaseTime=0f;boss.stun=0f;boss.hitTime=0f;
                 boss.cycle=2; // Replay the identical phase/rotation across topology changes.
+                g.effects.Clear();
                 g.Tick(.02f,new Point());
+                Check(!g.effects.Exists(fx=>fx.kind=="burst" &&
+                    (fx.position-hero).Length<.01f),
+                    "A sealed real arena cannot paint an impact flash on an isolated target");
                 Check(boss.cycle==3&&g.hazards.Count==0,
                     "Actual sealed Boss release advances its cycle but creates no remote hazards");
                 map.rows=original;
@@ -1711,7 +1719,11 @@ public static class RuntimeCombatInputChecks
                 boss.releaseTime=0f;boss.stun=0f;boss.hitTime=0f;
                 boss.cycle=2;
                 g.hazards.Clear();g.projectiles.Clear();
+                g.effects.Clear();
                 g.Tick(.02f,new Point());
+                Check(g.effects.Exists(fx=>fx.kind=="burst" &&
+                    (fx.position-hero).Length<.01f),
+                    "Reopening the genuine arena restores the original live impact painting");
                 Check(boss.cycle==3&&g.hazards.Count==originalCount,
                     "Reopened authentic Boss release resumes every delayed regional strike");
                 Check(g.save.version==2,"No migration or new SaveData fields during combat");
