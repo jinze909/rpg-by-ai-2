@@ -22,8 +22,11 @@ namespace Starfall
         // Accepted distant job's optional, unsaved navigation handoff.
         // Never inherit it across a loaded save or override a manual pin.
         private string localWaymarkTravelQuestId;
+        private bool localWaymarkTravelArrivalBlocked;
         public bool QuestApproachTravelHandoffPending
         { get { return !string.IsNullOrEmpty(localWaymarkTravelQuestId); } }
+        public bool QuestApproachTravelArrivalBlocked
+        { get { return QuestApproachTravelHandoffPending&&localWaymarkTravelArrivalBlocked; } }
         // Transient origin of a quest-generated waypoint. Manual pins must
         // NEVER be retargeted by story progress; neither value is serialized.
         private string localWaymarkQuestId;
@@ -85,6 +88,7 @@ namespace Starfall
             localWaymarkBlocked=false;
             localWaymarkRouteRecheck=0f;
             localWaymarkTravelQuestId=null;
+            localWaymarkTravelArrivalBlocked=false;
             localWaymarkQuestId=null;
             localWaymarkQuestTarget=new Point();
             localWaymarkQuestArrived=false;
@@ -238,6 +242,7 @@ namespace Starfall
         {
             ClearLocalWaymark();
             localWaymarkTravelQuestId=questId;
+            localWaymarkTravelArrivalBlocked=false;
             localWaymarkRouteRecheck=0f;
             revision++;
         }
@@ -246,15 +251,45 @@ namespace Starfall
             string id=localWaymarkTravelQuestId;
             if(string.IsNullOrEmpty(id))return;
             if(save.trackedQuest!=id||Array.IndexOf(QuestIds,id)<0)
-            { localWaymarkTravelQuestId=null;return; }
+            {
+                localWaymarkTravelQuestId=null;
+                localWaymarkTravelArrivalBlocked=false;
+                revision++;
+                return;
+            }
             QuestGuide quest=GetQuest(id);
             if(quest.locked||quest.complete)
-            { localWaymarkTravelQuestId=null;return; }
-            if(quest.room!=save.room)return;
+            {
+                localWaymarkTravelQuestId=null;
+                localWaymarkTravelArrivalBlocked=false;
+                revision++;
+                return;
+            }
+            if(quest.room!=save.room)
+            {
+                // If a dynamic quest stage relocates while we wait, resume
+                // following that region without showing obsolete warnings.
+                if(localWaymarkTravelArrivalBlocked)
+                {
+                    localWaymarkTravelArrivalBlocked=false;
+                    revision++;
+                }
+                return;
+            }
             Point foot;
-            // A closed gate or unreachable approach never becomes a fake
-            // waypoint. Retry on future world ticks after the road opens.
-            if(!TryQuestApproachFoot(quest.target,out foot))return;
+            // Sealed arrivals must not advertise an invented walking route.
+            // A single warning is enough; retry at the ordinary bounded rate.
+            if(!TryQuestApproachFoot(quest.target,out foot))
+            {
+                if(!localWaymarkTravelArrivalBlocked)
+                {
+                    localWaymarkTravelArrivalBlocked=true;
+                    revision++;
+                    Notify("已抵达任务地区，但前往目标的路暂时不通。可等待道路开放或在地图中取消自动导航。",
+                        "In the quest region, but the walking approach is blocked. Wait for the road or cancel auto-follow on the map.");
+                }
+                return;
+            }
             CommitLocalWaymark(foot,id);
         }
         private void TickLocalWaymark(float dt)

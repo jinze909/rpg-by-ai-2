@@ -467,7 +467,11 @@ namespace Starfall
             Panel(1008, 24, 248, 191, new Color(.045f, .08f, .13f, .94f), PixelArt.C("#486073"));
             MiniTerrainWindow(1024, 42);
             Point? objective = Game.NavigationTarget();
-            if(Game.QuestApproachNextStageBlocked && !objective.HasValue)
+            if(Game.QuestApproachTravelArrivalBlocked && !objective.HasValue)
+                Text(1024,178,166,12,
+                    Game.L("到达目标地区 · 路线封闭","QUEST ARRIVAL BLOCKED"),
+                    9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
+            else if(Game.QuestApproachNextStageBlocked && !objective.HasValue)
                 Text(1024,178,166,12,
                     Game.L("下一任务阶段无法抵达","NEXT QUEST STEP BLOCKED"),
                     9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
@@ -1220,8 +1224,11 @@ namespace Starfall
                 // explicitly player-owned and must be cancelable from any
                 // viewed map region, including the Inn and intermediate hubs.
                 if(Button(888,571,306,35,
-                    Game.L("取消跨区任务自动导航",
-                        "Cancel pending remote quest route")))
+                    Game.QuestApproachTravelArrivalBlocked?
+                        Game.L("目标路线封闭 · 取消自动导航",
+                            "Approach blocked · Cancel quest auto-follow"):
+                        Game.L("取消跨区任务自动导航",
+                            "Cancel pending remote quest route")))
                     Game.ClearLocalWaymark();
             }
             else if(selectedRegion==Game.save.room)
