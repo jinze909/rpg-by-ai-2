@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // Original art, coordinates, save format and story decisions are untouched.
@@ -98,16 +99,22 @@ namespace Starfall
                         C("沿路找记录","Find the log","close"));
                     return true;
                 }
-                Dialog(titleZh,titleEn,OuterLogZh[room,1]+
+                string noteZh=OuterLogZh[room,1]+
                     (recorded?"\n\n灯火稳了。救援箱在正南方；四周安全时，也能在灯下歇一会儿。":
-                        "\n\n灯座的线圈少一枚零件。修好它，东南侧的救援箱才能按旧规取走。"),
-                    OuterLogEn[room,1]+
+                        "\n\n灯座的线圈少一枚零件。修好它，正南方的救援箱才能按旧规取走。");
+                string noteEn=OuterLogEn[room,1]+
                     (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here.":
-                        "\n\nOne spare part is missing from the socket. Repair it, and the relief chest southeast of here can be claimed."),
-                    C(recorded?"保持信号畅通":"维修信号灯 · 零件×1",
-                      recorded?"Maintain the signal":"Repair signal · 1 spare part",
-                      recorded?"close":"outer_repair"),
-                    C("稍后再来","Return later","close"));
+                        "\n\nOne spare part is missing from the socket. Repair it, and the relief chest directly south of here can be claimed.");
+                if(recorded)
+                    Dialog(titleZh,titleEn,noteZh,noteEn,
+                        C("查看修复的救援灯路网","Travel repaired rescue-light routes",
+                            "outer_signal_routes"),
+                        C("保持信号畅通","Keep the signal burning","close"),
+                        C("稍后再来","Return later","close"));
+                else
+                    Dialog(titleZh,titleEn,noteZh,noteEn,
+                        C("维修信号灯 · 零件×1","Repair signal · 1 spare part","outer_repair"),
+                        C("稍后再来","Return later","close"));
                 return true;
             }
             if(!OuterRelayRestored(room))
@@ -157,8 +164,154 @@ namespace Starfall
                 C("记下归途","Record the route","close"));
             return true;
         }
+
+        // Resident couriers can use the restored lamps to maintain real
+        // supply routes. This is not a global teleport menu: the current
+        // player must stand at their OWN repaired light, with a safe lane,
+        // and both endpoints must already be permanently repaired.
+        private bool CanUseOuterSignalRoads()
+        {
+            if(save.room<0||save.room>=8||!OuterRelayRestored(save.room)||
+                Dying||practicing||racing||FieldWorkPreventsRest||
+                OuterPatrolActive||!SafeTravel)return false;
+            foreach(WorldObject lamp in Map.objects)
+                if(lamp.kind=="outerrelay"&&
+                    HasPhysicalInteractionReach(lamp))return true;
+            return false;
+        }
+        private bool LandAtRepairedSignal()
+        {
+            WorldObject lamp=null;
+            foreach(WorldObject point in Map.objects)
+                if(point.kind=="outerrelay"){lamp=point;break;}
+            if(lamp==null)return false;
+            Point center=new Point(lamp.x,lamp.y);
+            Point[] offsets={new Point(0f,1f),new Point(1f,0f),
+                new Point(-1f,0f),new Point(0f,-1f),
+                new Point(1f,1f),new Point(-1f,1f),
+                new Point(1f,-1f),new Point(-1f,-1f),
+                new Point(0f,2f),new Point(2f,0f),
+                new Point(-2f,0f),new Point(0f,-2f)};
+            Point[] allyOffsets={new Point(-.7f,0f),
+                new Point(.7f,0f),new Point(0f,1f),
+                new Point(0f,-1f)};
+            Point best=new Point(),bestAlly=new Point();
+            float bestClearance=-1f;
+            bool found=false;
+            foreach(Point offset in offsets)
+            {
+                Point foot=center+offset;
+                if(!CanStand(foot)||!ActorHasLocalRoute(foot,center,4))
+                    continue;
+                float clearance=9999f;
+                foreach(Enemy foe in enemies)
+                    if(foe.hp>0)
+                        clearance=Math.Min(clearance,
+                            (foe.Position-foot).Length);
+                if(clearance<4f||clearance<=bestClearance)continue;
+                Point allyFoot=new Point();
+                bool allySafe=save.companion<0;
+                if(save.companion>=0)
+                    foreach(Point allyOffset in allyOffsets)
+                    {
+                        Point candidate=foot+allyOffset;
+                        if(!CanStand(candidate)||
+                            !ActorHasLocalRoute(candidate,foot,3))continue;
+                        bool occupied=false;
+                        foreach(Enemy foe in enemies)
+                            if(foe.hp>0&&(foe.Position-candidate).Length<3f)
+                            {occupied=true;break;}
+                        if(occupied)continue;
+                        allySafe=true;allyFoot=candidate;break;
+                    }
+                if(!allySafe)continue;
+                found=true;best=foot;bestAlly=allyFoot;
+                bestClearance=clearance;
+            }
+            // A suddenly sealed or crowded destination retains Enter's
+            // existing safe regional spawn. Never spawn an actor in stone,
+            // hostile reach, floodwater or on another living body.
+            if(!found)return false;
+            save.x=best.x;save.y=best.y;
+            if(save.companion>=0)
+            {
+                companionPosition=bestAlly;
+                companionMoving=false;companionMoveTime=0f;
+                companionPresentationGeneration++;
+            }
+            return true;
+        }
+        private bool ChooseOuterSignalRoads(string action)
+        {
+            bool main=action=="outer_signal_routes";
+            bool west=action=="outer_signal_ring_0";
+            bool east=action=="outer_signal_ring_1";
+            bool going=action.StartsWith("outer_signal_to_");
+            if(!main&&!west&&!east&&!going)return false;
+            if(!CanUseOuterSignalRoads())
+            {
+                Notify("只能在已修复的求援灯旁安全通行；敌人和现场任务会阻断道路。",
+                    "Use a repaired rescue lamp in person. Enemies and active field missions block the routes.");
+                return true;
+            }
+            if(main)
+            {
+                Dialog("巡路队 · 求援灯道路","Roadwardens · Signal Light Routes",
+                    "修好的灯让巡路队重新认得道路。只可以前往你已经点亮、而且章节允许进入的地区。旅人必须在灯下启程，危险时不能出发。",
+                    "With the lamps burning again, local couriers know the roads. Travel only between lights you have personally repaired and regions already unlocked. Depart beside a real signal when the road is safe.",
+                    C("西部四地","Western routes","outer_signal_ring_0"),
+                    C("远岸四地","Farshore routes","outer_signal_ring_1"),
+                    C("暂不启程","Stay here","close"));
+                return true;
+            }
+            if(west||east)
+            {
+                int first=east?4:0;
+                var choices=new List<Choice>();
+                for(int i=first;i<first+4;i++)
+                    if(i!=save.room&&OuterRelayRestored(i)&&CanEnter(i))
+                        choices.Add(C("前往 "+OuterWatchNamesZh[i],
+                            "Travel to "+OuterWatchNamesEn[i],
+                            "outer_signal_to_"+i));
+                bool empty=choices.Count==0;
+                choices.Add(C("返回灯路图","Back to signal routes","outer_signal_routes"));
+                choices.Add(C("留在原地","Remain here","close"));
+                Dialog("救援灯 · "+(east?"远岸":"西部"),
+                    "Rescue Lights · "+(east?"Farshore":"West"),
+                    empty?"这条道路上还没有第二盏你点亮的求援灯。":
+                        "选一处确实修好的信号灯。出发前会重新检查道路安全。",
+                    empty?"You have not repaired another reachable light in this group yet.":
+                        "Choose a signal you repaired. Route safety is checked again at departure.",
+                    choices.ToArray());
+                return true;
+            }
+            int room;
+            if(!int.TryParse(action.Substring("outer_signal_to_".Length),out room)||
+                room<0||room>=8||room==save.room||
+                !OuterRelayRestored(room))return true;
+            if(!CanEnter(room))
+            {
+                Notify(RouteHint(room,false),RouteHint(room,true));
+                return true;
+            }
+            int origin=save.room;
+            // Reuse ALL established campaign, mission, save and map-reset
+            // protections. Only land at the physical new light afterward.
+            Enter(room);
+            if(save.room!=room||save.room==origin)return true;
+            bool landed=LandAtRepairedSignal();
+            revision++;sound="travel";
+            Notify(landed?
+                    "沿巡路队的救援道抵达下一盏信号灯。":
+                    "前方信号灯周围不安全，已在本地区入口落脚。",
+                landed?
+                    "The courier route ends beside the next repaired light.":
+                    "The light's approach is unsafe. You arrived at the regular region entrance.");
+            return true;
+        }
         private bool ChooseOuterRescue(string action)
         {
+            if(ChooseOuterSignalRoads(action))return true;
             if(action!="outer_repair")return false;
             if(save.room<0||save.room>=8||Dying||practicing||
                 !OuterLogFound(save.room)||OuterRelayRestored(save.room))return true;

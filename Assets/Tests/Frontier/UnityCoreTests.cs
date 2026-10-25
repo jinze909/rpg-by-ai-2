@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void RepairedLampsConnectOnlyPhysicalUnlockedSafeCourierRoads() { CoreChecks.RepairedSignalsOpenActualSafeTwoEndpointCourierRoads(Data()); }
+        [Test] public void CourierRoadsCannotIgnoreCombatLocksOrStaleSignalSources() { CoreChecks.SignalRoadRejectsCombatLockedRegionAndStaleSource(Data()); }
         [Test] public void AllEightPhysicalRescueCacheBearingsMatchQuestGuidance() { CoreChecks.EightRescueRoutesKeepHonestPhysicalLogSignalChestDirections(Data()); }
         [Test] public void RemoteRescueLightsShelterAgainstRealClimateOnlyOnSafeNearSide() { CoreChecks.RestoredRemoteWarningLampsReallyShelterAgainstRegionClimate(Data()); }
         [Test] public void RepairedSignalsActuallyProvidePhysicalSafeFieldCare() { CoreChecks.RepairedOuterBeaconsProvideActualSafeNearsideRespite(Data()); }

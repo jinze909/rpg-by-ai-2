@@ -4100,6 +4100,106 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void RepairedSignalsOpenActualSafeTwoEndpointCourierRoads(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.stage=3;
+            foreach(string flag in new[]{"intro","exp_intro",
+                "harbor_report","desert_report",
+                "outer_log_0","outer_relay_0","outer_log_5",
+                "outer_relay_5"})
+                if(!g.Has(flag))g.save.flags.Add(flag);
+            var source=Object(g,"outerrelay");
+            g.save.x=source.x;g.save.y=source.y;
+            g.Talk(source);
+            int route=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            Check(route>=0,
+                "A genuinely repaired signal exposes an in-world courier road map");
+            g.Choose(route);
+            Check(g.mode=="dialog"&&g.conversation!=null,
+                "Actual lamp opens its source-bound western/farshore routes");
+            int ring=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_ring_1");
+            Check(ring>=0,"Repaired route offers accessible farshore page");
+            g.Choose(ring);
+            int destination=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_to_5");
+            Check(destination>=0,
+                "Only a genuinely repaired and unlocked destination appears");
+            g.Choose(destination);
+            Check(g.save.room==5&&g.save.version==2&&g.CanStand(g.Position),
+                "Actual road transfer respects a live unlocked region and walkable arrival");
+            WorldObject arrived=Object(g,"outerrelay");
+            Check((g.Position-new Point(arrived.x,arrived.y)).Length<3.05f&&
+                g.OuterRelayRestRefuge,
+                "Successful courier route lands beside the real restored destination signal");
+            GameCore old=new GameCore(data,CloneSave(g.save));
+            old.Close();old.enemies.Clear();
+            Check(old.save.room==5&&old.OuterRelayRestored(0)&&
+                old.OuterRelayRestored(5)&&old.save.version==2,
+                "Both endpoint flags and genuine arrival survive original v2 save reload");
+        }
+
+        public static void SignalRoadRejectsCombatLockedRegionAndStaleSource(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.stage=0;
+            g.save.flags.Add("intro");
+            g.save.flags.Add("outer_log_0");
+            g.save.flags.Add("outer_relay_0");
+            g.save.flags.Add("outer_relay_5");
+            var lamp=Object(g,"outerrelay");
+            g.save.x=lamp.x;g.save.y=lamp.y;
+            g.Talk(lamp);
+            int menu=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            Check(menu>=0,"Original repaired light opens a physical route menu");
+            g.Choose(menu);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_ring_1"));
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_to_5")<0,
+                "An unreached campaign region never appears despite a forged repair flag");
+            Check(g.save.room==0,"Locked region discovery never moves the actor");
+            g.Close();
+
+            // Stale UI or movement away from the real mast cannot teleport.
+            g.save.stage=3;g.save.flags.Add("exp_intro");
+            g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
+            g.save.x=lamp.x;g.save.y=lamp.y;g.Talk(lamp);
+            menu=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            g.save.x=lamp.x+10f;g.save.y=lamp.y;
+            g.Choose(menu);
+            Check(g.save.room==0,
+                "A route choice cached while physically leaving the lamp cannot trigger travel");
+
+            // Reopen and then bring a real enemy into the source road.
+            g.save.x=lamp.x;g.save.y=lamp.y;g.Talk(lamp);
+            menu=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            g.enemies.Add(new Enemy(99287,0,lamp.x+1f,lamp.y,200f)
+                {stun=99f,timer=999f});
+            g.Choose(menu);
+            Check(g.save.room==0,
+                "Nearby living raider stops courier departures even from a genuine repaired lamp");
+            g.enemies.Clear();
+
+            // A live defense field cannot be bypassed just because its
+            // temporary enemies have momentarily left the near field.
+            SetOuterPatrolLull(g,0);
+            g.Talk(lamp);
+            menu=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            g.Choose(menu);
+            Check(g.save.room==0,
+                "Live supply defense disables the signal route regardless of transient enemy proximity");
+            ClearOuterPatrolLull(g);
+            Check(g.save.version==2&&g.save.inventory[4]==new SaveData().inventory[4],
+                "Blocked route calls cannot spend materials or rewrite the save schema");
+        }
+
         public static void RepairedOuterBeaconsProvideActualSafeNearsideRespite(Campaign data)
         {
             MapData prior=data.maps[0];
