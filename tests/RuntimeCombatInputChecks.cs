@@ -4540,8 +4540,20 @@ public static class RuntimeCombatInputChecks
             "Unpublished audit evidence does not fabricate a public field service");
         g.save.flags.Add("civic_aftercare_published");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB")),
-            "The shipped world drawer places the true priced field-aid cue on its signed physical marker");
+        bool fullWorldDraw=GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB"));
+        if(!fullWorldDraw)
+        {
+            int commands=GUI.commands.Count;
+            string audit=String.Join(" | ",GUI.commands.FindAll(
+                s=>s.Contains("AUDIT")||s.Contains("FIELD")||s.Contains("waytrail")||s.Contains("ROAD")).ToArray());
+            GUI.commands.Clear();
+            Call(app,"DrawObject",marker);
+            bool direct=GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB"));
+            throw new Exception("Live world marker not visible: production DrawObject="+
+                direct+" full-frame-commands="+commands+" nearby="+audit+
+                " camera="+CoreField(g,"courierRoom")+
+                " world-mode="+g.mode+" marker="+marker.x+","+marker.y);
+        }
         g.save.english=false;
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("居民急救")&&s.Contains("药草1")),
