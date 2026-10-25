@@ -2474,6 +2474,23 @@ namespace Starfall
             foreach (Hazard h in tickingHazards)
             {
                 if (Dying) break;
+                // Mission teardown or a lethal encounter can retract a
+                // telegraph while this frame's snapshot is still being read.
+                // A cancelled circle must not come back as a ghost contact.
+                if (h == null || !hazards.Contains(h)) continue;
+                // Saved quests never persist hazard objects. Streamed,
+                // externally injected or corrupted live records may still
+                // carry NaN/Infinity in their countdown or world footprint.
+                // Retire them BEFORE drawing an invalid danger circle or
+                // passing nonphysical damage to the player.
+                if (!Finite(h.position.x) || !Finite(h.position.y) ||
+                    !Finite(h.timer) || !Finite(h.radius) ||
+                    h.radius <= 0f || !Finite(h.damage) || h.damage < 0f ||
+                    string.IsNullOrEmpty(h.kind))
+                {
+                    hazards.Remove(h);
+                    continue;
+                }
                 h.timer -= dt;
                 if (h.timer > 0) continue;
                 hazards.Remove(h);
