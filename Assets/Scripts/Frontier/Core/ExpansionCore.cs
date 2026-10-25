@@ -1419,7 +1419,14 @@ namespace Starfall
                 !ClearAttackPath(foe.Position,Position))
                 return false;
             if(foe.boss||foe.kind==2)
-                return (Position-foe.target).Length<EnemyAreaRadius(foe);
+                // A closing gate can isolate the LOCKED blast center while
+                // leaving a straight shooter-to-hero line unobstructed.
+                // A blast also cannot cross a newly shut wall between its
+                // warning center and the hero. Match the authoritative
+                // release check rather than interrupting a phantom strike.
+                return (Position-foe.target).Length<EnemyAreaRadius(foe)&&
+                    ClearAttackPath(foe.Position,foe.target)&&
+                    ClearAttackPath(foe.target,Position);
             if(foe.kind==1)
                 return (foe.target-Position).Length<=.55f&&
                     EnemyBowFlightLaneClear(foe,foe.target);
@@ -1458,7 +1465,9 @@ namespace Starfall
                     EnemyBowFlightLaneClear(foe,foe.target);
             if(foe.boss||foe.kind==2)
                 return (foe.target-reliefFollowerPosition).Length<
-                    EnemyAreaRadius(foe);
+                    EnemyAreaRadius(foe)&&
+                    ClearAttackPath(foe.Position,foe.target)&&
+                    ClearAttackPath(foe.target,reliefFollowerPosition);
             return (foe.target-reliefFollowerPosition).Length<=.8f&&
                 InEnemyMeleeArc(foe,reliefFollowerPosition);
         }
