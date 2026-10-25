@@ -7884,6 +7884,73 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void CompanionPostRoadClosureKeepsOrderAndShowsHonestBlockedState(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("companion_0");
+            g.SelectCompanion(0);g.enemies.Clear();
+            Point origin=g.companionPosition;
+            Point destination=new Point();
+            bool found=false;
+            for(int dy=-5;dy<=5&&!found;dy++)
+            for(int dx=-5;dx<=5&&!found;dx++)
+            {
+                Point post=new Point((float)Math.Floor(origin.x)+dx+.5f,
+                    (float)Math.Floor(origin.y)+dy+.5f);
+                if((post-origin).Length<3f||
+                    !g.InspectCompanionHoldPost(post))continue;
+                int ox=(int)Math.Floor(origin.x),oy=(int)Math.Floor(origin.y);
+                int px=(int)post.x,py=(int)post.y;
+                if(Math.Abs(px-ox)>=3||Math.Abs(py-oy)>=3)
+                {destination=post;found=true;}
+            }
+            Check(found,"A genuine connected map target permits a physical temporary route barricade");
+            g.mode="map";
+            Check(g.AssignCompanionHoldPost(destination),
+                "The companion receives an originally reachable explicit post order");
+            g.Close();
+            MapData m=g.Map;
+            string[] original=(string[])m.rows.Clone();
+            int oxTile=(int)Math.Floor(origin.x),oyTile=(int)Math.Floor(origin.y);
+            int pxTile=(int)destination.x,pyTile=(int)destination.y;
+            bool acrossX=Math.Abs(pxTile-oxTile)>=3;
+            try
+            {
+                if(acrossX)
+                {
+                    int x=(pxTile+oxTile)/2;
+                    for(int y=0;y<m.rows.Length;y++)
+                    {
+                        char[] cells=m.rows[y].ToCharArray();
+                        cells[x]='#';m.rows[y]=new string(cells);
+                    }
+                }
+                else
+                {
+                    int y=(pyTile+oyTile)/2;
+                    m.rows[y]=new string('#',m.rows[y].Length);
+                }
+                for(int i=0;i<60&&!g.CompanionPostRouteBlocked;i++)
+                    g.Tick(.02f,new Point());
+                Check(g.CompanionPostRouteBlocked&&g.CompanionHoldingPosition&&
+                    (g.CompanionHoldPosition-destination).Length<.001f&&
+                    g.CanStand(g.companionPosition)&&g.CanStand(destination),
+                    "A closed intervening road exposes honest post obstruction without canceling or teleporting the companion");
+            }
+            finally
+            {
+                for(int y=0;y<original.Length;y++)m.rows[y]=original[y];
+            }
+            for(int i=0;i<170&&g.CompanionPostRouteBlocked;i++)
+                g.Tick(.02f,new Point());
+            Check(!g.CompanionPostRouteBlocked&&g.CompanionHoldingPosition&&
+                (g.CompanionHoldPosition-destination).Length<.001f,
+                "Reopened terrain clears the warning while preserving the same physical hold order");
+            g.ToggleCompanionHold();
+            Check(!g.CompanionPostRouteBlocked&&!g.CompanionHoldingPosition,
+                "Explicit follow cancels the tactical post and its associated blocked-route warning");
+        }
+
         public static void CompanionTacticalPostWalksThroughRealTerrainAndRespectsOrders(Campaign data)
         {
             var g=Fresh(data);g.save.flags.Add("companion_0");

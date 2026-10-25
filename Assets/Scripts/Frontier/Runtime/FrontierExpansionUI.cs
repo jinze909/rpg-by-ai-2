@@ -354,6 +354,11 @@ namespace Starfall
                     Game.L("前方道路不通 · 请绕行",
                         "ROUTE BLOCKED · REROUTE"),
                     10,gold,TextAnchor.MiddleCenter);
+            else if(!drawingOutline&&Game.CompanionPostRouteBlocked)
+                Text(p.x-110,p.y-143,220,22,
+                    Game.L("驻守路线受阻 · 原命令已保留",
+                        "ALLY POST BLOCKED · ORDER KEPT"),
+                    10,gold,TextAnchor.MiddleCenter);
         }
         private void DrawHazardWarnings()
         {

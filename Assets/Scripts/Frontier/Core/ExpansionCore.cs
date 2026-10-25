@@ -95,6 +95,29 @@ namespace Starfall
         {
             get { return CompanionHoldingPosition ? companionHoldFoot : companionPosition; }
         }
+        // Unlike normal FOLLOW, a player-authored post must survive a
+        // temporarily closed bridge. Surface ONLY the route solver's live
+        // blocked state, for the exact active party, map and commanded tile.
+        public bool CompanionPostRouteBlocked
+        {
+            get
+            {
+                if(!CompanionHoldingPosition||!companionUnreachableGoal||
+                    companionBlockedRouteRetry<=0f||Map==null||
+                    Map.rows==null||Map.rows.Length==0||
+                    string.IsNullOrEmpty(Map.rows[0])||
+                    !System.Object.ReferenceEquals(companionBlockedRouteSave,save)||
+                    !System.Object.ReferenceEquals(companionBlockedRouteMap,Map)||
+                    companionBlockedRouteRoom!=save.room||
+                    companionBlockedRouteGeneration!=companionPresentationGeneration||
+                    (companionPosition-companionHoldFoot).Length<=.48f)
+                    return false;
+                int width=Map.rows[0].Length;
+                int postCell=(int)Math.Floor(companionHoldFoot.y)*width+
+                    (int)Math.Floor(companionHoldFoot.x);
+                return companionBlockedRouteGoalCell==postCell;
+            }
+        }
         // Local, nonserialized climate danger notifications. Re-arm only
         // after actually recovering below the lower safe threshold.
         private bool heatDangerWarned, coldDangerWarned;
