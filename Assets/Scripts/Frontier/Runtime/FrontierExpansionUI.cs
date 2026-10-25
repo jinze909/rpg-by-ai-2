@@ -345,6 +345,15 @@ namespace Starfall
                 if(!drawingOutline)companionWasWalking=false;
                 Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);
             }
+            // This is the navigation solver's actual unreachable-frontier
+            // condition, never a timer-based guess from a paused walk pose.
+            // Draw ABOVE the existing authored full-body sprite and omit in
+            // silhouette/outline passes. Same text with reduced motion.
+            if(!drawingOutline&&Game.CompanionRouteBlocked)
+                Text(p.x-99,p.y-143,198,22,
+                    Game.L("前方道路不通 · 请绕行",
+                        "ROUTE BLOCKED · REROUTE"),
+                    10,gold,TextAnchor.MiddleCenter);
         }
         private void DrawHazardWarnings()
         {

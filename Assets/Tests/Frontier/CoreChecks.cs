@@ -668,15 +668,17 @@ namespace Starfall.Tests
             Advance(g,1.1f);
             Check(g.CanStand(g.companionPosition)&&
                 g.companionPosition.x<9f&&
-                (g.companionPosition-landed).Length<1.3f,
-                "A sealed crossing never shuffles the ally through solid tiles or teleports them to the player");
+                (g.companionPosition-landed).Length<1.3f&&
+                g.CompanionRouteBlocked,
+                "A sealed crossing visibly reports actual unreachable ground without shuffling through tiles");
             char[] opened=rows[7].ToCharArray();opened[9]='.';
             rows[7]=new string(opened);
             Advance(g,3.1f);
             Check(g.CanStand(g.companionPosition)&&
                 g.companionPosition.x>9.25f&&
-                (g.companionPosition-g.Position).Length<3.0f,
-                "Opening the existing route lets the same companion replan and physically reunite without room or save reload");
+                (g.companionPosition-g.Position).Length<3.0f&&
+                !g.CompanionRouteBlocked,
+                "A reopened physical route rejoins the party and retires its stale obstacle warning");
         }
 
         public static void CompanionBlockedFootRecoversLocallyWithoutCrossMapWarp(Campaign data)

@@ -54,6 +54,22 @@ namespace Starfall
         private int companionBlockedRouteGeneration=-1;
         private int companionBlockedRouteGoalCell=-1;
         private float companionBlockedRouteRetry;
+        private bool companionBlockedAtFrontier;
+        public bool CompanionRouteBlocked
+        {
+            get
+            {
+                return companionBlockedAtFrontier&&
+                    companionBlockedRouteRetry>0f&&
+                    save!=null&&save.companion>=0&&
+                    !CompanionHoldingPosition&&!practicing&&
+                    System.Object.ReferenceEquals(companionBlockedRouteSave,save)&&
+                    System.Object.ReferenceEquals(companionBlockedRouteMap,Map)&&
+                    companionBlockedRouteRoom==save.room&&
+                    companionBlockedRouteGeneration==companionPresentationGeneration&&
+                    (companionPosition-Position).Length>2.2f;
+            }
+        }
         // A deliberate hold order is transient and tied to this exact party
         // body, room and map. It is never written to SaveData v2 and cannot
         // silently carry over through a save load or companion swap.
@@ -823,6 +839,7 @@ namespace Starfall
                 CompanionFollowSegmentClear(companionPosition,next);
             if(actorStepClear)
             {
+                companionBlockedAtFrontier=false;
                 // A newly opened doorway or a moving target can make the
                 // direct route preferable; do not keep steering toward an
                 // obsolete cached detour.
@@ -870,6 +887,7 @@ namespace Starfall
                     if(adjacent&&CompanionFollowSegmentClear(
                         companionPosition,first))
                     {
+                        companionBlockedAtFrontier=false;
                         waypoint=first;
                         return true;
                     }
@@ -942,6 +960,7 @@ namespace Starfall
                 companionBlockedRouteGeneration=companionPresentationGeneration;
                 companionBlockedRouteGoalCell=goalCell;
                 companionBlockedRouteRetry=.55f;
+                companionBlockedAtFrontier=best==start;
                 if(best!=start)found=best;
                 else
                 {
@@ -951,6 +970,7 @@ namespace Starfall
                     return true;
                 }
             }
+            else companionBlockedAtFrontier=false;
 
             var reversed=new List<Point>();
             int cursor=found;
