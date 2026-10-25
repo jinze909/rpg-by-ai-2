@@ -959,6 +959,8 @@ namespace Starfall
             // The core validates current eligibility and rechecks walking
             // collision only on click, never on every IMGUI repaint.
             bool inRegion=q.room==Game.save.room;
+            bool cancelPending=!inRegion&&Game.QuestApproachTravelHandoffPending&&
+                q.id==Game.save.trackedQuest;
             bool canFollow=!q.locked&&!q.complete&&
                 (inRegion||(q.id==Game.save.trackedQuest&&
                     q.room>=0&&q.room<Game.data.maps.Length&&
@@ -971,10 +973,16 @@ namespace Starfall
                         Game.HasLocalWaymark?
                         "REPLACE PIN · ROUTE TO LOCAL QUEST":
                         "PIN ROUTE TO LOCAL QUEST"):
-                    Game.L("跟随跨地区任务 · 到达后接续步行路线",
-                        "FOLLOW REMOTE QUEST · AUTO-ROUTE ON ARRIVAL"),
+                    cancelPending?
+                        Game.L("取消跨区任务自动导航",
+                            "CANCEL REMOTE QUEST AUTO-FOLLOW"):
+                        Game.L("跟随跨地区任务 · 到达后接续步行路线",
+                            "FOLLOW REMOTE QUEST · AUTO-ROUTE ON ARRIVAL"),
                 false,canFollow))
-                Game.PlaceQuestApproachWaymark(q.id);
+            {
+                if(cancelPending)Game.ClearLocalWaymark();
+                else Game.PlaceQuestApproachWaymark(q.id);
+            }
         }
         private void DrawMap()
         {
@@ -1206,7 +1214,17 @@ namespace Starfall
             else if(inspectedMap==null) Text(888, 487, 306, 75, Game.CanEnter(selectedRegion) ?
                 Game.L(m.subtitle,m.suben):
                 Game.RouteHint(selectedRegion,Game.save.english), 15, muted);
-            if(selectedRegion==Game.save.room)
+            if(Game.QuestApproachTravelHandoffPending&&!mapTileCursor.Active)
+            {
+                // Remote auto-follow has no local pin yet, but is still
+                // explicitly player-owned and must be cancelable from any
+                // viewed map region, including the Inn and intermediate hubs.
+                if(Button(888,571,306,35,
+                    Game.L("取消跨区任务自动导航",
+                        "Cancel pending remote quest route")))
+                    Game.ClearLocalWaymark();
+            }
+            else if(selectedRegion==Game.save.room)
             {
                 if(mapTileCursor.Active)
                     Text(888,569,306,42,

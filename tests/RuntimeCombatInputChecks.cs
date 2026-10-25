@@ -5696,6 +5696,25 @@ public static class RuntimeCombatInputChecks
             g.save.trackedQuest==id&&g.save.flags.Count==beforeFlags&&
             g.save.coins==coins&&g.save.version==2,
             "Journal click queues only user-approved remote handoff, without loot or save mutation");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("CANCEL REMOTE QUEST AUTO-FOLLOW")),
+            "The live journal exposes an explicit cancel action for the pending remote route");
+        g.mode="map";Set(app,"selectedRegion",g.GetQuest(id).room);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("Cancel pending remote quest route")),
+            "A different-region map still exposes pending-route cancellation without a local pin");
+        GUI.queuedClick=new Rect(888,571,306,35);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(!g.QuestApproachTravelHandoffPending&&!g.HasLocalWaymark&&
+            g.save.trackedQuest==id&&g.save.flags.Count==beforeFlags&&
+            g.save.coins==coins,
+            "Canceling from the remote map clears only transient guidance, never quest or rewards");
+        g.mode="journal";Set(app,"selectedQuest",index);
+        Set(app,"journalTab",0);Set(app,"questPage",index/14);
+        GUI.queuedClick=new Rect(650,693,540,32);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(g.QuestApproachTravelHandoffPending,
+            "The player can intentionally resume the same distant mission after cancellation");
         g.mode="world";GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("REMOTE QUEST")&&
             s.Contains("AUTO-ROUTE")),
