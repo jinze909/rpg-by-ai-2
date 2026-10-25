@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void CivicAuditPublicationExplainsPermanentFieldAidService() { CoreChecks.PublishingRoadAuditAnnouncesItsRealFieldKitService(Data()); }
         [Test] public void AuditedRoadMarkersOfferPaidSafePhysicalFirstAid() { CoreChecks.PublishedRoadAuditOffersRealCostedCivilianFirstAid(Data()); }
         [Test] public void EightDistantSheltersRecognizeActualCivilianMedicineRecipients() { CoreChecks.EightCourierReceiptsAppearOnlyAfterActualRegionalDeliveryFlags(Data()); }
         [Test] public void CombatStewCannotBeSpammedOrWastedAtFullResources() { CoreChecks.StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Data()); }

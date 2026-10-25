@@ -598,6 +598,43 @@ namespace Starfall.Tests
             Check(g.save.coins == coins && g.Allies == 1 && g.save.skillPoints == 1, "Commission rewards");
             g.Learn(1); Check(g.save.skillPoints == 0 && g.save.maxHealth == 152, "Talent allocation");
         }
+        public static void PublishingRoadAuditAnnouncesItsRealFieldKitService(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.stage=3;g.save.room=9;g.enemies.Clear();
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            foreach(int room in new int[]{0,3,5})
+                g.save.flags.Add("civic_aftercare_waytrail_"+room);
+            WorldObject inn=Array.Find(g.Map.objects,o=>
+                o.kind=="innGuest"&&o.id=="innTraveler");
+            Check(inn!=null,"Actual inn traveler is present at the original story hub");
+            g.save.x=inn.x;g.save.y=inn.y;
+            g.Talk(inn);
+            Check(g.conversation!=null,"The existing guest is an authentic world conversation");
+            int publish=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_aftercare_publish");
+            Check(publish>=0,"Three genuinely logged regional markers offer the real public publication choice");
+            int coins=g.save.coins;
+            g.Choose(publish);
+            Check(g.Has("civic_aftercare_published")&&g.save.coins==coins+35&&
+                g.toast.Contains("药草急救包"),
+                "Original publication still pays its exact reward and introduces the new physical service");
+            QuestGuide done=g.GetQuest("civic_aftercare");
+            Check(done.complete&&done.reward.Contains("药草急救点")&&
+                done.next.Contains("急救"),
+                "The real tracked quest reports the earned repeatable field service, not merely a one-time currency payout");
+            g.Talk(inn);
+            Check(g.conversation!=null&&g.conversation.text.Contains("急救包")&&
+                g.conversation.textEn.Contains("field kits"),
+                "The original night-traveler now explains earned field treatment in natural bilingual dialogue");
+            g.Close();
+            g.Talk(inn);
+            Check(Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_aftercare_publish")<0&&g.save.coins==coins+35,
+                "Published register neither repeats its reward nor reopens a stale publication decision");
+        }
+
         public static void PublishedRoadAuditOffersRealCostedCivilianFirstAid(Campaign data)
         {
             int[] regions={0,3,5};

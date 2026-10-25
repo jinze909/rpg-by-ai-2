@@ -100,8 +100,8 @@ namespace Starfall
         {
             if(Has("civic_aftercare_published"))
                 return en?
-                    "\n\nThe three-region road audit is now on the public record. Travelers can compare the field-checked markers with the restored grid instead of relying on the old chart alone.":
-                    "\n\n三地巡路复核已列入公开记录。旅人现在可以用实地核验的路标对照重接后的电网，不必只依赖旧路线图。";
+                    "\n\nThe three-region road audit is public. Markers at Canal, Ironreach and Mistport now hold civilian field kits. One herb treats wounds and reduces dangerous heat/cold exposure at a secure stop.":
+                    "\n\n三地巡路复核已公开。引水渠、赤铁矿场与雾港的路标现在备有居民急救包；在安全地点使用一份药草，就能处理伤口、缓解高温与寒冷。";
             if(Has("civic_aftercare_started"))
                 return en?
                     "\n\nThe road audit is still underway: "+CivicAftercareWaypointCount+"/3 regional markers verified. Bring the remaining field notes back here to publish the record.":
@@ -212,10 +212,10 @@ namespace Starfall
             {
                 int count=CivicAftercareWaypointCount;
                 string zh=Has("civic_aftercare_published")?
-                    "三地巡路复核已公开。每地的现场标记只计入一次，首次奖励已经结算。":
+                    "三地巡路复核已公开。居民在三处路标留下急救包：药草1换生命+36、高温与寒冷各-25；仅在安全时使用。首次奖励已结算。":
                     "当前进度 "+count+"/3。复核区域：";
                 string en=Has("civic_aftercare_published")?
-                    "The three-region road audit is public. Each field marker counted once and the first-clear reward has been settled.":
+                    "The road audit is public. Civilian kits at three signed markers use 1 herb for +36 HP and -25 heat/cold when safe. The first-clear reward is already settled.":
                     "Current progress "+count+"/3. Field regions: ";
                 string[] namesZh={"引水渠","赤铁矿场","雾港"};
                 string[] namesEn={"Canal","Ironreach","Mistport"};
@@ -244,7 +244,8 @@ namespace Starfall
                 CreditCoins(35);CreditShards(1);AddXp(45);
                 RecordMoment("三地巡路复核已公开，公共电网的安全路线有了现场记录。","Published the three-region road audit, giving the restored public grid a field-verified route record.");
                 sound="reward";revision++;
-                Notify("三地巡路复核已公开！硬币 +35、碎片 +1、经验 +45。","Three-region road audit published! +35 coins, +1 shard, +45 XP.");
+                Notify("三地巡路复核已公开：硬币+35、碎片+1、经验+45。三地旧路标已备好药草急救包！",
+                    "Road audit published: +35 coins, +1 shard, +45 XP. Civilian herbal first-aid kits now staff all three surveyed markers!");
                 return true;
             }
             return false;
@@ -742,8 +743,8 @@ namespace Starfall
                 q.category=L("开放世界 · 公共设施维护",
                     "OPEN WORLD · CIVIC MAINTENANCE");
                 q.description=L(
-                    "公共电网重新接通后，居民需要确认安全路线仍然能走。先在炉火旅店接取复核，再回访引水渠、赤铁矿场与雾港各一处旧路标，最后回旅店公开现场记录。每个地区只计一次；公开后只发放一次奖励。",
-                    "After the public grid is restored, residents need to verify that its safe routes remain usable. Accept the audit at Hearth Inn, revisit one old route marker each at Canal, Ironreach and Mistport, then publish the field record at the Inn. Each region counts once and the reward is one-time.");
+                    "公共电网重新接通后，居民需要确认安全路线仍然能走。先在炉火旅店接取复核，再回访引水渠、赤铁矿场与雾港各一处旧路标，最后回旅店公开现场记录。公开后，已核验路标将提供消耗药草的野外急救。",
+                    "After the public grid is restored, residents need to verify that its safe routes remain usable. Accept the audit at Hearth Inn, revisit one old route marker each at Canal, Ironreach and Mistport, then publish the field record at the Inn. Publication equips their original markers with permanent, herb-funded safe field care.");
                 q.locked=!CivicConduitComplete;
                 q.complete=Has("civic_aftercare_published");
                 q.steps.Add(new QuestStep(L("在炉火旅店接取复核",
@@ -765,7 +766,8 @@ namespace Starfall
                 {
                     q.room=9;
                     q.target=ObjectPoint(9,"innGuest",new Point(20,12));
-                    q.next=L("三地巡路复核已公开","Three-region road audit published");
+                    q.next=L("三地复核已公开，核验路标提供药草急救",
+                        "Audit published; surveyed route markers now offer herbal field aid");
                 }
                 else if(q.locked||!Has("civic_aftercare_started"))
                 {
@@ -792,8 +794,8 @@ namespace Starfall
                         L("与本地区任一旧路标交互，记录现场复核",
                           "Interact with an old route marker in this region");
                 }
-                q.reward=L("首次公开：硬币35、碎片1、经验45；每地区只计一次，公开后不可重复领取",
-                    "First publication: 35 coins, 1 shard, 45 XP; each region counts once, with no repeat reward.");
+                q.reward=L("首次公开：硬币35、碎片1、经验45；解锁三地实地药草急救点（药草1，生命+36，冷热各-25）",
+                    "First publication: 35 coins, 1 shard, 45 XP; unlock three staffed field-kit sites (1 herb, +36 HP, -25 heat/cold).");
                 return q;
             }
 
