@@ -38,7 +38,9 @@ namespace Starfall
             // enemies; legitimate close-range battles stay unchanged.
             bool occupied=(safe-Position).Length<.95f||
                 save.companion>=0&&!relocatingCompanion&&
-                (safe-companionPosition).Length<.95f;
+                (safe-companionPosition).Length<.95f||
+                ReliefEscortActive&&reliefMissionRoom==save.room&&
+                (safe-reliefFollowerPosition).Length<.95f;
             foreach(Enemy other in enemies)
                 if(other!=null&&other!=relocatingEnemy&&other.hp>0&&
                     (other.Position-safe).Length<.95f)
@@ -55,7 +57,9 @@ namespace Starfall
                 if(!Fits(option)||!ActorHasLocalRoute(safe,option,4)||
                     (option-Position).Length<1.05f||
                     save.companion>=0&&!relocatingCompanion&&
-                    (option-companionPosition).Length<1.05f)
+                    (option-companionPosition).Length<1.05f||
+                    ReliefEscortActive&&reliefMissionRoom==save.room&&
+                    (option-reliefFollowerPosition).Length<1.05f)
                     continue;
                 bool clear=true;
                 foreach(Enemy other in enemies)
@@ -155,6 +159,8 @@ namespace Starfall
                     (foot-boss.Position).Length<1.2f ||
                     (save.companion>=0 &&
                         (foot-companionPosition).Length<1.2f) ||
+                    (ReliefEscortActive&&reliefMissionRoom==save.room&&
+                        (foot-reliefFollowerPosition).Length<1.25f) ||
                     !ClearAttackPath(boss.Position,foot) ||
                     !BossSummonHasLocalRoute(boss.Position,foot))continue;
                 bool occupied=false;
