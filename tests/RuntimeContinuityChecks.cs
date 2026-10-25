@@ -523,8 +523,23 @@ public static class RuntimeContinuityChecks
             "An approved distant route exists before any local pin even with general guidance off");
         Point? target=g.NavigationTarget();
         Check(target.HasValue,"An actual map portal is the accepted quest's present bearing");
+        // Inn spawn can be already inside the portal's interaction reach:
+        // an empty path then means "arrived", not a blocked crossing.
+        // Position the actual player at a separately standable tile with a
+        // verified longer walking route before checking breadcrumbs.
+        bool distantFoot=false;
+        for(int y=2;y<g.Map.rows.Length-2&&!distantFoot;y+=2)
+        for(int x=2;x<g.Map.rows[0].Length-2&&!distantFoot;x+=2)
+        {
+            Point p=new Point(x+.5f,y+.5f);
+            if(!g.CanStand(p))continue;
+            var walk=g.NavigationPathFrom(p,target.Value,true);
+            if(walk.Count<=3)continue;
+            g.save.x=p.x;g.save.y=p.y;distantFoot=true;
+        }
+        Check(distantFoot,"An accessible real Inn path extends beyond immediate portal interaction reach");
         var physical=g.NavigationPath(target.Value);
-        Check(physical.Count>0,"The original Inn has a collision-aware walk to the outbound portal");
+        Check(physical.Count>0,"A true longer Inn route reaches the exit interaction side");
         ClearDraw();Call(app,"MiniTerrainWindow",1024f,42f);
         Check(NavigationRouteDots(3f)>0,
             "Live minimap draws actual walking breadcrumbs for the approved remote route");
