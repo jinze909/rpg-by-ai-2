@@ -80,15 +80,15 @@ namespace Starfall
                     if(Input.GetKeyDown(KeyCode.RightArrow))moveX++;
                     if(Input.GetKeyDown(KeyCode.UpArrow))moveY--;
                     if(Input.GetKeyDown(KeyCode.DownArrow))moveY++;
-                    float dx=Input.GetAxisRaw("Debug Horizontal"),
-                        dy=Input.GetAxisRaw("Debug Vertical");
-                    if(Math.Abs(dx)<.5f&&Math.Abs(dy)<.5f)
-                    {dx=Input.GetAxisRaw("Horizontal");dy=Input.GetAxisRaw("Vertical");}
+                    float mapAxisX=Input.GetAxisRaw("Debug Horizontal"),
+                        mapAxisY=Input.GetAxisRaw("Debug Vertical");
+                    if(Math.Abs(mapAxisX)<.5f&&Math.Abs(mapAxisY)<.5f)
+                    {mapAxisX=Input.GetAxisRaw("Horizontal");mapAxisY=Input.GetAxisRaw("Vertical");}
                     if(moveX==0&&moveY==0&&navigationRepeat<=0f&&
-                        (Math.Abs(dx)>.5f||Math.Abs(dy)>.5f))
+                        (Math.Abs(mapAxisX)>.5f||Math.Abs(mapAxisY)>.5f))
                     {
-                        if(Math.Abs(dx)>Math.Abs(dy))moveX=Math.Sign(dx);
-                        else moveY=-Math.Sign(dy);
+                        if(Math.Abs(mapAxisX)>Math.Abs(mapAxisY))moveX=Math.Sign(mapAxisX);
+                        else moveY=-Math.Sign(mapAxisY);
                         navigationRepeat=.14f;
                     }
                     if(moveX!=0||moveY!=0)
