@@ -68,8 +68,56 @@ namespace Starfall
                     {clear=false;break;}
                 if(clear)return option;
             }
-            // A genuinely one-tile refuge must not silently delete a
-            // previously saved monster or teleport it behind solid walls.
+            // The first four rings are normally enough for combat groups,
+            // but a narrow connected corridor can be occupied for five or
+            // more cells during a legacy load or repeated evacuation. Extend
+            // ONLY the crowded-case search using the same stamped 4-way
+            // collision graph as enemy movement, bounded to twelve physical
+            // walking steps. Never jump through a wall or search the entire
+            // 120x80 world looking for a distant spawn.
+            int w=Map.rows[0].Length,h=Map.rows.Length;
+            int sx=(int)Math.Floor(safe.x),sy=(int)Math.Floor(safe.y);
+            if(sx>=0&&sx<w&&sy>=0&&sy<h)
+            {
+                PreparePathSearch(w*h);
+                int begin=sy*w+sx,head=0,tail=0;
+                pathQueue[tail++]=begin;
+                VisitPath(begin,0); // parent buffer stores BFS depth here.
+                while(head<tail)
+                {
+                    int node=pathQueue[head++],x=node%w,y=node/w;
+                    int depth=pathParents[node];
+                    if(depth>=5)
+                    {
+                        Point p=new Point(x+.5f,y+.5f);
+                        bool free=Fits(p)&&
+                            (p-Position).Length>=1.05f&&
+                            (save.companion<0||relocatingCompanion||
+                                (p-companionPosition).Length>=1.05f)&&
+                            (!ReliefEscortActive||reliefMissionRoom!=save.room||
+                                (p-reliefFollowerPosition).Length>=1.05f);
+                        if(free)
+                            foreach(Enemy foe in enemies)
+                                if(foe!=null&&foe!=relocatingEnemy&&
+                                    foe.hp>0&&(foe.Position-p).Length<.95f)
+                                {free=false;break;}
+                        if(free)return p;
+                    }
+                    if(depth>=12)continue;
+                    for(int i=0;i<4;i++)
+                    {
+                        int nx=x+pursuitSteps[i,0],ny=y+pursuitSteps[i,1];
+                        if(nx<0||ny<0||nx>=w||ny>=h)continue;
+                        int next=ny*w+nx;
+                        if(PathVisited(next)||
+                            !Fits(new Point(nx+.5f,ny+.5f)))continue;
+                        VisitPath(next,depth+1);
+                        pathQueue[tail++]=next;
+                    }
+                }
+            }
+            // An entirely packed/sealed refuge must not silently delete a
+            // saved monster or transport it through a closed flood gate.
             return safe;
         }
         private Enemy CreatePlacedEnemy(int id, int kind, Point proposed, float health, bool boss = false)
