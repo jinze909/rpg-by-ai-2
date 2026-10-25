@@ -6037,10 +6037,12 @@ public static class RuntimeCombatInputChecks
             (g.LocalWaymark.Value-prior).Length<.001f&&
             g.save.trackedQuest==originalQuest,
             "Browsing the map offers a combined action without mutating quest or manual pin");
+        Check(g.GetQuest("frost_signal").locked,
+            "The unearned Frost Signal mission is genuinely locked in this fixture");
         Check(!g.TrackAndFollowRemoteQuest("not_an_authored_quest")&&
-            !g.TrackAndFollowRemoteQuest(originalQuest)&&
+            !g.TrackAndFollowRemoteQuest("frost_signal")&&
             g.save.trackedQuest==originalQuest&&g.HasLocalWaymark,
-            "Unrecognized or non-remote requests cannot silently take map pin ownership");
+            "Invalid or locked missions cannot silently take map pin ownership");
         GUI.queuedClick=new Rect(888,571,306,35);
         Call(app,"OnGUI");GUI.queuedClick=null;
         Check(g.save.trackedQuest=="trail_circuits"&&
