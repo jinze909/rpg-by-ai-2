@@ -157,6 +157,56 @@ namespace Starfall
             mapInspectedQuestId=choices[index];
             Game.sound="ui";
         }
+        // Objectives already available to the player appear as small teal
+        // map marks. The existing tracked gold and inspected lilac markers
+        // remain authoritative; these are only a way to discover alternatives.
+        private void DrawAvailableMapQuestMarkers(List<string> options,
+            float left,float top,float scale)
+        {
+            if(options==null||scale<=0f)return;
+            Color mark=PixelArt.C("#80c7ba");
+            foreach(string id in options)
+            {
+                if(id==mapInspectedQuestId||id==Game.save.trackedQuest)continue;
+                QuestGuide q=Game.GetQuest(id);
+                if(float.IsNaN(q.target.x)||float.IsNaN(q.target.y)||
+                    float.IsInfinity(q.target.x)||float.IsInfinity(q.target.y))continue;
+                float x=left+q.target.x*scale,y=top+q.target.y*scale;
+                Box(x-2,y-2,4,4,mark);
+            }
+        }
+        // A click on a teal objective chooses an inspected quest instead
+        // of replacing the player's personal pin. Consecutive clicks can
+        // cycle overlapping objectives without fabricating quest priority.
+        private bool TryInspectMapQuestAt(Point tile,float scale,
+            List<string> available)
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+                scale<=0f||available==null||available.Count==0)return false;
+            var nearest=new List<int>();
+            float nearestPixels=8f;
+            for(int i=0;i<available.Count;i++)
+            {
+                QuestGuide q=Game.GetQuest(available[i]);
+                if(q.locked||q.complete||q.room!=selectedRegion)continue;
+                float distance=(q.target-tile).Length*scale;
+                if(distance<nearestPixels-.5f)
+                {
+                    nearestPixels=distance;
+                    nearest.Clear();
+                    nearest.Add(i);
+                }
+                else if(distance<=8f&&Math.Abs(distance-nearestPixels)<=.5f)
+                    nearest.Add(i);
+            }
+            if(nearest.Count==0)return false;
+            int current=-1;
+            for(int i=0;i<nearest.Count;i++)
+                if(available[nearest[i]]==mapInspectedQuestId){current=i;break;}
+            mapInspectedQuestId=available[nearest[(current+1)%nearest.Count]];
+            Game.sound="ui";
+            return true;
+        }
         private void OpenInspectedMapQuestInJournal()
         {
             if(Game==null||Game.mode!="map"||mapTileCursor.Active||
@@ -856,7 +906,7 @@ namespace Starfall
         }
         private void DrawMap()
         {
-            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击地图标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click to pin · R/Y move personal pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
+            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击青色任务点查看任务 · 点击空地标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click teal quests to inspect · click ground to pin · R/Y move pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i, !mapTileCursor.Active)) selectedRegion = i; }
             // Region-specific available quest browser. Explicit selection
             // changes only the inspected map marker, never trackedQuest or
@@ -900,6 +950,7 @@ namespace Starfall
             if (selectedRegion == Game.save.room)
             {
                 MiniTerrain(888, 264, terrainScale);
+                DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1001,13 +1052,15 @@ namespace Starfall
                                 mapCursorCompanionPost=false;
                             }
                         }
-                        else Game.PlaceLocalWaymark(tile);
+                        else if(!TryInspectMapQuestAt(tile,terrainScale,regionQuests))
+                            Game.PlaceLocalWaymark(tile);
                     }
                 }
             }
             else
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
+                DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.CurrentGuide;
                 if(q.room==selectedRegion&&!q.locked)
@@ -1017,6 +1070,24 @@ namespace Starfall
                         gy=264+q.target.y*terrainScale;
                     if(inspected!=null)Frame(gx-6.5f,gy-6.5f,13,13,marker);
                     Box(gx-3,gy-3,7,7,marker);
+                }
+                // Remote map clicks only inspect existing, unlocked quest
+                // markers; they never create a pin or fast-travel the hero.
+                // Local pin editing continues through its established path.
+                Rect regionalMapHit=new Rect(888,264,
+                    m.rows[0].Length*terrainScale,m.rows.Length*terrainScale);
+                if(!mapTileCursor.Active&&!replacePrompt&&
+                    saveConfirmation==null&&
+                    GUI.Button(regionalMapHit,"",new GUIStyle()))
+                {
+                    Point cursor=MouseVirtual();
+                    if(cursor.x>=regionalMapHit.x&&cursor.y>=regionalMapHit.y&&
+                        cursor.x<regionalMapHit.x+regionalMapHit.width&&
+                        cursor.y<regionalMapHit.y+regionalMapHit.height)
+                        TryInspectMapQuestAt(new Point(
+                            (cursor.x-888)/terrainScale,
+                            (cursor.y-264)/terrainScale),
+                            terrainScale,regionQuests);
                 }
             }
             QuestGuide inspectedMap=InspectedMapQuest();

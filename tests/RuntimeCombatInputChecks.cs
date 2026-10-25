@@ -2800,6 +2800,73 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Live region quest map browser cycles accessible objectives and opens their exact journal entries without save mutations");
     }
 
+    private static void LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.flags.Add("intro");
+        game.save.english=true;
+        game.save.trackedQuest="main";
+        game.mode="map";
+        Set(app,"selectedRegion",game.save.room);
+        Set(app,"mapInspectedQuestId",null);
+        List<string> candidates=(List<string>)Call(app,
+            "AvailableMapQuestIds",game.save.room);
+        QuestGuide target=null;
+        foreach(string id in candidates)
+        {
+            QuestGuide q=game.GetQuest(id);
+            if(q.target.x>=0&&q.target.y>=0&&
+                q.target.x<game.Map.rows[0].Length&&
+                q.target.y<game.Map.rows.Length)
+            {target=q;break;}
+        }
+        Check(target!=null,
+            "The real region contains a drawable, actionable map target");
+        float mapScale=WorldStreaming.PreviewScale(
+            game.Map.rows[0].Length,game.Map.rows.Length,306,207);
+        Check(mapScale>0f,"The production terrain has a valid real map scale");
+        Point origin=game.Position;
+        Point pin=new Point((float)Math.Floor(origin.x)+.5f,
+            (float)Math.Floor(origin.y)+.5f);
+        Check(game.PlaceLocalWaymark(pin),
+            "The actual player waypoint is set before quest map selection");
+        Point retained=game.LocalWaymark.Value;
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        // Use the real screen map click surface, not a direct helper call.
+        Input.mousePosition=new Vector3(
+            888+target.target.x*mapScale,
+            800-(264+target.target.y*mapScale),0);
+        GUI.queuedClick=new Rect(888,264,
+            game.Map.rows[0].Length*mapScale,
+            game.Map.rows.Length*mapScale);
+        Call(app,"OnGUI");
+        Check(!GUI.queuedClick.HasValue,
+            "A real IMGUI terrain click is consumed by the live map");
+        string selected=(string)typeof(FrontierRuntime).GetField(
+            "mapInspectedQuestId",Private).GetValue(app);
+        Check(candidates.Contains(selected),
+            "Clicking an available teal objective inspects a real available mission");
+        Check((game.GetQuest(selected).target-target.target).Length*mapScale<=8f,
+            "The inspected mission belongs to the clicked map marker");
+        Check(game.HasLocalWaymark&&
+            (game.LocalWaymark.Value-retained).Length<.001f&&
+            game.save.trackedQuest=="main"&&game.save.coins==coins&&
+            game.save.flags.Count==flags&&game.save.version==2,
+            "Selecting a quest marker cannot replace a personal pin, track automatically or grant rewards");
+        // Empty map terrain still retains its original physical pin feature.
+        Point clear=new Point(-100,-100);
+        Check(!(bool)Call(app,"TryInspectMapQuestAt",clear,mapScale,candidates),
+            "Clicks outside every available objective cannot select a fake quest");
+        Set(app,"selectedRegion",game.data.maps.Length);
+        Check(!(bool)Call(app,"TryInspectMapQuestAt",target.target,mapScale,
+            new List<string>()),
+            "No remote/invalid mission can be inspected from an empty region");
+        game.Close();
+        Console.WriteLine("PASS Live map objective clicks inspect unlocked missions without replacing personal navigation");
+    }
+
     private static void InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting(
         FrontierRuntime app)
     {
@@ -7471,7 +7538,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
