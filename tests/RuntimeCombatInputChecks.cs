@@ -5907,6 +5907,96 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Inspected remote map objective can explicitly start real regional quest route without stealing manual pins");
     }
 
+    private static void RealOuterShoreNavigationFollowsActualTransitLegs(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.flags.Add("intro");g.save.flags.Add("exp_intro");
+        g.save.flags.Add("harbor_report");g.save.flags.Add("desert_report");
+        g.save.stage=4;g.save.english=true;g.save.showGuidance=false;
+        Check(g.CanEnter(5)&&g.CanEnter(6)&&g.CanEnter(7),
+            "The actual three outer-shore regions are story-unlocked");
+        for(int room=0;room<=6;room++)
+            g.save.flags.Add("trail_circuit_"+room+"_3");
+        g.save.flags.Remove("trail_circuit_7_1");
+        g.save.flags.Remove("trail_circuit_7_2");
+        g.save.flags.Remove("trail_circuit_7_3");
+        int coins=g.save.coins,shards=g.save.shards;
+        g.Enter(5);g.enemies.Clear();
+        g.TrackQuest("trail_circuits");
+        Check(g.GetQuest("trail_circuits").room==7,
+            "The original multi-region expedition correctly points to Frostchime");
+        WorldObject desert=null,home=null;
+        foreach(WorldObject o in g.Map.objects)
+        {
+            if(o.kind=="portal6")desert=o;
+            if(o.kind=="portal0")home=o;
+        }
+        Check(desert!=null&&home!=null,"Mistport has an eastbound desert crossing and a separate town return");
+        Point? first=g.NavigationTarget();
+        Check(first.HasValue&&(first.Value-new Point(desert.x,desert.y)).Length<.001f&&
+            (first.Value-new Point(home.x,home.y)).Length>5f,
+            "From Mistport to Frostchime, travel east via Glass Desert rather than returning to town");
+        g.mode="journal";
+        Check(g.PlaceQuestApproachWaymark("trail_circuits")&&
+            g.QuestApproachTravelHandoffPending,
+            "The real journal explicitly accepts the correct multihop quest");
+        g.mode="world";
+        Check(g.PlayerRequestedRemoteExitTarget(first.Value),
+            "The physically authored intermediate crossing owns strict walking-route validation");
+        g.Enter(6);g.enemies.Clear();
+        WorldObject frost=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.kind=="portal7"){frost=o;break;}
+        Check(frost!=null,"The actual Glass Desert map has a Frostchime portal");
+        Point? second=g.NavigationTarget();
+        Check(second.HasValue&&(second.Value-new Point(frost.x,frost.y)).Length<.001f&&
+            g.QuestApproachTravelHandoffPending,
+            "On reaching the intermediate region, navigation switches to the actual next crossing");
+        g.Enter(7);g.enemies.Clear();
+        Check(g.save.room==7&&
+            (g.QuestApproachNavigationActive||g.QuestApproachTravelHandoffPending),
+            "Real transition to Frostchime either validates a walking approach or explicitly awaits reopening");
+        // The reverse journey has no direct Frostchime-to-Desert crossing.
+        // Finish the current fieldwork in the test fixture and require
+        // the AUTHORED Mistport return leg rather than town detours.
+        g.mode="map";g.ClearLocalWaymark();
+        g.save.flags.Add("trail_circuit_7_3");
+        g.save.flags.Remove("trail_circuit_6_3");
+        g.TrackQuest("trail_circuits");g.mode="world";
+        Check(g.GetQuest("trail_circuits").room==6,
+            "The same original survey now needs a real Desert stage");
+        WorldObject port=null,returnTown=null;
+        foreach(WorldObject o in g.Map.objects)
+        {
+            if(o.kind=="portal5")port=o;
+            if(o.kind=="portal0")returnTown=o;
+        }
+        Check(port!=null&&returnTown!=null,"Frostchime has a Mistport crossing and a distinct town return");
+        Point? reverse=g.NavigationTarget();
+        Check(reverse.HasValue&&
+            (reverse.Value-new Point(port.x,port.y)).Length<.001f&&
+            (reverse.Value-new Point(returnTown.x,returnTown.y)).Length>5f,
+            "From Frostchime to Desert, navigate via Mistport, not a loop through town");
+        g.Enter(5);g.enemies.Clear();
+        Point? finalLeg=g.NavigationTarget();
+        Check(finalLeg.HasValue&&
+            (finalLeg.Value-new Point(desert.x,desert.y)).Length<.001f,
+            "The return transit uses Mistport's REAL Desert portal");
+        g.Enter(0);g.enemies.Clear();
+        WorldObject envoy=null;
+        foreach(WorldObject o in g.Map.objects)if(o.kind=="envoy"){envoy=o;break;}
+        Check(envoy!=null,"The shipped Emberfall scene includes the actual courier Lune");
+        Point? fromTown=g.NavigationTarget();
+        Check(fromTown.HasValue&&
+            (fromTown.Value-new Point(envoy.x,envoy.y)).Length<.001f,
+            "Long-distance outer-shore travel from Emberfall leads to its REAL courier contact");
+        Check(g.save.version==2&&g.save.coins==coins&&g.save.shards==shards,
+            "Multi-hop navigation changes neither rewards nor SaveData structure");
+        g.Close();
+        Console.WriteLine("PASS Real Mistport/Desert/Frostchime two-way quest itinerary and town courier handoff without teleport or save mutation");
+    }
+
     private static void NearbyNpcHudMatchesRealKeyboardInteraction(FrontierRuntime app)
     {
         Prepare(app);
@@ -8526,7 +8616,7 @@ public static class RuntimeCombatInputChecks
     {
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
-        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
+        Action<FrontierRuntime>[] cases = { TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, RealOuterShoreNavigationFollowsActualTransitLegs, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
             DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,

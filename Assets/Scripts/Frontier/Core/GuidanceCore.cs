@@ -2632,13 +2632,29 @@ namespace Starfall
         private Point? QuestRegionExitTarget(QuestGuide q)
         {
             if(q==null||q.locked||q.complete||q.room==save.room)return null;
-            foreach(var o in Map.objects)
-                if(o.kind=="portal"+q.room)return new Point(o.x,o.y);
-            foreach(var o in Map.objects)
+            // The outer shore is not a collection of direct town portals.
+            // Lune is the REAL departure contact in Emberfall; the Abyss
+            // also has its own authored entrance, not a fabricated portal.
+            if(save.room==0&&(q.room>=5&&q.room<=7||q.room==8))
+            {
+                string contact=q.room==8?"abyssEntry":"envoy";
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind==contact)return new Point(o.x,o.y);
+                return null;
+            }
+            // Regional transitions are source-bound, one actual open
+            // crossing at a time. Mistport has no direct Frostchime portal:
+            // route through Glass Desert instead of sending the player back
+            // to town in an infinite loop. From Frostchime to Glass Desert,
+            // the real return leg goes first through Mistport.
+            int leg=q.room;
+            if(save.room==5&&q.room==7)leg=6;
+            else if(save.room==7&&q.room==6)leg=5;
+            if(CanEnter(leg))
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="portal"+leg)return new Point(o.x,o.y);
+            foreach(WorldObject o in Map.objects)
                 if(o.kind=="portal0")return new Point(o.x,o.y);
-            if(save.room==0&&q.room==8)
-                return ObjectPoint(0,"abyssEntry",new Point(31,14));
-            if(save.room==0&&q.room>=5)return new Point(26,9);
             return null;
         }
         public Point? NavigationTarget()
