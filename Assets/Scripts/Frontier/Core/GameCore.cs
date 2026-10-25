@@ -45,7 +45,33 @@ namespace Starfall
         // bowl cannot be eaten dozens of times during one enemy windup.
         // This short clock lives only in the active play session, never
         // changes the serialized SaveData v2 contract.
-        private float stewCooldown;
+        private float stewCooldown, teaCooldown;
+        // Tea is an emergency climate/stamina consumable, not a way to
+        // buy unlimited dodges in a single enemy windup. A protected traveler
+        // may top up the final 12 seconds before a long exposed crossing.
+        // Both clocks are session-only: SaveData v1/v2 stays unchanged.
+        public const float TeaCooldownSeconds = 4f;
+        public const float TeaRefreshWindow = 12f;
+        public float TeaCooldownLeft { get { return Math.Max(0f, teaCooldown); } }
+        public float TeaProtectionLeft
+        { get { return save == null ? 0f : Math.Max(0f, save.teaUntil - save.totalTime); } }
+        public bool TeaWouldHelp
+        {
+            get
+            {
+                return save != null && (save.energy < 99.5f || save.heat > .5f ||
+                    save.cold > .5f || TeaProtectionLeft <= TeaRefreshWindow);
+            }
+        }
+        public bool CanDrinkTea
+        {
+            get
+            {
+                return save != null && !Dying && !practicing &&
+                    (mode == "world" || mode == "inventory" || mode == "camp") &&
+                    save.tea > 0 && TeaCooldownLeft <= 0 && TeaWouldHelp;
+            }
+        }
         public float StewCooldownLeft { get { return Math.Max(0f,stewCooldown); } }
         public float StewAttackBuffLeft
         { get { return save==null?0f:Math.Max(0f,save.foodUntil-save.totalTime); } }
@@ -238,7 +264,7 @@ namespace Starfall
             fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
             fishHits = fishMisses = 0;FishExpertCast=false;
             FishFeedbackZh=FishFeedbackEn="";
-            stewCooldown=0;
+            stewCooldown=teaCooldown=0;
             toast = ""; toastTime = 0;
             // Runtime audio consumes a pending queue, not just the current
             // sound name. Neither old combat cues nor dialogue clicks may
@@ -718,6 +744,7 @@ namespace Starfall
             // Advance consumption recovery in genuine world time. Inventory,
             // pause and dialogue do not secretly exhaust the recovery clock.
             stewCooldown=Math.Max(0f,stewCooldown-dt);
+            teaCooldown=Math.Max(0f,teaCooldown-dt);
             // Resolve changed world collision before any body, missile or contact advances.
             TickTideTransition(); Point beforeMove = Position;
             // A held LMB is sampled every frame. Once the hero escapes a

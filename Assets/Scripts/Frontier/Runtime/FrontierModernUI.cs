@@ -185,6 +185,11 @@ namespace Starfall
                         Game.L("炖汤增伤 · 剩余 ","STEW ATTACK BOOST · ")+
                             (int)Math.Ceiling(Game.StewAttackBuffLeft)+"s",
                         11,mint);
+                if(Game.TeaProtectionLeft>0)
+                    Text(335,127,348,17,
+                        Game.L("星薄荷保护 · 剩余 ","STAR-MINT PROTECTION · ")+
+                            (int)Math.Ceiling(Game.TeaProtectionLeft)+"s",
+                        11,mint);
                 DrawMinimap(); QuestGuide q = Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.MineConvoyActive ? Game.GetQuest("mine_convoy") :
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
@@ -198,7 +203,7 @@ namespace Starfall
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
                 ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= Game.ClassSkillEnergyCost, () => Game.Skill(InputAim(true)), 3.5f, Game.L("耐力不足", "Low energy"));
                 ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", Game.StewCooldownLeft, Game.CanEatStew || Game.StewCooldownLeft>0 && Game.save.inventory[6]>0, () => Game.Eat(), 3f, Game.L("效果仍在","Buff active"));
-                ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", 0, Game.save.tea > 0 && !Game.practicing, () => Game.DrinkTea());
+                ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", Game.TeaCooldownLeft, Game.CanDrinkTea || Game.TeaCooldownLeft>0 && Game.save.tea>0 && !Game.practicing, () => Game.DrinkTea(), GameCore.TeaCooldownSeconds, Game.L("保护仍在","Protected"));
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
                 ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
                 Text(25, 725, 302, 24, Game.save.coins + Game.L(" 硬币  ·  ", " coins  ·  ") + WeaponName(Game.save.weapon), 13, paper); Text(25, 752, 302, 23, controllerUsed ? Game.L("X攻击 · B互动 · RB点按指令 / 长按驻守", "X attack · B interact · RB tap/hold companion") : Game.L("J / 左键攻击 · E互动 · Z指令 / P驻守", "J/click attack · E interact · Z command / P hold"), 12, muted);
@@ -544,8 +549,15 @@ namespace Starfall
                     (int)Math.Ceiling(Game.StewCooldownLeft)+"s":
                 Game.L("使用炖汤 × ", "Use stew × ")+Game.save.inventory[6];
             if (Button(947, 546, 246, 35, mealButton, false, Game.CanEatStew)) Game.Eat();
-            if (Button(947, 590, 246, 35, Game.L("使用凉茶 × ", "Use tea × ") + Game.save.tea, false, Game.save.tea > 0 && !Game.practicing)) Game.DrinkTea();
-            Text(947, 642, 246, 40, Game.L("旅店休息可更新野外采集点。", "Inn rest renews resource nodes."), 12, muted);
+            string teaButton=Game.TeaCooldownLeft>0?
+                Game.L("凉茶起效中 ","Tea settling ")+
+                    (int)Math.Ceiling(Game.TeaCooldownLeft)+"s":
+                Game.L("使用凉茶 × ", "Use tea × ")+Game.save.tea;
+            if (Button(947, 590, 246, 35, teaButton, false, Game.CanDrinkTea)) Game.DrinkTea();
+            Text(947, 642, 246, 40, Game.TeaProtectionLeft>0?
+                Game.L("凉茶防护剩余 ","Tea protection left ")+
+                    (int)Math.Ceiling(Game.TeaProtectionLeft)+"s":
+                Game.L("旅店休息可更新野外采集点。", "Inn rest renews resource nodes."), 12, muted);
         }
         private void DrawTalents()
         {

@@ -856,6 +856,57 @@ namespace Starfall.Tests
                 "Food cooldown is transient and cannot contaminate a loaded v2 slot");
         }
 
+
+        public static void TeaConsumptionIsTacticalAndProtectsRareSupplies(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.tea=5; g.save.energy=20;
+            g.save.heat=45;g.save.cold=27;
+            Check(g.CanDrinkTea&&g.TeaProtectionLeft==0f,"Unprotected traveler can drink tea");
+            int before=g.save.tea;
+            g.DrinkTea();
+            Check(g.save.tea==before-1&&g.save.energy==100&&
+                g.save.heat==0&&g.save.cold==0&&
+                g.TeaCooldownLeft>=GameCore.TeaCooldownSeconds-.01f&&
+                g.TeaProtectionLeft>179f&&!g.CanDrinkTea,
+                "One cup heals exposure and restores real energy with a finite combat recovery");
+            float paidProtectionUntil=g.save.teaUntil;
+            g.DrinkTea();
+            Check(g.save.tea==before-1&&g.save.teaUntil==paidProtectionUntil,
+                "Rapid repeated tea input never pays or extends the same recovery");
+            g.mode="inventory";g.Tick(.05f,new Point());
+            Check(g.TeaCooldownLeft>=GameCore.TeaCooldownSeconds-.01f,
+                "Inventory is a paused state; no hidden tea cooldown progression");
+            g.mode="camp";g.DrinkTea();
+            Check(g.save.tea==before-1,
+                "Camp inventory cannot bypass a pending tea recovery");
+            g.mode="world"; Advance(g,GameCore.TeaCooldownSeconds+.1f);
+            Check(g.TeaCooldownLeft==0f&&!g.CanDrinkTea,
+                "A completed tea recovery cannot waste another cup while protected and nourished");
+            g.DrinkTea();
+            Check(g.save.tea==before-1&&g.save.teaUntil==paidProtectionUntil,
+                "Attempting tea at full benefit preserves both stock and paid expiry");
+            g.save.energy=63;
+            Check(g.CanDrinkTea,"A fresh real stamina deficit permits emergency tea even under climate protection");
+            g.mode="inventory";g.DrinkTea();
+            Check(g.save.tea==before-2&&g.save.energy==100&&
+                g.TeaCooldownLeft>=GameCore.TeaCooldownSeconds-.01f,
+                "Inventory tea uses the same authoritative transaction and recovery clock");
+            int heldStock=g.save.tea;
+            g.Load(g.save);
+            Check(g.save.version==2&&g.TeaCooldownLeft==0f&&
+                g.save.tea==heldStock&&g.TeaProtectionLeft>0f&&!g.CanDrinkTea,
+                "Loaded v2 slot keeps paid tea protection but never persists a transient recovery lock");
+            g.save.teaUntil=g.save.totalTime+GameCore.TeaRefreshWindow-.5f;
+            Check(g.CanDrinkTea,"A physically imminent climate-expiry crossing permits deliberate early refill");
+            g.DrinkTea();
+            Check(g.save.tea==heldStock-1&&g.TeaProtectionLeft>179f,
+                "Real tea within refresh window renews protection without changing save schema");
+            g.save.tea=0;
+            g.Load(g.save);
+            Check(!g.CanDrinkTea,"A load cannot invent tea when stock is exhausted");
+        }
+
         public static void DailyLife(Campaign data)
         {
             var g = Fresh(data); Action(g, "garden", "plant"); Check(g.save.plantedAt == 0 && g.save.inventory[7] == 2, "Planting");

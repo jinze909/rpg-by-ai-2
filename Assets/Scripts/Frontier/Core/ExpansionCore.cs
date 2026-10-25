@@ -2663,8 +2663,24 @@ namespace Starfall
         {
             if (practicing || Dying) return;
             if (save.tea <= 0 || (mode != "world" && mode != "inventory" && mode != "camp")) return;
-            save.tea--; save.heat = save.cold = 0; save.teaUntil = save.totalTime + 180; save.energy = 100; revision++;
-            Notify("星薄荷凉茶：耐力回满，免疫暑寒并加快耐力回复 180 秒。", "Star-mint tea: full energy, climate immunity and faster energy recovery for 180 seconds.");
+            if (TeaCooldownLeft > 0)
+            {
+                Notify("凉茶正在起效，再过 " + (int)Math.Ceiling(TeaCooldownLeft) + " 秒才能喝下一杯。",
+                    "Let the tea take effect before drinking again (" +
+                    (int)Math.Ceiling(TeaCooldownLeft) + "s).");
+                return;
+            }
+            if (!TeaWouldHelp)
+            {
+                Notify("耐力充足，暑寒已退，凉茶的保护仍在。这杯先留着。",
+                    "Full energy, no exposure and tea protection still active. Save this cup.");
+                return;
+            }
+            save.tea--; save.heat = save.cold = 0;
+            save.teaUntil = save.totalTime + 180; save.energy = 100;
+            teaCooldown = TeaCooldownSeconds; revision++;
+            Notify("星薄荷凉茶：耐力回满，免疫暑寒并加快耐力回复 180 秒。",
+                "Star-mint tea: full energy, climate immunity and faster energy recovery for 180 seconds.");
             sound = "reward";
         }
         public bool BuildProject(int project)
