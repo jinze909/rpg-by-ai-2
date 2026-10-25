@@ -231,7 +231,7 @@ namespace Starfall
             conversationSourceWasMapObject = pendingDialogueSourceWasMapObject = false;
             pendingDialogueSource = null; pendingDialogueSourceWasReachable = false;
             runeProgress = 0;
-            ResetExpansionTransient(); ResetCombatPresentation();
+            ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
             ResetContinuity(); ResetLocalWaymark(); ResetRidgeWatch(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -419,6 +419,12 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            if(OuterDeliveryActive)
+            {
+                Notify("药布还没送到。先亲手交给补给岗，或回求援灯取消急送，才能离开本地区。",
+                    "The dressings are in transit. Deliver them to the defended post or cancel at the rescue lamp before traveling.");
+                return true;
+            }
             if (CivilianFieldMissionBlocksTravel()) return true;
             if (CivicConduitActive || LastDirectiveWave > 0)
             {
@@ -731,6 +737,7 @@ namespace Starfall
             TickRidgeWatchPatrols(dt);
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
             TickOuterPatrol(dt);
+            TickOuterDelivery(dt);
             TickAfterlightWatch(dt);
             TickFarCourier(dt);
             TickCivicResponse(dt);
@@ -2625,6 +2632,7 @@ namespace Starfall
             if (TalkFloodArchive(o)) return;
             if (TalkRootsong(o)) return;
             if (TalkTrailCircuit(o)) return;
+            if (TalkOuterDelivery(o)) return;
             if (TalkOuterRescue(o)) return;
             if (TalkOuterPatrol(o)) return;
             if (TalkRidge(o)) return;
@@ -2981,7 +2989,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||

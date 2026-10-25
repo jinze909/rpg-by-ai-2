@@ -79,6 +79,138 @@ namespace Starfall
             }
         }
 
+
+        // A real, optional three-stop civilian medicine handoff on each
+        // restored regional route. Progress and the live clock are transient;
+        // only legitimate completed deliveries add an ordinary v2 flag.
+        private int outerDeliveryRoom=-1,outerDeliveryStage;
+        private float outerDeliverySeconds;
+        public bool OuterDeliveryActive
+        { get{return outerDeliveryRoom==save.room&&outerDeliveryStage>0;} }
+        public int OuterDeliveryStage {get{return OuterDeliveryActive?outerDeliveryStage:0;}}
+        public float OuterDeliverySeconds {get{return OuterDeliveryActive?outerDeliverySeconds:0f;}}
+        public bool OuterDeliveryDone(int room)
+        {return room>=0&&room<8&&Has("outer_delivery_done_"+room);}
+        public int OuterDeliveryWins
+        {get{int n=0;for(int i=0;i<8;i++)if(OuterDeliveryDone(i))n++;return n;}}
+        private bool OuterDeliveryAvailable
+        {
+            get{return save.room>=0&&save.room<8&&
+                !OuterDeliveryActive&&!OuterDeliveryDone(save.room)&&
+                OuterRelayRestored(save.room)&&OuterCacheRecovered(save.room)&&
+                OuterPatrolDone(save.room)&&!Dying&&!practicing&&!racing&&
+                !FieldWorkPreventsRest&&SafeTravel;}
+        }
+        private void ResetOuterDelivery()
+        {outerDeliveryRoom=-1;outerDeliveryStage=0;outerDeliverySeconds=0;}
+        private void TickOuterDelivery(float dt)
+        {
+            if(!OuterDeliveryActive)return;
+            if(Dying){ResetOuterDelivery();return;}
+            outerDeliverySeconds=Math.Max(0f,outerDeliverySeconds-dt);
+            if(outerDeliverySeconds>0f)return;
+            ResetOuterDelivery();revision++;
+            Notify("药品急送超时。补给还在灯下，可重新启程。",
+                "The medicine run ran out of time. The supplies remain; depart again when ready.");
+        }
+        private bool TalkOuterDelivery(WorldObject o)
+        {
+            if(!OuterDeliveryActive||
+                (o.kind!="outercache"&&o.kind!="outerwatch"))
+                return false;
+            if(!HasPhysicalInteractionReach(o))return true;
+            if(o.kind=="outercache")
+            {
+                Dialog(o.name,o.en,
+                    outerDeliveryStage==1?
+                        "箱里还有一捆未拆封的药布。巡路队把收据压在箱扣下：‘必须由人亲手送到哨岗，不能放在路上等车。’":
+                        "你已经把药布和收据放进背包。哨岗在北边，受伤的人还在那里等着。",
+                    outerDeliveryStage==1?
+                        "An unopened roll of dressings lies under the lid. The receipt reads: ‘Hand it to the wardens in person. Do not leave it beside the cart road.’":
+                        "The dressings and receipt are in your pack. The defended post is north of here, and someone is waiting.",
+                    outerDeliveryStage==1?
+                        C("取走包扎药布","Take the dressings","outer_delivery_pickup"):
+                        C("向北赶路","Head north","close"),
+                    C("合上箱盖","Close the chest","close"));
+                return true;
+            }
+            Dialog(o.name,o.en,
+                outerDeliveryStage==2?
+                    "哨岗里有人扶着伤员坐下。值守员一眼认出你怀里的药布，伸手接过还未干的收据。":
+                    "值守员翻着空白的交接簿。药布还在南边的旧箱里，得亲自带过来。",
+                outerDeliveryStage==2?
+                    "Someone helps an injured traveler to a seat. The watchkeeper recognizes the roll in your arms and reaches for the damp receipt.":
+                    "The watchkeeper checks the empty delivery ledger. The dressings are still in the old chest to the south.",
+                outerDeliveryStage==2?
+                    C("交付药布和收据","Deliver dressings and receipt","outer_delivery_deliver"):
+                    C("去南边救援箱取药","Retrieve the chest to the south","close"),
+                C("继续赶路","Keep moving","close"));
+            return true;
+        }
+        private bool ChooseOuterDelivery(string action)
+        {
+            bool start=action=="outer_delivery_start";
+            bool pickup=action=="outer_delivery_pickup";
+            bool deliver=action=="outer_delivery_deliver";
+            bool abort=action=="outer_delivery_abort";
+            if(!start&&!pickup&&!deliver&&!abort)return false;
+            WorldObject source=pendingDialogueSource;
+            // The cached dialogue must still belong to the EXACT physical
+            // source in this room. A different NPC with identical kind or
+            // coordinates cannot accept the medicine on its behalf.
+            if(source==null||!SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||Dying)return true;
+            if(start)
+            {
+                if(source.kind!="outerrelay"||!OuterDeliveryAvailable)return true;
+                outerDeliveryRoom=save.room;outerDeliveryStage=1;
+                outerDeliverySeconds=90f;revision++;sound="quest";
+                Notify("巡路队急送开始：90秒内到南边旧药箱取药，再送到北边已守住的哨岗。",
+                    "Roadwarden run started: collect dressings from the southern chest and deliver to the northern defended post within 90 seconds.");
+                return true;
+            }
+            if(!OuterDeliveryActive)return true;
+            if(abort)
+            {
+                if(source.kind!="outerrelay")return true;
+                ResetOuterDelivery();revision++;
+                Notify("这趟急送已取消。没有扣除物资，下次仍可从灯下启程。",
+                    "Run withdrawn. No supplies lost; the lamp can dispatch again.");
+                return true;
+            }
+            if(pickup)
+            {
+                if(source.kind!="outercache"||outerDeliveryStage!=1)return true;
+                outerDeliveryStage=2;revision++;sound="quest";
+                Notify("拿到药布和收据！哨岗就在正北方，继续赶路。",
+                    "Dressings and receipt secured. The defended watch is directly north.");
+                return true;
+            }
+            if(source.kind!="outerwatch"||outerDeliveryStage!=2||
+                !OuterPatrolDone(save.room)||!OuterCacheRecovered(save.room))
+                return true;
+            // A full coin wallet cannot silently erase the one-time payout
+            // when the completion flag is saved. Keep the parcel until space
+            // exists, or allow the attempt to expire and retry.
+            if(save.coins>999975)
+            {
+                Notify("补给结算需要24硬币的容量；请先腾出钱包空间。",
+                    "The reward requires space for 24 coins. Free wallet capacity first.");
+                return true;
+            }
+            int room=save.room;
+            ResetOuterDelivery();
+            Flag("outer_delivery_done_"+room);
+            CreditCoins(24);AddXp(40);
+            if(OuterDeliveryWins==8&&!Has("outer_deliveries_complete"))
+            {Flag("outer_deliveries_complete");CreditSkillPoints(1);}
+            revision++;sound="reward";
+            RecordMoment("第 "+(room+1)+" 片边境，巡路队在九十秒内收到亲手送达的药布和原始收据。",
+                "Dressings and their original receipt reached the defended watch in region "+(room+1)+" by hand.");
+            Notify("药布已交给值守员 · 硬币 +24、经验 +40。",
+                "Dressings delivered to the watchkeeper · +24 coins, +40 XP.");
+            return true;
+        }
         private bool TalkOuterRescue(WorldObject o)
         {
             if(o.kind!="outerlog"&&o.kind!="outerrelay"&&o.kind!="outercache")return false;
@@ -121,16 +253,36 @@ namespace Starfall
                 string noteEn=OuterLogEn[room,1]+
                     (recorded?"\n\nThe light holds steady. The rescue chest lies directly south. When the road is quiet, you can rest here."+(OuterSignalRouteReady?"\n\nThe roadwardens posted a new cart schedule. Their couriers travel between repaired lamps.":""):
                         "\n\nOne spare part is missing from the socket. Repair it, and the relief chest directly south of here can be claimed.");
-                if(recorded)
+                if(recorded&&OuterDeliveryActive)
+                    Dialog(titleZh,titleEn,
+                        "计时还剩 "+Math.Ceiling(outerDeliverySeconds)+" 秒。"+
+                        (outerDeliveryStage==1?
+                            "南边救援箱里有一捆药布，去取回来。":
+                            "药布在你身上，得亲自送到北边的哨岗。"),
+                        "Time left: "+Math.Ceiling(outerDeliverySeconds)+"s. "+
+                        (outerDeliveryStage==1?
+                            "Collect the dressings from the chest south of here.":
+                            "Carry the dressings to the defended watch north of here."),
+                        C("取消这趟急送","Cancel this run","outer_delivery_abort"),
+                        C("立刻赶路","Back to the road","close"));
+                else if(recorded)
+                {
+                    var options=new List<Choice>();
+                    if(OuterDeliveryAvailable)
+                        options.Add(C("巡路队 · 九十秒药品急送",
+                            "Roadwarden · 90-second medicine run",
+                            "outer_delivery_start"));
+                    options.Add(C("搭棚休整 · 木材×1",
+                        "Rest under the signal · 1 timber","outer_signal_rest"));
+                    options.Add(C("查看修复的救援灯路网",
+                        "Travel repaired rescue-light routes","outer_signal_routes"));
+                    options.Add(C("继续赶路","Keep moving","close"));
                     Dialog(titleZh,titleEn,noteZh+
                             "\n\n如果需要重新包扎伤口，可以花一捆木材在灯下支起短时挡风棚；巡路员会在你休整时替你守着道路。",
                         noteEn+
                             "\n\nA bundle of timber will hold a windbreak beside the lamp long enough to dress wounds. The roadwardens can watch the path while you rest.",
-                        C("搭棚休整 · 木材×1","Rest under the signal · 1 timber",
-                            "outer_signal_rest"),
-                        C("查看修复的救援灯路网","Travel repaired rescue-light routes",
-                            "outer_signal_routes"),
-                        C("继续赶路","Keep moving","close"));
+                        options.ToArray());
+                }
                 else
                     Dialog(titleZh,titleEn,noteZh,noteEn,
                         C("维修信号灯 · 零件×1","Repair signal · 1 spare part","outer_repair"),
@@ -347,6 +499,7 @@ namespace Starfall
         }
         private bool ChooseOuterRescue(string action)
         {
+            if(ChooseOuterDelivery(action))return true;
             if(ChooseOuterSignalRoads(action))return true;
             if(action=="outer_signal_rest")
             {

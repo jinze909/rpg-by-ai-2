@@ -4197,6 +4197,129 @@ namespace Starfall.Tests
 
 
 
+
+        public static void ActualRegionalMedicineRunNeedsThreePhysicalStops(Campaign data)
+        {
+            for(int room=0;room<8;room++)
+            {
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.room=room;g.save.stage=3;
+                g.save.flags.Add("outer_log_"+room);
+                g.save.flags.Add("outer_relay_"+room);
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                WorldObject lamp=Object(g,"outerrelay"),
+                    chest=Object(g,"outercache"),post=Object(g,"outerwatch");
+                g.save.x=lamp.x;g.save.y=lamp.y;
+                int beforeCoins=g.save.coins,beforeXp=g.save.xp;
+                g.Talk(lamp);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_delivery_start");
+                Check(begin>=0,
+                    "Cleared rescue signal offers real voluntary medicine mission");
+                g.Choose(begin);
+                Check(g.OuterDeliveryActive&&g.OuterDeliveryStage==1&&
+                    g.OuterDeliverySeconds==90f,
+                    "A genuine source starts the timed physically staged delivery");
+                g.save.x=post.x;g.save.y=post.y;
+                g.Talk(post);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_delivery_deliver")<0&&
+                    !g.OuterDeliveryDone(room),
+                    "Visiting the final post without the actual chest receipt cannot forge delivery");
+                g.Close();
+                g.save.x=chest.x;g.save.y=chest.y;
+                g.Talk(chest);
+                int pickup=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_delivery_pickup");
+                Check(pickup>=0,"The original rescue chest physically holds the medicine parcel");
+                g.Choose(pickup);
+                Check(g.OuterDeliveryStage==2&&g.OuterDeliveryActive,
+                    "Actual chest interaction transfers mission into live carrying stage");
+                g.save.x=post.x;g.save.y=post.y;
+                g.Talk(post);
+                int deliver=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_delivery_deliver");
+                Check(deliver>=0,"An authentic defended station accepts the carried receipt");
+                g.Choose(deliver);
+                Check(g.OuterDeliveryDone(room)&&!g.OuterDeliveryActive&&
+                    g.save.coins==beforeCoins+24&&g.save.xp==beforeXp+40,
+                    "Real three-stop handoff grants the single earned reward");
+                g.Talk(post);g.Close();
+                Check(g.save.coins==beforeCoins+24,
+                    "Reopening the defended post cannot duplicate delivered supplies");
+                var loaded=new GameCore(data,CloneSave(g.save));
+                loaded.Close();
+                Check(loaded.save.version==2&&loaded.OuterDeliveryDone(room)&&
+                    !loaded.OuterDeliveryActive&&loaded.save.coins==beforeCoins+24,
+                    "Old v2 serialization retains only completed deliveries, not temporary cargo");
+            }
+        }
+        public static void MedicineCourierProtectsWorldTravelAndRejectsStaleParcels(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.room=0;g.save.stage=3;
+            foreach(string flag in new[]{"outer_log_0","outer_relay_0",
+                "outer_cache_0","outer_patrol_done_0"})
+                g.save.flags.Add(flag);
+            WorldObject lamp=Object(g,"outerrelay"),
+                chest=Object(g,"outercache"),post=Object(g,"outerwatch");
+            g.save.x=lamp.x;g.save.y=lamp.y;
+            g.Talk(lamp);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_start");
+            g.save.x=lamp.x+12;g.save.y=lamp.y;
+            g.Choose(start);
+            Check(!g.OuterDeliveryActive,
+                "Stale lamp menu cannot dispatch a remote timed courier");
+            g.save.x=lamp.x;g.save.y=lamp.y;
+            g.Talk(lamp);
+            start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_start");
+            g.Choose(start);
+            int coins=g.save.coins;
+            g.Enter(1);
+            Check(g.save.room==0&&g.OuterDeliveryActive,
+                "A live carried medicine run blocks all ordinary region travel");
+            g.save.x=chest.x;g.save.y=chest.y;g.Talk(chest);
+            int pickup=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_pickup");
+            g.save.x=chest.x+12;g.save.y=chest.y;
+            g.Choose(pickup);
+            Check(g.OuterDeliveryStage==1&&g.save.coins==coins,
+                "Leaving the chest invalidates a previously opened pickup");
+            g.save.x=chest.x;g.save.y=chest.y;g.Talk(chest);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_pickup"));
+            g.save.x=post.x;g.save.y=post.y;g.Talk(post);
+            int deliver=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_deliver");
+            Check(deliver>=0,"The carried parcel exposes a live delivery choice");
+            g.save.x=post.x+12;g.save.y=post.y;
+            g.Choose(deliver);
+            Check(!g.OuterDeliveryDone(0)&&g.OuterDeliveryStage==2,
+                "Moving away from the defended post never remotely awards the drop");
+            g.save.x=lamp.x;g.save.y=lamp.y;g.Talk(lamp);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_abort");
+            Check(abort>=0,"Source lamp offers physical cancellation without cargo loss");
+            g.Choose(abort);
+            Check(!g.OuterDeliveryActive&&!g.OuterDeliveryDone(0)&&
+                g.save.coins==coins,
+                "Aborting resets only temporary cargo and preserves v2 rewards");
+            g.Talk(lamp);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_start"));
+            var clock=typeof(GameCore).GetField("outerDeliverySeconds",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check(clock!=null,"Mission owns a real transient time budget");
+            clock.SetValue(g,.02f);
+            g.Tick(.05f,new Point());
+            Check(!g.OuterDeliveryActive&&!g.OuterDeliveryDone(0)&&
+                g.save.coins==coins,
+                "Genuine world tick timeout fails without consuming earlier rescue rewards");
+        }
+
         public static void LiveEightRegionSignalCampsSpendMaterialsOnlyOnAuthenticRest(Campaign data)
         {
             // Exercise every shipped mast, not a flat geometry surrogate:

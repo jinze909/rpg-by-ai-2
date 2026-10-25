@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void EightLivingRegionsRequireThreeRealCourierHandOffs() { CoreChecks.ActualRegionalMedicineRunNeedsThreePhysicalStops(Data()); }
+        [Test] public void MedicineCourierDeniesStaleActionsTravelAndTimeoutExploits() { CoreChecks.MedicineCourierProtectsWorldTravelAndRejectsStaleParcels(Data()); }
         [Test] public void EightPhysicalSignalCampsReallyAdvanceTimeAndRelieveClimate() { CoreChecks.LiveEightRegionSignalCampsSpendMaterialsOnlyOnAuthenticRest(Data()); }
         [Test] public void RealIncomingEnemyArrowBlocksWoodCampTimeSkipUntilGone() { CoreChecks.LampRestExposesNoFreeTimeSkipDuringRealHostileFlight(Data()); }
         [Test] public void RepairedLampsSpendRealTimberForTwelveSecondCampRecovery() { CoreChecks.RescueSignalsOfferActualCostedFieldRestAcrossLegacySaves(Data()); }
