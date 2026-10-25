@@ -920,7 +920,17 @@ namespace Starfall
                     "Blocked footing prevents casting a class technique here.");
                 return;
             }
-            if (skillCooldown > 0 || save.energy < cost) { ClearBufferedSkill(); ActionUnavailable(skillCooldown, cost); return; }
+            // A last-window Q is a real combat intent, not a request to
+            // shorten the cooldown. Do not take stamina, play a fake release
+            // or refresh the first press's 200ms deadline. Outside that
+            // window retain the original unavailable response.
+            if (save.energy < cost ||
+                skillCooldown > SkillBufferWindow + .00001f)
+            {
+                ClearBufferedSkill();
+                ActionUnavailable(skillCooldown, cost);
+                return;
+            }
             // Repeated Q intentionally updates the currently queued aim and
             // world target (the existing tactical retarget contract). NEVER
             // create a fresh intent or reset its original 200ms expiry: rapid
@@ -939,7 +949,7 @@ namespace Starfall
             ClearBufferedDodge();
             ClearBufferedAttack(); // A requested Q outranks a queued ordinary swing.
             Point facing = direction.HasValue && Finite(direction.Value.x) && Finite(direction.Value.y) && direction.Value.Length > .05f ? direction.Value.Normalized : aim;
-            if (ActionTransitionBlocked)
+            if (ActionTransitionBlocked || skillCooldown > .00001f)
             {
                 bufferedSkill = new SkillIntent { remaining = SkillBufferWindow, direction = facing, target = aimTarget,
                     weapon = save.weapon, profession = save.profession, style = Style, technique = save.technique };

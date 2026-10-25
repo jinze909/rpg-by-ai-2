@@ -433,7 +433,11 @@ namespace Starfall
         public void ClearBufferedSkill() { bufferedSkill = null; }
         private float SkillReadyDelay()
         {
-            float delay = Math.Max(dashTime, playerHitTime);
+            // A last-window Q press cannot fire until BOTH the visible
+            // animation and its own class-skill cooldown have expired.
+            // Sample at frame start, before Tick decrements skillCooldown.
+            float delay = Math.Max(skillCooldown,
+                Math.Max(dashTime, playerHitTime));
             ActorAction action = playerAction;
             if (action != null)
             {
@@ -453,7 +457,9 @@ namespace Starfall
             intent.remaining -= dt;
             // Recovery may fall inside the final valid tick. Compare its actual
             // boundary with the old lifetime, rather than losing Q at 30 fps.
-            if (!ActionTransitionBlocked && readyDelay <= remaining + .00001f) StartSkill(intent.direction, intent.target);
+            if (!ActionTransitionBlocked && skillCooldown <= .00001f &&
+                readyDelay <= remaining + .00001f)
+                StartSkill(intent.direction, intent.target);
             else if (intent.remaining <= .00001f) ClearBufferedSkill();
         }
         public ActorAction playerAction;

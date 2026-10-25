@@ -496,6 +496,71 @@ namespace Starfall.Tests
                 "An expired early hit-stop dodge cannot start after the world unfreezes");
         }
 
+
+        public static void LastMomentClassSkillCooldownPressQueuesOnceForAllClasses(Campaign data)
+        {
+            for(int profession=0;profession<3;profession++)
+            {
+                var g=Fresh(data,profession);g.enemies.Clear();
+                g.save.energy=100;g.skillCooldown=.16f;
+                Point aimed=new Point(0,-1f);
+                g.SetAimTarget(new Point(23,15));
+                g.Skill(aimed);
+                Check(g.SkillQueued&&g.playerAction==null&&
+                    Math.Abs(g.skillCooldown-.16f)<.0001f&&g.save.energy==100,
+                    "Class "+profession+" accepts a late Q intent without paying or starting it prematurely");
+                g.Tick(.1f,new Point());
+                Check(g.SkillQueued&&g.playerAction==null&&g.skillCooldown>.05f&&
+                    g.save.energy>=100-.001f,
+                    "Class "+profession+" does not fire before the original cooldown expires");
+                g.Tick(.07f,new Point());
+                Check(!g.SkillQueued&&g.playerAction!=null&&
+                    g.playerAction.kind=="skill"&&
+                    g.playerAction.direction.y<-.99f&&
+                    g.skillCooldown>3.4f&&g.skillCooldown<=3.5f&&
+                    g.save.energy>59.9f&&g.save.energy<=60.1f,
+                    "Class "+profession+" dispatches exactly one Q at its legitimate readiness boundary");
+                ActorAction first=g.playerAction;
+                g.Tick(.09f,new Point());
+                Check(g.playerAction==first&&!g.SkillQueued&&
+                    g.skillCooldown>3.2f&&g.save.energy>59.9f,
+                    "Class "+profession+" does not double-charge or queue another skill after dispatch");
+            }
+            var tooEarly=Fresh(data,1);tooEarly.enemies.Clear();
+            tooEarly.skillCooldown=.36f;tooEarly.save.energy=100f;
+            tooEarly.Skill(new Point(0,1));
+            Check(!tooEarly.SkillQueued&&tooEarly.playerAction==null&&
+                tooEarly.save.energy==100,
+                "A Q pressed outside the final 200ms cannot queue a future free cast");
+            Advance(tooEarly,.40f);
+            Check(!tooEarly.SkillQueued&&tooEarly.playerAction==null,
+                "Cooldown expiry alone never synthesizes a rejected Q");
+            var stamina=Fresh(data,1);stamina.enemies.Clear();
+            stamina.skillCooldown=.12f;stamina.save.energy=10;
+            stamina.Skill(new Point(1,0));
+            Check(!stamina.SkillQueued&&stamina.save.energy==10,
+                "A late cooldown Q without its real stamina cost is rejected immediately");
+            var spam=Fresh(data,1);spam.enemies.Clear();
+            spam.skillCooldown=.18f;spam.save.energy=100;
+            spam.Skill(new Point(0,-1));
+            spam.Tick(.10f,new Point());
+            spam.SetAimTarget(new Point(25,17));
+            spam.Skill(new Point(1,0));
+            spam.Tick(.09f,new Point());
+            Check(spam.playerAction!=null&&spam.playerAction.kind=="skill"&&
+                spam.playerAction.direction.x>.99f&&
+                spam.playerAction.target.HasValue&&
+                (spam.playerAction.target.Value-new Point(25,17)).Length<.001f,
+                "Repeating Q retargets a real pending cooldown intent without opening another deadline");
+            var expired=Fresh(data,1);expired.enemies.Clear();
+            expired.skillCooldown=.18f;expired.playerHitTime=.5f;
+            expired.Skill(new Point(0,1));
+            Advance(expired,.22f);
+            Check(!expired.SkillQueued&&expired.playerAction==null&&
+                expired.skillCooldown<=.00001f,
+                "Cooling down during longer hit recovery cannot prolong a 200ms Q into an eventual phantom cast");
+        }
+
         public static void BufferedSkillRepeatCannotExtendOrRetargetIntent(Campaign data)
         {
             var g=Fresh(data,1);g.enemies.Clear();
