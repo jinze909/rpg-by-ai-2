@@ -3825,6 +3825,76 @@ namespace Starfall.Tests
                 "Two authentic kills retain exactly two party rewards");
         }
 
+
+        public static void HostileArrowsHavePhysicalFrontlineCoverWithoutFalseCredit(Campaign data)
+        {
+            // A player can lure a melee raider into an actual archer lane.
+            // Ordinary bolts stop at the FIRST living body, but neither
+            // wound allied AI nor grant phantom hero kills or quest rewards.
+            foreach(float step in new[]{.01f,.02f,.05f})
+            {
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.x=15f;g.save.y=14f;g.invulnerable=0;
+                var shooter=new Enemy(81011,1,10f,14f,100f)
+                    {stun=99f,timer=999f};
+                var blocker=new Enemy(81012,0,13f,14f,110f)
+                    {stun=99f,timer=999f};
+                g.enemies.Add(shooter);g.enemies.Add(blocker);
+                Check(g.CanStand(shooter.Position)&&g.CanStand(blocker.Position),
+                    "Frontline body cover uses legal actual map footing");
+                int coins=g.save.coins,xp=g.save.xp,kills=g.save.kills[g.save.room];
+                float health=g.save.health;
+                var arrow=new Projectile { position=new Point(12.25f,14),
+                    velocity=new Point(10,0),life=1f,damage=17f,
+                    source="shot",visual="enemyArrow",hostileShooter=shooter };
+                g.projectiles.Add(arrow);
+                for(int i=0;i<12&&g.projectiles.Contains(arrow);i++)
+                    g.Tick(step,new Point());
+                Check(!g.projectiles.Contains(arrow)&&
+                    g.effects.Exists(e=>e.kind=="number"&&
+                        e.text==g.L("箭被前排挡下","FRONTLINE COVER")),
+                    "A genuine physical frontline intercept consumes an incoming ordinary arrow");
+                Check(g.save.health==health&&blocker.hp==110f&&
+                    g.save.coins==coins&&g.save.xp==xp&&
+                    g.save.kills[g.save.room]==kills,
+                    "Friendly body cover protects the hero without artificial damage, loot or kill credit");
+            }
+            // A body BEHIND the hero cannot steal the hit even when both
+            // circles overlap in one physical flight sample.
+            var front=Fresh(data);front.Enter(1);front.enemies.Clear();
+            front.save.x=15f;front.save.y=14f;front.invulnerable=0;
+            var owner=new Enemy(81021,1,10,14,100){stun=99,timer=999};
+            var rear=new Enemy(81022,0,15.3f,14,100){stun=99,timer=999};
+            front.enemies.Add(owner);front.enemies.Add(rear);
+            var later=new Projectile{position=new Point(14.4f,14),
+                velocity=new Point(10f,0),life=1,damage=13f,
+                source="shot",visual="enemyArrow",hostileShooter=owner};
+            front.projectiles.Add(later);
+            float starting=front.save.health;
+            front.Tick(.05f,new Point());
+            Check(front.save.health<starting&&!front.projectiles.Contains(later)&&
+                !front.effects.Exists(e=>e.kind=="number"&&e.text==
+                    front.L("箭被前排挡下","FRONTLINE COVER")),
+                "Actual first actor priority protects a leading hero from false rear cover");
+
+            // Boss magic keeps its original phase pressure; player-made
+            // arrows are unaffected and cannot use enemy bodies as shields.
+            var magic=Fresh(data);magic.Enter(1);magic.enemies.Clear();
+            magic.save.x=15;magic.save.y=14;
+            var caster=new Enemy(81031,1,10,14,100){stun=99,timer=999};
+            var soldier=new Enemy(81032,0,13,14,100){stun=99,timer=999};
+            magic.enemies.Add(caster);magic.enemies.Add(soldier);
+            var orb=new Projectile{position=new Point(12.25f,14),
+                velocity=new Point(10,0),life=1,damage=20,
+                source="shot",visual="enemyOrb",hostileShooter=caster};
+            magic.projectiles.Add(orb);
+            magic.Tick(.05f,new Point());
+            Check(magic.projectiles.Contains(orb)&&
+                !magic.effects.Exists(e=>e.kind=="number"&&e.text==
+                    magic.L("箭被前排挡下","FRONTLINE COVER")),
+                "Boss orbs retain their authored non-body-blocking behavior");
+        }
+
         public static void EscortArrowsStrikeFirstPhysicalActor(Campaign data)
         {
             // An incoming raider arrow overlaps both hit circles on ONE

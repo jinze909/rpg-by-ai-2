@@ -163,6 +163,10 @@ namespace Starfall
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
         public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
         public string source, visual;
+        // Live shooter identity, never a reusable numeric spawn ID. Hostile
+        // arrows physically meet intervening non-Boss enemy bodies; only
+        // genuinely released shots from Fire() participate. Not serialized.
+        public Enemy hostileShooter;
         public float age, height = 32, launchHeight = -1, flightHeight = -1;
         // Visual-only origin for the CURRENT direction's painted projectile
         // tail. When a sword guard reflects a shot, the old inbound trail

@@ -1780,7 +1780,7 @@ namespace Starfall
             shot.commonsRelayOwned=IsCommonsRelayEnemy(e);
             shot.glasswindOwned=IsGlasswindEnemy(e);
             shot.afterlightWatchOwned=IsAfterlightWatchEnemy(e);
-            shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
+            shot.visual=e.boss?"enemyOrb":"enemyArrow";shot.hostileShooter=e;shot.height=e.boss?BossEmissionHeight(save.room):WeaponHeight(1,dir);shot.launchHeight=shot.flightHeight=shot.height;shot.theme=e.boss?save.room:0;projectiles.Add(shot);sound=e.boss?"spell":"arrow"; }
         // Signed ray-circle entry measured from a shared flight sample.
         // A negative value means the projectile has already crossed that
         // actor's front edge. Comparing entries is still well-defined when
@@ -1868,14 +1868,57 @@ namespace Starfall
                 ProjectileCircleEntry(p.position,p.velocity,
                     reliefFollowerPosition,.45f)+.00001f <
                 ProjectileCircleEntry(p.position,p.velocity,Position,.38f));
+            // Ordinary hostile arrows, unlike magical Boss projectiles, can
+            // strike another raider's actual body before the player. This
+            // creates genuine moving cover: no ally damage, kill credit or
+            // synthetic reward is minted, and the shooter cannot block its
+            // own muzzle. Look up actor REFERENCES, never overlapping IDs.
+            // Evaluate on the SAME <=.1-tile flight samples as hero and
+            // rescue contacts, and resolve the earliest circle entry even
+            // if hit circles overlap on that sample.
+            Enemy bodyCover=null;
+            float coverEntry=float.MaxValue;
+            if(p.visual=="enemyArrow"&&p.hostileShooter!=null)
+                foreach(Enemy candidate in enemies)
+                {
+                    if(candidate==null||candidate.hp<=0f||candidate.boss||
+                        Object.ReferenceEquals(candidate,p.hostileShooter)||
+                        !CanStand(candidate.Position))continue;
+                    float radius=.5f+p.Radius;
+                    if((candidate.Position-p.position).Length>=radius||
+                        !ClearAttackPath(p.position,candidate.Position))continue;
+                    float entry=ProjectileCircleEntry(p.position,p.velocity,
+                        candidate.Position,radius);
+                    if(entry<coverEntry)
+                    {coverEntry=entry;bodyCover=candidate;}
+                }
+            bool allyReady=CanCompanionCatchRescueArrow(p);
+            float allyEntry=allyReady?
+                ProjectileCircleEntry(p.position,p.velocity,
+                    companionPosition,.4f):float.MaxValue;
+            float heroEntry=heroContact?
+                ProjectileCircleEntry(p.position,p.velocity,
+                    Position,.38f):float.MaxValue;
+            float civilianEntry=civilianContact?
+                ProjectileCircleEntry(p.position,p.velocity,
+                    reliefFollowerPosition,.45f):float.MaxValue;
+            if(bodyCover!=null&&
+                coverEntry+.00001f<heroEntry&&
+                coverEntry+.00001f<civilianEntry&&
+                coverEntry+.00001f<allyEntry)
+            {
+                effects.Add(new Effect("number",bodyCover.Position,.5f,
+                    L("箭被前排挡下","FRONTLINE COVER")) {
+                        reliefMissionOwned=p.reliefMissionOwned,
+                        outerPatrolOwned=p.outerPatrolOwned });
+                return true;
+            }
             // Interception is a swept-body collision, never an abstract
             // mission perk. Preserve the original first-actor wins rule:
             // a planted ally cannot absorb an arrow that reached the hero
             // or civilian earlier along the SAME physical flight sample.
-            if(CanCompanionCatchRescueArrow(p))
+            if(allyReady)
             {
-                float allyEntry=ProjectileCircleEntry(p.position,p.velocity,
-                    companionPosition,.4f);
                 bool firstToAlly=(!heroContact||allyEntry+.00001f<
                     ProjectileCircleEntry(p.position,p.velocity,
                         Position,.38f))&&
