@@ -95,6 +95,78 @@ namespace Starfall.Tests
                 "Exploration routing is computed from original flags; no new save schema or forced quest swap");
         }
 
+
+        private static void CreditAllOutdoorSurveyFlags(GameCore g,int region)
+        {
+            for(int stage=1;stage<=3;stage++)
+                g.save.flags.Add("trail_circuit_"+region+"_"+stage);
+            g.save.flags.Add("waytrail_waytrail"+region+"s");
+            g.save.flags.Add("waytrail_waytrail"+region+"e");
+            g.save.flags.Add("annex_cache_annex_cache_"+region+"_a");
+            g.save.flags.Add("annex_cache_annex_cache_"+region+"_b");
+            g.save.flags.Add("annex_vista_annex_vista_"+region);
+            g.save.flags.Add("annex_camp_annex_camp_"+region);
+        }
+        public static void LockedOutdoorSurveyRoutesToRealStoryBeforeAtlasPublication(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            if(!g.Has("intro"))g.save.flags.Add("intro");
+            g.save.stage=0;
+            CreditAllOutdoorSurveyFlags(g,0);
+            CreditAllOutdoorSurveyFlags(g,1);
+            Check(!g.CanEnter(2),"The ruins require the first story core");
+            string[] quests={"trail_circuits","waytrails","annex_explorer"};
+            QuestGuide main=g.GetQuest("main");
+            foreach(string id in quests)
+            {
+                QuestGuide guide=g.GetQuest(id);
+                Check(!guide.complete&&guide.room==main.room&&
+                    (guide.target-main.target).Length<.001f&&
+                    guide.next.Contains(data.maps[2].name),
+                    "A locked inner region must use real campaign guidance, not a false atlas objective");
+            }
+            g.save.english=true;
+            foreach(string id in quests)
+                Check(g.GetQuest(id).next.Contains(data.maps[2].en),
+                    "English side journal names the actual inaccessible region");
+            g.save.stage=3;
+            for(int room=2;room<=4;room++)CreditAllOutdoorSurveyFlags(g,room);
+            Check(!g.CanEnter(5),"The distant shores need their own story invitation");
+            QuestGuide shore=g.GetQuest("shore");
+            foreach(string id in quests)
+            {
+                QuestGuide guide=g.GetQuest(id);
+                Check(guide.room==shore.room&&
+                    (guide.target-shore.target).Length<.001f&&
+                    guide.next.Contains(data.maps[5].en),
+                    "Before Lune's introduction, the side quest guides to the original farshore unlock");
+            }
+            g.save.flags.Add("exp_intro");
+            CreditAllOutdoorSurveyFlags(g,5);
+            Check(g.CanEnter(5)&&!g.CanEnter(6),
+                "Harbor investigation still gates the desert region");
+            shore=g.GetQuest("shore");
+            foreach(string id in quests)
+            {
+                QuestGuide guide=g.GetQuest(id);
+                Check(guide.room==shore.room&&
+                    (guide.target-shore.target).Length<.001f&&
+                    guide.next.Contains(data.maps[6].en),
+                    "Unfinished desert exploration points through genuine harbor reporting");
+            }
+            CreditAllOutdoorSurveyFlags(g,6);
+            CreditAllOutdoorSurveyFlags(g,7);
+            QuestGuide atlas=g.GetQuest("annex_explorer");
+            Point archive=new Point(18.5f,27.5f);
+            foreach(WorldObject site in data.maps[9].objects)
+                if(site.kind=="annexinnarchive")
+                    archive=new Point(site.x,site.y);
+            Check(atlas.room==9&&(atlas.target-archive).Length<.001f,
+                "Only after all visited field sites are accounted for may the atlas direct publication");
+            Check(g.save.version==2&&g.save.trackedQuest=="main",
+                "World exploration unlock guidance neither changes SaveData v2 nor replaces the active quest");
+        }
+
         public static void PlayerWaymarkIsRealReachableGoalAndClearsOnWalkingArrival(Campaign data)
         {
             MapData old=data.maps[1];

@@ -261,6 +261,20 @@ namespace Starfall
             { float d = room == save.room ? (Position - new Point(o.x, o.y)).Length : 0; if (d < best) { best = d; result = new Point(o.x, o.y); } }
             return result;
         }
+        // When all OPEN regional sites are done but later regions are gated,
+        // guide through the real unlock story, not an impossible marker or
+        // an unearned archive publication. This does not retarget the journal.
+        private void RouteLockedOutdoorSurvey(QuestGuide guide,int lockedRegion)
+        {
+            if(lockedRegion<0||lockedRegion>=8)return;
+            QuestGuide prerequisite=GetQuest(lockedRegion<=4?"main":"shore");
+            guide.room=prerequisite.room;
+            guide.target=prerequisite.target;
+            guide.next=L("先解锁 ","Unlock ")+
+                L(data.maps[lockedRegion].name,data.maps[lockedRegion].en)+
+                L("，再继续实地调查。"," before continuing the survey.")+
+                " "+prerequisite.next;
+        }
         public QuestGuide CurrentGuide { get { return GetQuest(save.trackedQuest); } }
         public string GuidanceHint()
         { QuestGuide q = CurrentGuide; return q.room != save.room && !q.complete && !q.locked ? L("前往", "Travel to ") + L(data.maps[q.room].name, data.maps[q.room].en) + " · " + q.next : q.next; }
@@ -1276,13 +1290,14 @@ namespace Starfall
                 q.category=L("开放地图 · 实地探路","EXPLORATION · FIELD ROUTES");
                 q.description=L("八处室外地区各有三个分散的旧路标，必须按编号实际走到。记录失落的公共路线，恢复新支路的耐力补给。",
                     "Eight outdoor regions each have three separated ancient waymarks. Walk them in order to restore the lost civilian routes and their local stamina support.");
-                int next=-1;
+                int next=-1,lockedRegion=-1;
                 string[] zh={"引水渠","荆棘密林","沉没遗迹","赤铁矿场","堡垒外环","雾港","玻璃沙海","霜钟高原"};
                 string[] en={"Canal","Thornwood","Drowned Ruins","Ironreach","Citadel","Mistport","Glass Desert","Frostchime"};
                 for(int i=0;i<8;i++)
                 {
                     q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+TrailCircuitProgress(i)+"/3",TrailCircuitComplete(i)));
                     if(next<0&&!TrailCircuitComplete(i)&&CanEnter(i))next=i;
+                    if(lockedRegion<0&&!TrailCircuitComplete(i)&&!CanEnter(i))lockedRegion=i;
                 }
                 // All eight circuits are independent. While exploring an
                 // unlocked region, do not send the player back to the first
@@ -1302,6 +1317,7 @@ namespace Starfall
                     L("依照指引前往下一个编号旧路标","Follow the next numbered waymark");
                 q.reward=L("每地硬币 +24、碎片 +2、经验 +35、区域耐力补给；全八地技能点 +1",
                     "Each: +24 coins, +2 shards, +35 XP, local energy recovery; all eight: +1 talent point");
+                if(next<0&&!q.complete)RouteLockedOutdoorSurvey(q,lockedRegion);
                 return q;
             }
 
@@ -1312,7 +1328,7 @@ namespace Starfall
                 q.locked=!Has("intro");q.complete=Has("annex_archive_complete");
                 q.description=L("走访八个室外地区的新支路，打开遗失补给、登上观景点并造访营火，再去炉火旅店的扩建档案室发布真正的公共星图。",
                     "Find both supply caches, the outlook and the camp in each of eight outdoor regions. Return to the expanded Hearth Inn archive to publish your living atlas.");
-                int camps=0,caches=0,vistas=0,targetRoom=-1;
+                int camps=0,caches=0,vistas=0,targetRoom=-1,lockedRegion=-1;
                 WorldObject next=null;
                 for(int region=0;region<8;region++)
                 {
@@ -1322,8 +1338,11 @@ namespace Starfall
                         string kind=j<2?"annex_cache_":j==2?"annex_vista_":"annex_camp_";
                         if(Has(kind+ids[j]))
                         {if(j<2)caches++;else if(j==2)vistas++;else camps++;}
-                        else if(CanEnter(region)&&
-                            (targetRoom<0||region==save.room&&targetRoom!=region))
+                        else if(!CanEnter(region))
+                        {
+                            if(lockedRegion<0)lockedRegion=region;
+                        }
+                        else if(targetRoom<0||region==save.room&&targetRoom!=region)
                         {
                             // Prefer unfinished sites in the player's actual
                             // region, but NEVER invent a missing map object.
@@ -1349,6 +1368,7 @@ namespace Starfall
                         "Reach the new trail campsite, lookout or hidden supplies");
                 q.reward=L("归档奖励：硬币 +60、碎片 +3、技能点 +1",
                     "Atlas reward: +60 coins, +3 shards, +1 talent point");
+                if(targetRoom<0&&!q.complete)RouteLockedOutdoorSurvey(q,lockedRegion);
                 return q;
             }
 
@@ -1404,7 +1424,7 @@ namespace Starfall
                     "Every outdoor region hides one southern trace and one eastern lookout. Discover the roadwardens' testimony; each survey is kept in your existing travel record.");
                 q.complete = Has("waytrail_complete");
                 q.locked = !Has("intro");
-                int inner = 0, outer = 0, destination = -1;
+                int inner = 0, outer = 0, destination = -1, lockedRegion = -1;
                 WorldObject nextMarker = null;
                 for (int room = 0; room < 8; room++)
                 {
@@ -1416,8 +1436,11 @@ namespace Starfall
                         {
                             if (room < 4) inner++; else outer++;
                         }
-                        else if(CanEnter(room)&&
-                            (destination<0||room==save.room&&destination!=room))
+                        else if(!CanEnter(room))
+                        {
+                            if(lockedRegion<0)lockedRegion=room;
+                        }
+                        else if(destination<0||room==save.room&&destination!=room)
                         {
                             // One region may have both unvisited branches.
                             // Keep its first authentic stone once chosen,
@@ -1442,6 +1465,7 @@ namespace Starfall
                         "Explore a new branch and read its uncharted waypoint");
                 q.reward = L("每处首次发现：8硬币、1碎片；全16处再得1技能点",
                     "Each first discovery: 8 coins, 1 shard; all 16: +1 talent point");
+                if(destination<0&&!q.complete)RouteLockedOutdoorSurvey(q,lockedRegion);
                 return q;
             }
 
