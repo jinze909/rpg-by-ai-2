@@ -5942,8 +5942,15 @@ public static class RuntimeCombatInputChecks
             g.QuestApproachTravelHandoffPending,
             "The real journal explicitly accepts the correct multihop quest");
         g.mode="world";
-        Check(g.PlayerRequestedRemoteExitTarget(first.Value),
-            "The physically authored intermediate crossing owns strict walking-route validation");
+        Check(g.PlayerRequestedRemoteExitTarget(first.Value)&&
+            g.RemoteQuestNextStop.Contains("GLASS DESERT"),
+            "The physically authored intermediate crossing displays the true next stop");
+        g.mode="world";GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT")),
+            "The actual world minimap explains the multi-hop transfer to the player");
+        g.mode="map";GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("NEXT: GLASS DESERT")),
+            "The full world map shows the same physical next transfer");
         g.Enter(6);g.enemies.Clear();
         WorldObject frost=null;
         foreach(WorldObject o in g.Map.objects)
@@ -5951,8 +5958,9 @@ public static class RuntimeCombatInputChecks
         Check(frost!=null,"The actual Glass Desert map has a Frostchime portal");
         Point? second=g.NavigationTarget();
         Check(second.HasValue&&(second.Value-new Point(frost.x,frost.y)).Length<.001f&&
-            g.QuestApproachTravelHandoffPending,
-            "On reaching the intermediate region, navigation switches to the actual next crossing");
+            g.QuestApproachTravelHandoffPending&&
+            g.RemoteQuestNextStop.Contains("FROSTCHIME"),
+            "On reaching the intermediate region, guidance names the newly reachable Frostchime crossing");
         g.Enter(7);g.enemies.Clear();
         Check(g.save.room==7&&
             (g.QuestApproachNavigationActive||g.QuestApproachTravelHandoffPending),
@@ -5991,6 +5999,13 @@ public static class RuntimeCombatInputChecks
         Check(fromTown.HasValue&&
             (fromTown.Value-new Point(envoy.x,envoy.y)).Length<.001f,
             "Long-distance outer-shore travel from Emberfall leads to its REAL courier contact");
+        g.mode="journal";
+        Check(g.PlaceQuestApproachWaymark("trail_circuits")&&
+            g.RemoteQuestNextStop.Contains("SPEAK WITH LUNE"),
+            "From town an explicitly followed outer-shore quest tells the player to speak with its real courier");
+        g.save.english=false;
+        Check(g.RemoteQuestNextStop.Contains("露恩"),
+            "Chinese travel instructions name the same original character and crossing");
         Check(g.save.version==2&&g.save.coins==coins&&g.save.shards==shards,
             "Multi-hop navigation changes neither rewards nor SaveData structure");
         g.Close();

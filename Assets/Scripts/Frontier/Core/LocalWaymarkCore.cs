@@ -27,6 +27,41 @@ namespace Starfall
         { get { return !string.IsNullOrEmpty(localWaymarkTravelQuestId); } }
         public bool QuestApproachTravelArrivalBlocked
         { get { return QuestApproachTravelHandoffPending&&localWaymarkTravelArrivalBlocked; } }
+        // A route through several physical regions needs to tell the player
+        // the NEXT actual stop, not merely the final quest region. Derive
+        // labels from the exact source object used by the real compass.
+        public string RemoteQuestNextStop
+        {
+            get
+            {
+                if(!QuestApproachTravelHandoffPending)return "";
+                if(QuestApproachTravelArrivalBlocked)
+                    return L("本地区道路受阻","LOCAL APPROACH BLOCKED");
+                QuestGuide quest=GetQuest(localWaymarkTravelQuestId);
+                if(quest.locked||quest.complete)return "";
+                if(quest.room==save.room)
+                    return L("本地区接近任务点","LOCAL QUEST APPROACH");
+                Point? exit=QuestRegionExitTarget(quest);
+                if(!exit.HasValue)return L("尚无可用的地区通道","NO AVAILABLE CROSSING");
+                foreach(WorldObject o in Map.objects)
+                {
+                    if((new Point(o.x,o.y)-exit.Value).Length>.001f)continue;
+                    if(save.room==0&&o.kind=="envoy")
+                        return L("下一步：与露恩交谈","NEXT: SPEAK WITH LUNE");
+                    if(o.kind=="abyssEntry")
+                        return L("下一步：进入深渊入口","NEXT: ABYSS ENTRANCE");
+                    if(o.kind.StartsWith("portal",StringComparison.Ordinal))
+                    {
+                        int leg;
+                        if(int.TryParse(o.kind.Substring(6),out leg)&&
+                            leg>=0&&leg<data.maps.Length)
+                            return L("下一站：","NEXT: ")+
+                                L(data.maps[leg].name,data.maps[leg].en);
+                    }
+                }
+                return L("接近当前任务通道","APPROACH QUEST CROSSING");
+            }
+        }
         // Zero BFS steps can mean we already stand beside the real portal.
         // Expose the precise physical-side test for the world HUD without
         // letting a closed wall masquerade as a completed route.

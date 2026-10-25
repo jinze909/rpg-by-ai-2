@@ -494,6 +494,11 @@ namespace Starfall
                         Game.L("个人路线","PERSONAL PIN"),
                     9,mint,TextAnchor.MiddleCenter);
             Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold);
+            // The committed route may contain several genuine crossings.
+            // Show its immediate authored stop, even when optional general
+            // guidance is OFF, without ever implying fast-travel happened.
+            if(Game.QuestApproachTravelHandoffPending)
+                Text(1024,204,166,11,Game.RemoteQuestNextStop,9,mint,TextAnchor.MiddleCenter);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
         }
         private bool NavigationRouteRowsUnchanged(string[] rows)
@@ -1299,6 +1304,9 @@ namespace Starfall
             else Text(888,569,306,38,
                 Game.L("只能标记当前所在地区","Pins available in current region only"),
                 12,muted,TextAnchor.MiddleCenter);
+            if(Game.QuestApproachTravelHandoffPending&&!mapTileCursor.Active)
+                Text(888,607,306,18,Game.RemoteQuestNextStop,
+                    11,mint,TextAnchor.MiddleCenter);
             if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
                 Game.HasLocalWaymark)
                 Text(888,605,306,11,
