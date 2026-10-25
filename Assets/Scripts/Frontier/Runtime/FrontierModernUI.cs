@@ -116,6 +116,9 @@ namespace Starfall
         // It lets the map display the quest ACTUALLY selected in the journal
         // even when another mission or a personal pin owns the world compass.
         private string mapInspectedQuestId;
+        // View-only journal filter; original 60 quest IDs, progress and
+        // ordering stay untouched in SaveData v2.
+        private bool journalOnlyActionable;
         private QuestGuide InspectedMapQuest()
         {
             if(Game==null||Game.mode!="map"||
@@ -740,26 +743,62 @@ namespace Starfall
                 return;
             }
             if (journalTab == 2) { for (int i = 0; i < 3; i++) { float y = 229 + i * 100; Card(279, y, 938, 83); Text(303, y + 14, 855, 31, Game.L(GameCore.FactionNames[i], GameCore.FactionNamesEn[i]) + "  " + Game.save.reputation[i] + "/10", 20, gold); Bar(303, y + 59, 888, Game.save.reputation[i] / 10f, mint); } Text(282, 553, 925, 91, Game.L("共同治理条件：三份证词、建设总等级3、两名同伴、三方声望各2。协定影响补给、旅行和同伴指令。", "Shared governance: three reports, three project tiers, two companions, trust 2 with each faction. Covenants affect supplies, travel and commands."), 18, paper); Text(282, 663, 925, 31, Game.L("证词 ", "Reports ") + Game.Proofs + "/3  ·  " + Game.L("建设 ", "Projects ") + Game.ProjectTiers + "/3  ·  " + Game.L("同伴 ", "Companions ") + Game.CompanionCount + "/2", 16, muted); return; }
-            // A fixed minimum readable row height replaces the shrinking
-            // 35-quest list, whose tiny buttons overlapped each other.
-            const int questsPerPage = 14;
-            selectedQuest = (int)GameCore.Clamp(selectedQuest, 0, GameCore.QuestIds.Length - 1);
-            int questPages = Math.Max(1, (GameCore.QuestIds.Length + questsPerPage - 1) / questsPerPage);
-            questPage = (int)GameCore.Clamp(questPage, 0, questPages - 1);
-            int firstQuest = questPage * questsPerPage;
-            for (int i = firstQuest; i < Math.Min(GameCore.QuestIds.Length, firstQuest + questsPerPage); i++)
+            // The authored 60-quest catalogue is deliberately stable; an
+            // optional view finds quests the player can actually continue
+            // without hiding or rewriting any save progress/reward flags.
+            if(Button(279,690,321,28,
+                journalOnlyActionable?
+                    Game.L("可推进任务 · 点击显示全部","AVAILABLE ONLY · SHOW ALL"):
+                    Game.L("仅显示可推进任务","SHOW AVAILABLE QUESTS"),
+                journalOnlyActionable))
             {
-                float y = 226 + (i - firstQuest) * 29;
-                QuestGuide quest = Game.GetQuest(GameCore.QuestIds[i]);
-                if (Button(279, y, 321, 26,
-                    (quest.complete ? "✓ " : Game.save.trackedQuest == quest.id ? "◆ " : "") + quest.title, selectedQuest == i))
-                    selectedQuest = i;
+                journalOnlyActionable=!journalOnlyActionable;
+                selectedQuest=0;questPage=0;
             }
-            if (Button(279, 644, 84, 32, Game.L("上页", "Prev"), false, questPage > 0))
-            { questPage--; selectedQuest = questPage * questsPerPage; }
-            Text(379, 648, 119, 25, (questPage + 1) + " / " + questPages, 14, muted, TextAnchor.MiddleCenter);
-            if (Button(515, 644, 85, 32, Game.L("下页", "Next"), false, questPage < questPages - 1))
-            { questPage++; selectedQuest = questPage * questsPerPage; }
+            const int questsPerPage=14;
+            var visibleQuestIndices=new List<int>();
+            for(int i=0;i<GameCore.QuestIds.Length;i++)
+            {
+                if(!journalOnlyActionable)
+                {visibleQuestIndices.Add(i);continue;}
+                QuestGuide candidate=Game.GetQuest(GameCore.QuestIds[i]);
+                if(!candidate.locked&&!candidate.complete)
+                    visibleQuestIndices.Add(i);
+            }
+            if(visibleQuestIndices.Count==0)
+            {
+                Text(300,284,295,140,
+                    Game.L("当前没有可继续的任务。点击“显示全部”查看记录。",
+                        "No available quests. Choose Show all to review completed records."),
+                    16,muted,TextAnchor.MiddleCenter);
+                return;
+            }
+            selectedQuest=(int)GameCore.Clamp(selectedQuest,
+                0,GameCore.QuestIds.Length-1);
+            if(journalOnlyActionable&&!visibleQuestIndices.Contains(selectedQuest))
+            {selectedQuest=visibleQuestIndices[0];questPage=0;}
+            int questPages=Math.Max(1,(visibleQuestIndices.Count+questsPerPage-1)/questsPerPage);
+            questPage=(int)GameCore.Clamp(questPage,0,questPages-1);
+            int firstQuest=questPage*questsPerPage;
+            for(int i=firstQuest;i<Math.Min(visibleQuestIndices.Count,
+                firstQuest+questsPerPage);i++)
+            {
+                int originalIndex=visibleQuestIndices[i];
+                float y=226+(i-firstQuest)*29;
+                QuestGuide quest=Game.GetQuest(GameCore.QuestIds[originalIndex]);
+                if(Button(279,y,321,26,
+                    (quest.complete?"✓ ":
+                        Game.save.trackedQuest==quest.id?"◆ ":"")+quest.title,
+                    selectedQuest==originalIndex))
+                    selectedQuest=originalIndex;
+            }
+            if(Button(279,644,84,32,Game.L("上页","Prev"),false,questPage>0))
+            {questPage--;selectedQuest=visibleQuestIndices[questPage*questsPerPage];}
+            Text(379,648,119,25,(questPage+1)+" / "+questPages,
+                14,muted,TextAnchor.MiddleCenter);
+            if(Button(515,644,85,32,Game.L("下页","Next"),false,
+                questPage<questPages-1))
+            {questPage++;selectedQuest=visibleQuestIndices[questPage*questsPerPage];}
             QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 464); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
             float stepPitch = Math.Min(34f, 133f / Math.Max(1, q.steps.Count));
             for (int i = 0; i < q.steps.Count; i++)

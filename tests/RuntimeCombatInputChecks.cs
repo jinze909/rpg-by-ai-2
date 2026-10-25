@@ -2663,6 +2663,60 @@ public static class RuntimeCombatInputChecks
 
 
 
+
+    private static void JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore game=app.Game;
+        game.save.english=true;
+        game.save.flags.Add("intro");
+        game.mode="journal";
+        game.save.trackedQuest="main";
+        Set(app,"journalTab",0);
+        Set(app,"selectedQuest",0);Set(app,"questPage",0);
+        Set(app,"journalOnlyActionable",false);
+        int lockedIndex=-1,activeCount=0;
+        for(int i=0;i<GameCore.QuestIds.Length;i++)
+        {
+            QuestGuide guide=game.GetQuest(GameCore.QuestIds[i]);
+            if(guide.locked&&lockedIndex<0)lockedIndex=i;
+            if(!guide.locked&&!guide.complete)activeCount++;
+        }
+        Check(lockedIndex>=0&&activeCount>0&&
+            activeCount<GameCore.QuestIds.Length,
+            "Original quest catalogue contains both available and locked/finished missions");
+        int coins=game.save.coins,flags=game.save.flags.Count;
+        Set(app,"selectedQuest",lockedIndex);
+        Set(app,"questPage",lockedIndex/14);
+        GUI.queuedClick=new Rect(279,690,321,28);
+        Call(app,"OnGUI");
+        GUI.queuedClick=null;
+        bool filtered=(bool)typeof(FrontierRuntime).GetField(
+            "journalOnlyActionable",Private).GetValue(app);
+        int selected=(int)typeof(FrontierRuntime).GetField(
+            "selectedQuest",Private).GetValue(app);
+        Check(filtered&&selected>=0&&
+            !game.GetQuest(GameCore.QuestIds[selected]).locked&&
+            !game.GetQuest(GameCore.QuestIds[selected]).complete,
+            "Filtering a locked selected quest chooses a real available mission rather than an inaccessible row");
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(command=>command.Contains("AVAILABLE ONLY"))&&
+            !GUI.commands.Exists(command=>command.Contains(
+                game.GetQuest(GameCore.QuestIds[lockedIndex]).title)),
+            "Actual IMGUI displays only actionable quest rows, never a future locked title");
+        GUI.queuedClick=new Rect(279,690,321,28);
+        Call(app,"OnGUI");
+        Check(!(bool)typeof(FrontierRuntime).GetField(
+            "journalOnlyActionable",Private).GetValue(app)&&
+            game.save.trackedQuest=="main"&&
+            game.save.coins==coins&&game.save.flags.Count==flags&&
+            game.save.version==2,
+            "Switching back to the full journal preserves the tracked quest, rewards and SaveData v2");
+        game.Close();
+        Console.WriteLine("PASS Live journal available/all filter hides inaccessible quests without altering original campaign records");
+    }
+
     private static void InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin(
         FrontierRuntime app)
     {
@@ -7257,7 +7311,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
