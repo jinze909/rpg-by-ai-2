@@ -29,6 +29,26 @@ namespace Starfall
             "A stone by an unregistered well preserves children's water shares, later buried by the dunes.",
             "Each warming hut's fire is traced in a highland notebook. Bells should lead people home."
         };
+        private static readonly string[] FarCourierRecipientZh={
+            "桥南的看护把药放到床头：“小林的烧还没退。你赶上了今晚这一班。”",
+            "守林人卷起染血的袖口：“树根扎得深。先给孩子消毒，我的手明天再看。”",
+            "渡船老伯把沾盐的绷带扔进火里：“潮水带走了一箱药。这一包总算没被浪卷走。”",
+            "矿工扶着受伤的同伴坐下：“别先记工分。先给他上药。”",
+            "守门卫兵掀开棚帘：“城墙里还有空床。我先把伤者送进去，签字等会儿再说。”",
+            "雾港的船医打开药箱：“航灯坏了三个，幸好止血药还在。”",
+            "绿洲的井守分开拥挤的人群：“先让发热的孩子喝水。药留给她。”",
+            "高地的老钟匠搓热双手：“冻伤的人等了整夜。火还没熄，药也终于到了。”"
+        };
+        private static readonly string[] FarCourierRecipientEn={
+            "The nurse sets the medicine beside a cot. “Lin's fever hasn't broken. You made tonight's delivery.”",
+            "A forester rolls up his bloodied sleeve. “The roots cut deep. See to the child first. My hand can wait.”",
+            "An old ferryman throws a salt-stiff bandage into the fire. “The tide took our last crate. Not this one.”",
+            "A miner steadies an injured friend on the bench. “Forget the shift ledger. Treat him first.”",
+            "A gate guard lifts the shelter flap. “There's still a bed inside the wall. I'll carry the injured in; sign me in later.”",
+            "Mistport's ship medic opens the case. “Three harbor lamps went dark. At least the bandages made it.”",
+            "The well keeper makes room in the crowd. “Water for the feverish girl first. Save the medicine for her.”",
+            "An old bell keeper warms his hands. “They waited all night with frostbitten fingers. The fire's still lit. Now we have medicine.”"
+        };
         public bool FarLogFound(int room)
         {return room>=0&&room<8&&Has("far_log_"+room);}
         public bool FarDialReady(int room)
@@ -690,6 +710,7 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,FarWitnessZh[room]+
+                (FarCourierDelivered(room)?"\n\n"+FarCourierRecipientZh[room]:"")+
                 (Has("far_courier_charter")?
                     "\n\n公开补给公约已生效。消耗木材1休息：生命 +55、耐力全满、寒冷 -40。":
                     "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。")+
@@ -704,6 +725,7 @@ namespace Starfall
                         "\n\n【第十一章公共电网】真实调谐的线路正在安全时额外恢复耐力。":
                         "\n\n【第十一章公共电网】真实调谐的线路正在安全时额外恢复生命。":""),
                 FarWitnessEn[room]+
+                (FarCourierDelivered(room)?"\n\n"+FarCourierRecipientEn[room]:"")+
                 (Has("far_courier_charter")?
                     "\n\nPublic charter: 1 timber restores +55 HP, full stamina, -40 cold.":
                     "\n\nShared refuge: 1 timber restores +35 HP, full stamina, -25 cold.")+

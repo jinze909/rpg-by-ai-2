@@ -4053,6 +4053,49 @@ namespace Starfall.Tests
         }
 
 
+        public static void EightCourierReceiptsAppearOnlyAfterActualRegionalDeliveryFlags(Campaign data)
+        {
+            string[] voicesZh={"小林的烧","树根扎得深","潮水带走","别先记工分",
+                "城墙里还有空床","航灯坏了三个","发热的孩子","冻伤的人"};
+            string[] voicesEn={"Lin's fever","roots cut deep","tide took","shift ledger",
+                "bed inside the wall","harbor lamps","feverish girl","frostbitten fingers"};
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=Fresh(data);
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("far_dial_"+room);
+                g.save.flags.Add("far_shelter_"+room);
+                WorldObject refuge=Object(g,"farshelter");
+                g.save.x=refuge.x;g.save.y=refuge.y;
+                g.Talk(refuge);
+                Check(g.conversation!=null&&
+                    !g.conversation.text.Contains(voicesZh[room])&&
+                    !g.conversation.textEn.Contains(voicesEn[room]),
+                    "Undelivered medicines cannot invent a regional patient's testimony");
+                g.Close();
+                // These are the exact flags the genuine physical handoff
+                // commits; the existing 8-region walk test proves earning them.
+                g.save.flags.Add("far_courier_"+room);
+                g.Talk(refuge);
+                Check(g.conversation.text.Contains(voicesZh[room])&&
+                    g.conversation.textEn.Contains(voicesEn[room]),
+                    "A delivered regional parcel adds the receiving civilian's authored, bilingual response");
+                g.Close();
+                g.save.flags.Add("far_courier_pristine_"+room);
+                g.Talk(refuge);
+                Check(g.conversation.text.Contains(voicesZh[room])&&
+                    g.conversation.text.Contains("额外恢复生命 +10")&&
+                    g.conversation.textEn.Contains("10 extra HP"),
+                    "The local human handoff and intact-medicine rest reward remain visible together");
+                GameCore reload=new GameCore(data,g.save);
+                reload.mode="world";reload.save.x=refuge.x;reload.save.y=refuge.y;
+                reload.Talk(refuge);
+                Check(reload.save.version==2&&reload.conversation!=null&&
+                    reload.conversation.text.Contains(voicesZh[room]),
+                    "Original v2 saves recover exactly their completed regional receipt after reload");
+            }
+        }
+
         public static void IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Campaign data)
         {
             GameCore g=new GameCore(data);

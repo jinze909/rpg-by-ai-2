@@ -223,11 +223,11 @@ namespace Starfall
                 bool guard=FarCourierActive&&courierCrossed&&!courierGuardSpent;
                 string noticeZh=courierStamped?
                     "居民已经核验救援包封条，可继续送往避险棚。":
-                    eligible?"你真实走过了新桥。请让居民查验救援包封条。":
-                    "这里核对亲自携带过桥的救援包，单凭交接表不能算送达。";
+                    eligible?"桥北那批药总算到了。把箱子放稳，我给封条盖章。":
+                    "只认送到这里的药箱。空白单据救不了棚里的人。";
                 string noticeEn=courierStamped?"This parcel seal is verified. Continue to the refuge.":
-                    eligible?"You crossed the rebuilt bridge with real supplies. Ask locals to inspect the parcel.":
-                    "This checkpoint verifies only physical bridge deliveries, not paper manifests.";
+                    eligible?"The north-bank medicine made it. Set the case down and I'll stamp the seal.":
+                    "Only medicine carried here earns our seal. No patient can swallow a paper manifest.";
                 if(FarCourierActive)
                 {
                     noticeZh+="\\n\\n货物完好度："+(int)Math.Ceiling(courierIntegrity)+
@@ -272,7 +272,7 @@ namespace Starfall
             bool ready=courierCrossed&&courierStamped&&courierWalked>=17&&
                 (Position-courierLast).Length<.65f&&courierElapsed<95;
             Dialog(o.name,o.en,ready?
-                "封条完整！这份物资确实经由居民修好的桥面送达。"+
+                "这桥才刚修好，你就把药背到了门口。封条也在。"+
                     (FarCourierSecuredInFlight?
                         "你亲自击败了两名劫匪，交接时还能领取一次性安全护送奖金。":
                         "你选择谨慎绕过追兵，仍可正常交付全部物资。")+
@@ -281,7 +281,7 @@ namespace Starfall
                         "药箱在途中受损，但居民仍会接收剩余的必需品。"):
                 "救援包仍在，但需要从北向南经过新桥，并在中途居民检查台核验封条。",
                 ready?
-                "The parcel truly crossed the civilian bridge."+
+                "The bridge is barely repaired, and you've brought the medicine right to our door."+
                     (FarCourierSecuredInFlight?
                         " You defeated both real raiders; a one-time secure-route bonus is available at delivery.":
                         " You avoided the pursuers and can still complete the full delivery.")+

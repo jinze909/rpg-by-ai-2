@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void EightDistantSheltersRecognizeActualCivilianMedicineRecipients() { CoreChecks.EightCourierReceiptsAppearOnlyAfterActualRegionalDeliveryFlags(Data()); }
         [Test] public void CombatStewCannotBeSpammedOrWastedAtFullResources() { CoreChecks.StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Data()); }
         [Test] public void IntactCourierMedicineRestoresOnlyItsReceivingRefuge() { CoreChecks.IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Data()); }
         [Test] public void CompletedRegionalCourierGrantsOnlyPhysicalSafeOutpostCare() { CoreChecks.EarnedCourierMedicineActuallyImprovesOnlySafeLocalTreatment(Data()); }
