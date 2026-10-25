@@ -4062,6 +4062,13 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 GameCore g=Fresh(data);
+                // Reopening a genuine old SaveData v2 requires its original
+                // chapter and report gates, not just an injected room index.
+                // Never weaken GameCore.Load's valid-world authorization.
+                g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
                 g.save.room=room;g.enemies.Clear();
                 g.save.flags.Add("far_dial_"+room);
                 g.save.flags.Add("far_shelter_"+room);
