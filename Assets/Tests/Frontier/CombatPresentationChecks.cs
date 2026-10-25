@@ -4211,7 +4211,8 @@ namespace Starfall.Tests
                 WorldObject lamp=Object(g,"outerrelay"),
                     chest=Object(g,"outercache"),post=Object(g,"outerwatch");
                 g.save.x=lamp.x;g.save.y=lamp.y;
-                int beforeCoins=g.save.coins,beforeXp=g.save.xp;
+                int beforeCoins=g.save.coins,beforeXp=g.save.xp,
+                    beforeLevel=g.save.level;
                 g.Talk(lamp);
                 int begin=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="outer_delivery_start");
@@ -4243,8 +4244,9 @@ namespace Starfall.Tests
                 Check(deliver>=0,"An authentic defended station accepts the carried receipt");
                 g.Choose(deliver);
                 Check(g.OuterDeliveryDone(room)&&!g.OuterDeliveryActive&&
-                    g.save.coins==beforeCoins+24&&g.save.xp==beforeXp+40,
-                    "Real three-stop handoff grants the single earned reward");
+                    g.save.coins==beforeCoins+24&&
+                    g.save.level==beforeLevel+1&&g.save.xp==beforeXp,
+                    "Real three-stop handoff grants 24 coins and 40 earned XP through the game's genuine level-up boundary");
                 g.Talk(post);g.Close();
                 Check(g.save.coins==beforeCoins+24,
                     "Reopening the defended post cannot duplicate delivered supplies");
