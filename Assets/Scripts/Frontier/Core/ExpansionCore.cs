@@ -1491,17 +1491,9 @@ namespace Starfall
             }
             if (save.companion < 0 || practicing)
             { companionAction = null; companionAutoTarget = null; return; }
-            if(!TryRecoverCompanionFoot())
-            {
-                // No legal foot nearby: stay on the original side of the
-                // obstacle. A blocked root cannot fire, heal or path-warp.
-                companionAction=null;companionAutoTarget=null;
-                ClearCompanionCornerPlan();
-                ClearCompanionFollowRoute();
-                companionMoveTime=0f;
-                companionAttack=Math.Max(companionAttack,.2f);
-                return;
-            }
+            // Do NOT move the source foot under a still-winding cast.
+            // The existing contact rule must see blocked terrain, cancel
+            // the unsafe shot and refund an unspent manual command.
             companionCooldown = Math.Max(0, companionCooldown - dt); companionAttack -= dt;
             companionCornerPostShotSeconds=Math.Max(0f,
                 companionCornerPostShotSeconds-dt);
@@ -1720,6 +1712,22 @@ namespace Starfall
                 if (action.elapsed >= action.duration)
                 { companionAction = null; companionAutoTarget = null; }
                 return; // Plant the feet while drawing a bow or casting.
+            }
+            if(!CanStand(companionPosition))
+            {
+                if(!TryRecoverCompanionFoot())
+                {
+                    // No legal ground near the OLD foot. Remain blocked
+                    // instead of crossing closed terrain to the follow goal.
+                    companionAutoTarget=null;
+                    ClearCompanionCornerPlan();
+                    ClearCompanionFollowRoute();
+                    companionMoveTime=0f;
+                    companionAttack=Math.Max(companionAttack,.2f);
+                }
+                // A recovered foot is a static replant, not a running stride.
+                // Begin real walking on the next simulation frame only.
+                return;
             }
             Point followGoal = CompanionHoldingPosition ?
                 companionHoldFoot : CompanionRescueTriageFollowTarget(
