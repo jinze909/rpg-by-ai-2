@@ -1762,6 +1762,15 @@ namespace Starfall
                     {
                         Point lateral=ArcherFollowCornerPlan(e,pursuit);
                         if(lateral.Length>.1f)heading=lateral;
+                        else if(distance<7f&&
+                            // A teammate, NOT solid terrain, blocks an
+                            // otherwise ranged-legal bow shot. If no
+                            // reachable firing flank exists, hold behind
+                            // the front line rather than walking through
+                            // their living body and stacking on them.
+                            PhysicalBowLaneFromFoot(e.Position,pursuit)&&
+                            !FriendlyBodyBowLaneClear(e.Position,pursuit,e))
+                            heading=new Point();
                     }
                     Point p = e.Position + heading * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
                     Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;

@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void ChokedArchersWaitForMovingAlliesBeforeRealShoot() { CoreChecks.NoSideLaneArchersWaitForMovingFrontlineWithoutBodyWarp(Data()); }
         [Test] public void EnemyArchersSidestepActualFriendlyBodiesBeforeOpeningFire() { CoreChecks.ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Data()); }
         [Test] public void OrdinaryEnemyArrowsReallyStopAtEarlierLivingEnemyBodies() { CoreChecks.HostileArrowsHavePhysicalFrontlineCoverWithoutFalseCredit(Data()); }
         [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }

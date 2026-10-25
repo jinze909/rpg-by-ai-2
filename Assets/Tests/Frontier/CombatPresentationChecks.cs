@@ -2132,6 +2132,57 @@ namespace Starfall.Tests
 
 
 
+
+        public static void NoSideLaneArchersWaitForMovingFrontlineWithoutBodyWarp(Campaign data)
+        {
+            MapData previous=data.maps[0];
+            try
+            {
+                var rows=new string[21];
+                for(int y=0;y<21;y++)
+                {
+                    char[] cells=new string('#',25).ToCharArray();
+                    if(y>=9&&y<=11)
+                        for(int x=2;x<=22;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=16.5f;g.save.y=10.5f;
+                g.invulnerable=100f;
+                var archer=new Enemy(89291,1,10.5f,10.5f,300f){timer=0f};
+                var front=new Enemy(89292,0,13.5f,10.5f,300f)
+                    {timer=999f,stun=99f,staggerRecovery=99f};
+                g.enemies.Add(archer);g.enemies.Add(front);
+                var bodyLane=typeof(GameCore).GetMethod("EnemyBowFlightLaneClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(g.CanStand(archer.Position)&&g.CanStand(front.Position)&&
+                    !(bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "A narrow physically walkable choke really has living cover directly in the bow lane");
+                Point origin=archer.Position;
+                for(int i=0;i<10;i++)g.Tick(.05f,new Point());
+                Check(archer.state==0&&!archer.moving&&
+                    (archer.Position-origin).Length<.01f&&
+                    !g.projectiles.Exists(p=>p.visual=="enemyArrow"),
+                    "With no reachable lateral firing foot, an archer holds its real position behind its ally instead of body-clipping forward");
+                front.x=19.5f;
+                Check(g.CanStand(front.Position)&&
+                    (bool)bodyLane.Invoke(g,new object[]{archer,g.Position}),
+                    "Moving the original living frontline BEHIND the hero physically opens the arrow corridor");
+                for(int i=0;i<8&&archer.state!=1;i++)g.Tick(.05f,new Point());
+                Check(archer.state==1,
+                    "Original archer immediately resumes its authentic aimed windup when the blocked lane opens");
+                for(int i=0;i<18&&!g.projectiles.Exists(p=>p.visual=="enemyArrow");i++)
+                    g.Tick(.05f,new Point());
+                Check(g.projectiles.Exists(p=>p.visual=="enemyArrow"&&
+                    System.Object.ReferenceEquals(p.hostileShooter,archer)),
+                    "Opening the route releases one genuine arrow, not a scripted attack or ghost projectile");
+            }
+            finally{data.maps[0]=previous;}
+        }
+
         public static void ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Campaign data)
         {
             MapData original=data.maps[0];
