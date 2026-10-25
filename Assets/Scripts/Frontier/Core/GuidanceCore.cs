@@ -1284,6 +1284,12 @@ namespace Starfall
                     q.steps.Add(new QuestStep(L(zh[i],en[i])+"  "+TrailCircuitProgress(i)+"/3",TrailCircuitComplete(i)));
                     if(next<0&&!TrailCircuitComplete(i)&&CanEnter(i))next=i;
                 }
+                // All eight circuits are independent. While exploring an
+                // unlocked region, do not send the player back to the first
+                // alphabetically listed region before finishing nearby work.
+                // The exact next physical bearing still follows local order.
+                if(save.room>=0&&save.room<8&&!TrailCircuitComplete(save.room)&&
+                    CanEnter(save.room))next=save.room;
                 q.locked=!Has("intro");q.complete=TrailCircuitCount==8;
                 q.room=next<0?0:next;
                 q.target=new Point(18,15);
@@ -1316,11 +1322,15 @@ namespace Starfall
                         string kind=j<2?"annex_cache_":j==2?"annex_vista_":"annex_camp_";
                         if(Has(kind+ids[j]))
                         {if(j<2)caches++;else if(j==2)vistas++;else camps++;}
-                        else if(targetRoom<0&&CanEnter(region))
+                        else if(CanEnter(region)&&
+                            (targetRoom<0||region==save.room&&targetRoom!=region))
                         {
-                            targetRoom=region;
+                            // Prefer unfinished sites in the player's actual
+                            // region, but NEVER invent a missing map object.
+                            // Retain the first real target in each region.
                             foreach(WorldObject o in data.maps[region].objects)
-                                if(o.id==ids[j]){next=o;break;}
+                                if(o.id==ids[j])
+                                {next=o;targetRoom=region;break;}
                         }
                     }
                 }
@@ -1406,11 +1416,15 @@ namespace Starfall
                         {
                             if (room < 4) inner++; else outer++;
                         }
-                        else if (destination < 0 && CanEnter(room))
+                        else if(CanEnter(room)&&
+                            (destination<0||room==save.room&&destination!=room))
                         {
-                            destination = room;
-                            foreach (WorldObject o in data.maps[room].objects)
-                                if (o.id == mark) { nextMarker = o; break; }
+                            // One region may have both unvisited branches.
+                            // Keep its first authentic stone once chosen,
+                            // preferring local unfinished work over backtracking.
+                            foreach(WorldObject o in data.maps[room].objects)
+                                if(o.id==mark)
+                                {destination=room;nextMarker=o;break;}
                         }
                     }
                 }

@@ -24,6 +24,77 @@ namespace Starfall.Tests
             return g;
         }
 
+        private static Point ExplorationMarker(GameCore g,string id)
+        {
+            foreach(WorldObject o in g.Map.objects)
+                if(o.id==id)return new Point(o.x,o.y);
+            throw new Exception("Missing genuine exploration map object "+id);
+        }
+
+
+        // The three optional exploration loops contain independent tasks in
+        // each region. The map pin/compass must select a LIVE local object
+        // instead of repeatedly routing a player away from available work.
+        public static void ThreeExplorationGuidesPrioritizeRealUnfinishedLocalSites(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();
+            Check(g.save.room==1&&g.save.version==2,
+                "The original unlocked Thornwood is a valid live test region");
+            string[] quests={"trail_circuits","waytrails","annex_explorer"};
+            string[] first={"trailcircuit_1_1","waytrail1s","annex_cache_1_a"};
+            for(int i=0;i<quests.Length;i++)
+            {
+                g.save.trackedQuest=quests[i];
+                var q=g.GetQuest(quests[i]);
+                Check(!q.locked&&!q.complete&&q.room==1&&
+                    (q.target-ExplorationMarker(g,first[i])).Length<.001f,
+                    "The "+quests[i]+" guide must use a physical local landmark instead of early-region backtracking");
+                Check((g.NavigationExplorationMarker(g,).Value-q.target).Length<.001f,
+                    "The world compass must follow the actual selected local quest marker");
+            }
+            g.save.flags.Add("trail_circuit_1_1");
+            var route=g.GetQuest("trail_circuits");
+            Check(route.room==1&&
+                (route.target-ExplorationMarker(g,"trailcircuit_1_2")).Length<.001f,
+                "After the first local bearing the second genuine map object is next");
+            g.save.flags.Add("trail_circuit_1_2");
+            route=g.GetQuest("trail_circuits");
+            Check(route.room==1&&
+                (route.target-ExplorationMarker(g,"trailcircuit_1_3")).Length<.001f,
+                "Route stages remain sequential inside the current region");
+            g.save.flags.Add("trail_circuit_1_3");
+            Check(g.GetQuest("trail_circuits").room==0,
+                "A completed local circuit resumes the first unfinished other region");
+            g.save.flags.Add("waytrail_waytrail1s");
+            var way=g.GetQuest("waytrails");
+            Check(way.room==1&&(way.target-ExplorationMarker(g,"waytrail1e")).Length<.001f,
+                "Second local historic bearing becomes the live target");
+            g.save.flags.Add("waytrail_waytrail1e");
+            Check(g.GetQuest("waytrails").room==0,
+                "After both local historical bearings, broader exploration resumes");
+            string[] annexFlags={"annex_cache_annex_cache_1_a",
+                "annex_cache_annex_cache_1_b",
+                "annex_vista_annex_vista_1",
+                "annex_camp_annex_camp_1"};
+            string[] remaining={"annex_cache_1_b","annex_vista_1","annex_camp_1"};
+            for(int i=0;i<annexFlags.Length;i++)
+            {
+                g.save.flags.Add(annexFlags[i]);
+                var atlas=g.GetQuest("annex_explorer");
+                if(i<remaining.Length)
+                    Check(atlas.room==1&&
+                        (atlas.target-ExplorationMarker(g,remaining[i])).Length<.001f,
+                        "The completed local cache/lookout/camp retargets to the next physical site");
+                else
+                    Check(atlas.room==0,
+                        "Only when all four local sites are done does the atlas route away");
+            }
+            Check(g.save.version==2&&g.save.trackedQuest=="annex_explorer",
+                "Exploration routing is computed from original flags; no new save schema or forced quest swap");
+        }
+
         public static void PlayerWaymarkIsRealReachableGoalAndClearsOnWalkingArrival(Campaign data)
         {
             MapData old=data.maps[1];
