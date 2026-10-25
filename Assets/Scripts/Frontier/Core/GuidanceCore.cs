@@ -100,8 +100,8 @@ namespace Starfall
         {
             if(Has("civic_aftercare_published"))
                 return en?
-                    "\n\nThe three-region road audit is public. Markers at Canal, Ironreach and Mistport now hold civilian field kits. One herb treats wounds and reduces dangerous heat/cold exposure at a secure stop.":
-                    "\n\n三地巡路复核已公开。引水渠、赤铁矿场与雾港的路标现在备有居民急救包；在安全地点使用一份药草，就能处理伤口、缓解高温与寒冷。";
+                    "\n\nThe three-region road audit is now on the public record. Markers at Canal, Ironreach and Mistport now hold civilian field kits. One herb treats wounds and reduces dangerous heat/cold exposure at a secure stop.":
+                    "\n\n三地巡路复核已列入公开记录。引水渠、赤铁矿场与雾港的路标现在备有居民急救包；在安全地点使用一份药草，就能处理伤口、缓解高温与寒冷。";
             if(Has("civic_aftercare_started"))
                 return en?
                     "\n\nThe road audit is still underway: "+CivicAftercareWaypointCount+"/3 regional markers verified. Bring the remaining field notes back here to publish the record.":

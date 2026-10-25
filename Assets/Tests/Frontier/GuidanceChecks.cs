@@ -3423,7 +3423,7 @@ namespace Starfall.Tests
             resumed.save.x=resumedInn.x;resumed.save.y=resumedInn.y;
             resumed.Talk(resumedInn);
             Check(resumed.conversation!=null&&
-                resumed.conversation.textEn.Contains("three-region road audit is public")&&
+                resumed.conversation.textEn.Contains("three-region road audit is now on the public record")&&
                 resumed.conversation.textEn.Contains("field kits"),
                 "The inn's persistent bilingual response reflects the published audit after reload");
         }
