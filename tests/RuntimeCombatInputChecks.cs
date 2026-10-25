@@ -4526,7 +4526,10 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         var g=app.Game;g.mode="world";g.save.english=true;
-        g.enemies.Clear();
+        // The visual review starts in region ONE by default; actual civilian
+        // first-aid is earned in regions 0, 3 and 5. Enter the real Canal
+        // rather than falsely expecting a region-one marker to show it.
+        g.Enter(0);g.enemies.Clear();
         WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
         Check(marker!=null,"Production world contains original physical surveyed trail");
         g.save.x=marker.x;g.save.y=marker.y;
@@ -4540,20 +4543,8 @@ public static class RuntimeCombatInputChecks
             "Unpublished audit evidence does not fabricate a public field service");
         g.save.flags.Add("civic_aftercare_published");
         GUI.commands.Clear();Call(app,"OnGUI");
-        bool fullWorldDraw=GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB"));
-        if(!fullWorldDraw)
-        {
-            int commands=GUI.commands.Count;
-            string audit=String.Join(" | ",GUI.commands.FindAll(
-                s=>s.Contains("AUDIT")||s.Contains("FIELD")||s.Contains("waytrail")||s.Contains("ROAD")).ToArray());
-            GUI.commands.Clear();
-            Call(app,"DrawObject",marker);
-            bool direct=GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB"));
-            throw new Exception("Live world marker not visible: production DrawObject="+
-                direct+" full-frame-commands="+commands+" nearby="+audit+
-                " camera="+CoreField(g,"courierRoom")+
-                " world-mode="+g.mode+" marker="+marker.x+","+marker.y);
-        }
+        Check(GUI.commands.Exists(s=>s.Contains("FIELD KIT")&&s.Contains("1 HERB")),
+            "The actual Canal world view shows the new field kit on its earned authored marker");
         g.save.english=false;
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("居民急救")&&s.Contains("药草1")),
