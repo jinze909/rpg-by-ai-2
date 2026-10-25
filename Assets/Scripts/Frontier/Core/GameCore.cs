@@ -1844,11 +1844,22 @@ namespace Starfall
                                     // independent environmental hazards intact.
                                     for(int index=hazards.Count-1;
                                         index>=firstNewGroundStrike;index--)
-                                        if(System.Object.ReferenceEquals(
-                                                hazards[index].bossOwner,e) &&
-                                            !ClearAttackPath(e.Position,
-                                                hazards[index].position))
+                                    {
+                                        Hazard fresh=hazards[index];
+                                        if(!System.Object.ReferenceEquals(fresh.bossOwner,e))
+                                            continue;
+                                        if(!ClearAttackPath(e.Position,fresh.position))
                                             hazards.RemoveAt(index);
+                                        else
+                                            // Enemy release runs immediately BEFORE
+                                            // TickExpansion in this same world frame.
+                                            // Like newly fired projectiles, the
+                                            // circle cannot spend world time that
+                                            // elapsed BEFORE its real release. The
+                                            // upcoming hazard tick consumes this dt,
+                                            // leaving the authored full telegraph.
+                                            fresh.timer+=dt;
+                                    }
                                 }
                                 int spokes = 4 + Math.Min(5, save.room) * 2 + e.BossPhase * 2;
                                 if (save.room >= 2 || e.BossPhase >= 2)

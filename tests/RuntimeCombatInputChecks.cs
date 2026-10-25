@@ -1845,6 +1845,12 @@ public static class RuntimeCombatInputChecks
             g.Tick(.02f,new Point());
             Check(boss.cycle==1&&g.hazards.Count==3,
                 "Original exposed tide Boss still releases all three combat circles");
+            Check(g.hazards.TrueForAll(h=>Math.Abs(h.timer-1.2f)<.001f),
+                "A genuine mid-frame harbor release retains all 1.2 seconds of its authored warning");
+            g.Tick(.02f,new Point());
+            Check(g.hazards.Count==3&&
+                g.hazards.TrueForAll(h=>Math.Abs(h.timer-1.18f)<.001f),
+                "The warned circle ages only in the first real frame after release");
             g.hazards.Clear();g.projectiles.Clear();
             char[] row=map.rows[wallY].ToCharArray();
             row[wallX]='#';map.rows[wallY]=new string(row);
