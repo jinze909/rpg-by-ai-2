@@ -29,6 +29,19 @@ namespace Starfall
             !string.IsNullOrEmpty(localWaymarkQuestId); } }
         public bool QuestApproachAwaitingInteraction
         { get { return QuestApproachNavigationActive && localWaymarkQuestArrived; } }
+        // Cheap read-only interaction-side probe for the actual map UI.
+        // Full distant-route BFS remains cached in FrontierMapPreview;
+        // a quest already in interaction reach should not be disabled
+        // merely because zero walking steps are required.
+        public bool QuestApproachWithinInteractionReach(string questId)
+        {
+            if(string.IsNullOrEmpty(questId)||
+                Array.IndexOf(QuestIds,questId)<0)return false;
+            QuestGuide q=GetQuest(questId);
+            return !q.locked&&!q.complete&&q.room==save.room&&
+                (Position-q.target).Length<=1.8f&&CanStand(Position)&&
+                ReliefActorLineWalkable(Position,q.target);
+        }
         public bool LocalWaymarkRouteBlocked
         { get { return LocalWaymark.HasValue && localWaymarkBlocked; } }
         public Point? LocalWaymark

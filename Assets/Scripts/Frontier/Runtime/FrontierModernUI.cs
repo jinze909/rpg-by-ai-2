@@ -471,7 +471,12 @@ namespace Starfall
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
             else if(Game.PersonalNavigationActive)
-                Text(1024,178,166,12,Game.L("个人路线","PERSONAL PIN"),
+                Text(1024,178,166,12,
+                    Game.QuestApproachAwaitingInteraction?
+                        Game.L("已到任务点 · 请交互","AT QUEST · INTERACT"):
+                    Game.QuestApproachNavigationActive?
+                        Game.L("任务路线 · 自动跟进","QUEST ROUTE · AUTO-FOLLOW"):
+                        Game.L("个人路线","PERSONAL PIN"),
                     9,mint,TextAnchor.MiddleCenter);
             Text(1024, 191, 166, 21, Game.Night ? Game.L("夜晚", "NIGHT") : Game.L("白昼", "DAY"), 11, gold);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
@@ -1044,7 +1049,7 @@ namespace Starfall
                             approach.Count>0?
                                 Game.L("目标路线可达 · "+approach.Count+" 步",
                                     "WALKABLE APPROACH · "+approach.Count+" steps"):
-                            (Game.Position-inspected.target).Length<=1.8f?
+                            Game.QuestApproachWithinInteractionReach(inspected.id)?
                                 Game.L("已接近目标 · 现场确认交互",
                                     "NEAR OBJECTIVE · CHECK INTERACTION"):
                                 Game.L("没有确认可行走路线 · 检查道路",
@@ -1186,6 +1191,8 @@ namespace Starfall
                     if(Button(888,571,306,35,
                         Game.LocalWaymarkRouteBlocked ?
                             Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
+                        Game.QuestApproachNavigationActive?
+                            Game.L("取消任务自动导航","Cancel quest route auto-follow"):
                             Game.L("清除个人地图标记","Clear personal map pin")))
                         Game.ClearLocalWaymark();
                 }
@@ -1201,8 +1208,14 @@ namespace Starfall
             if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
                 Game.HasLocalWaymark)
                 Text(888,605,306,11,
-                    Game.L("按 R / 手柄 Y 可直接移动旧标记",
-                        "R / gamepad Y: move existing pin without clearing"),
+                    Game.QuestApproachAwaitingInteraction?
+                        Game.L("已抵达任务接近点 · 与目标交互继续剧情",
+                            "At quest approach · interact to advance"):
+                    Game.QuestApproachNavigationActive?
+                        Game.L("任务下一阶段会自动更新目标 · R/Y 改为手动标记",
+                            "Auto-follows next quest step · R/Y makes a manual pin"):
+                        Game.L("按 R / 手柄 Y 可直接移动旧标记",
+                            "R / gamepad Y: move existing pin without clearing"),
                     9,mint,TextAnchor.MiddleCenter);
             // Keep the established full-width personal clear control at
             // y=571; this separate 21px action cannot steal old mouse hits.
@@ -1224,16 +1237,20 @@ namespace Starfall
                 inspectedMap!=null&&!inspectedMap.complete)
             {
                 List<Point> walk=InspectedQuestWalkingRoute(inspectedMap);
-                bool walkable=walk.Count>0;
-                string prompt=walkable?
+                bool nearby=Game.QuestApproachWithinInteractionReach(inspectedMap.id);
+                bool walkable=walk.Count>0||nearby;
+                string prompt=nearby?
+                    Game.L("已到任务附近 · 标记交互位置",
+                        "ALREADY NEAR QUEST · MARK INTERACTION"):
+                    walkable?
                     Game.L(Game.HasLocalWaymark?
                         "替换标记：前往任务可达接近点":
                         "设导航：前往任务可达接近点",
                         Game.HasLocalWaymark?
                         "REPLACE PIN · WALKABLE QUEST APPROACH":
                         "PIN WALKABLE QUEST APPROACH"):
-                    Game.L("已接近目标或目前无可达路线",
-                        "NEARBY OR NO VERIFIED WALKING ROUTE");
+                    Game.L("当前没有可验证的步行路线",
+                        "NO VERIFIED WALKING ROUTE");
                 if(Button(888,693,306,32,prompt,false,walkable))
                     PinInspectedQuestWalkingApproach();
             }

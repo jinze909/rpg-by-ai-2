@@ -3038,6 +3038,53 @@ public static class RuntimeCombatInputChecks
         Console.WriteLine("PASS Quest-owned navigation follows real field survey stages, preserves manual pins and retires on quest completion");
     }
 
+    private static void QuestApproachAtContactShowsInteractionAndKeepsAutoFollow(
+        FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.flags.Add("intro");
+        g.save.english=true;
+        g.save.showGuidance=false;
+        g.mode="journal";
+        string chosen=null;
+        foreach(string id in GameCore.QuestIds)
+        {
+            QuestGuide q=g.GetQuest(id);
+            if(q.locked||q.complete||q.room!=g.save.room)continue;
+            if(g.NavigationPathFrom(g.Position,q.target,true).Count>0)
+            {chosen=id;break;}
+        }
+        Check(chosen!=null,"An authentic local quest has an actual walkable approach");
+        Check(g.PlaceQuestApproachWaymark(chosen)&&
+            g.QuestApproachNavigationActive,
+            "Real journal interaction creates a quest-owned transient waypoint");
+        Point site=g.LocalWaymark.Value;
+        // Reproduce genuine arrival at the verified standing tile; unlike
+        // a plain map pin it must remain until the quest is interacted with.
+        g.save.x=site.x;g.save.y=site.y;
+        g.mode="world";
+        g.Tick(.05f,new Point());
+        Check(g.QuestApproachNavigationActive&&
+            g.QuestApproachAwaitingInteraction&&
+            g.HasLocalWaymark&&g.PersonalNavigationActive,
+            "Arriving at a quest waypoint retains its stage ownership and requests interaction");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("AT QUEST")&&x.Contains("INTERACT")),
+            "The actual world minimap explains that the next action is to interact");
+        g.mode="map";Set(app,"selectedRegion",g.save.room);
+        GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("Cancel quest route auto-follow")),
+            "The real local map offers a distinct cancellation action for quest-follow navigation");
+        GUI.queuedClick=new Rect(888,571,306,35);
+        Call(app,"OnGUI");GUI.queuedClick=null;
+        Check(!g.QuestApproachNavigationActive&&!g.HasLocalWaymark&&
+            g.save.version==2,
+            "Map cancellation retires only transient auto-follow and never migrates old saves");
+        g.Close();
+        Console.WriteLine("PASS Quest arrival retains interaction route and exposes auto-follow/cancel state in live world and map UI");
+    }
+
     private static void QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking(
         FrontierRuntime app)
     {
@@ -7783,7 +7830,7 @@ public static class RuntimeCombatInputChecks
             MaxLevelProgressionShowsFinalState,
             RespecButtonExplainsSkillPointCap,
             TitleSaveManagerNeverOverwritesAnotherJourney,
-            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
+            FishingSuspendsOnFocusLossAndResumesOnReturn, JournalAvailableQuestFilterHidesLockedAndCompleteButKeepsRealProgress, MapRegionQuestBrowserOpensCorrectJournalEntryWithoutChangingSaves, LiveMapObjectiveClickInspectsQuestWithoutMovingPersonalPin, JournalCanPinRealLocalQuestWithoutRetargetingOrSpoofingMap, QuestWaymarkFollowsRealTrailStagesWithoutChangingManualPins, QuestApproachAtContactShowsInteractionAndKeepsAutoFollow, QuestApproachPinUsesVerifiedPhysicalRouteAndPreservesTracking, InspectedQuestRouteUsesReachablePhysicalApproachWithoutRetargeting, InspectedQuestCanBeTrackedByExplicitMapActionWithoutErasingPersonalPin, JournalShowDestinationInspectsSelectedQuestWithoutChangingTracking, LiveJourneyJournalExplainsAndTracksRealStory, LiveFishingReelUsesRealBiteAndProductionHud, LiveFishingBiteClockAndHudPreventInfiniteWaiting,
             DeathRecoveryCannotBeInterruptedByMenuOrFocus,
             StalledFramesAdvanceActualWorldTimeWithoutRunawayCatchup,
             ActorRegistrationChecks.VerifyQueuedSkillWorldCueOnlyForActualIntent,
