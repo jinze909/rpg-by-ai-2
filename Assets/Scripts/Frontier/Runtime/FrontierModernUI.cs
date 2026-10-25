@@ -734,12 +734,14 @@ namespace Starfall
                         12,mint,TextAnchor.MiddleCenter);
                 else if(Game.HasLocalWaymark)
                 {
-                    if(Button(888,571,145,35,Game.L("移动标记","Move pin")))
-                    {mapTileCursor.Begin(Game.Position,m.rows[0].Length,m.rows.Length);navigationRepeat=0;}
-                    if(Button(1044,571,150,35,
+                    // Preserve the original full-width clear action and its
+                    // mouse/focus geometry. Controller users can clear the
+                    // prior pin and choose a fresh tile without ever altering
+                    // the existing live-route transaction.
+                    if(Button(888,571,306,35,
                         Game.LocalWaymarkRouteBlocked ?
-                            Game.L("清除封路标记","Clear blocked pin") :
-                            Game.L("清除个人标记","Clear pin")))
+                            Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
+                            Game.L("清除个人地图标记","Clear personal map pin")))
                         Game.ClearLocalWaymark();
                 }
                 else if(Button(888,571,306,35,
