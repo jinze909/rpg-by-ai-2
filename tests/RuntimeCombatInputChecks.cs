@@ -1754,13 +1754,13 @@ public static class RuntimeCombatInputChecks
         var ambient=new Hazard{position=hero,timer=2f,radius=1f,
             damage=5f,kind="tide"};
         g.hazards.Add(ambient);
-        Check(g.hazards.FindAll(h=>Object.ReferenceEquals(h.bossOwner,defeated)).Count==3&&
-              g.hazards.FindAll(h=>Object.ReferenceEquals(h.bossOwner,survivor)).Count==3,
+        Check(g.hazards.FindAll(h=>System.Object.ReferenceEquals(h.bossOwner,defeated)).Count==3&&
+              g.hazards.FindAll(h=>System.Object.ReferenceEquals(h.bossOwner,survivor)).Count==3,
             "Two independent Bosses have separately owned real delayed tide sweeps");
         CallCore(g,"Hit",defeated,1200f,false,null,null);
         Check(!g.enemies.Contains(defeated)&&g.enemies.Contains(survivor)&&
-            !g.hazards.Exists(h=>Object.ReferenceEquals(h.bossOwner,defeated))&&
-            g.hazards.FindAll(h=>Object.ReferenceEquals(h.bossOwner,survivor)).Count==3&&
+            !g.hazards.Exists(h=>System.Object.ReferenceEquals(h.bossOwner,defeated))&&
+            g.hazards.FindAll(h=>System.Object.ReferenceEquals(h.bossOwner,survivor)).Count==3&&
             g.hazards.Contains(ambient),
             "Genuine lethal combat clears only the killed Boss's pending contacts");
         Check(g.Has("boss_5")&&g.save.version==2,
