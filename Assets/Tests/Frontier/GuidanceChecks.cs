@@ -2038,6 +2038,9 @@ namespace Starfall.Tests
             Check(g.WayfarerIntegrity==100&&g.WayfarerEncounterRoom==1&&
                 attacker.state==0,
                 "Lead raider crossing after windup keeps the traveler unharmed until an actual unblocked strike");
+            Check(g.effects.Exists(fx=>fx.kind=="number"&&
+                fx.text.Contains("队友挡路")&&fx.wayfarerOwned),
+                "A real intercepted traveler strike displays the authored encounter-owned ally-block cue");
             Check(g.save.version==2&&!g.Has("wayfarer_1"),
                 "Body cover never fabricates rescue victory, payments or save migration");
         }

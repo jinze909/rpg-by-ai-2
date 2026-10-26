@@ -249,6 +249,9 @@ namespace Starfall.Tests
                 for(int i=0;i<16;i++)g.Tick(.05f,new Point());
                 Check(g.save.health==health&&rear.state==0,
                     "A living teammate crossing a released melee lane blocks actual player HP damage without cancelling the original attack clock");
+                Check(g.effects.FindAll(fx=>fx.kind=="number"&&
+                    fx.text.Contains("队友挡路")).Count==1,
+                    "One real blocked contact gives the player a readable, non-spamming combat cue");
                 Check(g.save.version==2,
                     "Melee cover is transient combat geometry and does not migrate existing saves");
                 // Genuine zero-length melee contact is not occluded by a

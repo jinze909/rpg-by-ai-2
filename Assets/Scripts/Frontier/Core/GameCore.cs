@@ -1866,6 +1866,7 @@ namespace Starfall
                         TagEnemyCombatEffect(releaseEffect, e,
                             escortPatrol && e.targetingReliefCivilian);
                         effects.Add(releaseEffect);
+                        bool stoppedByLivingCover=false;
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
@@ -1966,8 +1967,13 @@ namespace Starfall
                             }
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
-                        else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position) &&
-                            EnemyMeleeLaneClear(e,Position)) Hurt(11, "lunge", e.facing);
+                        else if (InEnemyMeleeArc(e,Position) &&
+                                 ClearAttackPath(e.Position,Position))
+                        {
+                            if(EnemyMeleeLaneClear(e,Position))
+                                Hurt(11,"lunge",e.facing);
+                            else stoppedByLivingCover=true;
+                        }
                         // Only an uninterrupted genuine enemy release can
                         // strike the receiver. Nearby bodyguards draw the
                         // enemy's locked intent and prevent stock damage.
@@ -1977,18 +1983,39 @@ namespace Starfall
                         // the player's HP; heavy area blows are not melee.
                         bool objectiveLaneClear=e.boss||e.kind!=0||
                             EnemyMeleeLaneClear(e,e.target);
+                        bool objectiveThreat=(stockRaider&&e.targetingAfterlightStock)||
+                            (patrolSaboteur&&e.targetingOuterPatrolStock)||
+                            (travelerAttacker&&e.targetingWayfarer);
+                        if(objectiveThreat&&!objectiveLaneClear)
+                            stoppedByLivingCover=true;
                         if(stockRaider&&e.targetingAfterlightStock&&objectiveLaneClear)
                             DamageAfterlightWatchStock(e);
                         if(patrolSaboteur&&e.targetingOuterPatrolStock&&objectiveLaneClear)
                             DamageOuterPatrolStock(e);
                         if(travelerAttacker&&e.targetingWayfarer&&objectiveLaneClear)
                             DamageWayfarer(e);
-                        if(reliefMissionRoom!=0 &&
+                        bool rescueThreat=reliefMissionRoom!=0 &&
                             (IsReliefMissionEnemy(e)||escortPatrol) &&
-                            e.targetingReliefCivilian && e.kind!=1 &&
-                            (e.kind!=0||e.boss||
-                             EnemyMeleeLaneClear(e,reliefFollowerPosition)))
+                            e.targetingReliefCivilian && e.kind!=1;
+                        bool rescueLaneClear=e.kind!=0||e.boss||
+                            EnemyMeleeLaneClear(e,reliefFollowerPosition);
+                        if(rescueThreat&&rescueLaneClear)
                             DamageReliefCivilian(e);
+                        if(rescueThreat&&!rescueLaneClear)
+                            stoppedByLivingCover=true;
+                        // One short, real-world cue at the CONTACT moment,
+                        // never an every-frame crowd warning or a phantom
+                        // reward. The existing number VFX is rendered by the
+                        // shipped Frontier scene, and encounter ownership
+                        // ensures retirement removes it correctly.
+                        if(stoppedByLivingCover)
+                        {
+                            var blocked=new Effect("number",e.Position,.65f,
+                                L("队友挡路","ALLY BLOCK")) ;
+                            TagEnemyCombatEffect(blocked,e,
+                                escortPatrol&&e.targetingReliefCivilian);
+                            effects.Add(blocked);sound="guard";revision++;
+                        }
                         // Rescue archers only injure civilians where their real
                         // arrow actually flies. No hitscan at the windup release.
                         e.targetingWayfarer = e.targetingReliefCivilian =
