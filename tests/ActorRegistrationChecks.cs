@@ -4441,11 +4441,80 @@ public static class ActorRegistrationChecks
             "PASS all 3 companions x 4 source facings: repeated walk/stop/cast outlines are read-only, planted full bodies and single action identities survive");
     }
 
+
+    public static void VerifyCompanionSurvivesPartialActionAtlasImport(
+        FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        for(int id=0;id<3;id++)
+        for(int dir=0;dir<4;dir++)
+        for(int state=0;state<3;state++)
+        {
+            app.BeginVisualReview(0,0);
+            GameCore game=app.Game;
+            game.save.companion=id;
+            game.companionAim=Directions[dir];
+            game.companionPosition=new Point(12.5f,12.5f);
+            game.companionMoving=state==1;
+            game.companionMoveTime=GameCore.WalkStride*.35f;
+            game.companionAction=state==2?
+                new ActorAction{kind="command",weapon=id,
+                    direction=Directions[dir],contact=.16f,
+                    duration=.42f,elapsed=.23f,released=true}:null;
+            var field=typeof(FrontierRuntime).GetField("companionSheets",Private);
+            var walkField=typeof(FrontierRuntime).GetField("companionWalkSheets",Private);
+            var actionSheets=(Texture2D[])field.GetValue(app);
+            var walkSheets=(Texture2D[])walkField.GetValue(app);
+            Check(actionSheets!=null&&walkSheets!=null&&
+                walkSheets[id]!=null&&walkSheets[id].width==1024&&
+                walkSheets[id].height==768,
+                "The original full-body Walk source is required for this import-recovery test");
+            Texture2D originalAction=actionSheets[id];
+            Texture2D originalWalk=walkSheets[id];
+            try
+            {
+                actionSheets[id]=new Texture2D(133,121,
+                    TextureFormat.RGBA32,false){
+                    name="bad-partial-companion-"+names[id]};
+                Point screen=new Point(520f,375f);
+                Place(app,game.companionPosition,screen);
+                Clear();var calls=Draw(app,"DrawCompanionActor");
+                var actors=calls.Where(ActorTexture).ToArray();
+                Check(actors.Length==1&&actors[0].texture==originalWalk,
+                    "Partial action import must draw exactly the SAME companion's published Walk body: "+names[id]);
+                var body=actors[0];
+                Check(Math.Abs(body.rect.width-192f)<.001f&&
+                    Math.Abs(body.rect.x-(screen.x-96f))<1.2f&&
+                    Math.Abs(body.rect.y-(screen.y-180f))<1.2f,
+                    "Fallback keeps full-body source density and unchanged 120/128 planted foot root");
+                if(state==2)Check(FrameColumn(body,4)==0,
+                    "A missing action sheet may only hold the same companion's painted idle, not fabricated contact art");
+                actionSheets[id]=null;
+                Clear();var missing=Draw(app,"DrawCompanionActor")
+                    .Where(ActorTexture).ToArray();
+                Check(missing.Length==1&&missing[0].texture==originalWalk,
+                    "A null action import must keep the original actor visible without generic NPC art");
+                walkSheets[id]=new Texture2D(301,174,
+                    TextureFormat.RGBA32,false){name="bad-partial-walk"};
+                Clear();var noIdentity=Draw(app,"DrawCompanionActor")
+                    .Where(ActorTexture).ToArray();
+                Check(noIdentity.Length==0,
+                    "If both original companion atlases fail, never borrow an unrelated identity");
+            }
+            finally
+            {
+                actionSheets[id]=originalAction;
+                walkSheets[id]=originalWalk;
+            }
+        }
+        Console.WriteLine("PASS companion import recovery: 3 original allies x 4 facings x 3 real poses survive partial/null action art without mismatched costumes");
+    }
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try
         {
             CompanionGaitActuallyPlantsBothFeet(app);
+            VerifyCompanionSurvivesPartialActionAtlasImport(app);
             VerifyCompanionFootfallsFollowGaitRestart(app);
             CompanionOutlinePassCannotConsumeGaitOrAttack(app);
         }

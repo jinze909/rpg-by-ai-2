@@ -170,14 +170,25 @@ namespace Starfall
         private void DrawCompanionActor()
         {
             Point p = ScreenPoint(Game.companionPosition); int id = Game.save.companion;
-            if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)
-            { DrawNpc("companion", Game.companionPosition, id + 8); return; }
-            // A partial but non-null import is not a different character.
-            // Keep the companion's identity rather than indexing a malformed
-            // 3x4 grid or silently replacing Mira/Ivo/Sen with a generic NPC.
-            if (!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]))
+            if(id<0||id>=3)return;
+            // The imported action atlas may be missing or partial while
+            // THIS companion's accepted full-body Walk art remains intact.
+            bool actionArtReady=companionSheets!=null&&
+                id<companionSheets.Length&&
+                ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]);
+            bool publishedWalk=companionWalkSheets!=null &&
+                id<companionWalkSheets.Length&&
+                companionWalkSheets[id]!=null&&
+                companionWalkSheets[id].width==4*256&&
+                companionWalkSheets[id].height==3*256;
+            if(!actionArtReady&&!publishedWalk)
+            {
+                WarnMissingCompanionBody(id,"action and walk");
                 return;
+            }
             ActorAction action = Game.companionAction;
+            if(action!=null&&!actionArtReady&&!drawingOutline)
+                WarnMissingCompanionBody(id,"action; holding own Walk idle");
             Point direction = action == null ? Game.companionAim : action.direction;
             bool north = direction.y < -Math.Abs(direction.x), south = direction.y > Math.Abs(direction.x);
             // The 3x4 source atlas has distinct east, north and south
@@ -208,11 +219,6 @@ namespace Starfall
             // A non-null Texture2D can still be a partial/wrong-size
             // import. Accept only the audited 4x3 grid of 256px cells;
             // otherwise fall back to the intact original action atlas.
-            bool publishedWalk=companionWalkSheets!=null &&
-                id<companionWalkSheets.Length&&
-                companionWalkSheets[id]!=null&&
-                companionWalkSheets[id].width==4*256&&
-                companionWalkSheets[id].height==3*256;
             int row=GameCore.DirectionRow(direction);
             // The first genuine draw of a new character, game instance or
             // companion presentation generation must use THAT actor's own
@@ -303,6 +309,15 @@ namespace Starfall
                         clock-companionStopTime):0;
                 Actor(companionWalkSheets[id],4,3,
                     row*4+finish,p,192f,tint,flip);
+            }
+            else if(action!=null&&!actionArtReady&&publishedWalk)
+            {
+                // Only a planted, source-painted, same-identity full body
+                // survives a temporary action-atlas import failure.
+                // Combat and projectile authority remain in GameCore;
+                // no fabricated contact sprite or old companion costume.
+                if(!drawingOutline)companionWasWalking=false;
+                Actor(companionWalkSheets[id],4,3,row*4,p,192f,tint,flip);
             }
             else if(action!=null&&!action.released&&
                     companionAttackStartedFromWalk&&

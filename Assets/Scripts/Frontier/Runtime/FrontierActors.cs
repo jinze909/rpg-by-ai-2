@@ -7,6 +7,17 @@ namespace Starfall
     {
         private Texture2D[] playerSheets;
         private Texture2D[] companionSheets;
+        private readonly System.Collections.Generic.HashSet<string>
+            missingCompanionBodyWarnings =
+                new System.Collections.Generic.HashSet<string>();
+        private void WarnMissingCompanionBody(int id,string missing)
+        {
+            string name=id==0?"Mira":id==1?"Ivo":"Sen";
+            if(missingCompanionBodyWarnings.Add(name+":"+missing))
+                Debug.LogWarning("Starfall companion "+name+
+                    " visual import incomplete ("+missing+
+                    "); rendering only this ally's accepted full-body source.");
+        }
         private Texture2D[] walkSheets, companionWalkSheets, bossWalkSheets;
         private Texture2D monsterWalkSheet;
         private Texture2D mossboundRaiderSheet;
