@@ -280,8 +280,8 @@ namespace Starfall
                 if(watchPressure)
                     Text(398,82,481,18,
                         (heroBodyguard?
-                            Game.L("站位成功：已挡住接收站攻击",
-                                "BODYGUARD READY · STRIKE INTERCEPTED"):
+                            Game.L("已进入袭击线路 · 守住位置",
+                                "IN STRIKE LANE · HOLD POSITION"):
                             reserveThreat!=null?
                             Game.L("来袭将命中储备 · ","STOCK STRIKE IN ")+
                             Math.Max(0f,reserveThreat.timer).ToString("0.0")+"s":

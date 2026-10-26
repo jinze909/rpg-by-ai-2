@@ -1957,9 +1957,16 @@ namespace Starfall.Tests
             }
             Check(ready,"The real map offers a standable, unobstructed hero body in the raider's declared strike lane");
             float safeStock=g.AfterlightWatchStock;
+            // The hero is an actual hit-able actor, not an abstract immunity
+            // aura around the public receiver. Count the price of stepping
+            // into a real enemy lunge with invulnerability OFF.
+            g.invulnerable=0f;
+            float preBlockHealth=g.save.health;
             Check(g.AfterlightWatchIncomingStockThreat==null,
                 "The HUD and support AI must not call a physically body-blocked strike unavoidable");
             g.Tick(.05f,new Point());
+            Check(g.save.health<preBlockHealth,
+                "Physically shielding the station absorbs the attack on the hero's actual HP, not a free global perk");
             Check(g.AfterlightWatchActive&&
                 Math.Abs(g.AfterlightWatchStock-safeStock)<.001f&&
                 foe.state==0&&
