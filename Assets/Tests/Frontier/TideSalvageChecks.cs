@@ -476,7 +476,10 @@ namespace Starfall.Tests
                 saved.save.skillPoints==99&&saved.save.xp==xp+75&&
                 saved.Has("tide_salvage_complete"),
                 "Real player clears exactly enough capacity and Tolan pays the outstanding 56 coins, two shards and one talent once");
-            Action(saved,"tidedock","tide_salvage_claim");
+            // A settled voucher disappears from the NPC menu entirely.
+            // Exercise a stale/forged action directly rather than expecting
+            // the interface to offer an already-consumed claim.
+            choose.Invoke(saved,new object[]{"tide_salvage_claim"});
             Check(saved.save.coins==999999&&saved.save.shards==99999&&
                 saved.save.skillPoints==99,
                 "A stale or repeated dock action cannot farm completed salvage rewards");
