@@ -1342,7 +1342,15 @@ namespace Starfall.Tests
             g.save.flags.Add("civic_aftercare_started");
             g.save.flags.Add("civic_aftercare_published");
             foreach(int region in new[]{0,3,5})
+            {
                 g.save.flags.Add("civic_aftercare_waytrail_"+region);
+                // A published audit REQUIRES a genuine earlier inspection
+                // of each old road marker. Keep its original first-survey
+                // coins/shards from being falsely charged to resupply.
+                foreach(WorldObject old in data.maps[region].objects)
+                    if(old.kind=="waytrail")
+                        g.save.flags.Add("waytrail_"+old.id);
+            }
             g.save.inventory[0]=12;g.save.inventory[2]=8;
             int initialCoins=g.save.coins,initialShards=g.save.shards;
             int[] regions={0,3,5};
