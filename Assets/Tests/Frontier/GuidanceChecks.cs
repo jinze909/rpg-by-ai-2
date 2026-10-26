@@ -275,6 +275,14 @@ namespace Starfall.Tests
             restored.enemies.Clear();
             restored.save.x=shelter.x;restored.save.y=shelter.y;
             restored.save.coins=999970;restored.save.shards=99998;
+            restored.Talk(shelter);
+            Check(restored.conversation!=null&&
+                Array.Exists(restored.conversation.choices,
+                    c=>c.action=="far_rest")&&
+                Array.Exists(restored.conversation.choices,
+                    c=>c.action=="far_courier_claim"),
+                "The original refuge still offers timber-fueled rest alongside the added reserved reward; neither menu steals the other");
+            restored.Close();
             Action(restored,"farshelter","far_courier_claim");
             Check(restored.FarCourierRewardPending(0)&&
                 restored.save.coins==999970&&restored.save.shards==99998,

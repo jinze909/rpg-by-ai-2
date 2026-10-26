@@ -190,10 +190,30 @@ namespace Starfall
                 return count;
             }
         }
+        private void AppendFarCourierRewardChoice(WorldObject source)
+        {
+            if(source==null||source.kind!="farshelter"||
+               save.room<0||save.room>=8||mode!="dialog"||
+               conversation==null||!SourceBelongsToActiveMap(source)||
+               !FarCourierRewardPending(save.room))return;
+            foreach(Choice choice in conversation.choices)
+                if(choice.action=="far_courier_claim")return;
+            conversation.text+="\n\n守棚人指了指账簿上夹着的一张收据：“你送来的药箱在这里，欠你的补给奖金也在。腾出空间就来签字。”";
+            conversation.textEn+="\n\nThe keeper taps a receipt in the ledger. “Your medicines reached us. The bonus we still owe you is written here. Come sign for it when you have room.”";
+            var choices=new System.Collections.Generic.List<Choice>(conversation.choices);
+            int insertAt=choices.Count;
+            if(insertAt>0&&choices[insertAt-1].action=="close")insertAt--;
+            choices.Insert(insertAt,
+                C("签领未付的救援奖金","Claim reserved parcel bonus",
+                    "far_courier_claim"));
+            conversation.choices=choices.ToArray();
+        }
         private bool ClaimFarCourierReward(WorldObject shelter)
         {
             if(shelter==null||shelter.kind!="farshelter"||
                 save.room<0||save.room>=8||Dying||practicing||
+                !System.Object.ReferenceEquals(pendingDialogueSource,shelter)||
+                pendingDialogueSourceRoom!=save.room||
                 !SourceBelongsToActiveMap(shelter)||
                 !HasPhysicalInteractionReach(shelter))return false;
             string receipt;int coins,shards,talent;
@@ -296,21 +316,10 @@ namespace Starfall
             int room=save.room;
             if(room<0||room>=8||!HasPhysicalInteractionReach(o)||
                !FarBridgeOpen(room)||!FarShelterBuilt(room))return false;
-            if(FarCourierDelivered(room))
-            {
-                if(shelter&&FarCourierRewardPending(room))
-                {
-                    Dialog(o.name,o.en,
-                        "那趟救援包已经送到棚里。你当时装不下的奖金，值守员按原数留在本地账上。"+
-                        " 腾出硬币、碎片或技能点空间后，可以在这里领清。",
-                        "Your parcel reached this refuge. The watchkeeper set aside only the reward that did not fit your wallet. "+
-                        "Return after freeing coin, shard or talent space.",
-                        C("签领未付的救援奖金","Claim reserved parcel bonus",
-                            "far_courier_claim"),
-                        C("稍后领取","Collect later","close"));return true;
-                }
-                return false;
-            }
+            // Previously delivered parcels must still use the ORIGINAL
+            // shelter dialogue: rest, soup deliveries and later civic care
+            // must remain playable while a reward is stored.
+            if(FarCourierDelivered(room))return false;
             if(checkpoint)
             {
                 bool eligible=FarCourierActive&&courierCrossed&&!courierStamped;
