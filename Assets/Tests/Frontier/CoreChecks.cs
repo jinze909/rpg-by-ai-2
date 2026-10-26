@@ -1638,6 +1638,12 @@ namespace Starfall.Tests
                 if(index==0)
                 {
                     g.PrepareSave();
+                    Enemy originalGuard=g.enemies.Find(g.IsCivicCourierGuard);
+                    Check(originalGuard!=null&&
+                        (g.save.worldEnemies==null||
+                         !Array.Exists(g.save.worldEnemies,
+                            record=>record!=null&&record.id==originalGuard.id)),
+                        "Mission ambusher is NOT serialized as an ordinary V2 roaming enemy");
                     var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
                     Check(loaded.save.version==2&&loaded.CivicCourierActive&&
                         loaded.save.inventory[2]==herbs-1&&
@@ -1685,6 +1691,20 @@ namespace Starfall.Tests
                 Check(g.CivicCourierGuardCleared(region)&&
                     !g.enemies.Exists(g.IsCivicCourierGuard),
                     "A REAL enemy death permanently secures the cargo route");
+                if(index==0)
+                {
+                    g.PrepareSave();
+                    var afterKill=new GameCore(data,CloneSave(g.save));
+                    afterKill.Start();
+                    Check(afterKill.CivicCourierGuardCleared(region)&&
+                        afterKill.CivicCourierActive&&
+                        !afterKill.enemies.Exists(afterKill.IsCivicCourierGuard),
+                        "V2 reloading AFTER the real raid kill preserves victory without respawning the defeated bowman");
+                    g=afterKill;
+                    destination=Array.Find(g.Map.objects,
+                        x=>x.kind=="waytrail"&&x.id==destination.id);
+                    g.save.x=destination.x;g.save.y=destination.y;
+                }
                 g.Talk(destination);
                 deliver=Array.FindIndex(g.conversation.choices,
                     x=>x.action=="civic_courier_deliver");

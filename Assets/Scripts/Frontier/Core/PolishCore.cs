@@ -560,7 +560,8 @@ namespace Starfall
                 // them as ordinary world patrols.
                 if (IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) || IsAtlasEchoEnemy(e) ||
                     IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e)) continue;
+                    IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) ||
+                    IsCivicCourierGuard(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();
@@ -609,6 +610,12 @@ namespace Starfall
             // SpawnRoom instances were replaced by reconstructed world
             // actors. Rebind the true patrols after restore completes.
             RebindRidgeWatchAfterWorldRestore();
+            // The ordinary snapshot intentionally excludes mission-owned
+            // actors. Its reconstruction replaced the SpawnRoom list, so
+            // reconnect a NEW real medical-route archer using surviving V2
+            // contract flags instead of pointing at a discarded instance.
+            ResetCivicCourierGuard();
+            SpawnCivicCourierGuard();
         }
     }
 }
