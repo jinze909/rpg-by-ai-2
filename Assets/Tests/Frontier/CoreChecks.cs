@@ -1469,7 +1469,8 @@ namespace Starfall.Tests
             g.save.trackedQuest="main";
             var guide=typeof(GameCore).GetMethod(
                 "EmergencyCivicWaystationGuideTarget",
-                BindingFlags.NonPublic|BindingFlags.Instance);
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
             Check(guide!=null,
                 "The production urgent compass uses a single source-owned route selector");
             Check(!((Point?)guide.Invoke(g,null)).HasValue,
