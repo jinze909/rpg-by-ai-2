@@ -115,7 +115,83 @@ namespace Starfall
                 StoryChoice("收起这张图","Put the sketch away","close"));
         }
 
+        // The chronicle is a PHYSICAL BOOK, not a remotely summoned
+        // character. Its pages carry firsthand recovered evidence and
+        // no made-up omniscient narrator or future milestone spoilers.
+        private void WorldArchiveCatchUp()
+        {
+            string zh="巡路纪事 · 尚未归档的道路\n\n雨水把一张巡路表浸得发软。页脚写着：“道路是否可通，以归来的人为准。”";
+            string en="Roadwarden notes · Routes still unaccounted for\n\nRain has softened an old route sheet. Along the bottom someone wrote: “A road is open only when someone comes back along it.”";
+            if(save.stage==0)
+            {
+                zh+=Has("core_1")?
+                    "\n\n荆棘密林的星核已由巡路者带出，公会收讫栏仍空着。下一处签收地点：莉雅的登记桌。":
+                    "\n\n荆棘密林的侦察员尚未在归队栏签名。最后的路标指向旧祭坛；先确认他是否平安。";
+                en+=Has("core_1")?
+                    "\n\nThe Thornwood core has been recovered, but the guild receipt is unsigned. Next handoff: Lyra's desk.":
+                    "\n\nThe Thornwood scout has not signed the return column. His last marker points toward the old altar. Confirm he's alive first.";
+            }
+            else if(save.stage<3)
+            {
+                zh+=save.stage==1?
+                    "\n\n下一份空白栏：沉没遗迹渡口。潮汐记录与星核供能记录尚未核对。":
+                    "\n\n下一份空白栏：赤铁矿场换班簿。升降机和矿场供能记录尚未核对。";
+                en+=save.stage==1?
+                    "\n\nNext blank column: the Drowned Ruins ferry. Tide readings and core power records remain unverified.":
+                    "\n\nNext blank column: Ironreach shift register. Lift access and mine power records remain unverified.";
+            }
+            else if(save.ending==0)
+            {
+                zh+="\n\n三处星核都已送往堡垒。远岸的居民证词与屏障用电账仍需对照，不能只在图上圈出一个结果。";
+                en+="\n\nAll three cores went to the citadel. The farshore witness accounts still need to be set beside the shield's power ledger.";
+            }
+            else
+            {
+                zh+="\n\n旧星核案已经落款。今日未结栏：公用线路维修、道路巡查与救援站用电。";
+                en+="\n\nThe original core decision is signed. Open work: public-line repairs, road patrols, and power for emergency shelters.";
+            }
+            Dialog("边境编年册","Frontier Chronicle",zh,en,
+                StoryChoice("翻阅旅人记录","Read the travelers' entries","story_people"),
+                StoryChoice("核对星根术语","Check the starroot glossary","story_terms"),
+                StoryChoice("返回编年册目录","Back to the chronicle","story_menu"),
+                StoryChoice("合上记录","Close the record","close"));
+        }
+        private void WorldArchivePeople()
+        {
+            string zh="巡路纪事 · 来往登记\n\n镇口药箱：杏。渡口修船木板：老潮。矿场停机阀门：诺尔。三栏都留下了收货人的名字，未签收的单子仍夹在后面。";
+            string en="Roadwarden notes · Names on the cargo slips\n\nMedicinal herbs at the town crossing: An. Ferry planks: Old Tide. Mine shutdown valve: Noll. All three have a named recipient; undelivered slips remain in the folder.";
+            if(Has("scout_saved"))
+            {
+                zh+="\n\n新增返程登记：密林侦察员已归队，带回旧祭坛附近人为砍断的树根样本。";
+                en+="\n\nNew return entry: the Thornwood scout came home carrying roots cut by a tool near the altar.";
+            }
+            if(save.stage>=3)
+            {
+                zh+="\n\n堡垒供能申请已附三处原始路单。用电者与停电者的姓名须分别记录。";
+                en+="\n\nThree original route slips are attached to the citadel power request. Names of those supplied and those left without power must be recorded separately.";
+            }
+            Dialog("边境编年册","Frontier Chronicle",zh,en,
+                StoryChoice("返回待办道路","Back to the open routes","story_catchup"),
+                StoryChoice("核对星根术语","Check the glossary","story_terms"),
+                StoryChoice("返回目录","Back to contents","story_menu"),
+                StoryChoice("合上记录","Close the record","close"));
+        }
+        private void WorldArchiveTerms()
+        {
+            Dialog("边境编年册","Frontier Chronicle",
+                "星根线路说明 · 摘自工匠与巡路队的勘查页\n\n星根：地下输送水、热与能量的线路，连接七处锚点。\n\n星核：各锚点的关键部件，负责调配线路的供能。拿走一处星核，其他地方可能因此失去供给。\n\n星晶：在线路附近生成的矿石，可用于修复设备，不是星核。\n\n屏障：堡垒的防护设施，确实保护城内居民，也占用了原本可供其他地区使用的能量。",
+                "Starroot glossary · From the engineers' and roadwardens' survey pages\n\nStarroot: underground lines carrying water, warmth, and power through seven anchors.\n\nStarcore: a vital component at each anchor controlling its power. Removing one may deprive another region of supply.\n\nStarcrystal: mineral found beside these lines. Useful for repairing equipment, but not a starcore.\n\nShield: the citadel's defense. It protects residents inside, while consuming power also needed elsewhere.",
+                StoryChoice("返回待办道路","Back to open routes","story_catchup"),
+                StoryChoice("阅读旅人登记","Read the travelers' entries","story_people"),
+                StoryChoice("返回目录","Back to contents","story_menu"),
+                StoryChoice("合上记录","Close the record","close"));
+        }
+
         private void WorldStoryCatchUp()
+        {
+            WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="worldchronicle")
+            { WorldArchiveCatchUp();return; }
         {
             WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")
@@ -197,6 +273,10 @@ namespace Starfall
         private void WorldStoryPeople()
         {
             WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="worldchronicle")
+            { WorldArchivePeople();return; }
+        {
+            WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")
             { WorldInnStoryPeople(storyteller);return; }
         {
@@ -219,6 +299,10 @@ namespace Starfall
                 StoryChoice("把信收好","Put the letters away","close"));
         }
         private void WorldStoryTerms()
+        {
+            WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="worldchronicle")
+            { WorldArchiveTerms();return; }
         {
             WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")

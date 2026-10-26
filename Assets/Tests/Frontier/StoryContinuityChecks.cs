@@ -206,14 +206,60 @@ namespace Starfall.Tests
                 g.conversation.text.Contains("巡路"),
                 "Fresh original NPC story choices keep place, missing person and core after a rejected stale click");
         }
+        public static void WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.Enter(0);
+            WorldObject book=Object(g,"worldchronicle");
+            WorldObject guild=Object(g,"guild");
+            Check(book!=null&&guild!=null,
+                "Public archive and Lyra's desk are two distinct town sources");
+            g.save.x=book.x;g.save.y=book.y;
+            g.Talk(book);
+            int coins=g.save.coins,flags=g.save.flags.Count;
+            Check(g.conversationSource==book&&g.conversation.speaker=="边境编年册",
+                "Opening the physical archive starts as a book, never a human speaker");
+            ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversationSource==book&&
+                g.conversation.speaker=="边境编年册"&&
+                g.conversation.text.Contains("未归档的道路")&&
+                !g.conversation.text.Contains("莉雅推开")&&
+                !g.conversation.textEn.Contains("Lyra pushes"),
+                "Archive's current-route page is a written entry rather than an impersonated Lyra conversation");
+            ChooseStoryChoice(g,"story_people");
+            Check(g.conversation.speaker=="边境编年册"&&
+                g.conversationSource==book&&
+                g.conversation.text.Contains("来往登记")&&
+                !g.conversation.text.Contains("莉雅把几封"),
+                "Following archive people links stays inside the authored book");
+            ChooseStoryChoice(g,"story_terms");
+            Check(g.conversation.speaker=="边境编年册"&&
+                g.conversationSource==book&&
+                g.conversation.text.Contains("星核")&&
+                g.conversation.textEn.Contains("Starcrystal"),
+                "The archive glossary remains a written in-world source, in both languages");
+            ChooseStoryChoice(g,"story_menu");
+            Check(g.conversationSource==book&&
+                g.conversation.speaker=="边境编年册"&&
+                StoryChoicePresent(g,"story_section_campaign"),
+                "Returning to the authentic four-section chronicle keeps all original chapter navigation");
+            g.Close();
+            g.save.x=guild.x;g.save.y=guild.y;
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversationSource==guild&&
+                g.conversation.speaker.Contains("莉雅")&&
+                g.conversation.text.Contains("莉雅推开"),
+                "Opening the guild source after the book returns to Lyra's original human voice");
+            Check(g.save.coins==coins&&g.save.flags.Count==flags&&
+                g.save.version==2,
+                "Switching between physical book and Lyra changes no reward or old save data");
+        }
+
         public static void InnStoryFollowUpsRemainInTravelersOwnVoice(Campaign data)
         {
-            var g=Fresh(data);g.Close();
+            var g=Fresh(data);g.Close();g.Enter(9);
             WorldObject inn=Object(g,"innGuest");
-            WorldObject guild=Object(g,"guild");
-            Check(inn!=null&&guild!=null&&
-                !System.Object.ReferenceEquals(inn,guild),
-                "Town has separate living inn traveler and guild steward sources");
+            Check(inn!=null&&inn.kind=="innGuest",
+                "The roadwarden is the real inn resident, not a guild source");
             g.save.x=inn.x;g.save.y=inn.y;
             int coins=g.save.coins,flags=g.save.flags.Count;
             g.Talk(inn);
@@ -223,7 +269,7 @@ namespace Starfall.Tests
             ChooseStoryChoice(g,"story_catchup");
             Check(g.conversationSource==inn&&
                 g.conversation.speaker==inn.name&&
-                g.conversation.speakerEn==inn.en&&
+                g.conversation.en==inn.en&&
                 g.conversation.text.Contains("巡路员")&&
                 !g.conversation.text.Contains("莉雅推开")&&
                 !g.conversation.textEn.Contains("Lyra pushes"),
@@ -244,7 +290,9 @@ namespace Starfall.Tests
             Check(g.conversationSource==inn&&g.conversation.speaker==inn.name&&
                 StoryChoicePresent(g,"inn_routelead"),
                 "Explanatory branch returns to the REAL inn business and retains every original option");
-            g.Close();g.save.x=guild.x;g.save.y=guild.y;g.Talk(guild);
+            g.Close();g.Enter(0);
+            WorldObject guild=Object(g,"guild");
+            g.save.x=guild.x;g.save.y=guild.y;g.Talk(guild);
             ChooseStoryChoice(g,"story_catchup");
             Check(g.conversationSource==guild&&
                 g.conversation.speaker.Contains("莉雅")&&
