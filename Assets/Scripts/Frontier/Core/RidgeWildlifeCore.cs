@@ -83,6 +83,11 @@ namespace Starfall
         private bool RidgeWatchRespondsToAlarm(Enemy e)
         { return RidgeWatchAlarmActive&&ridgeWatchResponders.Contains(e)&&
             IsActiveRidgeWatchPatrol(e); }
+        // The production world draw follows EXACT encounter-owned actor
+        // identity. An unrelated body that reuses a numeric id cannot be
+        // presented as a teammate answering the ridge watch whistle.
+        public bool IsRidgeWatchResponder(Enemy e)
+        { return e!=null&&RidgeWatchRespondsToAlarm(e); }
         private Point RidgeWatchPursuitFoot(Enemy enemy,Point heroFoot)
         {
             if(!RidgeWatchRespondsToAlarm(enemy))return heroFoot;

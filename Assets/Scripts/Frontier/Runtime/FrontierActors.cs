@@ -1129,7 +1129,14 @@ namespace Starfall
             // tracked-journal waypoint. Static dots remain legible with
             // reduced-motion and vanish after the actual credited kill.
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
-                Ring(e.Position,.63f,PixelArt.C("#7acabb"),16);
+            {
+                // Green: an ordinary quest patrol. Amber: this exact
+                // surviving actor has heard a real whistle and is moving
+                // to investigate. No new whole-body frames or fake NPC.
+                Color patrolTint=Game.IsRidgeWatchResponder(e)?
+                    PixelArt.C("#e6b46e"):PixelArt.C("#7acabb");
+                Ring(e.Position,.63f,patrolTint,16);
+            }
             // Only the living caller owns this painted warning over its
             // original native full-body Sprite. The existing danger atlas
             // animates above its planted feet; a kill, stun or room change

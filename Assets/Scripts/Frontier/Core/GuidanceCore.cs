@@ -1024,6 +1024,14 @@ namespace Starfall
                     if(next==save.room&&ridgeWatchRoom==save.room&&
                         Object.ReferenceEquals(ridgeWatchMap,Map))
                     {
+                        // The whistle is the only interruptible tactical
+                        // objective. Prioritize its true living caller over
+                        // the nearest other guard, so the tracked compass
+                        // helps the player STOP reinforcements in time.
+                        if(RidgeWatchCallPending)
+                            q.target=ridgeWatchCaller.Position;
+                        else
+                        {
                         float nearest=float.MaxValue;
                         foreach(Enemy e in enemies)
                         {
@@ -1048,11 +1056,18 @@ namespace Starfall
                             Point? pending=RidgeWatchNextMissingFoot(next);
                             if(pending.HasValue)q.target=pending.Value;
                         }
+                        }
                     }
                 }
                 q.next=q.complete?L("全部七处野外巡路已经安全","All seven high-trail watches are clear"):
                     next<0?L("先连通高地两端路标，并击败地区守护者",
                         "Link both ridge markers and defeat a regional guardian first"):
+                    next==save.room&&RidgeWatchCallPending?
+                        L("一名真实巡敌正在呼援！优先前往标记处击倒或眩晕它。",
+                          "A patrol is calling backup! Reach the marked caller and interrupt it with a kill or stun."):
+                    next==save.room&&RidgeWatchRespondingCount>1?
+                        L("巡逻队收到信号，正在向真实遇袭地点集结。利用掩体应对增援。",
+                          "The squad is converging on the last reported contact. Use cover against arriving reinforcements."):
                     next==save.room&&RidgeWatchPatrolsAwaitingFooting(next)>0&&
                         RidgeWatchProgress(next)+RidgeWatchPatrolsAwaitingFooting(next)==3?
                         L("最后一处巡路暂时封闭。待道路恢复，击败重新出现的巡敌。",

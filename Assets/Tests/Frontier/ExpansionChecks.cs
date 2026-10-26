@@ -4315,6 +4315,58 @@ namespace Starfall.Tests
                 "Returning to a surveyed highland retains one genuine set of patrols");
         }
 
+        public static void RidgeWatchJournalTargetsInterruptibleCallerAndLiveResponders(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var ids=(Dictionary<int,int>)typeof(GameCore).GetField(
+                "ridgeWatchIds",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(g);
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Enemy caller=null,nearby=null;
+            foreach(Enemy e in g.enemies)
+            {
+                int index;
+                if(!ids.TryGetValue(e.id,out index))continue;
+                if(index==0)caller=e;
+                if(index==2)nearby=e;
+            }
+            Check(caller!=null&&nearby!=null,
+                "An authentic patrol caller and a distinct nearer guard must exist");
+            // The nearest regular target differs from the faraway
+            // whistle source. This demonstrates genuine target reprioritization.
+            g.save.x=nearby.x+.7f;g.save.y=nearby.y;
+            Check((g.GetQuest("ridge_watch").target-nearby.Position).Length<.01f,
+                "Before combat the original tracked guidance selects the closest live patrol");
+            strike.Invoke(g,new object[]{caller,1f,false,null,null});
+            var live=g.GetQuest("ridge_watch");
+            Check(g.RidgeWatchCallPending&&
+                (live.target-caller.Position).Length<.01f&&
+                (live.next.Contains("calling backup")||live.next.Contains("呼援")),
+                "A real pending whistle becomes the physical navigation and counterplay priority");
+            Enemy impostor=new Enemy(caller.id,caller.kind,
+                caller.x,caller.y,caller.maxHp);
+            Check(!g.IsRidgeWatchResponder(impostor),
+                "Actor identity cannot be forged using another patrol's numeric ID");
+            g.save.x=12.5f;g.save.y=14.5f;
+            for(int i=0;i<19;i++)g.Tick(.05f,new Point());
+            Check(g.RidgeWatchAlarmActive&&
+                g.IsRidgeWatchResponder(caller)&&
+                g.RidgeWatchRespondingCount>=1&&
+                !g.IsRidgeWatchResponder(impostor)&&
+                (g.GetQuest("ridge_watch").next.Contains("converging")||
+                 g.GetQuest("ridge_watch").next.Contains("集结")),
+                "Actual survivors, the tracker and enemy Sprite cues agree only after successful recruitment");
+            for(int i=0;i<125;i++)g.Tick(.05f,new Point());
+            Check(!g.RidgeWatchAlarmActive&&
+                !g.IsRidgeWatchResponder(caller)&&
+                g.RidgeWatchProgress(1)==0,
+                "Expired patrol response removes amber ownership without fabricating kills");
+        }
+
         public static void RidgeWatchMarkerTracksLivePatrolWithoutBorrowingAnotherDialogue(Campaign data)
         {
             var g=Unlocked(data);
