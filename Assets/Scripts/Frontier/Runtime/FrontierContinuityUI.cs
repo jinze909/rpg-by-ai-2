@@ -66,7 +66,10 @@ namespace Starfall
                     Game.TideSalvageActive || Game.FrostSignalActive)
                     rects.Add(new Rect(380, 22, 520,
                         Game.SkywatchRoom==7 ||
-                        Game.BossVictoryDangerLine.Length>0 ? 85 : 65));
+                        Game.BossVictoryDangerLine.Length>0 ? 85 :
+                        Game.AfterlightWatchActive&&
+                        (Game.AfterlightWatchIncomingStockThreat!=null||
+                         Game.CompanionStockCoverInFlight)?88:65));
             }
             else
             {
@@ -250,8 +253,15 @@ namespace Starfall
                 // the receiver must remain readable even when it is far
                 // outside the player's camera or between enemy waves.
                 float stock=Game.AfterlightWatchStock;
+                // Read the real locked receiver threat once, matching
+                // the HP contact, including walls and live body cover.
+                // In-flight support is explicitly NOT a completed save.
+                Enemy reserveThreat=Game.AfterlightWatchIncomingStockThreat;
+                bool aidFlying=Game.CompanionStockCoverInFlight;
+                bool watchPressure=reserveThreat!=null||aidFlying;
                 Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
-                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.76f),
+                Panel(380,22,520,watchPressure?88:65,
+                    new Color(.04f,.065f,.11f,.76f),
                     new Color(accent.r,accent.g,accent.b,.7f));
                 Text(393,25,494,27,
                     Game.L("公共储备防卫 · 第","CIVIC RESERVE DEFENSE · WAVE ")+
@@ -265,6 +275,16 @@ namespace Starfall
                         Game.L(" · 抢修 E"," · PATCH E"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
+                if(watchPressure)
+                    Text(398,82,481,18,
+                        (reserveThreat!=null?
+                            Game.L("来袭将命中储备 · ","STOCK STRIKE IN ")+
+                            Math.Max(0f,reserveThreat.timer).ToString("0.0")+"s":
+                            Game.L("当前无有效储备攻击","NO ACTIVE STOCK STRIKE"))+
+                        (aidFlying?Game.L(" · 援射在途，需命中",
+                            " · ALLY SHOT IN FLIGHT"):""),
+                        11,reserveThreat!=null?gold:mint,
+                        TextAnchor.MiddleCenter);
             }
             else if (Game.OuterPatrolActive)
             {
