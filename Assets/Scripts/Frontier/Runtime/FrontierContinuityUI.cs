@@ -65,7 +65,8 @@ namespace Starfall
                     (Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room) ||
                     Game.TideSalvageActive || Game.FrostSignalActive)
                     rects.Add(new Rect(380, 22, 520,
-                        Game.SkywatchRoom==7 ? 85 : 65));
+                        Game.SkywatchRoom==7 ||
+                        Game.BossVictoryDangerLine.Length>0 ? 85 : 65));
             }
             else
             {
@@ -229,13 +230,19 @@ namespace Starfall
                 // fade, instead of leaving the player without the next
                 // chapter step. The content comes from authoritative core
                 // quest state; no teleport or reward can occur here.
-                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.74f),
+                string residualDanger=Game.BossVictoryDangerLine;
+                bool stillDangerous=residualDanger.Length>0;
+                Panel(380,22,520,stillDangerous?85:65,
+                    new Color(.04f,.065f,.11f,.74f),
                     new Color(gold.r,gold.g,gold.b,.66f));
                 Text(396,26,488,25,
                     Game.L("地区守护者已倒下","GUARDIAN DEFEATED"),
                     17,gold,TextAnchor.MiddleCenter);
-                Text(394,54,492,26,Game.BossVictoryNextStep,
+                Text(394,51,492,23,Game.BossVictoryNextStep,
                     12,paper,TextAnchor.MiddleCenter);
+                if(stillDangerous)
+                    Text(394,76,492,22,residualDanger,12,
+                        PixelArt.C("#ec7668"),TextAnchor.MiddleCenter);
             }
             else if (Game.AfterlightWatchActive)
             {

@@ -1994,6 +1994,12 @@ namespace Starfall.Tests
                 g.projectiles.Contains(reflected)&&
                 g.projectiles.Contains(oldEnvironment),
                 "The dead guardian's hostile orbs retract; an independent living arrow, reflected bolt and unrelated hazard projectile keep their real trajectories");
+            Check(g.BossVictoryDangerLine.Contains("ACTIVE THREATS")&&
+                g.BossVictoryNextStep.Contains("starcore"),
+                "The real victory guidance keeps the altar objective but warns about surviving shooter danger");
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            Check(g.BossVictoryDangerLine==""&&g.BossVictoryFeedback,
+                "Only a live nearby threat may append the warning; victory still remains readable after safety returns");
             g.PrepareSave();
             var restored=new GameCore(data,CloneSave(g.save));restored.Start();
             Check(restored.save.version==2&&restored.Has("boss_1")&&

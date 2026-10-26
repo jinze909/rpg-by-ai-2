@@ -179,6 +179,15 @@ namespace Starfall
         }
         public string BossVictoryNextStep
         { get { return BossVictoryFeedback?Objective():""; } }
+        // A cleared Boss does not imply that another surviving raider's arrow
+        // has stopped flying. Share the authoritative active combat/travel
+        // danger test: the panel MUST NOT silently proclaim the ground safe.
+        public string BossVictoryDangerLine
+        {
+            get { return BossVictoryFeedback&&!SafeTravel?
+                L("周围仍有敌人或飞弹 · 保持戒备",
+                  "ACTIVE THREATS · STAY ALERT"):""; }
+        }
         public string L(string zh, string en) { return save.english ? en : zh; }
         public static float Clamp(float x, float min, float max) { return Math.Max(min, Math.Min(max, x)); }
         private static bool Finite(float f) { return !float.IsNaN(f) && !float.IsInfinity(f); }

@@ -7588,7 +7588,18 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(s=>s.Contains("GUARDIAN DEFEATED"))&&
             GUI.commands.Exists(s=>s.Contains("Recover the starcore")),
             "Main guardian victory appears on the actual COMBAT HUD with physically actionable altar directions");
-        g.enemies.Clear();g.invulnerable=60f;
+        // An independent still-living enemy remains a genuine risk even
+        // though the chapter guardian itself has been defeated.
+        var remainingRaider=new Enemy(982340,1,
+            g.Position.x+1f,g.Position.y,60f);
+        g.enemies.Add(remainingRaider);
+        Check(!g.SafeTravel&&g.BossVictoryDangerLine.Contains("ACTIVE THREATS"),
+            "Real residual combat pressure never turns into a false safe victory");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("ACTIVE THREATS"))&&
+            GUI.commands.Exists(s=>s.Contains("Recover the starcore")),
+            "Actual battle UI displays both the chapter objective and active-raider danger together");
+        g.enemies.Clear();g.projectiles.Clear();g.invulnerable=60f;
         for(int i=0;i<50;i++)g.Tick(.05f,new Point());
         Check(g.BossVictoryFeedback&&!g.fallen.Exists(f=>f!=null&&f.actor==guardian),
             "Victory remains readable after the real corpse pose has finished");
