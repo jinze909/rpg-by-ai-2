@@ -174,6 +174,14 @@ namespace Starfall
             if (Game.mode == "world" && beganInWorld)
             {
                 Point mouse = MouseVirtual();
+                // Direct weapon selection is an actual world action, NOT a
+                // menu shortcut: choose the equipped full-body weapon before
+                // this same rendered frame's attack or Q starts. Equip() is
+                // the single authoritative unlock/action/combination guard.
+                // Dialogue numbers remain scoped to their original choices.
+                for(int slot=0;slot<3;slot++)
+                    if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+slot)))
+                    { Game.Equip(slot);break; }
                 // Discrete actions take priority over continuously held attacks.
                 // A fresh Q after a dodge is queued; a dodge clears older intent.
                 if ((Input.GetKeyDown(KeyCode.Space) || PadDown(0))) Game.Dash(movement);
