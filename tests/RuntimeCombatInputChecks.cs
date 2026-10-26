@@ -7475,7 +7475,11 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         var game=app.Game;
+        // The physical arena remains blocked until the original chapter
+        // gate opens. A scene HUD check must launch the genuine Boss, not
+        // a quest marker on the far side of a still-sealed mountain.
         game.save.flags.Add("desert_report");
+        game.save.flags.Add("gate_7");
         foreach(string flag in new[]{"skywatch_started","skywatch_prism_1",
             "skywatch_prism_2","skywatch_prism_3"})
             game.save.flags.Add(flag);
