@@ -368,5 +368,96 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void ReliefWatchArrowCoverOnlyInterruptsActualUncoveredCacheContact(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            Check(post!=null,"A real relief cache stands on this map");
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(begin>=0,"Real relief outpost offers an earned physical defense");
+            g.Choose(begin);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "A real standard relief watch starts before the support shot");
+            Enemy raider=g.enemies.Find(e=>e.kind==0);
+            Check(raider!=null,"Standard outpost owns a real melee raider");
+            Point station=new Point(post.x,post.y);
+            var uncovered=typeof(GameCore).GetMethod("OuterPatrolUncoveredStockStrike",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var collision=typeof(GameCore).GetMethod("HitFriendlyProjectileContact",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(uncovered!=null&&collision!=null,
+                "Actual cache threat and friendly swept-contact production methods exist");
+            Point[] offsets={new Point(-2,0),new Point(2,0),
+                new Point(0,-2),new Point(0,2),
+                new Point(1,-1),new Point(-1,1)};
+            bool realThreat=false;
+            foreach(Point step in offsets)
+            {
+                Point source=station+step;
+                if(!g.CanStand(source))continue;
+                raider.x=source.x;raider.y=source.y;
+                raider.state=1;raider.timer=.7f;raider.windupDuration=.7f;
+                raider.stun=0f;raider.hitTime=0f;
+                raider.targetingOuterPatrolStock=true;raider.target=station;
+                raider.Face(station-raider.Position);
+                foreach(Point escape in new[]{new Point(4,0),new Point(-4,0),
+                    new Point(0,4),new Point(0,-4)})
+                {
+                    Point hero=station+escape;
+                    if(!g.CanStand(hero)||
+                        (hero-raider.Position).Length<=2.6f)continue;
+                    g.save.x=hero.x;g.save.y=hero.y;
+                    if((bool)uncovered.Invoke(g,new object[]{raider}))
+                    {realThreat=true;break;}
+                }
+                if(realThreat)break;
+            }
+            Check(realThreat,
+                "Real outpost has an open cache strike neither hero nor living ally blocks");
+            var shot=new Projectile {
+                position=raider.Position,velocity=new Point(9f,0f),
+                life=2f,damage=2f,friendly=true,visual="arrow",
+                impact=new ImpactProfile(1,0,0,0,0f,false,-1),
+                patrolCoverTarget=raider,patrolCoverSave=g.save,
+                patrolCoverMap=g.Map,patrolCoverRoom=g.save.room,
+                outerPatrolOwned=true
+            };
+            g.projectiles.Add(shot);
+            Check(g.CompanionPatrolCoverInFlight,
+                "A released tagged shot may be seen without claiming it has already hit");
+            float stock=g.OuterPatrolIntegrity;
+            collision.Invoke(g,new object[]{shot,raider});
+            Check(g.OuterPatrolActive&&raider.state==0&&raider.stun>.2f&&
+                g.OuterPatrolIntegrity==stock&&shot.patrolCoverTarget==null&&
+                g.effects.Exists(e=>e.outerPatrolOwned&&
+                    e.text=="物资援射拦截！"),
+                "Physical contact interrupts the exact real threat without creating stock or a win");
+            g.effects.Clear();
+            raider.state=1;raider.timer=.7f;raider.windupDuration=.7f;
+            raider.stun=0f;raider.hitTime=0f;
+            raider.targetingOuterPatrolStock=true;raider.target=station;
+            var unrelated=new Enemy(raider.id,0,raider.x+.4f,
+                raider.y+1.7f,900f);
+            g.enemies.Add(unrelated);
+            shot.patrolCoverTarget=raider;
+            collision.Invoke(g,new object[]{shot,unrelated});
+            Check(raider.state==1&&shot.patrolCoverTarget==raider&&
+                !g.effects.Exists(e=>e.text=="物资援射拦截！"),
+                "A separate enemy with the same ID cannot steal the real projectile's target");
+            raider.targetingOuterPatrolStock=false;
+            collision.Invoke(g,new object[]{shot,raider});
+            Check(raider.state==1&&
+                !g.effects.Exists(e=>e.text=="物资援射拦截！")&&
+                g.OuterPatrolIntegrity==stock&&g.save.version==2,
+                "Stale objective intent never becomes a free shot guard or a save migration");
+        }
+
     }
 }

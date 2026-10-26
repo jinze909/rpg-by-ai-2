@@ -2554,11 +2554,13 @@ namespace Starfall
             bool covered=RescueCoverContactEligible(shot,victim);
             bool heroCovered=HeroCoverContactEligible(shot,victim);
             bool stockCovered=StockCoverContactEligible(shot,victim);
+            bool patrolCovered=PatrolCoverContactEligible(shot,victim);
             Hit(victim,shot.damage,shot.technique,
                 shot.velocity.Normalized,shot.impact);
             if(covered)FinishCompanionRescueCoverContact(shot,victim);
             if(heroCovered)FinishCompanionHeroCoverContact(shot,victim);
             if(stockCovered)FinishCompanionStockCoverContact(shot,victim);
+            if(patrolCovered)FinishCompanionPatrolCoverContact(shot,victim);
         }
         private void UpdateProjectiles(float dt)
         {

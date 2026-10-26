@@ -1680,6 +1680,46 @@ namespace Starfall
                 return false;
             }
         }
+        // A real companion's moving shot, not the stationary guard aura,
+        // may interrupt a genuine uncovered relief-cache attacker only
+        // at a matching physical collision before the target releases.
+        private bool PatrolCoverContactEligible(Projectile shot,Enemy foe)
+        {
+            return shot!=null&&foe!=null&&shot.friendly&&shot.damage>0f&&
+                shot.impact!=null&&!shot.impact.playerOwned&&
+                System.Object.ReferenceEquals(shot.patrolCoverTarget,foe)&&
+                System.Object.ReferenceEquals(shot.patrolCoverSave,save)&&
+                System.Object.ReferenceEquals(shot.patrolCoverMap,Map)&&
+                shot.patrolCoverRoom==save.room&&enemies.Contains(foe)&&
+                OuterPatrolUncoveredStockStrike(foe);
+        }
+        private void FinishCompanionPatrolCoverContact(Projectile shot,Enemy foe)
+        {
+            if(!projectiles.Contains(shot))return;
+            if(foe.hp>0f)ApplyEnemyControl(foe,foe.boss?.3f:.85f);
+            effects.Add(new Effect("number",foe.Position,.75f,
+                L("物资援射拦截！","CACHE SHOT INTERCEPT!"))
+                {outerPatrolOwned=true});
+            sound="counter";revision++;
+            shot.patrolCoverTarget=null;
+        }
+        public bool CompanionPatrolCoverInFlight
+        {
+            get
+            {
+                if(!OuterPatrolActive)return false;
+                foreach(Projectile shot in projectiles)
+                    if(shot.life>0f&&shot.friendly&&
+                        shot.patrolCoverTarget!=null&&
+                        System.Object.ReferenceEquals(shot.patrolCoverSave,save)&&
+                        System.Object.ReferenceEquals(shot.patrolCoverMap,Map)&&
+                        shot.patrolCoverRoom==save.room&&
+                        shot.patrolCoverTarget.hp>0f&&
+                        enemies.Contains(shot.patrolCoverTarget))
+                        return true;
+                return false;
+            }
+        }
         // Actual pending rescue attacks for the compact world HUD. Reuse
         // the same collision/ownership evidence as ally target selection:
         // do not advertise stale telegraphs, a sealed archer or a wrong NPC.
@@ -1977,6 +2017,18 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
+                                // The older relief-watch siege's actual
+                                // uncovered raider can be stopped only by
+                                // this released projectile's genuine impact.
+                                if(action.kind=="attack"&&
+                                   OuterPatrolUncoveredStockStrike(locked))
+                                {
+                                    shot.patrolCoverTarget=locked;
+                                    shot.patrolCoverSave=save;
+                                    shot.patrolCoverMap=Map;
+                                    shot.patrolCoverRoom=save.room;
+                                    shot.outerPatrolOwned=true;
+                                }
                                 // The RECEIVER defense uses a different
                                 // exact-instance tag than hero/rescue cover.
                                 // Mission cleanup also retires its flying

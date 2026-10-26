@@ -189,6 +189,11 @@ namespace Starfall
         // can interrupt only its genuine mission-owned stock attacker.
         // Never save this volatile combat claim or use a recycled actor ID.
         public Enemy stockCoverTarget;
+        // Genuine relay/cache defense uses transient exact instance ownership.
+        public Enemy patrolCoverTarget;
+        public SaveData patrolCoverSave;
+        public MapData patrolCoverMap;
+        public int patrolCoverRoom = -1;
         public SaveData stockCoverSave;
         public MapData stockCoverMap;
         public int stockCoverRoom = -1;
