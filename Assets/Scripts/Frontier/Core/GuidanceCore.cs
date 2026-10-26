@@ -418,12 +418,34 @@ namespace Starfall
                     Dying||practicing||racing)return true;
                 if(action=="civic_waystation_status")
                 {
+                    if(!Has("civic_waystation_stocked_"+region))return true;
+                    // This is an actionable station roster, not a static
+                    // summary. A second dialogue page keeps the EXACT
+                    // reachable original marker pinned as its source;
+                    // selecting a route goes through the same paid travel
+                    // validation, and closing it is always safe.
+                    var travel=new List<Choice>();
+                    foreach(Choice option in CivicWaystationMarkerChoices(source))
+                        if(option.action.StartsWith("civic_waystation_local_",
+                                StringComparison.Ordinal)||
+                            option.action.StartsWith("civic_waystation_travel_",
+                                StringComparison.Ordinal))
+                            travel.Add(option);
+                    travel.Add(C("继续赶路","Continue on the road","close"));
+                    string transitZh=CivicWaystationCount>=2?
+                        "\n\n已接通公共接驳。跨区线路每程5硬币、20体力；本地已测绘短驳2硬币、10体力。危险时车不会发出，沿途路障也会中止短驳。":
+                        "\n\n目前只有本站备齐物资；请继续建设其他地区，才能开通跨区接驳。";
+                    string transitEn=CivicWaystationCount>=2?
+                        "\n\nPublic shuttles are running: cross-region fares cost 5 coins and 20 energy; local surveyed routes cost 2 coins and 10 energy. Combat, dangerous roads or closed paths stop departure.":
+                        "\n\nOnly this region is currently supplied. Provision another region to open interregional shuttle routes.";
                     Dialog("居民巡路站","Civilian Waystation",
                         "本区已完成物资补给，全线进度 "+CivicWaystationCount+
-                        "/3。安全时靠近旧路标可缓慢恢复体力与生命，并缓解冷热。",
+                        "/3。安全时靠近旧路标可缓慢恢复体力与生命，并缓解冷热。"+
+                        transitZh,
                         "This region is supplied. Network "+CivicWaystationCount+
-                        "/3. Rest safely near either old marker to recover energy and health and ease heat/cold.",
-                        C("继续赶路","Continue","close"));
+                        "/3. Rest safely near either old marker to recover energy and health and ease heat/cold."+
+                        transitEn,
+                        travel.ToArray());
                     return true;
                 }
                 if(Has("civic_waystation_stocked_"+region))

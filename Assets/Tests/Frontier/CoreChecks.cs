@@ -1560,6 +1560,60 @@ namespace Starfall.Tests
                 "V2 reload preserves paid local transit without new serialized shuttle state");
         }
 
+        public static void RealWaystationRosterCanBookASecondDialoguePageSecurely(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            foreach(int region in new int[]{0,3})
+            {
+                g.save.flags.Add("civic_aftercare_waytrail_"+region);
+                g.save.flags.Add("civic_waystation_stocked_"+region);
+                foreach(WorldObject marker in data.maps[region].objects)
+                    if(marker.kind=="waytrail")
+                        g.save.flags.Add("waytrail_"+marker.id);
+            }
+            g.Enter(0);g.enemies.Clear();
+            var sign=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+            Check(sign!=null,"An actual original public marker anchors the roster");
+            g.save.x=sign.x;g.save.y=sign.y;
+            g.save.energy=70f;g.save.coins=30;
+            g.Talk(sign);
+            int status=Array.FindIndex(g.conversation.choices,
+                choice=>choice.action=="civic_waystation_status");
+            Check(status>=0,"Original marker offers its existing status interaction");
+            g.Choose(status);
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                g.conversation.speaker=="居民巡路站"&&
+                g.conversation.textEn.Contains("cross-region fares")&&
+                Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="civic_waystation_travel_3")>=0,
+                "A genuine staffed marker opens an actionable bilingual paid route roster");
+            int ride=Array.FindIndex(g.conversation.choices,
+                choice=>choice.action=="civic_waystation_travel_3");
+            g.save.x=sign.x+12f;
+            g.Choose(ride);
+            Check(g.save.room==0&&g.save.coins==30&&g.save.energy==70f,
+                "Leaving range invalidates the pinned second-page source without any toll");
+            g.save.x=sign.x;g.save.y=sign.y;
+            g.Talk(sign);
+            status=Array.FindIndex(g.conversation.choices,
+                choice=>choice.action=="civic_waystation_status");
+            g.Choose(status);
+            ride=Array.FindIndex(g.conversation.choices,
+                choice=>choice.action=="civic_waystation_travel_3");
+            g.Choose(ride);
+            Check(g.save.room==3&&g.save.coins==25&&
+                Math.Abs(g.save.energy-50f)<.001f,
+                "The second-page action rides the same true regional carriage and charges once");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));saved.Start();
+            Check(saved.save.version==2&&saved.save.room==3&&
+                saved.CivicWaystationCount==2,
+                "No pending UI route source is serialized into the original save schema");
+        }
+
         public static void StockedWaystationShuttlesReallyTransferBetweenOriginalRegions(Campaign data)
         {
             var g=Unlocked(data);
