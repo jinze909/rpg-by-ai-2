@@ -589,7 +589,10 @@ namespace Starfall.Tests
             g.CommandCompanion();
             Check(g.companionCooldown>0,
                 "A refunded companion command can be issued again after physical boarding");
-            g.Tick(.24f,new Point());
+            // GameCore deliberately clamps each simulation step to 50ms:
+            // five real combat frames, not one oversized synthetic Tick.
+            for(int frame=0;frame<5;frame++)
+                g.Tick(.05f,new Point());
             float earned=g.companionCooldown;
             Check(earned>0f&&earned<18f,
                 "The live command advances past its authored .2-second release contact");
