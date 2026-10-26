@@ -1520,6 +1520,30 @@ namespace Starfall.Tests
             Check(g.save.coins==coins&&g.save.energy==70f,
                 "Revoked destination survey prevents a stale carriage choice");
             g.save.flags.Add("waytrail_"+destination.id);
+            // Neither safe station alone makes the INTERVENING lane safe.
+            // A hostile planted on a genuine intermediate BFS waypoint
+            // blocks a paid carriage without requiring an abstract raid flag.
+            List<Point> actualRoad=g.NavigationPathFrom(
+                g.Position,destinationFoot.Value,true);
+            Point? threatened=null;
+            foreach(Point foot in actualRoad)
+                if((foot-g.Position).Length>6.5f&&
+                    (foot-destinationFoot.Value).Length>6.5f&&
+                    g.CanStand(foot))
+                {threatened=foot;break;}
+            if(threatened.HasValue)
+            {
+                g.enemies.Add(new Enemy(97226,0,threatened.Value.x,
+                    threatened.Value.y,30));
+                g.Talk(source);
+                choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
+                g.Choose(choice);
+                Check(g.save.coins==coins&&
+                    Math.Abs(g.save.energy-70f)<.001f&&
+                    (g.Position-new Point(source.x,source.y)).Length<.01f,
+                    "Real intermediate hostile pressure blocks the whole local route and preserves both currencies");
+                g.enemies.Clear();
+            }
             g.Talk(source);choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
             g.Choose(choice);
             Check(g.save.room==home&&g.save.coins==coins-2&&

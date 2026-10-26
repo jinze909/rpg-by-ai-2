@@ -214,6 +214,31 @@ namespace Starfall
                     return true;
             return false;
         }
+        // Local shuttles carry civilians along a genuinely walkable
+        // corridor. Check the ENTIRE committed route with the game's
+        // existing authoritative danger test, not only its endpoints:
+        // an ambush or live arrow halfway along the road must stop travel.
+        // This is an explicit paid interaction, never a per-frame search.
+        private bool CivicShuttleRoadSafe(Point from,Point to)
+        {
+            List<Point> road=NavigationPathFrom(from,to,true);
+            if(road.Count==0)return false;
+            Point original=Position;
+            try
+            {
+                foreach(Point foot in road)
+                {
+                    if(!CanStand(foot))return false;
+                    save.x=foot.x;save.y=foot.y;
+                    if(!SafeTravel)return false;
+                }
+            }
+            finally
+            {
+                save.x=original.x;save.y=original.y;
+            }
+            return true;
+        }
         private Point? CivicWaystationArrivalFoot(
             WorldObject specificSign=null,bool requireWalkingRoute=false)
         {
@@ -239,7 +264,7 @@ namespace Starfall
                     Point arrival=marker+pads[i];
                     if(!CanStand(arrival))continue;
                     if(requireWalkingRoute&&
-                        NavigationPathFrom(spawn,arrival,true).Count==0)
+                        !CivicShuttleRoadSafe(spawn,arrival))
                         continue;
                     save.x=arrival.x;save.y=arrival.y;
                     bool safe=HasPhysicalInteractionReach(sign)&&SafeTravel;
