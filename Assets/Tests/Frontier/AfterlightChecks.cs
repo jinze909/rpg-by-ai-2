@@ -1919,11 +1919,23 @@ namespace Starfall.Tests
                 "Bodyguard exercise uses actual wave-one physical raiders");
             var foe=g.enemies.Find(e=>e.kind==0);
             Check(foe!=null,"The living forest raider has a real melee attack");
+            // The unrelated live archer is not a substitute hero guard.
+            // Keep this genuine wave member present, but freeze its own
+            // movement/shot cycle to isolate a single physical receiver
+            // contact instead of accidentally allowing another enemy body
+            // to block the second strike for us.
+            var bowman=g.enemies.Find(e=>e!=foe);
+            Check(bowman!=null,"Original second live wave actor survives");
+            bowman.stun=500f;bowman.timer=500f;
             Point post=new Point(station.x,station.y);
             var clear=typeof(GameCore).GetMethod("ClearAttackPath",
                 System.Reflection.BindingFlags.NonPublic|
                 System.Reflection.BindingFlags.Instance);
-            Check(clear!=null,"The authentic terrain sweep is available");
+            var meleeLane=typeof(GameCore).GetMethod("EnemyMeleeLaneClear",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(clear!=null&&meleeLane!=null,
+                "Authentic terrain AND living actor lane checks are available");
             Point[] directions={new Point(1,0),new Point(-1,0),
                 new Point(0,1),new Point(0,-1)};
             bool ready=false;
@@ -1939,7 +1951,9 @@ namespace Starfall.Tests
                 foe.targetingAfterlightStock=true;foe.target=post;
                 foe.Face(post-foe.Position);
                 g.save.x=heroFoot.x;g.save.y=heroFoot.y;
-                if(g.AfterlightWatchHeroBodyguarding){ready=true;break;}
+                if(g.AfterlightWatchHeroBodyguarding&&
+                    (bool)meleeLane.Invoke(g,new object[]{foe,post}))
+                {ready=true;break;}
             }
             Check(ready,"The real map offers a standable, unobstructed hero body in the raider's declared strike lane");
             float safeStock=g.AfterlightWatchStock;
@@ -1960,9 +1974,18 @@ namespace Starfall.Tests
             Check(!g.AfterlightWatchHeroBodyguarding&&
                 System.Object.ReferenceEquals(g.AfterlightWatchIncomingStockThreat,foe),
                 "Standing at the station rather than physically between attacker and station cannot fake an interception");
-            g.Tick(.05f,new Point());
+            Check((bool)meleeLane.Invoke(g,new object[]{foe,post}),
+                "The negative control must not inherit a SECOND living actor bodyguard");
+            for(int tick=0;tick<5&&foe.state==1;tick++)
+                g.Tick(.05f,new Point());
             Check(g.AfterlightWatchStock<safeStock&&g.save.version==2,
-                "An unblocked authentic attack damages the receiver and old save format remains intact");
+                "An unblocked authentic attack damages the receiver and old save format remains intact; "+
+                "stock="+g.AfterlightWatchStock+
+                ", active="+g.AfterlightWatchActive+
+                ", attackerState="+foe.state+
+                ", releaseTimer="+foe.timer.ToString("0.00")+
+                ", lane="+meleeLane.Invoke(g,new object[]{foe,post})+
+                ", bodyguard="+g.AfterlightWatchHeroBodyguarding);
         }
 
     }
