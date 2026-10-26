@@ -1132,6 +1132,9 @@ namespace Starfall
         {
             save.seed = (int)(((long)save.seed * 1103515245 + 12345) & 0x7fffffff); return save.seed / 2147483647f;
         }
+        // Shared by actual damage, the live enemy status overlay and combat
+        // regression. Unsaved, instance-owned vulnerability (not a new buff).
+        public const float ArmorBreachSeconds=2.4f;
         private void Hit(Enemy e, float damage, bool technique = false, Point? attackDirection = null, ImpactProfile impact = null)
         {
             // Reject malformed or cosmetic attack power before recording a
@@ -1158,7 +1161,7 @@ namespace Starfall
                     bool freshBreach=e.armorOpenTime<=0f;
                     // A confirmed rear contact opens a real combo opportunity.
                     // Repeated flanks refresh the timer without spamming cues.
-                    e.armorOpenTime=2.4f;
+                    e.armorOpenTime=ArmorBreachSeconds;
                     // Keep established FLANK exactly as before. Publish the
                     // new armor opening as a separate first-contact cue.
                     effects.Add(new Effect("number",e.Position,.7f,L("侧袭","FLANK")));
@@ -1189,6 +1192,20 @@ namespace Starfall
                 // authoritative interruption/cue cleanup before publishing
                 // the stagger reward. Preserve the original 1s recovery.
                 ApplyEnemyControl(e,e.boss ? 1.1f : 1.7f);
+                // An honest player-earned poise break is another route past
+                // heavy frontal armor. The enemy's temporary stun alone used
+                // to expire BEFORE players could establish their follow-up.
+                // Only ordinary guards open; unrelated companion stagger and
+                // Boss phase mechanics cannot grant this player vulnerability.
+                if(profile.playerOwned&&!e.boss&&e.kind==2)
+                {
+                    bool newlyOpened=e.armorOpenTime<=0f;
+                    e.armorOpenTime=Math.Max(e.armorOpenTime,ArmorBreachSeconds);
+                    if(newlyOpened)
+                        effects.Add(new Effect("number",
+                            e.Position+new Point(0,.55f),.8f,
+                            L("破势碎甲！","GUARD SHATTER")));
+                }
                 // The earned Break creates at least a full second of
                 // recovery; it must not REDUCE an already longer idle,
                 // stagger or support-call recovery. Keep the shared

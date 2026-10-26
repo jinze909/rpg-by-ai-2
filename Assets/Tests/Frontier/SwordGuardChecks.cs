@@ -96,6 +96,53 @@ namespace Starfall.Tests
                 "Malformed unsaved armor clocks are repaired before UI or AI can inherit NaN");
         }
 
+
+        public static void EarnedPoiseBreakOpensArmorWithoutCreatingFreeAllyOrBossBuffs(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.x=19.5f;g.save.y=14.5f;
+            var guard=new Enemy(99451,2,21.5f,14.5f,900f);
+            guard.facing=new Point(-1,0);guard.timer=999f;
+            guard.stagger=28f;g.enemies.Add(guard);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var hero=new ImpactProfile(0,0,0,0,0f,true,0);
+            var ally=new ImpactProfile(0,0,0,0,0f,false,-1);
+            hit.Invoke(g,new object[]{guard,20f,false,
+                (Point?)new Point(1,0),hero});
+            Check(Math.Abs(guard.hp-892f)<.01f&&
+                guard.armorOpenTime==GameCore.ArmorBreachSeconds&&
+                guard.stun>1.6f&&guard.staggerRecovery>1.9f&&
+                g.effects.Exists(f=>f.kind=="number"&&
+                    f.text.Contains("碎甲")),
+                "A genuinely earned hero poise break deals original mitigated HP, interrupts, and opens guard");
+            guard.timer=999f;
+            Advance(g,1.83f);
+            Check(guard.stun<=0&&guard.armorOpenTime>.50f&&
+                guard.armorOpenTime<.65f,
+                "The physical guard-breach remains actionable AFTER true stun recovery");
+            guard.facing=new Point(-1,0);
+            float before=guard.hp;
+            hit.Invoke(g,new object[]{guard,20f,false,
+                (Point?)new Point(1,0),hero});
+            Check(Math.Abs(before-guard.hp-20f)<.01f,
+                "The earned poise opening permits a true frontal player follow-up");
+            var support=new Enemy(99452,2,22.5f,14.5f,900f);
+            support.facing=new Point(-1,0);support.stagger=29f;
+            support.timer=999f;g.enemies.Add(support);
+            hit.Invoke(g,new object[]{support,20f,false,
+                (Point?)new Point(1,0),ally});
+            Check(support.staggerRecovery>0f&&support.armorOpenTime==0f,
+                "A companion-caused ordinary poise break cannot fabricate player-owned armor exposure");
+            var boss=new Enemy(99453,2,23.5f,14.5f,1200f,true);
+            boss.stagger=94f;boss.timer=999f;g.enemies.Add(boss);
+            hit.Invoke(g,new object[]{boss,20f,false,
+                (Point?)new Point(1,0),hero});
+            Check(boss.armorOpenTime==0f&&g.save.version==2,
+                "Boss phase poise and old v2 persistence are unchanged by the new ordinary armor tactic");
+        }
+
         private static Projectile ThreateningShot(GameCore g,Point velocity)
         {
             Point approach=velocity.Normalized;
