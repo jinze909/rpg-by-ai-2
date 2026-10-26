@@ -114,8 +114,26 @@ namespace Starfall
                     choices.Add(C("补充路站物资 · 木材2 / 药草1",
                         "Supply waystation · 2 timber / 1 herb","civic_waystation_stock"));
                 else
+                {
                     choices.Add(C("查看已补给的居民路站",
                         "Inspect supplied waystation","civic_waystation_status"));
+                    // Public passage becomes a concrete regional transport
+                    // network only as each end is physically provisioned.
+                    // Labels and actual destinations share one fixed roster.
+                    int[] regionIds={0,3,5};
+                    string[] zh={"引水渠","赤铁矿场","雾港"};
+                    string[] en={"Canal","Ironreach","Mistport"};
+                    for(int i=0;i<regionIds.Length;i++)
+                    {
+                        int target=regionIds[i];
+                        if(target==region||
+                            !Has("civic_waystation_stocked_"+target)||
+                            !CanEnter(target))continue;
+                        choices.Add(C("搭乘居民接驳车至"+zh[i]+" · 5硬币/20体力",
+                            "Shuttle to "+en[i]+" · 5 coins / 20 energy",
+                            "civic_waystation_travel_"+target));
+                    }
+                }
             }
             choices.Add(C("继续赶路","Continue on the road","close"));
             return choices.ToArray();
@@ -179,8 +197,92 @@ namespace Starfall
                     return true;
             return false;
         }
+        private Point? CivicWaystationArrivalFoot()
+        {
+            if(Map==null||Map.objects==null)return null;
+            Point spawn=Position;
+            // One real authored arrival marker, with a small planted-foot
+            // search instead of placing the body on a decorative obelisk.
+            // Threat checks use the newly spawned destination enemy list.
+            Point[] pads={
+                new Point(0f,1.1f),new Point(-1.1f,0f),
+                new Point(1.1f,0f),new Point(0f,-1.1f),
+                new Point(-1f,1f),new Point(1f,1f),
+                new Point(-1f,-1f),new Point(1f,-1f)
+            };
+            foreach(WorldObject sign in Map.objects)
+            {
+                if(sign==null||sign.kind!="waytrail")continue;
+                Point marker=new Point(sign.x,sign.y);
+                for(int i=0;i<pads.Length;i++)
+                {
+                    Point arrival=marker+pads[i];
+                    if(!CanStand(arrival))continue;
+                    save.x=arrival.x;save.y=arrival.y;
+                    bool safe=HasPhysicalInteractionReach(sign)&&SafeTravel;
+                    save.x=spawn.x;save.y=spawn.y;
+                    if(safe)return arrival;
+                }
+            }
+            return null;
+        }
         private bool ChooseCivicAftercare(string action)
         {
+            const string shuttle="civic_waystation_travel_";
+            if(action!=null&&action.StartsWith(shuttle,StringComparison.Ordinal))
+            {
+                int target=-1;
+                if(!int.TryParse(action.Substring(shuttle.Length),out target)||
+                    (target!=0&&target!=3&&target!=5))return true;
+                int origin=save.room;
+                WorldObject source=pendingDialogueSource;
+                if(origin==target||(origin!=0&&origin!=3&&origin!=5)||
+                    source==null||source.kind!="waytrail"||
+                    pendingDialogueSourceRoom!=origin||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source)||
+                    !Has("civic_aftercare_published")||
+                    !Has("civic_aftercare_waytrail_"+origin)||
+                    !Has("civic_aftercare_waytrail_"+target)||
+                    !Has("civic_waystation_stocked_"+origin)||
+                    !Has("civic_waystation_stocked_"+target)||
+                    Dying||practicing||racing||!CanEnter(target))
+                    return true;
+                if(FieldWorkPreventsRest||!SafeTravel||
+                    BlockTravelForProtectedFieldMission(true))
+                {
+                    Notify("现场任务或战斗尚未结束，居民接驳车不能离站。",
+                        "The civic shuttle cannot depart during combat or protected fieldwork.");
+                    return true;
+                }
+                if(save.coins<5||save.energy<20f)
+                {
+                    Notify("搭车需要5枚硬币和20点体力。",
+                        "The shuttle requires 5 coins and 20 energy.");
+                    return true;
+                }
+                // Enter() remains the sole authoritative region transition:
+                // it retires old projectiles, live AI and encounter cues.
+                // Charge only AFTER travel actually succeeded.
+                Enter(target);
+                if(save.room!=target)return true;
+                Point? arrivalFoot=CivicWaystationArrivalFoot();
+                if(arrivalFoot.HasValue)
+                {
+                    save.x=arrivalFoot.Value.x;
+                    save.y=arrivalFoot.Value.y;
+                }
+                save.coins-=5;
+                save.energy=Math.Max(0f,save.energy-20f);
+                sound="travel";revision++;
+                Notify(arrivalFoot.HasValue?
+                    "居民接驳车到站：已抵达安全路标，硬币-5、体力-20。":
+                    "居民接驳车抵达地区入口：路标附近暂不安全，硬币-5、体力-20。",
+                    arrivalFoot.HasValue?
+                    "Civic shuttle arrived at a safe original marker. -5 coins, -20 energy.":
+                    "Civic shuttle arrived at the regional entrance: the signed marker is unsafe. -5 coins, -20 energy.");
+                return true;
+            }
             if(action=="civic_waystation_stock"||
                 action=="civic_waystation_status")
             {

@@ -1440,6 +1440,108 @@ namespace Starfall.Tests
                 "Completion, coin rewards and prior campaign data survive old-format reloads");
         }
 
+        public static void StockedWaystationShuttlesReallyTransferBetweenOriginalRegions(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            foreach(int region in new int[]{0,3,5})
+            {
+                g.save.flags.Add("civic_aftercare_waytrail_"+region);
+                g.save.flags.Add("civic_waystation_stocked_"+region);
+                foreach(WorldObject sign in data.maps[region].objects)
+                    if(sign.kind=="waytrail")
+                        g.save.flags.Add("waytrail_"+sign.id);
+            }
+            g.save.flags.Add("civic_waystations_complete");
+            g.save.coins=23;g.save.energy=80f;
+            g.Enter(0);g.enemies.Clear();
+            WorldObject start=Array.Find(g.Map.objects,x=>x.kind=="waytrail");
+            Check(start!=null,"The bus is offered only from a real authored public marker");
+            g.save.x=start.x;g.save.y=start.y;
+            g.save.trackedQuest="civic_waystations";
+            g.Talk(start);
+            int travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            Check(travel>=0&&
+                Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_travel_5")>=0,
+                "Published fully stocked stations offer two physical destinations");
+            int paid=g.save.coins;float spent=g.save.energy;
+            // Stale dialogue cannot be a remote region-entry exploit.
+            g.save.x=start.x+14f;g.Choose(travel);
+            Check(g.save.room==0&&g.save.coins==paid&&
+                Math.Abs(g.save.energy-spent)<.001f,
+                "Walking away rejects a stale transit ticket without charging");
+            g.save.x=start.x;g.save.y=start.y;
+            g.Talk(start);
+            travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            g.save.energy=19f;g.Choose(travel);
+            Check(g.save.room==0&&g.save.coins==paid&&g.save.energy==19f,
+                "Insufficient stamina cancels shuttle without a partial coin toll");
+            g.save.energy=80f;g.save.coins=4;
+            g.Talk(start);travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            g.Choose(travel);
+            Check(g.save.room==0&&g.save.coins==4&&g.save.energy==80f,
+                "Insufficient currency never consumes the travel energy");
+            g.save.coins=23;
+            g.Talk(start);travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            g.enemies.Add(new Enemy(98101,0,start.x+.4f,start.y,40));
+            g.Choose(travel);
+            Check(g.save.room==0&&g.save.coins==23&&g.save.energy==80f,
+                "Real combat danger blocks departures from the staffed road");
+            g.enemies.Clear();
+            g.Talk(start);travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            g.save.flags.Remove("civic_waystation_stocked_3");
+            g.Choose(travel);
+            Check(g.save.room==0&&g.save.coins==23&&g.save.energy==80f,
+                "Losing destination supply revokes an already cached route choice");
+            g.save.flags.Add("civic_waystation_stocked_3");
+            g.Talk(start);travel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_3");
+            g.Choose(travel);
+            Check(g.save.room==3&&g.save.coins==18&&
+                Math.Abs(g.save.energy-60f)<.001f&&
+                g.save.trackedQuest=="civic_waystations"&&g.CanStand(g.Position),
+                "Accepted shuttle pays once and uses the real region transition and valid landing");
+            bool byMarker=false;
+            foreach(WorldObject marker in g.Map.objects)
+                if(marker.kind=="waytrail"&&
+                    (g.Position-new Point(marker.x,marker.y)).Length<1.75f)
+                    byMarker=true;
+            // If tide/sealed terrain makes the destination marker unsafe,
+            // the ordinary regional entrance remains the safe fallback.
+            Check(byMarker||((g.Position-
+                new Point(g.Map.spawnX,g.Map.spawnY)).Length<.01f),
+                "Transit cannot plant the hero in an arbitrary untracked unsafe foot");
+            // A second real route demonstrates bidirectional civic travel.
+            WorldObject inRegion=Array.Find(g.Map.objects,x=>x.kind=="waytrail");
+            Check(inRegion!=null,"Destination has its actual original supply sign");
+            g.save.x=inRegion.x;g.save.y=inRegion.y;g.enemies.Clear();
+            g.Talk(inRegion);
+            int onward=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_waystation_travel_5");
+            Check(onward>=0&&
+                Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_travel_3")<0,
+                "An arrived traveler sees only other stocked destinations");
+            g.Choose(onward);
+            Check(g.save.room==5&&g.save.coins==13&&
+                Math.Abs(g.save.energy-40f)<.001f,
+                "Second paid shuttle reaches another existing region without hidden repeated fees");
+            g.PrepareSave();
+            var reload=new GameCore(data,CloneSave(g.save));reload.Start();
+            Check(reload.save.version==2&&reload.save.room==5&&
+                reload.save.coins==13&&reload.CivicWaystationCount==3&&
+                reload.save.trackedQuest=="civic_waystations",
+                "Real visited rooms, currencies, history and quest focus survive the original V2 save format");
+        }
+
         public static void StockedWaystationOffersReachableEmergencyCompass(Campaign data)
         {
             GameCore g=Unlocked(data);
