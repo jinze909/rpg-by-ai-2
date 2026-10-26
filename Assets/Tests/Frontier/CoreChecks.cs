@@ -1440,6 +1440,67 @@ namespace Starfall.Tests
                 "Completion, coin rewards and prior campaign data survive old-format reloads");
         }
 
+        public static void StockedWaystationOffersReachableEmergencyCompass(Campaign data)
+        {
+            GameCore g=Unlocked(data);
+            g.save.flags.Add("civic_aftercare_published");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject sign=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+            Check(sign!=null,"The actual civic map provides original road signs");
+            // Choose an accessible real-world foot outside the service
+            // radius; never set a fake destination or disable collision.
+            Point? far=null;
+            for(int radius=4;radius<=12&&!far.HasValue;radius++)
+                for(int dx=-radius;dx<=radius&&!far.HasValue;dx++)
+                    for(int dy=-radius;dy<=radius&&!far.HasValue;dy++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                        Point site=new Point(sign.x+dx,sign.y+dy);
+                        if(!g.CanStand(site))continue;
+                        g.save.x=site.x;g.save.y=site.y;
+                        if(g.NavigationPath(new Point(sign.x,sign.y)).Count>0)
+                            far=site;
+                    }
+            Check(far.HasValue,
+                "The test uses a real walkable player foot outside the original marker refuge");
+            g.save.x=far.Value.x;g.save.y=far.Value.y;
+            g.save.showGuidance=false;
+            g.save.health=g.save.maxHealth*.2f;
+            g.save.trackedQuest="main";
+            var guide=typeof(GameCore).GetMethod(
+                "EmergencyCivicWaystationGuideTarget",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(guide!=null,
+                "The production urgent compass uses a single source-owned route selector");
+            Check(!((Point?)guide.Invoke(g,null)).HasValue,
+                "An unpublished/unsupplied region never fakes a free refuge");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            Point? target=(Point?)guide.Invoke(g,null);
+            Check(target.HasValue&&
+                Array.Exists(g.Map.objects,o=>o.kind=="waytrail"&&
+                    (new Point(o.x,o.y)-target.Value).Length<.001f)&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-target.Value).Length<.001f&&
+                g.save.trackedQuest=="main",
+                "A critically injured traveler is routed to a real supplied, reachable marker without changing the journal");
+            g.enemies.Add(new Enemy(940001,0,g.Position.x+.5f,g.Position.y,30f));
+            Check(!((Point?)guide.Invoke(g,null)).HasValue,
+                "Real danger disables the emergency retreat suggestion until it is safe to rest");
+            g.enemies.Clear();
+            g.save.health=g.save.maxHealth;
+            g.save.heat=0;g.save.cold=0;
+            Check(!((Point?)guide.Invoke(g,null)).HasValue,
+                "Healthy travelers retain their ordinary map pin or quest destination");
+            g.save.health=8f;
+            g.save.x=target.Value.x;g.save.y=target.Value.y;
+            Check(g.CivicWaystationNear&&
+                !((Point?)guide.Invoke(g,null)).HasValue,
+                "The compass retires the emergency arrow upon actually reaching the stocked service radius");
+            g.save.flags.Remove("civic_waystation_stocked_0");
+            Check(!((Point?)guide.Invoke(g,null)).HasValue,
+                "Missing source supplies immediately revoke emergency navigation");
+        }
+
         public static void AuthoredWaystationRecoveryRequiresLocalSafeWorldTime(Campaign data)
         {
             GameCore g=Unlocked(data);

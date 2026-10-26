@@ -2810,6 +2810,46 @@ namespace Starfall
                 if(o.kind=="portal0")return new Point(o.x,o.y);
             return null;
         }
+        // A stocked post-grid route marker is an earned, physically safe
+        // recovery destination when a traveler is badly hurt or exposed.
+        // Never lead to an unbuilt sign, across disconnected walls or while
+        // a timed mission/enemy attack needs immediate attention.
+        // Two authored markers per region bound the BFS work, like the
+        // existing urgent brazier/shade route guidance.
+        private Point? EmergencyCivicWaystationGuideTarget()
+        {
+            if((save.room!=0&&save.room!=3&&save.room!=5)||
+                !Has("civic_aftercare_published")||
+                !Has("civic_waystation_stocked_"+save.room)||
+                Map.objects==null||Dying||practicing||racing||
+                FieldWorkPreventsRest||CivicWaystationNear||
+                !SafeTravel||!CanStand(Position)||
+                (save.health>=save.maxHealth*.3f&&
+                 save.heat<80f&&save.cold<80f))
+                return null;
+            Point? best=null;
+            int shortest=int.MaxValue;
+            foreach(WorldObject sign in Map.objects)
+            {
+                if(sign==null||sign.kind!="waytrail")continue;
+                Point site=new Point(sign.x,sign.y);
+                bool near=HasPhysicalInteractionReach(site);
+                List<Point> path=NavigationPath(site);
+                if(!near)
+                {
+                    if(path.Count==0)continue;
+                    Point last=path[path.Count-1];
+                    float distance=(last-site).Length;
+                    Point contact=distance>.55f?
+                        site-(site-last).Normalized*.55f:last;
+                    if(distance>=1.75f||
+                        !ClearAttackPath(last,contact))continue;
+                }
+                int steps=near?0:path.Count;
+                if(steps<shortest){shortest=steps;best=site;}
+            }
+            return best;
+        }
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
@@ -2845,6 +2885,8 @@ namespace Starfall
             if(emergencyFire.HasValue)return emergencyFire;
             Point? emergencyShade=EmergencyShadeGuideTarget();
             if(emergencyShade.HasValue)return emergencyShade;
+            Point? civicSafety=EmergencyCivicWaystationGuideTarget();
+            if(civicSafety.HasValue)return civicSafety;
             // A personal pin temporarily takes over ordinary quest routing
             // but NEVER redirects an active timed escort, defense, rescue or
             // emergency. The player's original tracked quest is untouched.
