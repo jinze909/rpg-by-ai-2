@@ -1657,6 +1657,33 @@ namespace Starfall
             plan.active=true;
             return (next-from).Normalized;
         }
+        // A melee raider must earn a real lane to the hero. Another living
+        // enemy between the attacker and the hero is physical frontline
+        // cover, not a transparent target through which a backline hunter
+        // can start a guaranteed lunge. Boss sweeps and heavy AoE are
+        // deliberately excluded by the call sites.
+        private bool EnemyMeleeLaneClear(Enemy attacker,Point victim)
+        {
+            Point travel=victim-attacker.Position;
+            float length=travel.Length;
+            if(!Finite(length)||length<.001f)return false;
+            Point forward=travel*(1f/length);
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||System.Object.ReferenceEquals(other,attacker)||
+                    other.hp<=0f||!Finite(other.x)||!Finite(other.y))
+                    continue;
+                Point offset=other.Position-attacker.Position;
+                float along=offset.x*forward.x+offset.y*forward.y;
+                if(along<=0f||along>=length)continue;
+                float side=offset.x*forward.y-offset.y*forward.x;
+                float radius=other.boss?.75f:.5f;
+                if(Math.Abs(side)<radius &&
+                    ClearAttackPath(attacker.Position,other.Position))
+                    return false;
+            }
+            return true;
+        }
         // Only ordinary locomotion uses crowd spacing. Boss dashes, hit recoil,
         // telegraphed contacts and authored missile releases retain their own
         // committed motion/timing. A crowd never changes the terrain sweep.
@@ -1934,7 +1961,8 @@ namespace Starfall
                             }
                         }
                         else if (e.kind == 1) Fire(e, e.facing, 5);
-                        else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position)) Hurt(11, "lunge", e.facing);
+                        else if (InEnemyMeleeArc(e,Position) && ClearAttackPath(e.Position, Position) &&
+                            EnemyMeleeLaneClear(e,Position)) Hurt(11, "lunge", e.facing);
                         // Only an uninterrupted genuine enemy release can
                         // strike the receiver. Nearby bodyguards draw the
                         // enemy's locked intent and prevent stock damage.
@@ -1997,7 +2025,11 @@ namespace Starfall
                     e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }
-                if (!e.backpedaling && (distance > desired || !visible))
+                // Backline melee must keep moving to find a genuine side
+                // contact rather than attacking through its own frontline.
+                bool teammateCover = !e.boss && e.kind==0 &&
+                    distance<2.5f && !EnemyMeleeLaneClear(e,Position);
+                if (!e.backpedaling && (distance > desired || !visible || teammateCover))
                 {
                     // Actual archer missile LOS may be shut by a corner
                     // beside an otherwise perfectly open walking ray.
@@ -2030,7 +2062,8 @@ namespace Starfall
                 bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&
                     (e.boss||e.kind!=1||
-                     EnemyBowFlightLaneClear(e,Position));
+                     EnemyBowFlightLaneClear(e,Position)) &&
+                    (e.boss||e.kind!=0||EnemyMeleeLaneClear(e,Position));
                 bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
                     ClearAttackPath(e.Position, pursuit);
                 // Standing in the raider's reach lets the hero draw its attention.

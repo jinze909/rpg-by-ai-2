@@ -201,6 +201,60 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void BacklineMeleeCannotStrikeThroughLivingEnemyCover(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<24;y++)
+                {
+                    char[] cells=new string('.',24).ToCharArray();
+                    for(int x=0;x<24;x++)
+                        if(x<2||y<2||x>=22||y>=22)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=12.1f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.enemies.Clear();g.save.x=12.1f;g.save.y=10.5f;
+                g.invulnerable=0f;
+                var rear=new Enemy(92501,0,9.8f,10.5f,200);
+                var front=new Enemy(92502,0,10.9f,10.5f,200);
+                rear.timer=.001f;front.timer=100f;front.stun=100f;
+                g.enemies.Add(rear);g.enemies.Add(front);
+                g.Tick(.05f,new Point());
+                Check(rear.state==0 && rear.moving,
+                    "A backline ordinary melee enemy must pursue a real flank, not start a lunge through living cover");
+                for(int i=0;i<40 && Math.Abs(rear.y-10.5f)<.35f;i++)
+                    g.Tick(.05f,new Point());
+                Check(Math.Abs(rear.y-10.5f)>.35f&&
+                    (rear.Position-front.Position).Length>=.7f,
+                    "The rear enemy actually travels around the living frontline on open physical ground");
+                // Once cover leaves, the same ordinary hunter regains its
+                // original attack at the already-reachable hero.
+                g.enemies.Remove(front);
+                rear.x=10.9f;rear.y=10.5f;rear.state=0;
+                rear.timer=.001f;rear.stun=rear.hitTime=rear.releaseTime=0f;
+                g.Tick(.05f,new Point());
+                Check(rear.state==1&&
+                    (rear.target-g.Position).Length<.001f,
+                    "Removing the cover immediately restores the true hero-targeted melee windup");
+                // An ally can step into the lane AFTER the real warning is
+                // committed. Recheck cover at contact rather than resolving
+                // a free strike through the moving living defender.
+                front.x=11.5f;front.y=10.5f;front.stun=100f;
+                g.enemies.Add(front);
+                float health=g.save.health;
+                for(int i=0;i<16;i++)g.Tick(.05f,new Point());
+                Check(g.save.health==health&&rear.state==0,
+                    "A living teammate crossing a released melee lane blocks actual player HP damage without cancelling the original attack clock");
+                Check(g.save.version==2,
+                    "Melee cover is transient combat geometry and does not migrate existing saves");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void ArcherRetreatSidestepsLivingFrontlineCover(Campaign data)
         {
             MapData original=data.maps[0];
