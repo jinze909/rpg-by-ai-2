@@ -394,9 +394,9 @@ namespace Starfall
                     stick,controllerAimEnemy);
                 if(controllerAimEnemy!=null)
                 {
-                    Point target=controllerAimEnemy.Position;
-                    Game.SetAimTarget(target);
-                    return (target-Game.Position).Normalized;
+                    Point lockedTarget=controllerAimEnemy.Position;
+                    Game.SetAimTarget(lockedTarget);
+                    return (lockedTarget-Game.Position).Normalized;
                 }
                 Game.SetAimTarget(null);
                 return stick.Length>=.28f?(Point?)stick.Normalized:null;
