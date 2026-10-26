@@ -1300,6 +1300,13 @@ namespace Starfall
                 else if (save.room >= 5) Notify("守护者倒下了。完成地区调查或清理本层剩余敌人。", "Guardian defeated. File the report, or clear remaining abyss enemies.");
                 else Notify("守护者倒下了。到祭坛处收取星核。", "The guardian has fallen. Recover the starcore at the altar.");
             }
+            // Splash contacts are resolved one-by-one. The Boss may be first
+            // to die while its aides are still in this same damage loop.
+            // When the LAST actor truly falls, finish clearing orphan
+            // projectiles without touching a surviving enemy's valid shots.
+            if(bossVictoryFeedbackTime>0f&&
+                bossVictoryFeedbackRoom==save.room)
+                RetireOrphanShotsAfterMainBossArenaClears();
             revision++;
         }
         // Escaping a marked strike is as skillful as letting its contact graze

@@ -313,6 +313,25 @@ namespace Starfall
                   height=shot.height });
             }
         }
+        // A single starfire explosion may kill the Boss first and its
+        // supporting raiders later in the SAME projectile contact loop.
+        // At the final true death, retire only legacy unowned hostile shots:
+        // no live combatant remains to make their presence meaningful.
+        // Already-fired arrows with a real shooter identity are not erased.
+        private void RetireOrphanShotsAfterMainBossArenaClears()
+        {
+            if(enemies.Exists(e=>e!=null&&e.hp>0f))return;
+            foreach(Projectile shot in projectiles.ToArray())
+            {
+                if(shot==null||shot.friendly||shot.hostileShooter!=null)
+                    continue;
+                projectiles.Remove(shot);
+                effects.Add(new Effect("projectileFade",shot.position,.25f)
+                {direction=shot.velocity.Normalized,
+                 variant=shot.visual=="enemyArrow"?8:10,
+                 height=shot.height});
+            }
+        }
         private void RetireHostileProjectiles(Point? center = null, float radius = 0)
         {
             foreach (Projectile p in projectiles.ToArray())
