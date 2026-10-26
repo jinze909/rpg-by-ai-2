@@ -1232,8 +1232,9 @@ namespace Starfall
                         (int)Math.Ceiling(FloodReliefTime)+"秒",
                         "Take the west-side low-tide ferry with medicine · "+
                         (int)Math.Ceiling(FloodReliefTime)+"s left"):
-                    !LowTide?L("前往西岸旧水尺，等待退潮后领取药品",
-                        "Reach the western gauge and wait for low tide"):
+                    !LowTide?L("前往西岸旧水尺，约"+(int)Math.Ceiling(PublicFerryPhaseSeconds)+"秒后退潮",
+                        "Reach the western gauge; ebb tide in "+
+                        (int)Math.Ceiling(PublicFerryPhaseSeconds)+"s"):
                     L("在西岸水尺领取急救包，开始真实护送",
                         "Collect medicine at the west gauge to begin escort");
                 q.reward=L("首次送达硬币45、碎片1、经验65；公共渡船消耗永久由14降至10耐力；拦截者不提供可刷的战利品",

@@ -169,6 +169,7 @@ namespace Starfall.Tests
         [Test] public void MinecartPressureRequiresWalkableLaneAndActiveUnstunnedGuard() { CoreChecks.MinecartHullOnlyDrainsFromUnobstructedLivingGuards(Data()); }
         [Test] public void FerrymanRemembersPublicArchiveChoice() { CoreChecks.RestoredFerrymanRespondsToActualCivicArchiveChoice(Data()); }
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
+        [Test] public void PublicFerryLowTideAndGaugeWaitRespectActualSluiceHold() { CoreChecks.PublicFerryAndCivicGaugeShareTrueHeldTideCountdown(Data()); }
         [Test] public void PublicFerryCarriesTheRealFollowerButHonorsSoloHoldOrders() { CoreChecks.PublicFerryBoardsRealFollowerWithoutWarpingHeldGuard(Data()); }
         [Test] public void MedicineFerryBoardsAllyClearOfBothLiveAmbushers() { CoreChecks.MedicalFerryBoardsAllyWithoutDisplacingRealEastRaiders(Data()); }
         [Test] public void RealFerryCompassTracksLiveRaidersBeforeCivilianHandoff() { CoreChecks.RealFerryCompassPursuesOnlySurvivingAmbushBodies(Data()); }

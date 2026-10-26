@@ -939,6 +939,12 @@ namespace Starfall
                             (int)Math.Ceiling(Game.FloodReliefWardTime)+"s",
                             10,mint,TextAnchor.MiddleCenter);
                 }
+                else if(complete&&(stage==1||stage==3))
+                    Text(p.x-77,p.y-97,154,18,
+                        (Game.LowTide?Game.L("距涨潮 ","HIGH IN "):
+                                      Game.L("距退潮 ","LOW IN "))+
+                        (int)Math.Ceiling(Game.PublicFerryPhaseSeconds)+"s",
+                        11,tint,TextAnchor.MiddleCenter);
                 else if(current&&stage<=2&&!ready)
                     Text(p.x-38,p.y-96,76,18,wait.ToString("0")+"s",12,gold,TextAnchor.MiddleCenter);
                 return true;

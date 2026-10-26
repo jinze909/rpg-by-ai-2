@@ -201,17 +201,33 @@ namespace Starfall
                 if(o.kind=="floodarchive"&&o.id=="floodarchive_"+stage)return o;
             return null;
         }
-        // Tide period and any legitimately held low tide are the existing
-        // shared simulation clocks, not a second unsaved puzzle clock.
+        // Use only the original 36-second physical tide and the already
+        // earned sluice hold, with no replacement clock or v2 save field.
+        // A hold ending during NATURAL low tide must not promise high water
+        // prematurely; conversely, one ending during natural high tide
+        // should end the crossing window at the real release instant.
+        public float PublicFerryPhaseSeconds
+        {
+            get
+            {
+                float phase=save.totalTime%36f;
+                if(!LowTide)return 36f-phase;
+                if(save.totalTime<save.tideHeldUntil)
+                {
+                    float holdRemaining=save.tideHeldUntil-save.totalTime;
+                    float releasePhase=save.tideHeldUntil%36f;
+                    return holdRemaining+(releasePhase<22f?
+                        22f-releasePhase:0f);
+                }
+                return Math.Max(0f,22f-phase);
+            }
+        }
+        // Evidence is legible only in the corresponding genuine tide.
+        // The gauge/roster and public ferry use the SAME timing authority.
         public float FloodArchiveWait(int stage)
         {
-            if(stage==1)
-                return !LowTide?0:
-                    save.totalTime<save.tideHeldUntil?
-                    Math.Max(0,save.tideHeldUntil-save.totalTime):
-                    22f-save.totalTime%36f;
-            if(stage==2)
-                return LowTide?0:36f-save.totalTime%36f;
+            if(stage==1)return LowTide?PublicFerryPhaseSeconds:0;
+            if(stage==2)return LowTide?0:PublicFerryPhaseSeconds;
             return 0;
         }
         private void FloodArchiveDialog(WorldObject site,string zh,string en,params Choice[] choices)
@@ -282,10 +298,15 @@ namespace Starfall
                             (floodReliefWardTime>0?" Ward "+(int)Math.Ceiling(floodReliefWardTime)+"s left.":""):
                         "Take the low-tide ferry to the east shore."):
                     "\n\nAn urgent medical parcel awaits at the west dock at low tide; ferry across and defeat two raiders before delivery.";
+                int waterSeconds=(int)Math.Ceiling(PublicFerryPhaseSeconds);
                 FloodArchiveDialog(site,endZh+extraZh+
-                    (ferryDock&&!LowTide?"\n\n水位过高，渡船等待退潮。":""),
+                    (ferryDock?(LowTide?
+                        "\n\n低潮航道可通行，约 "+waterSeconds+" 秒后涨潮。":
+                        "\n\n水位过高，渡船约 "+waterSeconds+" 秒后恢复通航。"):""),
                     endEn+extraEn+
-                    (ferryDock&&!LowTide?"\n\nThe ferry waits for ebb tide.":""),
+                    (ferryDock?(LowTide?
+                        "\n\nLow tide permits crossing for about "+waterSeconds+" more seconds.":
+                        "\n\nHigh water: ferry service resumes in about "+waterSeconds+" seconds."):""),
                     choices.ToArray());
                 return true;
             }
@@ -414,8 +435,9 @@ namespace Starfall
             if(from==null)return true;
             if(!LowTide)
             {
-                Notify("水位还未退去，公共渡船暂不通航。",
-                    "The ferry cannot launch until low tide.");
+                int wait=(int)Math.Ceiling(PublicFerryPhaseSeconds);
+                Notify("水位还未退去，渡船约"+wait+"秒后通航。",
+                    "High water: the ferry returns in about "+wait+" seconds.");
                 return true;
             }
             // Respect all current physical mission locks, actual threats at

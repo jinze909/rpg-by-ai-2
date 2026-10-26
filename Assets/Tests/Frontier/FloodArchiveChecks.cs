@@ -436,6 +436,58 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void PublicFerryAndCivicGaugeShareTrueHeldTideCountdown(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1);
+            g.save.x=west.x;g.save.y=west.y;
+            g.save.totalTime=21;
+            Check(g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-1)<.001f&&
+                Math.Abs(g.FloodArchiveWait(1)-1)<.001f,
+                "One genuine second remains before the natural high-water gauge appears");
+            g.save.totalTime=22;
+            Check(!g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-14)<.001f&&
+                Math.Abs(g.FloodArchiveWait(2)-14)<.001f,
+                "Both public crossing and submerged roster use the real fourteen-second high-tide wait");
+            g.Talk(west);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("14")&&
+                g.conversation.textEn.Contains("14"),
+                "The original bilingual public-dock dialogue publishes its real high-water wait");
+            g.Close();
+            g.save.totalTime=25;
+            g.save.tideHeldUntil=50;
+            Check(g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-33)<.001f&&
+                Math.Abs(g.FloodArchiveWait(1)-33)<.001f,
+                "A sluice hold ending in natural low tide must include the eight further low-water seconds");
+            g.Talk(west);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("33")&&
+                g.conversation.textEn.Contains("33"),
+                "The same true extended tide window appears in active ferry conversation");
+            g.Close();
+            g.save.totalTime=43;
+            Check(g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-15)<.001f,
+                "The held ebb ticks continuously across a natural high-to-low boundary");
+            g.save.totalTime=50;
+            Check(g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-8)<.001f,
+                "Releasing the sluice into natural low water does not fabricate an immediate high tide");
+            g.save.totalTime=58;
+            Check(!g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-14)<.001f,
+                "The exact natural flood boundary reopens the original fourteen-second high-water interval");
+            g.save.totalTime=25;g.save.tideHeldUntil=31;
+            Check(g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-6)<.001f&&
+                Math.Abs(g.FloodArchiveWait(1)-6)<.001f,
+                "A hold ending during genuinely high natural water ends low tide at the actual release");
+            g.save.totalTime=31;
+            Check(!g.LowTide&&Math.Abs(g.PublicFerryPhaseSeconds-5)<.001f,
+                "After release, high water lasts only until the next physical natural ebb");
+            Check(g.save.version==2,
+                "The entire accurate tide model reuses the existing v2 totalTime/tideHeldUntil fields");
+        }
+
         public static void PublicFerryBoardsRealFollowerWithoutWarpingHeldGuard(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
