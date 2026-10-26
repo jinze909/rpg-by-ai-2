@@ -95,17 +95,25 @@ namespace Starfall
                 ClearAttackPath(Position,station)&&
                 EnemyMeleeLaneClear(foe,Position);
         }
-        public bool AfterlightWatchHeroBodyguarding
+        // Grounded renderer and HUD use this SAME live actor predicate as
+        // the actual receiver HP transaction. Do not infer from ring VFX or
+        // re-used encounter IDs; switching lanes immediately clears ready.
+        public Enemy AfterlightWatchBodyguardedThreat
         {
             get
             {
-                if(!AfterlightWatchActive)return false;
+                if(!AfterlightWatchActive)return null;
                 foreach(Enemy foe in enemies)
                     if(AfterlightWatchHeroBodyBlocksStock(foe))
-                        return true;
-                return false;
+                        return foe;
+                return null;
             }
         }
+        public Point AfterlightWatchReceiverFoot
+        {get{return AfterlightWatchActive?
+            AfterlightPoint(afterlightWatchRoom,"outlet"):new Point();}}
+        public bool AfterlightWatchHeroBodyguarding
+        {get{return AfterlightWatchBodyguardedThreat!=null;}}
         private bool AfterlightWatchCommittedStockStrike(Enemy foe)
         {
             if(!AfterlightWatchActive||foe==null||foe.hp<=0f||

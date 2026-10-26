@@ -449,6 +449,27 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Chapter Five receiver defense is an ACTUAL physical stance
+            // puzzle. Draw only the active NORMAL raider's committed lane:
+            // heavy area slams cannot be intercepted this way, and nearby
+            // idle NPCs must not paint fake threat beams. Both geometry
+            // and green hero cue use the exact core-owned damage predicate.
+            if(Game.mode=="world"&&Game.AfterlightWatchActive)
+            {
+                Enemy bodyguarded=Game.AfterlightWatchBodyguardedThreat;
+                Enemy incoming=bodyguarded??
+                    Game.AfterlightWatchIncomingStockThreat;
+                if(incoming!=null&&incoming.kind==0)
+                {
+                    Point station=Game.AfterlightWatchReceiverFoot;
+                    DrawRay(incoming.Position,station,
+                        bodyguarded!=null?
+                        new Color(.37f,.91f,.75f,.68f):
+                        new Color(1f,.63f,.31f,.64f));
+                    if(bodyguarded!=null)
+                        Ring(Game.Position,.51f,mint,24);
+                }
+            }
             if(Game.ShadeBreezeSeconds>0f && !Game.ShadedInDesert)
             {
                 Point screen=ScreenPoint(Game.Position);

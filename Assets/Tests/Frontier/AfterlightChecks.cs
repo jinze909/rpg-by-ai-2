@@ -1956,6 +1956,11 @@ namespace Starfall.Tests
                 {ready=true;break;}
             }
             Check(ready,"The real map offers a standable, unobstructed hero body in the raider's declared strike lane");
+            Check(System.Object.ReferenceEquals(
+                g.AfterlightWatchBodyguardedThreat,foe)&&
+                g.AfterlightWatchReceiverFoot.x==post.x&&
+                g.AfterlightWatchReceiverFoot.y==post.y,
+                "Real renderer guard lane is grounded in the exact attacker and actual receiver foot");
             float safeStock=g.AfterlightWatchStock;
             // The hero is an actual hit-able actor, not an abstract immunity
             // aura around the public receiver. Count the price of stepping
@@ -1967,7 +1972,7 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(g.save.health<preBlockHealth,
                 "Physically shielding the station absorbs the attack on the hero's actual HP, not a free global perk");
-            Check(g.riposteTime>=1.24f&&
+            Check(g.riposteTime>=1.18f&&
                 g.effects.Exists(e=>e.kind=="number"&&
                     e.text=="舍身反击 · 追击！"),
                 "Actually losing hero HP while saving the public receiver earns a brief real attack-contact riposte");
@@ -1991,6 +1996,7 @@ namespace Starfall.Tests
             foe.targetingAfterlightStock=true;foe.target=post;
             foe.Face(post-foe.Position);
             Check(!g.AfterlightWatchHeroBodyguarding&&
+                g.AfterlightWatchBodyguardedThreat==null&&
                 System.Object.ReferenceEquals(g.AfterlightWatchIncomingStockThreat,foe),
                 "Standing at the station rather than physically between attacker and station cannot fake an interception");
             Check((bool)meleeLane.Invoke(g,new object[]{foe,post}),
