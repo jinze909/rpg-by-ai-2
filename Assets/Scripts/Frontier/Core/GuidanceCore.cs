@@ -172,7 +172,19 @@ namespace Starfall
         private void RetireCivicCourierGuard()
         {
             if(civicCourierGuard!=null)
-                enemies.Remove(civicCourierGuard);
+            {
+                // Canceling at the genuine staffed dispatch withdraws THIS
+                // authored raider along with its already-fired hostile shots.
+                // Otherwise a hidden arrow may hit the courier after its
+                // source has vanished and the herb has been refunded.
+                // Live shooter REFERENCES prevent stripping another archer's
+                // arrows when spawn IDs collide. A sword-reflected arrow now
+                // belongs to the player and remains a legitimate friendly shot.
+                Enemy withdrawn=civicCourierGuard;
+                projectiles.RemoveAll(p=>p!=null&&!p.friendly&&
+                    Object.ReferenceEquals(p.hostileShooter,withdrawn));
+                enemies.Remove(withdrawn);
+            }
             ResetCivicCourierGuard();
         }
         private void OnCivicCourierGuardDefeated(Enemy e)

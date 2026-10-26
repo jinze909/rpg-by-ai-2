@@ -1773,6 +1773,72 @@ namespace Starfall.Tests
                 "The existing V2 save flags alone restore trained civilian staff after reload");
         }
 
+
+        public static void ReturningMedicalParcelWithdrawsOnlyItsOwnLiveArrows(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_aftercare_waytrail_0");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            foreach(WorldObject o in data.maps[0].objects)
+                if(o!=null&&o.kind=="waytrail")
+                    g.save.flags.Add("waytrail_"+o.id);
+            g.Enter(0);g.enemies.Clear();
+            WorldObject marker=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="waytrail");
+            Check(marker!=null,"The public medicine desk is an original world object");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.inventory[2]=5;
+            g.Talk(marker);
+            int accept=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_courier_start");
+            Check(accept>=0,"An authentic first medical parcel may be accepted");
+            int herbs=g.save.inventory[2];
+            g.Choose(accept);
+            Enemy raider=g.enemies.Find(g.IsCivicCourierGuard);
+            Check(raider!=null&&g.CivicCourierActive&&
+                g.save.inventory[2]==herbs-1,
+                "The active real contract has one shooter identity and a paid parcel");
+            Enemy unrelated=new Enemy(raider.id,1,raider.x+2.5f,raider.y,55);
+            g.enemies.Add(unrelated);
+            // Simulate already-released projectiles with real live shooter
+            // ownership. Keep them outside the origin's combat lock, exactly
+            // as they would be on the middle of the surveyed walking route.
+            var owned=new Projectile{hostileShooter=raider,
+                visual="enemyArrow",source="shot",damage=18,life=3,
+                position=raider.Position,velocity=new Point(1,0)};
+            var other=new Projectile{hostileShooter=unrelated,
+                visual="enemyArrow",source="shot",damage=18,life=3,
+                position=unrelated.Position,velocity=new Point(1,0)};
+            var reflected=new Projectile{hostileShooter=raider,
+                visual="arrow",source="shot",friendly=true,damage=9,life=3,
+                position=raider.Position,velocity=new Point(-1,0)};
+            g.projectiles.Add(owned);g.projectiles.Add(other);
+            g.projectiles.Add(reflected);
+            Check(g.SafeTravel,
+                "The real dispatch sign remains secure despite distant already-fired roadside arrows");
+            g.Talk(marker);
+            int cancel=Array.FindIndex(g.conversation.choices,
+                x=>x.action=="civic_courier_cancel");
+            Check(cancel>=0,"Original dispatch marker can offer the true parcel refund");
+            g.Choose(cancel);
+            Check(!g.CivicCourierActive&&
+                g.save.inventory[2]==herbs&&
+                !g.enemies.Contains(raider)&&
+                !g.projectiles.Contains(owned)&&
+                g.projectiles.Contains(other)&&
+                g.projectiles.Contains(reflected)&&
+                g.enemies.Contains(unrelated),
+                "Withdrawing only this raider cancels its hostile arrow, not a colliding-ID enemy's arrow or an earned player deflection");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&!restored.CivicCourierActive&&
+                restored.save.inventory[2]==herbs,
+                "The real V2 cancellation remains a one-herb refund after save reload");
+        }
+
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);
