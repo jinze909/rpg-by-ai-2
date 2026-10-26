@@ -125,11 +125,59 @@ public static class RuntimePolishChecks
             app.Game.mode = "world"; Key(app, KeyCode.Escape); Check(app.Game.mode == "pause", "Escape pauses actual gameplay"); Key(app, KeyCode.JoystickButton1); Check(app.Game.mode == "world", "Controller B returns to adventure");
             Set(app, "settingsParent", "title"); app.Game.mode = "saves"; Key(app, KeyCode.Escape); Check(app.Game.mode == "pause", "Title saves return to settings"); Key(app, KeyCode.Escape); Check(app.Game.mode == "title", "Title settings retain their return destination");
             Console.WriteLine("PASS Runtime keyboard/controller buttons, modal focus, menu return and paused world");
-            var audio = (FrontierAudio)typeof(FrontierRuntime).GetField("audioSystem", Private).GetValue(app); var effects = (AudioSource)typeof(FrontierAudio).GetField("effects", Private).GetValue(audio); var ambience = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(audio); var music = (AudioSource[])typeof(FrontierAudio).GetField("music", Private).GetValue(audio);
+            var audio = (FrontierAudio)typeof(FrontierRuntime).GetField("audioSystem", Private).GetValue(app); var effects = (AudioSource)typeof(FrontierAudio).GetField("effects", Private).GetValue(audio); var music = (AudioSource[])typeof(FrontierAudio).GetField("music", Private).GetValue(audio);
             app.Game.mode = "world"; app.Game.save.music = true; app.Game.save.musicVolume = .2f; app.Game.save.effectsVolume = .6f; app.Game.save.ambienceVolume = .8f; app.Game.sounds.Clear(); effects.heard.Clear(); app.Game.sound = "hit"; app.Game.sound = "hit"; app.Game.sound = "quest"; audio.Update(app.Game, false, 2);
+            var ambience = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(audio);
             Check(effects.heard.Count == 2 && effects.heard.Contains("hit") && effects.heard.Contains("quest") && Math.Abs(effects.volume - .18f) < .001f && Math.Abs(ambience.volume - .48f) < .001f && music[0].volume + music[1].volume > 0, "Distinct cues survive together while repeated same-frame hits are bounded and channel volumes stay independent");
             app.Game.save.music = false; audio.Update(app.Game, false, 2); Check(effects.volume == 0 && ambience.volume == 0 && !ambience.isPlaying && !music[0].isPlaying && !music[1].isPlaying, "Sound switch mutes and stops all looping channels");
             Console.WriteLine("PASS Runtime sound channel volumes, mute and multiple-event delivery (offline sources)");
+            // Exercise the live FrontierAudio room transition, not a detached
+            // math helper. Two channels must be simultaneously audible during
+            // a crossing, and a quick return must preserve the old soundscape.
+            var atmosphere = new FrontierAudio(new GameObject("region-audio-check"));
+            app.Game.mode = "world"; app.Game.save.music = true;
+            app.Game.save.room = 0;
+            atmosphere.Update(app.Game, false, 2f);
+            var roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip != null && roomNow.clip.name == "ambience0" && roomNow.isPlaying,
+                "Initial outdoor atmosphere is connected to the running audio system");
+            app.Game.save.room = 2;
+            atmosphere.Update(app.Game, false, .24f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            var roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
+            float oldGain = roomNow.volume, incomingGain = roomNext.volume;
+            Check(roomNow.isPlaying && roomNext.isPlaying && oldGain > 0 && incomingGain > 0 &&
+                roomNext.clip.name == "ambience2",
+                "Crossing a region overlaps both original and arriving outdoor audio clips");
+            app.Game.save.room = 0;
+            atmosphere.Update(app.Game, false, .12f);
+            Check(roomNext.volume < incomingGain && roomNext.volume > 0,
+                "Immediately returning to the old region reverses its unfinished sound crossfade");
+            atmosphere.Update(app.Game, false, 2f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience0" && roomNow.isPlaying && !roomNext.isPlaying,
+                "Return cancels the unwanted destination soundscape without restarting the home loop");
+            app.Game.save.room = 6;
+            atmosphere.Update(app.Game, false, .96f);
+            app.Game.save.room = 7;
+            atmosphere.Update(app.Game, false, .12f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience6" && roomNext.clip.name == "ambience7" &&
+                roomNow.isPlaying && roomNext.isPlaying,
+                "Rapid third-region transition keeps the dominant incoming landscape rather than resurrecting a quiet old room");
+            atmosphere.Update(app.Game, false, 2f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience7" && roomNow.isPlaying,
+                "Third-region soundscape settles on its real destination");
+            app.Game.save.music = false;
+            atmosphere.Update(app.Game, false, .1f);
+            Check(!roomNow.isPlaying, "Mute stops the active outdoor loop");
+            app.Game.save.music = true;
+            atmosphere.Update(app.Game, false, .1f);
+            Check(roomNow.isPlaying, "Restoring audio resumes the correct new region");
+            atmosphere.Dispose();
+            Console.WriteLine("PASS Runtime outdoor soundscapes: overlapping region transitions, reversing, retargeting and mute recovery (offline sources)");
         }
         finally { Application.persistentDataPath = previous; if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
