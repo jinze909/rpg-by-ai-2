@@ -84,13 +84,24 @@ def main():
     geometry = GEOMETRY.read_text(encoding="utf-8")
     assert "internal static bool IsAcceptedCompanionAtlas(Texture2D sheet)" in geometry
     assert "return HasSquareGrid(sheet, 3, 4);" in geometry
-    null_fallback = runtime.index(
-        'if (companionSheets == null || id < 0 || id >= companionSheets.Length || companionSheets[id] == null)')
+    # A genuine missing/partial action atlas is no longer permission to
+    # erase the player-owned ally or replace Mira/Ivo/Sen with a generic NPC.
+    # The geometry gate accepts only THIS actor's own original sources.
     geometry_gate = runtime.index(
-        "if (!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id]))")
+        "ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[id])")
+    same_owner_walk = runtime.index(
+        "companionWalkSheets[id].width==4*256")
+    source_rejection = runtime.index("if(!actionArtReady&&!publishedWalk)")
     first_body = runtime.index("Actor(companionSheets[id],3,4,frame,p,192f,tint,flip);")
-    assert null_fallback < geometry_gate < first_body, (
-        "COMPANION_BASE_ATLAS_GEOMETRY_GATE_ORDER_REGRESSION")
+    planted_recovery = runtime.index(
+        "Actor(companionWalkSheets[id],4,3,row*4,p,192f,tint,flip);")
+    assert geometry_gate < source_rejection < planted_recovery < first_body and (
+        same_owner_walk < source_rejection), (
+        "COMPANION_MISSING_ATLAS_REQUIRES_SAME_ID_FULL_BODY_SOURCE")
+    assert "WarnMissingCompanionBody(id,\"action; holding own Walk idle\")" in runtime, (
+        "COMPANION_UNAVAILABLE_CONTACT_MUST_BE_DIAGNOSTIC")
+    assert 'DrawNpc("companion", Game.companionPosition, id + 8)' not in runtime, (
+        "COMPANION_MUST_NOT_SILENTLY_CHANGE_TO_GENERIC_NPC_IDENTITY")
     assert "int frame = north ? 8 : south ? 11 : 0;" in runtime, (
         "COMPANION_SOUTH_IDLE_FALLBACK_REGRESSION")
     assert "companionWalkSheets[id].width==4*256" in runtime and (
