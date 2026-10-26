@@ -189,6 +189,28 @@ namespace Starfall
                 // no serialization, target IDs, damage or aim-through-walls.
                 // Process it before a same-frame Q / attack captures aim.
                 if(PadDown(9)) ToggleControllerTargetLock();
+                // The shipped Unity InputManager has a real Mouse ScrollWheel
+                // axis. One physical scroll notch advances through the
+                // UNLOCKED weapon roster, never an unearned future weapon.
+                // Ignore scroll over buttons/inventory to preserve IMGUI's
+                // own focus and browsing. This remains a standard Equip().
+                float wheel=Input.GetAxisRaw("Mouse ScrollWheel");
+                if(Math.Abs(wheel)>.001f&&!PointerOverInterface(mouse))
+                {
+                    int step=wheel>0f?1:-1;
+                    for(int offset=1;offset<3;offset++)
+                    {
+                        int weapon=(Game.save.weapon+3+step*offset)%3;
+                        if(weapon!=0&&!Game.Has("weapon_"+weapon))
+                            continue;
+                        Game.Equip(weapon);
+                        break;
+                    }
+                    // Physical mouse input supersedes a controller-only
+                    // voluntary lock and its one unpersisted target ref.
+                    ClearControllerTargetLock();
+                    controllerUsed=false;
+                }
                 // Discrete actions take priority over continuously held attacks.
                 // A fresh Q after a dodge is queued; a dodge clears older intent.
                 if ((Input.GetKeyDown(KeyCode.Space) || PadDown(0))) Game.Dash(movement);
