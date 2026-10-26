@@ -171,6 +171,7 @@ namespace Starfall.Tests
         [Test] public void ArchiveCivicVoteCannotDiscardCappedPermanentReward() { CoreChecks.CivicArchiveVoteWaitsForBothWalletCurrencies(Data()); }
         [Test] public void FullWalletMedicalDeliveryPreservesPhysicalV2Receipt() { CoreChecks.CompletedMedicineWithFullWalletKeepsDurableClaimableReceipt(Data()); }
         [Test] public void FerrymanAcknowledgesLiveMedicalEscortBattleAndRealReceipt() { CoreChecks.LivingFerrymanAcknowledgesRealMedicineBattleAndReceipt(Data()); }
+        [Test] public void CourierRaidersCannotBeSpoofedBySameIdActors() { CoreChecks.CourierSameIdImpostorsNeverEarnSecurityOrGetWipedOnAbort(Data()); }
         [Test] public void TideSalvageRejectsForgedSameIdActorsAndOwnedCleanup() { CoreChecks.TideboundEnemyOwnershipRejectsSameIdSpoofsAndKeepsOtherActors(Data()); }
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
         [Test] public void PublicFerryLowTideAndGaugeWaitRespectActualSluiceHold() { CoreChecks.PublicFerryAndCivicGaugeShareTrueHeldTideCountdown(Data()); }

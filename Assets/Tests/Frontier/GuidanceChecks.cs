@@ -210,6 +210,54 @@ namespace Starfall.Tests
             Check(100-armored.FarCourierIntegrity<parcelLoss[1],
                 "Guarding with the hero's existing real armor reduces parcel impact");
         }
+
+        public static void CourierSameIdImpostorsNeverEarnSecurityOrGetWipedOnAbort(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.frontierEnding=1;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("exp_intro");
+            g.save.flags.Add("far_bridge_0");g.save.flags.Add("far_shelter_0");
+            g.Enter(0);g.enemies.Clear();
+            var bridge=Object(g,"farbridge");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            for(int frame=0;frame<65&&!g.FarCourierCrossed;frame++)
+                g.Tick(.05f,new Point(0,1));
+            Check(g.FarCourierActive&&g.FarCourierCrossed&&
+                g.FarCourierRaidersAlive==2,
+                "The actual bridge walk authorizes exactly two owned courier attackers");
+            var actors=g.enemies.FindAll(e=>e.id==90100||e.id==90101);
+            Check(actors.Count==2,
+                "The canonical player sees two physical original bridge attackers");
+            var spoof=new Enemy(90100,0,50.5f,20.5f,400f)
+                {stun=200f,timer=200f};
+            g.enemies.Add(spoof);
+            Check(g.FarCourierRaidersAlive==2&&!g.FarCourierSecuredInFlight,
+                "A third ambient enemy using the melee ID must not count as a courier raider");
+            var callback=typeof(GameCore).GetMethod("OnFarCourierEnemyDefeated",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(callback!=null,"The real escort combat defeat callback remains present");
+            callback.Invoke(g,new object[]{spoof});
+            Check(!g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==2,
+                "Forged killed enemy ID cannot grant the one-time escorted security reward");
+            var lethal=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(lethal!=null,"Canonical enemy damage callback remains available");
+            lethal.Invoke(g,new object[]{actors[0],99999f,false,null,null});
+            Check(g.FarCourierRaidersAlive==1&&!g.FarCourierSecuredInFlight,
+                "Exactly one genuine raider defeat does not award a secured courier route");
+            lethal.Invoke(g,new object[]{actors[1],99999f,false,null,null});
+            Check(g.FarCourierRaidersAlive==0&&g.FarCourierSecuredInFlight&&
+                g.enemies.Contains(spoof),
+                "Both distinct physically owned bodies grant security without destroying unrelated actors");
+            g.hitStop=0;g.save.y+=4f;g.Tick(.05f,new Point());
+            Check(!g.FarCourierActive&&g.enemies.Contains(spoof)&&
+                !g.FarCourierDelivered(0)&&g.save.version==2,
+                "Actual failed-transport rollback keeps same-ID ordinary enemies and never mints delivery or new v2 state");
+        }
+
         public static void RemoteCourierRunTriggersEightRealCleanableRaiderEncounters(Campaign data)
         {
             var fire=typeof(GameCore).GetMethod("Fire",

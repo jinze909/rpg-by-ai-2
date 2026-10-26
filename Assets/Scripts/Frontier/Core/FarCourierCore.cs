@@ -16,6 +16,10 @@ namespace Starfall
         // Earned only when BOTH actual bridge pursuers die through GameCore.Hit.
         // Never persisted until the original parcel reaches the far refuge.
         private int courierConfirmedRaiderKills;
+        // Real encounter bodies outlive GameCore.Hit's removal callback.
+        // Never infer this sortie's ownership from the reusable ID range;
+        // a same-ID ambient fighter is not cargo security or cleanup.
+        private Enemy courierRaiderMelee,courierRaiderArcher;
         public bool FarCourierSecuredInFlight
         {get{return FarCourierActive&&courierRaided&&courierConfirmedRaiderKills==3;}}
         public bool FarCourierSecured(int room)
@@ -23,18 +27,24 @@ namespace Starfall
         private void OnFarCourierEnemyDefeated(Enemy enemy)
         {
             if(!FarCourierActive||!IsFarCourierRaider(enemy))return;
-            int index=enemy.id-(90100+save.room*2);
-            if(index>=0&&index<2)courierConfirmedRaiderKills|=1<<index;
+            if(System.Object.ReferenceEquals(enemy,courierRaiderMelee))
+                courierConfirmedRaiderKills|=1;
+            else if(System.Object.ReferenceEquals(enemy,courierRaiderArcher))
+                courierConfirmedRaiderKills|=2;
         }
-        // Mission-owned IDs use a reserved range, never ordinary spawn IDs.
+        // The range is still reserved for authored spawn labels, but
+        // neither save exclusions nor combat should trust that label alone.
         private bool IsFarCourierRaider(Enemy foe)
-        {return foe!=null&&foe.id>=90100&&foe.id<90116;}
+        {return foe!=null&&
+            (System.Object.ReferenceEquals(foe,courierRaiderMelee)||
+             System.Object.ReferenceEquals(foe,courierRaiderArcher));}
         public int FarCourierRaidersAlive
         {
             get
             {
                 if(!FarCourierActive)return 0;
-                int n=0;foreach(Enemy foe in enemies)if(IsFarCourierRaider(foe))n++;
+                int n=0;foreach(Enemy foe in enemies)
+                    if(IsFarCourierRaider(foe)&&foe.hp>0)n++;
                 return n;
             }
         }
@@ -91,8 +101,12 @@ namespace Starfall
                 return;
             }
             int id=90100+save.room*2;
-            enemies.Add(CreatePlacedEnemy(id,0,melee,36+save.room*5));
-            enemies.Add(CreatePlacedEnemy(id+1,1,archer,31+save.room*5));
+            courierRaiderMelee=CreatePlacedEnemy(
+                id,0,melee,36+save.room*5);
+            courierRaiderArcher=CreatePlacedEnemy(
+                id+1,1,archer,31+save.room*5);
+            enemies.Add(courierRaiderMelee);
+            enemies.Add(courierRaiderArcher);
             effects.Add(new Effect("danger",melee,.6f){radius=.55f,courierOwned=true});
             effects.Add(new Effect("danger",archer,.6f){radius=.55f,courierOwned=true});
             revision++;sound="windup";
@@ -146,6 +160,7 @@ namespace Starfall
             enemies.RemoveAll(IsFarCourierRaider);
             projectiles.RemoveAll(shot=>shot.courierOwned);
             effects.RemoveAll(effect=>effect.courierOwned);
+            courierRaiderMelee=courierRaiderArcher=null;
             courierRoom=-1;courierRaided=false;
             courierConfirmedRaiderKills=0;
             courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;
