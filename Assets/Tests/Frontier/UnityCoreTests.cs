@@ -168,6 +168,8 @@ namespace Starfall.Tests
         [Test] public void IronreachAmbushersNeverSpawnOnCartOrOccupiedActors() { CoreChecks.MinecartJunctionGuardsAvoidActualCombatActorOccupancy(Data()); }
         [Test] public void MinecartPressureRequiresWalkableLaneAndActiveUnstunnedGuard() { CoreChecks.MinecartHullOnlyDrainsFromUnobstructedLivingGuards(Data()); }
         [Test] public void FerrymanRemembersPublicArchiveChoice() { CoreChecks.RestoredFerrymanRespondsToActualCivicArchiveChoice(Data()); }
+        [Test] public void ArchiveCivicVoteCannotDiscardCappedPermanentReward() { CoreChecks.CivicArchiveVoteWaitsForBothWalletCurrencies(Data()); }
+        [Test] public void FullWalletMedicalDeliveryPreservesPhysicalV2Receipt() { CoreChecks.CompletedMedicineWithFullWalletKeepsDurableClaimableReceipt(Data()); }
         [Test] public void FerrymanAcknowledgesLiveMedicalEscortBattleAndRealReceipt() { CoreChecks.LivingFerrymanAcknowledgesRealMedicineBattleAndReceipt(Data()); }
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
         [Test] public void PublicFerryLowTideAndGaugeWaitRespectActualSluiceHold() { CoreChecks.PublicFerryAndCivicGaugeShareTrueHeldTideCountdown(Data()); }

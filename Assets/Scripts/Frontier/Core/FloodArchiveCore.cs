@@ -32,6 +32,32 @@ namespace Starfall
         // encounters; IDs alone cannot authorize kills or cleanup.
         private Enemy floodReliefRaiderA,floodReliefRaiderB;
         public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
+        // Durable receipt for a legitimately completed rescue whose one-time
+        // payout would exceed the historical SaveData v2 currency caps.
+        // Older completed slots lack this flag and remain fully paid.
+        public bool FloodReliefRewardPending
+        { get {return FloodReliefComplete&&Has("floodarchive_relief_reward_pending");} }
+        private bool CanReceiveFloodArchivePayout(int coins,int shards)
+        {
+            if(save.coins<=999999-coins&&save.shards<=99999-shards)
+                return true;
+            Notify("硬币或碎片容量不足。奖励会保留，请腾出足够的空间后再领取。",
+                "Coin or shard storage is full. Make room before claiming the reserved reward.");
+            return false;
+        }
+        private bool ClaimFloodReliefPayout()
+        {
+            if(!FloodReliefRewardPending||
+                !CanReceiveFloodArchivePayout(45,1))return false;
+            // Consume the receipt before crediting. A repeat or forged
+            // dialogue cannot grant the same one-time reward twice.
+            save.flags.Remove("floodarchive_relief_reward_pending");
+            CreditCoins(45);CreditShards(1);AddXp(65);
+            revision++;sound="reward";
+            Notify("东岸医药交接奖励结清：硬币+45、碎片+1、经验+65。",
+                "Eastern medical receipt settled: +45 coins, +1 shard, +65 XP.");
+            return true;
+        }
         public int PublicFerryEnergyCost { get { return FloodReliefComplete?10:14; } }
         public bool FloodReliefActive { get { return floodReliefActive&&save.room==2&&!Dying; } }
         public bool FloodReliefCrossed { get { return FloodReliefActive&&floodReliefCrossed; } }
@@ -258,6 +284,9 @@ namespace Starfall
                 bool ferryDock=stage==1||stage==3;
                 var choices=new System.Collections.Generic.List<Choice>();
                 choices.Add(C("重读公开记录","Read the record","close"));
+                if(stage==3&&FloodReliefRewardPending)
+                    choices.Add(C("领取东岸医疗交接奖励","Claim eastern medical receipt",
+                        "floodarchive_relief_claim"));
                 if(!FloodReliefComplete&&stage==1&&LowTide&&!floodReliefActive)
                     choices.Add(C("低潮医疗护送 · 击退拦截者",
                         "Low-tide medical convoy · defeat raiders","floodarchive_relief_start"));
@@ -279,7 +308,9 @@ namespace Starfall
                     choices.Add(C("乘渡船 · 耐力"+PublicFerryEnergyCost,
                         "Cross by ferry · "+PublicFerryEnergyCost+" energy","floodarchive_ferry"));
                 string extraZh=FloodReliefComplete?
-                    "\n\n西岸医疗物资已真正送达并登记，公民航线受到保护；渡船耐力永久降至10。":
+                    (FloodReliefRewardPending?
+                        "\n\n药品已送达，航线永久降低耐力消耗。硬币45、碎片1和经验65在东岸接收台待领取，请先腾出货币容量。":
+                        "\n\n西岸医疗物资已真正送达并登记，公民航线受到保护；渡船耐力永久降至10。"):
                     floodReliefActive?
                     "\n\n医疗护送进行中："+(int)Math.Ceiling(floodReliefTime)+
                     "秒，封条 "+(int)Math.Ceiling(floodReliefIntegrity)+"%。"+
@@ -289,7 +320,9 @@ namespace Starfall
                         "请先搭乘低潮渡船前往东岸。"):
                     "\n\n西岸还可在低潮时领取急救包，渡河并击退两名拦截者后向东岸居民交付。";
                 string extraEn=FloodReliefComplete?
-                    "\n\nEmergency medicine was delivered. The safer ferry now costs 10 energy.":
+                    (FloodReliefRewardPending?
+                        "\n\nMedicine delivered; the cheaper ferry is active. Claim 45 coins, 1 shard and 65 XP at this east-bank desk when your wallet has room.":
+                        "\n\nEmergency medicine was delivered. The safer ferry now costs 10 energy."):
                     floodReliefActive?
                     "\n\nMedical crossing: "+(int)Math.Ceiling(floodReliefTime)+
                     "s remaining, cargo "+(int)Math.Ceiling(floodReliefIntegrity)+"%. "+
@@ -517,6 +550,13 @@ namespace Starfall
         {
             if(!action.StartsWith("floodarchive_",StringComparison.Ordinal))return false;
             if(action=="floodarchive_ferry")return ChooseFloodArchiveFerry();
+            if(action=="floodarchive_relief_claim")
+            {
+                WorldObject east=FloodArchiveObject(3);
+                if(!FloodReliefRewardPending||save.room!=2||Dying||
+                    practicing||!AtFloodArchivePost(east))return true;
+                ClaimFloodReliefPayout();return true;
+            }
             if(action=="floodarchive_relief_start")
             {
                 WorldObject west=FloodArchiveObject(1);
@@ -598,13 +638,18 @@ namespace Starfall
                     floodReliefConfirmedKills!=3||floodReliefIntegrity<=0||
                     east==null||save.room!=2||Dying||practicing||
                     !AtFloodArchivePost(east))return true;
+                // The civilians receive the medicine even when the player
+                // has a full purse. Keep a one-time receipt in existing v2
+                // flags instead of silently truncating a permanent reward.
                 ResetFloodRelief();Flag("floodarchive_relief");
-                CreditCoins(45);CreditShards(1);AddXp(65);
+                Flag("floodarchive_relief_reward_pending");
                 revision++;sound="reward";
                 RecordMoment("沉桥渡口的药品在真实的低潮航程和两名拦截者的战斗后送抵东岸居民手中。",
                     "Emergency medicine reached the east shore after a real low-tide crossing and two confirmed combat victories.");
-                Notify("医疗护送成功：硬币+45、碎片+1、经验+65！安全渡船永久降至10耐力。",
-                    "Medical relief delivered! +45 coins, +1 shard, +65 XP; the secured ferry now costs 10 energy.");
+                if(save.coins<=999999-45&&save.shards<=99999-1)
+                    ClaimFloodReliefPayout();
+                else Notify("药品已交付！永久渡船优惠生效。奖励收据已保留，腾出硬币与碎片空间后返回东岸领取。",
+                    "Medicine delivered! The ferry discount is active. Your reward receipt is saved; return to the east desk after making wallet room.");
                 return true;
             }
             if(action!="floodarchive_1"&&action!="floodarchive_2"&&
@@ -630,6 +675,9 @@ namespace Starfall
                     "Recovered civilian record "+stage+"/2. +12 XP.");
                 return true;
             }
+            // Publishing a permanent civic decision may not discard either
+            // of its one-time currency rewards at the v2 wallet cap.
+            if(!CanReceiveFloodArchivePayout(50,2))return true;
             Flag(action);
             CreditCoins(50); CreditShards(2); AddXp(80);
             revision++;sound="reward";

@@ -566,6 +566,98 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void CivicArchiveVoteWaitsForBothWalletCurrencies(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_1");
+            g.save.flags.Add("floodarchive_2");
+            WorldObject desk=FerryRecord(g,3);
+            g.save.x=desk.x;g.save.y=desk.y;
+            g.save.coins=999970;g.save.shards=99999;
+            int xp=g.save.xp;
+            g.Talk(desk);
+            Check(FerryChoice(g,"floodarchive_chart")&&
+                !g.FloodArchiveComplete&&g.save.coins==999970&&
+                g.save.shards==99999&&g.save.xp==xp,
+                "A permanent public-archive decision cannot discard either full-wallet reward");
+            g.save.coins=999949;g.save.shards=99997;
+            g.Talk(desk);
+            Check(FerryChoice(g,"floodarchive_chart")&&
+                g.FloodArchiveComplete&&g.save.coins==999999&&
+                g.save.shards==99999&&g.save.xp==xp+80,
+                "Both exact-cap currencies and XP are earned only on a real accepted civic vote");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodArchiveComplete&&
+                loaded.save.coins==999999&&loaded.save.shards==99999,
+                "The public vote and two full rewards persist in the unchanged v2 schema");
+        }
+
+        public static void CompletedMedicineWithFullWalletKeepsDurableClaimableReceipt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.invulnerable=400f;
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.x=west.x;g.save.y=west.y;
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.coins=999999;g.save.shards=99999;
+            int xp=g.save.xp;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start"),
+                "The original actual west-dock escort begins even with a full wallet");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefRaiders==2,
+                "The real 14-energy ferry carries the medicine into two actual raiders");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The original lethal combat handler verifies both escort kills");
+            Enemy melee=g.enemies.Find(e=>e.id==92340);
+            Enemy bow=g.enemies.Find(e=>e.id==92341);
+            Check(melee!=null&&bow!=null,"Both genuine mission actors exist");
+            hit.Invoke(g,new object[]{melee,99999f,false,null,null});
+            hit.Invoke(g,new object[]{bow,99999f,false,null,null});
+            g.save.x=east.x;g.save.y=east.y;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_deliver")&&
+                g.FloodReliefComplete&&g.FloodReliefRewardPending&&
+                !g.FloodReliefActive&&g.PublicFerryEnergyCost==10&&
+                g.save.coins==999999&&g.save.shards==99999&&
+                g.save.xp==xp,
+                "Real medicine is received and permanent ferry discount earned, but no capped payout is lost");
+            Check(g.GetQuest("ferry_relief").complete&&
+                g.GetQuest("ferry_relief").next.Contains("待领取"),
+                "The questbook tracks the durable outstanding receipt after delivery");
+            var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"The authentic public-dock transaction remains available");
+            g.save.x=west.x;g.save.y=west.y;
+            choose.Invoke(g,new object[]{"floodarchive_relief_claim"});
+            Check(g.FloodReliefRewardPending&&g.save.xp==xp,
+                "Forged western-bank claim cannot withdraw the eastern payout");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodReliefRewardPending&&
+                loaded.FloodReliefComplete,
+                "A delivered but unpaid medicine receipt survives the actual old-v2 save reload");
+            loaded.Close();loaded.enemies.Clear();
+            loaded.save.x=east.x;loaded.save.y=east.y;
+            loaded.save.coins=999954;loaded.save.shards=99998;
+            loaded.Talk(east);
+            Check(FerryChoice(loaded,"floodarchive_relief_claim")&&
+                !loaded.FloodReliefRewardPending&&loaded.FloodReliefComplete&&
+                loaded.save.coins==999999&&loaded.save.shards==99999&&
+                loaded.save.xp==xp+65&&loaded.PublicFerryEnergyCost==10,
+                "The physically claimed receipt pays exactly once after old-v2 restoration");
+            choose.Invoke(loaded,new object[]{"floodarchive_relief_claim"});
+            Check(loaded.save.coins==999999&&loaded.save.shards==99999&&
+                loaded.save.xp==xp+65,
+                "Repeated direct settlement calls cannot farm the original civic escort payout");
+        }
+
         public static void PublicFerryRefundsOnlyUnreleasedCompanionOrders(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();

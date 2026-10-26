@@ -910,6 +910,8 @@ namespace Starfall
                 Box(p.x-22,p.y-43,44,8,PixelArt.C("#7d9cae"));
                 Ring(new Point(o.x,o.y),medicine?1.02f:ready?.94f:.63f,tint,24);
                 Text(p.x-79,p.y-77,158,20,
+                    Game.FloodReliefRewardPending&&stage==3?
+                        Game.L("东岸医药奖励 · 待领取","EAST RECEIPT · CLAIM"):
                     medicine?stage==1?
                         Game.L("急救包已装船 · 立即渡河","MEDICINE LOADED · BOARD"):
                         clearForHandoff?

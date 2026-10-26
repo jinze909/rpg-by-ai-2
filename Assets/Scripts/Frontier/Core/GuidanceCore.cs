@@ -1215,7 +1215,10 @@ namespace Starfall
                 // genuine living raider. The shared journal, world guidance
                 // and compass must never point to delivery before both kills.
                 q.target=FloodReliefObjective;
-                q.next=q.complete?L("东岸急救补给已经完成交接",
+                q.next=FloodReliefRewardPending?
+                    L("药品已签收 · 东岸接收台还有未领取的奖励",
+                        "Medicine delivered · claim the saved receipt at the east desk"):
+                    q.complete?L("东岸急救补给已经完成交接",
                     "The eastern medicine has been genuinely delivered"):
                     q.locked?L("先完成沉桥民用档案，恢复低潮渡船",
                         "Restore the public tide ferry through the archive"):
