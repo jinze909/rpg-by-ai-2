@@ -115,10 +115,25 @@ namespace Starfall
                     en="all 3/3 old route markers are verified; take the roadwarden log back to Hearth Inn for publication";
                 }
             }
+            else if(CivicWaystationCount<3)
+            {
+                int[] regions={0,3,5};
+                string[] namesZh={"引水渠","赤铁矿场","雾港"};
+                string[] namesEn={"Canal","Ironreach","Mistport"};
+                int next=0;
+                while(next<regions.Length&&Has("civic_waystation_stocked_"+regions[next]))next++;
+                zh="新开的道路已经核验，但三地居民路站只有 "+
+                    CivicWaystationCount+"/3 处有物资。下一处在"+
+                    namesZh[next]+"；带木材两份、药草一份，到旧路标亲自交给巡路人";
+                en="the reopened roads are verified, but only "+
+                    CivicWaystationCount+"/3 civilian waystations are supplied. "+
+                    "Deliver 2 timber and 1 herb to an old marker in "+
+                    namesEn[next]+" so travelers have a place to recover";
+            }
             else
             {
-                zh="新开的道路还得有人巡，旅店的巡路记录等着下一位归来的人";
-                en="the reopened roads still need patrols, and the inn roadwarden log is ready for new return entries";
+                zh="新开的道路还得有人巡，三地路站已备好药箱，旅店的巡路记录等着下一位归来的人";
+                en="the reopened roads still need patrols; all three stocked waystations now offer safe aid, and the inn roadwarden log has room for the next return";
             }
         }
         private void WorldInnStoryCatchUp(WorldObject traveler)
@@ -359,8 +374,15 @@ namespace Starfall
                     nextZh="去旅店问巡路队的公用路况簿："+auditZh+"。";
                     nextEn="Check the roadwarden log at Hearth Inn: "+auditEn+".";
                 }
+                else if(CivicWaystationCount<3)
+                {
+                    string stepZh,stepEn;
+                    CurrentPublicStoryWork(out stepZh,out stepEn);
+                    nextZh="路标查过了，药箱不能只画在图上。"+stepZh+"。";
+                    nextEn="A marked road is not a stocked roadside station. "+stepEn+".";
+                }
                 else
-                {nextZh="去旅店看看巡路队的新记录吧。电网通了，总得有人继续巡查。";nextEn="Read the roadwardens' latest log at the inn. The grid runs now; someone still has to inspect it.";}
+                {nextZh="三地路站都备齐物资了。去旅店看看巡路队的新记录吧。";nextEn="All three roadside stations are supplied. Read the latest roadwarden log at the inn.";}
                 zh+="\n\n“"+nextZh+"”";
                 en+="\n\n“"+nextEn+"”";
             }

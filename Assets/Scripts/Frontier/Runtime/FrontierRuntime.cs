@@ -1096,6 +1096,17 @@ namespace Starfall
                         Text(p.x-76,p.y-121,152,18,
                             Game.L("居民急救 · 药草1","FIELD KIT · 1 HERB"),
                             10,mint,TextAnchor.MiddleCenter);
+                        // Existing illustrated obelisk remains untouched.
+                        // Source-bound civic supplies alter only the small
+                        // clear completion ring and readable world caption.
+                        bool supplied=Game.Has("civic_waystation_stocked_"+Game.save.room);
+                        if(supplied)Ring(new Point(o.x,o.y),.82f,
+                            new Color(.51f,.84f,.9f,.8f),20);
+                        Text(p.x-89,p.y-143,178,19,
+                            supplied?Game.L("路站已补给 ✓","WAYSTATION ✓"):
+                                Game.L("补给 · 木材2 药草1",
+                                    "SUPPLY · 2 TIMBER 1 HERB"),
+                            10,supplied?mint:gold,TextAnchor.MiddleCenter);
                     }
                 }
                 return;

@@ -338,6 +338,31 @@ namespace Starfall.Tests
                 g.conversation.textEn.Contains("reopened roads")&&
                 g.save.coins==coins&&g.save.version==2,
                 "Published road audits retire the old pending marker instead of asking players to file it twice");
+            g.Close();
+            int[] resupplyRegions={0,3,5};
+            for(int built=0;built<=3;built++)
+            {
+                if(built>0)
+                    g.save.flags.Add("civic_waystation_stocked_"+resupplyRegions[built-1]);
+                g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+                if(built<3)
+                {
+                    Check(g.CivicWaystationCount==built&&
+                        g.conversation.text.Contains(built+"/3")&&
+                        g.conversation.textEn.Contains(built+"/3")&&
+                        g.conversation.text.Contains(nextSites[built])&&
+                        g.conversation.textEn.Contains(nextSitesEn[built])&&
+                        g.save.coins==coins,
+                        "The historical archive leads to the exact next unsupplied original region without inventing progress: "+built);
+                }
+                else
+                    Check(g.CivicWaystationCount==3&&
+                        g.conversation.text.Contains("三地路站")&&
+                        g.conversation.textEn.Contains("all three stocked")&&
+                        g.save.coins==coins&&g.save.version==2,
+                        "The chronicle retires the building request only after all authentic site flags exist");
+                g.Close();
+            }
         }
 
         public static void WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Campaign data)
