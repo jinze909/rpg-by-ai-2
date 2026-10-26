@@ -895,11 +895,27 @@ namespace Starfall
                 bool current=stage==Game.FloodArchiveProgress+1&&Game.Has("scout_saved");
                 float wait=Game.FloodArchiveWait(stage);
                 bool ready=current&&wait<=0;
-                Color tint=recorded?mint:ready?PixelArt.C("#8de3f0"):current?gold:muted;
+                // The same actual world marker now reflects the live parcel
+                // and physical two-raider crossing. Avoid the old misleading
+                // "ferry open" sign while wounded civilians await delivery.
+                bool medicine=Game.FloodReliefActive&&
+                    (stage==1&&!Game.FloodReliefCrossed||
+                     stage==3&&Game.FloodReliefCrossed);
+                bool clearForHandoff=medicine&&Game.FloodReliefSecured;
+                Color tint=medicine?
+                    (clearForHandoff?mint:Game.FloodReliefIntegrity<=25?
+                     PixelArt.C("#fa9d83"):gold):
+                    recorded?mint:ready?PixelArt.C("#8de3f0"):current?gold:muted;
                 Box(p.x-15,p.y-38,30,34,PixelArt.C("#3a6179"));
                 Box(p.x-22,p.y-43,44,8,PixelArt.C("#7d9cae"));
-                Ring(new Point(o.x,o.y),ready?.94f:.63f,tint,24);
+                Ring(new Point(o.x,o.y),medicine?1.02f:ready?.94f:.63f,tint,24);
                 Text(p.x-79,p.y-77,158,20,
+                    medicine?stage==1?
+                        Game.L("急救包已装船 · 立即渡河","MEDICINE LOADED · BOARD"):
+                        clearForHandoff?
+                            Game.L("拦截者已败 · 交付药品","RAIDERS DOWN · DELIVER"):
+                            Game.L("东岸拦截战 · 已击败","EAST BANK RAIDERS · DEFEATED")+
+                                " "+Game.FloodReliefDefeated+"/2":
                     complete&&(stage==1||stage==3)?
                         (Game.LowTide?Game.L("低潮渡船 · 可通行","LOW TIDE · FERRY OPEN"):
                                       Game.L("渡船 · 等待退潮","FERRY · WAIT LOW")):
@@ -910,7 +926,20 @@ namespace Starfall
                                           Game.L("退潮名册 · 等潮","ROSTER · WAIT LOW"):
                     current?Game.L("公开渡口 · 选择","PUBLIC FERRY · CHOOSE"):
                             Game.L("尚未解锁","LOCKED"),11,tint,TextAnchor.MiddleCenter);
-                if(current&&stage<=2&&!ready)
+                if(medicine)
+                {
+                    Text(p.x-91,p.y-97,182,19,
+                        Game.L("封条 ","CARGO ")+
+                        (int)Math.Ceiling(Game.FloodReliefIntegrity)+"% · "+
+                        (int)Math.Ceiling(Game.FloodReliefTime)+"s",
+                        11,tint,TextAnchor.MiddleCenter);
+                    if(stage==3&&Game.FloodReliefWardTime>0)
+                        Text(p.x-91,p.y-115,182,18,
+                            Game.L("药品护盾 ","PARCEL WARD ")+
+                            (int)Math.Ceiling(Game.FloodReliefWardTime)+"s",
+                            10,mint,TextAnchor.MiddleCenter);
+                }
+                else if(current&&stage<=2&&!ready)
                     Text(p.x-38,p.y-96,76,18,wait.ToString("0")+"s",12,gold,TextAnchor.MiddleCenter);
                 return true;
             }
