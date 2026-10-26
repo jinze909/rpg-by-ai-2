@@ -288,13 +288,26 @@ public static class RuntimeCombatInputChecks
             g.aimTarget.HasValue,
             "Actual R3 press pins exactly the live visible enemy by reference");
         Input.axes["Combat Aim Horizontal"]=0;
-        Input.axes["Horizontal"]=-1;
+        // The shipped arena has real trees, gate posts and house colliders;
+        // deliberately choose a standable short left-stick step instead of
+        // assuming the review spawn is clear to the west.
+        Point step=new Point();
+        foreach(Point candidate in new[]{new Point(-1,0),new Point(0,1),
+            new Point(0,-1),new Point(1,0)})
+            if(g.CanStand(g.Position+candidate*.24f))
+            {step=candidate;break;}
+        Check(step.Length>.5f,"Original scene provides a physically walkable controller step");
+        Input.axes["Horizontal"]=step.x;
+        Input.axes["Vertical"]=-step.y;
         Point before=g.Position;
         Update(app);
-        Check(g.Position.x<before.x&&g.aimTarget.HasValue&&
+        Check((g.Position-before).Length>.01f&&g.aimTarget.HasValue&&
             (g.aimTarget.Value-selected.Position).Length<.001f &&
             System.Object.ReferenceEquals(pinned.GetValue(app),selected),
-            "Neutral right stick retains the locked target while left stick moves independently");
+            "Neutral right stick retains the locked target while left stick moves independently: moved="+
+            (g.Position-before).Length+" pin="+
+            System.Object.ReferenceEquals(pinned.GetValue(app),selected)+
+            " target="+g.aimTarget.HasValue);
         Input.keys.Add(KeyCode.JoystickButton3);Update(app);
         Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
             g.playerAction.target.HasValue&&
