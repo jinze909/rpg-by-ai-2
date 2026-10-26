@@ -594,14 +594,24 @@ namespace Starfall.Tests
             for(int frame=0;frame<5;frame++)
                 g.Tick(.05f,new Point());
             float earned=g.companionCooldown;
-            Check(earned>0f&&earned<18f,
-                "The live command advances past its authored .2-second release contact");
+            Check(earned>0f&&earned<18f&&
+                g.projectiles.Exists(p=>p.friendly&&p.life>0),
+                "The live command makes a genuine released arrow volley, not just an unspent cooldown");
+            // The actual 250ms of world combat also regenerates some player
+            // energy. Ferrying must charge exactly the advertised fare from
+            // the CURRENT wallet, not from the precombat 86-energy snapshot.
+            float beforeReturn=g.save.energy;
             g.save.totalTime=36;
             g.Talk(east);
-            Check(FerryChoice(g,"floodarchive_ferry")&&
-                (g.Position-new Point(west.x,west.y)).Length<.001f&&
-                g.companionCooldown==earned&&g.save.energy==72,
-                "Returning after a genuine skill contact keeps its spent cooldown; ferrying cannot farm instant recasts");
+            bool returned=FerryChoice(g,"floodarchive_ferry");
+            Check(returned&&
+                (g.Position-new Point(west.x,west.y)).Length<.001f,
+                "The real companion and hero can return via the public ferry after release");
+            Check(Math.Abs(g.companionCooldown-earned)<.001f&&
+                Math.Abs(g.save.energy-(beforeReturn-14f))<.001f,
+                "A paid return must preserve the earned skill cooldown and charge once; cooldown="+
+                g.companionCooldown+" earned="+earned+" energy="+
+                g.save.energy+" before="+beforeReturn);
             g.PrepareSave();
             Check(g.save.version==2&&g.save.companion==1,
                 "Neither refunded nor legitimately charged cooldown adds a serialized party field");
