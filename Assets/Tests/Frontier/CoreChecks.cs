@@ -1890,6 +1890,55 @@ namespace Starfall.Tests
                 "Existing V2 save preserves optional completion without serializing encounter identity");
         }
 
+
+        public static void MainChapterGuardianVictoryKeepsRealNextStepAfterCorpseFades(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=1;
+            g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject shrine=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="shrine");
+            Check(shrine!=null,"Original Thornwood chapter Boss has a real shrine");
+            g.save.x=shrine.x;g.save.y=shrine.y;
+            Check(g.CanStand(g.Position)&&g.GateOpen,
+                "An actually cleared scout route unlocks the normal chapter guardian");
+            Check(!g.BossVictoryFeedback&&g.BossVictoryNextStep=="",
+                "An opened shrine alone must never fake a Boss death");
+            g.Talk(shrine);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="boss")>=0,
+                "The real shrine exposes the original authored combat challenge");
+            g.Choose(Array.FindIndex(g.conversation.choices,c=>c.action=="boss"));
+            Enemy guardian=g.enemies.Find(e=>e!=null&&e.boss);
+            Check(guardian!=null&&g.mode=="world"&&
+                !g.BossVictoryFeedback,
+                "The real shrine spawns an active Boss, not victory feedback");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Main Boss takes the production combat-hit callback");
+            hit.Invoke(g,new object[]{guardian,9999f,false,null,null});
+            Check(g.Has("boss_1")&&g.BossVictoryFeedback&&
+                g.BossVictoryNextStep.Contains("starcore"),
+                "Actual lethal Boss contact opens a six-second objective handoff on real gameplay");
+            // Corpse only remains ~1.4s, the guidance must outlive it.
+            g.enemies.Clear();
+            for(int i=0;i<50;i++)g.Tick(.05f,new Point());
+            Check(!g.fallen.Exists(f=>f!=null&&f.actor==guardian)&&
+                g.BossVictoryFeedback&&
+                g.BossVictoryNextStep.Contains("altar"),
+                "Normal chapter next-step text survives the full corpse fade");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.save.version==2&&loaded.Has("boss_1")&&
+                !loaded.BossVictoryFeedback&&loaded.BossVictoryNextStep=="",
+                "Old V2 boss clear persists, but transient victory panel never leaks into a loaded slot");
+            for(int i=0;i<100;i++)g.Tick(.05f,new Point());
+            Check(!g.BossVictoryFeedback&&g.BossVictoryNextStep=="",
+                "Only the actual bounded victory interval draws the temporary battle handoff");
+        }
+
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);

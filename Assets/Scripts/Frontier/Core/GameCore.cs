@@ -164,6 +164,21 @@ namespace Starfall
         public Point Position { get { return new Point(save.x, save.y); } }
         public MapData Map { get { return save.room == 8 && abyssMap != null ? abyssMap : data.maps[save.room]; } }
         public BossData CurrentBoss { get { return save.room == 8 ? new BossData { name = "地脉收割者", en = "The Root Reaper", hp = 680 + save.abyssRisk * 140 } : data.bosses[Math.Min(data.bosses.Length - 1, Math.Max(0, save.room - 1))]; } }
+        // The last fallen Boss disappears after its corpse animation (1.4s),
+        // which previously also removed the ONLY visible next-step cue in
+        // CombatHud. Keep a short real world-clock handoff tied to the exact
+        // room and confirmed actual lethal main Boss callback. Never save it.
+        private float bossVictoryFeedbackTime;
+        private int bossVictoryFeedbackRoom=-1;
+        public bool BossVictoryFeedback
+        {
+            get { return mode=="world" && bossVictoryFeedbackTime>0f &&
+                bossVictoryFeedbackRoom==save.room &&
+                Has("boss_"+save.room) &&
+                !enemies.Exists(e=>e!=null&&e.boss&&e.hp>0f); }
+        }
+        public string BossVictoryNextStep
+        { get { return BossVictoryFeedback?Objective():""; } }
         public string L(string zh, string en) { return save.english ? en : zh; }
         public static float Clamp(float x, float min, float max) { return Math.Max(min, Math.Min(max, x)); }
         private static bool Finite(float f) { return !float.IsNaN(f) && !float.IsInfinity(f); }
@@ -737,6 +752,10 @@ namespace Starfall
                 (!Finite(explicitAim.Value.x)||!Finite(explicitAim.Value.y)))
                 explicitAim=null;
             toastTime -= dt;
+            // This is world time, not wall-clock time: reading the journal
+            // pauses the post-Boss handoff just as it pauses combat.
+            if(mode=="world"&&bossVictoryFeedbackTime>0f)
+                bossVictoryFeedbackTime=Math.Max(0f,bossVictoryFeedbackTime-dt);
             // Invalid presentation records must be removed before any UI,
             // mission or world renderer can enumerate them. Valid effect clocks
             // remain frozen outside world mode, exactly as before.
@@ -1263,7 +1282,10 @@ namespace Starfall
             // the original regional boss/core or gate progression flags.
             if (e.boss && !IsSkywatchEnemy(e))
             {
-                Flag("boss_" + save.room); RetireHostileProjectiles();
+                Flag("boss_" + save.room);
+                bossVictoryFeedbackRoom=save.room;
+                bossVictoryFeedbackTime=6f;
+                RetireHostileProjectiles();
                 EnsureRidgeWatchPatrols();
                 if (save.room == 4) finaleDelay = 1.4f;
                 else if (save.room >= 5) Notify("守护者倒下了。完成地区调查或清理本层剩余敌人。", "Guardian defeated. File the report, or clear remaining abyss enemies.");
