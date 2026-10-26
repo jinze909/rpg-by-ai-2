@@ -3,6 +3,58 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void ArmoredFlankOpensRealTimedFrontGuardBreach(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=19.5f;g.save.y=14.5f;
+            var foe=new Enemy(99421,2,21.5f,14.5f,1000f);
+            foe.staggerRecovery=20f;foe.timer=999f;
+            g.enemies.Add(foe);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Timed armor opening must be driven by the production HP contact");
+            var hero=new ImpactProfile(0,0,0,0,0f,true,0);
+            var ally=new ImpactProfile(0,0,0,0,0f,false,-1);
+            Action<ImpactProfile> strike=source=>hit.Invoke(g,new object[]{
+                foe,20f,false,(Point?)new Point(1,0),source});
+            foe.facing=new Point(-1,0);
+            strike(hero);
+            Check(Math.Abs(foe.hp-992f)<.01f&&foe.armorOpenTime==0f,
+                "A fresh frontal hit still meets the original 60 percent heavy-armor reduction");
+            foe.facing=new Point(1,0);
+            strike(ally);
+            Check(Math.Abs(foe.hp-972f)<.01f&&foe.armorOpenTime==0f,
+                "Companion or environmental contacts cannot create a player-owned armor opening");
+            strike(hero);
+            Check(Math.Abs(foe.hp-947f)<.01f&&
+                Math.Abs(foe.armorOpenTime-2.4f)<.001f&&
+                g.effects.Exists(f=>f.kind=="number"&&f.text.Contains("破甲")),
+                "A real rear hero attack earns the original flank bonus and exposes this enemy once");
+            foe.facing=new Point(-1,0);
+            strike(hero);
+            Check(Math.Abs(foe.hp-927f)<.01f&&foe.armorOpenTime>2.39f,
+                "An immediate frontal follow-up hits exposed armor at full ordinary damage");
+            g.mode="inventory";g.Tick(.05f,new Point());
+            Check(foe.armorOpenTime>2.39f,
+                "Reading a menu pauses the earned combat opening like every other world clock");
+            g.mode="world";foe.stun=5f;
+            Advance(g,2.48f);
+            Check(foe.armorOpenTime==0f,
+                "Breach expires during real world stun instead of remaining a permanent debuff");
+            foe.stun=0f;foe.state=0;foe.facing=new Point(-1,0);
+            strike(hero);
+            Check(Math.Abs(foe.hp-919f)<.01f,
+                "Recovered armor resumes its original frontal mitigation after the window expires");
+            var boss=new Enemy(99422,2,21.5f,15.5f,1000f,true);
+            boss.staggerRecovery=20f;boss.timer=999f;boss.facing=new Point(1,0);
+            g.enemies.Add(boss);
+            hit.Invoke(g,new object[]{boss,20f,false,(Point?)new Point(1,0),hero});
+            Check(boss.armorOpenTime==0f&&g.save.version==2,
+                "Boss phase defenses and persisted SaveData v2 remain unaffected by ordinary armor breach");
+        }
+
         private static Projectile ThreateningShot(GameCore g,Point velocity)
         {
             Point approach=velocity.Normalized;

@@ -1143,17 +1143,24 @@ namespace Starfall
             if (practicing) { if(profile.playerOwned){if (technique) PracticeSkill(); else PracticeHit();} return; }
             Point approach = attackDirection.HasValue ? attackDirection.Value * -1 : (Position - e.Position).Normalized;
             float facingDot = approach.x * e.facing.x + approach.y * e.facing.y;
-            if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 && facingDot > .45f)
+            if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 &&
+                e.armorOpenTime<=0f && facingDot > .45f)
             { damage *= .4f; effects.Add(new Effect("number", e.Position, .7f, L("正面护甲", "GUARDED"))); sound = "guard"; }
             else
             {
                 sound = "hit";
                 // Flank heavy armor for bonus damage and extra stagger.
-                if (profile.playerOwned && !technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 && facingDot < -.45f)
+                if (profile.playerOwned && !technique && !e.boss && e.kind == 2 &&
+                    e.state == 0 && e.stun <= 0 && facingDot < -.45f)
                 {
                     damage *= 1.25f;
                     if (e.staggerRecovery <= 0) e.stagger += 6;
-                    effects.Add(new Effect("number", e.Position, .7f, L("侧袭", "FLANK")));
+                    bool freshBreach=e.armorOpenTime<=0f;
+                    // A confirmed rear contact opens a real combo opportunity.
+                    // Repeated flanks refresh the timer without spamming cues.
+                    e.armorOpenTime=2.4f;
+                    effects.Add(new Effect("number", e.Position, .7f,
+                        freshBreach?L("侧袭 · 破甲", "FLANK · BREACH"):L("侧袭", "FLANK")));
                 }
             }
             // The post-release recovery is a brief, player-owned punish window.
@@ -1388,6 +1395,7 @@ namespace Starfall
             if (!Finite(enemy.flash)) enemy.flash = 0f;
             if (!Finite(enemy.stagger)) enemy.stagger = 0f;
             if (!Finite(enemy.staggerRecovery)) enemy.staggerRecovery = 0f;
+            if (!Finite(enemy.armorOpenTime)) enemy.armorOpenTime = 0f;
             if (!Finite(enemy.moveTime)) enemy.moveTime = 0f;
             if (!Finite(enemy.hitTime)) enemy.hitTime = 0f;
             if (!Finite(enemy.stun)) enemy.stun = 0f;
@@ -1850,6 +1858,9 @@ namespace Starfall
                 e.moving = e.backpedaling = false;
                 e.flash -= dt; e.hitTime -= dt; e.releaseTime -= dt;
                 e.stun -= dt; e.staggerRecovery -= dt;
+                // Breached armor decays in real world time, even if the
+                // target is stunned or recoiling. Menus pause this clock.
+                e.armorOpenTime=Math.Max(0f,e.armorOpenTime-dt);
                 // Honor the LAST partial recoil slice even if the hit pose
                 // expires this frame. Keep wall-safe movement and original
                 // move-speed / weapon clocks.

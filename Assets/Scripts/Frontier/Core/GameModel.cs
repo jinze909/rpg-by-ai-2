@@ -95,6 +95,9 @@ namespace Starfall
         public Point target, attackOrigin, attackDestination;
         public Point facing = new Point(1, 0);
         public float windupDuration, releaseTime, moveTime, hitTime;
+        // Unsaved tactical opening earned by a REAL hero flank against a
+        // resting armored guard; owned by this enemy instance, not spawn ID.
+        public float armorOpenTime;
         public Point recoil;
         public bool backpedaling;
         private bool lookLeft;
