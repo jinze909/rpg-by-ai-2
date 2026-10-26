@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "soup_route", "specialist_drill" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "soup_route", "specialist_drill" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -76,6 +76,49 @@ namespace Starfall
                     if(Has("civic_aftercare_waytrail_"+room))count++;
                 return count;
             }
+        }
+        // Physical, permanent public services earned without new SaveData
+        // fields. Supplying a region serves its original pair of markers.
+        public int CivicWaystationCount
+        {
+            get
+            {
+                int count=0;
+                foreach(int room in CivicAftercareRegions)
+                    if(Has("civic_waystation_stocked_"+room))count++;
+                return count;
+            }
+        }
+        public bool CivicWaystationNear
+        {
+            get
+            {
+                return Has("civic_aftercare_published")&&
+                    (save.room==0||save.room==3||save.room==5)&&
+                    Has("civic_waystation_stocked_"+save.room)&&
+                    NearKind("waytrail",3.1f);
+            }
+        }
+        private Choice[] CivicWaystationMarkerChoices(int region)
+        {
+            var choices=new List<Choice>();
+            if(!Has("civic_aftercare_published")||
+                (region!=0&&region!=3&&region!=5)||
+                !Has("civic_aftercare_waytrail_"+region))
+                choices.Add(C("记入旧路星图","Record in the road chart","close"));
+            else
+            {
+                choices.Add(C("使用巡路急救包 · 药草1",
+                    "Use field aid · 1 herb","civic_aftercare_fieldaid"));
+                if(!Has("civic_waystation_stocked_"+region))
+                    choices.Add(C("补充路站物资 · 木材2 / 药草1",
+                        "Supply waystation · 2 timber / 1 herb","civic_waystation_stock"));
+                else
+                    choices.Add(C("查看已补给的居民路站",
+                        "Inspect supplied waystation","civic_waystation_status"));
+            }
+            choices.Add(C("继续赶路","Continue on the road","close"));
+            return choices.ToArray();
         }
         private bool RecordCivicAftercareWaypoint(WorldObject o)
         {
@@ -138,6 +181,62 @@ namespace Starfall
         }
         private bool ChooseCivicAftercare(string action)
         {
+            if(action=="civic_waystation_stock"||
+                action=="civic_waystation_status")
+            {
+                int region=save.room;
+                WorldObject source=pendingDialogueSource;
+                // A remote cached menu is never an off-map supply order.
+                if(source==null||source.kind!="waytrail"||
+                    pendingDialogueSourceRoom!=region||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source)||
+                    !Has("civic_aftercare_published")||
+                    !Has("civic_aftercare_waytrail_"+region)||
+                    (region!=0&&region!=3&&region!=5)||
+                    Dying||practicing||racing)return true;
+                if(action=="civic_waystation_status")
+                {
+                    Dialog("居民巡路站","Civilian Waystation",
+                        "本区已完成物资补给，全线进度 "+CivicWaystationCount+
+                        "/3。安全时靠近旧路标可缓慢恢复体力与生命，并缓解冷热。",
+                        "This region is supplied. Network "+CivicWaystationCount+
+                        "/3. Rest safely near either old marker to recover energy and health and ease heat/cold.",
+                        C("继续赶路","Continue","close"));
+                    return true;
+                }
+                if(Has("civic_waystation_stocked_"+region))
+                {
+                    Notify("本地路站已经补给，不需要重复扣除物资。",
+                        "This waystation is already supplied. No duplicate supplies are needed.");
+                    return true;
+                }
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("路站附近尚不安全；先解决当前现场行动和敌人。",
+                        "Secure the route and finish active fieldwork before stocking this station.");
+                    return true;
+                }
+                if(!Spend(2,0,1,0,0))return true;
+                Flag("civic_waystation_stocked_"+region);
+                int count=CivicWaystationCount;
+                if(count>=3&&!Has("civic_waystations_complete"))
+                {
+                    Flag("civic_waystations_complete");
+                    CreditCoins(30);CreditShards(1);AddXp(45);
+                    RecordMoment(
+                        "引水渠、赤铁矿场与雾港的居民路站已完成补给。夜里走错路的人终于能找到有物资的安全地点。",
+                        "Civilian waystations at Canal, Ironreach and Mistport are stocked. Travelers lost after dark now have dependable places to recover.");
+                }
+                sound="reward";revision++;
+                Notify(count>=3?
+                    "三地路站全部建成：硬币+30、碎片+1、经验+45。":
+                    "本地路站已补给（"+count+"/3）；安全靠近路标可缓慢恢复。",
+                    count>=3?
+                    "All three waystations stocked: +30 coins, +1 shard, +45 XP.":
+                    "Waystation supplied ("+count+"/3); safe travelers recover near both original markers.");
+                return true;
+            }
             if(action=="civic_aftercare_fieldaid")
             {
                 int region=save.room;
@@ -758,6 +857,45 @@ namespace Starfall
                 }
                 q.reward=L("每地硬币24、碎片1、经验42、服务升级；三地完成技能点1；名册公开硬币40、碎片2、经验55并解锁八地基础疗养",
                     "Each region 24 coins, 1 shard, 42 XP, improved service; all three +1 talent; ledger publication +40 coins, 2 shards, 55 XP and basic care in every rebuilt refuge");
+                return q;
+            }
+
+            if(id=="civic_waystations")
+            {
+                q.title=L("公共路站 · 三地物资补给",
+                    "Civic Waystations · Three-Region Resupply");
+                q.category=L("开放世界 · 居民建设",
+                    "OPEN WORLD · CIVILIAN INFRASTRUCTURE");
+                q.description=L(
+                    "公开巡路复核后，在引水渠、赤铁矿场与雾港的原有路标各补给木材2和药草1。每地供给完成后，安全的旅人靠近本地路标会缓慢恢复生命、体力并缓解冷热；三地全部建成后另有一次性谢礼。",
+                    "After publishing the road audit, deliver 2 timber and 1 herb to an old marker in each of Canal, Ironreach and Mistport. A supplied region offers safe, slow health/energy recovery and climate relief near its original markers. All three earn one final community reward.");
+                q.locked=!Has("civic_aftercare_published");
+                q.complete=Has("civic_waystations_complete");
+                int next=-1;
+                string[] namesZh={"引水渠","赤铁矿场","雾港"};
+                string[] namesEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<CivicAftercareRegions.Length;i++)
+                {
+                    int region=CivicAftercareRegions[i];
+                    bool stocked=Has("civic_waystation_stocked_"+region);
+                    q.steps.Add(new QuestStep(L(namesZh[i],namesEn[i])+
+                        L(" · 已补给"," · stocked"),stocked));
+                    if(next<0&&!stocked)next=region;
+                }
+                q.room=next<0?9:next;
+                q.target=next<0?
+                    ObjectPoint(9,"innGuest",new Point(20,12)):
+                    ObjectPoint(next,"waytrail",new Point(18,15));
+                q.next=q.complete?
+                    L("三地居民路站已全部补给，旧路标成为安全的恢复地点",
+                        "All three stations supplied; original markers offer safe recovery"):
+                    q.locked?
+                    L("先完成公共电网和三地巡路复核的公开归档",
+                        "Restore the grid and publish the three-region audit first"):
+                    L("在指定地区亲自与旧路标交互，交付木材2和药草1",
+                        "Visit the marked region and deliver 2 timber and 1 herb at an original trail marker");
+                q.reward=L("每地永久安全恢复：生命+0.95/秒、体力+3/秒、冷热各-4/秒；三地额外硬币30、碎片1、经验45",
+                    "Each region: safe +0.95 HP/sec, +3 energy/sec, -4 heat/cold per sec near markers; all three: +30 coins, +1 shard, +45 XP");
                 return q;
             }
 

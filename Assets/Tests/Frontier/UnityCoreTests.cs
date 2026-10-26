@@ -22,6 +22,8 @@ namespace Starfall.Tests
         [Test] public void CompanionClosedTerrainCannotTeleportAcrossMap() { CoreChecks.CompanionBlockedFootRecoversLocallyWithoutCrossMapWarp(Data()); }
         [Test] public void CivicAuditPublicationExplainsPermanentFieldAidService() { CoreChecks.PublishingRoadAuditAnnouncesItsRealFieldKitService(Data()); }
         [Test] public void AuditedRoadMarkersOfferPaidSafePhysicalFirstAid() { CoreChecks.PublishedRoadAuditOffersRealCostedCivilianFirstAid(Data()); }
+        [Test] public void FundedCivilianWaystationsUseRealTrailSourcesAndV2Progress() { CoreChecks.CiviliansStockThreeAuthenticPostAuditWaystations(Data()); }
+        [Test] public void CivilianWaystationRefugeRequiresSafeLocalWorldTime() { CoreChecks.AuthoredWaystationRecoveryRequiresLocalSafeWorldTime(Data()); }
         [Test] public void EightDistantSheltersRecognizeActualCivilianMedicineRecipients() { CoreChecks.EightCourierReceiptsAppearOnlyAfterActualRegionalDeliveryFlags(Data()); }
         [Test] public void CombatStewCannotBeSpammedOrWastedAtFullResources() { CoreChecks.StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Data()); }
         [Test] public void IntactCourierMedicineRestoresOnlyItsReceivingRefuge() { CoreChecks.IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Data()); }

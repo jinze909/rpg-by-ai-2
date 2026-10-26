@@ -2402,6 +2402,20 @@ namespace Starfall
                 save.health=Math.Min(save.maxHealth,
                     save.health+dt*(1.7f+(AfterlightReserve(save.room)?1.3f:0f)+
                         (AfterlightWatchDone(save.room)?1.0f:0f)));
+            // This post-publication station is a real, funded roadside
+            // refuge, not an unconditional chapter reward. Its world-time
+            // pulse works only at physically reachable original marker feet
+            // after the player delivers supplies in that region. Dialogue,
+            // inventory, combat and a blocked field mission cannot exploit it.
+            if(!practicing&&!racing&&!Dying&&!FieldWorkPreventsRest&&
+                SafeTravel&&CivicWaystationNear)
+            {
+                if(save.health>0f&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,save.health+dt*.95f);
+                save.energy=Math.Min(100f,save.energy+dt*3f);
+                save.heat=Math.Max(0f,save.heat-dt*4f);
+                save.cold=Math.Max(0f,save.cold-dt*4f);
+            }
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
                 save.energy=Math.Min(100,save.energy+

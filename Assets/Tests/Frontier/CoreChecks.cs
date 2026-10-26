@@ -1335,6 +1335,140 @@ namespace Starfall.Tests
                 "Terrain-invalidated party member safely replants within 1.5 tiles without a fake walk animation");
         }
 
+        public static void CiviliansStockThreeAuthenticPostAuditWaystations(Campaign data)
+        {
+            GameCore g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            foreach(int region in new[]{0,3,5})
+                g.save.flags.Add("civic_aftercare_waytrail_"+region);
+            g.save.inventory[0]=12;g.save.inventory[2]=8;
+            int initialCoins=g.save.coins,initialShards=g.save.shards;
+            int[] regions={0,3,5};
+            for(int index=0;index<regions.Length;index++)
+            {
+                int region=regions[index];
+                g.Enter(region);
+                Check(g.save.room==region,
+                    "Actual post-game trail regions remain accessible");
+                g.enemies.Clear();
+                WorldObject trail=Array.Find(g.Map.objects,
+                    x=>x.kind=="waytrail");
+                Check(trail!=null,
+                    "Each waystation uses an original existing physical map marker");
+                g.save.x=trail.x;g.save.y=trail.y;
+                g.Talk(trail);
+                int stock=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_stock");
+                Check(stock>=0,
+                    "Published original trail talk offers a player-funded station project");
+                int timber=g.save.inventory[0],herbs=g.save.inventory[2];
+                if(index==0)
+                {
+                    // The cached dialogue may no longer be reachable.
+                    g.save.x=trail.x+12f;
+                    g.Choose(stock);
+                    Check(g.save.inventory[0]==timber&&
+                        g.save.inventory[2]==herbs&&g.CivicWaystationCount==0,
+                        "Remote stale marker choices never spend construction materials");
+                    g.save.x=trail.x;g.save.y=trail.y;
+                    g.Talk(trail);
+                    stock=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_waystation_stock");
+                    g.enemies.Add(new Enemy(910120,0,trail.x+.7f,trail.y,25f));
+                    g.Choose(stock);
+                    Check(g.save.inventory[0]==timber&&
+                        g.save.inventory[2]==herbs&&g.CivicWaystationCount==0,
+                        "A real hostile by the source prevents combat-time construction");
+                    g.enemies.Clear();
+                    g.Talk(trail);
+                    stock=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_waystation_stock");
+                    g.save.inventory[0]=1;
+                    g.Choose(stock);
+                    Check(g.save.inventory[0]==1&&
+                        g.save.inventory[2]==herbs&&g.CivicWaystationCount==0,
+                        "Insufficient timber never partially consumes a medicinal herb");
+                    g.save.inventory[0]=timber;
+                    g.Talk(trail);
+                    stock=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_waystation_stock");
+                }
+                g.Choose(stock);
+                Check(g.Has("civic_waystation_stocked_"+region)&&
+                    g.CivicWaystationCount==index+1&&
+                    g.save.inventory[0]==timber-2&&
+                    g.save.inventory[2]==herbs-1,
+                    "Each unique site consumes exactly two real timber and one herb");
+                g.Talk(trail);
+                Check(Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_stock")<0&&
+                    Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_status")>=0,
+                    "A supplied marker switches to permanent service without farming stock");
+                g.Close();
+                if(index==0)
+                {
+                    g.PrepareSave();
+                    GameCore restored=new GameCore(data,CloneSave(g.save));
+                    Check(restored.save.version==2&&restored.CivicWaystationCount==1,
+                        "The existing V2 save survives a partially provisioned network");
+                    g=restored;g.Start();
+                }
+            }
+            QuestGuide q=g.GetQuest("civic_waystations");
+            Check(q.complete&&!q.locked&&g.CivicWaystationCount==3&&
+                q.steps.Count==3&&g.Has("civic_waystations_complete")&&
+                g.save.coins==initialCoins+30&&
+                g.save.shards==initialShards+1,
+                "Three physically funded regions complete a real journal objective and pay just once");
+            g.PrepareSave();
+            GameCore saved=new GameCore(data,CloneSave(g.save));saved.Start();
+            Check(saved.save.version==2&&
+                saved.GetQuest("civic_waystations").complete&&
+                saved.CivicWaystationCount==3&&
+                saved.save.coins==initialCoins+30,
+                "Completion, coin rewards and prior campaign data survive old-format reloads");
+        }
+
+        public static void AuthoredWaystationRecoveryRequiresLocalSafeWorldTime(Campaign data)
+        {
+            GameCore g=Unlocked(data);
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
+            Check(marker!=null,"Town has the original civic route marker");
+            g.save.x=marker.x;g.save.y=marker.y;
+            Check(g.CivicWaystationNear,
+                "The service is tied to the existing walkable original marker");
+            g.save.health=32f;g.save.energy=20f;
+            g.save.heat=48f;g.save.cold=47f;
+            float hp=g.save.health,energy=g.save.energy;
+            float heat=g.save.heat,cold=g.save.cold;
+            g.Tick(.05f,new Point());
+            Check(g.save.health>hp&&g.save.energy>energy&&
+                g.save.heat<heat&&g.save.cold<cold,
+                "Supplied site delivers real health, stamina and climate recovery in live world time");
+            g.save.x=marker.x+14f;
+            Check(!g.CivicWaystationNear,
+                "An off-route hero cannot claim a remote civic refuge");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.health=45f;
+            g.enemies.Add(new Enemy(910121,0,marker.x+.4f,marker.y,30f));
+            hp=g.save.health;
+            g.Tick(.05f,new Point());
+            Check(g.save.health<=hp+.00001f,
+                "Hostile pressure suppresses the bonus instead of granting combat healing");
+            g.enemies.Clear();
+            g.mode="inventory";
+            hp=g.save.health;energy=g.save.energy;
+            g.Tick(.05f,new Point());
+            Check(g.save.health==hp&&g.save.energy==energy,
+                "Menu time never mints free stocked-station recovery");
+        }
+
         public static void PublishedRoadAuditOffersRealCostedCivilianFirstAid(Campaign data)
         {
             int[] regions={0,3,5};
