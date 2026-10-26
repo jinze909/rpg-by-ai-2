@@ -69,6 +69,21 @@ namespace Starfall
                 zh="公用道路的约定还没落地，旧路标得有人按实际路况修";
                 en="the public road charter still needs people to reopen and repair the routes";
             }
+            else if(!CivicSupplyComplete)
+            {
+                zh="三地的物资收据还等着核对，医疗点与守路岗的公开审计尚未签完";
+                en="three communities still need to account for delivered relief and publish their clinic or road-watch decisions";
+            }
+            else if(!Has("civic_response_ledger"))
+            {
+                zh="医疗护送和守路岗的实际考验还没在三地走完，服务名册不能提前公布";
+                en="the three communities must finish their real medicine escorts or lookout defenses before the service ledger can be published";
+            }
+            else if(!LastDirectiveComplete)
+            {
+                zh="堡垒里还有一道未署名的旧军令，证人原件和被封住的民用权限还等着查清";
+                en="an unsigned citadel order still needs first-hand testimony, its sealed locks opened and civilian rights restored";
+            }
             else if(!CivicConduitComplete)
             {
                 zh="公共电网的阀门还没校准好，避险棚不能靠一张图就通电";
@@ -303,6 +318,12 @@ namespace Starfall
                 {nextZh="听证会还等着人到齐。那些失联者的名字不能一直留在名单背面。";nextEn="The public hearing is still waiting for witnesses. Those missing names can't stay on the back of a ledger.";}
                 else if(!RoadCharterComplete)
                 {nextZh="路图画好了，路还没走通。去把公用道路那份约定落实。";nextEn="The routes are mapped, not yet safe. Help put the road charter into practice.";}
+                else if(!CivicSupplyComplete)
+                {nextZh="道路通了，救援包也得真正送到居民手里。到炉火旅店核对名单，听三地居民决定要医疗点还是守路岗，再公开账目。";nextEn="Open roads aren't enough. Deliver relief, check the guest registry at Hearth Inn, then let all three communities choose clinics or road watches and publish their accounts.";}
+                else if(!Has("civic_response_ledger"))
+                {nextZh="账目签好了，医疗点的药包还得有人护送，守路岗也得守住袭击。去完成三地的实地考验，回来公开服务名册。";nextEn="The accounts are signed. Clinics still need medicine escorts and road watches must withstand real raids. Complete the three service trials, then publish their ledger.";}
+                else if(!LastDirectiveComplete)
+                {nextZh="三地服务名册已经公开。堡垒那道没有署名的旧军令还没查清。先去镇上议事台接取调查，把原始证词找齐。";nextEn="The service ledger is public, but the citadel's unsigned order is still sealed. Start the inquiry at the town council, then recover the original testimony.";}
                 else if(!CivicConduitComplete)
                 {nextZh="公用电网的阀门还得逐个校准，才能把电送到避险棚。";nextEn="The public grid's valves still need tuning before the shelters can rely on them.";}
                 else

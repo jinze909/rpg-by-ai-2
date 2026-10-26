@@ -228,12 +228,18 @@ namespace Starfall.Tests
                 "After signing, the same roadwarden now directs the player to the citadel");
             g.Close();
             g.save.ending=1;
+            // An unlocked Chapter Eleven must never be suggested ahead of
+            // the real Chapter Nine relief audit, its hands-on service trials
+            // or Chapter Ten's council verdict.
             string[] keys={null,"afterlight_complete","storm_complete",
-                "hearing_complete","roadcharter_complete",
+                "hearing_complete","roadcharter_complete","civic_supply_complete",
+                "civic_response_ledger","last_directive_complete",
                 "civic_conduit_complete"};
-            string[] milestones={"余光工地","星雨","听证会","公用道路","公共电网","巡路记录"};
+            string[] milestones={"余光工地","星雨","听证会","公用道路",
+                "公开审计","服务名册","旧军令","公共电网","巡路记录"};
             string[] milestonesEn={"Afterlight","starstorm","public hearing",
-                "road charter","public grid","roadwarden log"};
+                "road charter","public service audit","service ledger",
+                "unsigned citadel order","public grid","roadwarden log"};
             for(int stage=0;stage<keys.Length;stage++)
             {
                 if(stage>0)g.save.flags.Add(keys[stage]);
@@ -245,6 +251,33 @@ namespace Starfall.Tests
                 g.Close();
             }
             g.Enter(0);
+            WorldObject guild=Object(g,"guild");
+            g.save.x=guild.x;g.save.y=guild.y;
+            // Regression: a guild explanation must agree with the inn and
+            // physical archive on the actual unfinished chapter, not leap
+            // straight from the charter to the civic grid.
+            g.save.flags.Remove("civic_supply_complete");
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.speaker.Contains("莉雅")&&
+                g.conversation.text.Contains("医疗点")&&
+                !g.conversation.text.Contains("阀门还得逐个校准"),
+                "Lyra directs the player to unfinished Chapter Nine after the charter");
+            g.Close();
+            g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Remove("civic_response_ledger");
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("实地考验")&&
+                g.conversation.textEn.Contains("service trials"),
+                "Lyra acknowledges the real service trials before Chapter Ten");
+            g.Close();
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Remove("last_directive_complete");
+            g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("旧军令")&&
+                g.conversation.textEn.Contains("unsigned order"),
+                "Lyra will not send the player to the grid before the signed Last Directive");
+            g.Close();
+            g.save.flags.Add("last_directive_complete");
             WorldObject book=Object(g,"worldchronicle");
             g.save.x=book.x;g.save.y=book.y;
             g.Talk(book);ChooseStoryChoice(g,"story_catchup");
@@ -260,7 +293,15 @@ namespace Starfall.Tests
             Check(g.conversation.speaker=="边境编年册"&&
                 g.conversation.text.Contains("公共电网")&&
                 g.save.version==2,
-                "Removing the actual last completion flag restores the exact pending grid work, not future milestones");
+                "Removing the last completion flag restores the real pending grid work");
+            g.Close();
+            g.save.flags.Remove("civic_response_ledger");
+            g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("服务名册")&&
+                g.conversation.textEn.Contains("service ledger")&&
+                !g.conversation.text.Contains("公共电网")&&
+                g.save.coins==coins,
+                "A v2 archive projects actual unfinished physical service trials without granting progress");
         }
 
         public static void WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Campaign data)
