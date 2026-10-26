@@ -93,6 +93,35 @@ namespace Starfall
             float asideY=body.y-ray.y*along;
             return asideX*asideX+asideY*asideY<=.48f*.48f;
         }
+        // One physically bodyguarded, locked ordinary stock strike is
+        // observable to the live scene and HUD. This is the SAME contact
+        // corridor as the authoritative stock HP release. An idle, blocked,
+        // dead, wrong-wave or heavy-area enemy may not paint a melee line.
+        public Point OuterPatrolCacheFoot
+        {get{return OuterPatrolActive?outerPatrolPost:new Point();}}
+        public Enemy OuterPatrolBodyguardedThreat
+        {
+            get
+            {
+                if(!OuterPatrolActive)return null;
+                Enemy earliest=null;
+                foreach(Enemy foe in enemies)
+                    if(foe!=null&&foe.hp>0f&&foe.kind==0&&!foe.boss&&
+                        IsOuterPatrolEnemy(foe)&&foe.state==1&&
+                        foe.targetingOuterPatrolStock&&
+                        Finite(foe.timer)&&Finite(foe.windupDuration)&&
+                        foe.windupDuration>0f&&
+                        foe.timer<=foe.windupDuration+.0001f&&
+                        foe.stun<=0f&&foe.hitTime<=0f&&
+                        (foe.Position-outerPatrolPost).Length<=2.35f&&
+                        EnemyMeleeLaneClear(foe,outerPatrolPost)&&
+                        ClearAttackPath(foe.Position,outerPatrolPost)&&
+                        OuterPatrolHeroIntercepts(foe)&&
+                        (earliest==null||foe.timer<earliest.timer))
+                        earliest=foe;
+                return earliest;
+            }
+        }
         // UI follows the same authentic released-hit requirements as
         // DamageOuterPatrolStock: never warn about a removed, stunned,
         // blocked or behind-wall enemy, or an ordinary archer aimed at the

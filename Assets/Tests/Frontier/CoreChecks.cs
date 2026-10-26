@@ -6722,15 +6722,18 @@ namespace Starfall.Tests
             }
             Check(found,"Real map offers a near but off-axis defender while one stock strike remains physically uncovered");
             float stock=g.OuterPatrolIntegrity;
-            Check(g.OuterPatrolIncomingStockThreat==foe,
-                "A sideways defender cannot erase the real danger HUD merely through proximity");
+            Check(g.OuterPatrolIncomingStockThreat==foe&&
+                g.OuterPatrolBodyguardedThreat==null,
+                "A sideways defender cannot erase the real danger HUD or falsely arm the bodyguard indicator");
             release.Invoke(g,new object[]{foe});
             Check(g.OuterPatrolIntegrity<stock,
                 "An unguarded actual cache strike costs real supply integrity even with the hero nearby");
             float after=g.OuterPatrolIntegrity;
             g.save.x=target.x;g.save.y=target.y;
-            Check((bool)bodyguard.Invoke(g,new object[]{foe}),
-                "Standing physically in the raider-to-cache contact lane still permits a last-second interception");
+            Check((bool)bodyguard.Invoke(g,new object[]{foe})&&
+                System.Object.ReferenceEquals(g.OuterPatrolBodyguardedThreat,foe)&&
+                (g.OuterPatrolCacheFoot-target).Length<.0001f,
+                "Only exact physical bodyguarding turns the live HUD and grounded world lane ready");
             Check(g.OuterPatrolIncomingStockThreat==null,
                 "The live combat warning retracts only for real physical bodyguarding");
             release.Invoke(g,new object[]{foe});

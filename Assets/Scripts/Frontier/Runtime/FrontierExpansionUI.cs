@@ -470,6 +470,23 @@ namespace Starfall
                         Ring(Game.Position,.51f,mint,24);
                 }
             }
+            // A normal relief-watch raider's genuine locked melee attack
+            // now visibly follows its physical source-to-cache corridor.
+            // Hero in-line is green: ready to defend, NOT an early hit.
+            if(Game.mode=="world"&&Game.OuterPatrolActive)
+            {
+                Enemy guarded=Game.OuterPatrolBodyguardedThreat;
+                Enemy incoming=guarded??Game.OuterPatrolIncomingStockThreat;
+                if(incoming!=null&&incoming.kind==0)
+                {
+                    DrawRay(incoming.Position,Game.OuterPatrolCacheFoot,
+                        guarded!=null?
+                            new Color(.37f,.91f,.75f,.68f):
+                            new Color(1f,.63f,.31f,.64f));
+                    if(guarded!=null)
+                        Ring(Game.Position,.51f,mint,24);
+                }
+            }
             if(Game.ShadeBreezeSeconds>0f && !Game.ShadedInDesert)
             {
                 Point screen=ScreenPoint(Game.Position);

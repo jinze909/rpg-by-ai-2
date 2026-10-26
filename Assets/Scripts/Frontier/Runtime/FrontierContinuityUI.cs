@@ -67,12 +67,13 @@ namespace Starfall
                     rects.Add(new Rect(380, 22, 520,
                         Game.SkywatchRoom==7 ||
                         Game.BossVictoryDangerLine.Length>0 ? 85 :
-                        Game.AfterlightWatchActive&&
-                        (Game.AfterlightWatchIncomingStockThreat!=null||
-                         Game.CompanionStockCoverInFlight||
-                         Game.AfterlightWatchHeroBodyguarding ||
-                        Game.OuterPatrolActive&&
-                        Game.CompanionPatrolCoverInFlight)?88:65));
+                        (Game.AfterlightWatchActive&&
+                            (Game.AfterlightWatchIncomingStockThreat!=null||
+                             Game.CompanionStockCoverInFlight||
+                             Game.AfterlightWatchHeroBodyguarding) ||
+                         Game.OuterPatrolActive&&
+                            (Game.CompanionPatrolCoverInFlight||
+                             Game.OuterPatrolBodyguardedThreat!=null))?88:65));
             }
             else
             {
@@ -309,8 +310,9 @@ namespace Starfall
                 // remain visible above its translucent body.
                 float stock=Game.OuterPatrolIntegrity;
                 bool realPatrolCover=Game.CompanionPatrolCoverInFlight;
+                bool heroInCorridor=Game.OuterPatrolBodyguardedThreat!=null;
                 Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
-                Panel(380,22,520,realPatrolCover?88:65,
+                Panel(380,22,520,realPatrolCover||heroInCorridor?88:65,
                     new Color(.04f,.065f,.11f,.76f),
                     new Color(accent.r,accent.g,accent.b,.7f));
                 Text(393,25,494,27,
@@ -349,10 +351,13 @@ namespace Starfall
                         Game.L(" · 靠近哨岗按 V 架路障"," · NEAR POST: V TO BRACE"):""),
                     11,accent,TextAnchor.MiddleCenter);
                 Bar(401,71,478,stock/100f,accent,7);
-                if(realPatrolCover)
+                if(realPatrolCover||heroInCorridor)
                     Text(398,82,481,18,
-                        Game.L("同伴援射在途 · 命中才可阻止袭击",
-                            "ALLY CACHE SHOT · MUST HIT BEFORE STRIKE"),
+                        heroInCorridor?
+                            Game.L("站位正确 · 守住物资攻击线路",
+                                "IN MELEE STRIKE LANE · HOLD POSITION"):
+                            Game.L("同伴援射在途 · 命中才可阻止袭击",
+                                "ALLY CACHE SHOT · MUST HIT BEFORE STRIKE"),
                         11,mint,TextAnchor.MiddleCenter);
             }
             else if (Game.reliefMissionRoom!=0 &&
