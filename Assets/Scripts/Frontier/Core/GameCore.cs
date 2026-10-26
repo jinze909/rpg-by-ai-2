@@ -4096,7 +4096,33 @@ namespace Starfall
                 mode = "fish";
             }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
-            { save.stage++; CreditCoins(40); CreditInventory(6, 1); CreditInventory(0, 3); CreditInventory(1, 2); revision++; sound = "reward"; Notify("新章节开启！获得硬币、材料与一份炖汤。", "New chapter! Coins, materials and a warm stew received."); }
+            {
+                // This is a one-time MAIN-STORY handoff. Advancing the saved
+                // chapter first would silently truncate currency and supply
+                // stacks at their v2 limits, with no way to reclaim them.
+                // Keep the real starcore unfiled until Lyra can hand over ALL
+                // four original rewards together. The original guild choice
+                // remains available on the next dialogue.
+                if(save.coins>999999-40)
+                {
+                    Notify("公会补给还包含40硬币。先腾出钱包空间，星核暂由你保管。",
+                        "Lyra's chapter supplies include 40 coins. Make wallet room; you still hold the starcore.");
+                    return;
+                }
+                if(!HasInventoryRoom(6,1)||!HasInventoryRoom(0,3)||
+                   !HasInventoryRoom(1,2))
+                {
+                    Notify("公会补给还有炖汤1、木材3、星晶2。请先腾出背包空间，再交回星核。",
+                        "Guild supplies include a stew, three timber and two starcrystals. Make bag room before handing in the starcore.");
+                    return;
+                }
+                save.stage++;
+                CreditCoins(40);CreditInventory(6,1);
+                CreditInventory(0,3);CreditInventory(1,2);
+                revision++;sound="reward";
+                Notify("新章节开启！获得硬币、材料与一份炖汤。",
+                    "New chapter! Coins, materials and a warm stew received.");
+            }
             if (action.StartsWith("ally"))
             {
                 int id = int.Parse(action.Substring(4));

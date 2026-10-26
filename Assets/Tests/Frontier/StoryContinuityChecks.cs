@@ -27,6 +27,44 @@ namespace Starfall.Tests
             return -1;
         }
 
+
+        public static void MainChapterStarcoreHandoffPreservesAllFiniteSupplyRewards(Campaign data)
+        {
+            var g=Fresh(data);g.Enter(0);g.enemies.Clear();
+            g.save.flags.Add("core_1");
+            WorldObject lyra=Object(g,"guild");
+            g.save.coins=999999;
+            g.save.inventory[6]=9998;
+            g.save.inventory[0]=9996;
+            g.save.inventory[1]=9997;
+            int stage=g.save.stage;
+            TalkNearObject(g,lyra);
+            ChooseStoryChoice(g,"deliver");
+            Check(g.save.stage==stage&&g.save.coins==999999&&
+                g.save.inventory[6]==9998&&g.save.inventory[0]==9996&&
+                g.save.inventory[1]==9997&&g.Has("core_1"),
+                "Full coin wallet cannot prematurely consume a main-story starcore or forfeit its chapter rewards");
+            g.save.coins=999959;
+            g.save.inventory[6]=9999;
+            g.Close();TalkNearObject(g,lyra);
+            ChooseStoryChoice(g,"deliver");
+            Check(g.save.stage==stage&&g.save.coins==999959&&
+                g.save.inventory[6]==9999&&g.Has("core_1"),
+                "A full stew stack likewise preserves the unopened chapter supply handoff");
+            g.save.inventory[6]=9998;
+            g.Close();TalkNearObject(g,lyra);
+            ChooseStoryChoice(g,"deliver");
+            Check(g.save.stage==stage+1&&
+                g.save.coins==999999&&g.save.inventory[6]==9999&&
+                g.save.inventory[0]==9999&&g.save.inventory[1]==9999,
+                "At the actual four exact v2 reward caps, Lyra advances the main chapter and pays every original supply");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.save.stage==stage+1&&
+                loaded.save.coins==999999&&loaded.save.inventory[6]==9999&&
+                loaded.save.inventory[0]==9999&&loaded.save.inventory[1]==9999,
+                "The authentic chapter and each full payout survive old-format save reload with no schema migration");
+        }
         public static void OpeningConversationsExplainTheSameMotivationInBothLanguages(Campaign data)
         {
             var g=new GameCore(data);
