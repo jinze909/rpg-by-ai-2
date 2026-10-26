@@ -27,6 +27,10 @@ namespace Starfall
         public float FloodReliefWardTime
         { get {return FloodReliefActive?floodReliefWardTime:0;} }
         private int floodReliefConfirmedKills;
+        // Unsaved, true actor ownership for the two east-bank ambushers.
+        // An unrelated world Enemy can reuse 92340/92341 across optional
+        // encounters; IDs alone cannot authorize kills or cleanup.
+        private Enemy floodReliefRaiderA,floodReliefRaiderB;
         public bool FloodReliefComplete { get { return Has("floodarchive_relief"); } }
         public int PublicFerryEnergyCost { get { return FloodReliefComplete?10:14; } }
         public bool FloodReliefActive { get { return floodReliefActive&&save.room==2&&!Dying; } }
@@ -45,13 +49,15 @@ namespace Starfall
         { get {return FloodReliefCrossed&&!floodReliefPatched&&
             floodReliefIntegrity>0&&floodReliefIntegrity<100&&save.inventory[2]>=1;} }
         private bool IsFloodReliefEnemy(Enemy e)
-        {return e!=null&&(e.id==92340||e.id==92341);}
+        {return e!=null&&(System.Object.ReferenceEquals(e,floodReliefRaiderA)||
+                           System.Object.ReferenceEquals(e,floodReliefRaiderB));}
         private void ResetFloodRelief()
         {
             floodReliefActive=floodReliefCrossed=floodReliefPatched=floodReliefWarded=false;
             floodReliefTime=floodReliefIntegrity=floodReliefWardTime=0;
             floodReliefConfirmedKills=0;
             enemies.RemoveAll(IsFloodReliefEnemy);
+            floodReliefRaiderA=floodReliefRaiderB=null;
             // Only this escort's launched arrows and windup/contact effects
             // may be retired. Untagged wilderness combat remains live.
             projectiles.RemoveAll(p=>p.floodReliefOwned);
@@ -60,7 +66,8 @@ namespace Starfall
         private void OnFloodReliefEnemyDefeated(Enemy e)
         {
             if(!FloodReliefActive||!floodReliefCrossed||!IsFloodReliefEnemy(e))return;
-            floodReliefConfirmedKills|=1<<(e.id-92340);
+            floodReliefConfirmedKills|=
+                System.Object.ReferenceEquals(e,floodReliefRaiderA)?1:2;
         }
         private void DamageFloodReliefParcel(float damage,string source)
         {
@@ -95,7 +102,8 @@ namespace Starfall
             if(floodReliefCrossed)
                 for(int i=0;i<2;i++)
                     if((floodReliefConfirmedKills&(1<<i))==0&&
-                        !enemies.Exists(e=>e.id==92340+i&&e.hp>0))
+                        !enemies.Contains(i==0?
+                            floodReliefRaiderA:floodReliefRaiderB))
                     {
                         ResetFloodRelief();revision++;
                         Notify("一名拦截者异常离场，无法将其算作实际击败。护送可重试。",
@@ -140,6 +148,7 @@ namespace Starfall
         }
         private void SpawnFloodReliefRaiders(Point[] spots)
         {
+            floodReliefRaiderA=floodReliefRaiderB=null;
             // Commit ONLY the already verified physical feet; recovery
             // spawning can relocate a new enemy to another bank and must
             // never silently override the intended combat encounter.
@@ -148,6 +157,8 @@ namespace Starfall
                 var e=new Enemy(92340+i,i==0?0:1,
                     spots[i].x,spots[i].y,78+i*14);
                 e.timer=.8f+i*.25f;enemies.Add(e);
+                if(i==0)floodReliefRaiderA=e;
+                else floodReliefRaiderB=e;
             }
         }
         private WorldObject FloodArchiveObject(int stage)

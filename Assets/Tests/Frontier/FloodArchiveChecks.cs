@@ -718,5 +718,61 @@ namespace Starfall.Tests
                 "Legacy v2 stores neither fake delivery nor abandoned mission actor state");
         }
 
+
+        public static void FerryReliefSameIdActorsCannotForgeKillsOrRetireBystanders(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.invulnerable=800f;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1);
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.x=west.x;g.save.y=west.y;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start"),
+                "The earned original medicine crossing still opens");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefRaiders==2,
+                "The real low-tide ferry deploys both authentic raiders");
+            Enemy melee=g.enemies.Find(e=>e.kind==0&&e.id==92340);
+            Enemy archer=g.enemies.Find(e=>e.kind==1&&e.id==92341);
+            Check(melee!=null&&archer!=null,"The authored melee and archer bodies exist");
+            var isOwned=typeof(GameCore).GetMethod("IsFloodReliefEnemy",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var reset=typeof(GameCore).GetMethod("ResetFloodRelief",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(isOwned!=null&&hit!=null&&reset!=null,
+                "The actual combat, mission identity and cleanup paths exist");
+            var copy=new Enemy(melee.id,melee.kind,
+                melee.x+.35f,melee.y+.6f,600f);
+            g.enemies.Add(copy);
+            Check(!(bool)isOwned.Invoke(g,new object[]{copy})&&
+                (bool)isOwned.Invoke(g,new object[]{melee}),
+                "Identical numeric ID cannot make a bystander an escort raider");
+            hit.Invoke(g,new object[]{copy,10000f,false,null,null});
+            Check(g.FloodReliefDefeated==0&&g.FloodReliefRaiders==2&&
+                !g.FloodReliefSecured,
+                "Defeating a nonmission same-ID actor grants no escorted-raider kill credit");
+            // Disappearance cannot be spoofed by a same-ID surviving body.
+            var secondCopy=new Enemy(archer.id,archer.kind,
+                archer.x+.25f,archer.y+.3f,800f);
+            g.enemies.Add(secondCopy);
+            g.enemies.Remove(archer);
+            g.hitStop=0f;g.Tick(.05f,new Point());
+            Check(!g.FloodReliefActive&&!g.FloodReliefComplete&&
+                g.enemies.Contains(secondCopy)&&
+                !g.enemies.Contains(melee)&&g.save.version==2,
+                "Only the exact ambush members retire; a real missing archer aborts even with a forged same-ID substitute");
+            g.save.x=west.x;g.save.y=west.y;g.save.totalTime=36;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "The previous counterfeiting attempt cannot permanently block a safe retry");
+        }
+
     }
 }
