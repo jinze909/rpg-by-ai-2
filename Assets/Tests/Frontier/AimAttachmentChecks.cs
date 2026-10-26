@@ -72,9 +72,9 @@ namespace Starfall.Tests
                     "An obsolete prior lock cannot override current living-body cover");
                 g.enemies.Clear();
                 var first=new Enemy(713,0,p.x+7f,p.y,80f);
-                var second=new Enemy(714,0,p.x+7f,p.y+.35f,80f);
+                var second=new Enemy(714,0,p.x+7f,p.y+.9f,80f);
                 g.enemies.Add(second);g.enemies.Add(first);
-                Point smallTurn=new Point(1,.045f);
+                Point smallTurn=new Point(1,.09f);
                 Check(System.Object.ReferenceEquals(
                     g.AcquireRangedStickTarget(smallTurn),second),
                     "Unbiased stick preference initially chooses the better aligned live actor");
