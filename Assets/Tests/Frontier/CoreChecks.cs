@@ -2798,10 +2798,10 @@ namespace Starfall.Tests
                 var g=Fresh(data);g.enemies.Clear();g.projectiles.Clear();
                 g.save.x=15.5f;g.save.y=10.5f;
                 g.save.companion=1;g.companionPosition=new Point(11f,12.5f);
-                var hunter=new Enemy(87431,0,13.6f,10.5f,180f)
+                var hunter=new Enemy(87431,0,14.5f,10.5f,180f)
                     {state=1,timer=.25f,windupDuration=.65f};
                 hunter.target=g.Position;hunter.Face(g.Position-hunter.Position);
-                var defender=new Enemy(87432,0,14.5f,10.5f,200f)
+                var defender=new Enemy(87432,0,15f,10.5f,200f)
                     {stun=100f,timer=100f};
                 var idle=new Enemy(87433,0,12.5f,14.5f,100f)
                     {stun=100f,timer=100f};
@@ -2837,12 +2837,12 @@ namespace Starfall.Tests
             escort.reliefMissionTime=75f;escort.reliefFollowerSafety=100f;
             escort.reliefFollowerPosition=new Point(15f,14f);
             escort.save.x=20f;escort.save.y=17f;
-            var raider=new Enemy(87441,0,13.4f,14f,140f)
+            var raider=new Enemy(87441,0,14f,14f,140f)
                 {state=1,timer=.2f,windupDuration=.65f,
                  targetingReliefCivilian=true};
             raider.target=escort.reliefFollowerPosition;
             raider.Face(raider.target-raider.Position);
-            var cover=new Enemy(87442,0,14.2f,14f,160f)
+            var cover=new Enemy(87442,0,14.5f,14f,160f)
                 {stun=100f,timer=100f};
             escort.enemies.Add(raider);escort.enemies.Add(cover);
             var rescue=typeof(GameCore).GetMethod("CompanionCommittedRescueStrike",
