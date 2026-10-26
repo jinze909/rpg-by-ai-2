@@ -370,7 +370,26 @@ namespace Starfall
         }
         private Point? InputAim(bool technique=false)
         {
-            if(controllerUsed||Game.mode!="world"){Game.SetAimTarget(null);return null;}Point mouse=MouseVirtual();if(PointerOverInterface(mouse))return pointerAimActive?(Point?)Game.aim:null;pointerAimActive=true;
+            if(Game.mode!="world")
+            { Game.SetAimTarget(null);return null; }
+            if(controllerUsed)
+            {
+                // The shipped legacy InputManager already binds Debug
+                // Horizontal/Vertical to the controller's RIGHT stick
+                // (axes 5/6). In-world these axes are independent aim;
+                // menus still own the same axes for focus and map cursor.
+                // Leave a neutral stick unclaimed: left-stick locomotion
+                // can continue to set the usual default facing.
+                Point stick=new Point(
+                    Input.GetAxisRaw("Debug Horizontal"),
+                    -Input.GetAxisRaw("Debug Vertical"));
+                Game.SetAimTarget(null);
+                return stick.Length>=.28f?(Point?)stick.Normalized:null;
+            }
+            Point mouse=MouseVirtual();
+            if(PointerOverInterface(mouse))
+                return pointerAimActive?(Point?)Game.aim:null;
+            pointerAimActive=true;
             Point target=AimTargetAtPointer(mouse),d=target-Game.Position;
             Game.SetAimTarget(target);
             return d.Length>.05f?d:Game.aim;
