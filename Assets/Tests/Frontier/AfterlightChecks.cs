@@ -1990,6 +1990,25 @@ namespace Starfall.Tests
             Advance(g,.32f);
             Check(foe.releaseTime<=.001f&&foe.state==0,
                 "The first genuine lunge has finished its normal visible recovery");
+            // The earned counter must not be just a timer or a floating
+            // number. Spend it with an actual planted sword action against
+            // the attacker before testing a separate unblocked strike.
+            foe.hp=foe.maxHp=900f;
+            foe.stun=1.2f;g.save.profession=0;g.save.weapon=0;
+            g.save.energy=100f;
+            float retaliationTargetHp=foe.hp;
+            g.Attack((foe.Position-g.Position).Normalized);
+            ActorAction retaliation=g.playerAction;
+            Check(retaliation!=null&&retaliation.riposteArmed,
+                "The real post-bodyguard LMB captures the existing empowered contact");
+            Advance(g,retaliation.contact+.10f);
+            Check(retaliation.released&&g.riposteTime<=0f&&
+                foe.hp<retaliationTargetHp&&
+                g.effects.Exists(e=>e.text=="反击释放！"),
+                "The bodyguard reward lands and spends an actual sword riposte instead of simulated bonus damage");
+            Advance(g,.48f);
+            Check(g.playerAction==null,
+                "Counter sword animation completes before the separate receiver attack control");
             g.save.x=post.x;g.save.y=post.y;
             foe.state=1;foe.timer=.035f;foe.windupDuration=.65f;
             foe.stun=0f;foe.hitTime=0f;
