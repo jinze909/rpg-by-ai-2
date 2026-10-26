@@ -1967,6 +1967,10 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(g.save.health<preBlockHealth,
                 "Physically shielding the station absorbs the attack on the hero's actual HP, not a free global perk");
+            Check(g.riposteTime>=1.24f&&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="舍身反击 · 追击！"),
+                "Actually losing hero HP while saving the public receiver earns a brief real attack-contact riposte");
             Check(g.AfterlightWatchActive&&
                 Math.Abs(g.AfterlightWatchStock-safeStock)<.001f&&
                 foe.state==0&&

@@ -1995,6 +1995,11 @@ namespace Starfall
                             escortPatrol && e.targetingReliefCivilian);
                         effects.Add(releaseEffect);
                         bool stoppedByLivingCover=false;
+                        // A hero who deliberately catches the receiver's
+                        // melee strike must PAY for a potential counter.
+                        // Snapshot before Hurt; invulnerability and true
+                        // sword parries never mint a second free reward.
+                        float heroHealthBeforeRelease=save.health;
                         if (e.boss || e.kind == 2)
                         {
                             float radius = EnemyAreaRadius(e);
@@ -2126,6 +2131,19 @@ namespace Starfall
                             (travelerAttacker&&e.targetingWayfarer);
                         if(objectiveThreat&&!objectiveLaneClear)
                             stoppedByLivingCover=true;
+                        if(heroCoveredReceiver&&!Dying&&
+                           save.health<heroHealthBeforeRelease)
+                        {
+                            // Existing physical riposte attack/contact does
+                            // the follow-up damage. Do not add hitscan HP,
+                            // bypass enemy facing or persist a status in v2.
+                            riposteTime=Math.Max(riposteTime,1.25f);
+                            effects.Add(new Effect("number",
+                                Position+new Point(0,-.65f),.75f,
+                                L("舍身反击 · 追击！",
+                                  "BODYGUARD RIPOSTE!")));
+                            revision++;
+                        }
                         if(stockRaider&&e.targetingAfterlightStock&&objectiveLaneClear)
                             DamageAfterlightWatchStock(e);
                         if(patrolSaboteur&&e.targetingOuterPatrolStock&&objectiveLaneClear)
