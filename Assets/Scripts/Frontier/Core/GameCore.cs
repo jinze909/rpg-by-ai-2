@@ -1681,10 +1681,18 @@ namespace Starfall
                     continue;
                 Point offset=other.Position-attacker.Position;
                 float along=offset.x*forward.x+offset.y*forward.y;
-                if(along<=0f||along>=length)continue;
                 float side=offset.x*forward.y-offset.y*forward.x;
-                float radius=other.boss?.75f:.5f;
-                if(Math.Abs(side)<radius &&
+                // A Boss blocks with its real wide body even when the
+                // center is not directly on the blade's middle line.
+                // Resolve circle ENTRY along the segment, rather than
+                // requiring the other actor's center to sit between feet:
+                // cover BEHIND the hero cannot erase a leading hero hit.
+                float radius=other.boss?.9f:.5f;
+                if(Math.Abs(side)>=radius)continue;
+                float entry=along-(float)Math.Sqrt(
+                    Math.Max(0f,radius*radius-side*side));
+                float victimEntry=length-.38f;
+                if(along+radius>0f&&entry+.00001f<victimEntry&&
                     ClearAttackPath(attacker.Position,other.Position))
                     return false;
             }

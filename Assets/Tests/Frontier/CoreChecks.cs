@@ -201,6 +201,70 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void BossWideMeleeCoverProtectsHeroUntilARealFlankOpens(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[20];
+                for(int y=0;y<20;y++)
+                {
+                    char[] line=new string('.',20).ToCharArray();
+                    for(int x=0;x<20;x++)
+                        if(x<2||y<2||x>=18||y>=18)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=11.9f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=11.9f;g.save.y=10.5f;g.invulnerable=0f;
+                var hunter=new Enemy(83231,0,10.5f,10.5f,180)
+                    {timer=.001f};
+                var guardian=new Enemy(83232,2,11.3f,11.3f,500,true)
+                    {stun=100f,timer=100f};
+                g.enemies.Add(hunter);g.enemies.Add(guardian);
+                var melee=typeof(GameCore).GetMethod("EnemyMeleeLaneClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(melee!=null&&g.CanStand(guardian.Position)&&
+                    !(bool)melee.Invoke(g,new object[]{hunter,g.Position}),
+                    "Guardian silhouette (0.9-tile radius) intercepts a grazing melee lane its narrower center-only test misses");
+                g.Tick(.05f,new Point());
+                Check(hunter.state==0&&hunter.moving&&
+                    g.CanStand(hunter.Position),
+                    "Ordinary rear hunter seeks a real flank rather than winding a melee hit through Boss shoulder");
+                // A Boss moving away opens the actual player's original
+                // timed windup, without any save, reward or permanent flag.
+                guardian.y=13f;
+                hunter.x=10.5f;hunter.y=10.5f;
+                hunter.state=0;hunter.timer=.001f;
+                hunter.stun=hunter.releaseTime=hunter.hitTime=0f;
+                g.Tick(.05f,new Point());
+                Check(hunter.state==1&&
+                    (bool)melee.Invoke(g,new object[]{hunter,g.Position}),
+                    "Rear melee regains its normal committed warning immediately when Boss cover moves");
+                // A wide living Boss shoulder entering AFTER the windup
+                // still protects at actual contact. Keep the action clock;
+                // never mint a false free hit or an unreadable fake strike.
+                guardian.x=11.3f;guardian.y=11.3f;
+                float beforeHealth=g.save.health;
+                for(int i=0;i<16;i++)g.Tick(.05f,new Point());
+                Check(hunter.state==0&&g.save.health==beforeHealth&&
+                    g.effects.Exists(fx=>fx.kind=="number"&&
+                        fx.text==g.L("队友挡路","ALLY BLOCK")),
+                    "Genuine wide Boss cover blocks a late melee contact and produces one real ally-block cue");
+                guardian.x=13.2f;guardian.y=10.5f;
+                hunter.x=10.5f;hunter.y=10.5f;hunter.state=0;
+                hunter.timer=.001f;hunter.stun=hunter.hitTime=hunter.releaseTime=0f;
+                Check((bool)melee.Invoke(g,new object[]{hunter,g.Position}),
+                    "Boss standing BEHIND the player cannot wrongly claim the first melee contact");
+                g.Tick(.05f,new Point());
+                Check(hunter.state==1&&g.save.version==2,
+                    "Behind-hero Boss cover does not cancel a fair ordinary hunter strike or migrate old saves");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void BacklineMeleeCannotStrikeThroughLivingEnemyCover(Campaign data)
         {
             MapData original=data.maps[0];

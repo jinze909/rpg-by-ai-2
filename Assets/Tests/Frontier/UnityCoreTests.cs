@@ -7,6 +7,7 @@ namespace Starfall.Tests
     public sealed class UnityCoreTests
     {
         [Test] public void RoadsideRescueUsesRealFrontlineMeleeCover() { CoreChecks.RoadsideRaidersCannotStrikeTravelerThroughLivingFrontline(Data()); }
+        [Test] public void LivingBossWideBodyStopsRealRearHunterMeleeContact() { CoreChecks.BossWideMeleeCoverProtectsHeroUntilARealFlankOpens(Data()); }
         [Test] public void MeleeEnemiesMustEarnLiveBodyClearContactLanes() { CoreChecks.BacklineMeleeCannotStrikeThroughLivingEnemyCover(Data()); }
         [Test] public void RangedEnemyRetreatMustRespectLivingAllyFootprints() { CoreChecks.ArcherRetreatSidestepsLivingFrontlineCover(Data()); }
         [Test] public void RealLivingEnemiesMustFlankOrWaitInsteadOfBodyClipping() { CoreChecks.LivingEnemyCrowdsFlankAndDoNotWalkThroughTeammates(Data()); }
