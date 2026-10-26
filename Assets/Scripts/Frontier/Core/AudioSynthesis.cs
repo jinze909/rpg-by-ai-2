@@ -30,13 +30,42 @@ namespace Starfall
         }
         public static float[] Ambience(int room)
         {
-            var wave = new float[Rate * 8]; var random = new Random(731 + room); double filtered = 0;
-            for (int i = 0; i < wave.Length; i++)
+            // Atmospheres are looped by a REAL Unity AudioSource. Fading
+            // every eight-second buffer to silence makes all wind, shore and
+            // forest ambience audibly breathe in and out at each wrap.
+            // Create half a second of filtered tail beyond the loop end,
+            // then overlap-add that tail into the beginning of the loop.
+            // The end and start now come from consecutive points of the
+            // same deterministic noise stream without an artificial dip.
+            const int seconds = 8;
+            int period = Rate * seconds, overlap = Rate / 2;
+            var raw = new float[period + overlap];
+            var random = new Random(731 + room);
+            double filtered = 0;
+            for (int i = 0; i < raw.Length; i++)
             {
-                double t = i / (double)Rate, noise = random.NextDouble() * 2 - 1; filtered = filtered * .97 + noise * .03;
-                double swell = room == 5 || room == 2 ? .15 + .1 * Math.Sin(t * Math.PI / 2) : .09 + .04 * Math.Sin(t * Math.PI / 4);
-                double bird = room < 2 && t > 2 && t < 2.3 ? Math.Sin(t * 2 * Math.PI * (1400 + 150 * Math.Sin(t * 35))) * Math.Sin((t - 2) / .3 * Math.PI) * .03 : 0;
-                wave[i] = (float)((filtered * swell + bird) * Math.Min(1, Math.Min(t * 4, (8 - t) * 4)));
+                double t = i / (double)Rate, noise = random.NextDouble() * 2 - 1;
+                filtered = filtered * .97 + noise * .03;
+                double swell = room == 5 || room == 2 ?
+                    .15 + .1 * Math.Sin(t * Math.PI / 2) :
+                    .09 + .04 * Math.Sin(t * Math.PI / 4);
+                double bird = room < 2 && t > 2 && t < 2.3 ?
+                    Math.Sin(t * 2 * Math.PI * (1400 + 150 * Math.Sin(t * 35))) *
+                    Math.Sin((t - 2) / .3 * Math.PI) * .03 : 0;
+                raw[i] = (float)(filtered * swell + bird);
+            }
+            var wave = new float[period];
+            for (int i = 0; i < period; i++)
+            {
+                if (i < overlap)
+                {
+                    // Equal-power gains keep the noise bed audible through
+                    // the joint; a simple linear crossfade makes a dip.
+                    double phase = i / (double)overlap * (Math.PI / 2);
+                    wave[i] = (float)(raw[period + i] * Math.Cos(phase) +
+                        raw[i] * Math.Sin(phase));
+                }
+                else wave[i] = raw[i];
             }
             return wave;
         }

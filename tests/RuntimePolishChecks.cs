@@ -178,6 +178,32 @@ public static class RuntimePolishChecks
             Check(roomNow.isPlaying, "Restoring audio resumes the correct new region");
             atmosphere.Dispose();
             Console.WriteLine("PASS Runtime outdoor soundscapes: overlapping region transitions, reversing, retargeting and mute recovery (offline sources)");
+            // The actual procedural PCM is what the looping AudioSources
+            // receive. Inspect edge energy, not merely whether a generator
+            // returned eight seconds of nonempty data. Old fades to silence
+            // at both edges fail this regression.
+            foreach (int room in new[] { 0, 2, 5, 7 })
+            {
+                float[] samples = AudioSynthesis.Ambience(room);
+                float[] again = AudioSynthesis.Ambience(room);
+                Check(samples.Length == AudioSynthesis.Rate * 8 &&
+                    samples[0] == again[0] &&
+                    samples[samples.Length - 1] == again[again.Length - 1],
+                    "Deterministic environment PCM retains its original eight-second Unity clip length");
+                double boundaryEnergy = 0, referenceEnergy = 0;
+                for (int i = 0; i < AudioSynthesis.Rate / 5; i++)
+                {
+                    double a = samples[i], b = samples[samples.Length - 1 - i];
+                    double c = samples[AudioSynthesis.Rate * 3 + i];
+                    double d = samples[AudioSynthesis.Rate * 4 + i];
+                    boundaryEnergy += a * a + b * b;
+                    referenceEnergy += c * c + d * d;
+                }
+                Check(referenceEnergy > 0 && boundaryEnergy > referenceEnergy * .35 &&
+                    Math.Abs(samples[0] - samples[samples.Length - 1]) < .025,
+                    "Room " + room + " has an audible, continuous atmosphere at the PCM wrap without a half-second artificial fade-to-silence");
+            }
+            Console.WriteLine("PASS Procedural forest/coast/weather atmosphere: deterministic seamless PCM loop and stable edge loudness");
         }
         finally { Application.persistentDataPath = previous; if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
