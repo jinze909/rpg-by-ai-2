@@ -111,6 +111,13 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS In-flight combat music reverses on genuine threat exit and resumes on re-entry (offline audio sources)");
     }
 
+    // Registered in RuntimeCombatInputChecks.Main: its explicit case roster
+    // is the CI entry point (the optional visual Run() is not invoked there).
+    public static void VerifyCombatMusicReversesOnThreatDeparture(FrontierRuntime app)
+    {
+        CombatMusicReversesWhenActualThreatLeaves();
+    }
+
     static void WorldAndAudio(FrontierRuntime app)
     {
         Prepare(app);var prop=new Decoration{kind="tree",x=10,y=10,variant=0};var rect=new Rect(100,200,100,116);var roots=new List<float>();var tops=new List<float>();
