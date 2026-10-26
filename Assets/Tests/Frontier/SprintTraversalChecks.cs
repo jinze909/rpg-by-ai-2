@@ -119,6 +119,58 @@ namespace Starfall.Tests
             }
             finally{data.maps[1]=original;}
         }
+        public static void DashCompletionReturnsUnusedTickToWalkAndSprint(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                for(int profession=0;profession<3;profession++)
+                    foreach(bool sprint in new[]{false,true})
+                    {
+                        var g=SprintTestWorld(data,profession);
+                        g.Dash(new Point(1,0));
+                        for(int i=0;i<3;i++)
+                            g.Tick(.05f,new Point());
+                        Check(Math.Abs(g.dashTime-.03f)<.0001f &&
+                            g.walkDistance==0f && g.footContacts==0,
+                            "Original 180ms dodge consumes only its swept movement, without false steps");
+                        Point before=g.Position;
+                        float beforeEnergy=g.save.energy;
+                        float walkSpan=.02f*g.Speed*
+                            (sprint?GameCore.SprintSpeedFactor:1f);
+                        g.Tick(.05f,new Point(1,0),null,sprint);
+                        float expected=.03f*15f+walkSpan;
+                        Check(g.dashTime==0f &&
+                            Math.Abs(g.Position.x-before.x-expected)<.002f &&
+                            g.CanStand(g.Position),
+                            "Last 30ms of dodge and next 20ms of held movement each get their real physical speed");
+                        Check(Math.Abs(g.walkDistance-walkSpan)<.002f &&
+                            g.footContacts==0 &&
+                            g.Sprinting==sprint,
+                            "The dash itself never fabricates a step; only real post-dodge walking advances gait and sprint status");
+                        float recovered=.05f*
+                            (profession==2?18f:14f);
+                        float spent=sprint?GameCore.SprintEnergyRate*.02f:0f;
+                        Check(Math.Abs(g.save.energy-
+                            (beforeEnergy+recovered-spent))<.003f,
+                            "Post-dodge sprint charges only the usable 20ms, never the preceding dodge time");
+                        Check(g.save.version==2,
+                            "Subframe locomotion never changes persistent save schema");
+                    }
+                var reverse=SprintTestWorld(data);
+                reverse.Dash(new Point(1,0));
+                for(int i=0;i<3;i++)reverse.Tick(.05f,new Point());
+                float beforeReverse=reverse.Position.x;
+                reverse.Tick(.05f,new Point(-1,0));
+                Check(reverse.Position.x>beforeReverse &&
+                    Math.Abs(reverse.walkDistance-.02f*reverse.Speed)<.002f &&
+                    reverse.locomotionFacing.x<-.9f &&
+                    reverse.movementDirection.x<0f,
+                    "Reversing input at dash finish plants the new walking direction without stealing dodge distance");
+            }
+            finally { data.maps[1]=original; }
+        }
+
         public static void SprintCannotMultiplyDodgeCastRecoilOrMenus(Campaign data)
         {
             MapData original=data.maps[1];

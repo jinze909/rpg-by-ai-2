@@ -112,26 +112,31 @@ namespace Starfall
                 (playerAction==null||PlayerPhase==ActionPhase.Recovery))
                 SetAim(movement);
 
-            Point movementStart=start;
-            if(dashTime>0)
+            // A dodge may finish partway through the current simulation
+            // slice. Spend exactly its remaining interval at dash speed and
+            // return the unused time to regular player locomotion, rather
+            // than discarding up to 50ms of a held walk or sprint command.
+            float available=dt, dashSlice=0f;
+            if(wasDashing)
             {
-                // Use only the remaining dash interval on the final frame.
-                float dashStep=Math.Min(dt,dashTime);
-                dashTime=Math.Max(0f,dashTime-dt);
+                dashSlice=Math.Min(dt,dashTime);
+                dashTime=Math.Max(0f,dashTime-dashSlice);
                 if(dashTime<.00001f)dashTime=0f;
-                Move(dashDirection*dashStep*15f);
+                Move(dashDirection*dashSlice*15f);
+                available-=dashSlice;
             }
-            else
+            Point movementStart=Position;
+            if(available>.000001f)
             {
-                // Hit recoil and player control are disjoint slices of the
-                // SAME frame. Previous TickVisuals consumed the hit timer
-                // first, granting an unearned entire tick of walking/swing
-                // and suppressing the last frame of actual knockback.
-                float locked=Math.Min(dt,Math.Max(0f,hitLockedDt));
+                // Recoil and control are likewise separate time slices.
+                // A corrupt/transient hit lock must not be double-counted
+                // over time already spent in the dodge phase.
+                float locked=Math.Min(available,
+                    Math.Max(0f,hitLockedDt-dashSlice));
                 if(locked>0f)
                     Move(playerRecoil*locked*recoilSpeed);
                 movementStart=Position;
-                float freeDt=dt-locked;
+                float freeDt=available-locked;
                 if(freeDt>.000001f)
                 {
                     MobilityRule mobility=PlayerMobility;
@@ -181,14 +186,18 @@ namespace Starfall
                 }
             }
             Point actual=Position-start;
-            // Only input-driven translation is locomotion. A final recoil
-            // sample may move the world root, but must not make the hero
-            // snap into Run, change walk facing or invent a footstep.
-            Point walking=wasDashing?actual:Position-movementStart;
+            // Distinguish the physical dash (never a planted footstep)
+            // from authentic walking during its final partial frame.
+            // Only the latter advances gait, sprint cost and walk facing.
+            Point controlled=Position-movementStart;
+            bool walkedAfterDash=wasDashing&&available>.000001f&&
+                controlled.Length>.001f;
+            Point walking=wasDashing&&!walkedAfterDash?actual:controlled;
             movementDirection=walking;
-            if(wasDashing&&dashTime<=0f&&actual.Length>.001f)
+            if(wasDashing&&!walkedAfterDash&&dashTime<=0f&&actual.Length>.001f)
                 locomotionFacing=dashDirection;
-            bool translating=walking.Length>.001f&&!wasDashing&&
+            bool translating=walking.Length>.001f&&
+                (!wasDashing||walkedAfterDash)&&
                 playerHitTime<=0f&&(playerAction==null||
                     PlayerPhase==ActionPhase.Recovery);
             if(translating)
