@@ -117,7 +117,9 @@ namespace Starfall
                 CurrentWorldVisualLook.companionStrideDistanceFactor;
             if(float.IsNaN(stride)||float.IsInfinity(stride)||stride<=.1f)
                 stride=GameCore.WalkStride;
-            if(Game.companionMoving&&!wasMoving&&same&&!distanceRewound)
+            bool walking=Game.companionMoving&&
+                Game.companionAction==null;
+            if(walking&&!wasMoving&&same&&!distanceRewound)
             {
                 int startFrame=0;
                 bool sameVisual=companionVisualId==id&&
@@ -146,7 +148,7 @@ namespace Starfall
                 companionGaitPhaseRoom=Game.save.room;
                 companionGaitPhaseOffset=offset;
                 companionGaitLastRawDistance=raw;
-                companionGaitPhaseMoving=Game.companionMoving;
+                companionGaitPhaseMoving=walking;
             }
             return phaseDistance;
         }
@@ -258,6 +260,16 @@ namespace Starfall
                 companionStopTime=clock-.5f;
                 companionTrackedAction=null;
                 companionAttackStartedFromWalk=false;
+            }
+            if(!drawingOutline&&(!Game.companionMoving||action!=null))
+            {
+                // The production BODY also owns its stationary gait epoch.
+                // Effects-quality 0/1 skips companion footfall visuals,
+                // which previously left companionGaitPhaseMoving stuck TRUE
+                // across idle/command frames. The next real stride then
+                // resumed mid-air unless a cosmetic ground-decal hook ran.
+                // Do not make painted legs depend on optional VFX quality.
+                CompanionGaitDistance(true);
             }
             if(!drawingOutline&&action!=companionTrackedAction)
             {

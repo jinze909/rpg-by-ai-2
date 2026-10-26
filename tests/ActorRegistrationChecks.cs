@@ -4575,6 +4575,60 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS all three original companions: runtime import recovery reinstalls authentic action/Walk resources and restores painted combat keyframes without scene reload");
     }
+
+    public static void CompanionGaitRestartsFromTrueFeetWithVfxDisabled(
+        FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        for(int id=0;id<3;id++)
+        for(int quality=0;quality<=2;quality++)
+        {
+            app.BeginVisualReview(0,0);
+            var game=app.Game;
+            game.save.companion=id;
+            game.save.effectsQuality=quality;
+            game.save.reducedMotion=false;
+            game.companionAim=new Point(1,0);
+            game.companionAction=null;
+            float stride=GameCore.WalkStride*1.20f;
+            game.companionMoveTime=stride*.375f;
+            game.companionMoving=true;
+            Set(app,"clock",5100f+id*20f+quality*4f);
+            Clear();var walking=Draw(app,"DrawCompanionActor")
+                .Single(ActorTexture);
+            Check(walking.texture.name.EndsWith("/Walk"+names[id])&&
+                FrameColumn(walking,4)==1,
+                "Real allied walking must reach authored airborne frame 1 before a VFX-independent stop");
+            game.companionMoving=false;
+            Set(app,"clock",5100.1f+id*20f+quality*4f);
+            Clear();var stopped=Draw(app,"DrawCompanionActor")
+                .Single(ActorTexture);
+            Check(stopped.texture.name==walking.texture,
+                "A real stop cannot replace the companion's published full-body identity");
+            // Unlike older tests, never invoke CompanionGaitDistance
+            // explicitly and never update decorative footprint VFX.
+            Set(app,"clock",5100.3f+id*20f+quality*4f);
+            Clear();Draw(app,"DrawCompanionActor");
+            game.companionMoving=true;
+            game.companionMoveTime+=stride*.04f;
+            Set(app,"clock",5100.32f+id*20f+quality*4f);
+            Clear();var resumed=Draw(app,"DrawCompanionActor")
+                .Single(ActorTexture);
+            Check(FrameColumn(resumed,4)==0&&
+                resumed.texture==walking.texture&&
+                Math.Abs(resumed.rect.y-walking.rect.y)<.001f,
+                "After an actual idle body repaint the next real step must restart on its source-painted sole, even with all footsteps disabled");
+            game.companionMoveTime+=stride*.27f;
+            Set(app,"clock",5100.34f+id*20f+quality*4f);
+            Clear();var next=Draw(app,"DrawCompanionActor")
+                .Single(ActorTexture);
+            Check(FrameColumn(next,4)==1&&
+                next.texture==walking.texture&&
+                Math.Abs(next.rect.y-walking.rect.y)<.001f,
+                "Companion leg animation must then advance with actual world travel, not a time/VFX oscillator");
+        }
+        Console.WriteLine("PASS 3 original companions x 3 effects qualities: painted walking recovers a planted stride after genuine idle without relying on footfall VFX");
+    }
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try
@@ -4582,6 +4636,7 @@ public static class ActorRegistrationChecks
             CompanionGaitActuallyPlantsBothFeet(app);
             VerifyCompanionSurvivesPartialActionAtlasImport(app);
             VerifyCompanionActionAndWalkAtlasesHotRecover(app);
+            CompanionGaitRestartsFromTrueFeetWithVfxDisabled(app);
             VerifyCompanionFootfallsFollowGaitRestart(app);
             CompanionOutlinePassCannotConsumeGaitOrAttack(app);
         }
