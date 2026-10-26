@@ -3666,6 +3666,62 @@ namespace Starfall.Tests
                 "Quick return cancels an unfinished skiff race without awarding its completion reward");
         }
 
+        public static void AbyssSixthFloorOldSnapshotsRestoreWideBossWithoutClipping(Campaign data)
+        {
+            var g=ShoreRun(data,0,3,3);
+            g.Close();g.Enter(0);
+            g.StartAbyss(0);
+            Check(g.InAbyss&&g.save.room==8,
+                "An original old-compatible Abyss run opens the real expedition floor");
+            g.enemies.Clear();
+            g.save.abyssFloor=6;
+            var generate=typeof(GameCore).GetMethod("GenerateAbyss",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var restore=typeof(GameCore).GetMethod("RestoreAbyssEnemies",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(generate!=null&&restore!=null,
+                "Actual sixth-floor geometry and saved-enemy restoration paths remain available");
+            generate.Invoke(g,null);
+            Point arena=new Point();
+            bool located=false;
+            for(int y=3;y<g.Map.rows.Length-3&&!located;y++)
+            for(int x=3;x<g.Map.rows[y].Length-4&&!located;x++)
+            {
+                Point candidate=new Point(x+.5f,y+.5f);
+                if(g.CanStand(candidate)&&
+                    g.CanStand(candidate+new Point(1.1f,0))&&
+                    (candidate-g.Position).Length>4f)
+                {arena=candidate;located=true;}
+            }
+            Check(located,"A real walkable Abyss chamber can host two overlapping saved combatants");
+            var bossRecord=new EnemyRecord{id=87701,kind=3,boss=true,
+                x=arena.x,y=arena.y,hp=420f,maxHp=700f};
+            var raiderRecord=new EnemyRecord{id=87702,kind=0,boss=false,
+                x=arena.x+1.1f,y=arena.y,hp=30f,maxHp=60f};
+            g.save.abyssSnapshotFloor=6;
+            foreach(bool bossFirst in new []{true,false})
+            {
+                g.enemies.Clear();
+                g.save.abyssEnemies=bossFirst?
+                    new[]{bossRecord,raiderRecord}:
+                    new[]{raiderRecord,bossRecord};
+                Check((bool)restore.Invoke(g,null)&&g.enemies.Count==2,
+                    "Both original live opponents survive their restored sixth-floor roster");
+                Enemy boss=g.enemies.Find(e=>e.id==87701);
+                Enemy raider=g.enemies.Find(e=>e.id==87702);
+                Check(boss!=null&&raider!=null&&boss.boss&&!raider.boss&&
+                    Math.Abs(boss.hp-420f)<.01f&&
+                    Math.Abs(raider.hp-30f)<.01f&&
+                    (boss.Position-raider.Position).Length>=1.4f&&
+                    g.CanStand(boss.Position)&&g.CanStand(raider.Position),
+                    "Restored Boss and raider use genuine wide-body clearance in either serial roster order without losing health or identity");
+                Check(g.save.version==2&&g.save.abyssSnapshotFloor==6,
+                    "Restoring old records requires no new fields, loot changes, or migration");
+            }
+        }
+
         public static void AbyssExpeditions(Campaign data)
         {
             for (int profession = 0; profession < 3; profession++)

@@ -479,9 +479,15 @@ namespace Starfall
             foreach (EnemyRecord r in save.abyssEnemies)
             {
                 if (r == null || r.id < 1 || r.id > 99999 || !ids.Add(r.id) || !Finite(r.hp) || !Finite(r.maxHp) || r.hp <= 0) continue;
-                Point p = UncrowdedEnemyFoot(new Point(r.x, r.y));
+                // The saved sixth-floor guardian is a WIDE living body.
+                // Its restored foot must reserve the same clearance as a
+                // newly spawned Boss, regardless of snapshot roster order.
+                bool restoredBoss=r.boss&&save.abyssFloor==6;
+                Point p = UncrowdedEnemyFoot(
+                    new Point(r.x,r.y),null,false,restoredBoss);
                 float maximum = Clamp(r.maxHp, 1, 5000);
-                var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3), p.x, p.y, maximum, r.boss && save.abyssFloor == 6);
+                var e = new Enemy(r.id, (int)Clamp(r.kind, 0, 3),
+                    p.x, p.y, maximum, restoredBoss);
                 e.hp = Clamp(r.hp, .1f, maximum); enemies.Add(e); enemyId = Math.Max(enemyId, r.id);
             }
             if (enemies.Count == 0) { save.runCoins = save.runShards = save.runXp = 0; return false; }
