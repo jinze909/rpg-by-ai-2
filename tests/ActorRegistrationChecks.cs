@@ -4509,12 +4509,71 @@ public static class ActorRegistrationChecks
         }
         Console.WriteLine("PASS companion import recovery: 3 original allies x 4 facings x 3 real poses survive partial/null action art without mismatched costumes");
     }
+
+    public static void VerifyCompanionActionAndWalkAtlasesHotRecover(
+        FrontierRuntime app)
+    {
+        string[] names={"Mira","Ivo","Sen"};
+        for(int id=0;id<3;id++)
+        {
+            app.BeginVisualReview(0,0);
+            GameCore game=app.Game;
+            game.save.companion=id;
+            game.companionAim=Directions[2];
+            game.companionMoving=false;
+            game.companionAction=new ActorAction{kind="attack",
+                weapon=id,direction=Directions[2],released=true,
+                elapsed=.25f,duration=.42f,contact=.16f};
+            var actionField=typeof(FrontierRuntime).GetField(
+                "companionSheets",Private);
+            var walkField=typeof(FrontierRuntime).GetField(
+                "companionWalkSheets",Private);
+            var actions=(Texture2D[])actionField.GetValue(app);
+            var walks=(Texture2D[])walkField.GetValue(app);
+            Texture2D oldAction=actions[id],oldWalk=walks[id];
+            Check(oldAction!=null&&oldWalk!=null,
+                "Each test companion needs both original published source sprites");
+            try
+            {
+                // Real import failure: no action body and corrupt walk body.
+                actions[id]=null;
+                walks[id]=new Texture2D(309,151,
+                    TextureFormat.RGBA32,false){name="corrupt-walk"};
+                Set(app,"clock",7000f+id*4f);
+                Call(app,"RecoverPublishedVisualAtlases");
+                Check(actions[id]!=null&&walks[id]!=null&&
+                    ActorAtlasGeometry.IsAcceptedCompanionAtlas(actions[id])&&
+                    walks[id].width==1024&&walks[id].height==768&&
+                    actions[id].name.Contains("Companion"+names[id])&&
+                    walks[id].name.Contains("Walk"+names[id]),
+                    "Live recovery restores both approved resource atlases for THIS companion without a restart");
+                Texture2D recoveredAction=actions[id],recoveredWalk=walks[id];
+                Set(app,"clock",7001f+id*4f);
+                Call(app,"RecoverPublishedVisualAtlases");
+                Check(System.Object.ReferenceEquals(actions[id],recoveredAction)&&
+                    System.Object.ReferenceEquals(walks[id],recoveredWalk),
+                    "Later ordinary game frames must retain accepted source texture instances, never reimport or reslice valid sprites");
+                Place(app,game.companionPosition,new Point(515f,370f));
+                Clear();var visible=Draw(app,"DrawCompanionActor")
+                    .Where(ActorTexture).ToArray();
+                Check(visible.Length==1&&visible[0].texture==recoveredAction,
+                    "Restored action art resumes the genuine painted combat keyframe, not a permanent Walk-idle fallback");
+            }
+            finally
+            {
+                actions[id]=oldAction;
+                walks[id]=oldWalk;
+            }
+        }
+        Console.WriteLine("PASS all three original companions: runtime import recovery reinstalls authentic action/Walk resources and restores painted combat keyframes without scene reload");
+    }
     public static void VerifyCompanionGaitContinuity(FrontierRuntime app)
     {
         try
         {
             CompanionGaitActuallyPlantsBothFeet(app);
             VerifyCompanionSurvivesPartialActionAtlasImport(app);
+            VerifyCompanionActionAndWalkAtlasesHotRecover(app);
             VerifyCompanionFootfallsFollowGaitRestart(app);
             CompanionOutlinePassCannotConsumeGaitOrAttack(app);
         }

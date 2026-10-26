@@ -155,9 +155,57 @@ namespace Starfall
         // Resources import failure. Previously a single missing Icons.png or
         // Effects.png on Awake left the entire session on plain text/dots.
         // One retry per second is sufficient; no per-icon resource polling.
+        // Unity can finish importing actor Resources AFTER Awake. A missing
+        // original companion sheet must recover while playing, independently
+        // of whether Icons and Terrain have already loaded successfully.
+        // Never publish a partial atlas or reload a valid accepted identity.
+        private float companionVisualRecoveryAt;
+        private void RecoverCompanionVisualAtlases()
+        {
+            if(companionSheets==null||companionWalkSheets==null||
+               companionSheets.Length<3||companionWalkSheets.Length<3)
+                return;
+            bool missing=false;
+            for(int i=0;i<3;i++)
+                if(!ActorAtlasGeometry.IsAcceptedCompanionAtlas(companionSheets[i])||
+                   !AcceptedCompanionWalkSheet(companionWalkSheets[i]))
+                    {missing=true;break;}
+            if(!missing)return;
+            if(clock<companionVisualRecoveryAt)return;
+            companionVisualRecoveryAt=clock+1f;
+            string[] names={"Mira","Ivo","Sen"};
+            for(int id=0;id<3;id++)
+            {
+                if(!ActorAtlasGeometry.IsAcceptedCompanionAtlas(
+                    companionSheets[id]))
+                {
+                    Texture2D action=Resources.Load<Texture2D>(
+                        "Frontier/Art/Companion"+names[id]);
+                    if(ActorAtlasGeometry.IsAcceptedCompanionAtlas(action))
+                    {
+                        art.FlashMask(action);art.OutlineMask(action);
+                        companionSheets[id]=action;
+                    }
+                }
+                if(!AcceptedCompanionWalkSheet(companionWalkSheets[id]))
+                {
+                    Texture2D walk=Resources.Load<Texture2D>(
+                        "Frontier/Art/Walk"+names[id]);
+                    if(AcceptedCompanionWalkSheet(walk))
+                    {
+                        art.FlashMask(walk);art.OutlineMask(walk);
+                        companionWalkSheets[id]=walk;
+                    }
+                }
+            }
+        }
+        private static bool AcceptedCompanionWalkSheet(Texture2D source)
+        {return source!=null&&source.width==4*256&&
+            source.height==3*256;}
         private float publishedVisualRetryAt;
         private void RecoverPublishedVisualAtlases()
         {
+            RecoverCompanionVisualAtlases();
             if (iconSheet != null && effectSheet != null &&
                 worldProps != null && fieldProps != null &&
                 terrainSheet != null && terrainVariants != null &&
