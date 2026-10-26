@@ -1492,6 +1492,7 @@ namespace Starfall
             float actualDamage=Math.Max(0,damage*multiplier*armor);
             save.health -= actualDamage;
             DamageFarCourierCargo(actualDamage,source);
+            DamageOuterDeliveryDressings(actualDamage,source);
             DamageCivicResponseMedicine(actualDamage,source);
             DamageCivicConduit(actualDamage,source);
             DamageFloodReliefParcel(actualDamage,source);
@@ -2996,6 +2997,10 @@ namespace Starfall
                     "Footing is blocked. Reach walkable ground before interacting.");
                 return;
             }
+            // The physical parcel is a one-off pickup at its actual impact
+            // foot, never an invisible remote inventory toggle. Resolve it
+            // before overlapping NPCs, using the same terrain-checked E.
+            if(TryRecoverOuterDeliveryParcel())return;
             WorldObject o = Nearest();
             if(ReliefCivilianIsInteractionTarget(o))
             {

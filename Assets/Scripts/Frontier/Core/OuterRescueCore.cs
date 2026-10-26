@@ -85,6 +85,54 @@ namespace Starfall
         // only legitimate completed deliveries add an ordinary v2 flag.
         private int outerDeliveryRoom=-1,outerDeliveryStage;
         private float outerDeliverySeconds;
+        // A genuine hit can spill the carried medical dressings onto their
+        // ACTUAL physical field foot. Recover with E before delivery, while
+        // the unchanged 90-second mission clock keeps running. Transient
+        // combat state only; the existing v2 completion flag is preserved.
+        private bool outerDeliveryDropped;
+        private Point outerDeliveryDropFoot;
+        public bool OuterDeliveryParcelDropped
+        {get{return OuterDeliveryActive&&outerDeliveryStage==2&&outerDeliveryDropped;}}
+        public Point OuterDeliveryParcelFoot
+        {get{return OuterDeliveryParcelDropped?outerDeliveryDropFoot:new Point();}}
+        public bool OuterDeliveryCanRecoverParcel
+        {
+            get
+            {
+                return mode=="world"&&OuterDeliveryParcelDropped&&
+                    !Dying&&!practicing&&CanStand(Position)&&
+                    CanStand(outerDeliveryDropFoot)&&
+                    (Position-outerDeliveryDropFoot).Length<=1.45f&&
+                    ClearAttackPath(Position,outerDeliveryDropFoot);
+            }
+        }
+        private void DamageOuterDeliveryDressings(float actualDamage,string source)
+        {
+            // Invincible / fully parried / zero-power hits never call this.
+            // Ambient temperature, ordinary movement and unsupported
+            // blocked feet must never teleport or spill the physical box.
+            if(outerDeliveryRoom!=save.room||outerDeliveryStage!=2||
+                outerDeliveryDropped||source=="environment"||
+                !Finite(actualDamage)||actualDamage<=0f||
+                !CanStand(Position))return;
+            outerDeliveryDropped=true;
+            outerDeliveryDropFoot=Position;
+            effects.Add(new Effect("discover",outerDeliveryDropFoot,.7f));
+            revision++;sound="hurt";
+            Notify("药布在战斗中掉落！回到原地按 E 拾起，再送往哨岗。倒计时仍在继续。",
+                "Dressings dropped on impact! Return to the original foot and press E to recover them before delivery. The timer continues.");
+        }
+        private bool TryRecoverOuterDeliveryParcel()
+        {
+            if(!OuterDeliveryCanRecoverParcel)return false;
+            Point location=outerDeliveryDropFoot;
+            outerDeliveryDropped=false;
+            effects.Add(new Effect("discover",location,.45f));
+            revision++;sound="reward";
+            Notify("已捡回药布和收据。继续将物资送到哨岗。",
+                "Dressings and receipt recovered. Deliver the original parcel to the watch.");
+            return true;
+        }
         public bool OuterDeliveryActive
         { get{return outerDeliveryRoom==save.room&&outerDeliveryStage>0;} }
         public int OuterDeliveryStage {get{return OuterDeliveryActive?outerDeliveryStage:0;}}
@@ -102,11 +150,18 @@ namespace Starfall
                 !FieldWorkPreventsRest&&SafeTravel;}
         }
         private void ResetOuterDelivery()
-        {outerDeliveryRoom=-1;outerDeliveryStage=0;outerDeliverySeconds=0;}
+        {
+            outerDeliveryRoom=-1;outerDeliveryStage=0;outerDeliverySeconds=0;
+            outerDeliveryDropped=false;outerDeliveryDropFoot=new Point();
+        }
         private void TickOuterDelivery(float dt)
         {
-            if(!OuterDeliveryActive)return;
-            if(Dying){ResetOuterDelivery();return;}
+            if(outerDeliveryRoom<0)return;
+            // Leaving the physical region or dying retires ALL unsaved
+            // cargo state. A return from another region must never resume
+            // a paused older stopwatch or find a ghost dropped parcel.
+            if(outerDeliveryRoom!=save.room||Dying||practicing)
+            {ResetOuterDelivery();revision++;return;}
             outerDeliverySeconds=Math.Max(0f,outerDeliverySeconds-dt);
             if(outerDeliverySeconds>0f)return;
             ResetOuterDelivery();revision++;
@@ -124,9 +179,13 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     outerDeliveryStage==1?
                         "箱里还有一捆未拆封的药布。巡路队把收据压在箱扣下：‘必须由人亲手送到哨岗，不能放在路上等车。’":
+                        outerDeliveryDropped?
+                        "药布被撞落在路上，不在箱里。回到掉落地点按 E 捡起，倒计时不会暂停。":
                         "你已经把药布和收据放进背包。哨岗在北边，受伤的人还在那里等着。",
                     outerDeliveryStage==1?
                         "An unopened roll of dressings lies under the lid. The receipt reads: ‘Hand it to the wardens in person. Do not leave it beside the cart road.’":
+                        outerDeliveryDropped?
+                        "The dressings fell beside the road, not into this chest. Return to the drop and press E; the timer does not pause.":
                         "The dressings and receipt are in your pack. The defended post is north of here, and someone is waiting.",
                     outerDeliveryStage==1?
                         C("取走包扎药布","Take the dressings","outer_delivery_pickup"):
@@ -135,13 +194,13 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,
-                outerDeliveryStage==2?
+                outerDeliveryStage==2&&!outerDeliveryDropped?
                     "哨岗里有人扶着伤员坐下。值守员一眼认出你怀里的药布，伸手接过还未干的收据。":
                     "值守员翻着空白的交接簿。药布还在南边的旧箱里，得亲自带过来。",
-                outerDeliveryStage==2?
+                outerDeliveryStage==2&&!outerDeliveryDropped?
                     "Someone helps an injured traveler to a seat. The watchkeeper recognizes the roll in your arms and reaches for the damp receipt.":
                     "The watchkeeper checks the empty delivery ledger. The dressings are still in the old chest to the south.",
-                outerDeliveryStage==2?
+                outerDeliveryStage==2&&!outerDeliveryDropped?
                     C("交付药布和收据","Deliver dressings and receipt","outer_delivery_deliver"):
                     C("去南边救援箱取药","Retrieve the chest to the south","close"),
                 C("继续赶路","Keep moving","close"));
@@ -164,6 +223,7 @@ namespace Starfall
             {
                 if(source.kind!="outerrelay"||!OuterDeliveryAvailable)return true;
                 outerDeliveryRoom=save.room;outerDeliveryStage=1;
+                outerDeliveryDropped=false;outerDeliveryDropFoot=new Point();
                 outerDeliverySeconds=90f;revision++;sound="quest";
                 TrackQuest("outer_delivery");
                 Notify("巡路队急送开始：90秒内到南边旧药箱取药，再送到北边已守住的哨岗。",
@@ -182,12 +242,14 @@ namespace Starfall
             if(pickup)
             {
                 if(source.kind!="outercache"||outerDeliveryStage!=1)return true;
-                outerDeliveryStage=2;revision++;sound="quest";
+                outerDeliveryStage=2;outerDeliveryDropped=false;
+                revision++;sound="quest";
                 Notify("拿到药布和收据！哨岗就在正北方，继续赶路。",
                     "Dressings and receipt secured. The defended watch is directly north.");
                 return true;
             }
             if(source.kind!="outerwatch"||outerDeliveryStage!=2||
+                outerDeliveryDropped||
                 !OuterPatrolDone(save.room)||!OuterCacheRecovered(save.room))
                 return true;
             // A full coin wallet cannot silently erase the one-time payout
