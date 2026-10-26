@@ -1780,16 +1780,32 @@ namespace Starfall.Tests
             Check(g.companionAction!=null&&
                 g.companionAction.kind=="attack",
                 "A real bow ally starts an automatic windup for a committed stock threat");
-            Advance(g,.15f);
-            Projectile live=g.projectiles.Find(p=>
-                System.Object.ReferenceEquals(p.stockCoverTarget,threat));
+            // Release is sampled at the actual action/contact boundary,
+            // not at an assumed fixed external frame duration. Observe
+            // each real world tick and stop on the first tagged projectile
+            // before it can physically fly into the target.
+            Projectile live=null;
+            for(int frame=0;frame<24&&live==null;frame++)
+            {
+                g.Tick(.02f,new Point());
+                live=g.projectiles.Find(p=>
+                    System.Object.ReferenceEquals(p.stockCoverTarget,threat));
+                if(threat.state!=1)break;
+            }
             Check(live!=null&&live.friendly&&
                 live.stockCoverRoom==g.save.room&&
                 System.Object.ReferenceEquals(live.stockCoverSave,g.save)&&
                 System.Object.ReferenceEquals(live.stockCoverMap,g.Map)&&
                 live.afterlightWatchOwned&&
                 g.CompanionStockCoverInFlight,
-                "Actual fired bow projectile retains source-foot mission ownership at release");
+                "Actual fired bow projectile retains source-foot mission ownership at release; "+
+                "shots="+g.projectiles.Count+
+                ", allyAction="+(g.companionAction==null?"none":
+                    g.companionAction.kind+" released="+g.companionAction.released+
+                    " elapsed="+g.companionAction.elapsed.ToString("0.00"))+
+                ", threat="+threat.state+" timer="+threat.timer.ToString("0.00")+
+                ", active="+g.AfterlightWatchActive+
+                ", coverFlight="+g.CompanionStockCoverInFlight);
             var actual=new Projectile {
                 position=threat.Position,velocity=new Point(9f,0),
                 life=2f,damage=2f,friendly=true,visual="arrow",
