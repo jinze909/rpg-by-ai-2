@@ -268,6 +268,11 @@ namespace Starfall
                 float x = save.x, y = save.y;
                 foreach (Enemy foe in enemies)
                 {
+                    // Invalid transient actors can be injected during a
+                    // collapsing hazard/restore frame. They cannot exert
+                    // authentic hostile travel pressure, and must never
+                    // crash safe-camp or fast-travel checks.
+                    if(foe==null)continue;
                     float dx = foe.x - x, dy = foe.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
                     // A Boss/elite can lock an actual ground strike from
@@ -292,6 +297,7 @@ namespace Starfall
                 // are satisfied. Friendly shots do not block their caster.
                 foreach (Projectile shot in projectiles)
                 {
+                    if(shot==null)continue;
                     if (shot.friendly || shot.life <= 0 || shot.damage <= 0)
                         continue;
                     float dx = shot.position.x - x, dy = shot.position.y - y;
@@ -2408,7 +2414,7 @@ namespace Starfall
             // after the player delivers supplies in that region. Dialogue,
             // inventory, combat and a blocked field mission cannot exploit it.
             if(!practicing&&!racing&&!Dying&&!FieldWorkPreventsRest&&
-                SafeTravel&&CivicWaystationNear)
+                CivicWaystationNear&&SafeTravel)
             {
                 if(save.health>0f&&save.health<save.maxHealth)
                     save.health=Math.Min(save.maxHealth,save.health+dt*.95f);
