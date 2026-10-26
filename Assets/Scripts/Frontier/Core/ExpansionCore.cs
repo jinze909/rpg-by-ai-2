@@ -1436,7 +1436,12 @@ namespace Starfall
             if(foe.kind==1)
                 return (foe.target-Position).Length<=.55f&&
                     EnemyBowFlightLaneClear(foe,foe.target);
-            return InEnemyMeleeArc(foe,Position);
+            // The real release checks this same physical body lane. A
+            // friendly frontliner who intercepts the lunge makes the
+            // rear raider a non-imminent hero threat: the companion should
+            // save its planted arrow for a strike which can actually land.
+            return InEnemyMeleeArc(foe,Position)&&
+                EnemyMeleeLaneClear(foe,Position);
         }
         // A resident in an active rescue is a real protected body. Do not
         // classify an arbitrary nearby enemy as a rescue threat: its still
@@ -1474,8 +1479,12 @@ namespace Starfall
                     EnemyAreaRadius(foe)&&
                     ClearAttackPath(foe.Position,foe.target)&&
                     ClearAttackPath(foe.target,reliefFollowerPosition);
+            // Civilian damage has precisely the same living-frontline
+            // cover test at contact. Match it in both the companion rescue
+            // priority and the actual incoming-danger HUD.
             return (foe.target-reliefFollowerPosition).Length<=.8f&&
-                InEnemyMeleeArc(foe,reliefFollowerPosition);
+                InEnemyMeleeArc(foe,reliefFollowerPosition)&&
+                EnemyMeleeLaneClear(foe,reliefFollowerPosition);
         }
 
         private Enemy NearestCompanionThreat()

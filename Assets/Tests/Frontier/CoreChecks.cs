@@ -2779,6 +2779,88 @@ namespace Starfall.Tests
             throw new Exception("No real physical safe observer for outpost warning");
         }
 
+        public static void CompanionProtectsOnlyUncoveredHeroAndCivilianMeleeThreats(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                string[] rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('.',25).ToCharArray();
+                    for(int x=0;x<25;x++)
+                        if(x<2||y<2||x>=23||y>=23)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=15.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=15.5f;g.save.y=10.5f;
+                g.save.companion=1;g.companionPosition=new Point(11f,12.5f);
+                var hunter=new Enemy(87431,0,13.6f,10.5f,180f)
+                    {state=1,timer=.25f,windupDuration=.65f};
+                hunter.target=g.Position;hunter.Face(g.Position-hunter.Position);
+                var defender=new Enemy(87432,0,14.5f,10.5f,200f)
+                    {stun=100f,timer=100f};
+                var idle=new Enemy(87433,0,12.5f,14.5f,100f)
+                    {stun=100f,timer=100f};
+                g.enemies.Add(hunter);g.enemies.Add(defender);
+                g.enemies.Add(idle);
+                var hero=typeof(GameCore).GetMethod("CompanionCommittedHeroStrike",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(hero!=null&&select!=null&&
+                    !(bool)hero.Invoke(g,new object[]{hunter}),
+                    "The timed hero lunge is not imminent through a living frontline ally");
+                Check((Enemy)select.Invoke(g,null)!=hunter,
+                    "Companion auto-target must not spend an emergency shot on a body-blocked melee windup");
+                defender.y=13.5f;
+                Check((bool)hero.Invoke(g,new object[]{hunter}),
+                    "A genuinely opened line immediately restores the committed hero-threat classification");
+                Check((Enemy)select.Invoke(g,null)==hunter,
+                    "Ivo now correctly prioritizes the shootable uncovered real lunge over idle enemies");
+                Check(g.save.version==2,
+                    "Combat priority uses transient actor identity and changes no old save fields");
+            }
+            finally{data.maps[0]=old;}
+
+            // Real escort alerts share the authoritative contact rule, not
+            // just a flag that happens to say the foe is attacking somebody.
+            var escort=Fresh(data);
+            escort.save.stage=3;escort.Enter(1);
+            escort.enemies.Clear();escort.projectiles.Clear();
+            escort.reliefMissionRoom=1;escort.reliefMissionWave=3;
+            escort.reliefMissionTime=75f;escort.reliefFollowerSafety=100f;
+            escort.reliefFollowerPosition=new Point(15f,14f);
+            escort.save.x=20f;escort.save.y=17f;
+            var raider=new Enemy(87441,0,13.4f,14f,140f)
+                {state=1,timer=.2f,windupDuration=.65f,
+                 targetingReliefCivilian=true};
+            raider.target=escort.reliefFollowerPosition;
+            raider.Face(raider.target-raider.Position);
+            var cover=new Enemy(87442,0,14.2f,14f,160f)
+                {stun=100f,timer=100f};
+            escort.enemies.Add(raider);escort.enemies.Add(cover);
+            var rescue=typeof(GameCore).GetMethod("CompanionCommittedRescueStrike",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(rescue!=null&&escort.CanStand(raider.Position)&&
+                escort.CanStand(cover.Position)&&
+                !(bool)rescue.Invoke(escort,new object[]{raider})&&
+                escort.IncomingRescueCivilianThreat==null,
+                "A living raider cover retracts both the companion's rescue priority and the civilian hit-warning");
+            cover.y=17f;
+            Check((bool)rescue.Invoke(escort,new object[]{raider})&&
+                escort.IncomingRescueCivilianThreat==raider,
+                "When the line opens, the same genuine timed escort hit reappears as a player-visible threat");
+            Check(escort.save.version==2,
+                "Escorted civilian threat classification is save-format neutral");
+        }
+
         public static void CompanionInterceptsLiveHeavyWindupBeforeIdleCacheRaider(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,
