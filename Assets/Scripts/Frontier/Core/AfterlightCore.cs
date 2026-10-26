@@ -66,6 +66,46 @@ namespace Starfall
         // In particular, a nearby archer shooting at the hero is NOT
         // attacking the public receiver. The whole body contact lane
         // matters for melee enemies, not just a cosmetic danger circle.
+        // The hero can physically enter an already telegraphed normal
+        // raider's lane and take the attack in place of the receiver.
+        // This is NOT an aura: feet must be between real actor and station,
+        // inside the narrow melee corridor and reachable through terrain.
+        // Armored area slams cannot be absorbed with this body block.
+        private bool AfterlightWatchHeroBodyBlocksStock(Enemy foe)
+        {
+            if(!AfterlightWatchActive||foe==null||foe.hp<=0f||
+                !IsAfterlightWatchEnemy(foe)||foe.kind!=0||
+                foe.state!=1||!foe.targetingAfterlightStock||
+                foe.stun>.001f||!CanStand(foe.Position)||
+                !CanStand(Position))return false;
+            Point station=AfterlightPoint(afterlightWatchRoom,"outlet");
+            Point ray=station-foe.Position;
+            float square=ray.x*ray.x+ray.y*ray.y;
+            if(!Finite(square)||square<.25f)return false;
+            Point body=Position-foe.Position;
+            float along=(body.x*ray.x+body.y*ray.y)/square;
+            // Both source and receiver must lie outside the actor's actual
+            // .45-unit silhouette; merely standing at the station is not
+            // stepping between the strike and the public cache.
+            if(along<=.08f||along>=.93f)return false;
+            float sideX=body.x-ray.x*along;
+            float sideY=body.y-ray.y*along;
+            return sideX*sideX+sideY*sideY<.45f*.45f&&
+                ClearAttackPath(foe.Position,Position)&&
+                ClearAttackPath(Position,station)&&
+                EnemyMeleeLaneClear(foe,Position);
+        }
+        public bool AfterlightWatchHeroBodyguarding
+        {
+            get
+            {
+                if(!AfterlightWatchActive)return false;
+                foreach(Enemy foe in enemies)
+                    if(AfterlightWatchHeroBodyBlocksStock(foe))
+                        return true;
+                return false;
+            }
+        }
         private bool AfterlightWatchCommittedStockStrike(Enemy foe)
         {
             if(!AfterlightWatchActive||foe==null||foe.hp<=0f||
@@ -75,7 +115,8 @@ namespace Starfall
                 foe.windupDuration<=0f||
                 foe.timer>foe.windupDuration+.0001f||
                 foe.stun>.0001f||foe.hitTime>.0001f||
-                !CanStand(foe.Position))return false;
+                !CanStand(foe.Position)||
+                AfterlightWatchHeroBodyBlocksStock(foe))return false;
             Point station=AfterlightPoint(afterlightWatchRoom,"outlet");
             return (foe.Position-station).Length<=2.35f&&
                 ClearAttackPath(foe.Position,station)&&
@@ -128,7 +169,8 @@ namespace Starfall
         private void DamageAfterlightWatchStock(Enemy attacker)
         {
             if(!AfterlightWatchActive||attacker==null||!IsAfterlightWatchEnemy(attacker)||
-                !attacker.targetingAfterlightStock||attacker.hp<=0)return;
+                !attacker.targetingAfterlightStock||attacker.hp<=0||
+                AfterlightWatchHeroBodyBlocksStock(attacker))return;
             Point station=AfterlightPoint(afterlightWatchRoom,"outlet");
             if((attacker.Position-station).Length>2.35f||
                 !ClearAttackPath(attacker.Position,station))return;

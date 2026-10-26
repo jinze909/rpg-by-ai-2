@@ -2109,8 +2109,18 @@ namespace Starfall
                         // stock contact lane DURING the windup. Recheck the
                         // actual living cover at release just as we do for
                         // the player's HP; heavy area blows are not melee.
-                        bool objectiveLaneClear=e.boss||e.kind!=0||
-                            EnemyMeleeLaneClear(e,e.target);
+                        // A late heroic body block is resolved at the
+                        // PHYSICAL release, not only when the raider chose
+                        // its initial target. It shields ordinary lunge
+                        // damage to the receiver but never Boss/armor AoE.
+                        // The preceding regular melee hit can still hurt
+                        // the hero, preserving the cost of the intervention.
+                        bool heroCoveredReceiver=stockRaider&&
+                            e.targetingAfterlightStock&&
+                            AfterlightWatchHeroBodyBlocksStock(e);
+                        bool objectiveLaneClear=(e.boss||e.kind!=0||
+                            EnemyMeleeLaneClear(e,e.target))&&
+                            !heroCoveredReceiver;
                         bool objectiveThreat=(stockRaider&&e.targetingAfterlightStock)||
                             (patrolSaboteur&&e.targetingOuterPatrolStock)||
                             (travelerAttacker&&e.targetingWayfarer);
@@ -2139,7 +2149,9 @@ namespace Starfall
                         if(stoppedByLivingCover)
                         {
                             var blocked=new Effect("number",e.Position,.65f,
-                                L("队友挡路","ALLY BLOCK")) ;
+                                heroCoveredReceiver?
+                                    L("舍身拦截！","HERO BODYGUARD!"):
+                                    L("队友挡路","ALLY BLOCK")) ;
                             TagEnemyCombatEffect(blocked,e,
                                 escortPatrol&&e.targetingReliefCivilian);
                             effects.Add(blocked);sound="guard";revision++;

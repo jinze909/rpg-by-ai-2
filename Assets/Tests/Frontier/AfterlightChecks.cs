@@ -1901,5 +1901,69 @@ namespace Starfall.Tests
                 "Withdrawing clears ONLY the exact wave actors while preserving an unrelated same-ID living enemy and all old saves");
         }
 
+
+        public static void AfterlightHeroPhysicallyInterceptsAReleasedMeleeStrike(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_steward_1");
+            g.save.flags.Add("afterlight_reserve_1");
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            var station=Object(g,"afterlightoutlet1");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"afterlight_watch_start_1");
+            Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                "Bodyguard exercise uses actual wave-one physical raiders");
+            var foe=g.enemies.Find(e=>e.kind==0);
+            Check(foe!=null,"The living forest raider has a real melee attack");
+            Point post=new Point(station.x,station.y);
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(clear!=null,"The authentic terrain sweep is available");
+            Point[] directions={new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1)};
+            bool ready=false;
+            foreach(Point direction in directions)
+            {
+                Point source=post+direction*1.8f;
+                Point heroFoot=post+direction*.9f;
+                if(!g.CanStand(source)||!g.CanStand(heroFoot)||
+                    !(bool)clear.Invoke(g,new object[]{source,post}))continue;
+                foe.x=source.x;foe.y=source.y;
+                foe.state=1;foe.timer=.035f;foe.windupDuration=.65f;
+                foe.stun=0f;foe.hitTime=0f;foe.staggerRecovery=99f;
+                foe.targetingAfterlightStock=true;foe.target=post;
+                foe.Face(post-foe.Position);
+                g.save.x=heroFoot.x;g.save.y=heroFoot.y;
+                if(g.AfterlightWatchHeroBodyguarding){ready=true;break;}
+            }
+            Check(ready,"The real map offers a standable, unobstructed hero body in the raider's declared strike lane");
+            float safeStock=g.AfterlightWatchStock;
+            Check(g.AfterlightWatchIncomingStockThreat==null,
+                "The HUD and support AI must not call a physically body-blocked strike unavoidable");
+            g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchActive&&
+                Math.Abs(g.AfterlightWatchStock-safeStock)<.001f&&
+                foe.state==0&&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text=="舍身拦截！"&&e.afterlightWatchOwned),
+                "Moving into the real lane during windup absorbs the contact and preserves public reserves");
+            g.save.x=post.x;g.save.y=post.y;
+            foe.state=1;foe.timer=.035f;foe.windupDuration=.65f;
+            foe.stun=0f;foe.hitTime=0f;
+            foe.targetingAfterlightStock=true;foe.target=post;
+            foe.Face(post-foe.Position);
+            Check(!g.AfterlightWatchHeroBodyguarding&&
+                System.Object.ReferenceEquals(g.AfterlightWatchIncomingStockThreat,foe),
+                "Standing at the station rather than physically between attacker and station cannot fake an interception");
+            g.Tick(.05f,new Point());
+            Check(g.AfterlightWatchStock<safeStock&&g.save.version==2,
+                "An unblocked authentic attack damages the receiver and old save format remains intact");
+        }
+
     }
 }
