@@ -70,7 +70,12 @@ namespace Starfall
             p.trailResetAt=p.age;
             p.velocity=fromEnemy*Math.Max(7f,p.velocity.Length);
             p.damage=Math.Max(14f,Math.Min(68f,Damage*.85f));
-            p.life=Math.Min(1.6f,p.life);
+            // This contact launches a NEW friendly flight. Reusing the
+            // incoming arrow's nearly exhausted timer makes a successful
+            // last-moment parry vanish before it can reach its shooter.
+            // Keep normal outbound range bounded and retain projectile age,
+            // collision, actor ownership and the snapshot impact profile.
+            p.life=1.6f;
             p.piercing=false;p.explosive=false;p.slowing=false;
             // Reflection is the warrior's real impact, not a delayed attack
             // using whichever equipment the hero happens to wear on arrival.

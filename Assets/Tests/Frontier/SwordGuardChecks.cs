@@ -266,6 +266,41 @@ namespace Starfall.Tests
                 "The reversed projectile physically flies back and damages a real living enemy");
             Check(g.save.version==2,"A reflected arrow uses no new save fields");
         }
+        public static void LateSwordGuardReflectionStillReachesItsAttacker(Campaign data)
+        {
+            var g=Fresh(data,0);
+            g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=19.5f;g.save.y=14.5f;
+            var shooter=new Enemy(91851,1,16.5f,14.5f,300f);
+            shooter.stun=200;shooter.timer=200;
+            g.enemies.Add(shooter);
+            Advance(g,1.1f);
+            g.save.energy=100;
+            g.guardTime=2f;g.aim=new Point(-1,0);
+            float oldHealth=g.save.health;
+            var shot=ThreateningShot(g,new Point(6,0));
+            // A real enemy arrow can have only a few flight frames left
+            // when it reaches the sword. Contact must still be able to
+            // launch a playable outbound return, not an instantly expired
+            // spark that spends guard stamina without dealing damage.
+            shot.life=.16f;
+            g.projectiles.Add(shot);
+            for(int frame=0;frame<5&&!shot.friendly;frame++)
+                g.Tick(.05f,new Point());
+            Check(shot.friendly&&shot.life>1f&&
+                shot.velocity.x<0&&g.save.health==oldHealth&&
+                shot.impact!=null&&shot.impact.playerOwned,
+                "A late physical parry starts its own bounded friendly flight while retaining authentic warrior impact and guard costs");
+            Check(shot.age>0f&&Math.Abs(shot.trailResetAt-shot.age)<.00001f,
+                "Outbound TTL renewal does not reset visual age or resurrect the incoming tracer");
+            for(int frame=0;frame<35&&g.projectiles.Contains(shot);frame++)
+                g.Tick(.05f,new Point());
+            Check(shooter.hp<300f,
+                "The near-expired arrow genuinely flies back and damages its original attacker");
+            Check(g.save.version==2,
+                "The new physical reflected flight does not change save schema");
+        }
+
         public static void SwordGuardParriesRealFrontalLungesButNotSlamsOrRearAttacks(Campaign data)
         {
             foreach(bool front in new[]{true,false})
