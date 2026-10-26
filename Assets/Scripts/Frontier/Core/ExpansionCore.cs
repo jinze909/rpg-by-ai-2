@@ -1596,6 +1596,47 @@ namespace Starfall
             sound="counter";revision++;
             p.rescueCoverTarget=null; // exactly one confirmed rescue per shot
         }
+        // A protective shot is not a hitscan perk. It has to be released
+        // by the genuine automatic ally action and collide with the SAME
+        // living enemy while the enemy's locked strike still threatens
+        // the actual hero. No protection after release, a miss, world
+        // change, dead target, changed aim or collision with a bystander.
+        private bool HeroCoverContactEligible(Projectile shot,Enemy foe)
+        {
+            return shot!=null&&foe!=null&&shot.friendly&&shot.damage>0f&&
+                shot.impact!=null&&!shot.impact.playerOwned&&
+                System.Object.ReferenceEquals(shot.heroCoverTarget,foe)&&
+                System.Object.ReferenceEquals(shot.heroCoverSave,save)&&
+                System.Object.ReferenceEquals(shot.heroCoverMap,Map)&&
+                shot.heroCoverRoom==save.room&&
+                enemies.Contains(foe)&&
+                CompanionCommittedHeroStrike(foe);
+        }
+        private void FinishCompanionHeroCoverContact(Projectile shot,Enemy foe)
+        {
+            if(!projectiles.Contains(shot))return;
+            if(foe.hp>0f)ApplyEnemyControl(foe,foe.boss?.30f:.85f);
+            effects.Add(new Effect("number",foe.Position,.75f,
+                L("援射打断！","ALLY INTERRUPT!")));
+            sound="counter";revision++;
+            shot.heroCoverTarget=null;
+        }
+        public bool CompanionHeroCoverInFlight
+        {
+            get
+            {
+                foreach(Projectile shot in projectiles)
+                    if(shot.life>0f&&shot.friendly&&
+                        shot.heroCoverTarget!=null&&
+                        System.Object.ReferenceEquals(shot.heroCoverSave,save)&&
+                        System.Object.ReferenceEquals(shot.heroCoverMap,Map)&&
+                        shot.heroCoverRoom==save.room&&
+                        shot.heroCoverTarget.hp>0f&&
+                        enemies.Contains(shot.heroCoverTarget))
+                        return true;
+                return false;
+            }
+        }
         // Actual pending rescue attacks for the compact world HUD. Reuse
         // the same collision/ownership evidence as ally target selection:
         // do not advertise stale telegraphs, a sealed archer or a wrong NPC.
@@ -1894,6 +1935,19 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
+                                // Preserve the actual threat's reference at
+                                // RELEASE, never the original idle windup or
+                                // an ID reused by another encounter. Only
+                                // the real swept projectile contact may stop
+                                // this attack; miss/late arrival do nothing.
+                                if(action.kind=="attack"&&
+                                   CompanionCommittedHeroStrike(locked))
+                                {
+                                    shot.heroCoverTarget=locked;
+                                    shot.heroCoverSave=save;
+                                    shot.heroCoverMap=Map;
+                                    shot.heroCoverRoom=save.room;
+                                }
                                 // A genuine pending intercept follows the
                                 // *projectile* to physical impact. No claim of
                                 // protection is shown on mere bow release.

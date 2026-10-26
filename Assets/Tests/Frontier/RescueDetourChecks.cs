@@ -200,5 +200,109 @@ namespace Starfall.Tests
             }
             finally { data.maps[6]=old; }
         }
+
+        public static void CompanionHeroCoverRequiresActualAutomaticShotContact(Campaign data)
+        {
+            var game=Fresh(data,1);
+            game.Enter(0);game.enemies.Clear();game.projectiles.Clear();
+            game.save.flags.Add("companion_1");
+            game.SelectCompanion(1);
+            game.save.reducedMotion=true;
+            game.save.x=15.5f;game.save.y=10.88f;
+            game.companionPosition=new Point(10.5f,10.88f);
+            game.ToggleCompanionHold();
+            Check(game.CompanionHoldingPosition&&game.CanStand(game.companionPosition),
+                "A real deployed bow ally must be planted on legal ground");
+            var threat=new Enemy(99601,2,14.4f,10.88f,10000f)
+                {state=1,timer=1.3f,windupDuration=1.4f,
+                 target=game.Position,facing=new Point(1,0)};
+            Check(game.CanStand(threat.Position),
+                "Hero-threat interruption fixture is truly standable");
+            game.enemies.Add(threat);
+            var attackTimer=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(attackTimer!=null,"Actual auto-attack timer exists in core");
+            attackTimer.SetValue(game,0f);
+            game.Tick(.02f,new Point());
+            Check(game.companionAction!=null&&
+                game.companionAction.kind=="attack",
+                "Automatic ally commits a real ranged windup");
+            Advance(game,.16f);
+            Projectile shot=game.projectiles.Find(p=>
+                System.Object.ReferenceEquals(p.heroCoverTarget,threat));
+            Check(shot!=null&&shot.friendly&&shot.impact!=null&&
+                !shot.impact.playerOwned&&threat.state==1,
+                "Only a real released ally projectile is tagged to the exact imminent hero threat");
+            Check(game.CompanionHeroCoverInFlight,
+                "The released protective shot is observable until its physical contact");
+            for(int frame=0;frame<50&&shot.heroCoverTarget!=null;frame++)
+                game.Tick(.02f,new Point());
+            Check(threat.state==0&&threat.stun>.05f&&
+                game.effects.Exists(f=>f.kind=="number"&&
+                    f.text=="援射打断！")&&
+                !game.CompanionHeroCoverInFlight,
+                "Actual swept bow impact interrupts the pending attack, cancels its intent and retires protection");
+            Check(game.save.version==2,
+                "Projectile interception never changes old save schema");
+        }
+
+        public static void CompanionHeroCoverCannotProtectFromLateMissOrReusedEnemyId(Campaign data)
+        {
+            var game=Fresh(data,1);
+            game.Enter(0);game.enemies.Clear();game.projectiles.Clear();
+            game.save.flags.Add("companion_1");
+            game.SelectCompanion(1);
+            game.save.x=15.5f;game.save.y=10.88f;
+            game.companionPosition=new Point(10.5f,10.88f);
+            var threat=new Enemy(99621,2,14.4f,10.88f,10000f)
+                {state=1,timer=.9f,windupDuration=1f,
+                 target=game.Position,facing=new Point(1,0)};
+            var impersonator=new Enemy(99621,2,13.5f,10.88f,10000f)
+                {state=1,timer=.9f,windupDuration=1f,
+                 target=game.Position,facing=new Point(1,0)};
+            game.enemies.Add(threat);game.enemies.Add(impersonator);
+            var handoff=typeof(GameCore).GetMethod("HitFriendlyProjectileContact",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(handoff!=null,"The live physical projectile contact handles ally interruptions");
+            Projectile shot=new Projectile {
+                position=impersonator.Position,velocity=new Point(9f,0f),
+                damage=2f,life=2f,friendly=true,visual="arrow",
+                impact=new ImpactProfile(1,0,0,0,0f,false,-1),
+                heroCoverTarget=threat,heroCoverSave=game.save,
+                heroCoverMap=game.Map,heroCoverRoom=game.save.room
+            };
+            game.projectiles.Add(shot);
+            handoff.Invoke(game,new object[]{shot,impersonator});
+            Check(impersonator.state==1&&threat.state==1&&
+                System.Object.ReferenceEquals(shot.heroCoverTarget,threat),
+                "Hitting a different real actor with the same reused spawn ID cannot claim cover");
+            handoff.Invoke(game,new object[]{shot,threat});
+            Check(threat.state==0&&shot.heroCoverTarget==null,
+                "Only actual contact against the reference-matched pending threat may interrupt");
+            var late=new Enemy(99622,2,14.4f,10.88f,10000f)
+                {state=0,timer=1f,target=game.Position,facing=new Point(1,0)};
+            game.enemies.Add(late);
+            var stale=new Projectile {
+                velocity=new Point(9f,0f),damage=2f,life=2f,
+                friendly=true,visual="arrow",
+                impact=new ImpactProfile(1,0,0,0,0f,false,-1),
+                heroCoverTarget=late,heroCoverSave=game.save,
+                heroCoverMap=game.Map,heroCoverRoom=game.save.room
+            };
+            game.projectiles.Add(stale);
+            handoff.Invoke(game,new object[]{stale,late});
+            Check(late.state==0&&late.stun==0f&&
+                !game.effects.Exists(f=>f.kind=="number"&&
+                    f.text=="援射打断！"&&
+                    (f.position-late.Position).Length<.0001f),
+                "A hit after the windup ended must deal normal damage without false protection");
+            var original=game.save;
+            game.save=CloneSave(original);
+            Check(!game.CompanionHeroCoverInFlight,
+                "A different save instance invalidates old automatic projectile coverage");
+        }
+
     }
 }

@@ -181,6 +181,13 @@ namespace Starfall
         // resident attacker on impact. This is deliberately transient:
         // spawn IDs can be reused and SaveData v2 never serializes shots.
         public Enemy rescueCoverTarget;
+        // An automatic ally shot may physically stop ONE committed strike
+        // against the hero. Never bind it to a reusable numeric spawn ID.
+        // This stays transient and does not touch SaveData v2 or equipment.
+        public Enemy heroCoverTarget;
+        public SaveData heroCoverSave;
+        public MapData heroCoverMap;
+        public int heroCoverRoom = -1;
         public SaveData rescueCoverSave;
         public MapData rescueCoverMap;
         public int rescueCoverRoom = -1;

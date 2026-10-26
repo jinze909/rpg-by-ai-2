@@ -2522,9 +2522,11 @@ namespace Starfall
         private void HitFriendlyProjectileContact(Projectile shot,Enemy victim)
         {
             bool covered=RescueCoverContactEligible(shot,victim);
+            bool heroCovered=HeroCoverContactEligible(shot,victim);
             Hit(victim,shot.damage,shot.technique,
                 shot.velocity.Normalized,shot.impact);
             if(covered)FinishCompanionRescueCoverContact(shot,victim);
+            if(heroCovered)FinishCompanionHeroCoverContact(shot,victim);
         }
         private void UpdateProjectiles(float dt)
         {
