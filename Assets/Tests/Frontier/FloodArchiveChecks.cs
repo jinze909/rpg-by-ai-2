@@ -435,6 +435,87 @@ namespace Starfall.Tests
             finally{data.maps[2]=original;}
         }
 
+
+        public static void PublicFerryBoardsRealFollowerWithoutWarpingHeldGuard(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            g.save.flags.Add("companion_1");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.x=west.x;g.save.y=west.y;
+            g.SelectCompanion(1);
+            Check(g.save.companion==1&&g.CanStand(g.companionPosition),
+                "The public ferry test boards a genuine unlocked physical companion");
+            Point arrival=g.companionPosition;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                (g.companionPosition-g.Position).Length>.7f&&
+                (g.companionPosition-g.Position).Length<2.5f&&
+                g.CanStand(g.companionPosition)&&
+                (g.companionPosition-arrival).Length>4f&&g.save.energy==86,
+                "An ordinary live companion boards the paid ferry into a distinct safe east-bank body foot");
+            g.save.totalTime=36;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(west.x,west.y)).Length<.001f&&
+                g.CanStand(g.companionPosition)&&
+                (g.companionPosition-g.Position).Length<2.5f&&g.save.energy==72,
+                "Return passage carries the original follower back without leaving it on the far shore");
+            g.companionPosition=new Point(west.x+8f,west.y);
+            Point stranded=g.companionPosition;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(west.x,west.y)).Length<.001f&&
+                g.save.energy==72&&(g.companionPosition-stranded).Length<.001f,
+                "A distant follower cannot board remotely, and rejection spends no stamina or position");
+            g.companionPosition=arrival;
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,
+                "A physical tactical hold command remains available before voluntary solo passage");
+            Point guard=g.companionPosition;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                (g.companionPosition-guard).Length<.001f&&
+                g.CompanionHoldingPosition&&g.save.energy==58,
+                "Explicit stay-at-post survives the hero's ferry trip without kidnapping the anchored companion");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.save.companion==1&&
+                restored.FloodArchiveComplete,
+                "Crossing changes no legacy v2 party, quest or save-format fields");
+        }
+
+        public static void MedicalFerryBoardsAllyWithoutDisplacingRealEastRaiders(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.invulnerable=400f;
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            g.save.flags.Add("companion_1");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.x=west.x;g.save.y=west.y;
+            g.SelectCompanion(1);
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&g.FloodReliefActive,
+                "The original urgent cargo still starts at the western record");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                g.FloodReliefCrossed&&g.FloodReliefRaiders==2&&
+                (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                (g.companionPosition-g.Position).Length<2.5f&&
+                g.CanStand(g.companionPosition),
+                "Actual medicine transport ferries the companion into the live combat scene");
+            foreach(Enemy foe in g.enemies)
+                if(foe.id==92340||foe.id==92341)
+                    Check((foe.Position-g.companionPosition).Length>=1.4f,
+                        "Neither genuine raider can spawn inside the boarded companion");
+            Check(g.save.energy==86&&g.FloodReliefTime==65&&
+                g.save.version==2&&!g.FloodReliefComplete,
+                "Preflight preserves actual escort timer, costs, nonfarmable kills and v2 saves");
+        }
+
         public static void PublicFerryEmergencyRunRequiresRealCrossingAndBothRaiderKills(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=18;

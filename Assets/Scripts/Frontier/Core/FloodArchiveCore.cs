@@ -365,6 +365,42 @@ namespace Starfall
         private bool AtFloodArchivePost(WorldObject site)
         { return site!=null&&PhysicalRefugeReach(
             new Point(site.x,site.y),1.8001f); }
+        // A public ferry carries the actual following party, not just the
+        // hero's SaveData coordinates. Preflight a distinct collision-safe
+        // follower foot before spending energy; a blocked pier must never
+        // strand the ally on the original bank or clip it into masonry.
+        // Deliberate tactical HOLD is respected: that companion remains at
+        // its original guarded post and does not teleport with the hero.
+        private bool TryPublicFerryPartyLanding(Point destination,out Point allyFoot)
+        {
+            allyFoot=companionPosition;
+            if(save.companion<0||CompanionHoldingPosition)return true;
+            if(!CanStand(companionPosition)||
+                (companionPosition-Position).Length>4f||
+                !ClearAttackPath(companionPosition,Position))
+                return false;
+            foreach(Point offset in companionNarrowOffsets)
+            {
+                Point candidate=destination+offset;
+                if(!CanStand(candidate)||
+                    (candidate-destination).Length<.7f||
+                    enemies.Exists(e=>e!=null&&e.hp>0&&
+                        (e.Position-candidate).Length<(e.boss?1.3f:.85f)))
+                    continue;
+                allyFoot=candidate;return true;
+            }
+            return false;
+        }
+        private void BoardPublicFerryCompanion(Point allyFoot)
+        {
+            ClearCompanionFollowRoute();ClearCompanionCornerPlan();
+            ClearCompanionFocus();
+            companionAutoTarget=null;companionAction=null;
+            companionPosition=allyFoot;
+            companionMoveTime=0f;companionMoving=false;
+            companionAttack=Math.Max(companionAttack,.2f);
+            companionPresentationGeneration++;
+        }
         private bool ChooseFloodArchiveFerry()
         {
             if(!FloodArchiveComplete||save.room!=2||Dying||practicing||racing)return true;
@@ -398,6 +434,18 @@ namespace Starfall
                     "Crossing requires "+PublicFerryEnergyCost+" energy.");
                 return true;
             }
+            // Verify a genuine nearby follower can physically board and
+            // stand on the destination shore before charging any stamina.
+            // A distant or terrain-separated ally needs to regroup first.
+            Point allyLanding=new Point();
+            bool boardsParty=save.companion>=0&&!CompanionHoldingPosition;
+            if(!TryPublicFerryPartyLanding(new Point(to.x,to.y),
+                out allyLanding))
+            {
+                Notify("同伴尚未抵达渡口，或对岸缺少安全站位。请先会合再登船。",
+                    "Your companion is not at the dock or has no safe landing foot. Regroup before boarding.");
+                return true;
+            }
             // The old code charged ferry energy and moved the parcel
             // BEFORE checking whether two reachable east-bank raiders
             // could exist. A blocked shoreline then silently canceled the
@@ -413,7 +461,18 @@ namespace Starfall
                     "No safe east-bank ambush feet. The ferry remains west without spending energy; clear the shore and retry.");
                 return true;
             }
+            // Even planned ambush feet may not displace an incoming
+            // companion; both bodies must fit their actual shoreline lane.
+            if(boardsParty&&crossingRaiders!=null&&
+                Array.Exists(crossingRaiders,
+                    p=>(p-allyLanding).Length<1.4f))
+            {
+                Notify("渡口遭到封锁，同伴无法安全登岸。没有扣除耐力。",
+                    "Ambushers block the party's landing. No ferry energy was spent.");
+                return true;
+            }
             save.energy-=PublicFerryEnergyCost;save.x=to.x;save.y=to.y;
+            if(boardsParty)BoardPublicFerryCompanion(allyLanding);
             revision++;sound="travel";
             if(floodReliefActive&&from==western)
             {
