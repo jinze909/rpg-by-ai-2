@@ -307,5 +307,66 @@ namespace Starfall.Tests
                 "A different save instance invalidates old automatic projectile coverage");
         }
 
+
+        public static void ReliefWatchActualActorOwnershipRejectsForgedSameIdRaider(Campaign data)
+        {
+            for(int variant=0;variant<2;variant++)
+            {
+                var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+                var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+                Check(post!=null,"The actual regional relief outpost is on this map");
+                g.save.x=post.x;g.save.y=post.y;
+                g.save.flags.Add("outer_cache_0");
+                if(variant==1)g.save.flags.Add("outer_patrol_done_0");
+                g.Talk(post);
+                string start=variant==1?"outer_watch_veteran":"outer_watch_start";
+                int choice=Array.FindIndex(g.conversation.choices,c=>c.action==start);
+                Check(choice>=0,"Both genuine standard and veteran relief defenses are offered");
+                g.Choose(choice);
+                Check(g.OuterPatrolActive&&g.enemies.Count==(variant==1?3:2),
+                    "The real outpost spawns its original physical attacker count");
+                Enemy first=g.enemies[0],second=g.enemies[1];
+                Enemy third=variant==1?g.enemies[2]:null;
+                var isMine=typeof(GameCore).GetMethod("IsOuterPatrolEnemy",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var harm=typeof(GameCore).GetMethod("DamageOuterPatrolStock",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(isMine!=null&&harm!=null&&hit!=null,
+                    "Production stock, encounter-ownership and lethal-hit entrypoints exist");
+                var impersonator=new Enemy(first.id,0,first.x+.14f,first.y+.14f,300f);
+                impersonator.targetingOuterPatrolStock=true;
+                g.enemies.Add(impersonator);
+                Check((bool)isMine.Invoke(g,new object[]{first})&&
+                    !(bool)isMine.Invoke(g,new object[]{impersonator}),
+                    "A distinct raider cannot own this outpost solely by sharing a numeric ID");
+                float intact=g.OuterPatrolIntegrity;
+                harm.Invoke(g,new object[]{impersonator});
+                Check(g.OuterPatrolIntegrity==intact,
+                    "A same-ID impostor cannot damage the protected cache");
+                hit.Invoke(g,new object[]{impersonator,2000f,false,null,null});
+                Check(g.OuterPatrolActive&&g.enemies.Contains(first)&&
+                    !g.OuterPatrolDone(0) || variant==1&&g.OuterPatrolActive,
+                    "A genuine non-mission kill cannot forge a standard/veteran win");
+                var survivor=new Enemy(third!=null?third.id:second.id,0,
+                    second.x+.12f,second.y+.1f,500f);
+                g.enemies.Add(survivor);
+                g.Talk(post);
+                int abort=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_abort");
+                Check(abort>=0,"Current live outpost can still be withdrawn");
+                g.Choose(abort);
+                Check(!g.OuterPatrolActive&&g.enemies.Contains(survivor)&&
+                    !g.enemies.Contains(first)&&!g.enemies.Contains(second)&&
+                    (third==null||!g.enemies.Contains(third))&&
+                    g.save.version==2,
+                    "Withdrawal retires only real siege actors, never a living same-ID bystander");
+            }
+        }
+
     }
 }

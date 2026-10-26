@@ -8,6 +8,10 @@ namespace Starfall
     {
         private int outerPatrolRoom=-1;
         private int outerPatrolEnemyA=-1,outerPatrolEnemyB=-1,outerPatrolEnemyC=-1;
+        // The original numeric IDs are for trace/debug only. Ownership
+        // of an active optional siege is attached to actual living actors,
+        // not a reusable world spawn ID. No persisted v2 fields.
+        private Enemy outerPatrolActorA,outerPatrolActorB,outerPatrolActorC;
         private bool outerPatrolADead,outerPatrolBDead,outerPatrolCDead,outerPatrolPatched;
         private bool outerPatrolVeteran,outerPatrolBraceBuilt,outerPatrolCompanionGuard,
             outerPatrolGuardMedicRescue;
@@ -198,9 +202,7 @@ namespace Starfall
             // unrelated wilderness patrols and player attacks survive.
             if(outerPatrolRoom>=0)
                 for(int i=enemies.Count-1;i>=0;i--)
-                    if(enemies[i].id==outerPatrolEnemyA||
-                       enemies[i].id==outerPatrolEnemyB||
-                       enemies[i].id==outerPatrolEnemyC)
+                    if(IsOuterPatrolEnemy(enemies[i]))
                     {
                         RemoveEnemyPendingWarning(enemies[i]);
                         enemies.RemoveAt(i);
@@ -209,6 +211,7 @@ namespace Starfall
             effects.RemoveAll(e=>e.outerPatrolOwned);
             outerPatrolRoom=outerPatrolEnemyA=outerPatrolEnemyB=
                 outerPatrolEnemyC=-1;
+            outerPatrolActorA=outerPatrolActorB=outerPatrolActorC=null;
             outerPatrolADead=outerPatrolBDead=outerPatrolCDead=
                 outerPatrolPatched=outerPatrolVeteran=
                 outerPatrolBraceBuilt=outerPatrolCompanionGuard=
@@ -223,18 +226,22 @@ namespace Starfall
         }
         private bool IsOuterPatrolEnemy(Enemy e)
         {
-            return outerPatrolRoom==save.room &&
-                (e.id==outerPatrolEnemyA||e.id==outerPatrolEnemyB||
-                 e.id==outerPatrolEnemyC);
+            return e!=null&&outerPatrolRoom==save.room&&
+                (System.Object.ReferenceEquals(e,outerPatrolActorA)||
+                 System.Object.ReferenceEquals(e,outerPatrolActorB)||
+                 System.Object.ReferenceEquals(e,outerPatrolActorC));
         }
         private void OnOuterPatrolEnemyDefeated(Enemy e)
         {
             // Invoked *only* after real Hit() reduces HP to zero. A list clear,
             // transition, despawn or save load can never forge a victory.
             if(!IsOuterPatrolEnemy(e))return;
-            if(e.id==outerPatrolEnemyA)outerPatrolADead=true;
-            if(e.id==outerPatrolEnemyB)outerPatrolBDead=true;
-            if(e.id==outerPatrolEnemyC)outerPatrolCDead=true;
+            if(System.Object.ReferenceEquals(e,outerPatrolActorA))
+                outerPatrolADead=true;
+            if(System.Object.ReferenceEquals(e,outerPatrolActorB))
+                outerPatrolBDead=true;
+            if(System.Object.ReferenceEquals(e,outerPatrolActorC))
+                outerPatrolCDead=true;
         }
         // Only a genuine released melee swing can damage this physical cache.
         // No passive radius drain, through-wall attrition, or fake projectile hits.
@@ -753,6 +760,8 @@ namespace Starfall
             Enemy two=CreatePlacedEnemy(++enemyId,1,feet[1],
                 (veteran?65:42)+room*10);
             outerPatrolEnemyA=one.id;outerPatrolEnemyB=two.id;
+            outerPatrolActorA=one;outerPatrolActorB=two;
+            outerPatrolActorC=null;
             outerPatrolADead=outerPatrolBDead=outerPatrolCDead=false;
             enemies.Add(one);enemies.Add(two);
             if(veteran)
@@ -760,7 +769,8 @@ namespace Starfall
                 // Third enemy is a real heavy actor with a timed slamming
                 // release. Its 22-point stock hit reuses actual hit/LOS logic.
                 Enemy heavy=CreatePlacedEnemy(++enemyId,2,feet[2],88+room*12);
-                outerPatrolEnemyC=heavy.id;enemies.Add(heavy);
+                outerPatrolEnemyC=heavy.id;outerPatrolActorC=heavy;
+                enemies.Add(heavy);
             }
             revision++;sound="quest";
             Notify(veteran?"精英防卫开始：守住物资，击退三名实战袭击者！":
@@ -836,10 +846,12 @@ namespace Starfall
             }
             // Any unexpected removal aborts the attempt. Only registered
             // lethal damage against BOTH owned attackers can settle it.
-            bool presentA=enemies.Exists(e=>e.id==outerPatrolEnemyA);
-            bool presentB=enemies.Exists(e=>e.id==outerPatrolEnemyB);
-            bool presentC=outerPatrolVeteran&&
-                enemies.Exists(e=>e.id==outerPatrolEnemyC);
+            bool presentA=outerPatrolActorA!=null&&
+                enemies.Contains(outerPatrolActorA);
+            bool presentB=outerPatrolActorB!=null&&
+                enemies.Contains(outerPatrolActorB);
+            bool presentC=outerPatrolVeteran&&outerPatrolActorC!=null&&
+                enemies.Contains(outerPatrolActorC);
             if((!presentA&&!outerPatrolADead)||
                 (!presentB&&!outerPatrolBDead)||
                 (outerPatrolVeteran&&!presentC&&!outerPatrolCDead))
