@@ -1756,6 +1756,32 @@ namespace Starfall.Tests
             if(g.CanStand(idle.Position))g.enemies.Add(idle);
             Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),threat),
                 "Companion prioritizes committed facility contact over idle foes");
+            // Do not rely on a manually forged projectile alone. Drive the
+            // actual autonomous command windup, release and source muzzle.
+            // Even if the target will later be saved by movement or collide
+            // with stone, the shot must already own the exact live mission.
+            g.ToggleCompanionHold();
+            Check(g.CompanionHoldingPosition,
+                "The real ally can plant its legal foot to defend the receiver");
+            var cadence=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(cadence!=null,"The genuine automatic attack cadence is accessible");
+            cadence.SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack",
+                "A real bow ally starts an automatic windup for a committed stock threat");
+            Advance(g,.15f);
+            Projectile live=g.projectiles.Find(p=>
+                System.Object.ReferenceEquals(p.stockCoverTarget,threat));
+            Check(live!=null&&live.friendly&&
+                live.stockCoverRoom==g.save.room&&
+                System.Object.ReferenceEquals(live.stockCoverSave,g.save)&&
+                System.Object.ReferenceEquals(live.stockCoverMap,g.Map)&&
+                live.afterlightWatchOwned&&
+                g.CompanionStockCoverInFlight,
+                "Actual fired bow projectile retains source-foot mission ownership at release");
             var actual=new Projectile {
                 position=threat.Position,velocity=new Point(9f,0),
                 life=2f,damage=2f,friendly=true,visual="arrow",
