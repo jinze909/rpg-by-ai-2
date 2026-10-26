@@ -89,6 +89,32 @@ namespace Starfall
                 zh="公共电网的阀门还没校准好，避险棚不能靠一张图就通电";
                 en="the public grid valves still need tuning before the shelters can rely on them";
             }
+            else if(!Has("civic_aftercare_published"))
+            {
+                if(!Has("civic_aftercare_started"))
+                {
+                    zh="旅店的巡路记录尚待登记，三地的旧路标还需要重新核验";
+                    en="the roadwarden log at Hearth Inn needs a new entry before the three old route markers can be verified";
+                }
+                else if(CivicAftercareWaypointCount<3)
+                {
+                    int[] regions={0,3,5};
+                    string[] namesZh={"引水渠","赤铁矿场","雾港"};
+                    string[] namesEn={"Canal","Ironreach","Mistport"};
+                    int next=0;
+                    while(next<regions.Length&&Has("civic_aftercare_waytrail_"+regions[next]))next++;
+                    zh="三地巡路记录已有 "+CivicAftercareWaypointCount+
+                        "/3 处现场核验，下一处旧路标在"+namesZh[next]+"，必须亲自走到";
+                    en="the roadwarden log has "+CivicAftercareWaypointCount+
+                        "/3 field markers verified; the next old marker is in "+namesEn[next]+
+                        " and must be checked on site";
+                }
+                else
+                {
+                    zh="三地巡路记录的 3/3 处旧路标都核验过了，带回炉火旅店才能公开归档";
+                    en="all 3/3 old route markers are verified; take the roadwarden log back to Hearth Inn for publication";
+                }
+            }
             else
             {
                 zh="新开的道路还得有人巡，旅店的巡路记录等着下一位归来的人";
@@ -326,6 +352,13 @@ namespace Starfall
                 {nextZh="三地服务名册已经公开。堡垒那道没有署名的旧军令还没查清。先去镇上议事台接取调查，把原始证词找齐。";nextEn="The service ledger is public, but the citadel's unsigned order is still sealed. Start the inquiry at the town council, then recover the original testimony.";}
                 else if(!CivicConduitComplete)
                 {nextZh="公用电网的阀门还得逐个校准，才能把电送到避险棚。";nextEn="The public grid's valves still need tuning before the shelters can rely on them.";}
+                else if(!Has("civic_aftercare_published"))
+                {
+                    string auditZh,auditEn;
+                    CurrentPublicStoryWork(out auditZh,out auditEn);
+                    nextZh="去旅店问巡路队的公用路况簿："+auditZh+"。";
+                    nextEn="Check the roadwarden log at Hearth Inn: "+auditEn+".";
+                }
                 else
                 {nextZh="去旅店看看巡路队的新记录吧。电网通了，总得有人继续巡查。";nextEn="Read the roadwardens' latest log at the inn. The grid runs now; someone still has to inspect it.";}
                 zh+="\n\n“"+nextZh+"”";

@@ -302,6 +302,42 @@ namespace Starfall.Tests
                 !g.conversation.text.Contains("公共电网")&&
                 g.save.coins==coins,
                 "A v2 archive projects actual unfinished physical service trials without granting progress");
+            g.Close();
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("civic_conduit_complete");
+            g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("巡路记录")&&
+                g.conversation.textEn.Contains("roadwarden log")&&
+                g.conversation.text.Contains("尚待登记"),
+                "After tuning the grid, the genuine inn audit must be opened before claiming a surveyed marker");
+            g.Close();
+            string[] auditFlags={"civic_aftercare_waytrail_0",
+                "civic_aftercare_waytrail_3","civic_aftercare_waytrail_5"};
+            string[] nextSites={"引水渠","赤铁矿场","雾港"};
+            string[] nextSitesEn={"Canal","Ironreach","Mistport"};
+            g.save.flags.Add("civic_aftercare_started");
+            for(int verified=0;verified<=3;verified++)
+            {
+                if(verified>0)g.save.flags.Add(auditFlags[verified-1]);
+                g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+                Check(g.CivicAftercareWaypointCount==verified&&
+                    g.conversation.text.Contains(verified+"/3")&&
+                    g.conversation.textEn.Contains(verified+"/3")&&
+                    (verified==3?
+                        g.conversation.text.Contains("炉火旅店")&&
+                        g.conversation.textEn.Contains("Hearth Inn"):
+                        g.conversation.text.Contains(nextSites[verified])&&
+                        g.conversation.textEn.Contains(nextSitesEn[verified]))&&
+                    g.save.coins==coins,
+                    "Physical road-audit evidence changes bilingual next-stop guidance without synthetic progress: "+verified);
+                g.Close();
+            }
+            g.save.flags.Add("civic_aftercare_published");
+            g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("新开的道路")&&
+                g.conversation.textEn.Contains("reopened roads")&&
+                g.save.coins==coins&&g.save.version==2,
+                "Published road audits retire the old pending marker instead of asking players to file it twice");
         }
 
         public static void WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Campaign data)
