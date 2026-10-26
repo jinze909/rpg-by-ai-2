@@ -2185,7 +2185,15 @@ namespace Starfall
                     // melee rings. Keep this effect tied to its attacker so
                     // stun, stagger or death can retract an unspent warning.
                     bool areaAttack = e.boss || e.kind == 2;
-                    if (areaAttack || (strikeCivilian && e.kind != 1) ||
+                    // Roadside travelers are physically defendable too.
+                    // Their normal raiders previously injured a civilian
+                    // after a silent windup while supply/escort targets
+                    // received a visible circle. Show the REAL locked
+                    // strike before contact; any living defender can still
+                    // intercept it, and the original owner-keyed cleanup
+                    // retires an interrupted telegraph.
+                    if (areaAttack || (strikeTraveler && e.kind != 1) ||
+                        (strikeCivilian && e.kind != 1) ||
                         (strikeStock && e.kind != 1) ||
                         (strikePatrolStock && e.kind != 1))
                     {
@@ -2199,7 +2207,9 @@ namespace Starfall
                         rescueWindupEffects.Remove(e);
                         rescueWindupEffects.Add(e, telegraph);
                     }
-                    if (e.boss || distance < 6 || strikeCivilian || strikeStock || strikePatrolStock) sound = "windup";
+                    if (e.boss || distance < 6 || strikeTraveler ||
+                        strikeCivilian || strikeStock || strikePatrolStock)
+                        sound = "windup";
                     if(e.boss && enemies.Count<9 &&
                         (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&
                         (e.cycle+1)%3==0)

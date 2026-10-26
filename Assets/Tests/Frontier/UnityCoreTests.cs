@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void TravelerAmbushShowsOwnedGroundAndSoundWarningsBeforeActualDamage() { CoreChecks.WayfarerMeleeWarningAppearsBeforeRealDamageAndTracksMovingCover(Data()); }
         [Test] public void RoadsideRescueUsesRealFrontlineMeleeCover() { CoreChecks.RoadsideRaidersCannotStrikeTravelerThroughLivingFrontline(Data()); }
         [Test] public void AbyssOldBossSnapshotsPreserveRealBodyClearance() { CoreChecks.AbyssSixthFloorOldSnapshotsRestoreWideBossWithoutClipping(Data()); }
         [Test] public void EnemySpawnAndRecoveryPreserveRealGuardianFootprint() { CoreChecks.AuthoredEnemySpawnsAndTideRecoveryAvoidWideGuardianBodies(Data()); }

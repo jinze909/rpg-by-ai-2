@@ -37,6 +37,64 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==action)return i;
             return -1;
         }
+        public static void WayfarerMeleeWarningAppearsBeforeRealDamageAndTracksMovingCover(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var npc=new WorldObject {id="wayfarer1",kind="wayfarer1",
+                    name="Traveler",en="Traveler",x=10.5f,y=10.5f};
+                var g=StartWayfarerCoverFixture(data,npc);
+                var attacker=g.enemies.Find(e=>e.kind==0);
+                var guard=g.enemies.Find(e=>e.kind==2);
+                Check(attacker!=null&&guard!=null,
+                    "The original traveler defense contains both living raiders");
+                g.save.x=20.5f;g.save.y=19.5f;
+                attacker.x=11.6f;attacker.y=10.5f;
+                attacker.state=0;attacker.timer=.001f;
+                attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
+                guard.stun=100f;guard.timer=100f;
+                // This is the original physical civilian objective, not a
+                // scripted UI-only illustration: the actual enemy Tick
+                // decides whether the traveler is the locked target.
+                g.Tick(.05f,new Point());
+                Check(attacker.state==1&&attacker.targetingWayfarer&&
+                    (attacker.target-new Point(npc.x,npc.y)).Length<.01f,
+                    "The ordinary enemy really commits a timed strike against the correct traveler");
+                Check(g.effects.Exists(fx=>fx.kind=="danger"&&
+                    fx.wayfarerOwned&&fx.radius>0f&&
+                    (fx.position-new Point(npc.x,npc.y)).Length<.01f),
+                    "The traveler gets a visible owned ground warning BEFORE the actual melee damage frame");
+                Check(g.sound=="windup",
+                    "Distant physical traveler threats now use the existing audible windup cue");
+                float before=g.WayfarerIntegrity;
+                guard.x=11.03f;guard.y=10.5f;
+                for(int tick=0;tick<16;tick++)g.Tick(.05f,new Point());
+                Check(g.WayfarerEncounterRoom==1&&
+                    g.WayfarerIntegrity==before&&attacker.state==0,
+                    "A live second raider crossing the warned lane prevents the real contact without aborting rescue");
+                Check(g.effects.Exists(fx=>fx.kind=="number"&&
+                    fx.wayfarerOwned&&
+                    fx.text==g.L("队友挡路","ALLY BLOCK")),
+                    "Actual interception provides one original encounter-owned combat feedback, not a counterfeit traveler hit");
+                // The very same raider becomes dangerous again when the
+                // living defender clears its foot and a fresh timed attack
+                // is earned normally.
+                guard.x=18.5f;guard.y=18.5f;
+                attacker.state=0;attacker.timer=.001f;
+                attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
+                g.Tick(.05f,new Point());
+                Check(attacker.state==1&&
+                    g.effects.Exists(fx=>fx.kind=="danger"&&fx.wayfarerOwned),
+                    "A newly clear physical lane genuinely reissues its readable pre-contact warning");
+                for(int tick=0;tick<16;tick++)g.Tick(.05f,new Point());
+                Check(g.WayfarerIntegrity<before&&
+                    g.WayfarerEncounterRoom==1&&g.save.version==2,
+                    "An unblocked warned strike finally damages real traveler safety without migrating existing save slots");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void WayfarerCoverNeedsLiveReachAndOneActualEnergyPayment(Campaign data)
         {
             MapData old=data.maps[1];
