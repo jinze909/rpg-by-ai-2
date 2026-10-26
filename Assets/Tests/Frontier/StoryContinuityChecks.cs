@@ -450,6 +450,10 @@ namespace Starfall.Tests
             g.save.flags.Add("storm_complete");
             g.save.flags.Add("hearing_complete");
             g.save.flags.Add("roadcharter_complete");
+            g.save.flags.Add("civic_supply_complete");
+            g.save.flags.Add("civic_response_ledger");
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
             g.save.flags.Add("civic_conduit_complete");
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
             Check(g.conversation.text.Contains("旅店") &&

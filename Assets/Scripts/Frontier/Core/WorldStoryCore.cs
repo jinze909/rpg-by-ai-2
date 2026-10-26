@@ -72,7 +72,7 @@ namespace Starfall
             else if(!CivicSupplyComplete)
             {
                 zh="三地的物资收据还等着核对，医疗点与守路岗的公开审计尚未签完";
-                en="three communities still need to account for delivered relief and publish their clinic or road-watch decisions";
+                en="three communities still need to account for delivered relief and publish their clinic or road-watch decisions in a public service audit";
             }
             else if(!Has("civic_response_ledger"))
             {
