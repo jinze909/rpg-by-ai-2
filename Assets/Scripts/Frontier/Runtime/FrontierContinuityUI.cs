@@ -69,7 +69,8 @@ namespace Starfall
                         Game.BossVictoryDangerLine.Length>0 ? 85 :
                         Game.AfterlightWatchActive&&
                         (Game.AfterlightWatchIncomingStockThreat!=null||
-                         Game.CompanionStockCoverInFlight)?88:65));
+                         Game.CompanionStockCoverInFlight||
+                         Game.AfterlightWatchHeroBodyguarding)?88:65));
             }
             else
             {
@@ -258,7 +259,8 @@ namespace Starfall
                 // In-flight support is explicitly NOT a completed save.
                 Enemy reserveThreat=Game.AfterlightWatchIncomingStockThreat;
                 bool aidFlying=Game.CompanionStockCoverInFlight;
-                bool watchPressure=reserveThreat!=null||aidFlying;
+                bool heroBodyguard=Game.AfterlightWatchHeroBodyguarding;
+                bool watchPressure=reserveThreat!=null||aidFlying||heroBodyguard;
                 Color accent=stock<=30f?PixelArt.C("#ec7668"):stock<=60f?gold:mint;
                 Panel(380,22,520,watchPressure?88:65,
                     new Color(.04f,.065f,.11f,.76f),
@@ -277,7 +279,10 @@ namespace Starfall
                 Bar(401,71,478,stock/100f,accent,7);
                 if(watchPressure)
                     Text(398,82,481,18,
-                        (reserveThreat!=null?
+                        (heroBodyguard?
+                            Game.L("站位成功：已挡住接收站攻击",
+                                "BODYGUARD READY · STRIKE INTERCEPTED"):
+                            reserveThreat!=null?
                             Game.L("来袭将命中储备 · ","STOCK STRIKE IN ")+
                             Math.Max(0f,reserveThreat.timer).ToString("0.0")+"s":
                             Game.L("当前无有效储备攻击","NO ACTIVE STOCK STRIKE"))+
