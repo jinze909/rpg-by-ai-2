@@ -172,6 +172,7 @@ namespace Starfall.Tests
         [Test] public void PublicFerryRespectsCombatHazardsAndTides() { CoreChecks.RestoredPublicFerryHasRealSafetyAndLowTideGates(Data()); }
         [Test] public void PublicFerryLowTideAndGaugeWaitRespectActualSluiceHold() { CoreChecks.PublicFerryAndCivicGaugeShareTrueHeldTideCountdown(Data()); }
         [Test] public void PublicFerryCarriesTheRealFollowerButHonorsSoloHoldOrders() { CoreChecks.PublicFerryBoardsRealFollowerWithoutWarpingHeldGuard(Data()); }
+        [Test] public void FerryRefundsOnlyUnreleasedRealCompanionSkillOrders() { CoreChecks.PublicFerryRefundsOnlyUnreleasedCompanionOrders(Data()); }
         [Test] public void MedicineFerryBoardsAllyClearOfBothLiveAmbushers() { CoreChecks.MedicalFerryBoardsAllyWithoutDisplacingRealEastRaiders(Data()); }
         [Test] public void RealFerryCompassTracksLiveRaidersBeforeCivilianHandoff() { CoreChecks.RealFerryCompassPursuesOnlySurvivingAmbushBodies(Data()); }
         [Test] public void FerryRaiderFeetAvoidSealedPocketsAndLivingAllies() { CoreChecks.FerryAmbushRejectsIsolatedGroundAndOccupiedCompanion(Data()); }

@@ -565,6 +565,45 @@ namespace Starfall.Tests
                 "The entire accurate tide model reuses the existing v2 totalTime/tideHeldUntil fields");
         }
 
+
+        public static void PublicFerryRefundsOnlyUnreleasedCompanionOrders(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            g.save.flags.Add("companion_1");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.x=west.x;g.save.y=west.y;
+            g.save.totalTime=36;g.save.energy=100;
+            g.SelectCompanion(1);
+            g.CommandCompanion();
+            Check(g.companionCooldown>=12f&&g.save.companion==1,
+                "The actual player's tactical command begins an expensive cast before ferry boarding");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(east.x,east.y)).Length<.001f&&
+                g.companionCooldown==0f&&g.save.energy==86,
+                "Boarding during a true unreleased command refunds the wasted skill cooldown but not the ferry fare");
+            // The same follower now commands a real volley from the actual
+            // east-bank body foot, and its released skill cannot be
+            // refreshed by another quick crossing to the western bank.
+            g.CommandCompanion();
+            Check(g.companionCooldown>0,
+                "A refunded companion command can be issued again after physical boarding");
+            g.Tick(.24f,new Point());
+            float earned=g.companionCooldown;
+            Check(earned>0f&&earned<18f,
+                "The live command advances past its authored .2-second release contact");
+            g.save.totalTime=36;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_ferry")&&
+                (g.Position-new Point(west.x,west.y)).Length<.001f&&
+                g.companionCooldown==earned&&g.save.energy==72,
+                "Returning after a genuine skill contact keeps its spent cooldown; ferrying cannot farm instant recasts");
+            g.PrepareSave();
+            Check(g.save.version==2&&g.save.companion==1,
+                "Neither refunded nor legitimately charged cooldown adds a serialized party field");
+        }
+
         public static void PublicFerryBoardsRealFollowerWithoutWarpingHeldGuard(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();

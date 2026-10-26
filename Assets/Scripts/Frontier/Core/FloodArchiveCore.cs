@@ -414,9 +414,16 @@ namespace Starfall
         }
         private void BoardPublicFerryCompanion(Point allyFoot)
         {
+            // A real unreleased manual support order has not applied its
+            // heal, arrow or frost contact. Boarding cancels that old-bank
+            // windup, so refund only its unspent command cooldown. An
+            // already-released action retains its earned cooldown/impact.
+            bool unspent=companionAction!=null&&
+                companionAction.kind=="command"&&!companionAction.released;
             ClearCompanionFollowRoute();ClearCompanionCornerPlan();
             ClearCompanionFocus();
             companionAutoTarget=null;companionAction=null;
+            if(unspent)companionCooldown=0f;
             companionPosition=allyFoot;
             companionMoveTime=0f;companionMoving=false;
             companionAttack=Math.Max(companionAttack,.2f);
