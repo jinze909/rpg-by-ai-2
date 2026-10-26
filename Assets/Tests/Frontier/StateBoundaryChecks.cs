@@ -342,34 +342,46 @@ namespace Starfall.Tests
 
         public static void SkywatchBossCancellationRetiresRealOutgoingOrbVolley(Campaign data)
         {
-            var g = Fresh(data);
-            g.save.stage = 3;
+            var g=Fresh(data);
+            g.save.stage=3;
             g.save.flags.Add("harbor_report");
             g.save.flags.Add("desert_report");
-            g.Enter(7); g.enemies.Clear(); g.projectiles.Clear(); g.effects.Clear();
-            g.save.x = 18.5f; g.save.y = 14.5f;
-            g.invulnerable = 100;
-            var guardian = new Enemy(89701, 3, 21.5f, 14.5f, 240, true);
-            guardian.state = 1; guardian.timer = .005f;
-            guardian.target = g.Position; guardian.Face(new Point(-1, 0));
-            g.enemies.Add(guardian);
-            var unrelated = new Projectile {
-                position = new Point(12, 14), velocity = new Point(1, 0),
-                friendly = true, life = 3, damage = 0 };
-            g.projectiles.Add(unrelated);
-            g.Tick(.05f, new Point());
-            Check(g.projectiles.Exists(p => p.skywatchOwned) &&
-                g.projectiles.Exists(p => p.skywatchOwned && !p.friendly),
-                "Real Frostchime guardian attack emits genuine mission-owned airborne hostile orbs");
-            var reset = typeof(GameCore).GetMethod("ResetSkywatch",
-                System.Reflection.BindingFlags.Instance |
+            foreach(string flag in new[]{"skywatch_started","skywatch_prism_1",
+                "skywatch_prism_2","skywatch_prism_3"})
+                g.save.flags.Add(flag);
+            g.Enter(7);g.enemies.Clear();g.projectiles.Clear();g.effects.Clear();
+            WorldObject altar=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="skyobservatory");
+            Check(altar!=null,"The genuine Frostchime observatory exists");
+            g.save.x=altar.x;g.save.y=altar.y;
+            g.invulnerable=100;
+            var activate=typeof(GameCore).GetMethod("ChooseSkywatch",
+                System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
-            Check(reset != null, "Observatory uses its real original cleanup");
-            reset.Invoke(g, new object[0]);
-            Check(!g.enemies.Contains(guardian) &&
-                !g.projectiles.Exists(p => p.skywatchOwned) &&
+            Check(activate!=null,"The production observatory command is available");
+            activate.Invoke(g,new object[]{"skywatch_start"});
+            Enemy guardian=g.enemies.Find(g.IsSkywatchEnemy);
+            Check(guardian!=null&&g.SkywatchRoom==7,
+                "Only the real authored observatory action creates the elite guardian");
+            guardian.state=1;guardian.timer=.005f;
+            guardian.target=g.Position;guardian.Face(g.Position-guardian.Position);
+            var unrelated=new Projectile {
+                position=new Point(12,14),velocity=new Point(1,0),
+                friendly=true,life=3,damage=0 };
+            g.projectiles.Add(unrelated);
+            g.Tick(.05f,new Point());
+            Check(g.projectiles.Exists(p=>p.skywatchOwned)&&
+                g.projectiles.Exists(p=>p.skywatchOwned&&!p.friendly),
+                "Real Frostchime guardian attack emits genuine mission-owned airborne hostile orbs");
+            var reset=typeof(GameCore).GetMethod("ResetSkywatch",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(reset!=null,"Observatory uses its real original cleanup");
+            reset.Invoke(g,new object[0]);
+            Check(!g.enemies.Contains(guardian)&&
+                !g.projectiles.Exists(p=>p.skywatchOwned)&&
                 g.projectiles.Contains(unrelated),
-                "Retiring the observatory boss removes all its outgoing orbs without deleting unrelated friendly projectiles");
+                "Retiring the genuine guardian removes only its own hostile orbs and preserves unrelated friendly shots");
         }
 
         public static void AtlasEchoAndRoadwardenWarningsRetireWithoutGhosts(Campaign data)
