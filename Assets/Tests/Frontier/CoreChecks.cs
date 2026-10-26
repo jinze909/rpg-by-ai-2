@@ -1568,6 +1568,10 @@ namespace Starfall.Tests
             g.save.flags.Add("civic_aftercare_published");
             g.save.flags.Add("civic_waystation_stocked_0");
             g.save.flags.Add("civic_waystation_stocked_3");
+            // QuestGuide localizes its public next/reward fields through
+            // L(...). Select English deliberately for English assertions;
+            // the world dialogue below still validates both raw scripts.
+            g.save.english=true;
             QuestGuide unfinished=g.GetQuest("civic_waystations");
             Check(!unfinished.locked&&!unfinished.complete&&
                 unfinished.next.Contains("Shuttles now run")&&
