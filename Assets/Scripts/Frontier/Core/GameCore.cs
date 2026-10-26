@@ -1159,8 +1159,13 @@ namespace Starfall
                     // A confirmed rear contact opens a real combo opportunity.
                     // Repeated flanks refresh the timer without spamming cues.
                     e.armorOpenTime=2.4f;
-                    effects.Add(new Effect("number", e.Position, .7f,
-                        freshBreach?L("侧袭 · 破甲", "FLANK · BREACH"):L("侧袭", "FLANK")));
+                    // Keep established FLANK exactly as before. Publish the
+                    // new armor opening as a separate first-contact cue.
+                    effects.Add(new Effect("number",e.Position,.7f,L("侧袭","FLANK")));
+                    if(freshBreach)
+                        effects.Add(new Effect("number",
+                            e.Position+new Point(0,.55f),.8f,
+                            L("破甲！","ARMOR OPEN")));
                 }
             }
             // The post-release recovery is a brief, player-owned punish window.

@@ -55,6 +55,47 @@ namespace Starfall.Tests
                 "Boss phase defenses and persisted SaveData v2 remain unaffected by ordinary armor breach");
         }
 
+
+        public static void ArmorBreachStaysOnPhysicalGuardAndDrivesWorldHint(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.x=19.5f;g.save.y=14.5f;
+            var first=new Enemy(99431,2,21.5f,14.5f,900f);
+            var second=new Enemy(99431,2,22.5f,14.5f,900f);
+            first.staggerRecovery=second.staggerRecovery=10f;
+            first.timer=second.timer=500f;
+            first.facing=second.facing=new Point(1,0);
+            g.enemies.Add(first);g.enemies.Add(second);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var actor=new ImpactProfile(0,0,0,0,0f,true,0);
+            hit.Invoke(g,new object[]{first,20f,false,
+                (Point?)new Point(1,0),actor});
+            Check(first.armorOpenTime>2.39f&&second.armorOpenTime==0f&&
+                g.EnemyHint(first).Contains("破")&&
+                !g.EnemyHint(second).Contains("破甲"),
+                "A successful flank exposes only its real actor, never an enemy sharing its spawn ID");
+            g.save.english=true;
+            Check(g.EnemyHint(first).Contains("ARMOR OPEN")&&
+                g.EnemyHint(second).Contains("Heavy armor"),
+                "The live world inspection card explains the timed opening in both languages");
+            first.facing=second.facing=new Point(-1,0);
+            float hp1=first.hp,hp2=second.hp;
+            hit.Invoke(g,new object[]{first,20f,false,
+                (Point?)new Point(1,0),actor});
+            hit.Invoke(g,new object[]{second,20f,false,
+                (Point?)new Point(1,0),actor});
+            Check(Math.Abs((hp1-first.hp)-20f)<.01f&&
+                Math.Abs((hp2-second.hp)-8f)<.01f,
+                "The same frontal strike ignores armor only on the physically breached guard");
+            first.armorOpenTime=float.NaN;
+            first.stun=10f;
+            g.Tick(.05f,new Point());
+            Check(first.armorOpenTime==0f,
+                "Malformed unsaved armor clocks are repaired before UI or AI can inherit NaN");
+        }
+
         private static Projectile ThreateningShot(GameCore g,Point velocity)
         {
             Point approach=velocity.Normalized;

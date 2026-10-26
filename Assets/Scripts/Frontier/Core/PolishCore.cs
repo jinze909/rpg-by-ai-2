@@ -187,7 +187,15 @@ namespace Starfall
         private void ActionUnavailable(float cooldown, float cost)
         { if (actionHintTimer > 0) return; actionHintTimer = 1.5f; Notify(cooldown > 0 ? "正在冷却，剩余 " + Math.Ceiling(cooldown) + " 秒。" : "耐力不足，需要 " + (int)cost + "。", cooldown > 0 ? "Cooling down: " + Math.Ceiling(cooldown) + " seconds." : "Need " + (int)cost + " energy."); sound = "deny"; }
         public string EnemyHint(Enemy e)
-        { return e.boss ? L("闪开红圈；薄荷色环出现时反击，伤害提升", "Evade the red mark; counter during the mint-ring opening") : e.kind == 1 ? L("侧移躲箭，借墙掩护；射后薄荷色环是破绽", "Sidestep arrows, use walls; the mint ring after firing marks an opening") : e.kind == 2 ? L("重甲正面减伤；绕背侧袭，或抓住抡击后的薄荷色环", "Heavy armor guards the front; flank or punish its mint-ring recovery") : L("闪过扑击；薄荷色环出现时抓住反击窗口", "Dodge the lunge; punish the mint-ring recovery"); }
+        {
+            // The live contextual enemy inspection card reflects the real
+            // battle clock, rather than promising an always-open guard.
+            if(e!=null&&!e.boss&&e.kind==2&&e.armorOpenTime>.001f)
+                return L("重甲已破 · 还有 "+(int)Math.Ceiling(e.armorOpenTime)+
+                    " 秒可从正面追击。抓住这次侧袭机会。",
+                    "ARMOR OPEN · "+(int)Math.Ceiling(e.armorOpenTime)+
+                    "s to strike from the front. Press the flank advantage.");
+            return e.boss ? L("闪开红圈；薄荷色环出现时反击，伤害提升", "Evade the red mark; counter during the mint-ring opening") : e.kind == 1 ? L("侧移躲箭，借墙掩护；射后薄荷色环是破绽", "Sidestep arrows, use walls; the mint ring after firing marks an opening") : e.kind == 2 ? L("重甲正面减伤；绕背侧袭，或抓住抡击后的薄荷色环", "Heavy armor guards the front; flank or punish its mint-ring recovery") : L("闪过扑击；薄荷色环出现时抓住反击窗口", "Dodge the lunge; punish the mint-ring recovery"); }
         public void StartPractice()
         {
             if (Dying) return;

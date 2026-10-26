@@ -1499,6 +1499,16 @@ namespace Starfall
                         new Color(1,1,1,alpha),e.VisualFlip);
                 }
             }
+            // An enemy-owned, unsaved armor breach countdown sits just above
+            // its original poise bar. The real actor remains SpriteRenderer-
+            // first; this is the existing combat overlay, not body artwork.
+            if(!drawingOutline&&!e.boss&&e.kind==2&&e.armorOpenTime>.001f)
+            {
+                float y=p.y-size*.72f-7f;
+                Box(p.x-17,y,34,5,new Color(.04f,.09f,.12f,.72f));
+                Box(p.x-16,y+1,32*Mathf.Clamp01(e.armorOpenTime/2.4f),3,
+                    new Color(1f,.69f,.33f,.92f));
+            }
             // The boss already has a HUD poise meter. Give ordinary enemies a
             // tiny contextual meter only after the player has built stagger.
             if (!drawingOutline && !e.boss && e.stagger > .01f && e.staggerRecovery <= 0)
