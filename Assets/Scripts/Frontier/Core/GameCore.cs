@@ -1141,7 +1141,9 @@ namespace Starfall
             // Even a genuine lethal contact can begin a whistle, but the
             // death transaction immediately cancels that unfinished call.
             // Register before HP falls below the live-actor threshold.
-            AlertRidgeWatchOnRealHit(e);
+            Point strikeSource=profile.playerOwned?Position:
+                save.companion>=0?companionPosition:e.Position;
+            AlertRidgeWatchOnRealHit(e,strikeSource);
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'

@@ -4315,6 +4315,58 @@ namespace Starfall.Tests
                 "Returning to a surveyed highland retains one genuine set of patrols");
         }
 
+        public static void RidgeWatchAllyHitsReportAllyFootNotRemoteHero(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var ids=(Dictionary<int,int>)typeof(GameCore).GetField(
+                "ridgeWatchIds",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(g);
+            var damage=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var pursuit=typeof(GameCore).GetMethod("RidgeWatchPursuitFoot",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Enemy struck=null;
+            foreach(Enemy body in g.enemies)
+                if(ids.ContainsKey(body.id)&&ids[body.id]==0)
+                {struck=body;break;}
+            Check(struck!=null&&pursuit!=null,
+                "The unchanged Hit entrypoint still owns mapped patrol contacts");
+            Point allyFoot=g.Position;
+            Check(g.CanStand(allyFoot)&&
+                (allyFoot-struck.Position).Length>5f,
+                "The real party entry foot and patrol clearing are separate");
+            g.save.companion=1;
+            g.companionPosition=allyFoot;
+            // Simulate the existing immutable companion-owned attack
+            // profile. No new Hit parameters or save fields are introduced.
+            g.save.x=struck.x;g.save.y=struck.y;
+            var allyImpact=new ImpactProfile(1,0,1,0,0f,false);
+            damage.Invoke(g,new object[]{struck,2f,false,null,allyImpact});
+            Check(g.RidgeWatchCallPending&&
+                (g.Position-g.companionPosition).Length>5f,
+                "A genuine ally-owned HP hit begins the same interruptible whistle");
+            Point far=new Point(12.5f,14.5f);
+            g.save.x=far.x;g.save.y=far.y;
+            for(int tick=0;tick<19;tick++)g.Tick(.05f,new Point());
+            Check(g.RidgeWatchAlarmActive&&
+                ((Point)pursuit.Invoke(g,new object[]{struck,far})-allyFoot).Length<.001f,
+                "Alert responders search the companion's actual source foot, never the unrelated hero foot");
+            // A later hero-owned hit must update the report legitimately;
+            // old companion targeting cannot leak through that transaction.
+            g.save.x=struck.x;g.save.y=struck.y;
+            Point heroFoot=g.Position;
+            damage.Invoke(g,new object[]{struck,1f,false,null,null});
+            Check(((Point)pursuit.Invoke(g,new object[]{struck,far})-heroFoot).Length<.001f,
+                "A subsequent real player-owned hit updates the reported foot to the hero");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.save.version==2&&!loaded.RidgeWatchAlarmActive,
+                "Mixed companion/hero attribution is transient and old v2 saves still load");
+        }
+
         public static void RidgeWatchJournalTargetsInterruptibleCallerAndLiveResponders(Campaign data)
         {
             var g=Unlocked(data);

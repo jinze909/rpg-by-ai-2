@@ -46,10 +46,10 @@ namespace Starfall
         private float ridgeWatchAlarmSeconds;
         private Enemy ridgeWatchCaller;
         private float ridgeWatchCallSeconds;
-        // The reported sighting is an actual hero foot at the time of an
-        // authentic damage contact. Hearing a whistle does not give unseen
-        // patrols permanent access to the hero's changing coordinates.
-        private Point ridgeWatchReportedHeroFoot;
+        // The alarm reports the physical source of an actual injury:
+        // hero for player-owned attacks, companion for ally-owned contacts.
+        // Hearing a whistle never reveals the hero through sealed terrain.
+        private Point ridgeWatchReportedContactFoot;
         // An actual injured body must FINISH its telegraphed warning:
         // defeating or stunning it beforehand stops the reinforcement.
         public bool RidgeWatchCallPending
@@ -96,17 +96,22 @@ namespace Starfall
             // never a live coordinate behind sealed terrain or across town.
             if((enemy.Position-heroFoot).Length<=8f&&
                 ClearAttackPath(enemy.Position,heroFoot))return heroFoot;
-            return CanStand(ridgeWatchReportedHeroFoot)?
-                ridgeWatchReportedHeroFoot:enemy.Position;
+            return CanStand(ridgeWatchReportedContactFoot)?
+                ridgeWatchReportedContactFoot:enemy.Position;
         }
-        private void AlertRidgeWatchOnRealHit(Enemy struck)
+        private void AlertRidgeWatchOnRealHit(Enemy struck,Point sourceFoot)
         {
             if(!IsActiveRidgeWatchPatrol(struck))return;
+            // An invalid, changed or fallen source is not a long-distance
+            // clairvoyance beacon. The real injured patrol foot remains
+            // physically grounded evidence of where the impact happened.
+            if(!Finite(sourceFoot.x)||!Finite(sourceFoot.y)||
+                !CanStand(sourceFoot))sourceFoot=struck.Position;
             if(RidgeWatchAlarmActive)
             {
                 // A NEW genuine incoming hit supplies fresh information.
                 // Hidden movement alone never updates the squad's sighting.
-                ridgeWatchReportedHeroFoot=Position;
+                ridgeWatchReportedContactFoot=sourceFoot;
                 ridgeWatchAlarmSeconds=Math.Max(ridgeWatchAlarmSeconds,3f);
                 return;
             }
@@ -114,7 +119,7 @@ namespace Starfall
             if(ridgeWatchCaller!=null||struck.stun>.0001f)return;
             ridgeWatchCaller=struck;
             ridgeWatchCallSeconds=.85f;
-            ridgeWatchReportedHeroFoot=Position;
+            ridgeWatchReportedContactFoot=sourceFoot;
             effects.Add(new Effect("number",struck.Position,.85f,
                 L("巡敌正在呼援！","PATROL CALLING!")));
             revision++;
@@ -150,7 +155,7 @@ namespace Starfall
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
             ridgeWatchResponders.Clear();ridgeWatchAlarmSeconds=0f;
             ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
-            ridgeWatchReportedHeroFoot=new Point();
+            ridgeWatchReportedContactFoot=new Point();
             ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
         }
         public int RidgeWatchProgress(int room)
