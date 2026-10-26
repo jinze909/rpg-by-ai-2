@@ -1152,6 +1152,17 @@ namespace Starfall
                     Game.RidgeWatchCallSecondsLeft.ToString("0.0")+
                     Game.L("秒","s"),12,amber,TextAnchor.MiddleCenter);
             }
+            // The courier's single REAL ambusher gets an authored-world
+            // warning beside its planted combat feet. Do not swap the
+            // enemy's full-body SpriteRenderer frames or create a fake NPC.
+            if(!drawingOutline&&Game.IsCivicCourierGuard(e))
+            {
+                Color warning=PixelArt.C("#e6a45d");
+                Ring(e.Position,.78f,warning,20);
+                Text(p.x-88,p.y-153,176,21,
+                    Game.L("拦路弓手 · 药包伏击","ROAD AMBUSH · MEDIC"),
+                    11,warning,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsCompanionFocusTarget(e))
             {
                 // The mark belongs to the SAME living enemy used by the

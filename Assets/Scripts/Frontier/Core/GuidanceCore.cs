@@ -444,6 +444,14 @@ namespace Starfall
                     published+=en?
                         "\n\nThe public shuttle now runs between stocked road markers. A regional ticket costs 5 coins and 20 energy; a surveyed local ride costs 2 coins and 10 energy. Raiders on the road stop service.":
                         "\n\n备齐物资的路站之间已经通了接驳车。跨地区车票5硬币、20体力；本地已测绘短途2硬币、10体力。路上有袭击者，车夫就不会发车。";
+                if(CivicWaystationCount>0)
+                    published+=en?
+                        "\n\nThe traveler taps the sealed medicine bundle beside his bowl. “A marker never walked medicine to anyone. I only mark a delivery after the other end signs for it.” Foot deliveries: "+
+                            CivicCourierCompleted+"/3."+
+                            (CivicCourierActive?" One bundle is still on the road; an armed lookout is blocking its route.":""):
+                        "\n\n夜行旅人敲了敲汤碗旁封好的药包。“石碑不会把药送到病人手里。得等路那头的人亲自签收，我才敢画勾。” 徒步送药："+
+                            CivicCourierCompleted+"/3。"+
+                            (CivicCourierActive?" 这一包还在路上，拦路弓手尚未全部排除。":"");
                 return published;
             }
             if(Has("civic_aftercare_started"))
@@ -1420,6 +1428,14 @@ namespace Starfall
                         if(marker!=null&&marker.kind=="waytrail"&&
                             marker.id!=origin&&Has("waytrail_"+marker.id))
                         {q.target=new Point(marker.x,marker.y);break;}
+                    // Combat belongs to the genuine live actor. The player
+                    // cannot 'finish' a parcel by only reaching the sign.
+                    if(!CivicCourierGuardCleared(selected)&&
+                        civicCourierGuard!=null&&
+                        IsCivicCourierGuard(civicCourierGuard)&&
+                        civicCourierGuard.hp>0f&&
+                        enemies.Contains(civicCourierGuard))
+                        q.target=civicCourierGuard.Position;
                 }
                 q.next=q.complete?
                     L("三地药包全部亲自送达，居民已收到补给",
@@ -1427,9 +1443,12 @@ namespace Starfall
                     q.locked?
                     L("先公开巡路复核并补给至少一处居民路站",
                         "Publish the road audit and supply a waystation first"):
+                    onMission&&!CivicCourierGuardCleared(selected)?
+                    L("医疗包正遭伏击：先找出路上的真实弓手并击退。不能用接驳车绕过这次战斗",
+                        "Medicine under ambush: find and defeat the actual road archer; shuttle travel cannot skip combat"):
                     onMission?
-                    L("正在背负密封医疗包：步行到另一端已测绘路标，不能乘车或离开地区",
-                        "Carrying medicine: walk to the opposite surveyed marker; no shuttle or fast travel"):
+                    L("伏击者已击退。步行到另一端已测绘路标交付药包",
+                        "Road secured. Deliver the sealed parcel at the opposite surveyed marker on foot"):
                     L("到一处已补给路站领取药包（药草1），然后徒步穿越实际道路",
                         "Accept a one-herb medical parcel at a stocked marker, then walk the real road");
                 q.reward=L("每地硬币18、经验30；三地全部完成额外碎片2；原站退货返还药草1",

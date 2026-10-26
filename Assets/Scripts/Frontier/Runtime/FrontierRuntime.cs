@@ -1111,11 +1111,30 @@ namespace Starfall
                         // after another independent region has been funded.
                         // Small static label: no replacing the authored
                         // obelisk sprite, no fake vehicle or moving marker.
-                        if(supplied&&Game.CivicWaystationCount>=2)
-                            Text(p.x-89,p.y-163,178,19,
-                                Game.L("按 E 查看接驳线路",
-                                    "E · PUBLIC SHUTTLES"),
-                                10,gold,TextAnchor.MiddleCenter);
+                        if(supplied)
+                        {
+                            string courierLabel=Game.CivicCourierActive?
+                                Game.Has("civic_courier_active_"+Game.save.room+"_"+o.id)?
+                                    Game.L("药包始发站 · 可退货","PARCEL ORIGIN · RETURN"):
+                                    Game.CivicCourierGuardCleared(Game.save.room)?
+                                        Game.L("药包送达点 · E","DELIVER MEDICINE · E"):
+                                        Game.L("拦路伏击者尚在","AMBUSHER STILL ACTIVE"):
+                                Game.Has("civic_courier_done_"+Game.save.room)?
+                                    Game.L("居民送药已完成 ✓","MEDICINE DELIVERED ✓"):
+                                    recorded?
+                                        Game.L("按 E 接徒步送药委托","E · ON-FOOT MEDICINE"):
+                                        "";
+                            if(courierLabel.Length>0)
+                                Text(p.x-90,p.y-164,180,19,
+                                    courierLabel,10,
+                                    Game.CivicCourierActive?gold:mint,
+                                    TextAnchor.MiddleCenter);
+                            if(Game.CivicWaystationCount>=2&&!Game.CivicCourierActive)
+                                Text(p.x-89,p.y-184,178,19,
+                                    Game.L("按 E 查看接驳线路",
+                                        "E · PUBLIC SHUTTLES"),
+                                    10,gold,TextAnchor.MiddleCenter);
+                        }
                     }
                 }
                 return;

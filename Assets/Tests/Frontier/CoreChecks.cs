@@ -1618,12 +1618,14 @@ namespace Starfall.Tests
                         x=>x.action=="civic_courier_start");
                 }
                 g.Choose(accept);
+                Enemy liveRoadGuard=g.enemies.Find(g.IsCivicCourierGuard);
                 Check(g.CivicCourierActive&&g.save.inventory[2]==herbs-1&&
                     g.save.room==region&&g.save.trackedQuest=="civic_courier"&&
+                    liveRoadGuard!=null&&
                     (g.GetQuest("civic_courier").target-
-                        new Point(destination.x,destination.y)).Length<.01f&&
-                    g.enemies.Exists(g.IsCivicCourierGuard),
-                    "A paid parcel starts one LIVE enemy ambush midway along its real physical road");
+                        liveRoadGuard.Position).Length<.01f&&
+                    g.GetQuest("civic_courier").next.Contains("ambush"),
+                    "A paid parcel immediately tracks the real ambusher, not a fake completed-sign waypoint");
                 int coins=g.save.coins;
                 g.ReturnToTown();
                 Check(g.save.room==region&&g.CivicCourierActive&&
@@ -1645,12 +1647,13 @@ namespace Starfall.Tests
                             record=>record!=null&&record.id==originalGuard.id)),
                         "Mission ambusher is NOT serialized as an ordinary V2 roaming enemy");
                     var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+                    Enemy restoredGuard=loaded.enemies.Find(loaded.IsCivicCourierGuard);
                     Check(loaded.save.version==2&&loaded.CivicCourierActive&&
                         loaded.save.inventory[2]==herbs-1&&
-                        loaded.enemies.Exists(loaded.IsCivicCourierGuard)&&
+                        restoredGuard!=null&&
                         (loaded.GetQuest("civic_courier").target-
-                            new Point(destination.x,destination.y)).Length<.01f,
-                        "Old V2 saves preserve the true physical parcel origin and destination");
+                            restoredGuard.Position).Length<.01f,
+                        "Old V2 saves reconstruct real ambusher identity and pin it after restoring world");
                     g=loaded;
                     origin=Array.Find(g.Map.objects,
                         x=>x.kind=="waytrail"&&x.id==origin.id);
@@ -1689,8 +1692,11 @@ namespace Starfall.Tests
                     System.Reflection.BindingFlags.Instance);
                 damage.Invoke(g,new object[]{raider,999f,false,null,null});
                 Check(g.CivicCourierGuardCleared(region)&&
-                    !g.enemies.Exists(g.IsCivicCourierGuard),
-                    "A REAL enemy death permanently secures the cargo route");
+                    !g.enemies.Exists(g.IsCivicCourierGuard)&&
+                    (g.GetQuest("civic_courier").target-
+                        new Point(destination.x,destination.y)).Length<.01f&&
+                    g.GetQuest("civic_courier").next.Contains("Road secured"),
+                    "Real enemy defeat switches the same tracked compass to the actual delivery marker");
                 if(index==0)
                 {
                     g.PrepareSave();
@@ -1727,6 +1733,19 @@ namespace Starfall.Tests
                 g.save.coins==initialCoins+54&&
                 g.save.shards==initialShards+2,
                 "Three unique real regional deliveries grant only one final two-shard community reward");
+            g.Enter(9);g.enemies.Clear();
+            WorldObject guest=Array.Find(g.Map.objects,
+                o=>o.kind=="innGuest"&&o.id=="innTraveler");
+            Check(guest!=null,
+                "The original Hearth Inn night traveler remains the physical reporter");
+            g.save.x=guest.x;g.save.y=guest.y;
+            ReadInnNews(g,guest);
+            Check(g.conversation!=null&&
+                g.conversation.textEn.Contains("Foot deliveries: 3/3")&&
+                g.conversation.text.Contains("徒步送药：3/3")&&
+                g.save.coins==initialCoins+54,
+                "The real inn's localized human narrative reflects authentic delivery completions without new rewards");
+            g.Close();
             g.PrepareSave();
             var reloadedEnd=new GameCore(data,CloneSave(g.save));reloadedEnd.Start();
             Check(reloadedEnd.save.version==2&&
