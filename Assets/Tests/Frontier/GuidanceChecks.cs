@@ -217,7 +217,7 @@ namespace Starfall.Tests
             var g=Fresh(data);g.save.stage=4;g.save.frontierEnding=1;
             g.save.level=18;g.save.xp=0;
             foreach(string flag in new[]{"scout_saved","exp_intro",
-                "far_bridge_0","far_shelter_0"})
+                "far_bridge_0","far_dial_0","far_shelter_0"})
                 g.save.flags.Add(flag);
             g.Enter(0);g.enemies.Clear();g.invulnerable=240f;
             WorldObject bridge=Object(g,"farbridge"),check=Object(g,"farcheck"),
