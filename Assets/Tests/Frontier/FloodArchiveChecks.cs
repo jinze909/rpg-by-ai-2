@@ -631,7 +631,7 @@ namespace Starfall.Tests
                 "Real medicine is received and permanent ferry discount earned, but no capped payout is lost");
             var receiptGuide=g.GetQuest("ferry_relief");
             Check(receiptGuide.complete&&
-                (receiptGuide.next.Contains("待领取")||
+                (receiptGuide.next.Contains("未领取")||
                  receiptGuide.next.Contains("claim the saved receipt")),
                 "The questbook tracks the outstanding receipt after delivery: "+receiptGuide.next);
             var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
