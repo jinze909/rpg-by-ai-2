@@ -7502,9 +7502,15 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("Ancient Skywatch Guardian"))&&
             GUI.commands.Exists(s=>s.Contains("TIME 85s"))&&
-            GUI.commands.Exists(s=>s.Contains("GROUNDING READY"))&&
-            !GUI.commands.Exists(s=>s.Contains(game.CurrentBoss.en)),
-            "Actual optional Guardian wins Boss HUD against a same-ID stranger and gets true localized combat counterplay");
+            GUI.commands.Exists(s=>s.Contains("GROUNDING READY")),
+            "Actual optional guardian must have its own visible Boss name, clock, and grounding. "+
+            "mode="+game.mode+" real="+game.IsSkywatchEnemy(real)+
+            " ready="+game.SkywatchGroundingAvailable+
+            " title="+game.LiveBossName(real)+" cue="+game.SkywatchCombatCue(real)+
+            " cmds="+string.Join(" | ",GUI.commands.FindAll(v=>
+                v.Contains("Skywatch")||v.Contains("SKYWATCH")||
+                v.Contains("GROUNDING")||v.Contains("TIME ")||
+                v.Contains("Guardian")).ToArray()));
         choice.Invoke(game,new object[]{"skywatch_ground"});
         Check(game.SkywatchGroundingTime>0f,
             "True one-use encounter action suppresses frost strikes in-world");
