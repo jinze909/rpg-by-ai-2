@@ -238,6 +238,14 @@ namespace Starfall.Tests
             cursor.Cancel();
             Check(!cursor.MoveAxis(1,0,.02f,true)&&!cursor.Active,
                 "Inactive map selection cannot silently mutate a pin or hold-post target");
+            cursor.Begin(new Point(50.5f,40.5f),120,80);
+            Check(cursor.MoveAxis(1,0,.02f,true)&&
+                (cursor.Destination-new Point(51.5f,40.5f)).Length<.001f,
+                "A cancelled companion editor never leaks held acceleration into a fresh personal pin");
+            cursor.MoveAxis(0,0,float.NaN,false);
+            Check(cursor.MoveAxis(0,1,.02f,true)&&
+                (cursor.Destination-new Point(51.5f,41.5f)).Length<.001f,
+                "Neutral or malformed frame input clears repeat momentum without skipping a map row");
         }
 
         public static void WaymarkPreviewUsesSameFullBodyRouteAndNeverCommitsGameplay(Campaign data)

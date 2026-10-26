@@ -84,13 +84,20 @@ namespace Starfall
             if(mapTileCursor.Active)
             {
                 if(Game.mode!="map"||selectedRegion!=Game.save.room)
+                {
+                    // A scripted room switch invalidates both editors.
+                    // Consume this input frame: A/Enter must not fall
+                    // through and activate a different scene's menu.
                     mapTileCursor.Cancel();
+                    mapCursorCompanionPost=false;
+                    return;
+                }
                 else
                 {
                     if(PadDown(0)||PadDown(1)||PadDown(4)||PadDown(5))
                         controllerUsed=true;
                     if(Input.GetKeyDown(KeyCode.Escape)||PadDown(1))
-                    {mapTileCursor.Cancel();return;}
+                    {mapTileCursor.Cancel();mapCursorCompanionPost=false;return;}
                     if(Input.GetKeyDown(KeyCode.Return)||
                         Input.GetKeyDown(KeyCode.Space)||PadDown(0))
                     {

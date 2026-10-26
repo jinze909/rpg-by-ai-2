@@ -1301,10 +1301,10 @@ namespace Starfall
                 if(mapTileCursor.Active)
                     Text(888,569,306,42,
                         mapCursorCompanionPost?
-                            Game.L("同伴驻守 · 方向键移动 · A确认 · B取消",
-                                "ALLY POST · arrows: move · A: assign · B: cancel"):
-                            Game.L("方向键/摇杆选择 · Shift/LB/RB快移 · Enter/A确认 · Esc/B取消",
-                                "Arrows/stick: move · Shift/LB/RB: jump · A: pin · B: cancel"),
+                            Game.L("同伴驻守 · 长按方向键/摇杆快移\nA确认 · B取消",
+                                "ALLY POST · hold stick/arrows to speed up\nA: assign · B: cancel"):
+                            Game.L("方向键/摇杆长按快移 · Shift/LB/RB六格跳跃\nEnter/A确认 · Esc/B取消",
+                                "Hold stick/arrows for fast selection\nShift/LB/RB: 6 tiles · A: pin · B: cancel"),
                         12,mint,TextAnchor.MiddleCenter);
                 else if(Game.HasLocalWaymark)
                 {
