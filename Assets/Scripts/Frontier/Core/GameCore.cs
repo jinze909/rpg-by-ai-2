@@ -1657,6 +1657,50 @@ namespace Starfall
             plan.active=true;
             return (next-from).Normalized;
         }
+        // Only ordinary locomotion uses crowd spacing. Boss dashes, hit recoil,
+        // telegraphed contacts and authored missile releases retain their own
+        // committed motion/timing. A crowd never changes the terrain sweep.
+        private bool EnemyCrowdStepClear(Enemy mover,Point from,Point candidate)
+        {
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||System.Object.ReferenceEquals(other,mover)||
+                    other.hp<=0f||!Finite(other.x)||!Finite(other.y))
+                    continue;
+                float clearance=other.boss?.96f:.72f;
+                float dx=candidate.x-other.x,dy=candidate.y-other.y;
+                float after=dx*dx+dy*dy;
+                if(after>=clearance*clearance)continue;
+                dx=from.x-other.x;dy=from.y-other.y;
+                float before=dx*dx+dy*dy;
+                // Already-overlapping actors can move OUT of each other's
+                // footprint, but may never crowd deeper into the same disk.
+                if(after<=before+.000001f)return false;
+            }
+            return true;
+        }
+        private Point SweepOrdinaryEnemyWithCrowd(Enemy enemy,Point delta)
+        {
+            Point from=enemy.Position;
+            Point forward=SweepActor(from,delta);
+            if(EnemyCrowdStepClear(enemy,from,forward))return forward;
+            // Genuine ally bodies should produce a readable flank rather than
+            // a pile of identical melee sprites. Use the same swept ground
+            // and living-circle checks on BOTH lateral alternatives. The
+            // stable ID parity breaks ties without frame-to-frame jitter.
+            Point side=new Point(-delta.y,delta.x);
+            int preferred=(enemy.id&1)==0?1:-1;
+            for(int attempt=0;attempt<2;attempt++)
+            {
+                Point candidate=SweepActor(from,side*(attempt==0?preferred:-preferred));
+                if((candidate-from).Length>.001f&&
+                    EnemyCrowdStepClear(enemy,from,candidate))
+                    return candidate;
+            }
+            // One-tile passages cannot accommodate a second body: wait for
+            // a real opening instead of walking through the blocking actor.
+            return from;
+        }
         private void UpdateEnemies(float dt)
         {
             tickingEnemies.Clear();tickingEnemies.AddRange(enemies);
@@ -1971,7 +2015,9 @@ namespace Starfall
                             heading=new Point();
                     }
                     Point p = e.Position + heading * freeDt * (e.boss ? 1.15f + e.BossPhase * .15f : e.kind == 0 ? 2.1f : 1.5f) * (InAbyss && save.abyssFloor % 3 == 2 ? 1.2f : 1);
-                    Point swept = SweepActor(e.Position, p - e.Position); e.x = swept.x; e.y = swept.y;
+                    Point swept = e.boss ? SweepActor(e.Position,p-e.Position) :
+                        SweepOrdinaryEnemyWithCrowd(e,p-e.Position);
+                    e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;
                 if (e.moving) { e.moveTime += travelled.Length; e.Face(e.backpedaling?Position-e.Position:travelled); }

@@ -201,6 +201,59 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void LivingEnemyCrowdsFlankAndDoNotWalkThroughTeammates(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('.',24).ToCharArray();
+                    for(int x=0;x<24;x++)
+                        if(x<2||y<2||x>=22||y>=22)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=15.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.enemies.Clear();g.save.x=15.5f;g.save.y=10.5f;
+                g.invulnerable=100;
+                var mover=new Enemy(91901,0,8.5f,10.5f,200);
+                var ally=new Enemy(91902,0,9.3f,10.5f,200);
+                mover.timer=100f;ally.timer=100f;ally.stun=100f;
+                g.enemies.Add(mover);g.enemies.Add(ally);
+                g.Tick(.05f,new Point());
+                Check(mover.moving&&Math.Abs(mover.y-10.5f)>.01f &&
+                    mover.x<8.55f &&
+                    (mover.Position-ally.Position).Length>.79f,
+                    "A melee pursuer with a living ally directly ahead side-steps on real walkable ground instead of phasing into the ally");
+                for(int frame=0;frame<75&&mover.x<=9.8f;frame++)
+                    g.Tick(.05f,new Point());
+                Check(mover.x>9.8f&&g.CanStand(mover.Position)&&
+                    (mover.Position-ally.Position).Length>=.71f,
+                    "Persistent melee pursuit rounds the ally and makes actual forward progress without overlapping");
+                // Narrow stone lane: neither lateral foot is walkable.
+                for(int y=2;y<22;y++)
+                    if(y!=10)rows[y]=new string('#',24);
+                mover.x=8.5f;mover.y=10.5f;ally.x=9.3f;ally.y=10.5f;
+                mover.stun=0f;mover.state=0;mover.timer=100f;
+                for(int frame=0;frame<20;frame++)g.Tick(.05f,new Point());
+                Check(mover.x<=8.66f&&
+                    (mover.Position-ally.Position).Length>=.71f&&
+                    g.CanStand(mover.Position),
+                    "In a one-tile corridor a live enemy cannot pass through its teammate or step into solid masonry");
+                g.enemies.Remove(ally);
+                float stoppedX=mover.x;
+                for(int frame=0;frame<12;frame++)g.Tick(.05f,new Point());
+                Check(mover.x>stoppedX+.3f&&g.CanStand(mover.Position),
+                    "Removing the physical blocker immediately releases pursuit without fake teleporting or a retained traffic lock");
+                Check(g.save.version==2,
+                    "Crowd steering adds no new stored fields or save migration");
+            }
+            finally { data.maps[0]=original; }
+        }
+
         public static void InvalidPursuitTargetsNeverPoisonLiveMovement(Campaign data)
         {
             MapData original = data.maps[0];
