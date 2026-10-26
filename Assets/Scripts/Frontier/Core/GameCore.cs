@@ -2953,7 +2953,7 @@ namespace Starfall
                      "\n\nResident aid kits: one herb treats wounds (+36 HP) and eases heat/cold (-25). Only safe field stops are treated.":"")+
                     (Has("civic_waystation_stocked_"+region)?
                         "\n\nBoth original trail markers are now stocked. Rest safely nearby for slow healing and renewed stamina.":""),
-                CivicWaystationMarkerChoices(region));
+                CivicWaystationMarkerChoices(o));
             return true;
         }
 

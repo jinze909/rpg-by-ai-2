@@ -1440,6 +1440,102 @@ namespace Starfall.Tests
                 "Completion, coin rewards and prior campaign data survive old-format reloads");
         }
 
+        public static void CivicLocalShuttlesHonorTheRealWalkableRoadAndCompanionFoot(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            foreach(int room in new[]{0,3,5})
+            {
+                g.save.flags.Add("civic_aftercare_waytrail_"+room);
+                g.save.flags.Add("civic_waystation_stocked_"+room);
+                foreach(WorldObject marker in data.maps[room].objects)
+                    if(marker.kind=="waytrail")
+                        g.save.flags.Add("waytrail_"+marker.id);
+            }
+            var arrivalCheck=typeof(GameCore).GetMethod(
+                "CivicWaystationArrivalFoot",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(arrivalCheck!=null,
+                "The physical shuttle shares the same collision-safe arrival helper");
+            WorldObject source=null,destination=null;
+            Point? destinationFoot=null;
+            // Select a real open signed road, not imaginary coordinates.
+            foreach(int region in new[]{0,3,5})
+            {
+                if(destinationFoot.HasValue)break;
+                g.Enter(region);g.enemies.Clear();
+                foreach(WorldObject a in g.Map.objects)
+                {
+                    if(a.kind!="waytrail")continue;
+                    foreach(WorldObject b in g.Map.objects)
+                    {
+                        if(b.kind!="waytrail"||
+                            System.Object.ReferenceEquals(a,b))continue;
+                        g.save.x=a.x;g.save.y=a.y;
+                        if(!g.CanStand(g.Position))continue;
+                        var candidate=(Point?)arrivalCheck.Invoke(g,new object[]{b,true});
+                        if(!candidate.HasValue)continue;
+                        source=a;destination=b;destinationFoot=candidate;
+                        break;
+                    }
+                    if(destinationFoot.HasValue)break;
+                }
+            }
+            Check(source!=null&&destination!=null&&destinationFoot.HasValue,
+                "At least one original pair of public road markers has a genuine passable lane");
+            int home=g.save.room;
+            g.save.x=source.x;g.save.y=source.y;
+            g.save.energy=70f;g.save.coins=15;
+            g.save.trackedQuest="civic_waystations";
+            g.Talk(source);
+            string route="civic_waystation_local_"+destination.id;
+            int choice=Array.FindIndex(g.conversation.choices,
+                x=>x.action==route);
+            Check(choice>=0,
+                "Only previously physically surveyed sister markers offer a local civic shuttle");
+            int coins=g.save.coins;
+            g.save.x=source.x+14f;
+            g.Choose(choice);
+            Check(g.save.coins==coins&&g.save.room==home&&
+                Math.Abs(g.save.energy-70f)<.001f,
+                "A stale remote menu cannot teleport a passenger across town");
+            g.save.x=source.x;g.save.y=source.y;
+            g.Talk(source);choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
+            g.save.energy=9f;g.Choose(choice);
+            Check(g.save.coins==coins&&g.save.energy==9f,
+                "An unaffordable local carriage cannot charge partial fare");
+            g.save.energy=70f;
+            g.Talk(source);choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
+            g.enemies.Add(new Enemy(97225,0,source.x+.4f,source.y,20));
+            g.Choose(choice);
+            Check(g.save.coins==coins&&g.save.energy==70f,
+                "A live hostile blocks local shuttle departure without changing resources");
+            g.enemies.Clear();
+            g.Talk(source);choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
+            g.save.flags.Remove("waytrail_"+destination.id);
+            g.Choose(choice);
+            Check(g.save.coins==coins&&g.save.energy==70f,
+                "Revoked destination survey prevents a stale carriage choice");
+            g.save.flags.Add("waytrail_"+destination.id);
+            g.Talk(source);choice=Array.FindIndex(g.conversation.choices,x=>x.action==route);
+            g.Choose(choice);
+            Check(g.save.room==home&&g.save.coins==coins-2&&
+                Math.Abs(g.save.energy-60f)<.001f&&g.CanStand(g.Position)&&
+                (g.Position-new Point(destination.x,destination.y)).Length<1.75f&&
+                g.save.trackedQuest=="civic_waystations",
+                "One real within-region ride lands at the destination sign, pays exactly once, and keeps the journal");
+            g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));reloaded.Start();
+            Check(reloaded.save.version==2&&
+                reloaded.save.room==home&&
+                reloaded.save.coins==coins-2&&
+                reloaded.CivicWaystationCount==3,
+                "V2 reload preserves paid local transit without new serialized shuttle state");
+        }
+
         public static void StockedWaystationShuttlesReallyTransferBetweenOriginalRegions(Campaign data)
         {
             var g=Unlocked(data);

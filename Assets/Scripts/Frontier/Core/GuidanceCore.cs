@@ -99,8 +99,9 @@ namespace Starfall
                     NearKind("waytrail",3.1f);
             }
         }
-        private Choice[] CivicWaystationMarkerChoices(int region)
+        private Choice[] CivicWaystationMarkerChoices(WorldObject current)
         {
+            int region=save.room;
             var choices=new List<Choice>();
             if(!Has("civic_aftercare_published")||
                 (region!=0&&region!=3&&region!=5)||
@@ -117,6 +118,22 @@ namespace Starfall
                 {
                     choices.Add(C("查看已补给的居民路站",
                         "Inspect supplied waystation","civic_waystation_status"));
+                    // The short civic carriage works within a single,
+                    // verified public road; it never crosses a blocked
+                    // corridor or reveals an unvisited old marker.
+                    if(current!=null&&Map.objects!=null&&
+                        Has("waytrail_"+current.id))
+                        foreach(WorldObject other in Map.objects)
+                            if(other!=null&&other.kind=="waytrail"&&
+                                !Object.ReferenceEquals(other,current)&&
+                                Has("waytrail_"+other.id))
+                            {
+                                choices.Add(C(
+                                    "搭乘本地接驳至另一旧路标 · 2硬币/10体力",
+                                    "Local shuttle to other marker · 2 coins / 10 energy",
+                                    "civic_waystation_local_"+other.id));
+                                break;
+                            }
                     // Public passage becomes a concrete regional transport
                     // network only as each end is physically provisioned.
                     // Labels and actual destinations share one fixed roster.
@@ -197,7 +214,8 @@ namespace Starfall
                     return true;
             return false;
         }
-        private Point? CivicWaystationArrivalFoot()
+        private Point? CivicWaystationArrivalFoot(
+            WorldObject specificSign=null,bool requireWalkingRoute=false)
         {
             if(Map==null||Map.objects==null)return null;
             Point spawn=Position;
@@ -212,12 +230,17 @@ namespace Starfall
             };
             foreach(WorldObject sign in Map.objects)
             {
-                if(sign==null||sign.kind!="waytrail")continue;
+                if(sign==null||sign.kind!="waytrail"||
+                    (specificSign!=null&&
+                     !Object.ReferenceEquals(sign,specificSign)))continue;
                 Point marker=new Point(sign.x,sign.y);
                 for(int i=0;i<pads.Length;i++)
                 {
                     Point arrival=marker+pads[i];
                     if(!CanStand(arrival))continue;
+                    if(requireWalkingRoute&&
+                        NavigationPathFrom(spawn,arrival,true).Count==0)
+                        continue;
                     save.x=arrival.x;save.y=arrival.y;
                     bool safe=HasPhysicalInteractionReach(sign)&&SafeTravel;
                     save.x=spawn.x;save.y=spawn.y;
@@ -228,6 +251,77 @@ namespace Starfall
         }
         private bool ChooseCivicAftercare(string action)
         {
+            const string localShuttle="civic_waystation_local_";
+            if(action!=null&&action.StartsWith(localShuttle,StringComparison.Ordinal))
+            {
+                int region=save.room;
+                WorldObject source=pendingDialogueSource;
+                WorldObject destination=null;
+                if(Map!=null&&Map.objects!=null)
+                    foreach(WorldObject other in Map.objects)
+                        if(other!=null&&other.kind=="waytrail"&&
+                            other.id==action.Substring(localShuttle.Length))
+                        {destination=other;break;}
+                if((region!=0&&region!=3&&region!=5)||
+                    source==null||source.kind!="waytrail"||
+                    destination==null||
+                    Object.ReferenceEquals(source,destination)||
+                    pendingDialogueSourceRoom!=region||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source)||
+                    !Has("civic_aftercare_published")||
+                    !Has("civic_aftercare_waytrail_"+region)||
+                    !Has("civic_waystation_stocked_"+region)||
+                    !Has("waytrail_"+source.id)||
+                    !Has("waytrail_"+destination.id)||
+                    Dying||practicing||racing)return true;
+                if(FieldWorkPreventsRest||!SafeTravel||
+                    BlockTravelForProtectedFieldMission(true))
+                {
+                    Notify("现场任务或危险尚未解除，本地接驳不能发车。",
+                        "The local carriage cannot depart during combat or protected fieldwork.");
+                    return true;
+                }
+                if(save.coins<2||save.energy<10f)
+                {
+                    Notify("本地短驳需要2枚硬币与10点体力。",
+                        "Local shuttle requires 2 coins and 10 energy.");
+                    return true;
+                }
+                Point? arrival=CivicWaystationArrivalFoot(destination,true);
+                if(!arrival.HasValue)
+                {
+                    Notify("前往另一旧路标的道路暂时封闭，接驳不收取任何费用。",
+                        "The path to the other marker is blocked. No fare was charged.");
+                    return true;
+                }
+                Point before=Position;
+                save.x=arrival.Value.x;save.y=arrival.Value.y;
+                // A public ride carries a following companion without
+                // faking a 70-tile walking animation. A consciously held
+                // tactical guard stays at the original planted foot.
+                if(save.companion>=0&&!CompanionHoldingPosition&&
+                    (Position-before).Length>3f)
+                {
+                    Point follow=CompanionFollowTarget();
+                    if(CanStand(follow)&&
+                        (follow-Position).Length>.55f)
+                    {
+                        ClearCompanionFollowRoute();
+                        ClearCompanionCornerPlan();
+                        companionAutoTarget=null;
+                        companionPosition=follow;
+                        companionMoveTime=0f;companionMoving=false;
+                        companionPresentationGeneration++;
+                    }
+                }
+                save.coins-=2;
+                save.energy=Math.Max(0f,save.energy-10f);
+                sound="travel";revision++;
+                Notify("本地居民接驳已到站，硬币-2、体力-10。",
+                    "The local civic shuttle arrived. -2 coins, -10 energy.");
+                return true;
+            }
             const string shuttle="civic_waystation_travel_";
             if(action!=null&&action.StartsWith(shuttle,StringComparison.Ordinal))
             {
