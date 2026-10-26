@@ -1978,6 +1978,7 @@ namespace Starfall.Tests
             Action(g,traveler.kind,"wayfarer_defend_1");
             Enemy attacker=g.enemies.Find(e=>e.kind==0);
             Enemy blocker=g.enemies.Find(e=>e!=attacker);
+            Point blockerHome=blocker==null?new Point():blocker.Position;
             Check(attacker!=null&&blocker!=null,
                 "Real roadside defense begins with two distinct physical raider archetypes");
             // Keep the entire line physically walkable, not merely the two
@@ -2015,19 +2016,24 @@ namespace Starfall.Tests
             Check(attacker.state==0&&!attacker.targetingWayfarer&&
                 g.WayfarerIntegrity==100,
                 "Rear hunter cannot lock a dishonest traveler hit through the living lead raider");
-            g.enemies.Remove(blocker);
+            // The genuine traveler encounter REQUIRES both assigned raiders
+            // to remain alive until real defeat. Removing one even for a
+            // single simulation frame legitimately aborts the mission.
+            // Move the stunned blocker back to its originally verified
+            // spawn rather than forging an enemy disappearance.
+            blocker.x=blockerHome.x;blocker.y=blockerHome.y;
             attacker.x=site.x+direction.x*1.9f;
             attacker.y=site.y+direction.y*1.9f;
             attacker.state=0;attacker.timer=.001f;
             attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
             g.Tick(.05f,new Point());
-            Check(attacker.state==1&&attacker.targetingWayfarer,
-                "Clear near-side physical opening immediately restores the authentic traveler attack windup");
+            Check(g.WayfarerEncounterRoom==1 &&
+                attacker.state==1&&attacker.targetingWayfarer,
+                "Moving a genuine lead raider aside restores the authentic traveler windup without aborting the two-raider mission");
             // No resource-free rescue: reinserting the enemy body before
             // contact blocks only this genuine rear attack, not the timer.
             blocker.x=site.x+direction.x*.9f;
             blocker.y=site.y+direction.y*.9f;
-            g.enemies.Add(blocker);
             for(int i=0;i<15;i++)g.Tick(.05f,new Point());
             Check(g.WayfarerIntegrity==100&&g.WayfarerEncounterRoom==1&&
                 attacker.state==0,
