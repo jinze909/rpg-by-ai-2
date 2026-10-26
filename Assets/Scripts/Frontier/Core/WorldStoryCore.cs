@@ -192,11 +192,8 @@ namespace Starfall
             WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="worldchronicle")
             { WorldArchiveCatchUp();return; }
-        {
-            WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")
             { WorldInnStoryCatchUp(storyteller);return; }
-        {
             // Lyra answers as a working guild steward, not as a floating
             // "plot explained" overlay. The journal remains the player's
             // source of explicit objective markers.
@@ -275,11 +272,8 @@ namespace Starfall
             WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="worldchronicle")
             { WorldArchivePeople();return; }
-        {
-            WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")
             { WorldInnStoryPeople(storyteller);return; }
-        {
             // Only acquaintances actually introduced by this save are named.
             string zh="莉雅把几封不同笔迹的信排在桌边。\n\n“杏寄来的信总带着药草味。你看，右下角又画了个小勺子。她怕伤员不肯喝药。”\n\n“老潮没什么耐心写信。三张纸全在催船板和粮食。他大概又把自己的晚饭让给等渡的人了。”\n\n“诺尔的字倒像是拿尺子量过。他说矿机要装一只人人都够得着的停机闸——这话可不会讨堡垒工程师喜欢。”";
             string en="Lyra lays out letters in three different hands.\n\n“An's always smell of herbs. Look, she's drawn another little spoon at the bottom. She's worried her patients won't take their medicine.”\n\n“Old Tide doesn't waste ink. Three letters asking for planks and grain. I imagine he's given his own supper to someone waiting for the ferry again.”\n\n“Noll writes like he measures each line with a ruler. He wants a shutdown lever any worker can reach. The citadel engineers won't like that.”";
@@ -303,11 +297,8 @@ namespace Starfall
             WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="worldchronicle")
             { WorldArchiveTerms();return; }
-        {
-            WorldObject storyteller=StoryDialogueSource;
             if(storyteller!=null&&storyteller.kind=="innGuest")
             { WorldInnStoryTerms(storyteller);return; }
-        {
             Dialog("莉雅 · 旧线路图","Lyra · Old Circuit Map",
                 "莉雅用指甲压住地图上交错的红线。\n\n“这些叫星根。地底下的水、热气，还有我们用的能量，都顺着它走。七处锚点就像河上的闸，要一处一处调。”\n\n“闸里最要紧的那块，是星核。拔出来拿去供城墙，别处的水就会少。星晶不一样——那是旁边结出的矿石，诺尔拿它修东西。”\n\n她敲了敲地图上画着城墙的黑方框。\n\n“屏障真能挡危险。我见过它救人。所以我才要让堡垒把账拿出来：谁在用，谁没得用？”\n\n“要是有人愿意在证词上署名，或把维修责任写进公约，纸就不再只是堡垒的一张命令。”",
                 "Lyra pins down the crossing red lines with a fingernail.\n\n“Starroot. Water, warmth, even the power we use runs through it below ground. Seven anchors keep it in check, like sluices along a river.”\n\n“Inside each anchor is a starcore. Pull it out to feed the wall, and another place runs dry. Starcrystal's different—that's the mineral growing around the lines. Noll uses it for repairs.”\n\nShe taps the black square marking the citadel.\n\n“The shield does stop danger. I've seen it save lives. That's why I want their ledgers opened. Who gets the power? Who goes without?”\n\n“A signed witness account, or a charter naming who's responsible for repairs—those are papers the citadel can't so easily throw away.”",
