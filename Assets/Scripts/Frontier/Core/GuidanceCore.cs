@@ -128,6 +128,16 @@ namespace Starfall
                 return total;
             }
         }
+        // Completion is a permanent public-health improvement, not merely a
+        // third cash payout. It upgrades the EXISTING one-herb civilian kits
+        // at all three original surveyed stops; safety and physical reach
+        // constraints do not change. Old V2 saves already carry these flags.
+        public bool CivicCourierTriageTrained
+        { get { return Has("civic_courier_all")&&CivicCourierCompleted==3; } }
+        public int CivicFieldAidHealing
+        { get { return CivicCourierTriageTrained?48:36; } }
+        public int CivicFieldAidClimateRelief
+        { get { return CivicCourierTriageTrained?35:25; } }
         // Each real parcel run has one physically placed raider. A guard
         // carries ACTOR identity, not just a numeric ID that other enemies
         // could reuse. Only the defeat flag survives V2 save/load.
@@ -365,8 +375,10 @@ namespace Starfall
                 choices.Add(C("记入旧路星图","Record in the road chart","close"));
             else
             {
-                choices.Add(C("使用巡路急救包 · 药草1",
-                    "Use field aid · 1 herb","civic_aftercare_fieldaid"));
+                choices.Add(C(
+                    "使用巡路急救 · 药草1（生命+"+CivicFieldAidHealing+"）",
+                    "Use field aid · 1 herb (+"+CivicFieldAidHealing+" HP)",
+                    "civic_aftercare_fieldaid"));
                 if(!Has("civic_waystation_stocked_"+region))
                     choices.Add(C("补充路站物资 · 木材2 / 药草1",
                         "Supply waystation · 2 timber / 1 herb","civic_waystation_stock"));
@@ -467,10 +479,12 @@ namespace Starfall
                     published+=en?
                         "\n\nThe traveler taps the sealed medicine bundle beside his bowl. “A marker never walked medicine to anyone. I only mark a delivery after the other end signs for it.” Foot deliveries: "+
                             CivicCourierCompleted+"/3."+
-                            (CivicCourierActive?" One bundle is still on the road; an armed lookout is blocking its route.":""):
+                            (CivicCourierActive?" One bundle is still on the road, awaiting a signed handoff.":"")+
+                            (CivicCourierTriageTrained?" The delivered herbs now let all three stations prepare stronger field dressings.":""):
                         "\n\n夜行旅人敲了敲汤碗旁封好的药包。“石碑不会把药送到病人手里。得等路那头的人亲自签收，我才敢画勾。” 徒步送药："+
                             CivicCourierCompleted+"/3。"+
-                            (CivicCourierActive?" 这一包还在路上，拦路弓手尚未全部排除。":"");
+                            (CivicCourierActive?" 这包药还在路上，得等收件人签字。":"")+
+                            (CivicCourierTriageTrained?" 三地都收齐了药草，路站现在能备出更结实的止血包。":"");
                 return published;
             }
             if(Has("civic_aftercare_started"))
@@ -816,18 +830,20 @@ namespace Starfall
                 // One herb per actual use. This is repeatable community
                 // treatment, not an invented free heal or timed rest skip.
                 if(!Spend(0,0,1,0,0))return true;
-                float restored=Math.Min(36f,save.maxHealth-save.health);
-                save.health=Math.Min(save.maxHealth,save.health+36f);
-                save.heat=Math.Max(0,save.heat-25f);
-                save.cold=Math.Max(0,save.cold-25f);
+                int healing=CivicFieldAidHealing;
+                int climate=CivicFieldAidClimateRelief;
+                float restored=Math.Min(healing,save.maxHealth-save.health);
+                save.health=Math.Min(save.maxHealth,save.health+healing);
+                save.heat=Math.Max(0,save.heat-climate);
+                save.cold=Math.Max(0,save.cold-climate);
                 effects.Add(new Effect("number",Position+new Point(0,-.8f),
                     .7f,L("巡路急救 +"+(int)restored,
                         "FIELD AID +"+(int)restored)));
                 sound="reward";revision++;
                 Notify("居民急救包：药草 -1，生命 +"+(int)restored+
-                    "，高温与寒冷各缓解25。",
+                    "，高温与寒冷各缓解"+climate+"。",
                     "Civilian field kit: -1 herb, +"+(int)restored+
-                    " HP, -25 heat and cold.");
+                    " HP, -"+climate+" heat and cold.");
                 return true;
             }
             bool civicAction=action=="civic_aftercare_begin"||
@@ -1470,8 +1486,8 @@ namespace Starfall
                         "Road secured. Deliver the sealed parcel at the opposite surveyed marker on foot"):
                     L("到一处已补给路站领取药包（药草1），然后徒步穿越实际道路",
                         "Accept a one-herb medical parcel at a stocked marker, then walk the real road");
-                q.reward=L("每地硬币18、经验30；三地全部完成额外碎片2；原站退货返还药草1",
-                    "Each delivery: +18 coins and +30 XP; all three: +2 shards. Return an undelivered parcel for its herb.");
+                q.reward=L("每地硬币18、经验30；三地全部完成额外碎片2，路站急救增强至生命48、冷热各-35；原站退货返还药草1",
+                    "Each delivery: +18 coins and +30 XP; all three: +2 shards and stronger one-herb field kits (+48 HP, -35 heat/cold). Undelivered parcels can be returned for one herb.");
                 return q;
             }
 

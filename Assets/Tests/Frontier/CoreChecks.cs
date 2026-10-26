@@ -1636,6 +1636,75 @@ namespace Starfall.Tests
                 restored!=null&&loaded.CanStand(restored.Position),
                 "Existing V2 medical delivery still restores its authentic live ambush");
         }
+
+        public static void CompletedPublicMedicineStrengthensRealOneHerbFieldAid(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_aftercare_waytrail_0");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject marker=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="waytrail");
+            Check(marker!=null,"The original public-aid trail marker exists");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.inventory[2]=8;
+            g.save.health=g.save.maxHealth-70f;
+            g.save.heat=80f;g.save.cold=80f;
+            Check(!g.CivicCourierTriageTrained&&
+                g.CivicFieldAidHealing==36&&g.CivicFieldAidClimateRelief==25,
+                "Unfinished parcel missions keep the original balanced one-herb field kit");
+            g.Talk(marker);
+            int choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_aftercare_fieldaid");
+            Check(choice>=0&&g.conversation.choices[choice].en.Contains("36 HP"),
+                "Untrained treatment price and effect are visible in actual sign conversation");
+            int herbs=g.save.inventory[2];
+            g.Choose(choice);
+            Check(g.save.inventory[2]==herbs-1&&
+                Math.Abs(g.save.health-(g.save.maxHealth-34f))<.001f&&
+                Math.Abs(g.save.heat-55f)<.001f&&
+                Math.Abs(g.save.cold-55f)<.001f,
+                "Physical field treatment still costs one herb and heals exactly 36 HP and 25 climate");
+            g.save.health=g.save.maxHealth-70f;
+            g.save.heat=80f;g.save.cold=80f;
+            foreach(int region in new[]{0,3,5})
+                g.save.flags.Add("civic_courier_done_"+region);
+            g.save.flags.Add("civic_courier_all");
+            Check(g.CivicCourierTriageTrained&&
+                g.CivicFieldAidHealing==48&&g.CivicFieldAidClimateRelief==35&&
+                g.GetQuest("civic_courier").reward.Contains("48"),
+                "Three authentic permanent handoffs grant a journal-visible health service upgrade");
+            g.Talk(marker);
+            choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_aftercare_fieldaid");
+            Check(choice>=0&&g.conversation.choices[choice].en.Contains("48 HP"),
+                "The existing production sign now offers the trained remedy without new NPCs");
+            herbs=g.save.inventory[2];
+            g.save.x=marker.x+14f;
+            g.Choose(choice);
+            Check(g.save.inventory[2]==herbs&&
+                Math.Abs(g.save.health-(g.save.maxHealth-70f))<.001f,
+                "A cached remote treatment choice cannot spend supplies or heal");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.Talk(marker);
+            choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_aftercare_fieldaid");
+            g.Choose(choice);
+            Check(g.save.inventory[2]==herbs-1&&
+                Math.Abs(g.save.health-(g.save.maxHealth-22f))<.001f&&
+                Math.Abs(g.save.heat-45f)<.001f&&
+                Math.Abs(g.save.cold-45f)<.001f,
+                "Earned medicine training upgrades actual HP and climate relief but never removes herb cost");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.CivicCourierTriageTrained&&
+                restored.CivicFieldAidHealing==48&&
+                restored.save.inventory[2]==herbs-1,
+                "Existing V2 flags retain trained public care after reload without changing the save schema");
+        }
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);
