@@ -301,8 +301,13 @@ public static class RuntimeCombatInputChecks
         Input.axes["Vertical"]=-step.y;
         Point before=g.Position;
         Update(app);
+        // Aim samples a living enemy at START of the frame. The enemy AI
+        // then walks later in that same world tick, so the instantaneous
+        // pre-simulation physical aim point may differ from its final foot.
+        // The live reference MUST stay pinned; the next explicit Q samples
+        // its newly moved position with exact coordinates.
         Check((g.Position-before).Length>.01f&&g.aimTarget.HasValue&&
-            (g.aimTarget.Value-selected.Position).Length<.001f &&
+            (g.aimTarget.Value-selected.Position).Length<.20f &&
             System.Object.ReferenceEquals(pinned.GetValue(app),selected),
             "Neutral right stick retains the locked target while left stick moves independently: moved="+
             (g.Position-before).Length+" pin="+
