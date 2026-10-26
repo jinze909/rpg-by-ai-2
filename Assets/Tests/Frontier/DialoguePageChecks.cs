@@ -75,7 +75,8 @@ namespace Starfall.Tests
                 Check(reportPages.Count>=2 &&
                     reportPages[0].EndsWith("\r\n") &&
                     DialogueLayout.VisiblePageText(reportPages[0])
-                        .Split(new[]{"\r\n"},StringSplitOptions.None).Length==8 &&
+                        .Split(new[]{"\r\n"},StringSplitOptions.None).Length==
+                            (large?7:8) &&
                     !DialogueLayout.VisiblePageText(reportPages[0]).EndsWith("\r") &&
                     string.Concat(reportPages.ToArray())==report,
                     "Original paragraph breaks remain exact but never draw a phantom ninth line");
