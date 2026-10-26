@@ -13,6 +13,9 @@ namespace Starfall
         private float skywatchPulseTime;
         private int skywatchPulseCycle;
         private bool skywatchGroundingUsed;
+        // Only one urgent countdown alert per genuine 85-second world trial.
+        // It resets with the transient arena, not in SaveData.
+        private bool skywatchFifteenSecondWarning;
         // A missing enemy is not a Boss victory. Persist only the normal
         // original completion flag after the actual lethal combat callback.
         private bool skywatchKillConfirmed;
@@ -36,18 +39,20 @@ namespace Starfall
         public string SkywatchCombatCue(Enemy actor)
         {
             if(!IsSkywatchEnemy(actor))return "";
+            string clock=L("剩余 ","TIME ")+
+                Math.Max(0,(int)Math.Ceiling(SkywatchTime))+"s · ";
             if(SkywatchGroundingTime>0f)
-                return L("冰光已压制 · ","FROST SUPPRESSED · ")+
+                return clock+L("冰光已压制 · ","FROST SUPPRESSED · ")+
                     (int)Math.Ceiling(SkywatchGroundingTime)+"s";
             if(SkywatchGroundingAvailable &&
                 (Position-ObjectPoint(7,"skyobservatory",
                     new Point(-100,-100))).Length<=2.2f)
-                return L("棱镜接地可用 · 耐力25",
+                return clock+L("棱镜接地可用 · 耐力25",
                     "GROUNDING READY · 25 ENERGY");
             if(!skywatchGroundingUsed)
-                return L("靠近观星台 · 接地可打断冰光",
+                return clock+L("靠近观星台 · 接地可打断冰光",
                     "REACH ALTAR · GROUND TO INTERRUPT");
-            return L("接地已使用 · 闪避冰光落点",
+            return clock+L("接地已使用 · 闪避冰光落点",
                 "GROUNDING SPENT · DODGE FROST");
         }
         private void OnSkywatchEnemyDefeated(Enemy guardian)
@@ -80,6 +85,7 @@ namespace Starfall
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;
             skywatchGroundingUsed = false; skywatchKillConfirmed = false;
+            skywatchFifteenSecondWarning = false;
             SkywatchGroundingTime = 0;
         }
         private bool SkywatchReady()
@@ -431,6 +437,7 @@ namespace Starfall
                 SkywatchRoom=7; SkywatchTime=85;
                 skywatchPulseTime=2.6f; skywatchPulseCycle=0;
                 skywatchGroundingUsed=false; SkywatchGroundingTime=0;
+                skywatchFifteenSecondWarning=false;
                 Enemy guardian=new Enemy(89701,2,spawn.x,spawn.y,240,true);
                 guardian.timer=1.05f;
                 skywatchGuardian=guardian;
@@ -491,6 +498,15 @@ namespace Starfall
                 Notify("观星台重新封闭。棱镜读数保留，可免费重试。",
                     "The observatory resealed. Prism readings remain; retry freely.");
                 return;
+            }
+            if(SkywatchTime<=15f&&!skywatchFifteenSecondWarning)
+            {
+                skywatchFifteenSecondWarning=true;
+                effects.Add(new Effect("number",Position,.85f,
+                    L("观星台即将关闭","15s TO RESEAL")));
+                sound="windup";revision++;
+                Notify("观星台还剩15秒就会关闭！尽快击败真正的守卫。",
+                    "Observatory reseals in 15 seconds! Defeat the live guardian now.");
             }
             skywatchPulseTime-=dt;
             if (skywatchPulseTime>0) return;

@@ -7501,6 +7501,7 @@ public static class RuntimeCombatInputChecks
         Set(app,"camera",game.Position);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("Ancient Skywatch Guardian"))&&
+            GUI.commands.Exists(s=>s.Contains("TIME 85s"))&&
             GUI.commands.Exists(s=>s.Contains("GROUNDING READY"))&&
             !GUI.commands.Exists(s=>s.Contains(game.CurrentBoss.en)),
             "Actual optional Guardian wins Boss HUD against a same-ID stranger and gets true localized combat counterplay");
@@ -7510,8 +7511,26 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("FROST SUPPRESSED")),
             "Live Boss HUD switches to the authentic short frost suppression window");
+        var timer=typeof(GameCore).GetField(
+            "<SkywatchTime>k__BackingField",Private);
+        Check(timer!=null,"The observatory time remains GameCore-owned");
+        timer.SetValue(game,15.1f);
+        var update=typeof(GameCore).GetMethod("TickSkywatch",Private);
+        update.Invoke(game,new object[]{.2f});
+        Check(game.SkywatchTime>14.8f&&game.SkywatchTime<15f&&
+            game.toastEn.Contains("15 seconds")&&
+            game.effects.Exists(e=>e.kind=="number"&&e.text.Contains("15s")),
+            "Actual world-time 15-second threshold emits a visible audible urgent battle warning");
+        update.Invoke(game,new object[]{.1f});
+        Check(game.effects.FindAll(e=>e.kind=="number"&&
+            e.text.Contains("15s")).Count==1,
+            "Urgent observatory warning occurs once, not every world frame");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(s=>s.Contains("TIME 15s")),
+            "Live Boss bar uses the exact authoritative countdown after simulation");
         game.save.english=false;GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("古观星守卫"))&&
+            GUI.commands.Exists(s=>s.Contains("剩余 15s"))&&
             GUI.commands.Exists(s=>s.Contains("冰光已压制")),
             "Original gameplay HUD presents the real elite and interactive counterplay in Chinese");
         // The fake Boss cannot hide the real defeat handoff or steal

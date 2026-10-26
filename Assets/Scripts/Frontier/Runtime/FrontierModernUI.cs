@@ -430,7 +430,8 @@ namespace Starfall
                     TextAnchor.MiddleCenter);
                 if(observatory)
                     Text(403,641,474,13,Game.SkywatchCombatCue(boss),
-                        11,mint,TextAnchor.MiddleCenter);
+                        11,Game.SkywatchTime<=15f?gold:mint,
+                        TextAnchor.MiddleCenter);
                 Bar(403,656,474,boss.hp/boss.maxHp,PixelArt.C("#d28b86"),5);
                 Bar(403,666,474,boss.stagger/95,mint,3);
             }
