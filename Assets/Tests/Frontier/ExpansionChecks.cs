@@ -4152,6 +4152,56 @@ namespace Starfall.Tests
                 "Old V2 save reload retains genuine enemies and progress, never a transient alarm");
         }
 
+        public static void RidgeWatchSearchesReportedContactWithoutSeeingThroughCover(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var ids=(Dictionary<int,int>)typeof(GameCore).GetField(
+                "ridgeWatchIds",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(g);
+            var damage=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var pursuit=typeof(GameCore).GetMethod("RidgeWatchPursuitFoot",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Enemy source=null;
+            foreach(Enemy candidate in g.enemies)
+                if(ids.ContainsKey(candidate.id)&&ids[candidate.id]==0)
+                {source=candidate;break;}
+            Check(source!=null&&pursuit!=null,
+                "Reported-foot search is hooked to the actual mapped ridge actors");
+            // A real damage transaction reports this original standing
+            // position. Relocating the hero afterwards cannot move the
+            // previously reported strike location.
+            Point seen=g.Position;
+            damage.Invoke(g,new object[]{source,1f,false,null,null});
+            Check(g.RidgeWatchCallPending,
+                "An authentic hit starts a whistle without immediate response");
+            g.save.x=12.5f;g.save.y=14.5f;
+            for(int i=0;i<19;i++)g.Tick(.05f,new Point());
+            Check(g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount>=1,
+                "An alive caller finishes the signal through the normal world clock");
+            Point remote=new Point(12.5f,14.5f);
+            Point investigate=(Point)pursuit.Invoke(g,new object[]{source,remote});
+            Check((investigate-seen).Length<.001f&&
+                (investigate-remote).Length>5f,
+                "The squad investigates the genuine old injury position rather than the live distant hero");
+            Point close=source.Position+new Point(.6f,0f);
+            if(g.CanStand(close))
+                Check(((Point)pursuit.Invoke(g,new object[]{source,close})-close).Length<.001f,
+                    "Reacquiring a nearby visible hero restores ordinary live combat");
+            // A fresh REAL hit while the alarm is active records the new
+            // player's foot; merely moving does not change the report.
+            Point updated=g.Position;
+            damage.Invoke(g,new object[]{source,1f,false,null,null});
+            Check(((Point)pursuit.Invoke(g,new object[]{source,seen})-updated).Length<.001f,
+                "Only a second actual damage event updates the shared enemy sighting");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
+                "Reload clears only transient squad investigation data, preserving old saves");
+        }
         public static void RidgeWatchWhistleCanBeSilencedBeforeBackupArrives(Campaign data)
         {
             var g=Unlocked(data);

@@ -46,6 +46,10 @@ namespace Starfall
         private float ridgeWatchAlarmSeconds;
         private Enemy ridgeWatchCaller;
         private float ridgeWatchCallSeconds;
+        // The reported sighting is an actual hero foot at the time of an
+        // authentic damage contact. Hearing a whistle does not give unseen
+        // patrols permanent access to the hero's changing coordinates.
+        private Point ridgeWatchReportedHeroFoot;
         // An actual injured body must FINISH its telegraphed warning:
         // defeating or stunning it beforehand stops the reinforcement.
         public bool RidgeWatchCallPending
@@ -79,11 +83,25 @@ namespace Starfall
         private bool RidgeWatchRespondsToAlarm(Enemy e)
         { return RidgeWatchAlarmActive&&ridgeWatchResponders.Contains(e)&&
             IsActiveRidgeWatchPatrol(e); }
+        private Point RidgeWatchPursuitFoot(Enemy enemy,Point heroFoot)
+        {
+            if(!RidgeWatchRespondsToAlarm(enemy))return heroFoot;
+            // Normal close/visible aggro resumes naturally. Otherwise the
+            // responder searches the ACTUAL reported strike location,
+            // never a live coordinate behind sealed terrain or across town.
+            if((enemy.Position-heroFoot).Length<=8f&&
+                ClearAttackPath(enemy.Position,heroFoot))return heroFoot;
+            return CanStand(ridgeWatchReportedHeroFoot)?
+                ridgeWatchReportedHeroFoot:enemy.Position;
+        }
         private void AlertRidgeWatchOnRealHit(Enemy struck)
         {
             if(!IsActiveRidgeWatchPatrol(struck))return;
             if(RidgeWatchAlarmActive)
             {
+                // A NEW genuine incoming hit supplies fresh information.
+                // Hidden movement alone never updates the squad's sighting.
+                ridgeWatchReportedHeroFoot=Position;
                 ridgeWatchAlarmSeconds=Math.Max(ridgeWatchAlarmSeconds,3f);
                 return;
             }
@@ -91,6 +109,7 @@ namespace Starfall
             if(ridgeWatchCaller!=null||struck.stun>.0001f)return;
             ridgeWatchCaller=struck;
             ridgeWatchCallSeconds=.85f;
+            ridgeWatchReportedHeroFoot=Position;
             effects.Add(new Effect("number",struck.Position,.85f,
                 L("巡敌正在呼援！","PATROL CALLING!")));
             revision++;
@@ -126,6 +145,7 @@ namespace Starfall
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
             ridgeWatchResponders.Clear();ridgeWatchAlarmSeconds=0f;
             ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
+            ridgeWatchReportedHeroFoot=new Point();
             ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
         }
         public int RidgeWatchProgress(int room)

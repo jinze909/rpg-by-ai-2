@@ -1826,7 +1826,8 @@ namespace Starfall
                     wardAttacker ? (wardBow ? Position :
                         ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
-                    reliefAttacker || escortPatrol ? reliefFollowerPosition : Position;
+                    reliefAttacker || escortPatrol ? reliefFollowerPosition :
+                    RidgeWatchPursuitFoot(e,Position);
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
