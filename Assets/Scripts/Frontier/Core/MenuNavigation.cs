@@ -15,6 +15,8 @@ namespace Starfall
     public sealed class MapTileCursor
     {
         private int tileX,tileY,width,height;
+        private int axisX,axisY;
+        private float axisHeld;
         public bool Active { get; private set; }
         public Point Destination { get { return new Point(tileX+.5f,tileY+.5f); } }
         public void Begin(Point position,int mapWidth,int mapHeight)
@@ -34,7 +36,33 @@ namespace Starfall
             tileX=(int)Math.Max(0L,Math.Min((long)width-1,(long)tileX+dx));
             tileY=(int)Math.Max(0L,Math.Min((long)height-1,(long)tileY+dy));
         }
-        public void Cancel(){Active=false;tileX=tileY=width=height=0;}
+        // D-pad/stick travel is initially precise. Repeating the SAME held
+        // direction for .65s accelerates across the 120x80 field without
+        // accelerating a fresh tap or a direction reversal. The caller owns
+        // the actual repeat cadence; this state only chooses distance.
+        // Both personal waypoint and companion-post editors use this cursor.
+        public bool MoveAxis(int dx,int dy,float dt,bool repeatReady)
+        {
+            if(!Active)return false;
+            if(dx==0&&dy==0)
+            {axisX=axisY=0;axisHeld=0f;return false;}
+            if(dx!=0){dx=Math.Sign(dx);dy=0;}
+            else dy=Math.Sign(dy);
+            if(dx!=axisX||dy!=axisY)
+            {axisX=dx;axisY=dy;axisHeld=0f;}
+            else if(!float.IsNaN(dt)&&!float.IsInfinity(dt))
+                axisHeld=Math.Min(2f,axisHeld+Math.Max(0f,dt));
+            if(!repeatReady)return false;
+            Point before=Destination;
+            int stride=axisHeld>=.65f?6:1;
+            Move(dx*stride,dy*stride);
+            return (Destination-before).Length>.001f;
+        }
+        public void Cancel()
+        {
+            Active=false;tileX=tileY=width=height=0;
+            axisX=axisY=0;axisHeld=0f;
+        }
     }
     public sealed class MenuNavigation
     {

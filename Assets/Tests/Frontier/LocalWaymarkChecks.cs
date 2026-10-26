@@ -202,6 +202,44 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void HeldMapAxisAcceleratesWithoutSkippingNewTargets(Campaign data)
+        {
+            // Production FrontierInput feeds this exact cursor once per frame
+            // for both manual walking pins and companion hold-post editing.
+            var cursor=new MapTileCursor();
+            cursor.Begin(new Point(8.5f,8.5f),120,80);
+            Check(cursor.MoveAxis(1,0,.02f,true)&&
+                (cursor.Destination-new Point(9.5f,8.5f)).Length<.001f,
+                "A new analog direction moves exactly one tile for accurate nearby pin placement");
+            for(int i=0;i<35;i++)
+                Check(!cursor.MoveAxis(1,0,.02f,false),
+                    "Debounced held frames never move a second tile or accept an accidental waypoint");
+            Check(cursor.MoveAxis(1,0,.02f,true)&&
+                (cursor.Destination-new Point(15.5f,8.5f)).Length<.001f,
+                "Sustained axis travel jumps six tiles on large 120-wide maps");
+            Check(!cursor.MoveAxis(0,0,.02f,false)&&
+                cursor.MoveAxis(-1,0,.02f,true)&&
+                (cursor.Destination-new Point(14.5f,8.5f)).Length<.001f,
+                "Releasing and reversing immediately restores single-cell precision");
+            for(int i=0;i<38;i++)cursor.MoveAxis(-1,0,.02f,false);
+            Check(cursor.MoveAxis(-1,0,.02f,true)&&
+                (cursor.Destination-new Point(8.5f,8.5f)).Length<.001f,
+                "Held reverse direction independently earns accelerated travel");
+            cursor.Cancel();
+            cursor.Begin(new Point(119.5f,79.5f),120,80);
+            Check(!cursor.MoveAxis(1,0,.8f,true)&&
+                (cursor.Destination-new Point(119.5f,79.5f)).Length<.001f,
+                "Fast axis input is clamped at the real map edge without false movement");
+            cursor.Begin(new Point(8.5f,8.5f),120,80);
+            Check(cursor.MoveAxis(0,-1,.02f,true)&&
+                (cursor.Destination-new Point(8.5f,7.5f)).Length<.001f,
+                "Reopening a different map edit never inherits a previous long hold");
+            cursor.Cancel();
+            Check(!cursor.MoveAxis(1,0,.02f,true)&&!cursor.Active,
+                "Inactive map selection cannot silently mutate a pin or hold-post target");
+        }
+
         public static void WaymarkPreviewUsesSameFullBodyRouteAndNeverCommitsGameplay(Campaign data)
         {
             MapData old=data.maps[1];

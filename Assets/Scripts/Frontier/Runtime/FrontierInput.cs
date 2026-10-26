@@ -120,18 +120,26 @@ namespace Starfall
                         mapAxisY=Input.GetAxisRaw("Debug Vertical");
                     if(Math.Abs(mapAxisX)<.5f&&Math.Abs(mapAxisY)<.5f)
                     {mapAxisX=Input.GetAxisRaw("Horizontal");mapAxisY=Input.GetAxisRaw("Vertical");}
-                    if(moveX==0&&moveY==0&&navigationRepeat<=0f&&
-                        (Math.Abs(mapAxisX)>.5f||Math.Abs(mapAxisY)>.5f))
+                    // Track a held axis every frame, including debounce
+                    // frames; otherwise it never reaches accelerated travel.
+                    // Explicit arrow/shoulder presses always keep their own
+                    // precise six-tile modifier and never double-step with
+                    // the same physical key's Unity axis mapping.
+                    int axisX=0,axisY=0;
+                    if(Math.Abs(mapAxisX)>.5f||Math.Abs(mapAxisY)>.5f)
                     {
-                        if(Math.Abs(mapAxisX)>Math.Abs(mapAxisY))moveX=Math.Sign(mapAxisX);
-                        else moveY=-Math.Sign(mapAxisY);
-                        navigationRepeat=.14f;
+                        if(Math.Abs(mapAxisX)>Math.Abs(mapAxisY))
+                            axisX=Math.Sign(mapAxisX);
+                        else axisY=-Math.Sign(mapAxisY);
                     }
-                    if(moveX!=0||moveY!=0)
-                    {
+                    bool direct=moveX!=0||moveY!=0;
+                    bool repeat=!direct&&navigationRepeat<=0f;
+                    bool axisMoved=mapTileCursor.MoveAxis(axisX,axisY,dt,repeat);
+                    if(direct)
                         mapTileCursor.Move(moveX,moveY);
-                        Game.sound="ui";
-                    }
+                    if(direct || repeat&&(axisX!=0||axisY!=0))
+                        navigationRepeat=.14f;
+                    if(direct||axisMoved)Game.sound="ui";
                     return;
                 }
             }
