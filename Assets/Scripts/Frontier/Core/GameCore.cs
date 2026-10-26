@@ -3109,6 +3109,9 @@ namespace Starfall
                 if (mode == "dialog" && conversation != previousConversation &&
                     (o.kind == "guild" || o.kind == "innGuest"))
                     AppendStoryBridgeChoice();
+                if (mode == "dialog" && conversation != previousConversation &&
+                    o.kind == "guild")
+                    AppendGuildSupplyReceiptChoice();
                 // This applies regardless of which preexisting shelter
                 // conversation owns the source (civic duties included).
                 if(mode=="dialog"&&conversation!=previousConversation&&
@@ -3721,6 +3724,85 @@ namespace Starfall
                 Dialog(b.name, b.en, save.room == 4 ? (Has("triad_complete") ? "你带来了三核审计的原始记录。厄洛终于看到森林、河流与矿工分别失去的份额。他沉默了一阵，却仍握住武器：如果停下这道屏障，谁来保护里面的孩子？让我看看你的勇气，而不是另一道命令。\n\n" : "") + "厄洛：我见过屏障熄灭的那一晚。孩子们冻得发抖，我一个一个把他们抱进避难室。我发誓再也不让城墙倒下。\n\n你说星核在抽干城外的村庄？我知道。但现在停机，又该让谁在下一场灾害里死去？如果你有能真正运转的办法，就让我看见；否则先打败我。" : "守护者仍依照失控的星根旧指令驱赶靠近者。地面预警标出它即将攻击的区域。闪避后反击，并查清这一带的机关为何不能停止。", save.room == 4 ? (Has("triad_complete") ? "Your original audit lists the forests, rivers and miners stripped of their share. Orrin sees the accounts and falls silent, but grips his weapon: Who protects the children inside if the shield stops? Show me courage, not another command.\n\n" : "") + "Orrin: I remember the night the lights died. I carried freezing children into shelter, one by one. I swore no wall would fall again.\n\nYou say the cores are draining the villages? I know. But if I stop the shield now, who dies in the next storm? Show me an alternative that actually works—or defeat me first." : "The guardian still obeys an unstable ancient starroot command. Ground warnings reveal its next real contacts. Dodge and counter, then investigate why the regional machinery cannot stop.", C(save.room == 4 ? "为边境而战" : "开始挑战", save.room == 4 ? "Fight for the frontier" : "Challenge the guardian", "boss"), C("准备一下", "Prepare first", "close"));
             }
         }
+        // Starcore handoffs MUST continue the story even at storage caps.
+        // The original immediate rewards still saturate as before, while
+        // exact unpaid remainders are saved in the existing v2 string flags.
+        // An old save has no debt flags and requires no migration.
+        private const string GuildSupplyDebtPrefix="guild_supply_due_";
+        private bool FindGuildSupplyDebt(out string receipt,out int[] due)
+        {
+            receipt=null;due=null;
+            foreach(string entry in save.flags)
+            {
+                if(!entry.StartsWith(GuildSupplyDebtPrefix,
+                    StringComparison.Ordinal))continue;
+                string[] parts=entry.Substring(
+                    GuildSupplyDebtPrefix.Length).Split('_');
+                if(parts.Length!=5)continue;
+                int[] numbers=new int[5];
+                bool valid=true;
+                for(int i=0;i<numbers.Length;i++)
+                    if(!int.TryParse(parts[i],out numbers[i]))
+                    {valid=false;break;}
+                if(!valid||numbers[0]<1||numbers[0]>save.stage||
+                    numbers[0]>3||numbers[1]<0||numbers[1]>40||
+                    numbers[2]<0||numbers[2]>1||
+                    numbers[3]<0||numbers[3]>3||
+                    numbers[4]<0||numbers[4]>2||
+                    numbers[1]+numbers[2]+numbers[3]+numbers[4]==0)
+                    continue;
+                receipt=entry;
+                due=new[]{numbers[1],numbers[2],numbers[3],numbers[4]};
+                return true;
+            }
+            return false;
+        }
+        private void AppendGuildSupplyReceiptChoice()
+        {
+            string receipt;int[] due;
+            if(mode!="dialog"||conversation==null||
+                !FindGuildSupplyDebt(out receipt,out due))return;
+            Choice[] current=conversation.choices;
+            if(current==null)return;
+            foreach(Choice choice in current)
+                if(choice.action=="guild_supply_claim")return;
+            int at=current.Length;
+            if(at>0&&current[at-1].action=="close")at--;
+            Choice[] next=new Choice[current.Length+1];
+            Array.Copy(current,0,next,0,at);
+            next[at]=C("领取公会暂存的星核补给",
+                "Claim reserved starcore supplies","guild_supply_claim");
+            Array.Copy(current,at,next,at+1,current.Length-at);
+            conversation.choices=next;
+        }
+        private void ClaimGuildSupplyReceipt()
+        {
+            WorldObject lyra=pendingDialogueSource;
+            if(lyra==null||lyra.kind!="guild"||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(lyra)||
+                !HasPhysicalInteractionReach(lyra))return;
+            string receipt;int[] due;
+            if(!FindGuildSupplyDebt(out receipt,out due))return;
+            if(save.coins>999999-due[0]||
+                save.inventory[6]>9999-due[1]||
+                save.inventory[0]>9999-due[2]||
+                save.inventory[1]>9999-due[3])
+            {
+                Notify("公会保留了你未领取的星核补给。还需腾出硬币、炖汤、木材或星晶空间。",
+                    "Lyra kept your unpaid starcore supplies. Make room for the remaining coins, stew, timber or starcrystals.");
+                return;
+            }
+            // Spend this exact historical receipt before paying any item.
+            // Multiple original chapters can each leave one independent
+            // claim, but none may be repeated or forged remotely.
+            save.flags.Remove(receipt);
+            CreditCoins(due[0]);CreditInventory(6,due[1]);
+            CreditInventory(0,due[2]);CreditInventory(1,due[3]);
+            revision++;sound="reward";
+            Notify("公会暂存补给已经交清。星核记录与当前章节均未改变。",
+                "All reserved starcore supplies have been claimed. Chapter progress is unchanged.");
+        }
         // Progress and rewards must already match v1/v2 save caps BEFORE a
         // save is written, not be quietly truncated at the next Load().
         // Use long arithmetic for large accumulated Abyss payouts.
@@ -3995,6 +4077,8 @@ namespace Starfall
             if (ChooseExpansion(action)) return;
             if (ChooseLastDirective(action)) return;
             if (ChooseCivicConduit(action)) return;
+            if (action == "guild_supply_claim")
+            { ClaimGuildSupplyReceipt(); return; }
             if (action == "close") return;
             if (action.StartsWith("goto")) { Enter(int.Parse(action.Substring(4))); return; }
             if (action == "routes") { OpenRoutesMap(); return; }
@@ -4097,30 +4181,26 @@ namespace Starfall
             }
             if (action == "deliver" && save.stage < 3 && Has("core_" + (save.stage + 1)))
             {
-                // This is a one-time MAIN-STORY handoff. Advancing the saved
-                // chapter first would silently truncate currency and supply
-                // stacks at their v2 limits, with no way to reclaim them.
-                // Keep the real starcore unfiled until Lyra can hand over ALL
-                // four original rewards together. The original guild choice
-                // remains available on the next dialogue.
-                if(save.coins>999999-40)
-                {
-                    Notify("公会补给还包含40硬币。先腾出钱包空间，星核暂由你保管。",
-                        "Lyra's chapter supplies include 40 coins. Make wallet room; you still hold the starcore.");
-                    return;
-                }
-                if(!HasInventoryRoom(6,1)||!HasInventoryRoom(0,3)||
-                   !HasInventoryRoom(1,2))
-                {
-                    Notify("公会补给还有炖汤1、木材3、星晶2。请先腾出背包空间，再交回星核。",
-                        "Guild supplies include a stew, three timber and two starcrystals. Make bag room before handing in the starcore.");
-                    return;
-                }
+                // Preserve the established story transition at any wallet
+                // capacity. Credit each resource up to its original v2 cap;
+                // reserve only the uncredited amounts for later physical
+                // collection from the SAME guild NPC.
+                int missingCoins=Math.Max(0,40-Math.Max(0,999999-save.coins));
+                int missingStew=Math.Max(0,1-Math.Max(0,9999-save.inventory[6]));
+                int missingWood=Math.Max(0,3-Math.Max(0,9999-save.inventory[0]));
+                int missingCrystal=Math.Max(0,2-Math.Max(0,9999-save.inventory[1]));
                 save.stage++;
                 CreditCoins(40);CreditInventory(6,1);
                 CreditInventory(0,3);CreditInventory(1,2);
+                if(missingCoins+missingStew+missingWood+missingCrystal>0)
+                    Flag(GuildSupplyDebtPrefix+save.stage+"_"+missingCoins+
+                        "_"+missingStew+"_"+missingWood+"_"+missingCrystal);
                 revision++;sound="reward";
-                Notify("新章节开启！获得硬币、材料与一份炖汤。",
+                Notify(missingCoins+missingStew+missingWood+missingCrystal>0?
+                    "星核已交付，新章节开启！装不下的补给已由莉雅暂存，可稍后补领。":
+                    "新章节开启！获得硬币、材料与一份炖汤。",
+                    missingCoins+missingStew+missingWood+missingCrystal>0?
+                    "Starcore delivered; next chapter unlocked. Lyra reserved the supplies that did not fit your wallet.":
                     "New chapter! Coins, materials and a warm stew received.");
             }
             if (action.StartsWith("ally"))

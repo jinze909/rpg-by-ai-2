@@ -34,36 +34,51 @@ namespace Starfall.Tests
             g.save.flags.Add("core_1");
             WorldObject lyra=Object(g,"guild");
             g.save.coins=999999;
-            g.save.inventory[6]=9998;
-            g.save.inventory[0]=9996;
-            g.save.inventory[1]=9997;
-            int stage=g.save.stage;
+            g.save.inventory[6]=9999;
+            g.save.inventory[0]=9998;
+            g.save.inventory[1]=9998;
+            int originalStage=g.save.stage;
             TalkNearObject(g,lyra);
             ChooseStoryChoice(g,"deliver");
-            Check(g.save.stage==stage&&g.save.coins==999999&&
-                g.save.inventory[6]==9998&&g.save.inventory[0]==9996&&
-                g.save.inventory[1]==9997&&g.Has("core_1"),
-                "Full coin wallet cannot prematurely consume a main-story starcore or forfeit its chapter rewards");
-            g.save.coins=999959;
-            g.save.inventory[6]=9999;
-            g.Close();TalkNearObject(g,lyra);
-            ChooseStoryChoice(g,"deliver");
-            Check(g.save.stage==stage&&g.save.coins==999959&&
-                g.save.inventory[6]==9999&&g.Has("core_1"),
-                "A full stew stack likewise preserves the unopened chapter supply handoff");
-            g.save.inventory[6]=9998;
-            g.Close();TalkNearObject(g,lyra);
-            ChooseStoryChoice(g,"deliver");
-            Check(g.save.stage==stage+1&&
+            Check(g.save.stage==originalStage+1&&g.Has("core_1")&&
                 g.save.coins==999999&&g.save.inventory[6]==9999&&
-                g.save.inventory[0]==9999&&g.save.inventory[1]==9999,
-                "At the actual four exact v2 reward caps, Lyra advances the main chapter and pays every original supply");
+                g.save.inventory[0]==9999&&g.save.inventory[1]==9999&&
+                g.save.flags.Exists(flag=>flag.StartsWith("guild_supply_due_")),
+                "Main story progresses at full caps, credits available materials and retains exactly the uncredited amounts");
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
-            Check(loaded.save.version==2&&loaded.save.stage==stage+1&&
+            Check(loaded.save.version==2&&
+                loaded.save.stage==originalStage+1&&
+                loaded.save.flags.Exists(flag=>flag.StartsWith("guild_supply_due_")),
+                "The unpaid original supply receipt survives v2 reload without reverting chapter progress");
+            loaded.Close();loaded.enemies.Clear();
+            loaded.save.coins=999960;
+            loaded.save.inventory[6]=9998;
+            loaded.save.inventory[0]=9997;
+            loaded.save.inventory[1]=9998;
+            TalkNearObject(loaded,lyra);
+            Check(StoryChoicePresent(loaded,"guild_supply_claim"),
+                "Lyra actually offers the outstanding core-supply receipt in her real in-world menu");
+            ChooseStoryChoice(loaded,"guild_supply_claim");
+            Check(loaded.save.coins==999960&&
+                loaded.save.flags.Exists(flag=>flag.StartsWith("guild_supply_due_")),
+                "One coin short of the stored remainder leaves the entire receipt intact");
+            loaded.save.coins=999959;
+            loaded.Close();TalkNearObject(loaded,lyra);
+            ChooseStoryChoice(loaded,"guild_supply_claim");
+            Check(loaded.save.stage==originalStage+1&&
                 loaded.save.coins==999999&&loaded.save.inventory[6]==9999&&
-                loaded.save.inventory[0]==9999&&loaded.save.inventory[1]==9999,
-                "The authentic chapter and each full payout survive old-format save reload with no schema migration");
+                loaded.save.inventory[0]==9999&&loaded.save.inventory[1]==9999&&
+                !loaded.save.flags.Exists(flag=>flag.StartsWith("guild_supply_due_")),
+                "The original full chapter bundle settles once at exact capacities after a physical guild handoff");
+            loaded.Close();TalkNearObject(loaded,lyra);
+            Check(!StoryChoicePresent(loaded,"guild_supply_claim"),
+                "After real receipt settlement no second free supply option may be shown");
+            loaded.PrepareSave();
+            var final=new GameCore(data,CloneSave(loaded.save));
+            Check(final.save.version==2&&final.save.stage==originalStage+1&&
+                final.save.coins==999999&&final.save.inventory[6]==9999,
+                "The fully paid story reward and chapter survive another v2 save roundtrip");
         }
         public static void OpeningConversationsExplainTheSameMotivationInBothLanguages(Campaign data)
         {
