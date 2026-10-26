@@ -36,7 +36,6 @@ namespace Starfall
             for(int index=0;index<3;index++)
                 if(System.Object.ReferenceEquals(enemy,
                     TideSalvageOwnedBody(index))&&
-                    enemies.Contains(enemy)&&
                     (index<2?TideSalvagePhase>=3:TideSalvagePhase>=4))
                     tideSalvageConfirmedKills|=1<<index;
         }

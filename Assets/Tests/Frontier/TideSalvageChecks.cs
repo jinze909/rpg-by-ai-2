@@ -502,7 +502,7 @@ namespace Starfall.Tests
             Check(g.TideSalvagePhase==3&&g.TideSalvageRaidersAlive==2,
                 "The inner tide cargo creates exactly two genuine raider actor bodies");
             var genuine=g.enemies.FindAll(g.IsTideSalvageEnemy);
-            var fake=new Enemy(89924,0,second.x+5f,second.y+5f,350f)
+            var fake=new Enemy(89924,0,second.x+45f,second.y+30f,350f)
                 {stun=150f,timer=150f};
             g.enemies.Add(fake);
             Check(!g.IsTideSalvageEnemy(fake)&&
