@@ -387,10 +387,13 @@ public static class RuntimeCombatInputChecks
             Check(g.save.weapon==0&&g.mode=="inventory",
                 "Inventory modal absorbs wheel without equipment changes");
             g.mode="world";
-            Input.mousePosition=new Vector3(24,Screen.height-725,0);
+            // The bottom-left counter/status is deliberately click-through
+            // in Combat HUD. Use the actual central actionable HUD bar,
+            // which is pointer-protected in both combat and exploration.
+            Input.mousePosition=new Vector3(450,Screen.height-745,0);
             Update(app);
             Check(g.save.weapon==0,
-                "Hovering live HUD keeps scroll off world equip commands");
+                "Hovering actionable live HUD keeps scroll off world equip commands");
             Input.axes["Mouse ScrollWheel"]=0f;
             Check(g.save.version==2,
                 "Quick wheel never adds fields to original v2 saves");
