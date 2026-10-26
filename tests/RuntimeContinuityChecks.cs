@@ -107,8 +107,24 @@ public static class RuntimeContinuityChecks
                 Get<int>(audio,"active")==1-original&&
                 !town.isPlaying&&battle.isPlaying,
                 "A persistent real battle completes the original audio source handoff once");
+            int combatTrack=Get<int>(audio,"active");
+            foreach(string menu in new[]{"pause","inventory","map","journal","settings"})
+            {
+                g.mode=menu;
+                audio.Update(g,false,.4f);
+                Check(Get<int>(audio,"theme")==6&&Get<int>(audio,"pending")==-1&&
+                    Get<int>(audio,"active")==combatTrack&&battle.isPlaying,
+                    "A real living encounter keeps its music uninterrupted while browsing "+menu);
+            }
+            // Explicitly leaving the adventure must NOT keep the previous
+            // Boss score playing over the title screen.
+            g.mode="title";
+            audio.Update(g,false,1.6f);
+            Check(Get<int>(audio,"theme")==0&&Get<int>(audio,"pending")==-1&&
+                !battle.isPlaying&&town.isPlaying,
+                "The title screen retires an old living combat encounter without a saved audio flag");
         }
-        Console.WriteLine("PASS In-flight combat music reverses on genuine threat exit and resumes on re-entry (offline audio sources)");
+        Console.WriteLine("PASS Dynamic combat audio reversal, menu suspension and title exit (offline audio sources)");
     }
 
     // Registered in RuntimeCombatInputChecks.Main: its explicit case roster

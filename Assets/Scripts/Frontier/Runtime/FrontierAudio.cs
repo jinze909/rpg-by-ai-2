@@ -23,7 +23,16 @@ namespace Starfall
         { AudioClip c; if (clips.TryGetValue(key, out c)) return c; c = AudioClip.Create(key, samples.Length, 1, AudioSynthesis.Rate, false); c.SetData(samples, 0); clips[key] = c; return c; }
         public void Update(GameCore game, bool moving, float dt)
         {
-            SaveData save = game.save; bool combat = game.mode == "world" && !game.practicing && game.enemies.Exists(e => e.boss || e.state == 1 && (e.Position - game.Position).Length < 7);
+            SaveData save = game.save;
+            // Opening a backpack, map or pause does not make a living Boss
+            // disappear. Those menus suspend gameplay while the same physical
+            // encounter remains; keep its song and existing fade phase.
+            // The title has no live fight even if an old world object lingers.
+            bool encounterExists = game.mode != "title" && !game.practicing &&
+                game.enemies.Exists(e => e != null && e.hp > 0f &&
+                    (e.boss || e.state == 1 &&
+                        (e.Position - game.Position).Length < 7f));
+            bool combat = encounterExists;
             int desired = AudioSynthesis.Theme(save.room, combat);
             // Combat proximity often changes again before a 1.5-second fade
             // completes. When the original theme becomes desirable again,
