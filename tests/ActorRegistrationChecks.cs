@@ -4487,8 +4487,16 @@ public static class ActorRegistrationChecks
                     Math.Abs(body.rect.x-(screen.x-96f))<1.2f&&
                     Math.Abs(body.rect.y-(screen.y-180f))<1.2f,
                     "Fallback keeps full-body source density and unchanged 120/128 planted foot root");
-                if(state==2)Check(FrameColumn(body,4)==0,
-                    "A missing action sheet may only hold the same companion's painted idle, not fabricated contact art");
+                if(state==2)
+                {
+                    // Left-facing sprites are mirrored by UV sign, so UV.x
+                    // is the RIGHT edge of source column zero (.25), not
+                    // a different painted keyframe. Test the actual crop.
+                    float trueColumn=body.uv.x*4f-
+                        (body.uv.width<0f?1f:0f);
+                    Check(Math.Abs(trueColumn)<.001f,
+                        "Missing action art must hold the authentic source idle cell even for flipped west facings");
+                }
                 actionSheets[id]=null;
                 Clear();var missing=Draw(app,"DrawCompanionActor")
                     .Where(ActorTexture).ToArray();
