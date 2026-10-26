@@ -71,7 +71,9 @@ namespace Starfall
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
         // Live enemy reference only; never a serialized lock or reused spawn ID.
-        private Enemy controllerAimEnemy;
+        private Enemy controllerAimEnemy, controllerPinnedEnemy;
+        private SaveData controllerPinSave;
+        private int controllerPinRoom=-1, controllerPinFloor=-1;
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
@@ -150,7 +152,7 @@ namespace Starfall
             foreach(KeyCode key in keyboardControls)keyboardAction|=Input.GetKeyDown(key);
             if (pointerMoved || Input.GetMouseButton(0)||keyboardMove||keyboardAction) controllerUsed = false;
             lastPointer = pointer; pointerSeen = true;
-            for (int i = 0; i < 8; i++) if (PadDown(i)) controllerUsed = true;
+            for (int i = 0; i < 10; i++) if (PadDown(i)) controllerUsed = true;
             Point? frameAim = InputAim();
             // Hold-to-sprint never changes modal menu focus. Continuous
             // input is sampled once per rendered frame and replayed through
@@ -182,6 +184,11 @@ namespace Starfall
                 for(int slot=0;slot<3;slot++)
                     if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+slot)))
                     { Game.Equip(slot);break; }
+                // R3 is a deliberate physical target-lock toggle. This
+                // selects only a visible, attackable live enemy reference;
+                // no serialization, target IDs, damage or aim-through-walls.
+                // Process it before a same-frame Q / attack captures aim.
+                if(PadDown(9)) ToggleControllerTargetLock();
                 // Discrete actions take priority over continuously held attacks.
                 // A fresh Q after a dodge is queued; a dodge clears older intent.
                 if ((Input.GetKeyDown(KeyCode.Space) || PadDown(0))) Game.Dash(movement);
@@ -382,24 +389,72 @@ namespace Starfall
             }
             return target;
         }
+        private void ClearControllerTargetLock()
+        {
+            controllerPinnedEnemy=null;controllerPinSave=null;
+            controllerPinRoom=controllerPinFloor=-1;
+        }
+        private bool ControllerTargetLockValid()
+        {
+            if(controllerPinnedEnemy==null)return false;
+            if(!System.Object.ReferenceEquals(controllerPinSave,Game.save)||
+                controllerPinRoom!=Game.save.room||
+                controllerPinFloor!=Game.save.abyssFloor||
+                !Game.enemies.Contains(controllerPinnedEnemy)||
+                controllerPinnedEnemy.hp<=0f)
+                return false;
+            Point to=controllerPinnedEnemy.Position-Game.Position;
+            return System.Object.ReferenceEquals(
+                Game.AcquireRangedStickTarget(to,controllerPinnedEnemy),
+                controllerPinnedEnemy);
+        }
+        private void ToggleControllerTargetLock()
+        {
+            if(controllerPinnedEnemy!=null)
+            {
+                ClearControllerTargetLock();
+                // Return to ordinary twin-stick aim on the same frame.
+                InputAim();
+                return;
+            }
+            Point stick=new Point(Input.GetAxisRaw("Combat Aim Horizontal"),
+                -Input.GetAxisRaw("Combat Aim Vertical"));
+            Point look=stick.Length>=.28f?stick:Game.aim;
+            Enemy target=Game.AcquireRangedStickTarget(look);
+            if(target==null)
+            {
+                Game.Notify("前方没有可锁定的远程目标。",
+                    "No visible ranged target in front.");
+                return;
+            }
+            controllerPinnedEnemy=target;
+            controllerPinSave=Game.save;
+            controllerPinRoom=Game.save.room;
+            controllerPinFloor=Game.save.abyssFloor;
+            controllerAimEnemy=target;
+            Game.SetAimTarget(target.Position);
+            Game.SetAim((target.Position-Game.Position).Normalized);
+        }
         private Point? InputAim(bool technique=false)
         {
             if(Game.mode!="world")
             {
+                ClearControllerTargetLock();
                 controllerAimEnemy=null;Game.SetAimTarget(null);return null;
             }
+            if(controllerPinnedEnemy!=null&&!ControllerTargetLockValid())
+                ClearControllerTargetLock();
             if(controllerUsed)
             {
-                // Only a live, ranged, unobstructed foe inside the actual
-                // aiming cone receives snap. The selected world coordinate
-                // becomes the same action snapshot as a pointer click; the
-                // projectile still uses the authoritative hand attachment
-                // and fully swept physical collision.
+                // A voluntary R3 lock tracks an actual visible enemy even
+                // after the right stick returns to neutral. At invalidation
+                // instantly fall back to normal free-angle twin-stick aim.
                 Point stick=new Point(
                     Input.GetAxisRaw("Combat Aim Horizontal"),
                     -Input.GetAxisRaw("Combat Aim Vertical"));
-                controllerAimEnemy=Game.AcquireRangedStickTarget(
-                    stick,controllerAimEnemy);
+                controllerAimEnemy=controllerPinnedEnemy!=null?
+                    controllerPinnedEnemy:
+                    Game.AcquireRangedStickTarget(stick,controllerAimEnemy);
                 if(controllerAimEnemy!=null)
                 {
                     Point lockedTarget=controllerAimEnemy.Position;
@@ -409,6 +464,7 @@ namespace Starfall
                 Game.SetAimTarget(null);
                 return stick.Length>=.28f?(Point?)stick.Normalized:null;
             }
+            ClearControllerTargetLock();
             controllerAimEnemy=null;
             Point mouse=MouseVirtual();
             if(PointerOverInterface(mouse))
@@ -660,12 +716,17 @@ namespace Starfall
                 Point target=controllerAimEnemy.Position;
                 if((Game.aimTarget.Value-target).Length<.02f)
                 {
+                    bool pinned=System.Object.ReferenceEquals(
+                        controllerPinnedEnemy,controllerAimEnemy);
                     Ring(target,controllerAimEnemy.boss?1.05f:.68f,
-                        new Color(.58f,.98f,.81f,.84f),24);
+                        pinned?new Color(1f,.8f,.38f,.94f):
+                            new Color(.58f,.98f,.81f,.84f),24);
                     Point at=ScreenPoint(target);
                     Text(at.x-37,at.y-(controllerAimEnemy.boss?94:72),
-                        74,17,Game.L("瞄准","FOCUS"),11,
-                        new Color(.67f,1f,.87f),
+                        74,17,pinned?Game.L("锁定","LOCK"):
+                            Game.L("瞄准","FOCUS"),11,
+                        pinned?new Color(1f,.91f,.57f):
+                            new Color(.67f,1f,.87f),
                         TextAnchor.MiddleCenter);
                 }
             }
