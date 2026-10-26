@@ -1107,6 +1107,15 @@ namespace Starfall
                                 Game.L("补给 · 木材2 药草1",
                                     "SUPPLY · 2 TIMBER 1 HERB"),
                             10,supplied?mint:gold,TextAnchor.MiddleCenter);
+                        // Show the genuine available PUBLIC transport only
+                        // after another independent region has been funded.
+                        // Small static label: no replacing the authored
+                        // obelisk sprite, no fake vehicle or moving marker.
+                        if(supplied&&Game.CivicWaystationCount>=2)
+                            Text(p.x-89,p.y-163,178,19,
+                                Game.L("按 E 查看接驳线路",
+                                    "E · PUBLIC SHUTTLES"),
+                                10,gold,TextAnchor.MiddleCenter);
                     }
                 }
                 return;

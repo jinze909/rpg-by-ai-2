@@ -28,6 +28,7 @@ namespace Starfall.Tests
         [Test] public void FundedCivicWaystationShuttleUsesRealRegionsAndPreservesV2Save() { CoreChecks.StockedWaystationShuttlesReallyTransferBetweenOriginalRegions(Data()); }
         [Test] public void PhysicallyConnectedLocalCivicShuttleChargesAndLandsAtRealSisterMarker() { CoreChecks.CivicLocalShuttlesHonorTheRealWalkableRoadAndCompanionFoot(Data()); }
         [Test] public void WaystationDispatchRosterBoardsFromAuthenticSecondPage() { CoreChecks.RealWaystationRosterCanBookASecondDialoguePageSecurely(Data()); }
+        [Test] public void TownInnAndJournalExplainActualCivicShuttleRoutes() { CoreChecks.CivicShuttleIsExplainedByRealInnAndCompletedBuildingJournal(Data()); }
         [Test] public void EightDistantSheltersRecognizeActualCivilianMedicineRecipients() { CoreChecks.EightCourierReceiptsAppearOnlyAfterActualRegionalDeliveryFlags(Data()); }
         [Test] public void CombatStewCannotBeSpammedOrWastedAtFullResources() { CoreChecks.StewCooldownPreventsCombatSpamAndDoesNotWasteFullMeals(Data()); }
         [Test] public void IntactCourierMedicineRestoresOnlyItsReceivingRefuge() { CoreChecks.IntactMedicineImprovesPaidRestOnlyAtReceivingRefuge(Data()); }

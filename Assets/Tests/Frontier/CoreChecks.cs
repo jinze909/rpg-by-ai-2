@@ -1560,6 +1560,41 @@ namespace Starfall.Tests
                 "V2 reload preserves paid local transit without new serialized shuttle state");
         }
 
+        public static void CivicShuttleIsExplainedByRealInnAndCompletedBuildingJournal(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            g.save.flags.Add("civic_waystation_stocked_3");
+            QuestGuide unfinished=g.GetQuest("civic_waystations");
+            Check(!unfinished.locked&&!unfinished.complete&&
+                unfinished.next.Contains("Shuttles now run")&&
+                unfinished.reward.Contains("Shuttles:"),
+                "The genuine journal announces running transit after the second funded station");
+            g.Enter(9);g.enemies.Clear();
+            WorldObject traveler=Array.Find(g.Map.objects,
+                o=>o.kind=="innGuest"&&o.id=="innTraveler");
+            Check(traveler!=null,"The original night traveler remains in the real inn hub");
+            g.save.x=traveler.x;g.save.y=traveler.y;
+            ReadInnNews(g,traveler);
+            Check(g.conversation!=null&&
+                g.conversation.textEn.Contains("public shuttle")&&
+                g.conversation.textEn.Contains("5 coins")&&
+                g.conversation.text.Contains("接驳车")&&
+                g.save.version==2,
+                "The physical inn story explains authenticated fare and active service in both languages");
+            g.Close();
+            g.save.flags.Add("civic_waystation_stocked_5");
+            g.save.flags.Add("civic_waystations_complete");
+            QuestGuide completed=g.GetQuest("civic_waystations");
+            Check(completed.complete&&
+                completed.next.Contains("civic shuttle")&&
+                completed.reward.Contains("2 coins/10 energy"),
+                "The completed building project retains permanent service and concrete fare information");
+        }
+
         public static void RealWaystationRosterCanBookASecondDialoguePageSecurely(Campaign data)
         {
             var g=Unlocked(data);

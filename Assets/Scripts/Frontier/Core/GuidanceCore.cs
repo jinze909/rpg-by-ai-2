@@ -177,9 +177,16 @@ namespace Starfall
         private string CivicAftercareInnNote(bool en)
         {
             if(Has("civic_aftercare_published"))
-                return en?
+            {
+                string published=en?
                     "\n\nThe three-region road audit is now on the public record. Markers at Canal, Ironreach and Mistport now hold civilian field kits. One herb treats wounds and reduces dangerous heat/cold exposure at a secure stop.":
                     "\n\n三地巡路复核已列入公开记录。引水渠、赤铁矿场与雾港的路标现在备有居民急救包；在安全地点使用一份药草，就能处理伤口、缓解高温与寒冷。";
+                if(CivicWaystationCount>=2)
+                    published+=en?
+                        "\n\nThe public shuttle now runs between stocked road markers. A regional ticket costs 5 coins and 20 energy; a surveyed local ride costs 2 coins and 10 energy. Raiders on the road stop service.":
+                        "\n\n备齐物资的路站之间已经通了接驳车。跨地区车票5硬币、20体力；本地已测绘短途2硬币、10体力。路上有袭击者，车夫就不会发车。";
+                return published;
+            }
             if(Has("civic_aftercare_started"))
                 return en?
                     "\n\nThe road audit is still underway: "+CivicAftercareWaypointCount+"/3 regional markers verified. Bring the remaining field notes back here to publish the record.":
@@ -1130,15 +1137,18 @@ namespace Starfall
                     ObjectPoint(9,"innGuest",new Point(20,12)):
                     ObjectPoint(next,"waytrail",new Point(18,15));
                 q.next=q.complete?
-                    L("三地居民路站已全部补给，旧路标成为安全的恢复地点",
-                        "All three stations supplied; original markers offer safe recovery"):
+                    L("三地路站已全部补给。旧路标既可安全恢复，也能搭乘公共接驳车往返三地",
+                        "All three stations supplied. Heal safely or ride the civic shuttle between original markers"):
                     q.locked?
                     L("先完成公共电网和三地巡路复核的公开归档",
                         "Restore the grid and publish the three-region audit first"):
+                    CivicWaystationCount>=2?
+                    L("已补给路站之间有接驳车。继续去剩余地区交付木材2、药草1",
+                        "Shuttles now run between supplied regions. Deliver 2 timber and 1 herb to the remaining region"):
                     L("在指定地区亲自与旧路标交互，交付木材2和药草1",
                         "Visit the marked region and deliver 2 timber and 1 herb at an original trail marker");
-                q.reward=L("每地永久安全恢复：生命+0.95/秒、体力+3/秒、冷热各-4/秒；三地额外硬币30、碎片1、经验45",
-                    "Each region: safe +0.95 HP/sec, +3 energy/sec, -4 heat/cold per sec near markers; all three: +30 coins, +1 shard, +45 XP");
+                q.reward=L("每地安全恢复：生命+0.95/秒、体力+3/秒、冷热各-4/秒；接驳跨区5硬币/20体力、本地2硬币/10体力；三地额外硬币30、碎片1、经验45",
+                    "Each region: safe +0.95 HP/sec, +3 energy/sec, -4 heat/cold/sec. Shuttles: 5 coins/20 energy across regions, 2 coins/10 energy locally; all three: +30 coins, +1 shard, +45 XP");
                 return q;
             }
 
