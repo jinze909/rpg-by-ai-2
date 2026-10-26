@@ -293,10 +293,18 @@ namespace Starfall
         private void RetireDefeatedGuardianProjectiles(Enemy defeated)
         {
             if(defeated==null)return;
+            // Legacy/scripted missiles may not have a shooter reference.
+            // After the LAST living foe has truly fallen, those orphan
+            // hostile contacts can no longer be attributed to an active
+            // encounter and must not haunt the cleared arena. With a
+            // surviving attacker, retain them; its own live shots certainly
+            // must not disappear when another actor's Boss is defeated.
+            bool noLivingFoes=!enemies.Exists(e=>e!=null&&e.hp>0f);
             foreach(Projectile shot in projectiles.ToArray())
             {
                 if(shot==null||shot.friendly||
-                    !Object.ReferenceEquals(shot.hostileShooter,defeated))
+                    !(Object.ReferenceEquals(shot.hostileShooter,defeated)||
+                      noLivingFoes&&shot.hostileShooter==null))
                     continue;
                 projectiles.Remove(shot);
                 effects.Add(new Effect("projectileFade",shot.position,.25f)
