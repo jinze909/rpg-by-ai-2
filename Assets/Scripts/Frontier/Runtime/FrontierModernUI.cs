@@ -1407,7 +1407,7 @@ namespace Starfall
             }
             var pages = dialoguePages;
             dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
-            Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, pages[dialoguePage], 19, paper);
+            Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, DialogueLayout.VisiblePageText(pages[dialoguePage]), 19, paper);
             if (pages.Count > 1)
             {
                 Text(320, 497, 349, 26, Game.L("对话页 ", "Page ") +

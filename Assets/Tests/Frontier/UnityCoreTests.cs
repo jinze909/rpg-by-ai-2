@@ -55,6 +55,7 @@ namespace Starfall.Tests
         [Test] public void ChronicleFollowUpsRemainWrittenRecordsNotAnotherNpc() { CoreChecks.WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Data()); }
         [Test] public void InnTravelerStoryDoesNotSwapToGuildSteward() { CoreChecks.InnStoryFollowUpsRemainInTravelersOwnVoice(Data()); }
         [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }
+        [Test] public void DialogueParagraphsAndEllipsesDoNotClipOrOrphanInGame() { CoreChecks.DialoguePagesRespectParagraphLinesAndCompleteEllipses(Data()); }
         [Test] public void StationedAllyInterposesTwoRealPhysicalStockContacts() { CoreChecks.RealStationedCompanionHasTwoFinitePhysicalStockGuards(Data()); }
         [Test] public void PartySwapClearsPriorCompanionsPhysicalGuardOrder() { CoreChecks.CompanionPartySwapCannotInheritAnotherAllysDefenseOrder(Data()); }
         [Test] public void CompanionAutoAttackCannotFireDeadOrEscapedTargets() { CoreChecks.CompanionCancelledAutoContactNeverFiresAtDeadOrLostTarget(Data()); }

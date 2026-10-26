@@ -24,11 +24,15 @@ namespace Starfall
         // must not be broken merely because a line's estimated width expired.
         private static bool DialogueSentenceStop(char c, string text, int next)
         {
-            if(c=='.' && next<text.Length && char.IsDigit(text[next])) return false;
-            return "。！？!?；;.".IndexOf(c)>=0;
+            // A decimal point is not a sentence. Neither is the first or
+            // middle dot in an English ellipsis: choose the WHOLE pause,
+            // including its closing quotation, as a natural page boundary.
+            if(c=='.' && next<text.Length &&
+                (char.IsDigit(text[next]) || text[next]=='.')) return false;
+            return "。！？!?；;.…".IndexOf(c)>=0;
         }
         private static bool DialogueClosing(char c)
-        { return "，。、！？：；）】”’」』,.!?;:%)]".IndexOf(c)>=0; }
+        { return "，。、！？：；）】”’」』,.!?;:%)]…".IndexOf(c)>=0; }
         private static bool DialogueOpening(char c)
         { return "（【“‘「『(".IndexOf(c)>=0; }
         private static bool DialogueCombining(char c)
@@ -44,6 +48,12 @@ namespace Starfall
             return previous>0 && char.IsLowSurrogate(text[previous]) &&
                 char.IsHighSurrogate(text[previous-1]) ? previous-1 : previous;
         }
+        // Pagination preserves the exact original CR/LF characters for
+        // dialogue history and save-neutral rereading. A separator consumed
+        // as page eight's final paragraph break must not render a phantom
+        // ninth line inside the fixed-size shipped dialogue card.
+        public static string VisiblePageText(string page)
+        { return (page ?? "").TrimEnd('\r','\n'); }
         public static List<string> Pages(string text, bool largeText = false)
         {
             var pages=new List<string>();
