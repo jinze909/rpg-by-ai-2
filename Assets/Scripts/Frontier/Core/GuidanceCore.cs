@@ -2809,7 +2809,10 @@ namespace Starfall
                 q.room=5;
                 q.target=ObjectPoint(5,!TideSalvageActive || TideSalvagePhase==4?
                     "tidedock":"tidecargo"+TideSalvagePhase,new Point(10.5f,14.5f));
-                q.next=q.complete?L("公共稳潮模型已安装，观测站的控潮延长15秒","Public tide model extends Tidewatch holds by 15 seconds"):
+                q.next=TideSalvageRewardPending?
+                    L("水位模型已公开 · 回到托兰码头领取暂存的奖励",
+                        "Tide model published · claim reserved rewards at Tolan's dock"):
+                    q.complete?L("公共稳潮模型已安装，观测站的控潮延长15秒","Public tide model extends Tidewatch holds by 15 seconds"):
                     q.locked?L("先完成雾港事故调查并提交米拉","First finish and file Mistport's tide investigation"):
                     !TideSalvageActive?L("到渡船码头趁低潮发起打捞","Launch at the ferry dock during low tide"):
                     TideSalvagePhase==4?L("击退掠夺者后回码头交付全部货物","Defeat the raiders and return all cargo"):

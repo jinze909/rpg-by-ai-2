@@ -400,6 +400,93 @@ namespace Starfall.Tests
                 "The tidebound HUD and real ferry use existing v2 world clocks without extra saved fields");
         }
 
+
+        public static void TideboundCompletedCargoKeepsFullWalletRewardsClaimableAtDock(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;g.save.xp=0;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();g.invulnerable=250f;
+            WorldObject dock=Object(g,"tidedock"),a=Object(g,"tidecargo1"),
+                b=Object(g,"tidecargo2"),c=Object(g,"tidecargo3");
+            g.save.coins=999995;g.save.shards=99998;
+            g.save.skillPoints=99;
+            int xp=g.save.xp;
+            g.save.totalTime=0;g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            g.save.x=a.x;g.save.y=a.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            g.save.x=b.x;g.save.y=b.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            g.save.totalTime=36;g.save.x=c.x;g.save.y=c.y;
+            Action(g,"tidecargo3","tide_salvage_take_3");
+            var raiders=g.enemies.FindAll(g.IsTideSalvageEnemy);
+            Check(g.TideSalvagePhase==4&&raiders.Count==3,
+                "The real three-crate expedition spawns both authentic inner-shoal raiders and island guard");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The canonical combat lethal-contact handler is present");
+            foreach(Enemy foe in raiders)
+                hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+            Check(g.TideSalvageCargoReady,
+                "Actual separate raider deaths, not manipulated mission flags, secure every manifest");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_finish");
+            Check(g.Has("tide_salvage_complete")&&
+                !g.TideSalvageActive&&g.TideSalvageRewardPending&&
+                g.TidewatchHoldSeconds==60&&g.save.coins==999999&&
+                g.save.shards==99999&&g.save.skillPoints==99&&
+                g.save.xp==xp+75,
+                "Real cargo reaches villagers and permanently improves tide holds while only uncredited rewards wait");
+            Check(g.GetQuest("tide_salvage").complete&&
+                g.GetQuest("tide_salvage").next.Contains("暂存"),
+                "The authentic public journal guides the player back to Tolan for the unpaid reward");
+            var choose=typeof(GameCore).GetMethod("ChooseTideSalvage",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"The original dock claims through the canonical quest action");
+            g.save.x=c.x;g.save.y=c.y;
+            choose.Invoke(g,new object[]{"tide_salvage_claim"});
+            Check(g.TideSalvageRewardPending&&g.save.coins==999999&&
+                g.save.shards==99999,
+                "A forged remote claim cannot steal the saved reward from another shoal");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));saved.Start();
+            Check(saved.save.version==2&&saved.TideSalvageRewardPending&&
+                saved.Has("tide_salvage_complete")&&saved.TidewatchHoldSeconds==60,
+                "The unpaid ledger, actual victory and upgrade all persist in unchanged SaveData v2");
+            saved.enemies.Clear();
+            saved.save.x=dock.x;saved.save.y=dock.y;
+            saved.save.coins=999944;saved.save.shards=99997;
+            saved.save.skillPoints=98;
+            saved.Talk(dock);
+            Check(saved.conversation!=null&&
+                Array.Exists(saved.conversation.choices,
+                    choice=>choice.action=="tide_salvage_claim"),
+                "Original living ferryman offers a physical reward-claim choice after reload");
+            Action(saved,"tidedock","tide_salvage_claim");
+            Check(saved.TideSalvageRewardPending&&saved.save.coins==999944&&
+                saved.save.shards==99997&&saved.save.skillPoints==98,
+                "One coin less than the owed amount preserves the entire one-time ledger");
+            saved.save.coins=999943;
+            Action(saved,"tidedock","tide_salvage_claim");
+            Check(!saved.TideSalvageRewardPending&&
+                saved.save.coins==999999&&saved.save.shards==99999&&
+                saved.save.skillPoints==99&&saved.save.xp==xp+75&&
+                saved.Has("tide_salvage_complete"),
+                "Real player clears exactly enough capacity and Tolan pays the outstanding 56 coins, two shards and one talent once");
+            Action(saved,"tidedock","tide_salvage_claim");
+            Check(saved.save.coins==999999&&saved.save.shards==99999&&
+                saved.save.skillPoints==99,
+                "A stale or repeated dock action cannot farm completed salvage rewards");
+            saved.PrepareSave();
+            var again=new GameCore(data,CloneSave(saved.save));
+            Check(again.save.version==2&&again.Has("tide_salvage_complete")&&
+                !again.TideSalvageRewardPending&&again.TidewatchHoldSeconds==60,
+                "The settled ledger cannot reappear on reload or invalidate the permanent tide model");
+        }
+
         public static void TideboundEnvironmentHudTracksRealTideCyclesAndPublicExtension(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;

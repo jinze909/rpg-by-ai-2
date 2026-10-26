@@ -59,6 +59,66 @@ namespace Starfall
                 return transition+seconds+"s";
             }
         }
+        // Delivery itself is never held hostage by a full v2 wallet:
+        // civilians get their supplies and the authentic 15-second Tidewatch
+        // improvement now. Only currency/talent that could not FIT stays
+        // on Tolan's original dock ledger, even after a save reload.
+        private const string TideSalvageReceiptPrefix="tide_salvage_reward_due_";
+        private bool FindTideSalvageReceipt(out string receipt,out int coins,
+            out int shards,out int talent)
+        {
+            receipt=null;coins=shards=talent=0;
+            if(!Has("tide_salvage_complete"))return false;
+            foreach(string flag in save.flags)
+            {
+                if(!flag.StartsWith(TideSalvageReceiptPrefix,
+                    StringComparison.Ordinal))continue;
+                string[] p=flag.Substring(
+                    TideSalvageReceiptPrefix.Length).Split('_');
+                int c,s,t;
+                if(p.Length!=3||!int.TryParse(p[0],out c)||
+                   !int.TryParse(p[1],out s)||!int.TryParse(p[2],out t)||
+                   c<0||c>60||s<0||s>3||t<0||t>1||
+                   c+s+t==0)continue;
+                receipt=flag;coins=c;shards=s;talent=t;
+                return true;
+            }
+            return false;
+        }
+        public bool TideSalvageRewardPending
+        {
+            get
+            {
+                string receipt;int coins,shards,talent;
+                return FindTideSalvageReceipt(out receipt,out coins,
+                    out shards,out talent);
+            }
+        }
+        private bool ClaimTideSalvageReward()
+        {
+            string receipt;int coins,shards,talent;
+            if(!FindTideSalvageReceipt(out receipt,out coins,
+                out shards,out talent))return false;
+            // A cached dialogue is not remote claim authority. The player
+            // must be physically able to reach the unchanged real dock.
+            if(save.room!=5||Dying||practicing||
+               !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
+                    new Point(-100,-100))))return false;
+            if(save.coins>999999-coins||save.shards>99999-shards||
+               save.skillPoints>99-talent)
+            {
+                Notify("托兰保留了你的奖励账单。请先腾出硬币、碎片或技能点容量，再到码头领取。",
+                    "Tolan kept the unpaid reward ledger. Free room for coins, shards or a talent point, then return to the dock.");
+                return false;
+            }
+            save.flags.Remove(receipt);
+            CreditCoins(coins);CreditShards(shards);
+            CreditSkillPoints(talent);
+            revision++;sound="reward";
+            Notify("托兰结清了剩余的潮滩打捞奖励。原始水位模型仍在观测站运行。",
+                "Tolan settled the outstanding salvage reward. The original tide model still runs at Tidewatch.");
+            return true;
+        }
         public bool TideSalvageActive { get { return TideSalvagePhase > 0; } }
         public int TideSalvageRaidersAlive
         {get{int count=0;foreach(Enemy e in enemies)
@@ -186,10 +246,16 @@ namespace Starfall
                 }
                 if(Has("tide_salvage_complete"))
                 {
+                    bool pending=TideSalvageRewardPending;
                     Dialog(o.name,o.en,
-                        "三份失踪货单已经公开，物资回到居民手中。潮汐观测站也更新了模型，每次固定低潮额外延长十五秒。",
-                        "All missing cargo manifests are public. The recovered tide model adds fifteen seconds to every Tidewatch low-tide hold.",
-                        C("继续出航","Sail safely","close"));return true;
+                        "三份失踪货单已经公开，物资回到居民手中。潮汐观测站也更新了模型，每次固定低潮额外延长十五秒。"+
+                        (pending?"\\n\\n托兰把装不下的报酬登记在账簿里。腾出空间后，可在这儿领回余款。":""),
+                        "All missing cargo manifests are public. The recovered tide model adds fifteen seconds to every Tidewatch low-tide hold."+
+                        (pending?"\\n\\nTolan has set aside the reward your wallet could not carry. Return here when there is room.":""),
+                        pending?C("领取暂存的打捞奖励","Claim reserved salvage reward",
+                            "tide_salvage_claim"):
+                            C("继续出航","Sail safely","close"),
+                        C("离开码头","Leave dock","close"));return true;
                 }
                 if(!TideSalvageActive)
                 {
@@ -262,6 +328,10 @@ namespace Starfall
         }
         private bool ChooseTideSalvage(string action)
         {
+            if(action=="tide_salvage_claim")
+            {
+                ClaimTideSalvageReward();return true;
+            }
             if(action=="tide_salvage_track")
             {
                 if(Has("harbor_report"))TrackQuest("tide_salvage");
@@ -360,13 +430,28 @@ namespace Starfall
                     !CanReachTideSalvagePoint(ObjectPoint(5,"tidedock",
                         new Point(-100,-100))))
                     return true;
+                // The true delivered manifests and Tidewatch upgrade
+                // complete NOW, regardless of the player's full wallet.
+                // Record only the unpaid fractions, not the entire prize:
+                // earlier caps, XP and equipment remain unmodified.
+                int unpaidCoins=Math.Max(0,60-Math.Max(0,999999-save.coins));
+                int unpaidShards=Math.Max(0,3-Math.Max(0,99999-save.shards));
+                int unpaidTalent=save.skillPoints>=99?1:0;
                 ResetTideSalvage();
                 Flag("tide_salvage_complete");
                 CreditCoins(60);CreditShards(3);CreditSkillPoints(1);
-                AddXp(75);revision++;sound="reward";
+                AddXp(75);
+                if(unpaidCoins+unpaidShards+unpaidTalent>0)
+                    Flag(TideSalvageReceiptPrefix+unpaidCoins+"_"+
+                        unpaidShards+"_"+unpaidTalent);
+                revision++;sound="reward";
                 RecordMoment("潮缚货单公开：医药、粮食、航道不再被算作报废货损。",
                     "Tidebound Manifest published: medicine, food and safe passage no longer count as lost freight.");
-                Notify("潮缚货单完成！60硬币、3碎片、1天赋点、75经验；稳潮时长永久+15秒。",
+                Notify(unpaidCoins+unpaidShards+unpaidTalent>0?
+                    "潮缚货单完成！稳潮永久+15秒；经验+75。未能装下的货币和天赋奖励已由托兰暂存。":
+                    "潮缚货单完成！60硬币、3碎片、1天赋点、75经验；稳潮时长永久+15秒。",
+                    unpaidCoins+unpaidShards+unpaidTalent>0?
+                    "Tidebound Manifest complete! +75 XP and permanent +15s tide holds. Tolan reserved any currency or talent that did not fit.":
                     "Tidebound Manifest complete! +60 coins, +3 shards, +1 talent, +75 XP; Tidewatch holds +15s.");
                 return true;
             }
