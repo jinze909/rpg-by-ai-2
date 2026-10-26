@@ -459,5 +459,119 @@ namespace Starfall.Tests
                 "Stale objective intent never becomes a free shot guard or a save migration");
         }
 
+
+        public static void ReliefWatchAutoFireActuallyTagsAndRetiresItsCacheProtection(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            Check(g.save.companion==1,"An actual bow companion joins on safe ground before the siege");
+            var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            Check(post!=null,"The real rescue watch has its own physical cache");
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(begin>=0,"Earned outpost defense can actually be started");
+            g.Choose(begin);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "The live standard two-raider combat starts with its original ownership");
+            Enemy raider=g.enemies.Find(e=>e.kind==0);
+            Check(raider!=null,"The live original melee saboteur exists");
+            var select=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var fireLane=typeof(GameCore).GetMethod("CompanionAutoFlightLaneClear",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var stockThreat=typeof(GameCore).GetMethod("OuterPatrolUncoveredStockStrike",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var cadence=typeof(GameCore).GetField("companionAttack",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var reset=typeof(GameCore).GetMethod("ResetOuterPatrol",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(select!=null&&fireLane!=null&&stockThreat!=null&&
+                cadence!=null&&reset!=null,
+                "Actual AI selection, firing attachment, released watchshot and clean withdrawal exist");
+            Point station=new Point(post.x,post.y);
+            Point[] near={new Point(-2,0),new Point(2,0),
+                new Point(0,-2),new Point(0,2)};
+            Point[] allySteps={new Point(-2,0),new Point(2,0),
+                new Point(0,-2),new Point(0,2),
+                new Point(-3,0),new Point(3,0)};
+            bool placed=false;
+            foreach(Point step in near)
+            {
+                Point raiderFoot=station+step;
+                if(!g.CanStand(raiderFoot))continue;
+                raider.x=raiderFoot.x;raider.y=raiderFoot.y;
+                raider.state=1;raider.timer=.9f;
+                raider.windupDuration=.9f;raider.stun=0f;raider.hitTime=0f;
+                raider.staggerRecovery=20f;
+                raider.targetingOuterPatrolStock=true;raider.target=station;
+                raider.Face(station-raider.Position);
+                foreach(Point escape in new[]{new Point(-4,0),new Point(4,0),
+                    new Point(0,-4),new Point(0,4)})
+                {
+                    Point heroFoot=station+escape;
+                    if(!g.CanStand(heroFoot)||
+                        (heroFoot-raiderFoot).Length<=2.8f)continue;
+                    g.save.x=heroFoot.x;g.save.y=heroFoot.y;
+                    if(!(bool)stockThreat.Invoke(g,new object[]{raider}))continue;
+                    foreach(Point allyStep in allySteps)
+                    {
+                        Point allyFoot=raiderFoot+allyStep;
+                        if(!g.CanStand(allyFoot))continue;
+                        if(!(bool)fireLane.Invoke(g,new object[]{allyFoot,1,
+                            raider.Position}))continue;
+                        g.companionPosition=allyFoot;
+                        if(System.Object.ReferenceEquals(select.Invoke(g,null),raider))
+                        {placed=true;break;}
+                    }
+                    if(placed)break;
+                }
+                if(placed)break;
+            }
+            Check(placed,
+                "A real arrow-ready ally can identify the earliest unguarded cache strike");
+            g.invulnerable=1000f;
+            cadence.SetValue(g,0f);
+            g.Tick(.02f,new Point());
+            Check(g.companionAction!=null&&
+                g.companionAction.kind=="attack",
+                "The actual ally autonomously commits a bow attack on the living raider");
+            Projectile released=null;
+            for(int frame=0;frame<22&&released==null;frame++)
+            {
+                g.Tick(.02f,new Point());
+                released=g.projectiles.Find(p=>
+                    System.Object.ReferenceEquals(p.patrolCoverTarget,raider));
+                if(raider.state!=1)break;
+            }
+            Check(released!=null&&released.friendly&&
+                released.outerPatrolOwned&&
+                System.Object.ReferenceEquals(released.patrolCoverSave,g.save)&&
+                System.Object.ReferenceEquals(released.patrolCoverMap,g.Map)&&
+                released.patrolCoverRoom==g.save.room&&
+                g.CompanionPatrolCoverInFlight,
+                "The genuine released companion shot retains exact objective and actor identity before collision");
+            var bystander=new Projectile {
+                friendly=true,life=5f,position=g.Position,
+                velocity=new Point(1f,0),damage=1f,visual="arrow"
+            };
+            g.projectiles.Add(bystander);
+            reset.Invoke(g,null);
+            Check(!g.OuterPatrolActive&&
+                !g.projectiles.Contains(released)&&
+                g.projectiles.Contains(bystander)&&
+                !g.CompanionPatrolCoverInFlight&&
+                g.save.version==2,
+                "Stopping the live siege retires its automatic protective shot, not other arrows or v2 saves");
+        }
+
     }
 }
