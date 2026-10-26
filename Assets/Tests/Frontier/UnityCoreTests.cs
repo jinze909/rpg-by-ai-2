@@ -34,6 +34,7 @@ namespace Starfall.Tests
         [Test] public void RemoteRescueLightsShelterAgainstRealClimateOnlyOnSafeNearSide() { CoreChecks.RestoredRemoteWarningLampsReallyShelterAgainstRegionClimate(Data()); }
         [Test] public void RepairedSignalsActuallyProvidePhysicalSafeFieldCare() { CoreChecks.RepairedOuterBeaconsProvideActualSafeNearsideRespite(Data()); }
         [Test] public void ChokedArchersWaitForMovingAlliesBeforeRealShoot() { CoreChecks.NoSideLaneArchersWaitForMovingFrontlineWithoutBodyWarp(Data()); }
+        [Test] public void BossBodyCoverForcesRealArcherFlanksAndAbsorbsActualHostileArrow() { CoreChecks.BossBodiesBlockOrdinaryHostileArrowsAndForceArcherFlanks(Data()); }
         [Test] public void EnemyArchersSidestepActualFriendlyBodiesBeforeOpeningFire() { CoreChecks.ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Data()); }
         [Test] public void OrdinaryEnemyArrowsReallyStopAtEarlierLivingEnemyBodies() { CoreChecks.HostileArrowsHavePhysicalFrontlineCoverWithoutFalseCredit(Data()); }
         [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }

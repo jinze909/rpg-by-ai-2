@@ -2183,6 +2183,87 @@ namespace Starfall.Tests
             finally{data.maps[0]=previous;}
         }
 
+        public static void BossBodiesBlockOrdinaryHostileArrowsAndForceArcherFlanks(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] line=new string('#',25).ToCharArray();
+                    for(int x=2;x<=22;x++)if(y>=2&&y<=22)line[x]='.';
+                    rows[y]=new string(line);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=16.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);game.enemies.Clear();
+                game.save.x=16.5f;game.save.y=10.5f;
+                game.invulnerable=100f;
+                var bow=new Enemy(82911,1,10.5f,10.5f,200){timer=0f};
+                var boss=new Enemy(82912,2,13.5f,10.5f,500,true)
+                    {timer=100f,stun=100f};
+                game.enemies.Add(bow);game.enemies.Add(boss);
+                var lane=typeof(GameCore).GetMethod("EnemyBowFlightLaneClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var terrain=typeof(GameCore).GetMethod("PhysicalBowLaneFromFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(lane!=null&&terrain!=null&&
+                    (bool)terrain.Invoke(game,new object[]{bow.Position,game.Position})&&
+                    !(bool)lane.Invoke(game,new object[]{bow,game.Position}),
+                    "A walkable and terrain-clear arrow lane is still physically blocked by a living Boss");
+                game.Tick(.05f,new Point());
+                Check(bow.state==0&&bow.moving&&Math.Abs(bow.y-10.5f)>.01f&&
+                    game.CanStand(bow.Position),
+                    "Rear archer physically walks sideways rather than winding an arrow through Boss cover");
+                bool ready=false;
+                for(int i=0;i<140&&!ready;i++)
+                {
+                    game.Tick(.05f,new Point());
+                    ready=bow.state==1;
+                }
+                Check(ready&&(bool)lane.Invoke(game,new object[]{bow,game.Position})&&
+                    game.CanStand(bow.Position)&&
+                    (bow.Position-boss.Position).Length>.95f,
+                    "Rear bowman earns an actual clear side firing foot on open ground");
+                Check(game.save.version==2,"Boss-side bow tactics remain transient across old save slots");
+            }
+            finally{data.maps[0]=original;}
+
+            var fight=Fresh(data);fight.Enter(1);fight.enemies.Clear();
+            fight.save.x=15;fight.save.y=14;fight.invulnerable=0;
+            var shooter=new Enemy(82921,1,10,14,100){stun=100,timer=100};
+            var guardian=new Enemy(82922,2,13,14,450,true)
+                {stun=100,timer=100};
+            fight.enemies.Add(shooter);fight.enemies.Add(guardian);
+            Check(fight.CanStand(shooter.Position)&&fight.CanStand(guardian.Position),
+                "Boss-arrow contact uses actual authored forest combat footing");
+            float hp=fight.save.health,guardHp=guardian.hp;
+            int coins=fight.save.coins,xp=fight.save.xp;
+            var shot=new Projectile{position=new Point(12.25f,14),
+                velocity=new Point(10,0),life=1,damage=17,source="shot",
+                visual="enemyArrow",hostileShooter=shooter};
+            fight.projectiles.Add(shot);
+            for(int tick=0;tick<12&&fight.projectiles.Contains(shot);tick++)
+                fight.Tick(.05f,new Point());
+            Check(!fight.projectiles.Contains(shot)&&
+                fight.effects.Exists(e=>e.kind=="number"&&
+                    e.text==fight.L("箭被前排挡下","FRONTLINE COVER")),
+                "An in-flight ordinary arrow physically strikes the guardian before the hero");
+            Check(fight.save.health==hp&&guardian.hp==guardHp&&
+                fight.save.coins==coins&&fight.save.xp==xp,
+                "Ally Boss cover never awards a fake kill, gold, XP or friendly-fire damage");
+            guardian.x=16.2f;fight.effects.Clear();
+            var leading=new Projectile{position=new Point(14.35f,14),
+                velocity=new Point(10,0),life=1,damage=12,source="shot",
+                visual="enemyArrow",hostileShooter=shooter};
+            fight.projectiles.Add(leading);fight.Tick(.05f,new Point());
+            Check(fight.save.health<hp&&!fight.projectiles.Contains(leading),
+                "Boss behind the hero cannot steal the actual leading victim's hit");
+        }
+
         public static void ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Campaign data)
         {
             MapData original=data.maps[0];

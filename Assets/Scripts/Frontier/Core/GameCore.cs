@@ -1474,11 +1474,12 @@ namespace Starfall
             float victimEntry=length-.38f;
             foreach(Enemy other in enemies)
             {
-                if(other==null||other.hp<=0||other.boss||
+                if(other==null||other.hp<=0||
                     Object.ReferenceEquals(other,shooter)||
                     !CanStand(other.Position))continue;
                 Point delta=other.Position-arrow.position;
-                float radius=.5f+arrow.Radius;
+                // Living Bosses have wide bodies, not transparent arrow lanes.
+                float radius=(other.boss?.9f:.5f)+arrow.Radius;
                 float along=delta.x*forward.x+delta.y*forward.y;
                 if(along+radius<=0f)continue;
                 float perp=delta.x*forward.y-delta.y*forward.x;
@@ -2295,7 +2296,7 @@ namespace Starfall
                     reliefFollowerPosition,.45f)+.00001f <
                 ProjectileCircleEntry(p.position,p.velocity,Position,.38f));
             // Ordinary hostile arrows, unlike magical Boss projectiles, can
-            // strike another raider's actual body before the player. This
+            // strike another living hostile body, including a Boss, before the player. This
             // creates genuine moving cover: no ally damage, kill credit or
             // synthetic reward is minted, and the shooter cannot block its
             // own muzzle. Look up actor REFERENCES, never overlapping IDs.
@@ -2307,10 +2308,11 @@ namespace Starfall
             if(p.visual=="enemyArrow"&&p.hostileShooter!=null)
                 foreach(Enemy candidate in enemies)
                 {
-                    if(candidate==null||candidate.hp<=0f||candidate.boss||
+                    if(candidate==null||candidate.hp<=0f||
                         Object.ReferenceEquals(candidate,p.hostileShooter)||
                         !CanStand(candidate.Position))continue;
-                    float radius=.5f+p.Radius;
+                    // Swept flight and bow anticipation share Boss silhouette.
+                    float radius=(candidate.boss?.9f:.5f)+p.Radius;
                     if((candidate.Position-p.position).Length>=radius||
                         !ClearAttackPath(p.position,candidate.Position))continue;
                     float entry=ProjectileCircleEntry(p.position,p.velocity,
