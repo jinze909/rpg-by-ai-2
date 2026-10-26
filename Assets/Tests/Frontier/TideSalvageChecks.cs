@@ -450,6 +450,63 @@ namespace Starfall.Tests
                 "The real natural tide cycle reopens salvage routes without changing map tiles or resetting the mission");
         }
 
+
+        public static void TideboundEnemyOwnershipRejectsSameIdSpoofsAndKeepsOtherActors(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();g.invulnerable=200f;
+            WorldObject dock=Object(g,"tidedock"),first=Object(g,"tidecargo1"),
+                second=Object(g,"tidecargo2");
+            g.save.totalTime=0;
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            g.save.x=second.x;g.save.y=second.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            Check(g.TideSalvagePhase==3&&g.TideSalvageRaidersAlive==2,
+                "The inner tide cargo creates exactly two genuine raider actor bodies");
+            var genuine=g.enemies.FindAll(g.IsTideSalvageEnemy);
+            var fake=new Enemy(89924,0,second.x+5f,second.y+5f,350f)
+                {stun=150f,timer=150f};
+            g.enemies.Add(fake);
+            Check(!g.IsTideSalvageEnemy(fake)&&
+                g.IsTideSalvageEnemy(genuine[0])&&
+                g.TideSalvageRaidersAlive==2,
+                "Matching the reserved numeric spawn ID cannot counterfeit raider ownership or survivor counts");
+            var callback=typeof(GameCore).GetMethod(
+                "OnTideSalvageEnemyDefeated",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(callback!=null,"The authentic combat-kill path exposes the tracked raid callback");
+            callback.Invoke(g,new object[]{fake});
+            Check(g.TideSalvageRaidersAlive==2&&!g.TideSalvageCargoReady,
+                "A fake kill callback cannot earn actual tide cargo combat credit");
+            g.enemies.Remove(genuine[0]);
+            g.Tick(.05f,new Point());
+            Check(!g.TideSalvageActive&&!g.Has("tide_salvage_complete")&&
+                g.enemies.Contains(fake)&&!g.IsTideSalvageEnemy(fake),
+                "An impostor with the same ID cannot replace a missing genuine fighter and is never deleted by quest rollback");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_start");
+            Check(g.TideSalvageActive,
+                "The mission remains retryable after the genuine owned raider disappeared");
+            g.save.x=first.x;g.save.y=first.y;
+            Action(g,"tidecargo1","tide_salvage_take_1");
+            g.save.x=second.x;g.save.y=second.y;
+            Action(g,"tidecargo2","tide_salvage_take_2");
+            Check(g.TideSalvageRaidersAlive==2&&g.enemies.Contains(fake),
+                "A new run generates fresh identities independent of the preserved unrelated ID collision");
+            g.save.x=dock.x;g.save.y=dock.y;
+            Action(g,"tidedock","tide_salvage_abandon");
+            Check(!g.TideSalvageActive&&g.TideSalvageRaidersAlive==0&&
+                g.enemies.Contains(fake)&&!g.Has("tide_salvage_complete")&&
+                g.save.version==2,
+                "Player withdrawal deletes only this sortie's original bodies and keeps unrelated world actors and old saves");
+        }
+
         public static void TideboundCargoCannotPublishUnconfirmedRaiderDisappearances(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=18;

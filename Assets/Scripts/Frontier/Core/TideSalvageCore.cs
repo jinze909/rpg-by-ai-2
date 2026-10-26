@@ -13,16 +13,32 @@ namespace Starfall
         // IDs 89924/89925 escort the inner shoal; 89926 guards the island.
         // Their verified death records are mission-local, never persisted.
         private int tideSalvageConfirmedKills;
+        // Actual unsaved actor bodies, not the shared integer spawn labels.
+        // Ownership survives through lethal callbacks and is released on
+        // retry/abort. Fake same-ID enemies cannot earn cargo credit.
+        private Enemy tideSalvageInnerA,tideSalvageInnerB,tideSalvageIsland;
+        private Enemy TideSalvageOwnedBody(int index)
+        {return index==0?tideSalvageInnerA:
+            index==1?tideSalvageInnerB:tideSalvageIsland;}
+        private bool TideSalvageBodyAlive(Enemy e)
+        {return e!=null&&e.hp>0&&enemies.Contains(e);}
+        private bool TideSalvageMissingRealRaider(int index)
+        {
+            return (tideSalvageConfirmedKills&(1<<index))==0&&
+                !TideSalvageBodyAlive(TideSalvageOwnedBody(index));
+        }
         private bool TideSalvageRaidersDefeated
         { get { return tideSalvageConfirmedKills==7; } }
         private void OnTideSalvageEnemyDefeated(Enemy enemy)
         {
             if(!TideSalvageActive||save.room!=5||
                 !IsTideSalvageEnemy(enemy))return;
-            int index=enemy.id-89924;
-            if(index>=0&&index<3&&
-                (index<2?TideSalvagePhase>=3:TideSalvagePhase>=4))
-                tideSalvageConfirmedKills|=1<<index;
+            for(int index=0;index<3;index++)
+                if(System.Object.ReferenceEquals(enemy,
+                    TideSalvageOwnedBody(index))&&
+                    enemies.Contains(enemy)&&
+                    (index<2?TideSalvagePhase>=3:TideSalvagePhase>=4))
+                    tideSalvageConfirmedKills|=1<<index;
         }
         public string TideSalvageTideHint
         {
@@ -46,7 +62,10 @@ namespace Starfall
         {get{return TideSalvagePhase==4&&
             TideSalvageRaidersDefeated&&TideSalvageRaidersAlive==0;}}
         public bool IsTideSalvageEnemy(Enemy e)
-        { return e != null && e.id >= 89920 && e.id < 89930; }
+        {return e!=null&&
+            (System.Object.ReferenceEquals(e,tideSalvageInnerA)||
+             System.Object.ReferenceEquals(e,tideSalvageInnerB)||
+             System.Object.ReferenceEquals(e,tideSalvageIsland));}
 
         private Point TideSalvageSite(int site)
         { return ObjectPoint(5,"tidecargo"+site,new Point(-100,-100)); }
@@ -61,6 +80,7 @@ namespace Starfall
             enemies.RemoveAll(IsTideSalvageEnemy);
             projectiles.RemoveAll(p => p.tideSalvageOwned);
             effects.RemoveAll(e => e.tideSalvageOwned);
+            tideSalvageInnerA=tideSalvageInnerB=tideSalvageIsland=null;
             TideSalvagePhase=0;TideSalvageTime=0;tideSalvageHoldUsed=false;
             tideSalvageConfirmedKills=0;
         }
@@ -71,8 +91,7 @@ namespace Starfall
             {ResetTideSalvage();revision++;return;}
             int expected=TideSalvagePhase==3?2:TideSalvagePhase==4?3:0;
             for(int i=0;i<expected;i++)
-                if((tideSalvageConfirmedKills&(1<<i))==0 &&
-                    !enemies.Exists(e=>e.id==89924+i&&e.hp>0))
+                if(TideSalvageMissingRealRaider(i))
                 {
                     ResetTideSalvage();revision++;
                     Notify("掠夺者异常离场，未确认击败。货物仍未送达，可重新出航。",
@@ -137,6 +156,12 @@ namespace Starfall
                     p.x,p.y,stage==3?125:75);
                 foe.timer=.85f+i*.25f;
                 enemies.Add(foe);
+                if(stage==2)
+                {
+                    if(i==0)tideSalvageInnerA=foe;
+                    else tideSalvageInnerB=foe;
+                }
+                else tideSalvageIsland=foe;
             }
             return true;
         }
