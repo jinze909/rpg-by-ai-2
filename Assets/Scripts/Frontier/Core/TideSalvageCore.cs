@@ -249,9 +249,9 @@ namespace Starfall
                     bool pending=TideSalvageRewardPending;
                     Dialog(o.name,o.en,
                         "三份失踪货单已经公开，物资回到居民手中。潮汐观测站也更新了模型，每次固定低潮额外延长十五秒。"+
-                        (pending?"\\n\\n托兰把装不下的报酬登记在账簿里。腾出空间后，可在这儿领回余款。":""),
+                        (pending?"\n\n托兰把装不下的报酬登记在账簿里。腾出空间后，可在这儿领回余款。":""),
                         "All missing cargo manifests are public. The recovered tide model adds fifteen seconds to every Tidewatch low-tide hold."+
-                        (pending?"\\n\\nTolan has set aside the reward your wallet could not carry. Return here when there is room.":""),
+                        (pending?"\n\nTolan has set aside the reward your wallet could not carry. Return here when there is room.":""),
                         pending?C("领取暂存的打捞奖励","Claim reserved salvage reward",
                             "tide_salvage_claim"):
                             C("继续出航","Sail safely","close"),

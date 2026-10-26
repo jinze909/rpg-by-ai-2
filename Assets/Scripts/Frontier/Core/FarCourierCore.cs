@@ -148,6 +148,72 @@ namespace Starfall
         public bool FarCourierStamped {get{return FarCourierActive&&courierStamped;}}
         public bool FarCourierDelivered(int room)
         {return room>=0&&room<8&&Has("far_courier_"+room);}
+        // Each of eight genuine one-time handoffs owns its own independent
+        // v2-compatible receipt. The parcel already reached the civilians:
+        // only the unpaid tail of an overflowed coin/shard/talent payout is
+        // reserved at its ORIGINAL community refuge.
+        private const string CourierRewardPrefix="far_courier_reward_due_";
+        private bool FindFarCourierReward(int room,out string receipt,
+            out int coins,out int shards,out int talent)
+        {
+            receipt=null;coins=shards=talent=0;
+            if(!FarCourierDelivered(room))return false;
+            string prefix=CourierRewardPrefix+room+"_";
+            foreach(string flag in save.flags)
+            {
+                if(!flag.StartsWith(prefix,StringComparison.Ordinal))continue;
+                string[] parts=flag.Substring(prefix.Length).Split('_');
+                int c,s,t;
+                if(parts.Length!=3||!int.TryParse(parts[0],out c)||
+                   !int.TryParse(parts[1],out s)||
+                   !int.TryParse(parts[2],out t)||
+                   c<0||c>35||s<0||s>1||t<0||t>1||
+                   c+s+t==0)continue;
+                receipt=flag;coins=c;shards=s;talent=t;
+                return true;
+            }
+            return false;
+        }
+        public bool FarCourierRewardPending(int room)
+        {
+            string receipt;int coins,shards,talent;
+            return FindFarCourierReward(room,out receipt,
+                out coins,out shards,out talent);
+        }
+        public int FarCourierOutstandingReceipts
+        {
+            get
+            {
+                int count=0;
+                for(int i=0;i<8;i++)
+                    if(FarCourierRewardPending(i))count++;
+                return count;
+            }
+        }
+        private bool ClaimFarCourierReward(WorldObject shelter)
+        {
+            if(shelter==null||shelter.kind!="farshelter"||
+                save.room<0||save.room>=8||Dying||practicing||
+                !SourceBelongsToActiveMap(shelter)||
+                !HasPhysicalInteractionReach(shelter))return false;
+            string receipt;int coins,shards,talent;
+            if(!FindFarCourierReward(save.room,out receipt,out coins,
+                out shards,out talent))return false;
+            if(save.coins>999999-coins||save.shards>99999-shards||
+               save.skillPoints>99-talent)
+            {
+                Notify("救援站仍保留你的补给奖金。请腾出硬币、碎片或技能点容量，再来签领。",
+                    "The refuge kept your outstanding bonus. Free coin, shard or talent capacity before signing for it.");
+                return false;
+            }
+            save.flags.Remove(receipt);
+            CreditCoins(coins);CreditShards(shards);
+            CreditSkillPoints(talent);
+            revision++;sound="reward";
+            Notify("居民确认收据，已结清本地区剩余的救援包奖金。",
+                "The wardens signed your receipt and paid this region's outstanding parcel reward.");
+            return true;
+        }
         // A genuinely well-preserved delivery leaves usable medical supplies
         // at THIS community refuge. Stored in existing SaveData v2 flags.
         public bool FarCourierPristine(int room)
@@ -229,7 +295,22 @@ namespace Starfall
             if(!bridge&&!shelter&&!checkpoint)return false;
             int room=save.room;
             if(room<0||room>=8||!HasPhysicalInteractionReach(o)||
-               !FarBridgeOpen(room)||!FarShelterBuilt(room)||FarCourierDelivered(room))return false;
+               !FarBridgeOpen(room)||!FarShelterBuilt(room))return false;
+            if(FarCourierDelivered(room))
+            {
+                if(shelter&&FarCourierRewardPending(room))
+                {
+                    Dialog(o.name,o.en,
+                        "那趟救援包已经送到棚里。你当时装不下的奖金，值守员按原数留在本地账上。"+
+                        " 腾出硬币、碎片或技能点空间后，可以在这里领清。",
+                        "Your parcel reached this refuge. The watchkeeper set aside only the reward that did not fit your wallet. "+
+                        "Return after freeing coin, shard or talent space.",
+                        C("签领未付的救援奖金","Claim reserved parcel bonus",
+                            "far_courier_claim"),
+                        C("稍后领取","Collect later","close"));return true;
+                }
+                return false;
+            }
             if(checkpoint)
             {
                 bool eligible=FarCourierActive&&courierCrossed&&!courierStamped;
@@ -314,7 +395,8 @@ namespace Starfall
             if(action!="far_courier_start"&&action!="far_courier_cancel"&&
                 action!="far_courier_stamp"&&action!="far_courier_patch"&&
                 action!="far_courier_guard"&&
-                action!="far_courier_deliver")
+                action!="far_courier_deliver"&&
+                action!="far_courier_claim")
                 return false;
             int room=save.room;
             if(room<0||room>=8||Dying||practicing)return true;
@@ -326,7 +408,12 @@ namespace Starfall
                 else if(obj.kind=="farcheck")checkpoint=obj;
             }
             if(bridge==null||shelter==null||checkpoint==null||!FarBridgeOpen(room)||
-                !FarShelterBuilt(room)||FarCourierDelivered(room))return true;
+                !FarShelterBuilt(room))return true;
+            if(action=="far_courier_claim")
+            {
+                ClaimFarCourierReward(shelter);return true;
+            }
+            if(FarCourierDelivered(room))return true;
             if(action=="far_courier_guard")
             {
                 if(!FarCourierActive||!courierCrossed||courierGuardSpent||
@@ -409,6 +496,11 @@ namespace Starfall
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
             bool secured=FarCourierSecuredInFlight;
             bool pristine=courierIntegrity>=90;
+            int earnedCoins=secured?35:25;
+            int unpaidCoins=Math.Max(0,earnedCoins-
+                Math.Max(0,999999-save.coins));
+            int unpaidShards=save.shards>=99999?1:0;
+            int unpaidTalent=0;
             ResetFarCourier();
             Flag("far_courier_"+room);
             if(pristine)Flag("far_courier_pristine_"+room);
@@ -421,7 +513,13 @@ namespace Starfall
             }
             revision++;sound="reward";
             if(FarCourierDeliveredCount==8&&!Has("far_courier_all"))
-            {Flag("far_courier_all");CreditSkillPoints(1);revision++;}
+            {
+                unpaidTalent=save.skillPoints>=99?1:0;
+                Flag("far_courier_all");CreditSkillPoints(1);revision++;
+            }
+            if(unpaidCoins+unpaidShards+unpaidTalent>0)
+                Flag(CourierRewardPrefix+room+"_"+unpaidCoins+"_"+
+                    unpaidShards+"_"+unpaidTalent);
             RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。"+
                     (secured?"两名追兵确实被击败，这条补给路已被护卫清理。":"")+
                     (pristine?"药箱保留九成以上药品，供本地避险棚长期使用。":""),
@@ -438,6 +536,9 @@ namespace Starfall
                 "Secure delivery! +35 coins, +1 shard, +53 XP!":
                 "Parcel delivered: +25 coins, +1 shard, +38 XP!")+
                 (pristine?"\nMedicine intact: +10 HP per timber-fueled rest at this refuge.":""));
+            if(unpaidCoins+unpaidShards+unpaidTalent>0)
+                Notify("救援包已真实交付！部分奖励已入账，装不下的硬币、碎片或技能点保留在本地避险棚，可稍后签领。",
+                    "Parcel genuinely delivered! Collected the rewards that fit; any unpaid coins, shards or talent remain on this refuge's claim ledger.");
             return true;
         }
     }

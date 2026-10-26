@@ -1730,6 +1730,20 @@ namespace Starfall
                     q.room=9;q.target=new Point(22.5f,36.5f);
                     q.next=L("前往旅店制图室公开八份补给回执","Publish the signed manifests at the Hearth Inn");
                 }
+                // A completed delivery can still have its one-time payment
+                // on a distant refuge's books. Direct the player to its
+                // actual physical steward without undoing the delivered flag.
+                if(!FarCourierActive&&FarCourierOutstandingReceipts>0)
+                    for(int i=0;i<8;i++)
+                        if(FarCourierRewardPending(i))
+                        {
+                            q.room=i;
+                            q.target=ObjectPoint(i,"farshelter",
+                                new Point(112.5f,73.5f));
+                            q.next=L("第 "+(i+1)+" 地补给已交付，去避险棚领取暂存的奖金",
+                                "Region "+(i+1)+" parcel delivered · claim reserved pay at its refuge");
+                            break;
+                        }
                 q.reward=L("每地送达硬币25、碎片1、经验38；真实击败两名劫匪并交付额外硬币10、经验15；八地技能点1；公开公约后强化避险棚",
                     "Each delivery: 25 coins, 1 shard, 38 XP. Defeat both raiders and deliver for +10 coins, +15 XP once per region. All eight: +1 talent; the charter upgrades refuges.");
                 return q;

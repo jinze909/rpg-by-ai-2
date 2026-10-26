@@ -211,6 +211,91 @@ namespace Starfall.Tests
                 "Guarding with the hero's existing real armor reduces parcel impact");
         }
 
+
+        public static void CourierSecureDeliveryPreservesCappedRegionalRewardReceipt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=4;g.save.frontierEnding=1;
+            g.save.level=18;g.save.xp=0;
+            foreach(string flag in new[]{"scout_saved","exp_intro",
+                "far_bridge_0","far_shelter_0"})
+                g.save.flags.Add(flag);
+            g.Enter(0);g.enemies.Clear();g.invulnerable=240f;
+            WorldObject bridge=Object(g,"farbridge"),check=Object(g,"farcheck"),
+                shelter=Object(g,"farshelter");
+            g.save.coins=999994;g.save.shards=99999;
+            int beforeXp=g.save.xp;
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            Action(g,"farbridge","far_courier_start");
+            for(int frame=0;frame<75&&!g.FarCourierCrossed;frame++)
+                g.Tick(.05f,new Point(0,1));
+            Check(g.FarCourierActive&&g.FarCourierCrossed&&
+                g.FarCourierRaidersAlive==2,
+                "The real original bridge crossing starts two physical ambushers");
+            var enemies=g.enemies.FindAll(e=>e.id==90100||e.id==90101);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null&&enemies.Count==2,
+                "Both authentic attackers can be contacted through the original player-damage handler");
+            foreach(Enemy foe in enemies)
+                hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+            Check(g.FarCourierSecuredInFlight&&g.FarCourierRaidersAlive==0,
+                "Two genuine owned raider deaths qualify the secure-route reward exactly once");
+            for(int frame=0;frame<100&&g.save.y<check.y-.6f;frame++)
+                {g.hitStop=0;g.Tick(.05f,new Point(0,1));}
+            Action(g,"farcheck","far_courier_stamp");
+            Check(g.FarCourierStamped,
+                "The real civilian checkpoint signs the cargo before shelter delivery");
+            for(int frame=0;frame<125&&g.save.y<shelter.y-.6f;frame++)
+                {g.hitStop=0;g.Tick(.05f,new Point(0,1));}
+            Check(g.FarCourierActive&&g.FarCourierCrossed&&g.FarCourierStamped,
+                "The original live 95-second route reaches the actual refuge with a stamped parcel");
+            Action(g,"farshelter","far_courier_deliver");
+            Check(g.FarCourierDelivered(0)&&g.FarCourierSecured(0)&&
+                !g.FarCourierActive&&g.FarCourierRewardPending(0)&&
+                g.FarCourierOutstandingReceipts==1&&g.save.coins==999999&&
+                g.save.shards==99999&&g.save.xp==beforeXp+53,
+                "Secure delivery still clears the civic road and pays fitting currency and full XP, saving only missing coins and shard");
+            Check(g.GetQuest("far_couriers").next.Contains("暂存")&&
+                g.GetQuest("far_couriers").room==0,
+                "The public quest compass returns the player to the actual region's outstanding refuge ledger");
+            var claim=typeof(GameCore).GetMethod("ChooseFarCourier",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(claim!=null,"The authentic courier action dispatcher remains reachable");
+            g.save.x=bridge.x;g.save.y=bridge.y;
+            claim.Invoke(g,new object[]{"far_courier_claim"});
+            Check(g.FarCourierRewardPending(0)&&g.save.coins==999999,
+                "A remote bridge-end request cannot withdraw the local refuge's one-time earnings");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.FarCourierDelivered(0)&&
+                restored.FarCourierSecured(0)&&restored.FarCourierRewardPending(0),
+                "Both permanent rescue progress and unpaid regional reward survive a v2 slot reload");
+            restored.enemies.Clear();
+            restored.save.x=shelter.x;restored.save.y=shelter.y;
+            restored.save.coins=999969;restored.save.shards=99998;
+            Action(restored,"farshelter","far_courier_claim");
+            Check(restored.FarCourierRewardPending(0)&&
+                restored.save.coins==999969&&restored.save.shards==99998,
+                "Insufficient space for all 30 owed coins cannot partly consume the single durable voucher");
+            restored.save.coins=999968;
+            Action(restored,"farshelter","far_courier_claim");
+            Check(!restored.FarCourierRewardPending(0)&&
+                restored.FarCourierOutstandingReceipts==0&&
+                restored.save.coins==999998&&restored.save.shards==99999&&
+                restored.save.xp==beforeXp+53,
+                "The original region's physical steward settles exactly 30 missing coins and one shard once");
+            claim.Invoke(restored,new object[]{"far_courier_claim"});
+            Check(restored.save.coins==999998&&restored.save.shards==99999,
+                "Stale followup cannot farm the consumed regional voucher");
+            restored.PrepareSave();
+            var final=new GameCore(data,CloneSave(restored.save));
+            Check(final.FarCourierDelivered(0)&&final.FarCourierSecured(0)&&
+                !final.FarCourierRewardPending(0)&&final.save.version==2,
+                "Legacy SaveData v2 preserves legitimately settled courier contracts without adding fields");
+        }
+
         public static void CourierSameIdImpostorsNeverEarnSecurityOrGetWipedOnAbort(Campaign data)
         {
             var g=Fresh(data);g.save.stage=4;g.save.frontierEnding=1;
