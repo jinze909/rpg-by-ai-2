@@ -21,11 +21,43 @@ namespace Starfall
         // Both the combat death callback and the quest's live roster use it.
         // The reference is transient and never extends SaveData v2.
         private Enemy skywatchGuardian;
+        // Keep the one genuine defeated actor's identity while its authored
+        // fallen animation plays. An unrelated same-ID elite is NOT a dead
+        // skywatch guardian. No persistent/save field is introduced.
+        private Enemy skywatchDefeatedGuardian;
+        public bool IsSkywatchCorpse(Enemy actor)
+        { return actor != null && Object.ReferenceEquals(actor,skywatchDefeatedGuardian); }
+        public string LiveBossName(Enemy actor)
+        {
+            return IsSkywatchEnemy(actor)?
+                L("古观星守卫","Ancient Skywatch Guardian"):
+                L(CurrentBoss.name,CurrentBoss.en);
+        }
+        public string SkywatchCombatCue(Enemy actor)
+        {
+            if(!IsSkywatchEnemy(actor))return "";
+            if(SkywatchGroundingTime>0f)
+                return L("冰光已压制 · ","FROST SUPPRESSED · ")+
+                    (int)Math.Ceiling(SkywatchGroundingTime)+"s";
+            if(SkywatchGroundingAvailable &&
+                (Position-ObjectPoint(7,"skyobservatory",
+                    new Point(-100,-100))).Length<=2.2f)
+                return L("棱镜接地可用 · 耐力25",
+                    "GROUNDING READY · 25 ENERGY");
+            if(!skywatchGroundingUsed)
+                return L("靠近观星台 · 接地可打断冰光",
+                    "REACH ALTAR · GROUND TO INTERRUPT");
+            return L("接地已使用 · 闪避冰光落点",
+                "GROUNDING SPENT · DODGE FROST");
+        }
         private void OnSkywatchEnemyDefeated(Enemy guardian)
         {
             if (SkywatchRoom == 7 && save.room == 7 &&
                 IsSkywatchEnemy(guardian))
+            {
                 skywatchKillConfirmed = true;
+                skywatchDefeatedGuardian=guardian;
+            }
         }
         public float SkywatchGroundingTime { get; private set; }
         public bool SkywatchGroundingAvailable
@@ -395,6 +427,7 @@ namespace Starfall
                 if (!CanStand(spawn) || NavigationPath(spawn).Count==0 ||
                     (spawn-Position).Length<2.2f)
                 { Notify("观星台附近没有可用的守卫空间。","No valid guardian arena is available."); return true; }
+                skywatchDefeatedGuardian=null;
                 SkywatchRoom=7; SkywatchTime=85;
                 skywatchPulseTime=2.6f; skywatchPulseCycle=0;
                 skywatchGroundingUsed=false; SkywatchGroundingTime=0;
