@@ -1711,12 +1711,30 @@ namespace Starfall
                 float clearance=other.boss?.96f:.72f;
                 float dx=candidate.x-other.x,dy=candidate.y-other.y;
                 float after=dx*dx+dy*dy;
-                if(after>=clearance*clearance)continue;
                 dx=from.x-other.x;dy=from.y-other.y;
                 float before=dx*dx+dy*dy;
-                // Already-overlapping actors can move OUT of each other's
-                // footprint, but may never crowd deeper into the same disk.
-                if(after<=before+.000001f)return false;
+                float radiusSquared=clearance*clearance;
+                if(before<radiusSquared)
+                {
+                    // An old collision, e.g. after restoring a prior save,
+                    // must not imprison the body. Permit only real movement
+                    // OUT of the other living actor's overlap.
+                    if(after<=before+.000001f)return false;
+                    continue;
+                }
+                // A normal frame can graze the edge of a living actor disk
+                // between two valid endpoints. Checking only after's foot
+                // lets the sprite ghost THROUGH that thin chord. Test the
+                // exact closest approach of the entire swept stride instead.
+                Point stride=candidate-from;
+                float spanSquared=stride.x*stride.x+stride.y*stride.y;
+                if(spanSquared<.00000001f)continue;
+                float projection=Clamp(
+                    ((other.x-from.x)*stride.x+
+                     (other.y-from.y)*stride.y)/spanSquared,0f,1f);
+                Point nearest=from+stride*projection;
+                float nx=nearest.x-other.x,ny=nearest.y-other.y;
+                if(nx*nx+ny*ny<radiusSquared)return false;
             }
             return true;
         }

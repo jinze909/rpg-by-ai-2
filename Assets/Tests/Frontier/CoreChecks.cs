@@ -201,6 +201,66 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void LivingCrowdSweepsRejectGrazingMidstepBodyContact(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<24;y++)
+                {
+                    char[] line=new string('.',24).ToCharArray();
+                    for(int x=0;x<24;x++)
+                        if(x<2||x>=22||y<2||y>=22)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=14.5f,spawnY=11.2185f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=14.5f;g.save.y=11.2185f;
+                g.invulnerable=100f;
+                var hunter=new Enemy(83912,0,10.45f,11.2185f,100)
+                    {timer=99f};
+                var guard=new Enemy(83913,0,10.5f,10.5f,100)
+                    {stun=99f,timer=99f};
+                g.enemies.Add(hunter);g.enemies.Add(guard);
+                var clear=typeof(GameCore).GetMethod("EnemyCrowdStepClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(clear!=null&&g.CanStand(hunter.Position)&&
+                    g.CanStand(guard.Position),
+                    "Real enemy-body tangency occurs on legal world ground");
+                Point start=hunter.Position;
+                Point finish=start+new Point(.105f,0f);
+                float radius=.72f;
+                Check((start-guard.Position).Length>radius&&
+                    (finish-guard.Position).Length>radius&&
+                    !(bool)clear.Invoke(g,new object[]{hunter,start,finish}),
+                    "Both endpoints fit outside a raider's circle, but the true swept segment crosses a narrow living-body chord");
+                g.Tick(.05f,new Point());
+                Check(hunter.moving&&hunter.y>start.y+.04f&&
+                    Math.Abs(hunter.x-start.x)<.01f&&
+                    g.CanStand(hunter.Position),
+                    "Production pursuit turns onto the actual clear lateral step rather than ghosting through the tangent body");
+                g.enemies.Remove(guard);
+                hunter.x=start.x;hunter.y=start.y;
+                g.Tick(.05f,new Point());
+                Check(hunter.x>start.x+.04f&&
+                    Math.Abs(hunter.y-start.y)<.01f,
+                    "As soon as the other body is gone normal forward pursuit resumes on its original stride");
+                guard.x=10.5f;guard.y=10.5f;
+                g.enemies.Add(guard);
+                Point inside=new Point(10.5f,10.55f);
+                Point escape=new Point(10.5f,10.7f);
+                Check((bool)clear.Invoke(g,new object[]{hunter,inside,escape})&&
+                    !(bool)clear.Invoke(g,new object[]{hunter,escape,inside}),
+                    "An already-overlapping enemy can physically escape but cannot drive deeper into that body");
+                Check(g.save.version==2,
+                    "Swept crowd steering introduces no persistent save fields");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void BossWideMeleeCoverProtectsHeroUntilARealFlankOpens(Campaign data)
         {
             MapData original=data.maps[0];
