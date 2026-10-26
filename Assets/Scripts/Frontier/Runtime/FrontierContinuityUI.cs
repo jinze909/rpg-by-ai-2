@@ -22,7 +22,7 @@ namespace Starfall
         private bool HasLiveBoss { get {foreach(Enemy e in Game.enemies)if(e.boss)return true;return false;} }
         private bool HasFallenBoss { get {foreach(FallenActor f in Game.fallen)if(f.actor.boss)return true;return false;} }
         private bool CombatHud
-        { get {if(Game.mode!="world")return false;if(Game.AfterlightWatchActive||Game.OuterPatrolActive||(Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room)||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
+        { get {if(Game.mode!="world")return false;if(Game.BossVictoryFeedback||Game.AfterlightWatchActive||Game.OuterPatrolActive||(Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room)||combatHudTime>0||CounterHud||Game.Dying||HasFallenBoss)return true;foreach(Enemy e in Game.enemies)if(e.boss||(e.Position-Game.Position).Length<8)return true;return false;} }
         private static bool Contains(Rect r, Point p) { return p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height; }
         private static bool Overlap(Rect a, Rect b) { return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y; }
         private Rect ActorBounds(Point feet, bool boss = false)
@@ -59,7 +59,8 @@ namespace Starfall
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
-                if (HasLiveBoss || HasFallenBoss || Game.AfterlightWatchActive ||
+                if (HasLiveBoss || HasFallenBoss || Game.BossVictoryFeedback ||
+                    Game.AfterlightWatchActive ||
                     Game.OuterPatrolActive || Game.MineConvoyActive ||
                     (Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room) ||
                     Game.TideSalvageActive || Game.FrostSignalActive)
@@ -220,6 +221,20 @@ namespace Starfall
                     TextAnchor.MiddleCenter);
                 Text(396,57,488,23,Game.L("带原始光谱回余烬镇找伊澜",
                     "Return the spectrum to Yilan at Emberfall"),
+                    12,paper,TextAnchor.MiddleCenter);
+            }
+            else if(Game.BossVictoryFeedback)
+            {
+                // Stay in the real battle HUD after the 1.4-second corpse
+                // fade, instead of leaving the player without the next
+                // chapter step. The content comes from authoritative core
+                // quest state; no teleport or reward can occur here.
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.74f),
+                    new Color(gold.r,gold.g,gold.b,.66f));
+                Text(396,26,488,25,
+                    Game.L("地区守护者已倒下","GUARDIAN DEFEATED"),
+                    17,gold,TextAnchor.MiddleCenter);
+                Text(394,54,492,26,Game.BossVictoryNextStep,
                     12,paper,TextAnchor.MiddleCenter);
             }
             else if (Game.AfterlightWatchActive)
