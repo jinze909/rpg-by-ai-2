@@ -1894,6 +1894,9 @@ namespace Starfall.Tests
         public static void MainChapterGuardianVictoryKeepsRealNextStepAfterCorpseFades(Campaign data)
         {
             var g=Fresh(data);
+            // Assert the actual player-selected English objective; Fresh()
+            // inherits Chinese localization from the ordinary starting save.
+            g.save.english=true;
             g.save.stage=1;
             g.save.flags.Add("scout_saved");
             g.Enter(1);g.enemies.Clear();g.projectiles.Clear();
