@@ -1666,7 +1666,12 @@ namespace Starfall
         {
             Point travel=victim-attacker.Position;
             float length=travel.Length;
-            if(!Finite(length)||length<.001f)return false;
+            if(!Finite(length))return false;
+            // The attacker and target may already overlap (contact-spawned
+            // Abyss death foes, rescued travelers standing beside the hero).
+            // There is no intervening body on a zero-length segment; keep
+            // the original close-range melee contact behavior.
+            if(length<.001f)return true;
             Point forward=travel*(1f/length);
             foreach(Enemy other in enemies)
             {

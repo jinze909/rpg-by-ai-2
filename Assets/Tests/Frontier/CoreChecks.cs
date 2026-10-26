@@ -251,6 +251,15 @@ namespace Starfall.Tests
                     "A living teammate crossing a released melee lane blocks actual player HP damage without cancelling the original attack clock");
                 Check(g.save.version==2,
                     "Melee cover is transient combat geometry and does not migrate existing saves");
+                // Genuine zero-length melee contact is not occluded by a
+                // phantom unit: this occurs in real Abyss defeat resolution
+                // and when an ambusher shares the protected traveler foot.
+                g.enemies.Remove(front);
+                rear.x=g.Position.x;rear.y=g.Position.y;rear.state=0;
+                rear.timer=.001f;rear.stun=rear.hitTime=rear.releaseTime=0f;
+                g.Tick(.05f,new Point());
+                Check(rear.state==1,
+                    "Overlap-at-contact preserves real melee windup, not a false body obstruction");
             }
             finally { data.maps[0]=original; }
         }
