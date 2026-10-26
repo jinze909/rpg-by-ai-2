@@ -44,13 +44,20 @@ namespace Starfall
         {
             get
             {
-                float phase=save.totalTime%36f;
+                // Share the genuine natural/held tide clock used by the
+                // public ferry and archive, not the end of the artificial
+                // hold alone. A sluice may release INTO continuing natural
+                // low tide, so the cargo HUD needs the true next rise.
+                int seconds=(int)Math.Ceiling(PublicFerryPhaseSeconds);
                 float held=Math.Max(0,save.tideHeldUntil-save.totalTime);
+                string transition=LowTide?
+                    L("涨潮还有 ","RISE IN "):
+                    L("退潮还有 ","EBB IN ");
                 if(held>0)
-                    return L("稳潮剩余 ", "HELD ") + (int)Math.Ceiling(held)+"s";
-                return LowTide?
-                    L("涨潮还有 ", "RISE IN ") + (int)Math.Ceiling(22-phase)+"s":
-                    L("退潮还有 ", "EBB IN ") + (int)Math.Ceiling(36-phase)+"s";
+                    return L("稳潮剩余 ","HELD ")+
+                        (int)Math.Ceiling(held)+"s · "+
+                        transition+seconds+"s";
+                return transition+seconds+"s";
             }
         }
         public bool TideSalvageActive { get { return TideSalvagePhase > 0; } }

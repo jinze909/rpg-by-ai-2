@@ -367,6 +367,39 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void TideboundHoldCountdownIncludesTheActualSubsequentNaturalEbb(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"exp_intro","harbor_report","gate_5"})
+                g.save.flags.Add(flag);
+            g.Enter(5);g.enemies.Clear();g.save.english=true;
+            g.save.totalTime=25f;g.save.tideHeldUntil=50f;
+            Check(g.LowTide&&g.TideSalvageTideHint.Contains("HELD 25s")&&
+                g.TideSalvageTideHint.Contains("RISE IN 33s"),
+                "A real sluice hold ending at phase 14 includes eight more seconds of natural low tide");
+            g.save.totalTime=49f;
+            Check(g.LowTide&&g.TideSalvageTideHint.Contains("HELD 1s")&&
+                g.TideSalvageTideHint.Contains("RISE IN 9s"),
+                "The actual rising-water countdown cannot falsely end when held gates reopen during ebb");
+            g.save.totalTime=50f;
+            Check(g.LowTide&&!g.TideSalvageTideHint.Contains("HELD")&&
+                g.TideSalvageTideHint.Contains("RISE IN 8s"),
+                "At release into natural low water, the shared physical countdown continues without a discontinuity");
+            g.save.totalTime=58f;
+            Check(!g.LowTide&&g.TideSalvageTideHint.Contains("EBB IN 14s"),
+                "The next genuine natural flood and ebb preserve their original cycle boundaries");
+            g.save.totalTime=25f;g.save.tideHeldUntil=31f;
+            Check(g.LowTide&&g.TideSalvageTideHint.Contains("HELD 6s")&&
+                g.TideSalvageTideHint.Contains("RISE IN 6s"),
+                "A hold ending during naturally high water truly closes its supported low-water lane");
+            g.save.totalTime=31f;
+            Check(!g.LowTide&&g.TideSalvageTideHint.Contains("EBB IN 5s"),
+                "The exposed natural high tide resumes immediately after a short hold releases");
+            Check(g.save.version==2,
+                "The tidebound HUD and real ferry use existing v2 world clocks without extra saved fields");
+        }
+
         public static void TideboundEnvironmentHudTracksRealTideCyclesAndPublicExtension(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;
