@@ -63,7 +63,8 @@ namespace Starfall
                     Game.OuterPatrolActive || Game.MineConvoyActive ||
                     (Game.reliefMissionRoom!=0&&Game.reliefMissionRoom==Game.save.room) ||
                     Game.TideSalvageActive || Game.FrostSignalActive)
-                    rects.Add(new Rect(380, 22, 520, 65));
+                    rects.Add(new Rect(380, 22, 520,
+                        Game.SkywatchRoom==7 ? 85 : 65));
             }
             else
             {
@@ -174,7 +175,9 @@ namespace Starfall
                         Math.Ceiling(Game.riposteTime*10f)/10f+"s",
                     12,gold);
             }
-            QuestGuide guide = Game.MineConvoyActive?
+            QuestGuide guide = Game.SkywatchRoom==7?
+                Game.GetQuest("skywatch"):
+                Game.MineConvoyActive?
                 Game.GetQuest("mine_convoy"):
                 Game.TideSalvageActive?Game.GetQuest("tide_salvage"):
                 Game.FrostSignalActive?Game.GetQuest("frost_signal"):
@@ -183,12 +186,41 @@ namespace Starfall
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
             Text(1041,56,136,23,(int)(guide.Progress*100)+"%  ·  "+Game.L("查看步骤","View steps"),11,paper);
             if (Button(CombatJournalButton.x,CombatJournalButton.y,CombatJournalButton.width,CombatJournalButton.height,ControlKey("TAB","VIEW"))) OpenMenu("journal");
-            Enemy boss = Game.enemies.Find(e => e.boss);
+            // CombatHud is the ACTUAL shipped battle overlay; exploration
+            // HUD is not drawn once a living Boss enters camera threat range.
+            // Use exact instance identity so a same-ID stranger never steals
+            // the optional observatory Boss title or its tactical clock.
+            Enemy boss=Game.enemies.Find(e=>e!=null&&e.hp>0f&&
+                e.boss&&Game.IsSkywatchEnemy(e))??
+                Game.enemies.Find(e=>e!=null&&e.hp>0f&&e.boss);
             if (boss != null)
             {
-                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.6f),new Color(.6f,.4f,.42f,.45f));
-                Text(396,26,488,27,Game.L(Game.CurrentBoss.name,Game.CurrentBoss.en)+"  /  "+boss.BossPhase,16,gold,TextAnchor.MiddleCenter);
-                Bar(399,58,482,boss.hp/boss.maxHp,PixelArt.C("#d28b86"),6); Bar(399,73,482,boss.stagger/95,mint,3);
+                bool skywatch=Game.IsSkywatchEnemy(boss);
+                Panel(380,22,520,skywatch?85:65,
+                    new Color(.04f,.065f,.11f,.6f),
+                    new Color(.6f,.4f,.42f,.45f));
+                Text(396,26,488,skywatch?23:27,
+                    Game.LiveBossName(boss)+"  /  "+boss.BossPhase,
+                    16,gold,TextAnchor.MiddleCenter);
+                if(skywatch)
+                    Text(396,51,488,15,Game.SkywatchCombatCue(boss),
+                        11,Game.SkywatchTime<=15f?gold:mint,
+                        TextAnchor.MiddleCenter);
+                Bar(399,skywatch?72:58,482,boss.hp/boss.maxHp,
+                    PixelArt.C("#d28b86"),6);
+                Bar(399,skywatch?87:73,482,boss.stagger/95,mint,3);
+            }
+            else if(Game.fallen.Exists(f=>f!=null&&f.actor!=null&&
+                Game.IsSkywatchCorpse(f.actor)))
+            {
+                Panel(380,22,520,65,new Color(.04f,.065f,.11f,.6f),
+                    new Color(gold.r,gold.g,gold.b,.7f));
+                Text(396,28,488,26,Game.L("古观星守卫已停机",
+                    "Skywatch guardian defeated"),18,gold,
+                    TextAnchor.MiddleCenter);
+                Text(396,57,488,23,Game.L("带原始光谱回余烬镇找伊澜",
+                    "Return the spectrum to Yilan at Emberfall"),
+                    12,paper,TextAnchor.MiddleCenter);
             }
             else if (Game.AfterlightWatchActive)
             {
