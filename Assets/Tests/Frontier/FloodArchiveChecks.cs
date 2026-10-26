@@ -719,6 +719,63 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void RealFerryCompassPursuesOnlySurvivingAmbushBodies(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            g.Enter(2);g.enemies.Clear();g.invulnerable=800f;
+            g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.x=west.x;g.save.y=west.y;
+            Point starting=g.GetQuest("ferry_relief").target;
+            Check((starting-new Point(west.x,west.y)).Length<.001f,
+                "Before loading cargo the production compass marks the physical west dock");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start")&&
+                (g.GetQuest("ferry_relief").target-starting).Length<.001f,
+                "Carried but unboarded medicine still points to the true launch pier");
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefRaiders==2,
+                "One actual crossing deploys the original melee and ranged ambushers");
+            Enemy melee=g.enemies.Find(e=>e.id==92340);
+            Enemy bow=g.enemies.Find(e=>e.id==92341);
+            Check(melee!=null&&bow!=null,"Both genuinely spawned raiders exist");
+            Point closest=(melee.Position-g.Position).Length<=
+                (bow.Position-g.Position).Length?melee.Position:bow.Position;
+            Check((g.GetQuest("ferry_relief").target-closest).Length<.001f&&
+                g.GetQuest("ferry_relief").next.Contains("罗盘"),
+                "East-bank battle guidance follows the nearest real enemy, not an idle delivery post");
+            g.save.x=bow.x;g.save.y=bow.y;
+            Check((g.GetQuest("ferry_relief").target-bow.Position).Length<.001f,
+                "The quest objective follows live body locations when the player changes position");
+            var impostor=new Enemy(92340,0,bow.x+.05f,bow.y+.05f,900f);
+            g.enemies.Add(impostor);
+            Check((g.GetQuest("ferry_relief").target-bow.Position).Length<.001f,
+                "An unrelated enemy with the same spawn ID cannot hijack combat guidance");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The production combat defeat callback is reachable");
+            hit.Invoke(g,new object[]{bow,99999f,false,null,null});
+            Check(g.FloodReliefDefeated==1&&
+                (g.GetQuest("ferry_relief").target-melee.Position).Length<.001f,
+                "Defeating the marked archer retargets the true surviving melee raider");
+            g.enemies.Remove(impostor);
+            hit.Invoke(g,new object[]{melee,99999f,false,null,null});
+            Point delivered=g.GetQuest("ferry_relief").target;
+            Check(g.FloodReliefSecured&&
+                (delivered-new Point(east.x,east.y)).Length<.001f&&
+                !g.FloodReliefComplete,
+                "Only two actual kills return the live compass to the authentic delivery dock");
+            g.save.x=east.x;g.save.y=east.y;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_deliver")&&
+                g.FloodReliefComplete&&
+                (g.GetQuest("ferry_relief").target-delivered).Length<.001f&&
+                g.save.version==2,
+                "Actual handoff persists the old save flag and maintains the physical completed objective");
+        }
         public static void FerryReliefSameIdActorsCannotForgeKillsOrRetireBystanders(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();

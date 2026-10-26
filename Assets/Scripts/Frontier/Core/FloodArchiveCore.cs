@@ -48,6 +48,39 @@ namespace Starfall
         public bool FloodReliefRepairAvailable
         { get {return FloodReliefCrossed&&!floodReliefPatched&&
             floodReliefIntegrity>0&&floodReliefIntegrity<100&&save.inventory[2]>=1;} }
+        // This is the actual tracked objective used by the live compass,
+        // quest journal and world marker. An ambush is not complete merely
+        // because the hero reached the east pier: follow its two owned,
+        // living fighters until both genuine combat callbacks confirm kills.
+        // Neither a reused numeric spawn ID nor an unrelated world enemy
+        // is allowed to steal the civilian delivery waypoint.
+        public Point FloodReliefObjective
+        {
+            get
+            {
+                WorldObject west=FloodArchiveObject(1),east=FloodArchiveObject(3);
+                Point westDock=west==null?new Point(59.5f,37.5f):
+                    new Point(west.x,west.y);
+                Point eastDock=east==null?new Point(79.5f,35.5f):
+                    new Point(east.x,east.y);
+                if(FloodReliefComplete)return eastDock;
+                if(!FloodReliefCrossed)return westDock;
+                if(FloodReliefSecured)return eastDock;
+                Enemy first=(floodReliefConfirmedKills&1)==0&&
+                    floodReliefRaiderA!=null&&floodReliefRaiderA.hp>0&&
+                    enemies.Contains(floodReliefRaiderA)?floodReliefRaiderA:null;
+                Enemy second=(floodReliefConfirmedKills&2)==0&&
+                    floodReliefRaiderB!=null&&floodReliefRaiderB.hp>0&&
+                    enemies.Contains(floodReliefRaiderB)?floodReliefRaiderB:null;
+                if(first==null)return second==null?eastDock:second.Position;
+                if(second==null)return first.Position;
+                // Nearer true raider first; on equal distance, stable
+                // ambush ordering avoids oscillating compass targets.
+                return (first.Position-Position).Length<=
+                    (second.Position-Position).Length?
+                    first.Position:second.Position;
+            }
+        }
         private bool IsFloodReliefEnemy(Enemy e)
         {return e!=null&&(System.Object.ReferenceEquals(e,floodReliefRaiderA)||
                            System.Object.ReferenceEquals(e,floodReliefRaiderB));}

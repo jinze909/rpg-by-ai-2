@@ -1211,8 +1211,10 @@ namespace Starfall
                 q.steps.Add(new QuestStep(L("确实击退两名拦截者并在东岸交付",
                     "Defeat both real raiders and hand medicine to the east-bank families"),
                     FloodReliefComplete));
-                q.target=FloodReliefCrossed||q.complete?
-                    new Point(79.5f,35.5f):new Point(59.5f,37.5f);
+                // Resolve real dock objects and, during combat, the closest
+                // genuine living raider. The shared journal, world guidance
+                // and compass must never point to delivery before both kills.
+                q.target=FloodReliefObjective;
                 q.next=q.complete?L("东岸急救补给已经完成交接",
                     "The eastern medicine has been genuinely delivered"):
                     q.locked?L("先完成沉桥民用档案，恢复低潮渡船",
@@ -1222,9 +1224,9 @@ namespace Starfall
                             (int)Math.Ceiling(FloodReliefTime)+"秒",
                           "Both real raiders defeated! Deliver the medicine at east dock · "+
                             (int)Math.Ceiling(FloodReliefTime)+"s left"):
-                        L("击败拦截者 "+FloodReliefDefeated+"/2，保护药品封条 · 剩余"+
+                        L("循罗盘追击拦截者 "+FloodReliefDefeated+"/2，护住药品 · 剩余"+
                             (int)Math.Ceiling(FloodReliefTime)+"秒",
-                          "Defeat raiders "+FloodReliefDefeated+"/2 and guard cargo · "+
+                          "Follow the compass to raiders "+FloodReliefDefeated+"/2; guard cargo · "+
                             (int)Math.Ceiling(FloodReliefTime)+"s left")):
                     FloodReliefActive?L("携带药品搭乘西岸低潮渡船 · 剩余"+
                         (int)Math.Ceiling(FloodReliefTime)+"秒",
