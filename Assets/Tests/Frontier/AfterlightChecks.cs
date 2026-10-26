@@ -1842,5 +1842,64 @@ namespace Starfall.Tests
                 "Expired hostile intent does not remain a free reserve shield or saved combat state");
         }
 
+
+        public static void AfterlightEnemyIdsCannotForgeVictoryStockDamageOrWaveCleanup(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_steward_1");
+            g.save.flags.Add("afterlight_reserve_1");
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            var station=Object(g,"afterlightoutlet1");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"afterlight_watch_start_1");
+            Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                "The physical public-receiver fight launches against genuine owned attackers");
+            Enemy real=g.enemies[0];
+            Enemy other=g.enemies[1];
+            // A separate actual actor shares the stored numeric spawn ID.
+            // It must never inherit public-facility intent, damage, kill
+            // credit, warning cleanup or disappearance on withdrawal.
+            var imposter=new Enemy(real.id,real.kind,
+                real.x+.15f,real.y+.1f,25f);
+            g.enemies.Add(imposter);
+            var owned=typeof(GameCore).GetMethod("IsAfterlightWatchEnemy",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var damage=typeof(GameCore).GetMethod("DamageAfterlightWatchStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(owned!=null&&damage!=null&&hit!=null,
+                "Production wave ownership, stock damage and combat-kill routes are available");
+            Check((bool)owned.Invoke(g,new object[]{real})&&
+                !(bool)owned.Invoke(g,new object[]{imposter}),
+                "Encounter ownership follows actual enemy bodies, not recycled spawn IDs");
+            float stock=g.AfterlightWatchStock;
+            imposter.targetingAfterlightStock=true;
+            damage.Invoke(g,new object[]{imposter});
+            Check(g.AfterlightWatchStock==stock,
+                "An unowned attacker with the same numeric ID cannot sabotage permanent supplies");
+            hit.Invoke(g,new object[]{imposter,300f,false,null,null});
+            Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                g.enemies.Contains(real)&&g.enemies.Contains(other),
+                "The fake ID's genuine death cannot complete the receiver wave");
+            // A living duplicate must also survive a normal voluntary
+            // withdrawal, not be removed as if it were a scripted raider.
+            var bystander=new Enemy(other.id,0,other.x+.25f,other.y+.15f,45f);
+            g.enemies.Add(bystander);
+            Action(g,station.kind,"afterlight_watch_abort_1");
+            Check(!g.AfterlightWatchActive&&
+                g.enemies.Contains(bystander)&&
+                !g.enemies.Contains(real)&&!g.enemies.Contains(other)&&
+                !g.AfterlightWatchDone(1)&&g.save.version==2,
+                "Withdrawing clears ONLY the exact wave actors while preserving an unrelated same-ID living enemy and all old saves");
+        }
+
     }
 }

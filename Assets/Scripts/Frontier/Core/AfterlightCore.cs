@@ -35,6 +35,10 @@ namespace Starfall
         // Two-wave public-defense drills have one earned clearance per region,
         // but trial foes, clock and wave IDs must NEVER enter v2 saved state.
         private int afterlightWatchRoom,afterlightWatchWave,afterlightWatchA,afterlightWatchB;
+        // A numeric spawn ID is NOT encounter ownership: procedural IDs
+        // and restored/ambient enemies can collide in the same map. These
+        // instance references are confined to the current unsaved trial.
+        private Enemy afterlightWatchActorA,afterlightWatchActorB;
         private bool afterlightWatchADead,afterlightWatchBDead,afterlightWatchPatched;
         // After authentic wave-one kills a crowded receiver must defer
         // reinforcements, not erase the player's already-won defense.
@@ -55,7 +59,9 @@ namespace Starfall
         {get{int n=0;for(int i=1;i<=3;i++)if(AfterlightWatchDone(i))n++;return n;}}
 
         private bool IsAfterlightWatchEnemy(Enemy e)
-        {return e!=null&&AfterlightWatchActive&&(e.id==afterlightWatchA||e.id==afterlightWatchB);}
+        {return e!=null&&AfterlightWatchActive&&
+            (System.Object.ReferenceEquals(e,afterlightWatchActorA)||
+             System.Object.ReferenceEquals(e,afterlightWatchActorB));}
         // Match DamageAfterlightWatchStock's LIVE release requirements.
         // In particular, a nearby archer shooting at the hero is NOT
         // attacking the public receiver. The whole body contact lane
@@ -90,8 +96,10 @@ namespace Starfall
         private void OnAfterlightWatchEnemyDefeated(Enemy e)
         {
             if(!IsAfterlightWatchEnemy(e))return;
-            if(e.id==afterlightWatchA)afterlightWatchADead=true;
-            if(e.id==afterlightWatchB)afterlightWatchBDead=true;
+            if(System.Object.ReferenceEquals(e,afterlightWatchActorA))
+                afterlightWatchADead=true;
+            if(System.Object.ReferenceEquals(e,afterlightWatchActorB))
+                afterlightWatchBDead=true;
         }
         private void ResetAfterlightWatch()
         {
@@ -100,7 +108,7 @@ namespace Starfall
             if(afterlightWatchRoom!=0)
             {
                 for(int i=enemies.Count-1;i>=0;i--)
-                    if(enemies[i].id==afterlightWatchA||enemies[i].id==afterlightWatchB)
+                    if(IsAfterlightWatchEnemy(enemies[i]))
                     { RemoveEnemyPendingWarning(enemies[i]);enemies.RemoveAt(i); }
                 // Even arrows released before an abort are part of this duel,
                 // and may otherwise hit the hero AFTER the trial disappears.
@@ -109,6 +117,7 @@ namespace Starfall
                 effects.RemoveAll(e=>e.afterlightWatchOwned);
             }
             afterlightWatchRoom=afterlightWatchWave=afterlightWatchA=afterlightWatchB=0;
+            afterlightWatchActorA=afterlightWatchActorB=null;
             afterlightWatchADead=afterlightWatchBDead=afterlightWatchPatched=false;
             afterlightWatchWaveDeferred=false;
             afterlightWatchTime=afterlightWatchStock=0;
@@ -187,6 +196,7 @@ namespace Starfall
             Enemy b=CreatePlacedEnemy(++enemyId,kindB,second,
                 42+region*10+(wave-1)*18);
             afterlightWatchA=a.id;afterlightWatchB=b.id;
+            afterlightWatchActorA=a;afterlightWatchActorB=b;
             afterlightWatchADead=afterlightWatchBDead=false;
             afterlightWatchWaveDeferred=false;
             afterlightWatchWave=wave;
@@ -273,8 +283,10 @@ namespace Starfall
                     "Defense timed out; attackers dispersed. No victory credit awarded.");
                 return;
             }
-            bool presentA=enemies.Exists(e=>e.id==afterlightWatchA);
-            bool presentB=enemies.Exists(e=>e.id==afterlightWatchB);
+            bool presentA=afterlightWatchActorA!=null&&
+                enemies.Contains(afterlightWatchActorA);
+            bool presentB=afterlightWatchActorB!=null&&
+                enemies.Contains(afterlightWatchActorB);
             if((!presentA&&!afterlightWatchADead)||(!presentB&&!afterlightWatchBDead))
             {
                 ResetAfterlightWatch();revision++;
