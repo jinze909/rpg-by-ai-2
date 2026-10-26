@@ -206,6 +206,63 @@ namespace Starfall.Tests
                 g.conversation.text.Contains("巡路"),
                 "Fresh original NPC story choices keep place, missing person and core after a rejected stale click");
         }
+        public static void LivingStorySourcesReflectOnlyCurrentUnfinishedRoadwork(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.save.stage=3;
+            g.Enter(9);
+            WorldObject inn=Object(g,"innGuest");
+            Check(inn!=null,"The living inn storyteller occupies its real physical region");
+            g.save.x=inn.x;g.save.y=inn.y;
+            int coins=g.save.coins;
+            g.save.frontierEnding=0;
+            g.Talk(inn);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.speaker==inn.name&&
+                g.conversation.text.Contains("远岸")&&
+                !g.conversation.text.Contains("协定已经签"),
+                "Before the farshore agreement the traveler cannot claim signed papers");
+            g.Close();
+            g.save.frontierEnding=2;
+            g.Talk(inn);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.text.Contains("协定已经签")&&
+                g.conversation.text.Contains("堡垒"),
+                "After signing, the same roadwarden now directs the player to the citadel");
+            g.Close();
+            g.save.ending=1;
+            string[] keys={null,"afterlight_complete","storm_complete",
+                "hearing_complete","roadcharter_complete",
+                "civic_conduit_complete"};
+            string[] milestones={"余光工地","星雨","听证会","公用道路","公共电网","巡路记录"};
+            string[] milestonesEn={"Afterlight","starstorm","public hearing",
+                "road charter","public grid","roadwarden log"};
+            for(int stage=0;stage<keys.Length;stage++)
+            {
+                if(stage>0)g.save.flags.Add(keys[stage]);
+                g.Talk(inn);ChooseStoryChoice(g,"story_catchup");
+                Check(g.conversation.speaker==inn.name&&
+                    g.conversation.text.Contains(milestones[stage])&&
+                    g.conversation.textEn.Contains(milestonesEn[stage]),
+                    "The roadwarden names only the real next unfinished chapter in both languages: "+stage);
+                g.Close();
+            }
+            g.Enter(0);
+            WorldObject book=Object(g,"worldchronicle");
+            g.save.x=book.x;g.save.y=book.y;
+            g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversationSource==book&&
+                g.conversation.speaker=="边境编年册"&&
+                g.conversation.text.Contains("巡路记录")&&
+                !g.conversation.text.Contains("余光工地")&&
+                g.save.coins==coins,
+                "The true public archive shows the same completed-chapter state as a written entry, without rewards");
+            g.Close();
+            g.save.flags.Remove("civic_conduit_complete");
+            g.Talk(book);ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversation.speaker=="边境编年册"&&
+                g.conversation.text.Contains("公共电网")&&
+                g.save.version==2,
+                "Removing the actual last completion flag restores the exact pending grid work, not future milestones");
+        }
+
         public static void WorldArchiveTopicPagesNeverPretendToBeLyraOrTheInnGuest(Campaign data)
         {
             var g=Fresh(data);g.Close();g.Enter(0);

@@ -43,6 +43,43 @@ namespace Starfall
         private WorldObject StoryDialogueSource
         { get { return pendingDialogueSource??conversationSource; } }
 
+        // An old narrative summary is not enough once the public works
+        // advance. The same save-backed chapter chain drives both the
+        // traveler's practical road advice and the physical record's
+        // unfinished-work column. No guessed flags or new quests.
+        private void CurrentPublicStoryWork(out string zh,out string en)
+        {
+            if(!Has("afterlight_complete"))
+            {
+                zh="公会南面的余光工地还在等人把三处公共站接上电";
+                en="three public stations need power at the Afterlight works south of the guild";
+            }
+            else if(!Has("storm_complete"))
+            {
+                zh="星雨要来了，各地得自己定好优先供电的顺序";
+                en="the approaching starstorm requires each region to agree on power priorities";
+            }
+            else if(!Has("hearing_complete"))
+            {
+                zh="听证会的证人还没到齐，失联者的名字要有人当面核对";
+                en="the public hearing still needs its witnesses and the missing residents' names checked";
+            }
+            else if(!RoadCharterComplete)
+            {
+                zh="公用道路的约定还没落地，旧路标得有人按实际路况修";
+                en="the public road charter still needs people to reopen and repair the routes";
+            }
+            else if(!CivicConduitComplete)
+            {
+                zh="公共电网的阀门还没校准好，避险棚不能靠一张图就通电";
+                en="the public grid valves still need tuning before the shelters can rely on them";
+            }
+            else
+            {
+                zh="新开的道路还得有人巡，旅店的巡路记录等着下一位归来的人";
+                en="the reopened roads still need patrols, and the inn roadwarden log is ready for new return entries";
+            }
+        }
         private void WorldInnStoryCatchUp(WorldObject traveler)
         {
             string zh="旅人把一张磨破边的路单压在汤碗下面。\n\n“公会里管档案，旅店里管回来的人。你问我走到哪了，我先看看谁还没回家。”";
@@ -71,13 +108,19 @@ namespace Starfall
             }
             else if(save.ending==0)
             {
-                zh+="\n\n“三枚星核都指向堡垒。城里要守住屏障，路上的人也要用电。别只带地图去，先听完远岸那几家的话，再找厄洛说清楚。”";
-                en+="\n\n“All three cores point to the citadel. The wall needs power, but so do the people on the roads. Hear the farshore families out before you take their accounts to Orrin.”";
+                zh+=save.frontierEnding==0?
+                    "\n\n“三枚星核都指向堡垒。城里要守住屏障，路上的人也要用电。先听完远岸各家的话，带着他们的证词来找厄洛。”":
+                    "\n\n“远岸那份协定已经签了字。带上原本的供电账，去堡垒找厄洛谈谈，别让议定书只留在纸上。”";
+                en+=save.frontierEnding==0?
+                    "\n\n“All three cores point to the citadel. The wall needs power, but so do people along the roads. Hear the farshore accounts before speaking to Orrin.”":
+                    "\n\n“The farshore agreement has signatures now. Take the original power ledger to Orrin at the citadel. The agreement can't stay on paper.”";
             }
             else
             {
-                zh+="\n\n“这几天多了修灯的人，也多了问路的人。公会南边的公共工地和旅店里的巡路记录都还需要有人照看。”";
-                en+="\n\n“More hands are fixing lamps now. More travelers are asking which roads are open. The public works south of the guild and the road log here both need attention.”";
+                string workZh,workEn;
+                CurrentPublicStoryWork(out workZh,out workEn);
+                zh+="\n\n“修好一条路，就有人往更远的地方走。眼下，"+workZh+"。你要去的话，带上手帐，回程再来告诉我。”";
+                en+="\n\n“Open one road, and someone sets out farther. Right now, "+workEn+". Take your journal and tell me what you find on your way back.”";
             }
             Dialog(traveler.name,traveler.en,zh,en,
                 StoryChoice("路上还有谁的消息？","Any word from the road?","story_people"),
@@ -142,13 +185,19 @@ namespace Starfall
             }
             else if(save.ending==0)
             {
-                zh+="\n\n三处星核都已送往堡垒。远岸的居民证词与屏障用电账仍需对照，不能只在图上圈出一个结果。";
-                en+="\n\nAll three cores went to the citadel. The farshore witness accounts still need to be set beside the shield's power ledger.";
+                zh+=save.frontierEnding==0?
+                    "\n\n三处星核都已送往堡垒。远岸的居民证词与屏障用电账仍需对照，不能只在图上圈出一个结果。":
+                    "\n\n远岸协定已签署。待办交接：带各地用电证词与原始账本前往堡垒，与厄洛当面对照。";
+                en+=save.frontierEnding==0?
+                    "\n\nAll three cores went to the citadel. The farshore witness accounts still need to be set beside the shield's power ledger.":
+                    "\n\nFarshore agreement signed. Pending handoff: bring the regional power accounts and original ledger to Orrin at the citadel.";
             }
             else
             {
-                zh+="\n\n旧星核案已经落款。今日未结栏：公用线路维修、道路巡查与救援站用电。";
-                en+="\n\nThe original core decision is signed. Open work: public-line repairs, road patrols, and power for emergency shelters.";
+                string workZh,workEn;
+                CurrentPublicStoryWork(out workZh,out workEn);
+                zh+="\n\n旧星核案已经落款。今日未结栏："+workZh+"。";
+                en+="\n\nThe original core decision is signed. Today's unfinished entry: "+workEn+".";
             }
             Dialog("边境编年册","Frontier Chronicle",zh,en,
                 StoryChoice("翻阅旅人记录","Read the travelers' entries","story_people"),
