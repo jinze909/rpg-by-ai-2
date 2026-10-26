@@ -641,6 +641,33 @@ namespace Starfall
         private string FloodArchiveWayfarerNote(bool english)
         {
             if(save.room!=2)return "";
+            // The original living ferryman witnessed the erased families
+            // before the player found their records. After their return, he
+            // must react to the ACTUAL medicine carried through his crossing
+            // rather than delivering the same archive lecture mid-ambush.
+            // Dialogue is read-only: no phantom kills, free cargo or v2 flags.
+            if(FloodReliefActive)
+            {
+                if(!FloodReliefCrossed)
+                    return english?
+                        "\n\nI've tied the medicine tight. Keep the seal out of the river. The east-bank families are watching for this boat.":
+                        "\n\n药包我替你扎紧了。千万别让封条碰水。东岸那几户人家，一直盯着这条船。";
+                if(FloodReliefSecured)
+                    return english?
+                        "\n\nThe bowstring's gone quiet. Good. Don't leave the medicine on the pier; take it to the eastern receiving desk.":
+                        "\n\n弓弦终于安静了。好。别把药丢在码头上，送去东岸的接收台，他们还等着。";
+                if(FloodReliefIntegrity<=30f)
+                    return english?
+                        "\n\nThat parcel's seal is nearly gone. The eastern medics can patch it with one herb, once. If you have none, stay out of the next arrow's path.":
+                        "\n\n药包的封条快撑不住了。东岸医务员能用一份草药补一次。要是没有，下一箭千万躲开。";
+                return english?
+                    "\n\nHear that bowstring across the water? Two raiders. Keep the medicine behind you; the eastern desk can't sign for it until they're both down.":
+                    "\n\n听见河那头的弓弦声了吗？两个劫路的。护好药包，两个都放倒之前，东岸不会签收。";
+            }
+            if(FloodReliefComplete)
+                return english?
+                    "\n\nThe eastern families got their medicine. I entered the delivery beside their names in the ferry register. We can finally run this crossing for people, not just cargo.":
+                    "\n\n药送到东岸那几户人家手上了。我把交接记在渡口名册的名字旁。往后这条船，先载人，不是只载货。";
             if(FloodArchiveChoice==1)
                 return english?
                     "\n\nThe families are no longer missing from the ferry register. I can finally put names beside those we treated at the crossing.":

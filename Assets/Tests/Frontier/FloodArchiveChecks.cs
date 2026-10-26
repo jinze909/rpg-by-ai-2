@@ -17,6 +17,83 @@ namespace Starfall.Tests
                 {g.Choose(i);return true;}
             return false;
         }
+
+        public static void LivingFerrymanAcknowledgesRealMedicineBattleAndReceipt(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            g.invulnerable=400f;
+            g.save.flags.Add("scout_saved");
+            g.save.flags.Add("floodarchive_public");
+            g.save.flags.Add("wayfarer_2");
+            WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
+            WorldObject ferryman=Object(g,"wayfarer2");
+            g.save.totalTime=36;g.save.energy=100;
+            g.save.x=west.x;g.save.y=west.y;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_relief_start"),
+                "The real west-bank scene starts the civilian cargo crossing");
+            g.save.x=ferryman.x;g.save.y=ferryman.y;
+            g.Talk(ferryman);
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                g.conversation.text.Contains("封条碰水")&&
+                g.conversation.textEn.Contains("seal out of the river"),
+                "The existing physical ferryman talks about the actual carried parcel before boarding");
+            g.Close();g.save.x=west.x;g.save.y=west.y;
+            g.Talk(west);
+            Check(FerryChoice(g,"floodarchive_ferry")&&g.FloodReliefRaiders==2,
+                "The genuine ferry commits its enemy interception before the next reaction");
+            g.save.x=ferryman.x;g.save.y=ferryman.y;
+            g.Talk(ferryman);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("两个劫路")&&
+                g.conversation.textEn.Contains("Two raiders"),
+                "During the live fight the ferryman names the actual still-living attackers");
+            g.Close();
+            var hit=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"The real post-armor combat handler remains active");
+            g.invulnerable=0;g.save.health=g.save.maxHealth;
+            hit.Invoke(g,new object[]{35f,"shot",null});
+            g.invulnerable=0;
+            hit.Invoke(g,new object[]{35f,"shot",null});
+            Check(g.FloodReliefIntegrity<=30&&g.FloodReliefIntegrity>0,
+                "Two authentic hostile hits cause critical but salvageable seal damage");
+            g.Talk(ferryman);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("一份草药")&&
+                g.conversation.textEn.Contains("one herb"),
+                "With real damage the ferryman offers accurate one-herb rescue guidance");
+            g.Close();
+            var lethal=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(lethal!=null,"The real raider kill handler is available");
+            Enemy melee=g.enemies.Find(e=>e.id==92340);
+            Enemy bow=g.enemies.Find(e=>e.id==92341);
+            Check(melee!=null&&bow!=null,"Both encounter-owned enemies still live");
+            lethal.Invoke(g,new object[]{melee,99999f,false,null,null});
+            lethal.Invoke(g,new object[]{bow,99999f,false,null,null});
+            g.Talk(ferryman);
+            Check(g.FloodReliefSecured&&g.conversation!=null&&
+                g.conversation.text.Contains("接收台")&&
+                g.conversation.textEn.Contains("receiving desk"),
+                "Only two genuine kills change the NPC's instruction from fighting to final handoff");
+            g.Close();g.save.x=east.x;g.save.y=east.y;
+            g.Talk(east);
+            Check(FerryChoice(g,"floodarchive_relief_deliver")&&g.FloodReliefComplete,
+                "The existing eastern desk physically receives the secured medicine");
+            g.save.x=ferryman.x;g.save.y=ferryman.y;
+            g.Talk(ferryman);
+            Check(g.conversation!=null&&
+                g.conversation.text.Contains("渡口名册")&&
+                g.conversation.textEn.Contains("ferry register"),
+                "After an actual delivery the same identifiable NPC acknowledges the named families");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FloodReliefComplete,
+                "Reactive NPC voice neither invents reward flags nor changes original v2 persistence");
+        }
+
         public static void RestoredFerrymanRespondsToActualCivicArchiveChoice(Campaign data)
         {
             foreach(int ending in new[]{0,1,2})
