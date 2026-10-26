@@ -4603,7 +4603,7 @@ public static class ActorRegistrationChecks
             Set(app,"clock",5100.1f+id*20f+quality*4f);
             Clear();var stopped=Draw(app,"DrawCompanionActor")
                 .Single(ActorTexture);
-            Check(stopped.texture.name==walking.texture,
+            Check(System.Object.ReferenceEquals(stopped.texture,walking.texture),
                 "A real stop cannot replace the companion's published full-body identity");
             // Unlike older tests, never invoke CompanionGaitDistance
             // explicitly and never update decorative footprint VFX.
