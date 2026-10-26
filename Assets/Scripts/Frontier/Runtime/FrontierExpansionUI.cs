@@ -449,6 +449,32 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // The wounded courier's parcel stays exactly where the real
+            // post-armor combat blow dislodged it. No quest prop teleport,
+            // imported sprite mutation, or saved secondary position.
+            if(Game.mode=="world"&&Game.OuterDeliveryParcelDropped)
+            {
+                Point dropped=Game.OuterDeliveryParcelFoot;
+                Point screen=ScreenPoint(dropped);
+                bool available=Game.OuterDeliveryCanRecoverParcel;
+                Color ink=available?mint:gold;
+                Ring(dropped,.46f,ink,24);
+                if(!drawingOutline)
+                {
+                    Image(art.Glow(),screen.x-27,screen.y-7,54,15,
+                        new Color(.93f,.72f,.38f,.27f));
+                    Box(screen.x-13,screen.y-23,26,12,
+                        PixelArt.C("#e5d7ba"));
+                    Box(screen.x-13,screen.y-18,26,3,
+                        PixelArt.C("#b88055"));
+                    Text(screen.x-106,screen.y-67,212,20,
+                        available?Game.L("掉落药布 · 按 E 捡回",
+                            "DRESSINGS · E TO RECOVER"):
+                            Game.L("药布掉落位置 · 返回拾取",
+                            "DROPPED DRESSINGS · RECOVER"),
+                        11,ink,TextAnchor.MiddleCenter);
+                }
+            }
             // Chapter Five receiver defense is an ACTUAL physical stance
             // puzzle. Draw only the active NORMAL raider's committed lane:
             // heavy area slams cannot be intercepted this way, and nearby

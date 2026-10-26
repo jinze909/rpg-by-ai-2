@@ -573,5 +573,90 @@ namespace Starfall.Tests
                 "Stopping the live siege retires its automatic protective shot, not other arrows or v2 saves");
         }
 
+
+        public static void RegionalTimedMedicineRunDropsOnlyOnTrueHitAndRecoversViaPhysicalE(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            g.mode="world";
+            g.save.flags.Add("outer_log_0");
+            g.save.flags.Add("outer_relay_0");
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            var relay=Array.Find(g.Map.objects,o=>o.kind=="outerrelay");
+            var cache=Array.Find(g.Map.objects,o=>o.kind=="outercache");
+            var watch=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            Check(relay!=null&&cache!=null&&watch!=null,
+                "A real 3-stop regional delivery has an original lamp, chest and watchpost");
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.Talk(relay);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_start");
+            Check(start>=0,"The restored, defended region offers a real 90-second handoff");
+            g.Choose(start);
+            Check(g.OuterDeliveryActive&&g.OuterDeliveryStage==1&&
+                Math.Abs(g.OuterDeliverySeconds-90f)<.01f,
+                "The real dispatch begins at the original lamp with its unchanged timer");
+            g.save.x=cache.x;g.save.y=cache.y;
+            g.Talk(cache);
+            int pickup=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_pickup");
+            Check(pickup>=0,"Original rescue chest exposes its real dressings");
+            g.Choose(pickup);
+            Check(g.OuterDeliveryStage==2&&!g.OuterDeliveryParcelDropped,
+                "The live actor physically carries the original receipt and dressings");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"Real post-armor damage route is available");
+            float beforeHealth=g.save.health;
+            g.invulnerable=1f;
+            hurt.Invoke(g,new object[]{12f,"shot",null});
+            Check(!g.OuterDeliveryParcelDropped&&g.save.health==beforeHealth,
+                "Real invulnerability prevents a phantom medical parcel drop");
+            g.invulnerable=0f;
+            hurt.Invoke(g,new object[]{12f,"environment",null});
+            Check(!g.OuterDeliveryParcelDropped&&g.save.health<beforeHealth,
+                "Ambient hazard damage does not masquerade as a physical attacker knocking dressings away");
+            g.invulnerable=0f;
+            g.save.health=g.save.maxHealth;
+            float availableBefore=g.OuterDeliverySeconds;
+            hurt.Invoke(g,new object[]{12f,"shot",null});
+            Point dropFoot=g.OuterDeliveryParcelFoot;
+            Check(g.OuterDeliveryParcelDropped&&
+                (dropFoot-new Point(cache.x,cache.y)).Length<.001f&&
+                g.OuterDeliveryCanRecoverParcel&&!g.OuterDeliveryDone(0),
+                "A true arrow blow drops actual cargo onto the current hero foot and permits terrain-checked recovery");
+            g.Tick(.05f,new Point());
+            Check(g.OuterDeliverySeconds<availableBefore&&
+                g.OuterDeliveryParcelDropped,
+                "Dropped cargo remains on the real floor as the original stopwatch continues");
+            g.save.x=watch.x;g.save.y=watch.y;
+            Check(!g.OuterDeliveryCanRecoverParcel,
+                "An out-of-range courier cannot grab dressings from the far end of the route");
+            g.Talk(watch);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_deliver")<0,
+                "Watchkeeper refuses to accept a courier's empty hands");
+            g.Close();
+            g.save.x=dropFoot.x;g.save.y=dropFoot.y;
+            Check(g.OuterDeliveryCanRecoverParcel,
+                "The original dropped object remains reachable through real E interaction");
+            g.Interact();
+            Check(!g.OuterDeliveryParcelDropped&&g.OuterDeliveryStage==2&&
+                g.OuterDeliveryActive,
+                "Pressing E at the actual physical bundle restores the parcel without resetting mission progress");
+            g.save.x=watch.x;g.save.y=watch.y;
+            int coins=g.save.coins;
+            g.Talk(watch);
+            int deliver=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_deliver");
+            Check(deliver>=0,"Recovering genuine cargo restores the real delivery menu");
+            g.Choose(deliver);
+            Check(g.OuterDeliveryDone(0)&&!g.OuterDeliveryActive&&
+                !g.OuterDeliveryParcelDropped&&g.save.coins==coins+24&&
+                g.save.version==2,
+                "One genuine recovered delivery pays the original once-only reward and keeps old v2 save format");
+        }
+
     }
 }

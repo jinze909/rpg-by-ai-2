@@ -196,9 +196,13 @@ namespace Starfall
             Dialog(o.name,o.en,
                 outerDeliveryStage==2&&!outerDeliveryDropped?
                     "哨岗里有人扶着伤员坐下。值守员一眼认出你怀里的药布，伸手接过还未干的收据。":
+                    outerDeliveryDropped?
+                    "值守员看着你空着的手：药布掉在半路了。你必须先回到落点将药布和收据一起捡回来。":
                     "值守员翻着空白的交接簿。药布还在南边的旧箱里，得亲自带过来。",
                 outerDeliveryStage==2&&!outerDeliveryDropped?
                     "Someone helps an injured traveler to a seat. The watchkeeper recognizes the roll in your arms and reaches for the damp receipt.":
+                    outerDeliveryDropped?
+                    "The watchkeeper sees your empty hands: the dressings were dropped on the road. Recover the parcel and receipt at their original foot before handing them over.":
                     "The watchkeeper checks the empty delivery ledger. The dressings are still in the old chest to the south.",
                 outerDeliveryStage==2&&!outerDeliveryDropped?
                     C("交付药布和收据","Deliver dressings and receipt","outer_delivery_deliver"):
@@ -321,10 +325,14 @@ namespace Starfall
                         "计时还剩 "+Math.Ceiling(outerDeliverySeconds)+" 秒。"+
                         (outerDeliveryStage==1?
                             "南边救援箱里有一捆药布，去取回来。":
+                            outerDeliveryDropped?
+                            "药布在遭袭时掉在路上！赶紧回到落点按 E 拾取，再去哨岗交货。":
                             "药布在你身上，得亲自送到北边的哨岗。"),
                         "Time left: "+Math.Ceiling(outerDeliverySeconds)+"s. "+
                         (outerDeliveryStage==1?
                             "Collect the dressings from the chest south of here.":
+                            outerDeliveryDropped?
+                            "A real hit dropped your dressings on the trail! Recover them at the marked foot with E before the watch accepts delivery.":
                             "Carry the dressings to the defended watch north of here."),
                         C("取消这趟急送","Cancel this run","outer_delivery_abort"),
                         C("立刻赶路","Back to the road","close"));
