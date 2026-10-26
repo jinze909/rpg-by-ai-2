@@ -43,6 +43,7 @@ namespace Starfall.Tests
         [Test] public void BossBodyCoverForcesRealArcherFlanksAndAbsorbsActualHostileArrow() { CoreChecks.BossBodiesBlockOrdinaryHostileArrowsAndForceArcherFlanks(Data()); }
         [Test] public void EnemyArchersSidestepActualFriendlyBodiesBeforeOpeningFire() { CoreChecks.ArchersFindActualSideFiringLanesAroundMovingFriendlyBodies(Data()); }
         [Test] public void OrdinaryEnemyArrowsReallyStopAtEarlierLivingEnemyBodies() { CoreChecks.HostileArrowsHavePhysicalFrontlineCoverWithoutFalseCredit(Data()); }
+        [Test] public void InnTravelerStoryDoesNotSwapToGuildSteward() { CoreChecks.InnStoryFollowUpsRemainInTravelersOwnVoice(Data()); }
         [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }
         [Test] public void StationedAllyInterposesTwoRealPhysicalStockContacts() { CoreChecks.RealStationedCompanionHasTwoFinitePhysicalStockGuards(Data()); }
         [Test] public void PartySwapClearsPriorCompanionsPhysicalGuardOrder() { CoreChecks.CompanionPartySwapCannotInheritAnotherAllysDefenseOrder(Data()); }

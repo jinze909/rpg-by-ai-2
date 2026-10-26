@@ -206,6 +206,55 @@ namespace Starfall.Tests
                 g.conversation.text.Contains("巡路"),
                 "Fresh original NPC story choices keep place, missing person and core after a rejected stale click");
         }
+        public static void InnStoryFollowUpsRemainInTravelersOwnVoice(Campaign data)
+        {
+            var g=Fresh(data);g.Close();
+            WorldObject inn=Object(g,"innGuest");
+            WorldObject guild=Object(g,"guild");
+            Check(inn!=null&&guild!=null&&
+                !System.Object.ReferenceEquals(inn,guild),
+                "Town has separate living inn traveler and guild steward sources");
+            g.save.x=inn.x;g.save.y=inn.y;
+            int coins=g.save.coins,flags=g.save.flags.Count;
+            g.Talk(inn);
+            Check(g.conversation!=null&&g.conversationSource==inn&&
+                StoryChoicePresent(g,"story_catchup"),
+                "Actual in-world inn traveler offers the read-only story handoff");
+            ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversationSource==inn&&
+                g.conversation.speaker==inn.name&&
+                g.conversation.speakerEn==inn.en&&
+                g.conversation.text.Contains("巡路员")&&
+                !g.conversation.text.Contains("莉雅推开")&&
+                !g.conversation.textEn.Contains("Lyra pushes"),
+                "Opening inn story preserves the original traveler and their distinct grounded voice");
+            ChooseStoryChoice(g,"story_people");
+            Check(g.conversationSource==inn&&
+                g.conversation.speaker==inn.name&&
+                g.conversation.text.Contains("货单"),
+                "Traveler's news remains in their hands rather than teleporting Lyra to the inn");
+            ChooseStoryChoice(g,"story_catchup");
+            ChooseStoryChoice(g,"story_terms");
+            Check(g.conversationSource==inn&&g.conversation.speaker==inn.name&&
+                g.conversation.text.Contains("星核")&&
+                g.conversation.textEn.Contains("Starcrystal"),
+                "Traveler explains the physical route network without changing narrator mid-chain");
+            ChooseStoryChoice(g,"story_catchup");
+            ChooseStoryChoice(g,"inn_topics");
+            Check(g.conversationSource==inn&&g.conversation.speaker==inn.name&&
+                StoryChoicePresent(g,"inn_routelead"),
+                "Explanatory branch returns to the REAL inn business and retains every original option");
+            g.Close();g.save.x=guild.x;g.save.y=guild.y;g.Talk(guild);
+            ChooseStoryChoice(g,"story_catchup");
+            Check(g.conversationSource==guild&&
+                g.conversation.speaker.Contains("莉雅")&&
+                g.conversation.text.Contains("莉雅推开"),
+                "After leaving the inn the true guild steward still uses her distinct original text");
+            Check(g.save.coins==coins&&g.save.flags.Count==flags&&
+                g.save.version==2,
+                "Switching genuine story speakers awards nothing and changes no v2 save state");
+        }
+
         public static void LivingStoryGuideConnectsPeopleCausesAndNextStepWithoutChangingProgress(Campaign data)
         {
             var g=Fresh(data);

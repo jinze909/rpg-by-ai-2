@@ -36,7 +36,90 @@ namespace Starfall
                 choices.Length - insert);
             conversation.choices = updated;
         }
+        // Resolve who actually owns this choice. Choose() closes the old
+        // page before dispatch and temporarily carries its validated live
+        // world object in pendingDialogueSource. Never silently switch an
+        // inn traveler or the physical chronicle into Lyra's body/voice.
+        private WorldObject StoryDialogueSource
+        { get { return pendingDialogueSource??conversationSource; } }
+
+        private void WorldInnStoryCatchUp(WorldObject traveler)
+        {
+            string zh="旅人把一张磨破边的路单压在汤碗下面。\n\n“公会里管档案，旅店里管回来的人。你问我走到哪了，我先看看谁还没回家。”";
+            string en="The traveler pins a worn route slip beneath a soup bowl.\n\n“Guild keeps the ledgers. Here we count who made it home. Let me see which road you're asking about.”";
+            if(save.stage==0)
+            {
+                if(Has("core_1"))
+                {
+                    zh+="\n\n“你从密林带回来的东西还没交？先去公会找莉雅。别把能救人的物件压在行囊底下。”";
+                    en+="\n\n“You carried something out of Thornwood? Take it to Lyra at the guild. Don't leave it buried under your travel gear.”";
+                }
+                else
+                {
+                    zh+="\n\n“密林那位巡路员还没回来。今早有车夫在北岔路看见了他的旧路标。先找人，再问祭坛上出了什么事。”";
+                    en+="\n\n“The scout hasn't come home from Thornwood. A cart driver spotted his old marker by the northern fork. Find him first; then ask what happened at the altar.”";
+                }
+            }
+            else if(save.stage<3)
+            {
+                zh+=save.stage==1?
+                    "\n\n“沉没遗迹的摆渡船又停了。带上路图去问渡口的人，别在涨水的时候抄近路。”":
+                    "\n\n“赤铁矿场的钟还在响，工人却没按时换班。先去看看升降机是不是还通着。”";
+                en+=save.stage==1?
+                    "\n\n“The ferry at the drowned ruins has stopped again. Ask at the crossing, and don't shortcut through the rising water.”":
+                    "\n\n“The Ironreach mine bell keeps ringing, but the workers missed their shift change. Check the lift before you go in.”";
+            }
+            else if(save.ending==0)
+            {
+                zh+="\n\n“三枚星核都指向堡垒。城里要守住屏障，路上的人也要用电。别只带地图去，先听完远岸那几家的话，再找厄洛说清楚。”";
+                en+="\n\n“All three cores point to the citadel. The wall needs power, but so do the people on the roads. Hear the farshore families out before you take their accounts to Orrin.”";
+            }
+            else
+            {
+                zh+="\n\n“这几天多了修灯的人，也多了问路的人。公会南边的公共工地和旅店里的巡路记录都还需要有人照看。”";
+                en+="\n\n“More hands are fixing lamps now. More travelers are asking which roads are open. The public works south of the guild and the road log here both need attention.”";
+            }
+            Dialog(traveler.name,traveler.en,zh,en,
+                StoryChoice("路上还有谁的消息？","Any word from the road?","story_people"),
+                StoryChoice("星根到底怎么影响道路？","How does starroot affect the roads?","story_terms"),
+                StoryChoice("翻看巡路记录","Read the road log","story_menu"),
+                StoryChoice("还是问问旅店的事","Back to inn business","inn_topics"),
+                StoryChoice("收好路单","Put away the slip","close"));
+        }
+        private void WorldInnStoryPeople(WorldObject traveler)
+        {
+            string zh="旅人抽出一张皱巴巴的货单。\n\n“杏在镇口等药，老潮在渡口等木板，诺尔在矿场等能关停机器的零件。三样东西听着不搭边，可路断了，谁都等不来。”";
+            string en="The traveler unfolds a creased freight slip.\n\n“An's waiting for medicine, Old Tide for ferry planks, and Noll for a part that will stop the mine machines. Different cargo. Same broken roads.”";
+            if(Has("scout_saved"))
+            {
+                zh+="\n\n“你救回的巡路员昨天在这里住过一夜。他靴子上有铁镐留下的木屑。密林里的麻烦恐怕不全是野兽干的。”";
+                en+="\n\n“The scout you brought back slept here last night. Pickaxe splinters were caught in his boots. Beasts weren't the only trouble in those woods.”";
+            }
+            if(save.stage>=3)
+            {
+                zh+="\n\n“堡垒也有人在等物资。可我把货单给谁，得先知道是谁负责送到最后一户。”";
+                en+="\n\n“The citadel has people waiting for supplies too. I just want to know who's responsible for getting them to the last house.”";
+            }
+            Dialog(traveler.name,traveler.en,zh,en,
+                StoryChoice("再看看路单","Back to the route slip","story_catchup"),
+                StoryChoice("看看巡路记录","Read the road log","story_menu"),
+                StoryChoice("去忙吧","That's enough for now","close"));
+        }
+        private void WorldInnStoryTerms(WorldObject traveler)
+        {
+            Dialog(traveler.name,traveler.en,
+                "旅人用手指在桌上划了条线，又在中间压上一枚硬币。\n\n“地下那条供水、供热的线叫星根。星核像闸门，把力气送往不同的地方。堡垒的屏障用得多，路边的灯和泵就分得少。”\n\n他把硬币移向你。\n\n“星晶是矿石，不是闸门。诺尔能拿它修设备。至于哪些闸该开，你得问真正住在那儿的人。”",
+                "The traveler draws a line on the table and sets a coin across it.\n\n“Starroot carries water, heat, and power underground. Starcores work like gates, sending it one way or another. Give more to the wall, and the road lamps and pumps get less.”\n\nThe coin scrapes toward you.\n\n“Starcrystal is ore, not a gate. Noll uses it for repairs. Ask the people living out there which gates ought to stay open.”",
+                StoryChoice("再看看路单","Back to the route slip","story_catchup"),
+                StoryChoice("翻看巡路记录","Read the road log","story_menu"),
+                StoryChoice("收起这张图","Put the sketch away","close"));
+        }
+
         private void WorldStoryCatchUp()
+        {
+            WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="innGuest")
+            { WorldInnStoryCatchUp(storyteller);return; }
         {
             // Lyra answers as a working guild steward, not as a floating
             // "plot explained" overlay. The journal remains the player's
@@ -113,6 +196,10 @@ namespace Starfall
         }
         private void WorldStoryPeople()
         {
+            WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="innGuest")
+            { WorldInnStoryPeople(storyteller);return; }
+        {
             // Only acquaintances actually introduced by this save are named.
             string zh="莉雅把几封不同笔迹的信排在桌边。\n\n“杏寄来的信总带着药草味。你看，右下角又画了个小勺子。她怕伤员不肯喝药。”\n\n“老潮没什么耐心写信。三张纸全在催船板和粮食。他大概又把自己的晚饭让给等渡的人了。”\n\n“诺尔的字倒像是拿尺子量过。他说矿机要装一只人人都够得着的停机闸——这话可不会讨堡垒工程师喜欢。”";
             string en="Lyra lays out letters in three different hands.\n\n“An's always smell of herbs. Look, she's drawn another little spoon at the bottom. She's worried her patients won't take their medicine.”\n\n“Old Tide doesn't waste ink. Three letters asking for planks and grain. I imagine he's given his own supper to someone waiting for the ferry again.”\n\n“Noll writes like he measures each line with a ruler. He wants a shutdown lever any worker can reach. The citadel engineers won't like that.”";
@@ -132,6 +219,10 @@ namespace Starfall
                 StoryChoice("把信收好","Put the letters away","close"));
         }
         private void WorldStoryTerms()
+        {
+            WorldObject storyteller=StoryDialogueSource;
+            if(storyteller!=null&&storyteller.kind=="innGuest")
+            { WorldInnStoryTerms(storyteller);return; }
         {
             Dialog("莉雅 · 旧线路图","Lyra · Old Circuit Map",
                 "莉雅用指甲压住地图上交错的红线。\n\n“这些叫星根。地底下的水、热气，还有我们用的能量，都顺着它走。七处锚点就像河上的闸，要一处一处调。”\n\n“闸里最要紧的那块，是星核。拔出来拿去供城墙，别处的水就会少。星晶不一样——那是旁边结出的矿石，诺尔拿它修东西。”\n\n她敲了敲地图上画着城墙的黑方框。\n\n“屏障真能挡危险。我见过它救人。所以我才要让堡垒把账拿出来：谁在用，谁没得用？”\n\n“要是有人愿意在证词上署名，或把维修责任写进公约，纸就不再只是堡垒的一张命令。”",
