@@ -19,7 +19,7 @@ namespace Starfall.Tests
                     var offAxis=new Enemy(103,0,origin.x+3f,origin.y+3f,80);
                     g.enemies.Add(behind);g.enemies.Add(offAxis);g.enemies.Add(ahead);
                     float previousHp=ahead.hp, previousEnergy=g.save.energy;
-                    Check(Object.ReferenceEquals(
+                    Check(System.Object.ReferenceEquals(
                         g.AcquireRangedStickTarget(new Point(1,0)),ahead),
                         "A ranged right stick finds the first genuinely visible foe inside its tight forward cone");
                     Check(g.AcquireRangedStickTarget(new Point(0,1))==null,
@@ -44,7 +44,7 @@ namespace Starfall.Tests
                         Check(g.AcquireRangedStickTarget(new Point(1,0))==null,
                             "Sword-based area professions keep direct melee facing instead of remote target snap");
                     else
-                        Check(Object.ReferenceEquals(
+                        Check(System.Object.ReferenceEquals(
                             g.AcquireRangedStickTarget(new Point(1,0)),ahead),
                             "Ranger still acquires a live target for the authored Q volley while holding a sword");
                 }
