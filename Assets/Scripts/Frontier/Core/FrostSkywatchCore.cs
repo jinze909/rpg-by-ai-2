@@ -16,6 +16,11 @@ namespace Starfall
         // A missing enemy is not a Boss victory. Persist only the normal
         // original completion flag after the actual lethal combat callback.
         private bool skywatchKillConfirmed;
+        // This authored elite is an actual encounter instance, NOT every
+        // enemy whose independently allocated numeric ID happens to be 89701.
+        // Both the combat death callback and the quest's live roster use it.
+        // The reference is transient and never extends SaveData v2.
+        private Enemy skywatchGuardian;
         private void OnSkywatchEnemyDefeated(Enemy guardian)
         {
             if (SkywatchRoom == 7 && save.room == 7 &&
@@ -29,13 +34,17 @@ namespace Starfall
                 save.energy >= 25 && !Dying && enemies.Exists(IsSkywatchEnemy); }
         }
         public bool IsSkywatchEnemy(Enemy enemy)
-        { return enemy != null && enemy.id == 89701; }
+        {
+            return enemy != null && SkywatchRoom == 7 &&
+                save.room == 7 && Object.ReferenceEquals(enemy,skywatchGuardian);
+        }
         private void ResetSkywatch()
         {
             enemies.RemoveAll(IsSkywatchEnemy);
             projectiles.RemoveAll(p => p.skywatchOwned);
             effects.RemoveAll(e => e.skywatchOwned);
             hazards.RemoveAll(h => h.skywatchOwned);
+            skywatchGuardian=null;
             SkywatchRoom = 0; SkywatchTime = 0;
             skywatchPulseTime = 0; skywatchPulseCycle = 0;
             skywatchGroundingUsed = false; skywatchKillConfirmed = false;
@@ -390,7 +399,9 @@ namespace Starfall
                 skywatchPulseTime=2.6f; skywatchPulseCycle=0;
                 skywatchGroundingUsed=false; SkywatchGroundingTime=0;
                 Enemy guardian=new Enemy(89701,2,spawn.x,spawn.y,240,true);
-                guardian.timer=1.05f; enemies.Add(guardian);
+                guardian.timer=1.05f;
+                skywatchGuardian=guardian;
+                enemies.Add(guardian);
                 TrackQuest("skywatch"); sound="windup"; revision++;
                 effects.Add(new Effect("discover",spawn,.65f));
                 Notify("古观星守卫已启动！看清冰光落点，利用移动和闪避突破。",

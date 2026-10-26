@@ -57,6 +57,7 @@ namespace Starfall.Tests
         [Test] public void SignedMedicalDeliveriesImproveOnlySafeStaffedRoadsideRecovery() { CoreChecks.SignedMedicineActuallyImprovesSafeWaystationRecovery(Data()); }
         [Test] public void CivicMedicineImprovesRealPublicFieldAidAfterThreeDeliveries() { CoreChecks.CompletedPublicMedicineStrengthensRealOneHerbFieldAid(Data()); }
         [Test] public void MedicalParcelCancellationRetiresOnlyItsActualRaiderArrows() { CoreChecks.ReturningMedicalParcelWithdrawsOnlyItsOwnLiveArrows(Data()); }
+        [Test] public void SkywatchCombatRequiresTheActualGuardianNotMatchingSpawnId() { CoreChecks.SkywatchGuardianIdentitySurvivesSameIdEnemyAndRealLethalVictory(Data()); }
         [Test] public void MedicalAmbusherSpawnsOnRealUnoccupiedRoadFeet() { CoreChecks.CourierAmbushUsesUnoccupiedRoadFeetAcrossRetries(Data()); }
         [Test] public void DialogueClosingMarksStayOnOriginalPageAtBothFontSizes() { CoreChecks.DialoguePagesKeepClosingPunctuationWithItsSentence(Data()); }
         [Test] public void DialogueParagraphsAndEllipsesDoNotClipOrOrphanInGame() { CoreChecks.DialoguePagesRespectParagraphLinesAndCompleteEllipses(Data()); }

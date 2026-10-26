@@ -1839,6 +1839,57 @@ namespace Starfall.Tests
                 "The real V2 cancellation remains a one-herb refund after save reload");
         }
 
+
+        public static void SkywatchGuardianIdentitySurvivesSameIdEnemyAndRealLethalVictory(Campaign data)
+        {
+            var g=Unlocked(data);
+            foreach(string flag in new[]{"skywatch_started","skywatch_prism_1",
+                "skywatch_prism_2","skywatch_prism_3"})
+                g.save.flags.Add(flag);
+            g.Enter(7);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject altar=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="skyobservatory");
+            Check(altar!=null,"Actual Frostchime observatory exists");
+            g.save.x=altar.x;g.save.y=altar.y;
+            var choose=typeof(GameCore).GetMethod("ChooseSkywatch",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"Actual Skywatch trial action is wired in GameCore");
+            choose.Invoke(g,new object[]{"skywatch_start"});
+            Enemy guardian=g.enemies.Find(g.IsSkywatchEnemy);
+            Check(guardian!=null&&guardian.boss&&g.SkywatchRoom==7,
+                "Original physical observatory starts one real authored elite encounter");
+            var unrelated=new Enemy(guardian.id,0,guardian.x+5f,
+                guardian.y+5f,45);
+            g.enemies.Insert(0,unrelated);
+            Check(!g.IsSkywatchEnemy(unrelated)&&g.IsSkywatchEnemy(guardian),
+                "Identical numeric spawn IDs cannot impersonate the live trial boss");
+            var damage=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(damage!=null,"Actual combat damage entry point exists");
+            damage.Invoke(g,new object[]{unrelated,999f,false,null,null});
+            Check(g.enemies.Contains(guardian)&&!g.Has("skywatch_defeated")&&
+                g.SkywatchRoom==7&&g.IsSkywatchEnemy(guardian),
+                "Destroying a same-ID stranger cannot complete the observatory or descope its real guardian");
+            damage.Invoke(g,new object[]{guardian,999f,false,null,null});
+            Check(!g.enemies.Contains(guardian)&&!g.Has("boss_7")&&
+                !g.enemies.Exists(g.IsSkywatchEnemy),
+                "Genuine optional guardian contact is not a main-story boss victory");
+            var tick=typeof(GameCore).GetMethod("TickSkywatch",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            tick.Invoke(g,new object[]{.02f});
+            Check(g.Has("skywatch_defeated")&&g.SkywatchRoom==0&&
+                !g.Has("boss_7"),
+                "Only the actual authored boss death completes its optional trial");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(loaded.save.version==2&&loaded.Has("skywatch_defeated")&&
+                !loaded.Has("boss_7")&&loaded.SkywatchRoom==0,
+                "Existing V2 save preserves optional completion without serializing encounter identity");
+        }
+
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);
