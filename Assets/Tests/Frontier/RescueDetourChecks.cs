@@ -281,6 +281,9 @@ namespace Starfall.Tests
             handoff.Invoke(game,new object[]{shot,threat});
             Check(threat.state==0&&shot.heroCoverTarget==null,
                 "Only actual contact against the reference-matched pending threat may interrupt");
+            // A new contact has its own cue lifetime; isolate the next
+            // negative assertion from the genuine prior protection effect.
+            game.effects.Clear();
             var late=new Enemy(99622,2,14.4f,10.88f,10000f)
                 {state=0,timer=1f,target=game.Position,facing=new Point(1,0)};
             game.enemies.Add(late);

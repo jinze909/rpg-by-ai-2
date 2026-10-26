@@ -359,6 +359,14 @@ namespace Starfall
                     Game.L("驻守路线受阻 · 原命令已保留",
                         "ALLY POST BLOCKED · ORDER KEPT"),
                     10,gold,TextAnchor.MiddleCenter);
+            else if(!drawingOutline&&Game.CompanionHeroCoverInFlight)
+                // A live automatic arrow is heading toward an imminent
+                // hero attacker. Arrival is NOT guaranteed: collision,
+                // stone, death and the enemy release clock still decide.
+                Text(p.x-108,p.y-143,216,22,
+                    Game.L("援射在途 · 命中才可打断",
+                        "COVER SHOT · HIT TO INTERRUPT"),
+                    10,mint,TextAnchor.MiddleCenter);
         }
         private void DrawHazardWarnings()
         {
