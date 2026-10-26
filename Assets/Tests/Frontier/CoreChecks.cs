@@ -1621,8 +1621,9 @@ namespace Starfall.Tests
                 Check(g.CivicCourierActive&&g.save.inventory[2]==herbs-1&&
                     g.save.room==region&&g.save.trackedQuest=="civic_courier"&&
                     (g.GetQuest("civic_courier").target-
-                        new Point(destination.x,destination.y)).Length<.01f,
-                    "A paid parcel is sealed and the real journal pin follows the OTHER surveyed marker");
+                        new Point(destination.x,destination.y)).Length<.01f&&
+                    g.enemies.Exists(g.IsCivicCourierGuard),
+                    "A paid parcel starts one LIVE enemy ambush midway along its real physical road");
                 int coins=g.save.coins;
                 g.ReturnToTown();
                 Check(g.save.room==region&&g.CivicCourierActive&&
@@ -1640,6 +1641,7 @@ namespace Starfall.Tests
                     var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
                     Check(loaded.save.version==2&&loaded.CivicCourierActive&&
                         loaded.save.inventory[2]==herbs-1&&
+                        loaded.enemies.Exists(loaded.IsCivicCourierGuard)&&
                         (loaded.GetQuest("civic_courier").target-
                             new Point(destination.x,destination.y)).Length<.01f,
                         "Old V2 saves preserve the true physical parcel origin and destination");
@@ -1662,11 +1664,30 @@ namespace Starfall.Tests
                         x=>x.action=="civic_courier_start");
                     g.Choose(accept);
                 }
+                g.enemies.RemoveAll(enemy=>!g.IsCivicCourierGuard(enemy));
                 g.save.x=destination.x;g.save.y=destination.y;
                 g.Talk(destination);
                 int deliver=Array.FindIndex(g.conversation.choices,
                     x=>x.action=="civic_courier_deliver");
                 Check(deliver>=0,"Only the other physical and previously surveyed marker accepts delivery");
+                g.Choose(deliver);
+                Check(g.CivicCourierActive&&
+                    !g.CivicCourierGuardCleared(region)&&
+                    g.save.coins==coins,
+                    "Reaching the destination without defeating the real bowman cannot pay a false courier reward");
+                Enemy raider=g.enemies.Find(g.IsCivicCourierGuard);
+                Check(raider!=null&&raider.hp>0f,
+                    "Original assigned hostile is alive, not a fake local combat counter");
+                var damage=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                damage.Invoke(g,new object[]{raider,999f,false,null,null});
+                Check(g.CivicCourierGuardCleared(region)&&
+                    !g.enemies.Exists(g.IsCivicCourierGuard),
+                    "A REAL enemy death permanently secures the cargo route");
+                g.Talk(destination);
+                deliver=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_courier_deliver");
                 g.Choose(deliver);
                 Check(!g.CivicCourierActive&&
                     g.Has("civic_courier_done_"+region)&&

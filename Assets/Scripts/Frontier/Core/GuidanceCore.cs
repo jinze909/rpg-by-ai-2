@@ -33,6 +33,10 @@ namespace Starfall
         public void SkipTutorial() { save.tutorialBits = 255; revision++; }
         private void TickGuidance(Point before)
         {
+            // A sealed medical run survives V2 loading. Retry authentic
+            // mid-route guard placement after changing tide or a gate,
+            // without running pathfinding more than once per three seconds.
+            TickCivicCourierGuard();
             save.tutorialDistance = Math.Min(4, save.tutorialDistance + (Position - before).Length);
             if (save.tutorialDistance >= 3) TutorialAction(0); if (save.room == 1) TutorialAction(7);
             // Legacy sectors track the original 36x24 area only.
@@ -124,6 +128,104 @@ namespace Starfall
                 return total;
             }
         }
+        // Each real parcel run has one physically placed raider. A guard
+        // carries ACTOR identity, not just a numeric ID that other enemies
+        // could reuse. Only the defeat flag survives V2 save/load.
+        private Enemy civicCourierGuard;
+        private int civicCourierGuardRoom=-1;
+        private MapData civicCourierGuardMap;
+        private float civicCourierGuardCheckAt;
+        public bool IsCivicCourierGuard(Enemy e)
+        {
+            return e!=null&&
+                Object.ReferenceEquals(e,civicCourierGuard)&&
+                save.room==civicCourierGuardRoom&&
+                Object.ReferenceEquals(civicCourierGuardMap,Map);
+        }
+        public bool CivicCourierGuardCleared(int region)
+        { return Has("civic_courier_guard_down_"+region); }
+        private void ResetCivicCourierGuard()
+        {
+            civicCourierGuard=null;
+            civicCourierGuardRoom=-1;civicCourierGuardMap=null;
+            civicCourierGuardCheckAt=0f;
+        }
+        private void RetireCivicCourierGuard()
+        {
+            if(civicCourierGuard!=null)
+                enemies.Remove(civicCourierGuard);
+            ResetCivicCourierGuard();
+        }
+        private void OnCivicCourierGuardDefeated(Enemy e)
+        {
+            if(!IsCivicCourierGuard(e))return;
+            Flag("civic_courier_guard_down_"+save.room);
+            sound="quest";revision++;
+            Notify("伏击者已被击退，药包可以安全继续送往另一端路标。",
+                "Road ambusher defeated. The sealed medicine can reach the far marker.");
+        }
+        private bool SpawnCivicCourierGuard()
+        {
+            int region=save.room;
+            if((region!=0&&region!=3&&region!=5)||
+                CivicCourierOriginId(region)==null||
+                CivicCourierGuardCleared(region))return false;
+            if(civicCourierGuard!=null&&
+                IsCivicCourierGuard(civicCourierGuard)&&
+                civicCourierGuard.hp>0)return true;
+            WorldObject origin=null,target=null;
+            string originId=CivicCourierOriginId(region);
+            foreach(WorldObject sign in Map.objects)
+                if(sign!=null&&sign.kind=="waytrail")
+                {
+                    if(sign.id==originId)origin=sign;
+                    else if(Has("waytrail_"+sign.id))target=sign;
+                }
+            if(origin==null||target==null)return false;
+            // Find a legitimate route between planted feet by the authored
+            // signs. The obelisk centers themselves may be decorative solids.
+            Point[] offsets={
+                new Point(0,1.1f),new Point(1.1f,0),
+                new Point(-1.1f,0),new Point(0,-1.1f),
+                new Point(1,1),new Point(-1,1),
+                new Point(1,-1),new Point(-1,-1)
+            };
+            Point ambush=new Point();
+            bool found=false;
+            for(int i=0;i<offsets.Length&&!found;i++)
+                for(int j=0;j<offsets.Length&&!found;j++)
+                {
+                    Point start=new Point(origin.x,origin.y)+offsets[i];
+                    Point end=new Point(target.x,target.y)+offsets[j];
+                    if(!CanStand(start)||!CanStand(end))continue;
+                    List<Point> path=NavigationPathFrom(start,end,true);
+                    if(path.Count<10)continue;
+                    // Ambush the actual middle of the walk, never the
+                    // station body or an unreachable enclosed mountain.
+                    for(int k=path.Count/2;k<path.Count&&!found;k++)
+                    {
+                        Point foot=path[k];
+                        if(!CanStand(foot)||
+                            (foot-start).Length<4f||
+                            (foot-end).Length<4f)continue;
+                        ambush=foot;found=true;
+                    }
+                }
+            if(!found)return false;
+            civicCourierGuard=new Enemy(++enemyId,1,
+                ambush.x,ambush.y,48f+region*5f);
+            enemies.Add(civicCourierGuard);
+            civicCourierGuardRoom=region;civicCourierGuardMap=Map;
+            revision++;
+            return true;
+        }
+        private void TickCivicCourierGuard()
+        {
+            if(!CivicCourierActive||civicCourierGuard!=null||
+                save.totalTime<civicCourierGuardCheckAt)return;
+            civicCourierGuardCheckAt=save.totalTime+3f;
+            SpawnCivicCourierGuard();
+        }
         private string CivicCourierOriginId(int room)
         {
             if(save.room!=room||Map.objects==null)return null;
@@ -175,6 +277,16 @@ namespace Starfall
                 if(destination==null)return true;
                 if(!Spend(0,0,1,0,0))return true;
                 Flag(activeFlag+source.id);
+                // A contract whose original route is sealed cannot accept
+                // a herb and hold it hostage. Reject before starting.
+                if(!SpawnCivicCourierGuard())
+                {
+                    save.flags.Remove(activeFlag+source.id);
+                    CreditInventory(2,1);
+                    Notify("另一端道路尚未连通，先打通路再接这趟送药委托。",
+                        "The other road marker is not reachable yet. Reopen the road before taking its parcel.");
+                    return true;
+                }
                 TrackQuest("civic_courier");
                 sound="quest";revision++;
                 Notify("医疗包已封好，药草-1。亲自走到本地区另一端旧路标交付；乘车和快速回城暂不可用。",
@@ -186,6 +298,8 @@ namespace Starfall
             {
                 if(source.id!=originId)return true;
                 save.flags.Remove(activeFlag+originId);
+                save.flags.Remove("civic_courier_guard_down_"+region);
+                RetireCivicCourierGuard();
                 CreditInventory(2,1);
                 revision++;sound="quest";
                 Notify("医疗包已交还原路站，退回1份药草。",
@@ -194,6 +308,12 @@ namespace Starfall
             }
             if(source.id==originId||
                 CivicCourierOtherMarker(source)==null)return true;
+            if(!CivicCourierGuardCleared(region))
+            {
+                Notify("伏击者还在路上。先击退实际拦路的弓手，才能把药包交出去。",
+                    "The road ambusher is still active. Defeat the real bowman before handing over the medicine.");
+                return true;
+            }
             // A return to the original sign is not delivery. A genuine
             // different surveyed marker is required after a real foot run.
             save.flags.Remove(activeFlag+originId);
