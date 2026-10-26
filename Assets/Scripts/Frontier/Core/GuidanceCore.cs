@@ -138,6 +138,15 @@ namespace Starfall
         { get { return CivicCourierTriageTrained?48:36; } }
         public int CivicFieldAidClimateRelief
         { get { return CivicCourierTriageTrained?35:25; } }
+        // The same signed civilian handoffs also leave trained volunteers at
+        // authentic staffed rest stops. No remote recovery, free combat heal,
+        // new persistent field, or invented non-world ticking.
+        public float CivicWaystationHealingRate
+        { get { return CivicCourierTriageTrained?1.45f:.95f; } }
+        public float CivicWaystationEnergyRate
+        { get { return CivicCourierTriageTrained?4f:3f; } }
+        public float CivicWaystationClimateRate
+        { get { return CivicCourierTriageTrained?5f:4f; } }
         // Each real parcel run has one physically placed raider. A guard
         // carries ACTOR identity, not just a numeric ID that other enemies
         // could reuse. Only the defeat flag survives V2 save/load.
@@ -760,10 +769,16 @@ namespace Starfall
                         "\n\nOnly this region is currently supplied. Provision another region to open interregional shuttle routes.";
                     Dialog("居民巡路站","Civilian Waystation",
                         "本区已完成物资补给，全线进度 "+CivicWaystationCount+
-                        "/3。安全时靠近旧路标可缓慢恢复体力与生命，并缓解冷热。"+
+                        "/3。安全时靠近旧路标，每秒恢复生命 "+CivicWaystationHealingRate.ToString("0.00")+
+                        "、体力 "+CivicWaystationEnergyRate.ToString("0.0")+
+                        "，并缓解冷热各 "+CivicWaystationClimateRate.ToString("0.0")+"。"+
                         transitZh,
                         "This region is supplied. Network "+CivicWaystationCount+
-                        "/3. Rest safely near either old marker to recover energy and health and ease heat/cold."+
+                        "/3. Near either original marker, safe travelers recover "+
+                        CivicWaystationHealingRate.ToString("0.00")+" HP/sec and "+
+                        CivicWaystationEnergyRate.ToString("0.0")+
+                        " energy/sec; heat and cold ease by "+
+                        CivicWaystationClimateRate.ToString("0.0")+"/sec."+
                         transitEn,
                         travel.ToArray());
                     return true;
@@ -1486,8 +1501,8 @@ namespace Starfall
                         "Road secured. Deliver the sealed parcel at the opposite surveyed marker on foot"):
                     L("到一处已补给路站领取药包（药草1），然后徒步穿越实际道路",
                         "Accept a one-herb medical parcel at a stocked marker, then walk the real road");
-                q.reward=L("每地硬币18、经验30；三地全部完成额外碎片2，路站急救增强至生命48、冷热各-35；原站退货返还药草1",
-                    "Each delivery: +18 coins and +30 XP; all three: +2 shards and stronger one-herb field kits (+48 HP, -35 heat/cold). Undelivered parcels can be returned for one herb.");
+                q.reward=L("每地硬币18、经验30；三地完成额外碎片2、路站药草急救生命48／冷热各-35；安全恢复生命1.45/秒、体力4/秒、冷热各-5/秒。原站退货返还药草1",
+                    "Each delivery: +18 coins and +30 XP; all three: +2 shards, one-herb kits (+48 HP, -35 heat/cold), and trained safe-station care (+1.45 HP/sec, +4 energy/sec, -5 heat/cold/sec). Undelivered parcels can be returned for one herb.");
                 return q;
             }
 
@@ -1528,8 +1543,8 @@ namespace Starfall
                         "Shuttles now run between supplied regions. Deliver 2 timber and 1 herb to the remaining region"):
                     L("在指定地区亲自与旧路标交互，交付木材2和药草1",
                         "Visit the marked region and deliver 2 timber and 1 herb at an original trail marker");
-                q.reward=L("每地安全恢复：生命+0.95/秒、体力+3/秒、冷热各-4/秒；接驳跨区5硬币/20体力、本地2硬币/10体力；三地额外硬币30、碎片1、经验45",
-                    "Each region: safe +0.95 HP/sec, +3 energy/sec, -4 heat/cold/sec. Shuttles: 5 coins/20 energy across regions, 2 coins/10 energy locally; all three: +30 coins, +1 shard, +45 XP");
+                q.reward=L("每地安全恢复：生命+"+CivicWaystationHealingRate.ToString("0.00")+"/秒、体力+"+CivicWaystationEnergyRate.ToString("0.0")+"/秒、冷热各-"+CivicWaystationClimateRate.ToString("0.0")+"/秒；接驳跨区5硬币/20体力、本地2硬币/10体力；三地额外硬币30、碎片1、经验45",
+                    "Each region: safe +"+CivicWaystationHealingRate.ToString("0.00")+" HP/sec, +"+CivicWaystationEnergyRate.ToString("0.0")+" energy/sec, -"+CivicWaystationClimateRate.ToString("0.0")+" heat/cold/sec. Shuttles: 5 coins/20 energy across regions, 2 coins/10 energy locally; all three: +30 coins, +1 shard, +45 XP");
                 return q;
             }
 

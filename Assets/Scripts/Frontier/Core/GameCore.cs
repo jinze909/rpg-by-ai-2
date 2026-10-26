@@ -2959,16 +2959,16 @@ namespace Starfall
                     (Has("civic_aftercare_published")&&
                      Has("civic_aftercare_waytrail_"+region)&&
                      (region==0||region==3||region==5)?
-                     "\n\n居民在这里留下药箱：用一份药草处理伤口（生命 +36），同时缓解高温与寒冷各25；战斗中不能处理。":"")+
+                     "\n\n居民在这里留下药箱：用一份药草处理伤口（生命 +"+CivicFieldAidHealing+"），同时缓解高温与寒冷各"+CivicFieldAidClimateRelief+"；战斗中不能处理。":"")+
                     (Has("civic_waystation_stocked_"+region)?
-                        "\n\n本区两端旧路标已补齐补给；安全时驻足能缓慢恢复生命与体力。":""),
+                        "\n\n本区两端旧路标已补齐补给；安全时驻足每秒恢复生命 "+CivicWaystationHealingRate.ToString("0.00")+"、体力 "+CivicWaystationEnergyRate.ToString("0.0")+"，冷热各缓解 "+CivicWaystationClimateRate.ToString("0.0")+"。":""),
                 (eastern ? eastEn[region] : southEn[region]) + closingEn + rewardEn + charterEn + aftercareEn+
                     (Has("civic_aftercare_published")&&
                      Has("civic_aftercare_waytrail_"+region)&&
                      (region==0||region==3||region==5)?
-                     "\n\nResident aid kits: one herb treats wounds (+36 HP) and eases heat/cold (-25). Only safe field stops are treated.":"")+
+                     "\n\nResident aid kits: one herb treats wounds (+"+CivicFieldAidHealing+" HP) and eases heat/cold (-"+CivicFieldAidClimateRelief+"). Only safe field stops are treated.":"")+
                     (Has("civic_waystation_stocked_"+region)?
-                        "\n\nBoth original trail markers are now stocked. Rest safely nearby for slow healing and renewed stamina.":""),
+                        "\n\nBoth original trail markers are stocked. Rest safely for "+CivicWaystationHealingRate.ToString("0.00")+" HP/sec, "+CivicWaystationEnergyRate.ToString("0.0")+" energy/sec and -"+CivicWaystationClimateRate.ToString("0.0")+" heat/cold per second.":""),
                 CivicWaystationMarkerChoices(o));
             return true;
         }

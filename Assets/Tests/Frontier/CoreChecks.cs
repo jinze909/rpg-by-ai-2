@@ -1705,6 +1705,74 @@ namespace Starfall.Tests
                 restored.save.inventory[2]==herbs-1,
                 "Existing V2 flags retain trained public care after reload without changing the save schema");
         }
+
+        public static void SignedMedicineActuallyImprovesSafeWaystationRecovery(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_aftercare_waytrail_0");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject marker=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="waytrail");
+            Check(marker!=null,"An authentic staffed public road marker is present");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.save.health=g.save.maxHealth-60f;
+            g.save.energy=30f;g.save.heat=70f;g.save.cold=70f;
+            Check(g.CivicWaystationNear&&g.SafeTravel,
+                "The staffed station has real safe physical reach for world-time treatment");
+            g.Talk(marker);
+            Check(g.conversation.textEn.Contains("+36 HP")&&
+                g.conversation.textEn.Contains("0.95 HP/sec"),
+                "The original real-world sign describes the unchanged base service accurately");
+            g.Close();
+            float health=g.save.health,energy=g.save.energy,heat=g.save.heat,cold=g.save.cold;
+            for(int i=0;i<50;i++)g.Tick(.02f,new Point());
+            float basicHp=g.save.health-health,basicEnergy=g.save.energy-energy;
+            float basicHeat=heat-g.save.heat,basicCold=cold-g.save.cold;
+            foreach(int region in new[]{0,3,5})
+                g.save.flags.Add("civic_courier_done_"+region);
+            g.save.flags.Add("civic_courier_all");
+            Check(g.CivicCourierTriageTrained&&
+                Math.Abs(g.CivicWaystationHealingRate-1.45f)<.001f&&
+                Math.Abs(g.CivicWaystationEnergyRate-4f)<.001f&&
+                Math.Abs(g.CivicWaystationClimateRate-5f)<.001f&&
+                g.GetQuest("civic_waystations").reward.Contains("1.45"),
+                "Three actually signed deliveries permanently upgrade the existing roadside service");
+            g.save.health=health;g.save.energy=energy;
+            g.save.heat=heat;g.save.cold=cold;
+            g.Talk(marker);
+            Check(g.conversation.textEn.Contains("+48 HP")&&
+                g.conversation.textEn.Contains("1.45 HP/sec")&&
+                g.conversation.text.Contains("生命 +48"),
+                "The original sign never advertises stale weaker medicine after training");
+            g.Close();
+            for(int i=0;i<50;i++)g.Tick(.02f,new Point());
+            Check(g.save.health-health>basicHp+.35f&&
+                g.save.energy-energy>basicEnergy+.8f&&
+                heat-g.save.heat>basicHeat+.7f&&
+                cold-g.save.cold>basicCold+.7f,
+                "True world ticks deliver stronger HP, stamina and climate respite than the original service");
+            g.save.health=health;g.save.energy=energy;
+            g.save.heat=heat;g.save.cold=cold;
+            g.enemies.Add(new Enemy(90512,0,marker.x+1f,marker.y,100));
+            for(int i=0;i<25;i++)g.Tick(.02f,new Point());
+            Check(Math.Abs(g.save.health-health)<.01f,
+                "Live enemy pressure stops the enhanced medical station from healing in combat");
+            g.enemies.Clear();
+            g.save.flags.Remove("civic_waystation_stocked_0");
+            g.save.health=health;
+            for(int i=0;i<25;i++)g.Tick(.02f,new Point());
+            Check(Math.Abs(g.save.health-health)<.01f,
+                "Unsigned or unstocked markers do not get remote passive medical service");
+            g.PrepareSave();
+            var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
+            Check(resumed.save.version==2&&resumed.CivicCourierTriageTrained&&
+                resumed.CivicWaystationHealingRate==1.45f,
+                "The existing V2 save flags alone restore trained civilian staff after reload");
+        }
+
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);

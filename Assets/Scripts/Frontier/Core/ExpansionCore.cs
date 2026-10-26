@@ -2417,10 +2417,14 @@ namespace Starfall
                 CivicWaystationNear&&SafeTravel)
             {
                 if(save.health>0f&&save.health<save.maxHealth)
-                    save.health=Math.Min(save.maxHealth,save.health+dt*.95f);
-                save.energy=Math.Min(100f,save.energy+dt*3f);
-                save.heat=Math.Max(0f,save.heat-dt*4f);
-                save.cold=Math.Max(0f,save.cold-dt*4f);
+                    save.health=Math.Min(save.maxHealth,
+                        save.health+dt*CivicWaystationHealingRate);
+                save.energy=Math.Min(100f,
+                    save.energy+dt*CivicWaystationEnergyRate);
+                save.heat=Math.Max(0f,
+                    save.heat-dt*CivicWaystationClimateRate);
+                save.cold=Math.Max(0f,
+                    save.cold-dt*CivicWaystationClimateRate);
             }
             if(AfterlightEnergyPost && SafeTravel && !practicing &&
                 NearKind("afterlightoutlet1",3.1f))
