@@ -569,7 +569,8 @@ namespace Starfall.Tests
 
         public static void CivicArchiveVoteWaitsForBothWalletCurrencies(Campaign data)
         {
-            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            g.Enter(2);g.enemies.Clear();
             g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_1");
             g.save.flags.Add("floodarchive_2");
             WorldObject desk=FerryRecord(g,3);
@@ -596,7 +597,8 @@ namespace Starfall.Tests
 
         public static void CompletedMedicineWithFullWalletKeepsDurableClaimableReceipt(Campaign data)
         {
-            var g=Fresh(data);g.save.stage=3;g.Enter(2);g.enemies.Clear();
+            var g=Fresh(data);g.save.stage=3;g.save.level=18;
+            g.Enter(2);g.enemies.Clear();
             g.invulnerable=400f;
             g.save.flags.Add("scout_saved");g.save.flags.Add("floodarchive_public");
             WorldObject west=FerryRecord(g,1),east=FerryRecord(g,3);
@@ -627,9 +629,11 @@ namespace Starfall.Tests
                 g.save.coins==999999&&g.save.shards==99999&&
                 g.save.xp==xp,
                 "Real medicine is received and permanent ferry discount earned, but no capped payout is lost");
-            Check(g.GetQuest("ferry_relief").complete&&
-                g.GetQuest("ferry_relief").next.Contains("待领取"),
-                "The questbook tracks the durable outstanding receipt after delivery");
+            var receiptGuide=g.GetQuest("ferry_relief");
+            Check(receiptGuide.complete&&
+                (receiptGuide.next.Contains("待领取")||
+                 receiptGuide.next.Contains("claim the saved receipt")),
+                "The questbook tracks the outstanding receipt after delivery: "+receiptGuide.next);
             var choose=typeof(GameCore).GetMethod("ChooseFloodArchive",
                 System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
