@@ -10,6 +10,94 @@ public static class RuntimePolishChecks
     static void Invoke(object value, string method) { value.GetType().GetMethod(method, Private).Invoke(value, null); }
     static void Set(object value, string field, object data) { value.GetType().GetField(field, Private).SetValue(value, data); }
     static void Key(FrontierRuntime app, KeyCode key) { Input.keys.Add(key); Event.current.type = EventType.KeyDown; Invoke(app, "Update"); Invoke(app, "OnGUI"); Check(Event.current.type == EventType.Used, "Handled keys cannot also activate native IMGUI focus"); GUI.commands.Clear(); Input.keys.Clear(); Event.current.type = EventType.Repaint; }
+        // This entrypoint is registered in the actually executed offline
+        // FrontierRuntime input harness. Avoid running the unrelated legacy
+        // UI/save setup above just to test room audio transitions.
+        public static void RunAudio(FrontierRuntime ignored)
+        {
+            var game = new GameCore(CampaignFixture.Create());
+            game.NewGame(0);
+            game.Close();
+            game.mode = "world";
+            game.save.ambienceVolume = .8f;
+            // Exercise the live FrontierAudio room transition, not a detached
+            // math helper. Two channels must be simultaneously audible during
+            // a crossing, and a quick return must preserve the old soundscape.
+            var atmosphere = new FrontierAudio(new GameObject("region-audio-check"));
+            try
+            {
+            game.mode = "world"; game.save.music = true;
+            game.save.room = 0;
+            atmosphere.Update(game, false, 2f);
+            var roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip != null && roomNow.clip.name == "ambience0" && roomNow.isPlaying,
+                "Initial outdoor atmosphere is connected to the running audio system");
+            game.save.room = 2;
+            atmosphere.Update(game, false, .24f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            var roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
+            float oldGain = roomNow.volume, incomingGain = roomNext.volume;
+            Check(roomNow.isPlaying && roomNext.isPlaying && oldGain > 0 && incomingGain > 0 &&
+                roomNext.clip.name == "ambience2",
+                "Crossing a region overlaps both original and arriving outdoor audio clips");
+            game.save.room = 0;
+            atmosphere.Update(game, false, .12f);
+            Check(roomNext.volume < incomingGain && roomNext.volume > 0,
+                "Immediately returning to the old region reverses its unfinished sound crossfade");
+            atmosphere.Update(game, false, 2f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience0" && roomNow.isPlaying && !roomNext.isPlaying,
+                "Return cancels the unwanted destination soundscape without restarting the home loop");
+            game.save.room = 6;
+            atmosphere.Update(game, false, .96f);
+            game.save.room = 7;
+            atmosphere.Update(game, false, .12f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience6" && roomNext.clip.name == "ambience7" &&
+                roomNow.isPlaying && roomNext.isPlaying,
+                "Rapid third-region transition keeps the dominant incoming landscape rather than resurrecting a quiet old room");
+            atmosphere.Update(game, false, 2f);
+            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
+            Check(roomNow.clip.name == "ambience7" && roomNow.isPlaying,
+                "Third-region soundscape settles on its real destination");
+            game.save.music = false;
+            atmosphere.Update(game, false, .1f);
+            Check(!roomNow.isPlaying, "Mute stops the active outdoor loop");
+            game.save.music = true;
+            atmosphere.Update(game, false, .1f);
+            Check(roomNow.isPlaying, "Restoring audio resumes the correct new region");
+            Console.WriteLine("PASS Runtime outdoor soundscapes: overlapping region transitions, reversing, retargeting and mute recovery (offline sources)");
+            // The actual procedural PCM is what the looping AudioSources
+            // receive. Inspect edge energy, not merely whether a generator
+            // returned eight seconds of nonempty data. Old fades to silence
+            // at both edges fail this regression.
+            foreach (int room in new[] { 0, 2, 5, 7 })
+            {
+                float[] samples = AudioSynthesis.Ambience(room);
+                float[] again = AudioSynthesis.Ambience(room);
+                Check(samples.Length == AudioSynthesis.Rate * 8 &&
+                    samples[0] == again[0] &&
+                    samples[samples.Length - 1] == again[again.Length - 1],
+                    "Deterministic environment PCM retains its original eight-second Unity clip length");
+                double boundaryEnergy = 0, referenceEnergy = 0;
+                for (int i = 0; i < AudioSynthesis.Rate / 5; i++)
+                {
+                    double a = samples[i], b = samples[samples.Length - 1 - i];
+                    double c = samples[AudioSynthesis.Rate * 3 + i];
+                    double d = samples[AudioSynthesis.Rate * 4 + i];
+                    boundaryEnergy += a * a + b * b;
+                    referenceEnergy += c * c + d * d;
+                }
+                Check(referenceEnergy > 0 && boundaryEnergy > referenceEnergy * .35 &&
+                    Math.Abs(samples[0] - samples[samples.Length - 1]) < .025,
+                    "Room " + room + " has an audible, continuous atmosphere at the PCM wrap without a half-second artificial fade-to-silence");
+            }
+            Console.WriteLine("PASS Procedural forest/coast/weather atmosphere: deterministic seamless PCM loop and stable edge loudness");
+            }
+            finally { atmosphere.Dispose(); }
+        }
+
     public static void Run(FrontierRuntime app)
     {
         string previous = Application.persistentDataPath; string directory = Path.Combine(Path.GetTempPath(), "starfall-save-check-" + Guid.NewGuid()); Application.persistentDataPath = directory;
@@ -131,79 +219,7 @@ public static class RuntimePolishChecks
             Check(effects.heard.Count == 2 && effects.heard.Contains("hit") && effects.heard.Contains("quest") && Math.Abs(effects.volume - .18f) < .001f && Math.Abs(ambience.volume - .48f) < .001f && music[0].volume + music[1].volume > 0, "Distinct cues survive together while repeated same-frame hits are bounded and channel volumes stay independent");
             app.Game.save.music = false; audio.Update(app.Game, false, 2); Check(effects.volume == 0 && ambience.volume == 0 && !ambience.isPlaying && !music[0].isPlaying && !music[1].isPlaying, "Sound switch mutes and stops all looping channels");
             Console.WriteLine("PASS Runtime sound channel volumes, mute and multiple-event delivery (offline sources)");
-            // Exercise the live FrontierAudio room transition, not a detached
-            // math helper. Two channels must be simultaneously audible during
-            // a crossing, and a quick return must preserve the old soundscape.
-            var atmosphere = new FrontierAudio(new GameObject("region-audio-check"));
-            app.Game.mode = "world"; app.Game.save.music = true;
-            app.Game.save.room = 0;
-            atmosphere.Update(app.Game, false, 2f);
-            var roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
-            Check(roomNow.clip != null && roomNow.clip.name == "ambience0" && roomNow.isPlaying,
-                "Initial outdoor atmosphere is connected to the running audio system");
-            app.Game.save.room = 2;
-            atmosphere.Update(app.Game, false, .24f);
-            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
-            var roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
-            float oldGain = roomNow.volume, incomingGain = roomNext.volume;
-            Check(roomNow.isPlaying && roomNext.isPlaying && oldGain > 0 && incomingGain > 0 &&
-                roomNext.clip.name == "ambience2",
-                "Crossing a region overlaps both original and arriving outdoor audio clips");
-            app.Game.save.room = 0;
-            atmosphere.Update(app.Game, false, .12f);
-            Check(roomNext.volume < incomingGain && roomNext.volume > 0,
-                "Immediately returning to the old region reverses its unfinished sound crossfade");
-            atmosphere.Update(app.Game, false, 2f);
-            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
-            Check(roomNow.clip.name == "ambience0" && roomNow.isPlaying && !roomNext.isPlaying,
-                "Return cancels the unwanted destination soundscape without restarting the home loop");
-            app.Game.save.room = 6;
-            atmosphere.Update(app.Game, false, .96f);
-            app.Game.save.room = 7;
-            atmosphere.Update(app.Game, false, .12f);
-            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
-            roomNext = (AudioSource)typeof(FrontierAudio).GetField("ambienceIncoming", Private).GetValue(atmosphere);
-            Check(roomNow.clip.name == "ambience6" && roomNext.clip.name == "ambience7" &&
-                roomNow.isPlaying && roomNext.isPlaying,
-                "Rapid third-region transition keeps the dominant incoming landscape rather than resurrecting a quiet old room");
-            atmosphere.Update(app.Game, false, 2f);
-            roomNow = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(atmosphere);
-            Check(roomNow.clip.name == "ambience7" && roomNow.isPlaying,
-                "Third-region soundscape settles on its real destination");
-            app.Game.save.music = false;
-            atmosphere.Update(app.Game, false, .1f);
-            Check(!roomNow.isPlaying, "Mute stops the active outdoor loop");
-            app.Game.save.music = true;
-            atmosphere.Update(app.Game, false, .1f);
-            Check(roomNow.isPlaying, "Restoring audio resumes the correct new region");
-            atmosphere.Dispose();
-            Console.WriteLine("PASS Runtime outdoor soundscapes: overlapping region transitions, reversing, retargeting and mute recovery (offline sources)");
-            // The actual procedural PCM is what the looping AudioSources
-            // receive. Inspect edge energy, not merely whether a generator
-            // returned eight seconds of nonempty data. Old fades to silence
-            // at both edges fail this regression.
-            foreach (int room in new[] { 0, 2, 5, 7 })
-            {
-                float[] samples = AudioSynthesis.Ambience(room);
-                float[] again = AudioSynthesis.Ambience(room);
-                Check(samples.Length == AudioSynthesis.Rate * 8 &&
-                    samples[0] == again[0] &&
-                    samples[samples.Length - 1] == again[again.Length - 1],
-                    "Deterministic environment PCM retains its original eight-second Unity clip length");
-                double boundaryEnergy = 0, referenceEnergy = 0;
-                for (int i = 0; i < AudioSynthesis.Rate / 5; i++)
-                {
-                    double a = samples[i], b = samples[samples.Length - 1 - i];
-                    double c = samples[AudioSynthesis.Rate * 3 + i];
-                    double d = samples[AudioSynthesis.Rate * 4 + i];
-                    boundaryEnergy += a * a + b * b;
-                    referenceEnergy += c * c + d * d;
-                }
-                Check(referenceEnergy > 0 && boundaryEnergy > referenceEnergy * .35 &&
-                    Math.Abs(samples[0] - samples[samples.Length - 1]) < .025,
-                    "Room " + room + " has an audible, continuous atmosphere at the PCM wrap without a half-second artificial fade-to-silence");
-            }
-            Console.WriteLine("PASS Procedural forest/coast/weather atmosphere: deterministic seamless PCM loop and stable edge loudness");
+
         }
         finally { Application.persistentDataPath = previous; if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
