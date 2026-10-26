@@ -58,6 +58,59 @@ public static class RuntimeContinuityChecks
         Check(app.Game.playerAction==null,"A menu cannot dispatch a world technique");
         Console.WriteLine("PASS Runtime Q/J/mouse/controller aim, four directions per class, hotbar aim retention and menu input isolation (offline input)");
     }
+
+    static void CombatMusicReversesWhenActualThreatLeaves()
+    {
+        // Drive the PRODUCTION audio mixer against live AudioSource stubs:
+        // entering combat then leaving during the original fade must NOT
+        // finish playing combat music after the threat is gone.
+        var g=new GameCore(CampaignFixture.Create());
+        g.NewGame(0);g.Close();g.mode="world";g.enemies.Clear();
+        g.save.music=true;g.save.room=0;
+        using(var audio=new FrontierAudio(new GameObject("combat-audio-transition")))
+        {
+            audio.Update(g,false,1.6f);
+            Check(Get<int>(audio,"theme")==0&&Get<int>(audio,"pending")==-1,
+                "A settled town song has an actual active audio channel");
+            AudioSource[] sources=Get<AudioSource[]>(audio,"music");
+            int original=Get<int>(audio,"active");
+            AudioSource town=sources[original],battle=sources[1-original];
+            var threat=new Enemy(70921,1,g.Position.x+2,g.Position.y,100,true);
+            g.enemies.Add(threat);
+            audio.Update(g,false,.6f);
+            float partial=battle.volume;
+            Check(Get<int>(audio,"pending")==6&&partial>0&&
+                partial<g.save.musicVolume*.28f&&battle.isPlaying,
+                "A genuine nearby boss begins the in-flight combat crossfade");
+            g.enemies.Remove(threat);
+            audio.Update(g,false,.2f);
+            Check(Get<int>(audio,"pending")==6&&battle.volume<partial&&
+                town.volume>g.save.musicVolume*.28f-partial,
+                "Leaving real combat reverses the partial fade instead of continuing the wrong music");
+            audio.Update(g,false,.7f);
+            Check(Get<int>(audio,"pending")==-1&&Get<int>(audio,"theme")==0&&
+                Get<int>(audio,"active")==original&&!battle.isPlaying&&
+                battle.volume==0&&town.isPlaying,
+                "A vanished threat restores the same uninterrupted town channel, not a delayed combat track");
+            // A fresh real battle must still be able to finish its transfer.
+            g.enemies.Add(threat);
+            audio.Update(g,false,.6f);
+            g.enemies.Remove(threat);
+            audio.Update(g,false,.2f);
+            g.enemies.Add(threat);
+            audio.Update(g,false,.35f);
+            Check(Get<int>(audio,"pending")==6&&battle.isPlaying&&
+                battle.volume>0&&battle.volume<g.save.musicVolume*.28f,
+                "If combat returns during reversal, the existing battle channel resumes smoothly");
+            audio.Update(g,false,2f);
+            Check(Get<int>(audio,"theme")==6&&Get<int>(audio,"pending")==-1&&
+                Get<int>(audio,"active")==1-original&&
+                !town.isPlaying&&battle.isPlaying,
+                "A persistent real battle completes the original audio source handoff once");
+        }
+        Console.WriteLine("PASS In-flight combat music reverses on genuine threat exit and resumes on re-entry (offline audio sources)");
+    }
+
     static void WorldAndAudio(FrontierRuntime app)
     {
         Prepare(app);var prop=new Decoration{kind="tree",x=10,y=10,variant=0};var rect=new Rect(100,200,100,116);var roots=new List<float>();var tops=new List<float>();
@@ -1096,7 +1149,7 @@ public static class RuntimeContinuityChecks
 
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }

@@ -25,9 +25,48 @@ namespace Starfall
         {
             SaveData save = game.save; bool combat = game.mode == "world" && !game.practicing && game.enemies.Exists(e => e.boss || e.state == 1 && (e.Position - game.Position).Length < 7);
             int desired = AudioSynthesis.Theme(save.room, combat);
-            if (desired != theme && desired != pending)
-            { pending = desired; crossfade = 0; string key = "theme" + desired; AudioClip c; if (!clips.TryGetValue(key, out c)) c = Clip(key, AudioSynthesis.Music(desired)); music[1 - active].clip = c; music[1 - active].volume = 0; if (save.music) music[1 - active].Play(); }
-            if (pending >= 0) { crossfade = Math.Min(1, crossfade + dt / 1.5f); if (crossfade >= 1) { music[active].Stop(); active = 1 - active; theme = pending; pending = -1; } }
+            // Combat proximity often changes again before a 1.5-second fade
+            // completes. When the original theme becomes desirable again,
+            // reverse the same pair of live channels instead of finishing
+            // the WRONG battle track and crossfading back a second time.
+            if (pending >= 0 && desired == theme)
+            {
+                crossfade = Math.Max(0, crossfade - Math.Max(0, dt) / 1.5f);
+                if (crossfade <= 0)
+                {
+                    music[1 - active].Stop();
+                    pending = -1;
+                }
+            }
+            else
+            {
+                if (desired != theme && desired != pending)
+                {
+                    pending = desired;
+                    crossfade = 0;
+                    string key = "theme" + desired;
+                    AudioClip c;
+                    if (!clips.TryGetValue(key, out c))
+                        c = Clip(key, AudioSynthesis.Music(desired));
+                    // A third region/theme can replace a partial incoming
+                    // track: stop the old source before swapping its clip.
+                    music[1 - active].Stop();
+                    music[1 - active].clip = c;
+                    music[1 - active].volume = 0;
+                    if (save.music) music[1 - active].Play();
+                }
+                if (pending >= 0)
+                {
+                    crossfade = Math.Min(1, crossfade + Math.Max(0, dt) / 1.5f);
+                    if (crossfade >= 1)
+                    {
+                        music[active].Stop();
+                        active = 1 - active;
+                        theme = pending;
+                        pending = -1;
+                    }
+                }
+            }
             float volume = save.music ? save.musicVolume * .28f : 0;
             music[active].volume = volume * (pending >= 0 ? 1 - crossfade : 1); music[1 - active].volume = volume * (pending >= 0 ? crossfade : 0);
             for (int i = 0; i < 2; i++) { if (!save.music && music[i].isPlaying) music[i].Stop(); else if (save.music && music[i].clip != null && music[i].volume > 0 && !music[i].isPlaying) music[i].Play(); }
