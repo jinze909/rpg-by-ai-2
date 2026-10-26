@@ -7417,6 +7417,12 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         var g=app.Game;
+        // The shared visual-review harness starts in region 1, but civic
+        // deliveries are authored for the real Canal (0), Ironreach (3),
+        // and Mistport (5) routes. Enter the actual original Canal map.
+        g.Enter(0);g.enemies.Clear();
+        Check(g.save.room==0&&g.mode=="world",
+            "The genuine civic parcel HUD regression starts in its stocked public region");
         g.save.english=true;
         g.save.flags.Add("civic_conduit_complete");
         g.save.flags.Add("civic_aftercare_started");
