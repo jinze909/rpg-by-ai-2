@@ -274,20 +274,20 @@ namespace Starfall.Tests
                 "Both permanent rescue progress and unpaid regional reward survive a v2 slot reload");
             restored.enemies.Clear();
             restored.save.x=shelter.x;restored.save.y=shelter.y;
-            restored.save.coins=999969;restored.save.shards=99998;
+            restored.save.coins=999970;restored.save.shards=99998;
             Action(restored,"farshelter","far_courier_claim");
             Check(restored.FarCourierRewardPending(0)&&
-                restored.save.coins==999969&&restored.save.shards==99998,
-                "Insufficient space for all 30 owed coins cannot partly consume the single durable voucher");
-            restored.save.coins=999968;
+                restored.save.coins==999970&&restored.save.shards==99998,
+                "One coin short of the 30-coin deficit preserves the whole regional voucher");
+            restored.save.coins=999969;
             Action(restored,"farshelter","far_courier_claim");
             Check(!restored.FarCourierRewardPending(0)&&
                 restored.FarCourierOutstandingReceipts==0&&
-                restored.save.coins==999998&&restored.save.shards==99999&&
+                restored.save.coins==999999&&restored.save.shards==99999&&
                 restored.save.xp==beforeXp+53,
                 "The original region's physical steward settles exactly 30 missing coins and one shard once");
             claim.Invoke(restored,new object[]{"far_courier_claim"});
-            Check(restored.save.coins==999998&&restored.save.shards==99999,
+            Check(restored.save.coins==999999&&restored.save.shards==99999,
                 "Stale followup cannot farm the consumed regional voucher");
             restored.PrepareSave();
             var final=new GameCore(data,CloneSave(restored.save));
