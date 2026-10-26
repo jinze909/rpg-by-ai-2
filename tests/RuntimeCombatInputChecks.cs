@@ -7681,11 +7681,23 @@ public static class RuntimeCombatInputChecks
         typeof(GameCore).GetField("<TideSalvageTime>k__BackingField",Private)
             .SetValue(g,71f);
         g.save.trackedQuest="main";
-        var raider=new Enemy(89924,0,second.x+2f,second.y+1f,85f);
-        g.enemies.Add(raider);
+        // Feed the production HUD its authentic enemy identities, not
+        // hand-inserted numeric labels. The raid owner now correctly rejects
+        // impostors, so an offline visual test must spawn its actual wave.
+        var spawn=typeof(GameCore).GetMethod("SpawnTideSalvageRaiders",Private);
+        Check(spawn!=null&&(bool)spawn.Invoke(g,new object[]{2}),
+            "The genuine inner-shoal encounter can deploy its physical pair");
+        var raiders=g.enemies.FindAll(g.IsTideSalvageEnemy);
+        Check(raiders.Count==2&&g.TideSalvageRaidersAlive==2,
+            "The authored tide battle exposes two genuinely owned live enemies");
+        // One actual lethal enemy callback, not an unconfirmed list deletion,
+        // leaves a single pursuing raider for this gameplay HUD state.
+        var hit=typeof(GameCore).GetMethod("Hit",Private);
+        Check(hit!=null,"The production damage handler exists for live tide combat");
+        hit.Invoke(g,new object[]{raiders[0],99999f,false,null,null});
         Check(g.TideSalvageActive&&g.TideSalvageRaidersAlive==1&&
             g.GetQuest("tide_salvage").room==5,
-            "Actual field quest exposes a living authored raider");
+            "Actual field quest exposes one surviving originally spawned raider");
         Set(app,"camera",g.Position);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("TIDEBOUND SALVAGE"))&&
@@ -7696,7 +7708,7 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(s=>s.Contains("潮滩打捞"))&&
             GUI.commands.Exists(s=>s.Contains("追兵剩余 1")),
             "Chinese combat HUD does not erase the live salvage objective");
-        g.enemies.Remove(raider);
+        g.enemies.Remove(raiders[1]);
         typeof(GameCore).GetField("<TideSalvagePhase>k__BackingField",Private)
             .SetValue(g,4);
         g.save.english=true;
