@@ -56,6 +56,37 @@ namespace Starfall
 
         private bool IsAfterlightWatchEnemy(Enemy e)
         {return e!=null&&AfterlightWatchActive&&(e.id==afterlightWatchA||e.id==afterlightWatchB);}
+        // Match DamageAfterlightWatchStock's LIVE release requirements.
+        // In particular, a nearby archer shooting at the hero is NOT
+        // attacking the public receiver. The whole body contact lane
+        // matters for melee enemies, not just a cosmetic danger circle.
+        private bool AfterlightWatchCommittedStockStrike(Enemy foe)
+        {
+            if(!AfterlightWatchActive||foe==null||foe.hp<=0f||
+                !IsAfterlightWatchEnemy(foe)||foe.kind==1||
+                foe.state!=1||!foe.targetingAfterlightStock||
+                !Finite(foe.timer)||!Finite(foe.windupDuration)||
+                foe.windupDuration<=0f||
+                foe.timer>foe.windupDuration+.0001f||
+                foe.stun>.0001f||foe.hitTime>.0001f||
+                !CanStand(foe.Position))return false;
+            Point station=AfterlightPoint(afterlightWatchRoom,"outlet");
+            return (foe.Position-station).Length<=2.35f&&
+                ClearAttackPath(foe.Position,station)&&
+                (foe.kind!=0||EnemyMeleeLaneClear(foe,station));
+        }
+        public Enemy AfterlightWatchIncomingStockThreat
+        {
+            get
+            {
+                Enemy earliest=null;
+                foreach(Enemy foe in enemies)
+                    if(AfterlightWatchCommittedStockStrike(foe)&&
+                        (earliest==null||foe.timer<earliest.timer))
+                        earliest=foe;
+                return earliest;
+            }
+        }
         private void OnAfterlightWatchEnemyDefeated(Enemy e)
         {
             if(!IsAfterlightWatchEnemy(e))return;

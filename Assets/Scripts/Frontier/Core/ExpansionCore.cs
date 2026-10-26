@@ -1515,9 +1515,11 @@ namespace Starfall
                 if(squared>=7f*7f)continue;
                 bool saboteur=OuterPatrolActive&&
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
+                bool watchRaider=AfterlightWatchActive&&
+                    IsAfterlightWatchEnemy(foe)&&foe.kind!=1;
                 int priority;
-                if(saboteur)
-                    priority=OuterPatrolUncoveredStockStrike(foe)?0:1;
+                if(saboteur||watchRaider)
+                    priority=CompanionCacheContactImminent(foe)?0:1;
                 else
                 {
                     // Once an objective strike/saboteur already wins, no
@@ -1637,6 +1639,47 @@ namespace Starfall
                 return false;
             }
         }
+        // Only an actually released automatic shot, hitting its exact live
+        // afterlight attacker BEFORE the receiver strike, may interrupt the
+        // saboteur. The collision path invokes this; no fake distance-based
+        // stock immunity or wave completion is granted.
+        private bool StockCoverContactEligible(Projectile shot,Enemy foe)
+        {
+            return shot!=null&&foe!=null&&shot.friendly&&shot.damage>0f&&
+                shot.impact!=null&&!shot.impact.playerOwned&&
+                System.Object.ReferenceEquals(shot.stockCoverTarget,foe)&&
+                System.Object.ReferenceEquals(shot.stockCoverSave,save)&&
+                System.Object.ReferenceEquals(shot.stockCoverMap,Map)&&
+                shot.stockCoverRoom==save.room&&enemies.Contains(foe)&&
+                AfterlightWatchCommittedStockStrike(foe);
+        }
+        private void FinishCompanionStockCoverContact(Projectile shot,Enemy foe)
+        {
+            if(!projectiles.Contains(shot))return;
+            if(foe.hp>0f)ApplyEnemyControl(foe,foe.boss?.3f:.85f);
+            effects.Add(new Effect("number",foe.Position,.75f,
+                L("储备援防打断！","RESERVE SAVED!"))
+                {afterlightWatchOwned=true});
+            sound="counter";revision++;
+            shot.stockCoverTarget=null;
+        }
+        public bool CompanionStockCoverInFlight
+        {
+            get
+            {
+                if(!AfterlightWatchActive)return false;
+                foreach(Projectile shot in projectiles)
+                    if(shot.life>0f&&shot.friendly&&
+                        shot.stockCoverTarget!=null&&
+                        System.Object.ReferenceEquals(shot.stockCoverSave,save)&&
+                        System.Object.ReferenceEquals(shot.stockCoverMap,Map)&&
+                        shot.stockCoverRoom==save.room&&
+                        shot.stockCoverTarget.hp>0f&&
+                        enemies.Contains(shot.stockCoverTarget))
+                        return true;
+                return false;
+            }
+        }
         // Actual pending rescue attacks for the compact world HUD. Reuse
         // the same collision/ownership evidence as ally target selection:
         // do not advertise stale telegraphs, a sealed archer or a wrong NPC.
@@ -1684,7 +1727,8 @@ namespace Starfall
         private bool CompanionCacheContactImminent(Enemy foe)
         {
             return foe!=null&&enemies.Contains(foe)&&
-                OuterPatrolUncoveredStockStrike(foe);
+                (OuterPatrolUncoveredStockStrike(foe)||
+                 AfterlightWatchCommittedStockStrike(foe));
         }
         // Closing tide, a raised gate or a collapsed ledge can invalidate
         // an ally's EXISTING foot without the hero crossing the room. Resolve
@@ -1832,11 +1876,9 @@ namespace Starfall
                             // committed stock strike can supersede an otherwise
                             // valid lock. Outside that narrow priority rule,
                             // preserve a still-shootable target's windup.
-                            bool availableCache=OuterPatrolCompanionGuarding&&
-                                available!=null&&
+                            bool availableCache=available!=null&&
                                 CompanionCacheContactImminent(available);
-                            bool lockedCache=OuterPatrolCompanionGuarding&&
-                                locked!=null&&
+                            bool lockedCache=locked!=null&&
                                 CompanionCacheContactImminent(locked);
                             // The shared stock-threat predicate guarantees
                             // finite timers. Compare their raw values so an
@@ -1935,6 +1977,19 @@ namespace Starfall
                             else
                             {
                                 projectiles.Add(shot);
+                                // The RECEIVER defense uses a different
+                                // exact-instance tag than hero/rescue cover.
+                                // Mission cleanup also retires its flying
+                                // arrow on abort without touching bystanders.
+                                if(action.kind=="attack"&&
+                                   AfterlightWatchCommittedStockStrike(locked))
+                                {
+                                    shot.stockCoverTarget=locked;
+                                    shot.stockCoverSave=save;
+                                    shot.stockCoverMap=Map;
+                                    shot.stockCoverRoom=save.room;
+                                    shot.afterlightWatchOwned=true;
+                                }
                                 // Preserve the actual threat's reference at
                                 // RELEASE, never the original idle windup or
                                 // an ID reused by another encounter. Only

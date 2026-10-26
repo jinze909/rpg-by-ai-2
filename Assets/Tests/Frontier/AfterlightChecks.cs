@@ -1693,5 +1693,104 @@ namespace Starfall.Tests
                 "Physical withdrawal resolves an impossible load without inventing regional completion");
         }
 
+
+        public static void AfterlightAllyShotsDefendStockOnlyAfterPhysicalContact(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+            g.save.flags.Add("afterlight_started");
+            g.save.flags.Add("afterlight_complete");
+            g.save.flags.Add("afterlight_done_1");
+            g.save.flags.Add("afterlight_steward_1");
+            g.save.flags.Add("afterlight_reserve_1");
+            g.save.flags.Add("afterlight_plan_1_watch");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            WorldObject station=Object(g,"afterlightoutlet1");
+            g.save.x=station.x;g.save.y=station.y;
+            Action(g,station.kind,"afterlight_watch_start_1");
+            Check(g.AfterlightWatchActive&&g.enemies.Count==2,
+                "Stock protection must use a genuinely started stocked public defense");
+            var threat=g.enemies.Find(e=>e.kind==0);
+            Check(threat!=null,"First forest defense wave contains the original close-raider archetype");
+            Point objective=new Point(station.x,station.y);
+            Point[] offsets={new Point(1,0),new Point(-1,0),
+                new Point(0,1),new Point(0,-1),
+                new Point(1.5f,0),new Point(-1.5f,0)};
+            bool placed=false;
+            foreach(Point off in offsets)
+                if(g.CanStand(objective+off))
+                {threat.x=objective.x+off.x;threat.y=objective.y+off.y;placed=true;break;}
+            Check(placed,"Defense offers at least one real standable enemy contact foot");
+            threat.state=1;threat.timer=.65f;threat.windupDuration=.65f;
+            threat.targetingAfterlightStock=true;threat.target=objective;
+            threat.Face(objective-threat.Position);
+            threat.staggerRecovery=10f;
+            Check(System.Object.ReferenceEquals(g.AfterlightWatchIncomingStockThreat,threat),
+                "Only a real mission-owned receiver attack is an incoming stock threat");
+            var nearest=typeof(GameCore).GetMethod("NearestCompanionThreat",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var impact=new ImpactProfile(1,0,0,0,0f,false,-1);
+            var hit=typeof(GameCore).GetMethod("HitFriendlyProjectileContact",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(nearest!=null&&hit!=null,"Genuine AI selector and swept hit handler exist");
+            // A closer idle body may not supersede the receiver's imminent danger.
+            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            Point[] allyOffsets={new Point(-2,0),new Point(2,0),
+                new Point(0,-2),new Point(0,2),
+                new Point(-3,0),new Point(3,0)};
+            var lane=typeof(GameCore).GetMethod("CompanionAutoFlightLaneClear",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            bool allyReady=false;
+            foreach(Point offset in allyOffsets)
+            {
+                Point candidate=threat.Position+offset;
+                if(!g.CanStand(candidate))continue;
+                if((bool)lane.Invoke(g,new object[]{candidate,1,threat.Position}))
+                {g.companionPosition=candidate;allyReady=true;break;}
+            }
+            Check(allyReady,"A physically shootable companion foot exists near the receiver");
+            Enemy idle=new Enemy(99671,0,threat.x,threat.y+1.6f,500f)
+                {timer=500f};
+            if(g.CanStand(idle.Position))g.enemies.Add(idle);
+            Check(System.Object.ReferenceEquals(nearest.Invoke(g,null),threat),
+                "Companion prioritizes committed facility contact over idle foes");
+            var actual=new Projectile {
+                position=threat.Position,velocity=new Point(9f,0),
+                life=2f,damage=2f,friendly=true,visual="arrow",
+                impact=impact,stockCoverTarget=threat,
+                stockCoverSave=g.save,stockCoverMap=g.Map,
+                stockCoverRoom=g.save.room,afterlightWatchOwned=true
+            };
+            g.projectiles.Add(actual);
+            Check(g.CompanionStockCoverInFlight,
+                "Live receiver-defense arrow is observable before contact");
+            float intact=g.AfterlightWatchStock;
+            hit.Invoke(g,new object[]{actual,threat});
+            Check(threat.state==0&&threat.stun>.5f&&
+                g.AfterlightWatchStock==intact&&
+                actual.stockCoverTarget==null&&
+                g.effects.Exists(f=>f.kind=="number"&&
+                    f.text=="储备援防打断！"),
+                "Real ally arrow impact stops one pending receiver strike without free stock healing");
+            g.effects.Clear();
+            threat.state=1;threat.timer=.65f;threat.windupDuration=.65f;
+            threat.targetingAfterlightStock=true;threat.stun=0f;
+            var wrong=new Enemy(threat.id,0,threat.x,threat.y+2f,500f)
+                {timer=500f};
+            g.enemies.Add(wrong);
+            actual.stockCoverTarget=threat;
+            hit.Invoke(g,new object[]{actual,wrong});
+            Check(threat.state==1&&actual.stockCoverTarget==threat&&
+                !g.effects.Exists(f=>f.text=="储备援防打断！"),
+                "A different physical enemy reusing the same numeric ID cannot steal cover");
+            actual.stockCoverTarget=null;
+            threat.targetingAfterlightStock=false;
+            Check(g.AfterlightWatchIncomingStockThreat==null&&
+                g.save.version==2,
+                "Expired hostile intent does not remain a free reserve shield or saved combat state");
+        }
+
     }
 }

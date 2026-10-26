@@ -185,6 +185,13 @@ namespace Starfall
         // against the hero. Never bind it to a reusable numeric spawn ID.
         // This stays transient and does not touch SaveData v2 or equipment.
         public Enemy heroCoverTarget;
+        // Physical public-receiver defense: one released ally projectile
+        // can interrupt only its genuine mission-owned stock attacker.
+        // Never save this volatile combat claim or use a recycled actor ID.
+        public Enemy stockCoverTarget;
+        public SaveData stockCoverSave;
+        public MapData stockCoverMap;
+        public int stockCoverRoom = -1;
         public SaveData heroCoverSave;
         public MapData heroCoverMap;
         public int heroCoverRoom = -1;
