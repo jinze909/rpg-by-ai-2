@@ -1988,7 +1988,12 @@ namespace Starfall
                     Point away = delta.Length > .001f ?
                         delta.Normalized * -freeDt * (reliefAttacker || escortPatrol ? 2.2f : 1.6f) :
                         new Point(-freeDt * 1.6f, 0);
-                    Point back = SweepActor(e.Position, away);
+                    // Ranged retreat is ordinary locomotion, too: it
+                    // cannot phase backwards through a living ally just
+                    // because it is escaping the hero's melee reach.
+                    // Preserve the existing facing-to-hero and cooldown
+                    // rules; only the swept foot selects a legal flank.
+                    Point back = SweepOrdinaryEnemyWithCrowd(e,away);
                     e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }

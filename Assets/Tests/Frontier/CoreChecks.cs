@@ -201,6 +201,46 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void ArcherRetreatSidestepsLivingFrontlineCover(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<24;y++)
+                {
+                    char[] cells=new string('.',24).ToCharArray();
+                    for(int x=0;x<24;x++)
+                        if(x<2||y<2||x>=22||y>=22)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=11.8f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.enemies.Clear();
+                g.save.x=11.8f;g.save.y=10.5f;g.invulnerable=100f;
+                var archer=new Enemy(91903,1,10.5f,10.5f,100);
+                var ally=new Enemy(91904,0,9.75f,10.5f,100);
+                archer.timer=100f;ally.timer=100f;ally.stun=100f;
+                g.enemies.Add(archer);g.enemies.Add(ally);
+                g.Tick(.05f,new Point());
+                Check(archer.backpedaling&&archer.moving&&
+                    Math.Abs(archer.y-10.5f)>.01f&&
+                    Math.Abs(archer.x-10.5f)<.01f&&
+                    (archer.Position-ally.Position).Length>.75f,
+                    "Ranged enemy facing a close hero actually retreats sideways around the living ally instead of backstepping through its body");
+                Check(archer.facing.x>.9f && g.save.version==2,
+                    "Retreat still faces the real combat target without mutating the version-two save");
+                g.enemies.Remove(ally);
+                archer.x=10.5f;archer.y=10.5f;
+                g.Tick(.05f,new Point());
+                Check(archer.backpedaling&&archer.x<10.49f&&
+                    Math.Abs(archer.y-10.5f)<.01f,
+                    "With the blocker gone the same ordinary archer immediately resumes the original straight backstep");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void LivingEnemyCrowdsFlankAndDoNotWalkThroughTeammates(Campaign data)
         {
             MapData original=data.maps[0];

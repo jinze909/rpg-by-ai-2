@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void RangedEnemyRetreatMustRespectLivingAllyFootprints() { CoreChecks.ArcherRetreatSidestepsLivingFrontlineCover(Data()); }
         [Test] public void RealLivingEnemiesMustFlankOrWaitInsteadOfBodyClipping() { CoreChecks.LivingEnemyCrowdsFlankAndDoNotWalkThroughTeammates(Data()); }
         [Test] public void InvalidPursuitTargetsCannotCorruptCompanionOrEnemyFeet() { CoreChecks.InvalidPursuitTargetsNeverPoisonLiveMovement(Data()); }
         [Test] public void EnemyPursuitChecksThinCornerCollisionAlongRealMovementSweep() { CoreChecks.NarrowWallCornersForceRealPursuitDetours(Data()); }
