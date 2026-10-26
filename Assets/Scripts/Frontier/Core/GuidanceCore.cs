@@ -2036,8 +2036,8 @@ namespace Starfall
                 q.title=L("巡路队 · 药布急送","Roadwardens · Urgent Dressings");
                 q.category=L("限时野外急送 · 实地三站","TIMED FIELD COURIER · THREE REAL STOPS");
                 q.description=L(
-                    "修复信号灯、领回旧救援箱并守住补给岗后，巡路队会在灯下托付新的医药急送。必须在90秒内亲自从南边救援箱取得药布，再送往北边补给岗。走捷径切地区或让旅途超时都不算交付；失败后仍能重新启程。",
-                    "Once the lamp, chest and defended post are secured, take an urgent delivery from the wardens at the lamp. Within 90 seconds, collect dressings from the physical chest to the south and deliver them to the defended watch to the north. Region travel and expired runs never grant completion; retry without losing earlier supplies.");
+                    "修复信号灯、领回旧救援箱并守住补给岗后，巡路队会在灯下托付新的医药急送。必须在90秒内亲自从南边救援箱取得药布，再送往北边补给岗。若战斗中真实受击使药布掉落，循导航回到落点按 E 捡回。走捷径切地区或让旅途超时都不算交付；失败后仍能重新启程。",
+                    "Once the lamp, chest and defended post are secured, take an urgent delivery from the wardens at the lamp. Within 90 seconds, collect dressings from the physical chest to the south and deliver them to the defended watch to the north. If a real battle hit drops the parcel, follow the updated navigation marker back and recover it with E. Region travel and expired runs never grant completion; retry without losing earlier supplies.");
                 q.locked=OuterPatrolWins==0;
                 q.complete=OuterDeliveryWins==8;
                 int next=-1;
@@ -2062,12 +2062,23 @@ namespace Starfall
                     foreach(WorldObject o in data.maps[q.room].objects)
                         if(o.kind==location)
                         {q.target=new Point(o.x,o.y);break;}
+                // Delivery navigation is actionable, not a static endpoint:
+                // when genuine HP damage drops the receipt, point back to
+                // THAT exact real field foot until the actor recovers it.
+                // The original watchpost waypoint automatically returns
+                // once E picks the parcel up again.
+                if(OuterDeliveryParcelDropped)
+                    q.target=OuterDeliveryParcelFoot;
                 q.next=q.complete?L("八地急送已全部交付","All eight medicine runs delivered"):
                     OuterDeliveryActive?
                         L("剩余 "+Math.Ceiling(outerDeliverySeconds)+" 秒 · "+
-                            (outerDeliveryStage==1?"到南边救援箱取药布":"向北返回已守住的补给岗交药"),
+                            (outerDeliveryStage==1?"到南边救援箱取药布":
+                             outerDeliveryDropped?"回掉落地点按 E 捡回药布和收据":
+                             "向北返回已守住的补给岗交药"),
                           Math.Ceiling(outerDeliverySeconds)+"s left · "+
-                            (outerDeliveryStage==1?"Retrieve dressings at the southern chest":"Deliver the dressings north at the defended watch")):
+                            (outerDeliveryStage==1?"Retrieve dressings at the southern chest":
+                             outerDeliveryDropped?"Return to the dropped parcel and press E to recover it":
+                             "Deliver the dressings north at the defended watch")):
                     next<0?L("先守住一座救援补给岗",
                         "Defend a relief outpost to unlock courier missions"):
                     L("在修好的信号灯旁接受九十秒急送",

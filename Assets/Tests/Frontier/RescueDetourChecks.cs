@@ -626,6 +626,13 @@ namespace Starfall.Tests
                 (dropFoot-new Point(cache.x,cache.y)).Length<.001f&&
                 g.OuterDeliveryCanRecoverParcel&&!g.OuterDeliveryDone(0),
                 "A true arrow blow drops actual cargo onto the current hero foot and permits terrain-checked recovery");
+            var lostQuest=g.GetQuest("outer_delivery");
+            Point? lostArrow=g.NavigationTarget();
+            Check(lostArrow.HasValue&&
+                (lostArrow.Value-dropFoot).Length<.001f&&
+                (lostQuest.target-dropFoot).Length<.001f&&
+                lostQuest.next.Contains("捡回"),
+                "The live world compass and quest journal both point to the exact dropped dressings rather than the unreachable destination");
             g.Tick(.05f,new Point());
             Check(g.OuterDeliverySeconds<availableBefore&&
                 g.OuterDeliveryParcelDropped,
@@ -645,6 +652,11 @@ namespace Starfall.Tests
             Check(!g.OuterDeliveryParcelDropped&&g.OuterDeliveryStage==2&&
                 g.OuterDeliveryActive,
                 "Pressing E at the actual physical bundle restores the parcel without resetting mission progress");
+            Point? restoredArrow=g.NavigationTarget();
+            Check(restoredArrow.HasValue&&
+                (restoredArrow.Value-new Point(watch.x,watch.y)).Length<.001f&&
+                g.GetQuest("outer_delivery").next.Contains("交药"),
+                "The real world navigation and quest return to the original watch only AFTER actual E recovery");
             g.save.x=watch.x;g.save.y=watch.y;
             int coins=g.save.coins;
             g.Talk(watch);
