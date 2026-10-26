@@ -1937,9 +1937,12 @@ namespace Starfall.Tests
             Check(loaded.save.version==2&&loaded.Has("boss_1")&&
                 !loaded.BossVictoryFeedback&&loaded.BossVictoryNextStep=="",
                 "Old V2 boss clear persists, but transient victory panel never leaks into a loaded slot");
-            for(int i=0;i<100;i++)g.Tick(.05f,new Point());
+            g.Enter(0);
             Check(!g.BossVictoryFeedback&&g.BossVictoryNextStep=="",
-                "Only the actual bounded victory interval draws the temporary battle handoff");
+                "Travel away from the real completed Boss arena clears the temporary battle handoff");
+            g.Enter(1);
+            Check(!g.BossVictoryFeedback&&g.BossVictoryNextStep=="",
+                "Returning to an already cleared map cannot resurrect yesterday's Boss victory HUD");
         }
 
 

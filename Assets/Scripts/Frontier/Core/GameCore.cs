@@ -302,6 +302,10 @@ namespace Starfall
             FishFeedbackZh=FishFeedbackEn="";
             stewCooldown=teaCooldown=0;
             toast = ""; toastTime = 0;
+            // The temporary chapter-Boss victory banner is not a quest
+            // flag. Leaving and reentering a region, recovering from death
+            // or loading another slot must never resurrect that old banner.
+            bossVictoryFeedbackTime=0f;bossVictoryFeedbackRoom=-1;
             // Runtime audio consumes a pending queue, not just the current
             // sound name. Neither old combat cues nor dialogue clicks may
             // play after loading a different character or starting fresh.
