@@ -68,15 +68,30 @@ namespace Starfall
         {get{return OuterPatrolCompanionGuarding?outerPatrolCompanionGuardFoot:companionPosition;}}
         public float OuterPatrolIntegrity {get{return OuterPatrolActive?outerPatrolStock:0f;}}
         public float OuterPatrolTime {get{return OuterPatrolActive?outerPatrolTime:0f;}}
-        // The same LIVE frontline interception must govern the actual
-        // physical stock hit and the predicted warning. A hero who arrived
-        // AFTER the hostile windup still blocks its stock damage on release;
-        // do not display a contradictory unavoidable-hit HUD alert.
+        // The hero can catch a stock-directed NORMAL melee contact only
+        // by occupying the real corridor between the raider's feet and
+        // the cache. Mere proximity beside or behind the saboteur is NOT
+        // an objective shield. Shared by the windup warning and the real
+        // release transaction, including a last-frame move into the lane.
+        // Retain the existing area-slam physical radius rule separately:
+        // it is not a narrow sword corridor.
         private bool OuterPatrolHeroIntercepts(Enemy foe)
         {
-            return foe!=null&&!Dying&&CanStand(Position)&&
-                (Position-foe.Position).Length<=2.2f&&
-                ClearAttackPath(foe.Position,Position);
+            if(foe==null||Dying||!CanStand(Position)||
+                !CanStand(foe.Position)||!Finite(Position.x)||
+                !Finite(Position.y)||!Finite(foe.x)||!Finite(foe.y)||
+                (Position-foe.Position).Length>2.2f||
+                !ClearAttackPath(foe.Position,Position))return false;
+            if(foe.kind!=0)return true;
+            Point ray=outerPatrolPost-foe.Position;
+            float lengthSquared=ray.x*ray.x+ray.y*ray.y;
+            if(!Finite(lengthSquared)||lengthSquared<.09f)return false;
+            Point body=Position-foe.Position;
+            float along=(body.x*ray.x+body.y*ray.y)/lengthSquared;
+            if(!Finite(along)||along<-.04f||along>1.06f)return false;
+            float asideX=body.x-ray.x*along;
+            float asideY=body.y-ray.y*along;
+            return asideX*asideX+asideY*asideY<=.48f*.48f;
         }
         // UI follows the same authentic released-hit requirements as
         // DamageOuterPatrolStock: never warn about a removed, stunned,

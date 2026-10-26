@@ -6656,5 +6656,87 @@ namespace Starfall.Tests
                 "Malformed frame time cannot create a phantom hold or repeated command");
         }
 
+
+        public static void ReliefWatchSideOnProximityCannotBodyguardRealMeleeStock(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            Check(post!=null,"The actual physical outpost is available");
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"Regional relief watch can start normally");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "The test exercises a real two-raider relief siege");
+            var foe=g.enemies.Find(e=>e.kind==0);
+            var other=g.enemies.Find(e=>e!=foe);
+            Check(foe!=null&&other!=null,
+                "Real melee and bowmen retain their original archetypes");
+            // Keep the live archer in the encounter but safely away from
+            // the melee corridor so another body does not impersonate
+            // the hero's claimed physical protection.
+            other.x=post.x+7f;other.y=post.y+7f;other.stun=30f;
+            var target=new Point(post.x,post.y);
+            var bodyguard=typeof(GameCore).GetMethod("OuterPatrolHeroIntercepts",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var committed=typeof(GameCore).GetMethod("OuterPatrolUncoveredStockStrike",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var release=typeof(GameCore).GetMethod("DamageOuterPatrolStock",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(bodyguard!=null&&committed!=null&&release!=null,
+                "Actual collision, imminent cache pressure and damage functions are used");
+            bool found=false;
+            Point side=new Point();
+            Point[] offsets={new Point(1.5f,0),new Point(-1.5f,0),
+                new Point(0,1.5f),new Point(0,-1.5f)};
+            foreach(Point off in offsets)
+            {
+                Point enemyFoot=target+off;
+                if(!g.CanStand(enemyFoot))continue;
+                foe.x=enemyFoot.x;foe.y=enemyFoot.y;
+                foe.state=1;foe.timer=.28f;foe.windupDuration=.65f;
+                foe.stun=foe.hitTime=0f;
+                foe.targetingOuterPatrolStock=true;foe.target=target;
+                foe.Face(target-foe.Position);
+                // Tangential defender is physically near the attacker,
+                // but not in the line where the blade hits the cache.
+                Point tangent=new Point(-off.y,off.x).Normalized;
+                foreach(float d in new[]{.9f,-.9f,1.1f,-1.1f})
+                {
+                    Point candidate=enemyFoot+tangent*d;
+                    if(!g.CanStand(candidate))continue;
+                    g.save.x=candidate.x;g.save.y=candidate.y;
+                    if((candidate-enemyFoot).Length>2.2f||
+                        (bool)bodyguard.Invoke(g,new object[]{foe})||
+                        !(bool)committed.Invoke(g,new object[]{foe}))
+                        continue;
+                    side=candidate;found=true;break;
+                }
+                if(found)break;
+            }
+            Check(found,"Real map offers a near but off-axis defender while one stock strike remains physically uncovered");
+            float stock=g.OuterPatrolIntegrity;
+            Check(g.OuterPatrolIncomingStockThreat==foe,
+                "A sideways defender cannot erase the real danger HUD merely through proximity");
+            release.Invoke(g,new object[]{foe});
+            Check(g.OuterPatrolIntegrity<stock,
+                "An unguarded actual cache strike costs real supply integrity even with the hero nearby");
+            float after=g.OuterPatrolIntegrity;
+            g.save.x=target.x;g.save.y=target.y;
+            Check((bool)bodyguard.Invoke(g,new object[]{foe}),
+                "Standing physically in the raider-to-cache contact lane still permits a last-second interception");
+            Check(g.OuterPatrolIncomingStockThreat==null,
+                "The live combat warning retracts only for real physical bodyguarding");
+            release.Invoke(g,new object[]{foe});
+            Check(g.OuterPatrolIntegrity==after&&g.save.version==2,
+                "The hero blocks only in the actual objective contact corridor; SaveData v2 is unchanged");
+        }
+
     }
 }
