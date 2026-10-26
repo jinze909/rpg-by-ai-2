@@ -1560,6 +1560,141 @@ namespace Starfall.Tests
                 "V2 reload preserves paid local transit without new serialized shuttle state");
         }
 
+        public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.inventory[2]=10;
+            g.save.coins=12;
+            g.save.english=true;
+            int initialCoins=g.save.coins,initialShards=g.save.shards;
+            int[] regions={0,3,5};
+            foreach(int region in regions)
+            {
+                g.save.flags.Add("civic_aftercare_waytrail_"+region);
+                g.save.flags.Add("civic_waystation_stocked_"+region);
+                foreach(WorldObject marker in data.maps[region].objects)
+                    if(marker.kind=="waytrail")
+                        g.save.flags.Add("waytrail_"+marker.id);
+            }
+            for(int index=0;index<regions.Length;index++)
+            {
+                int region=regions[index];
+                g.Enter(region);g.enemies.Clear();
+                WorldObject origin=null,destination=null;
+                foreach(WorldObject marker in g.Map.objects)
+                    if(marker.kind=="waytrail")
+                    {
+                        if(origin==null)origin=marker;
+                        else if(destination==null)destination=marker;
+                    }
+                Check(origin!=null&&destination!=null,
+                    "Real stocked regions each have two authentic original public road signs");
+                g.save.x=origin.x;g.save.y=origin.y;
+                g.Talk(origin);
+                int accept=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_courier_start");
+                Check(accept>=0&&g.GetQuest("civic_courier").steps.Count==3,
+                    "An original physical marker offers the new three-region on-foot courier quest");
+                int herbs=g.save.inventory[2];
+                if(index==0)
+                {
+                    g.save.x=origin.x+12f;g.Choose(accept);
+                    Check(!g.CivicCourierActive&&g.save.inventory[2]==herbs,
+                        "An old faraway menu cannot consume herbs or create invisible cargo");
+                    g.save.x=origin.x;g.save.y=origin.y;
+                    g.Talk(origin);
+                    accept=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_courier_start");
+                    g.enemies.Add(new Enemy(99330,0,origin.x+.5f,origin.y,30));
+                    g.Choose(accept);
+                    Check(!g.CivicCourierActive&&g.save.inventory[2]==herbs,
+                        "Live hostile pressure denies the parcel without consuming medical herbs");
+                    g.enemies.Clear();
+                    g.Talk(origin);
+                    accept=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_courier_start");
+                }
+                g.Choose(accept);
+                Check(g.CivicCourierActive&&g.save.inventory[2]==herbs-1&&
+                    g.save.room==region&&g.save.trackedQuest=="civic_courier"&&
+                    (g.GetQuest("civic_courier").target-
+                        new Point(destination.x,destination.y)).Length<.01f,
+                    "A paid parcel is sealed and the real journal pin follows the OTHER surveyed marker");
+                int coins=g.save.coins;
+                g.ReturnToTown();
+                Check(g.save.room==region&&g.CivicCourierActive&&
+                    g.save.coins==coins,
+                    "Return-to-town fast travel cannot shortcut a physical public-medical delivery");
+                g.Talk(origin);
+                int blocked=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_waystation_travel_0"||
+                        x.action.StartsWith("civic_waystation_local_"));
+                Check(blocked<0,
+                    "A loaded parcel suppresses every legitimate shortcut option");
+                if(index==0)
+                {
+                    g.PrepareSave();
+                    var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+                    Check(loaded.save.version==2&&loaded.CivicCourierActive&&
+                        loaded.save.inventory[2]==herbs-1&&
+                        (loaded.GetQuest("civic_courier").target-
+                            new Point(destination.x,destination.y)).Length<.01f,
+                        "Old V2 saves preserve the true physical parcel origin and destination");
+                    g=loaded;
+                    origin=Array.Find(g.Map.objects,
+                        x=>x.kind=="waytrail"&&x.id==origin.id);
+                    destination=Array.Find(g.Map.objects,
+                        x=>x.kind=="waytrail"&&x.id==destination.id);
+                    g.save.x=origin.x;g.save.y=origin.y;
+                    g.Talk(origin);
+                    int giveBack=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_courier_cancel");
+                    Check(giveBack>=0,"The exact original staffed source accepts a cancellation");
+                    g.Choose(giveBack);
+                    Check(!g.CivicCourierActive&&g.save.inventory[2]==herbs&&
+                        !g.Has("civic_courier_done_"+region),
+                        "Return at the true origin refunds the stake and never forges a completed delivery");
+                    g.Talk(origin);
+                    accept=Array.FindIndex(g.conversation.choices,
+                        x=>x.action=="civic_courier_start");
+                    g.Choose(accept);
+                }
+                g.save.x=destination.x;g.save.y=destination.y;
+                g.Talk(destination);
+                int deliver=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_courier_deliver");
+                Check(deliver>=0,"Only the other physical and previously surveyed marker accepts delivery");
+                g.Choose(deliver);
+                Check(!g.CivicCourierActive&&
+                    g.Has("civic_courier_done_"+region)&&
+                    g.CivicCourierCompleted==index+1&&
+                    g.save.coins==coins+18,
+                    "Actual other-end contact closes one contract and pays 18 coins exactly once");
+                g.Talk(destination);
+                Check(Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="civic_courier_deliver"||
+                        x.action=="civic_courier_start")<0,
+                    "A settled regional courier run cannot be farmed at either marker");
+                g.Close();
+            }
+            Check(g.Has("civic_courier_all")&&
+                g.CivicCourierCompleted==3&&
+                g.GetQuest("civic_courier").complete&&
+                g.save.coins==initialCoins+54&&
+                g.save.shards==initialShards+2,
+                "Three unique real regional deliveries grant only one final two-shard community reward");
+            g.PrepareSave();
+            var reloadedEnd=new GameCore(data,CloneSave(g.save));reloadedEnd.Start();
+            Check(reloadedEnd.save.version==2&&
+                reloadedEnd.CivicCourierCompleted==3&&
+                reloadedEnd.GetQuest("civic_courier").complete&&
+                reloadedEnd.save.coins==initialCoins+54,
+                "Original V2 serialization permanently preserves all three honest deliveries");
+        }
+
         public static void CivicShuttleIsExplainedByRealInnAndCompletedBuildingJournal(Campaign data)
         {
             var g=Unlocked(data);

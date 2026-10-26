@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "soup_route", "specialist_drill" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill" };
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -99,6 +99,123 @@ namespace Starfall
                     NearKind("waytrail",3.1f);
             }
         }
+        // One sealed medical parcel per original surveyed region. A route
+        // lives entirely in existing V2 string flags, including its physical
+        // starting marker, so loading never silently changes its destination.
+        // No timer/scheduler, no synthetic transport, no new serialization.
+        public bool CivicCourierActive
+        {
+            get
+            {
+                foreach(string flag in save.flags)
+                    if(flag!=null&&flag.StartsWith(
+                        "civic_courier_active_",StringComparison.Ordinal))
+                        return true;
+                return false;
+            }
+        }
+        public int CivicCourierCompleted
+        {
+            get
+            {
+                int total=0;
+                foreach(int region in CivicAftercareRegions)
+                    if(Has("civic_courier_done_"+region))total++;
+                return total;
+            }
+        }
+        private string CivicCourierOriginId(int room)
+        {
+            if(save.room!=room||Map.objects==null)return null;
+            foreach(WorldObject marker in Map.objects)
+                if(marker!=null&&marker.kind=="waytrail"&&
+                    Has("civic_courier_active_"+room+"_"+marker.id))
+                    return marker.id;
+            return null;
+        }
+        private WorldObject CivicCourierOtherMarker(WorldObject sign)
+        {
+            if(sign==null||Map.objects==null)return null;
+            foreach(WorldObject other in Map.objects)
+                if(other!=null&&other.kind=="waytrail"&&
+                    !Object.ReferenceEquals(other,sign)&&
+                    Has("waytrail_"+other.id))
+                    return other;
+            return null;
+        }
+        private bool ChooseCivicCourier(string action)
+        {
+            if(action!="civic_courier_start"&&action!="civic_courier_deliver"&&
+                action!="civic_courier_cancel")return false;
+            WorldObject source=pendingDialogueSource;
+            int region=save.room;
+            if(source==null||source.kind!="waytrail"||
+                (region!=0&&region!=3&&region!=5)||
+                pendingDialogueSourceRoom!=region||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||
+                !Has("civic_aftercare_published")||
+                !Has("civic_waystation_stocked_"+region)||
+                !Has("civic_aftercare_waytrail_"+region)||
+                !Has("waytrail_"+source.id)||Dying||practicing||racing)
+                return true;
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("道路上还有敌人或正在进行的行动，先保证居民药包安全。",
+                    "Secure the public road and finish live fieldwork before handling a medical parcel.");
+                return true;
+            }
+            string originId=CivicCourierOriginId(region);
+            string activeFlag="civic_courier_active_"+region+"_";
+            if(action=="civic_courier_start")
+            {
+                if(CivicCourierActive||Has("civic_courier_done_"+region))
+                    return true;
+                WorldObject destination=CivicCourierOtherMarker(source);
+                if(destination==null)return true;
+                if(!Spend(0,0,1,0,0))return true;
+                Flag(activeFlag+source.id);
+                TrackQuest("civic_courier");
+                sound="quest";revision++;
+                Notify("医疗包已封好，药草-1。亲自走到本地区另一端旧路标交付；乘车和快速回城暂不可用。",
+                    "Medical parcel sealed: -1 herb. Carry it on foot to the other surveyed marker. Shuttles and fast travel are unavailable.");
+                return true;
+            }
+            if(originId==null)return true;
+            if(action=="civic_courier_cancel")
+            {
+                if(source.id!=originId)return true;
+                save.flags.Remove(activeFlag+originId);
+                CreditInventory(2,1);
+                revision++;sound="quest";
+                Notify("医疗包已交还原路站，退回1份药草。",
+                    "Medical parcel returned to the original station: +1 herb refunded.");
+                return true;
+            }
+            if(source.id==originId||
+                CivicCourierOtherMarker(source)==null)return true;
+            // A return to the original sign is not delivery. A genuine
+            // different surveyed marker is required after a real foot run.
+            save.flags.Remove(activeFlag+originId);
+            Flag("civic_courier_done_"+region);
+            CreditCoins(18);AddXp(30);
+            if(CivicCourierCompleted==3&&!Has("civic_courier_all"))
+            {
+                Flag("civic_courier_all");
+                CreditShards(2);
+                RecordMoment(
+                    "三地居民接驳线路上，三个封好的医疗包终于都靠双脚送抵另一端。道路不只属于车夫，也属于徒步回家的人。",
+                    "Three sealed medical parcels crossed the civic routes on foot. The public roads now serve travelers who cannot afford a ride.");
+            }
+            sound="reward";revision++;
+            Notify(CivicCourierCompleted==3?
+                "医疗递送 3/3 全部完成！硬币+18、经验+30、额外碎片+2。":
+                "医疗递送完成 "+CivicCourierCompleted+"/3：硬币+18、经验+30。",
+                CivicCourierCompleted==3?
+                "All three medical deliveries complete! +18 coins, +30 XP, +2 bonus shards.":
+                "Medical delivery "+CivicCourierCompleted+"/3 complete: +18 coins, +30 XP.");
+            return true;
+        }
         private Choice[] CivicWaystationMarkerChoices(WorldObject current)
         {
             int region=save.room;
@@ -118,10 +235,32 @@ namespace Starfall
                 {
                     choices.Add(C("查看已补给的居民路站",
                         "Inspect supplied waystation","civic_waystation_status"));
+                    // A parcel is bound to one real surveyed marker pair.
+                    // Riders cannot shortcut it using either new shuttle.
+                    string courierOrigin=CivicCourierOriginId(region);
+                    if(current!=null&&Has("waytrail_"+current.id))
+                    {
+                        if(courierOrigin!=null)
+                        {
+                            choices.Add(current.id==courierOrigin?
+                                C("交还未送出的药包 · 退回药草1",
+                                    "Return medical parcel · refund 1 herb",
+                                    "civic_courier_cancel"):
+                                C("递交密封医疗包 · 结算巡路奖励",
+                                    "Deliver sealed medicine · collect route pay",
+                                    "civic_courier_deliver"));
+                        }
+                        else if(!CivicCourierActive&&
+                            !Has("civic_courier_done_"+region)&&
+                            CivicCourierOtherMarker(current)!=null)
+                            choices.Add(C("承接徒步医疗递送 · 药草1",
+                                "Carry medical parcel on foot · 1 herb",
+                                "civic_courier_start"));
+                    }
                     // The short civic carriage works within a single,
                     // verified public road; it never crosses a blocked
                     // corridor or reveals an unvisited old marker.
-                    if(current!=null&&Map.objects!=null&&
+                    if(!CivicCourierActive&&current!=null&&Map.objects!=null&&
                         Has("waytrail_"+current.id))
                         foreach(WorldObject other in Map.objects)
                             if(other!=null&&other.kind=="waytrail"&&
@@ -143,7 +282,7 @@ namespace Starfall
                     for(int i=0;i<regionIds.Length;i++)
                     {
                         int target=regionIds[i];
-                        if(target==region||
+                        if(CivicCourierActive||target==region||
                             !Has("civic_waystation_stocked_"+target)||
                             !CanEnter(target))continue;
                         choices.Add(C("搭乘居民接驳车至"+zh[i]+" · 5硬币/20体力",
@@ -283,9 +422,16 @@ namespace Starfall
         }
         private bool ChooseCivicAftercare(string action)
         {
+            if(ChooseCivicCourier(action))return true;
             const string localShuttle="civic_waystation_local_";
             if(action!=null&&action.StartsWith(localShuttle,StringComparison.Ordinal))
             {
+                if(CivicCourierActive)
+                {
+                    Notify("先步行把医疗包送到旧路标，不能用接驳车跳过路程。",
+                        "Deliver the medical parcel on foot before riding a shuttle.");
+                    return true;
+                }
                 int region=save.room;
                 WorldObject source=pendingDialogueSource;
                 WorldObject destination=null;
@@ -357,6 +503,12 @@ namespace Starfall
             const string shuttle="civic_waystation_travel_";
             if(action!=null&&action.StartsWith(shuttle,StringComparison.Ordinal))
             {
+                if(CivicCourierActive)
+                {
+                    Notify("医疗包需要徒步递交，乘车会失去这次递送资格。",
+                        "Medical parcels must travel on foot, not on the civic carriage.");
+                    return true;
+                }
                 int target=-1;
                 if(!int.TryParse(action.Substring(shuttle.Length),out target)||
                     (target!=0&&target!=3&&target!=5))return true;
@@ -1107,6 +1259,61 @@ namespace Starfall
                 }
                 q.reward=L("每地硬币24、碎片1、经验42、服务升级；三地完成技能点1；名册公开硬币40、碎片2、经验55并解锁八地基础疗养",
                     "Each region 24 coins, 1 shard, 42 XP, improved service; all three +1 talent; ledger publication +40 coins, 2 shards, 55 XP and basic care in every rebuilt refuge");
+                return q;
+            }
+
+            if(id=="civic_courier")
+            {
+                q.title=L("居民药包 · 三地徒步递送",
+                    "Civilian Medicine · Three Walking Deliveries");
+                q.category=L("开放世界 · 真实巡路委托",
+                    "OPEN WORLD · FIELD COURIER");
+                q.description=L(
+                    "物资补给后，在三地的实地测绘路标领取密封药包（每次使用药草1），不乘坐接驳车，亲自沿现有道路走到本地区另一端旧路标交付。每地区仅一次，原站可退回药包。",
+                    "Once a region is stocked, spend 1 herb to carry sealed medicine between its two original surveyed markers on foot. Shuttles and fast travel cannot bypass a delivery. Each region pays once; returning to the original marker refunds the parcel.");
+                q.complete=Has("civic_courier_all")||CivicCourierCompleted>=3;
+                q.locked=!Has("civic_aftercare_published")||
+                    CivicWaystationCount==0;
+                int selected=-1;
+                bool onMission=false;
+                int[] regions={0,3,5};
+                string[] regionZh={"引水渠","赤铁矿场","雾港"};
+                string[] regionEn={"Canal","Ironreach","Mistport"};
+                for(int i=0;i<regions.Length;i++)
+                {
+                    int region=regions[i];
+                    bool done=Has("civic_courier_done_"+region);
+                    q.steps.Add(new QuestStep(
+                        L(regionZh[i]+" · 徒步送药",regionEn[i]+" · on-foot parcel"),
+                        done));
+                    if(!done&&selected<0&&Has("civic_waystation_stocked_"+region))
+                        selected=region;
+                    if(region==save.room&&CivicCourierOriginId(region)!=null)
+                    {selected=region;onMission=true;}
+                }
+                q.room=selected<0?0:selected;
+                q.target=ObjectPoint(q.room,"waytrail",new Point(18,15));
+                if(onMission)
+                {
+                    string origin=CivicCourierOriginId(selected);
+                    foreach(WorldObject marker in Map.objects)
+                        if(marker!=null&&marker.kind=="waytrail"&&
+                            marker.id!=origin&&Has("waytrail_"+marker.id))
+                        {q.target=new Point(marker.x,marker.y);break;}
+                }
+                q.next=q.complete?
+                    L("三地药包全部亲自送达，居民已收到补给",
+                        "All three sealed parcels were physically delivered"):
+                    q.locked?
+                    L("先公开巡路复核并补给至少一处居民路站",
+                        "Publish the road audit and supply a waystation first"):
+                    onMission?
+                    L("正在背负密封医疗包：步行到另一端已测绘路标，不能乘车或离开地区",
+                        "Carrying medicine: walk to the opposite surveyed marker; no shuttle or fast travel"):
+                    L("到一处已补给路站领取药包（药草1），然后徒步穿越实际道路",
+                        "Accept a one-herb medical parcel at a stocked marker, then walk the real road");
+                q.reward=L("每地硬币18、经验30；三地全部完成额外碎片2；原站退货返还药草1",
+                    "Each delivery: +18 coins and +30 XP; all three: +2 shards. Return an undelivered parcel for its herb.");
                 return q;
             }
 

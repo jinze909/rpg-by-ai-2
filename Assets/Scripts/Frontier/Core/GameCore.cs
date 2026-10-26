@@ -502,6 +502,15 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            // A real parcel contract requires physically reaching the other
+            // waytrail on foot. Any region switch or quick-return while the
+            // existing V2 flag carries cargo would make the reward free.
+            if(CivicCourierActive)
+            {
+                Notify("医疗包尚未送到本地区另一端旧路标；完成或回原站退货后才能离开。",
+                    "Medical parcel still in transit. Walk to the other old marker or return it at the origin before traveling.");
+                return true;
+            }
             if(OuterDeliveryActive)
             {
                 Notify("药布还没送到。先亲手交给补给岗，或回求援灯取消急送，才能离开本地区。",
