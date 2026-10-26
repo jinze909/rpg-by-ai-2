@@ -44,6 +44,13 @@ namespace Starfall
         // SaveData v2, other encounters and restored enemy IDs are untouched.
         private readonly HashSet<Enemy> ridgeWatchResponders=new HashSet<Enemy>();
         private float ridgeWatchAlarmSeconds;
+        private Enemy ridgeWatchCaller;
+        private float ridgeWatchCallSeconds;
+        // An actual injured body must FINISH its telegraphed warning:
+        // defeating or stunning it beforehand stops the reinforcement.
+        public bool RidgeWatchCallPending
+        { get { return ridgeWatchCaller!=null&&ridgeWatchCallSeconds>0f&&
+            IsActiveRidgeWatchPatrol(ridgeWatchCaller); } }
         public bool RidgeWatchAlarmActive
         {
             get { return ridgeWatchAlarmSeconds>0f &&
@@ -67,7 +74,22 @@ namespace Starfall
         private void AlertRidgeWatchOnRealHit(Enemy struck)
         {
             if(!IsActiveRidgeWatchPatrol(struck))return;
-            bool first=ridgeWatchAlarmSeconds<=0f;
+            if(RidgeWatchAlarmActive)
+            {
+                ridgeWatchAlarmSeconds=Math.Max(ridgeWatchAlarmSeconds,3f);
+                return;
+            }
+            // Do not allow rapid-hit spam to renew the original .85s call.
+            if(ridgeWatchCaller!=null||struck.stun>.0001f)return;
+            ridgeWatchCaller=struck;
+            ridgeWatchCallSeconds=.85f;
+            effects.Add(new Effect("number",struck.Position,.85f,
+                L("巡敌正在呼援！","PATROL CALLING!")));
+            revision++;
+        }
+        private void ReleaseRidgeWatchAlarm(Enemy struck)
+        {
+            if(!IsActiveRidgeWatchPatrol(struck))return;
             ridgeWatchAlarmSeconds=6f;
             ridgeWatchResponders.Clear();
             foreach(Enemy ally in enemies)
@@ -84,7 +106,7 @@ namespace Starfall
                     NavigationPathFrom(ally.Position,struck.Position,true).Count>0)
                     ridgeWatchResponders.Add(ally);
             }
-            if(first&&ridgeWatchResponders.Count>1)
+            if(ridgeWatchResponders.Count>1)
             {
                 effects.Add(new Effect("number",struck.Position,.75f,
                     L("巡敌呼援！","PATROL ALERT!")));
@@ -95,6 +117,7 @@ namespace Starfall
         {
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
             ridgeWatchResponders.Clear();ridgeWatchAlarmSeconds=0f;
+            ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
             ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
         }
         public int RidgeWatchProgress(int room)
@@ -196,7 +219,10 @@ namespace Starfall
                 return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\n\n"+ridgeWatchStoryEn[room-1]:
                     "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\n\n"+ridgeWatchStoryZh[room-1];
             int waiting=RidgeWatchPatrolsAwaitingFooting(room);
-            string alert=room==save.room&&RidgeWatchRespondingCount>1?
+            string alert=room==save.room&&RidgeWatchCallPending?
+                (english?" One patrol is calling for help; interrupt it before the signal.":
+                    " 一名巡敌正在呼援，击倒或打断它能阻止增援。"):
+                room==save.room&&RidgeWatchRespondingCount>1?
                 (english?" The living patrol is responding to a real attack.":
                     " 巡敌听见交战，正在增援。"):"";
             return english?"\n\nRidge watch: clear all three real patrols ("+
@@ -219,6 +245,8 @@ namespace Starfall
                 !ridgeWatchActors.TryGetValue(enemy.id,out actual)||
                 !Object.ReferenceEquals(actual,enemy))return;
             ridgeWatchResponders.Remove(enemy);
+            if(System.Object.ReferenceEquals(ridgeWatchCaller,enemy))
+            {ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;}
             string flag="ridge_watch_"+save.room+"_"+index;
             bool first=!Has(flag);
             if(first)Flag(flag);
@@ -271,6 +299,24 @@ namespace Starfall
             // map instead of making the three-kill quest impossible forever.
             ridgeWatchAlarmSeconds=Math.Max(0f,ridgeWatchAlarmSeconds-dt);
             if(ridgeWatchAlarmSeconds<=0f)ridgeWatchResponders.Clear();
+            if(ridgeWatchCaller!=null)
+            {
+                Enemy caller=ridgeWatchCaller;
+                if(!IsActiveRidgeWatchPatrol(caller)||caller.stun>.0001f||
+                    !CanStand(caller.Position))
+                {
+                    ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
+                }
+                else
+                {
+                    ridgeWatchCallSeconds-=dt;
+                    if(ridgeWatchCallSeconds<=0f)
+                    {
+                        ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
+                        ReleaseRidgeWatchAlarm(caller);
+                    }
+                }
+            }
             ridgeWatchRespawnCheck-=dt;
             if(ridgeWatchRespawnCheck<=0)
             {

@@ -1138,8 +1138,11 @@ namespace Starfall
                 effects.Add(new Effect("break",e.Position,.7f,
                     L("破势","BREAK")));
             }
-            e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
+            // Even a genuine lethal contact can begin a whistle, but the
+            // death transaction immediately cancels that unfinished call.
+            // Register before HP falls below the live-actor threshold.
             AlertRidgeWatchOnRealHit(e);
+            e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
             // distinct combat element, but only after the authoritative HP,

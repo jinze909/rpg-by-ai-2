@@ -4123,29 +4123,87 @@ namespace Starfall.Tests
             // This is not an invented alarm button or a synthetic kill flag.
             hit.Invoke(g,new object[]{victim,1f,false,null,null});
             Check(victim.hp<originalHP&&victim.hp>0f&&
-                g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount>=1&&
+                g.RidgeWatchCallPending&&!g.RidgeWatchAlarmActive&&
+                g.RidgeWatchRespondingCount==0&&
                 g.save.flags.Count==originalFlags&&
                 g.save.coins==originalCoins,
-                "Real damage signals living squadmates without minting kills or loot");
-            int summoned=g.RidgeWatchRespondingCount;
+                "Real damage begins an interruptible warning, not instant global enemy pursuit");
             Enemy unrelated=new Enemy(911700,0,victim.x+1f,victim.y,70);
             g.enemies.Add(unrelated);
             hit.Invoke(g,new object[]{unrelated,2f,false,null,null});
-            Check(g.RidgeWatchRespondingCount==summoned,
-                "Damaging unrelated enemies cannot recruit a mapped ridge squad");
+            Check(g.RidgeWatchCallPending&&!g.RidgeWatchAlarmActive,
+                "Damaging unrelated enemies cannot release an unfinished ridge whistle");
             g.save.x=12.5f;g.save.y=14.5f;
+            for(int i=0;i<19;i++)g.Tick(.05f,new Point());
+            Check(g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount>=1,
+                "The living source finishes its actual .85-second signal before squad AI responds");
             for(int i=0;i<125;i++)g.Tick(.05f,new Point());
             Check(!g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount==0&&
                 g.RidgeWatchProgress(1)==0,
                 "A live alarm expires without permanent combat pursuit or fake quest progress");
             hit.Invoke(g,new object[]{victim,1f,false,null,null});
-            Check(g.RidgeWatchAlarmActive,"A subsequent genuine injury can signal again");
+            Check(g.RidgeWatchCallPending&&!g.RidgeWatchAlarmActive,
+                "A later genuine injury starts a NEW interruptible warning");
             g.PrepareSave();
             var restored=new GameCore(data,CloneSave(g.save));restored.Start();
             Check(!restored.RidgeWatchAlarmActive&&
                 restored.RidgeWatchRespondingCount==0&&
                 restored.save.version==2,
                 "Old V2 save reload retains genuine enemies and progress, never a transient alarm");
+        }
+
+        public static void RidgeWatchWhistleCanBeSilencedBeforeBackupArrives(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var field=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var ids=(Dictionary<int,int>)field.GetValue(g);
+            Enemy caller=null;
+            foreach(Enemy e in g.enemies)
+                if(ids.ContainsKey(e.id)){caller=e;break;}
+            Check(caller!=null&&g.IsActiveRidgeWatchPatrol(caller),
+                "A living mapped patrol is required for an audible call");
+            hit.Invoke(g,new object[]{caller,1f,false,null,null});
+            Check(g.RidgeWatchCallPending,
+                "A real injury begins the explicit counterplay window");
+            // A second actual contact can defeat the caller before 850ms.
+            hit.Invoke(g,new object[]{caller,999f,true,null,null});
+            Check(!g.RidgeWatchCallPending&&
+                !g.RidgeWatchAlarmActive&&
+                g.RidgeWatchProgress(1)==1,
+                "Killing the caller stops the signal but credits only that one genuine patrol");
+            g.save.x=12.5f;g.save.y=14.5f;
+            for(int tick=0;tick<30;tick++)g.Tick(.05f,new Point());
+            Check(!g.RidgeWatchAlarmActive&&
+                g.RidgeWatchRespondingCount==0&&
+                !g.RidgeWatchComplete(1),
+                "A dead caller cannot summon backup during later world ticks");
+            // A different surviving patrol can still signal on its own
+            // genuine hit; the old victim's transient call is not restored.
+            var remaining=(Dictionary<int,int>)field.GetValue(g);
+            Enemy live=null;
+            foreach(Enemy e in g.enemies)
+                if(remaining.ContainsKey(e.id)&&g.IsActiveRidgeWatchPatrol(e))
+                {live=e;break;}
+            Check(live!=null,"Other original bodies survive a canceled warning");
+            hit.Invoke(g,new object[]{live,1f,false,null,null});
+            Check(g.RidgeWatchCallPending&&!g.RidgeWatchAlarmActive,
+                "A living replacement caller must begin a new full windup");
+            live.stun=1.4f;
+            g.Tick(.05f,new Point());
+            Check(!g.RidgeWatchCallPending&&!g.RidgeWatchAlarmActive,
+                "Genuine crowd-control stun during the warning cancels recruitment");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Check(!loaded.RidgeWatchCallPending&&!loaded.RidgeWatchAlarmActive&&
+                loaded.save.version==2,
+                "A V2 reload never revives incomplete whistles or transient squad targets");
         }
 
         public static void RidgeWatchPatrolsWalkUsingRealEnemyMovementAndYieldToCombat(Campaign data)

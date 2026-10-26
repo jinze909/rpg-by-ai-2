@@ -123,6 +123,7 @@ namespace Starfall.Tests
         [Test] public void DimHighlandHearthCanBePhysicallyTendedForPermanentService() { CoreChecks.HighlandPublicHearthQualityAndPhysicalTendingImproveRealService(Data()); }
         [Test] public void HighFlameDeliveryEarnsRealStrongerCivicService() { CoreChecks.HighlandFullFlameDeliveryEarnsBrightServiceWithoutMaterials(Data()); }
         [Test] public void HighlandCivicEmberSurvivesActualColdAndGuardCombat() { CoreChecks.HighlandCivicEmberHasActualColdCombatAndPublicChoices(Data()); }
+        [Test] public void RidgePatrolWhistleCanBeKilledOrStunnedBeforeSummoning() { CoreChecks.RidgeWatchWhistleCanBeSilencedBeforeBackupArrives(Data()); }
         [Test] public void RealRidgePatrolCombatAlertsOnlyActualLivingNeighbors() { CoreChecks.RidgeWatchRealContactCallsOnlyReachableLivingPatrols(Data()); }
         [Test] public void TemporarilySealedRidgePatrolCanRejoinBeforeFinalReward() { CoreChecks.RidgeWatchMissingBlockedPatrolRejoinsRealThreeGuardObjective(Data()); }
         [Test] public void RestoredRidgeSnapshotsRejectReusedIdAndWrongCombatProfile() { CoreChecks.RidgeWatchWorldSnapshotRejectsImpostorWithReusedPatrolId(Data()); }
