@@ -7524,7 +7524,7 @@ public static class RuntimeCombatInputChecks
         var update=typeof(GameCore).GetMethod("TickSkywatch",Private);
         update.Invoke(game,new object[]{.2f});
         Check(game.SkywatchTime>14.8f&&game.SkywatchTime<15f&&
-            game.toastEn.Contains("15 seconds")&&
+            game.toast.Contains("15 seconds")&&
             game.effects.Exists(e=>e.kind=="number"&&e.text.Contains("15s")),
             "Actual world-time 15-second threshold emits a visible audible urgent battle warning");
         update.Invoke(game,new object[]{.1f});
