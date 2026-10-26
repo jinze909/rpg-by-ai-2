@@ -310,6 +310,75 @@ namespace Starfall.Tests
                 "Reopened shoreline commits exactly one full-cost crossing and two real raiders while retaining the active run");
         }
 
+
+        public static void FloodArchiveProofAndCivicVoteRejectStaleBlockedDialogues(Campaign data)
+        {
+            MapData original=data.maps[2];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] tiles=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=29)
+                        for(int x=2;x<=29;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                WorldObject gauge=new WorldObject{id="floodarchive_1",
+                    kind="floodarchive",name="Gauge",en="Gauge",x=10.5f,y=10.5f};
+                WorldObject roster=new WorldObject{id="floodarchive_2",
+                    kind="floodarchive",name="Roster",en="Roster",x=16.5f,y=10.5f};
+                WorldObject desk=new WorldObject{id="floodarchive_3",
+                    kind="floodarchive",name="Desk",en="Desk",x=21.5f,y=10.5f};
+                data.maps[2]=new MapData{id=2,spawnX=12.25f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{gauge,roster,desk},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(2);
+                g.enemies.Clear();g.save.flags.Add("scout_saved");
+                g.save.totalTime=24;g.save.x=12.25f;g.save.y=10.5f;
+                g.Talk(gauge);
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.conversation.choices[0].action=="floodarchive_1",
+                    "The original high-tide gauge is reachable before a terrain closure");
+                char[] closed=rows[10].ToCharArray();
+                closed[11]='#';rows[10]=new string(closed);
+                Check(g.Blocked(11.5f,10.5f),
+                    "A newly closed physical cell now isolates the archive gauge");
+                int oldXp=g.save.xp;
+                Check(FerryChoice(g,"floodarchive_1")&&
+                    g.FloodArchiveProgress==0&&g.save.xp==oldXp,
+                    "Previously valid high-water proof cannot be committed through a newly closed wall");
+                g.Close();g.Talk(gauge);
+                Check(g.mode!="dialog"||g.conversation==null||
+                    !Array.Exists(g.conversation.choices,c=>c.action=="floodarchive_1"),
+                    "A sealed post no longer initiates a remote civic evidence dialogue");
+                closed[11]='.';rows[10]=new string(closed);
+                g.Close();g.Talk(gauge);
+                Check(FerryChoice(g,"floodarchive_1")&&
+                    g.FloodArchiveProgress==1&&g.save.xp==oldXp+12,
+                    "Reopening the actual walkable lane restores legitimate high-tide evidence");
+                g.save.flags.Add("floodarchive_2");
+                g.save.x=23.25f;g.save.y=10.5f;
+                g.Talk(desk);
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    Array.Exists(g.conversation.choices,c=>c.action=="floodarchive_public"),
+                    "Both records unlock the real reachable public-hearing choice");
+                closed=rows[10].ToCharArray();
+                closed[22]='#';rows[10]=new string(closed);
+                int oldCoins=g.save.coins;
+                Check(FerryChoice(g,"floodarchive_public")&&
+                    !g.FloodArchiveComplete&&g.save.coins==oldCoins,
+                    "A stale public-vote button cannot publish flags or pay coins across newly sealed ground");
+                closed[22]='.';rows[10]=new string(closed);
+                g.Close();g.Talk(desk);
+                Check(FerryChoice(g,"floodarchive_public")&&
+                    g.FloodArchiveComplete&&g.save.coins==oldCoins+50&&
+                    g.save.version==2,
+                    "The restored route safely commits the original civic outcome once on old v2 saves");
+            }
+            finally{data.maps[2]=original;}
+        }
+
         public static void PublicFerryStaleDockChoiceCannotCrossClosingPhysicalWall(Campaign data)
         {
             MapData original=data.maps[2];

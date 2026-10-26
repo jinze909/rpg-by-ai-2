@@ -221,8 +221,8 @@ namespace Starfall
             if(site.kind!="floodarchive")return false;
             int stage=0;
             for(int i=1;i<=3;i++)if(site.id=="floodarchive_"+i)stage=i;
-            if(stage==0||save.room!=2||
-                (Position-new Point(site.x,site.y)).Length>1.8f)return true;
+            if(stage==0||save.room!=2||!AtFloodArchivePost(site))
+                return true;
             if(!Has("scout_saved"))
             {
                 FloodArchiveDialog(site,
@@ -524,8 +524,11 @@ namespace Starfall
             if(FloodArchiveComplete||save.room!=2||Dying||practicing||!Has("scout_saved"))return true;
             int stage=action=="floodarchive_1"?1:action=="floodarchive_2"?2:3;
             WorldObject site=FloodArchiveObject(stage);
-            if(site==null||(Position-new Point(site.x,site.y)).Length>1.8f||
-                FloodArchiveProgress+1!=stage)return true;
+            // Evidence and public-hearing rewards must use the same
+            // reachable bank-side contact as the ferry. An already opened
+            // dialogue is not authority after terrain closes the path.
+            if(!AtFloodArchivePost(site)||FloodArchiveProgress+1!=stage)
+                return true;
             if(stage==1&&LowTide||stage==2&&!LowTide)
             {
                 Notify("潮位已改变，需在正确的水位才能读取档案。",
