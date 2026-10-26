@@ -1942,6 +1942,65 @@ namespace Starfall.Tests
                 "Only the actual bounded victory interval draws the temporary battle handoff");
         }
 
+
+        public static void MainBossDeathPreservesOtherLivingShootersAndReflections(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.english=true;
+            g.save.stage=1;g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject altar=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="shrine");
+            Check(altar!=null,"Actual first region Boss has an original altar");
+            g.save.x=altar.x;g.save.y=altar.y;
+            g.Talk(altar);
+            int start=Array.FindIndex(g.conversation.choices,c=>c.action=="boss");
+            Check(start>=0,"Original story unlocked the normal Boss challenge");
+            g.Choose(start);
+            Enemy guardian=g.enemies.Find(e=>e!=null&&e.boss);
+            Check(guardian!=null,"Only genuine altar challenge can start this world Boss");
+            Enemy stranger=new Enemy(guardian.id,1,
+                guardian.x+3.25f,guardian.y+1.25f,75);
+            g.enemies.Add(stranger);
+            var fire=typeof(GameCore).GetMethod("Fire",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(fire!=null,"Real combat uses a shared projectile launch method");
+            fire.Invoke(g,new object[]{guardian,new Point(-1,0),5f});
+            fire.Invoke(g,new object[]{stranger,new Point(-1,0),5f});
+            Projectile bossOrb=g.projectiles.Find(p=>p.hostileShooter==guardian);
+            Projectile otherArrow=g.projectiles.Find(p=>p.hostileShooter==stranger);
+            Check(bossOrb!=null&&otherArrow!=null&&
+                !bossOrb.friendly&&!otherArrow.friendly,
+                "Both living same-ID actors actually fired their own independent hostile projectiles");
+            var reflected=new Projectile{
+                hostileShooter=guardian,position=guardian.Position,
+                velocity=new Point(1,0),damage=8,life=3,
+                visual="arrow",friendly=true};
+            g.projectiles.Add(reflected);
+            var oldEnvironment=new Projectile{
+                position=guardian.Position+new Point(0,1),velocity=new Point(-2,0),
+                damage=7,life=3,visual="enemyOrb",friendly=false};
+            g.projectiles.Add(oldEnvironment);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            hit.Invoke(g,new object[]{guardian,9999f,false,null,null});
+            Check(g.Has("boss_1")&&g.BossVictoryFeedback&&
+                !g.enemies.Contains(guardian)&&g.enemies.Contains(stranger),
+                "The true chapter guardian dies but its same-ID archer remains alive");
+            Check(!g.projectiles.Contains(bossOrb)&&
+                g.projectiles.Contains(otherArrow)&&
+                g.projectiles.Contains(reflected)&&
+                g.projectiles.Contains(oldEnvironment),
+                "The dead guardian's hostile orbs retract; an independent living arrow, reflected bolt and unrelated hazard projectile keep their real trajectories");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.Has("boss_1")&&
+                !restored.BossVictoryFeedback,
+                "All actor ownership was transient and the established V2 story clear stays intact");
+        }
+
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);

@@ -286,6 +286,25 @@ namespace Starfall
             shot.friendly = true; shot.explosive = explosive; shot.visual = weapon == 1 ? "arrow" : "starfire";
             shot.impact = impact ?? CaptureImpact(weapon); return shot;
         }
+        // Killing one real guardian retracts ONLY missiles actually
+        // released by that precise live actor. Another raider, a second
+        // Boss with a recycled spawn ID, or a sword-reflected bolt remains
+        // an honest combat event. Never use a numeric ID to determine owner.
+        private void RetireDefeatedGuardianProjectiles(Enemy defeated)
+        {
+            if(defeated==null)return;
+            foreach(Projectile shot in projectiles.ToArray())
+            {
+                if(shot==null||shot.friendly||
+                    !Object.ReferenceEquals(shot.hostileShooter,defeated))
+                    continue;
+                projectiles.Remove(shot);
+                effects.Add(new Effect("projectileFade",shot.position,.25f)
+                { direction=shot.velocity.Normalized,
+                  variant=shot.visual=="enemyArrow"?8:10,
+                  height=shot.height });
+            }
+        }
         private void RetireHostileProjectiles(Point? center = null, float radius = 0)
         {
             foreach (Projectile p in projectiles.ToArray())
