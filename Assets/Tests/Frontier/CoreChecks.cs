@@ -6741,5 +6741,81 @@ namespace Starfall.Tests
                 "The hero blocks only in the actual objective contact corridor; SaveData v2 is unchanged");
         }
 
+
+        public static void ReliefWatchOffAxisCannotAvoidActualReleasedSupplyHit(Campaign data)
+        {
+            var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+            var post=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            Check(post!=null,"The original physical regional watch exists");
+            g.save.flags.Add("outer_cache_0");
+            g.save.x=post.x;g.save.y=post.y;
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_start");
+            Check(start>=0,"The actual rescue siege is physically startable");
+            g.Choose(start);
+            Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                "The real siege must run both enemy actors");
+            var melee=g.enemies.Find(e=>e.kind==0);
+            var bow=g.enemies.Find(e=>e!=melee);
+            Check(melee!=null&&bow!=null,"The original melee and bow combat roles survive");
+            bow.stun=300f;
+            bow.x=post.x+8;bow.y=post.y+8;
+            Point station=new Point(post.x,post.y);
+            bool found=false;
+            foreach(Point off in new[]{new Point(-1.5f,0),new Point(1.5f,0),
+                new Point(0,-1.5f),new Point(0,1.5f)})
+            {
+                Point origin=station+off;
+                if(!g.CanStand(origin))continue;
+                melee.x=origin.x;melee.y=origin.y;
+                melee.state=1;melee.timer=.035f;
+                melee.windupDuration=.65f;
+                melee.stun=melee.hitTime=melee.releaseTime=0f;
+                melee.target=station;melee.targetingOuterPatrolStock=true;
+                melee.Face(station-origin);
+                Point lateral=new Point(-off.y,off.x).Normalized;
+                foreach(float length in new[]{.9f,-.9f,1.1f,-1.1f})
+                {
+                    Point side=origin+lateral*length;
+                    if(!g.CanStand(side))continue;
+                    g.save.x=side.x;g.save.y=side.y;
+                    if(g.OuterPatrolIncomingStockThreat==melee&&
+                        g.OuterPatrolBodyguardedThreat==null)
+                    {found=true;break;}
+                }
+                if(found)break;
+            }
+            Check(found,"The physical watch offers a genuine near-but-off-axis hero observation foot");
+            g.invulnerable=1000f;
+            float first=g.OuterPatrolIntegrity;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&melee.state==0&&
+                g.OuterPatrolIntegrity<first,
+                "A real released outpost melee attack must damage the cache when hero is merely adjacent");
+            float damaged=g.OuterPatrolIntegrity;
+            // Keep the same registered enemy, let its real recovery end,
+            // then physically occupy the cache's actual contact lane.
+            melee.stun=1f;
+            Advance(g,.35f);
+            Check(melee.releaseTime<=.001f&&melee.state==0,
+                "The raider must finish genuine post-contact recovery before a new attack");
+            g.save.x=station.x;g.save.y=station.y;
+            melee.stun=0f;melee.hitTime=0f;melee.releaseTime=0f;
+            melee.state=1;melee.timer=.035f;
+            melee.target=station;melee.targetingOuterPatrolStock=true;
+            melee.Face(station-melee.Position);
+            Check(System.Object.ReferenceEquals(
+                    g.OuterPatrolBodyguardedThreat,melee)&&
+                g.OuterPatrolIncomingStockThreat==null,
+                "The same physical raider becomes truly bodyguarded only when the hero occupies its contact lane");
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolIntegrity==damaged&&melee.state==0&&
+                g.effects.Exists(e=>e.outerPatrolOwned&&
+                    e.text==g.L("拦截成功","INTERCEPTED"))&&
+                g.save.version==2,
+                "The genuine second strike is intercepted at release without restoring stock or rewriting v2 saves");
+        }
+
     }
 }
