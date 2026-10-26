@@ -342,7 +342,10 @@ namespace Starfall.Tests
 
         public static void SkywatchBossCancellationRetiresRealOutgoingOrbVolley(Campaign data)
         {
-            var g=Fresh(data);
+            // Real Frostchime trial requires the mountain-region gate and
+            // finished access roads. The basic fresh save leaves gate_7
+            // physically closed; starting a fake Boss is no substitute.
+            var g=Unlocked(data);
             g.save.stage=3;
             g.save.flags.Add("harbor_report");
             g.save.flags.Add("desert_report");
