@@ -1708,7 +1708,10 @@ namespace Starfall
                 if(other==null||System.Object.ReferenceEquals(other,mover)||
                     other.hp<=0f||!Finite(other.x)||!Finite(other.y))
                     continue;
-                float clearance=other.boss?.96f:.72f;
+                // Ordinary enemies require room for THEIR own body beside
+                // the guardian's actual .9-unit combat silhouette. The old
+                // .96 clearance still allowed feet deep inside its torso.
+                float clearance=other.boss?1.4f:.72f;
                 float dx=candidate.x-other.x,dy=candidate.y-other.y;
                 float after=dx*dx+dy*dy;
                 dx=from.x-other.x;dy=from.y-other.y;

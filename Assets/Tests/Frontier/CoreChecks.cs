@@ -201,6 +201,65 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void OrdinaryEnemiesActuallyClearBossBodyDuringPursuit(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                string[] rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] line=new string('.',26).ToCharArray();
+                    for(int x=0;x<26;x++)
+                        if(x<2||x>=24||y<2||y>=24)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=15.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=15.5f;g.save.y=10.5f;
+                g.invulnerable=100f;
+                var hunter=new Enemy(84991,0,9.07f,10.5f,300f)
+                    {timer=99f};
+                var boss=new Enemy(84992,2,10.5f,10.5f,700f,true)
+                    {timer=99f,stun=99f};
+                g.enemies.Add(hunter);g.enemies.Add(boss);
+                var check=typeof(GameCore).GetMethod("EnemyCrowdStepClear",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(check!=null&&g.CanStand(hunter.Position)&&
+                    g.CanStand(boss.Position),
+                    "Live Boss crowd collision uses genuine walkable combat feet");
+                Point forward=hunter.Position+new Point(.105f,0);
+                Check((hunter.Position-boss.Position).Length>1.4f&&
+                    (forward-boss.Position).Length<1.4f&&
+                    !(bool)check.Invoke(g,new object[]{hunter,hunter.Position,forward}),
+                    "Full-width Boss body blocks the first real hunter footstep before its outline clips the guardian");
+                g.Tick(.05f,new Point());
+                Check(hunter.moving&&Math.Abs(hunter.y-10.5f)>.04f&&
+                    hunter.x<9.08f&&
+                    (hunter.Position-boss.Position).Length>=1.4f-.001f,
+                    "Production melee hunter genuinely flanks the Boss-sized body on open ground");
+                for(int i=0;i<18;i++)
+                {
+                    g.Tick(.05f,new Point());
+                    Check((hunter.Position-boss.Position).Length>=1.4f-.001f&&
+                        g.CanStand(hunter.Position),
+                        "Every actual moving frame preserves the guardian's wide living collision radius");
+                }
+                // A defeated/moved guardian must not create a permanent
+                // ghost-body obstacle or a second saved navigation schema.
+                g.enemies.Remove(boss);
+                Point prior=hunter.Position;
+                for(int i=0;i<10;i++)g.Tick(.05f,new Point());
+                Check((hunter.Position-g.Position).Length<
+                    (prior-g.Position).Length-.3f&&
+                    g.save.version==2,
+                    "Removing the guardian immediately restores direct pursuit and old-save compatibility");
+            }
+            finally{data.maps[0]=old;}
+        }
+
         public static void LivingCrowdSweepsRejectGrazingMidstepBodyContact(Campaign data)
         {
             MapData original=data.maps[0];
