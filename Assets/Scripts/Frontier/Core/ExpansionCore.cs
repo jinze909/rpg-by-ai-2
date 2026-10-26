@@ -2668,6 +2668,13 @@ namespace Starfall
         }
         public string Conditions()
         {
+            if(CivicCourierActive)
+                return L("居民送药 · 密封医疗包", "CIVIC MEDICINE · SEALED PARCEL")+
+                    "\n"+(CivicCourierGuardCleared(save.room)?
+                        L("道路已清 · 步行送到另一端旧路标",
+                            "ROAD SECURED · WALK TO THE OTHER MARKER"):
+                        L("拦路弓手尚在 · 先击退实际伏击者",
+                            "ROAD AMBUSH · DEFEAT THE LIVE ARCHER"));
             if(CivicConduitActive)
                 return L("公共电网 · ","CIVIC GRID · ")+
                     (int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
