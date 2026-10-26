@@ -52,6 +52,48 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void ControllerAimHonorsFrontBodiesAndStableLivingIdentity(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,1);
+                g.save.weapon=1;
+                g.enemies.Clear();
+                Point p=g.Position;
+                var far=new Enemy(711,0,p.x+9f,p.y,90f);
+                var front=new Enemy(712,0,p.x+3f,p.y+.2f,90f);
+                g.enemies.Add(far);g.enemies.Add(front);
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(new Point(1,0)),front),
+                    "A perfectly aligned rear enemy cannot steal an arrow that physically meets the front-row hurt circle");
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(new Point(1,0),far),front),
+                    "An obsolete prior lock cannot override current living-body cover");
+                g.enemies.Clear();
+                var first=new Enemy(713,0,p.x+7f,p.y,80f);
+                var second=new Enemy(714,0,p.x+7f,p.y+.35f,80f);
+                g.enemies.Add(second);g.enemies.Add(first);
+                Point smallTurn=new Point(1,.045f);
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(smallTurn),second),
+                    "Unbiased stick preference initially chooses the better aligned live actor");
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(smallTurn,first),first),
+                    "A valid previous target survives tiny analog drift without reticle thrash");
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(new Point(1,.24f),first),second),
+                    "A genuine change in stick direction immediately overcomes soft target retention");
+                first.hp=0;
+                Check(System.Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(smallTurn,first),second),
+                    "Defeating the old target clears retention without touching another actor's identity");
+                Check(g.save.version==2&&g.projectiles.Count==0,
+                    "Front-row aiming and transient target retention preserve actual projectiles and v2 saves");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

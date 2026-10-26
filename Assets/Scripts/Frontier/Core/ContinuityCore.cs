@@ -24,7 +24,7 @@ namespace Starfall
         // direction's narrow cone; it never damages, teleports or persists
         // a target. Actual release/impact still use WeaponShot's muzzle,
         // projectile sweep and GameCore's canonical collision authority.
-        public Enemy AcquireRangedStickTarget(Point heading)
+        public Enemy AcquireRangedStickTarget(Point heading,Enemy previous=null)
         {
             if(mode!="world"||Dying||save==null||
                (save.weapon==0&&save.profession!=1)||
@@ -55,9 +55,43 @@ namespace Starfall
                 if(probe.blockedAtSpawn||
                    !ClearAttackPath(probe.position,enemy.Position))
                     continue;
-                // Prefer the aimed ray first, then the closer front foe;
-                // never depend on enemy serialization/spawn order.
+                // A farther enemy can be perfectly aligned with the stick
+                // while a nearer hostile body would absorb the actual
+                // arrow. Never promise a rear lock through an intervening
+                // living hurt circle. The real missile keeps all its own
+                // damage and collision rules.
+                Point ray=probe.velocity.Normalized;
+                float targetEntry=ProjectileCircleEntry(
+                    probe.position,probe.velocity,enemy.Position,
+                    (enemy.boss?.9f:.5f)+probe.Radius);
+                bool occludedByBody=false;
+                foreach(Enemy other in enemies)
+                {
+                    if(other==null||other.hp<=0f||
+                       System.Object.ReferenceEquals(other,enemy))
+                        continue;
+                    Point offset=other.Position-probe.position;
+                    float along=offset.x*ray.x+offset.y*ray.y;
+                    if(along<=0f)continue;
+                    float side2=Math.Max(0f,offset.x*offset.x+
+                        offset.y*offset.y-along*along);
+                    float radius=(other.boss?.9f:.5f)+probe.Radius;
+                    if(side2>=radius*radius)continue;
+                    float entry=ProjectileCircleEntry(
+                        probe.position,probe.velocity,other.Position,radius);
+                    if(entry+.015f<targetEntry&&
+                       ClearAttackPath(probe.position,other.Position))
+                    {occludedByBody=true;break;}
+                }
+                if(occludedByBody)continue;
+                // A slight frame-to-frame stick tremor should not make
+                // the world reticle jitter between equally valid foes.
+                // Preserve the old live reference only while it still
+                // passes ALL physical checks above; a decisive new stick
+                // direction still immediately switches targets.
                 float score=(1f-alignment)*12f+distance*.015f;
+                if(System.Object.ReferenceEquals(enemy,previous))
+                    score-=.07f;
                 if(score<bestScore-.00001f)
                 { bestScore=score;selected=enemy; }
             }

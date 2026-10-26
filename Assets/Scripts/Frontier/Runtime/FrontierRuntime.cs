@@ -390,7 +390,8 @@ namespace Starfall
                 Point stick=new Point(
                     Input.GetAxisRaw("Combat Aim Horizontal"),
                     -Input.GetAxisRaw("Combat Aim Vertical"));
-                controllerAimEnemy=Game.AcquireRangedStickTarget(stick);
+                controllerAimEnemy=Game.AcquireRangedStickTarget(
+                    stick,controllerAimEnemy);
                 if(controllerAimEnemy!=null)
                 {
                     Point target=controllerAimEnemy.Position;
