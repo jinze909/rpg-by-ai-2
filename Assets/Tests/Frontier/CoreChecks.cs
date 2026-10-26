@@ -1560,6 +1560,82 @@ namespace Starfall.Tests
                 "V2 reload preserves paid local transit without new serialized shuttle state");
         }
 
+
+        public static void CourierAmbushUsesUnoccupiedRoadFeetAcrossRetries(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("civic_conduit_complete");
+            g.save.flags.Add("civic_aftercare_started");
+            g.save.flags.Add("civic_aftercare_published");
+            g.save.flags.Add("civic_aftercare_waytrail_0");
+            g.save.flags.Add("civic_waystation_stocked_0");
+            foreach(WorldObject sign in data.maps[0].objects)
+                if(sign!=null&&sign.kind=="waytrail")
+                    g.save.flags.Add("waytrail_"+sign.id);
+            g.Enter(0);g.enemies.Clear();
+            WorldObject start=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(o!=null&&o.kind=="waytrail"){start=o;break;}
+            Check(start!=null,"Public medicine contract has a real origin sign");
+            g.save.x=start.x;g.save.y=start.y;
+            g.save.inventory[2]=9;g.save.companion=-1;
+            g.Talk(start);
+            int accept=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_courier_start");
+            Check(accept>=0,"Physical public medicine route can be accepted");
+            g.Choose(accept);
+            Enemy original=g.enemies.Find(g.IsCivicCourierGuard);
+            Check(original!=null&&g.CanStand(original.Position)&&
+                (original.Position-g.Position).Length>=1.3f,
+                "First live ambusher is planted on walkable ground away from the courier");
+            Point occupied=original.Position;
+            g.Talk(start);
+            int cancel=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_courier_cancel");
+            Check(cancel>=0,"Returning to the actual dispatch sign permits cancellation");
+            g.Choose(cancel);
+            Check(!g.CivicCourierActive&&!g.enemies.Exists(g.IsCivicCourierGuard),
+                "Returning the first parcel retires that genuine ambusher");
+            Enemy existingPatrol=new Enemy(919191,0,occupied.x,occupied.y,300f);
+            existingPatrol.stun=300f;
+            g.enemies.Add(existingPatrol);
+            g.Talk(start);
+            accept=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_courier_start");
+            Check(accept>=0&&g.SafeTravel,
+                "The old patrol is far enough down the original surveyed road to keep dispatch safe");
+            g.Choose(accept);
+            Enemy rerouted=g.enemies.Find(g.IsCivicCourierGuard);
+            Check(rerouted!=null&&g.CivicCourierActive&&
+                g.enemies.Contains(existingPatrol)&&
+                (rerouted.Position-occupied).Length>=1.05f&&
+                g.CanStand(rerouted.Position)&&
+                (g.GetQuest("civic_courier").target-rerouted.Position).Length<.01f,
+                "Retry uses a different real road tile instead of stacking the live archer into the patrol");
+
+            g.Talk(start);
+            cancel=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_courier_cancel");
+            g.Choose(cancel);
+            g.enemies.Clear();
+            g.save.companion=0;
+            g.companionPosition=occupied;
+            g.Talk(start);
+            accept=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_courier_start");
+            g.Choose(accept);
+            Enemy allySafe=g.enemies.Find(g.IsCivicCourierGuard);
+            Check(allySafe!=null&&
+                (allySafe.Position-g.companionPosition).Length>=1.25f&&
+                g.CivicCourierActive,
+                "A real following ally is never overwritten by the newly spawned ambusher");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));loaded.Start();
+            Enemy restored=loaded.enemies.Find(loaded.IsCivicCourierGuard);
+            Check(loaded.save.version==2&&loaded.CivicCourierActive&&
+                restored!=null&&loaded.CanStand(restored.Position),
+                "Existing V2 medical delivery still restores its authentic live ambush");
+        }
         public static void CivilianMedicineMustCrossThreeRealSurveyedRoads(Campaign data)
         {
             var g=Unlocked(data);

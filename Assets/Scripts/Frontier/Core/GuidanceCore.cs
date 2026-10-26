@@ -164,6 +164,24 @@ namespace Starfall
             Notify("伏击者已被击退，药包可以安全继续送往另一端路标。",
                 "Road ambusher defeated. The sealed medicine can reach the far marker.");
         }
+        // A real road ambush occupies world space. The original path search
+        // guaranteed ground but could materialize the archer inside a living
+        // patrol, the player or a following companion. Pick a different tile
+        // on that SAME genuine surveyed route; never shift through a wall.
+        private bool CivicCourierAmbushFootFree(Point foot)
+        {
+            if((foot-Position).Length<1.3f)return false;
+            if(save.companion>=0&&
+                (foot-companionPosition).Length<1.25f)return false;
+            foreach(Enemy occupant in enemies)
+            {
+                if(occupant==null||occupant.hp<=0f||
+                    !Finite(occupant.x)||!Finite(occupant.y))continue;
+                float clearance=occupant.boss?1.6f:1.05f;
+                if((foot-occupant.Position).Length<clearance)return false;
+            }
+            return true;
+        }
         private bool SpawnCivicCourierGuard()
         {
             int region=save.room;
@@ -206,6 +224,7 @@ namespace Starfall
                     {
                         Point foot=path[k];
                         if(!CanStand(foot)||
+                            !CivicCourierAmbushFootFree(foot)||
                             (foot-start).Length<4f||
                             (foot-end).Length<4f)continue;
                         ambush=foot;found=true;
