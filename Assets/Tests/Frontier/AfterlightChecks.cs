@@ -1966,6 +1966,14 @@ namespace Starfall.Tests
                 g.effects.Exists(e=>e.kind=="number"&&
                     e.text=="舍身拦截！"&&e.afterlightWatchOwned),
                 "Moving into the real lane during windup absorbs the contact and preserves public reserves");
+            // Do not force a new attack while the first strike still
+            // displays its authored 240ms recovery pose. The production
+            // enemy AI correctly freezes windup timers during releaseTime.
+            // Let actual world simulation retire that contact before
+            // setting up the next negative-control attack.
+            Advance(g,.32f);
+            Check(foe.releaseTime<=.001f&&foe.state==0,
+                "The first genuine lunge has finished its normal visible recovery");
             g.save.x=post.x;g.save.y=post.y;
             foe.state=1;foe.timer=.035f;foe.windupDuration=.65f;
             foe.stun=0f;foe.hitTime=0f;
