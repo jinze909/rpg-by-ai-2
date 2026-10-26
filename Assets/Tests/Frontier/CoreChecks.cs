@@ -201,6 +201,70 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        public static void AuthoredEnemySpawnsAndTideRecoveryAvoidWideGuardianBodies(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<24;y++)
+                {
+                    char[] line=new string('.',24).ToCharArray();
+                    for(int x=0;x<24;x++)
+                        if(x<2||x>=22||y<2||y>=22)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[0]=new MapData{id=0,spawnX=15.5f,spawnY=10.5f,
+                    rows=rows,objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.x=15.5f;g.save.y=10.5f;
+                var create=typeof(GameCore).GetMethod("CreatePlacedEnemy",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var uncrowd=typeof(GameCore).GetMethod("UncrowdedEnemyFoot",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(create!=null&&uncrowd!=null,
+                    "Real authored spawn and tide relocation entrypoints are present");
+                var guardian=new Enemy(85901,2,10.5f,10.5f,600,true);
+                g.enemies.Add(guardian);
+                Point near=new Point(11.6f,10.5f);
+                Check(g.CanStand(near)&&
+                    (near-guardian.Position).Length>1f&&
+                    (near-guardian.Position).Length<1.4f,
+                    "Legitimate map foot can still be deep inside the guardian's actual body");
+                var recruit=(Enemy)create.Invoke(g,new object[]{
+                    85902,0,near,120f,false});
+                Check(g.CanStand(recruit.Position)&&
+                    (recruit.Position-guardian.Position).Length>=1.4f,
+                    "A fresh ordinary combatant emerges outside the real guardian rather than inside its published torso");
+                g.enemies.Add(recruit);
+                var restored=(Point)uncrowd.Invoke(g,new object[]{
+                    new Point(11.65f,10.5f),null,false,false});
+                Check(g.CanStand(restored)&&
+                    (restored-guardian.Position).Length>=1.4f&&
+                    (restored-recruit.Position).Length>=.95f,
+                    "A legacy or tide-recovered foot is locally repaired without merging with the living Boss or newly spawned raider");
+                Point originalValid=new Point(12.5f,10.5f);
+                Point unchanged=(Point)uncrowd.Invoke(g,new object[]{
+                    originalValid,null,false,false});
+                Check((unchanged-originalValid).Length<.0001f,
+                    "Already uncrowded authored feet remain unchanged");
+                g.enemies.Clear();
+                var defender=new Enemy(85903,0,10.5f,10.5f,150f);
+                g.enemies.Add(defender);
+                var newGuardian=(Enemy)create.Invoke(g,new object[]{
+                    85904,2,new Point(11.6f,10.5f),650f,true});
+                Check(newGuardian.boss&&
+                    (newGuardian.Position-defender.Position).Length>=1.4f&&
+                    g.CanStand(newGuardian.Position),
+                    "A newly authored Boss must also spawn outside ordinary defenders rather than use small-enemy restoration clearance");
+                Check(g.save.version==2,
+                    "Spawn repair and rescue relocation change no serialized slot fields");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void OrdinaryEnemiesActuallyClearBossBodyDuringPursuit(Campaign data)
         {
             MapData old=data.maps[0];

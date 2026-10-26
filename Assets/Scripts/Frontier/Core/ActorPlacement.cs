@@ -28,10 +28,21 @@ namespace Starfall
         // non-overlapping original foot unchanged. Only separate genuinely
         // overlapping actors, into a nearby tile in the SAME reachable
         // pocket; never move one through a wall to fill a different island.
+        // Recovering a wide guardian or placing a recruit beside one must
+        // respect BOTH bodies. Keep the original .95 ordinary/ordinary
+        // authored spacing; do not shrink or reroute existing safe spawns.
+        private static float SpawnEnemyClearance(Enemy existing,bool wideNewBody)
+        {
+            return existing.boss ? (wideNewBody?1.8f:1.4f) :
+                (wideNewBody?1.4f:.95f);
+        }
         private Point UncrowdedEnemyFoot(Point proposed,
-            Enemy relocatingEnemy=null,bool relocatingCompanion=false)
+            Enemy relocatingEnemy=null,bool relocatingCompanion=false,
+            bool placingBoss=false)
         {
             Point safe=SafeActorFoot(proposed);
+            bool wide=placingBoss||
+                (relocatingEnemy!=null&&relocatingEnemy.boss);
             // A newly spawned foe must not materialize INSIDE the hero's
             // or an active companion's hurtbox after a save restoration.
             // This applies only to overlapping feet, not normal nearby
@@ -43,7 +54,8 @@ namespace Starfall
                 (safe-reliefFollowerPosition).Length<.95f;
             foreach(Enemy other in enemies)
                 if(other!=null&&other!=relocatingEnemy&&other.hp>0&&
-                    (other.Position-safe).Length<.95f)
+                    (other.Position-safe).Length<
+                        SpawnEnemyClearance(other,wide))
                 {occupied=true;break;}
             if(!occupied)return safe;
             for(int radius=1;radius<=4;radius++)
@@ -64,7 +76,8 @@ namespace Starfall
                 bool clear=true;
                 foreach(Enemy other in enemies)
                     if(other!=null&&other!=relocatingEnemy&&other.hp>0&&
-                       (other.Position-option).Length<.95f)
+                       (other.Position-option).Length<
+                           SpawnEnemyClearance(other,wide))
                     {clear=false;break;}
                 if(clear)return option;
             }
@@ -99,7 +112,8 @@ namespace Starfall
                         if(free)
                             foreach(Enemy foe in enemies)
                                 if(foe!=null&&foe!=relocatingEnemy&&
-                                    foe.hp>0&&(foe.Position-p).Length<.95f)
+                                    foe.hp>0&&(foe.Position-p).Length<
+                                        SpawnEnemyClearance(foe,wide))
                                 {free=false;break;}
                         if(free)return p;
                     }
@@ -122,7 +136,7 @@ namespace Starfall
         }
         private Enemy CreatePlacedEnemy(int id, int kind, Point proposed, float health, bool boss = false)
         {
-            Point p = UncrowdedEnemyFoot(proposed);
+            Point p = UncrowdedEnemyFoot(proposed,null,false,boss);
             return new Enemy(id, kind, p.x, p.y, health, boss);
         }
         // LOS alone is not a walkable route: a slit in a wall, tidewater
@@ -204,7 +218,7 @@ namespace Starfall
             {
                 Point foot=boss.Position+offset;
                 if (!CanStand(foot) || (foot-Position).Length<1.25f ||
-                    (foot-boss.Position).Length<1.2f ||
+                    (foot-boss.Position).Length<1.4f ||
                     (save.companion>=0 &&
                         (foot-companionPosition).Length<1.2f) ||
                     (ReliefEscortActive&&reliefMissionRoom==save.room&&
@@ -213,7 +227,8 @@ namespace Starfall
                     !BossSummonHasLocalRoute(boss.Position,foot))continue;
                 bool occupied=false;
                 foreach(Enemy existing in enemies)
-                    if((foot-existing.Position).Length<1.15f)
+                    if((foot-existing.Position).Length<
+                        (existing.boss?1.4f:1.15f))
                     {occupied=true;break;}
                 if(occupied)continue;
                 // The first authorized third-cycle summon remains the old
