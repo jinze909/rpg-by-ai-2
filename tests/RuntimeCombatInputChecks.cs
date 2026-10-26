@@ -190,7 +190,7 @@ public static class RuntimeCombatInputChecks
                 if(!game.CanStand(at))continue;
                 var candidate=new Enemy(901,0,at.x,at.y,90f);
                 game.enemies.Add(candidate);
-                if(Object.ReferenceEquals(
+                if(System.Object.ReferenceEquals(
                    game.AcquireRangedStickTarget(new Point(1,0)),candidate))
                 { target=candidate;break; }
                 game.enemies.Clear();
@@ -205,7 +205,7 @@ public static class RuntimeCombatInputChecks
                 (shot.target.Value-target.Position).Length<.2f &&
                 (game.aimTarget.Value-target.Position).Length<.2f,
                 "Ranger/warrior/mage Q captures the visible target's real center via the production InputAim path");
-            Check(Object.ReferenceEquals(
+            Check(System.Object.ReferenceEquals(
                 typeof(FrontierRuntime).GetField("controllerAimEnemy",Private).GetValue(app),target),
                 "HUD reticle owns the actual selected enemy reference, never a phantom numeric ID");
             Check(game.save.version==2,"Controller lock cannot change SaveData v2");
