@@ -1139,6 +1139,7 @@ namespace Starfall
                     L("破势","BREAK")));
             }
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
+            AlertRidgeWatchOnRealHit(e);
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
             // distinct combat element, but only after the authoritative HP,
@@ -2059,7 +2060,8 @@ namespace Starfall
                 // or while navigating around a distant obstruction.
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     !escortPatrol && !stockRaider && !patrolSaboteur &&
-                    distance > (e.boss ? 18 : 8)) continue;
+                    distance > (e.boss ? 18 : 8) &&
+                    !(RidgeWatchRespondsToAlarm(e)&&distance<=18f)) continue;
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.

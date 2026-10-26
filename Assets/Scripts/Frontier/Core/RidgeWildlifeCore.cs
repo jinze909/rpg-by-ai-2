@@ -37,9 +37,64 @@ namespace Starfall
         private float ridgeWatchRespawnCheck;
         private int ridgeWatchRoom = -1;
         private MapData ridgeWatchMap;
+        // Real patrols call nearby teammates after genuine HP contact.
+        // Recruitment is a one-time, physical-route check at the moment
+        // the alarm sounds, not a per-frame scan through sealed terrain.
+        // Actor references, owner map and a short clock are transient:
+        // SaveData v2, other encounters and restored enemy IDs are untouched.
+        private readonly HashSet<Enemy> ridgeWatchResponders=new HashSet<Enemy>();
+        private float ridgeWatchAlarmSeconds;
+        public bool RidgeWatchAlarmActive
+        {
+            get { return ridgeWatchAlarmSeconds>0f &&
+                ridgeWatchRoom==save.room&&
+                System.Object.ReferenceEquals(ridgeWatchMap,Map); }
+        }
+        public int RidgeWatchRespondingCount
+        {
+            get
+            {
+                if(!RidgeWatchAlarmActive)return 0;
+                int count=0;
+                foreach(Enemy e in ridgeWatchResponders)
+                    if(IsActiveRidgeWatchPatrol(e))count++;
+                return count;
+            }
+        }
+        private bool RidgeWatchRespondsToAlarm(Enemy e)
+        { return RidgeWatchAlarmActive&&ridgeWatchResponders.Contains(e)&&
+            IsActiveRidgeWatchPatrol(e); }
+        private void AlertRidgeWatchOnRealHit(Enemy struck)
+        {
+            if(!IsActiveRidgeWatchPatrol(struck))return;
+            bool first=ridgeWatchAlarmSeconds<=0f;
+            ridgeWatchAlarmSeconds=6f;
+            ridgeWatchResponders.Clear();
+            foreach(Enemy ally in enemies)
+            {
+                if(!IsActiveRidgeWatchPatrol(ally))continue;
+                if(System.Object.ReferenceEquals(ally,struck))
+                {ridgeWatchResponders.Add(ally);continue;}
+                if((ally.Position-struck.Position).Length>17f||
+                    !CanStand(ally.Position)||!CanStand(struck.Position))
+                    continue;
+                // A wall, flood seal or raised gate must defeat an alarm.
+                // This same genuine walking BFS guides combat pursuit.
+                if(ClearAttackPath(ally.Position,struck.Position)||
+                    NavigationPathFrom(ally.Position,struck.Position,true).Count>0)
+                    ridgeWatchResponders.Add(ally);
+            }
+            if(first&&ridgeWatchResponders.Count>1)
+            {
+                effects.Add(new Effect("number",struck.Position,.75f,
+                    L("巡敌呼援！","PATROL ALERT!")));
+                revision++;sound="quest";
+            }
+        }
         private void ResetRidgeWatch()
         {
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
+            ridgeWatchResponders.Clear();ridgeWatchAlarmSeconds=0f;
             ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
         }
         public int RidgeWatchProgress(int room)
@@ -141,15 +196,18 @@ namespace Starfall
                 return english?"\n\nRidge watch cleared: +2 energy/sec on high trails. Roadwarden field aid costs one Moonherb.\n\n"+ridgeWatchStoryEn[room-1]:
                     "\n\n高地巡守已完成：外环高路耐力恢复 +2/秒；可用一株月光草换取草药补给。\n\n"+ridgeWatchStoryZh[room-1];
             int waiting=RidgeWatchPatrolsAwaitingFooting(room);
+            string alert=room==save.room&&RidgeWatchRespondingCount>1?
+                (english?" The living patrol is responding to a real attack.":
+                    " 巡敌听见交战，正在增援。"):"";
             return english?"\n\nRidge watch: clear all three real patrols ("+
                 RidgeWatchProgress(room)+"/3)."+
                 (waiting>0?" A blocked clearing is delaying "+waiting+
                     " remaining patrol; it will rejoin when the ground opens.":"")+
-                " First-clear supplies await.":
+                alert+" First-clear supplies await.":
                 "\n\n高地巡守：击败全部三名真实巡敌（"+
                 RidgeWatchProgress(room)+"/3）。"+
                 (waiting>0?" 有"+waiting+"名巡敌所在道路暂时封闭，通路恢复后会重新出现。":"")+
-                "首次完成有补给奖励。";
+                alert+"首次完成有补给奖励。";
         }
         private void OnRidgeWatchEnemyDefeated(Enemy enemy)
         {
@@ -160,6 +218,7 @@ namespace Starfall
             if(!ridgeWatchIds.TryGetValue(enemy.id,out index)||
                 !ridgeWatchActors.TryGetValue(enemy.id,out actual)||
                 !Object.ReferenceEquals(actual,enemy))return;
+            ridgeWatchResponders.Remove(enemy);
             string flag="ridge_watch_"+save.room+"_"+index;
             bool first=!Has(flag);
             if(first)Flag(flag);
@@ -210,6 +269,8 @@ namespace Starfall
             // A dynamic gate or another world actor can temporarily occupy
             // a patrol's authored footing. Retry missing bodies on the live
             // map instead of making the three-kill quest impossible forever.
+            ridgeWatchAlarmSeconds=Math.Max(0f,ridgeWatchAlarmSeconds-dt);
+            if(ridgeWatchAlarmSeconds<=0f)ridgeWatchResponders.Clear();
             ridgeWatchRespawnCheck-=dt;
             if(ridgeWatchRespawnCheck<=0)
             {
@@ -229,6 +290,7 @@ namespace Starfall
                     enemy.hp<=0f||enemy.boss||enemy.state!=0||
                     enemy.stun>.0001f||enemy.hitTime>.0001f||
                     enemy.releaseTime>.0001f||
+                    RidgeWatchRespondsToAlarm(enemy)||
                     (Position-enemy.Position).Length<9f)continue;
                 Point anchor=RidgeWildlifeSpawns[index];
                 // Returning combat enemies cannot be silently dragged across

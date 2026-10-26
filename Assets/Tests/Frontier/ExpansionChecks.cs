@@ -4097,6 +4097,57 @@ namespace Starfall.Tests
                 "Later ridge dialogues do not duplicate a live post-Boss encounter");
         }
 
+        public static void RidgeWatchRealContactCallsOnlyReachableLivingPatrols(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var idField=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var ids=(Dictionary<int,int>)idField.GetValue(g);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(ids.Count==3&&!g.RidgeWatchAlarmActive,
+                "Three actual highland combat actors are dormant before a hit");
+            Enemy victim=null;
+            foreach(Enemy e in g.enemies)
+                if(ids.ContainsKey(e.id)&&ids[e.id]==0){victim=e;break;}
+            Check(victim!=null&&g.IsActiveRidgeWatchPatrol(victim),
+                "Actual patrol identity is verified before combat");
+            int originalFlags=g.save.flags.Count;
+            int originalCoins=g.save.coins;
+            int originalHP=(int)victim.hp;
+            // Run the original damage / stagger / actual HP transaction.
+            // This is not an invented alarm button or a synthetic kill flag.
+            hit.Invoke(g,new object[]{victim,1f,false,null,null});
+            Check(victim.hp<originalHP&&victim.hp>0f&&
+                g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount>=1&&
+                g.save.flags.Count==originalFlags&&
+                g.save.coins==originalCoins,
+                "Real damage signals living squadmates without minting kills or loot");
+            int summoned=g.RidgeWatchRespondingCount;
+            Enemy unrelated=new Enemy(911700,0,victim.x+1f,victim.y,70);
+            g.enemies.Add(unrelated);
+            hit.Invoke(g,new object[]{unrelated,2f,false,null,null});
+            Check(g.RidgeWatchRespondingCount==summoned,
+                "Damaging unrelated enemies cannot recruit a mapped ridge squad");
+            g.save.x=12.5f;g.save.y=14.5f;
+            for(int i=0;i<125;i++)g.Tick(.05f,new Point());
+            Check(!g.RidgeWatchAlarmActive&&g.RidgeWatchRespondingCount==0&&
+                g.RidgeWatchProgress(1)==0,
+                "A live alarm expires without permanent combat pursuit or fake quest progress");
+            hit.Invoke(g,new object[]{victim,1f,false,null,null});
+            Check(g.RidgeWatchAlarmActive,"A subsequent genuine injury can signal again");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(!restored.RidgeWatchAlarmActive&&
+                restored.RidgeWatchRespondingCount==0&&
+                restored.save.version==2,
+                "Old V2 save reload retains genuine enemies and progress, never a transient alarm");
+        }
+
         public static void RidgeWatchPatrolsWalkUsingRealEnemyMovementAndYieldToCombat(Campaign data)
         {
             var g=Unlocked(data);
