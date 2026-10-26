@@ -1704,6 +1704,13 @@ namespace Starfall.Tests
             g.save.flags.Add("afterlight_reserve_1");
             g.save.flags.Add("afterlight_plan_1_watch");
             g.Enter(1);g.enemies.Clear();g.invulnerable=1000;
+            // Party swaps are rightly blocked under active siege pressure.
+            // Select the actual companion on quiet ground BEFORE the
+            // physical defense; do not bypass this important game rule.
+            g.save.flags.Add("companion_1");
+            g.SelectCompanion(1);
+            Check(g.save.companion==1,
+                "A recruited companion joins while the region is safe");
             WorldObject station=Object(g,"afterlightoutlet1");
             g.save.x=station.x;g.save.y=station.y;
             Action(g,station.kind,"afterlight_watch_start_1");
@@ -1735,7 +1742,8 @@ namespace Starfall.Tests
                 System.Reflection.BindingFlags.Instance);
             Check(nearest!=null&&hit!=null,"Genuine AI selector and swept hit handler exist");
             // A closer idle body may not supersede the receiver's imminent danger.
-            g.save.flags.Add("companion_1");g.SelectCompanion(1);
+            Check(g.save.companion==1,
+                "Starting public defense preserves the preselected real ally");
             Point[] allyOffsets={new Point(-2,0),new Point(2,0),
                 new Point(0,-2),new Point(0,2),
                 new Point(-3,0),new Point(3,0)};
