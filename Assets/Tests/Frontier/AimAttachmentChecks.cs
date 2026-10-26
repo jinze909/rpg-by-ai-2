@@ -4,6 +4,54 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void ControllerAimAcquiresOnlyRealVisibleRangedTarget(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                for(int profession=0;profession<3;profession++)
+                {
+                    var g=SprintTestWorld(data,profession);
+                    g.save.weapon=1;g.enemies.Clear();
+                    Point origin=g.Position;
+                    var ahead=new Enemy(101,0,origin.x+5f,origin.y+.2f,80);
+                    var behind=new Enemy(102,0,origin.x-5f,origin.y,80);
+                    var offAxis=new Enemy(103,0,origin.x+3f,origin.y+3f,80);
+                    g.enemies.Add(behind);g.enemies.Add(offAxis);g.enemies.Add(ahead);
+                    float previousHp=ahead.hp, previousEnergy=g.save.energy;
+                    Check(Object.ReferenceEquals(
+                        g.AcquireRangedStickTarget(new Point(1,0)),ahead),
+                        "A ranged right stick finds the first genuinely visible foe inside its tight forward cone");
+                    Check(g.AcquireRangedStickTarget(new Point(0,1))==null,
+                        "A target outside the narrow aiming cone cannot become an invisible lock");
+                    Check(g.AcquireRangedStickTarget(new Point(float.NaN,1))==null&&
+                        g.AcquireRangedStickTarget(new Point())==null,
+                        "Nonphysical and neutral stick vectors never select a combat target");
+                    Check(ahead.hp==previousHp&&g.save.energy==previousEnergy&&
+                        g.save.version==2&&g.projectiles.Count==0,
+                        "Target selection is read-only and never changes combat or original save authority");
+                    char[] row=g.Map.rows[(int)ahead.y].ToCharArray();
+                    int wall=(int)origin.x+2; row[wall]='#';
+                    g.Map.rows[(int)ahead.y]=new string(row);
+                    Check(g.AcquireRangedStickTarget(new Point(1,0))==null,
+                        "A live opaque wall cancels a controller lock instead of shooting through stone");
+                    row[wall]='.';g.Map.rows[(int)ahead.y]=new string(row);
+                    ahead.hp=0;
+                    Check(g.AcquireRangedStickTarget(new Point(1,0))==null,
+                        "A defeated body immediately leaves aim acquisition");
+                    ahead.hp=previousHp;g.save.weapon=0;
+                    if(profession!=1)
+                        Check(g.AcquireRangedStickTarget(new Point(1,0))==null,
+                            "Sword-based area professions keep direct melee facing instead of remote target snap");
+                    else
+                        Check(Object.ReferenceEquals(
+                            g.AcquireRangedStickTarget(new Point(1,0)),ahead),
+                            "Ranger still acquires a live target for the authored Q volley while holding a sword");
+                }
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

@@ -18,6 +18,51 @@ namespace Starfall
         public Point? aimTarget;
         public void SetAimTarget(Point? target)
         { aimTarget=target.HasValue&&Finite(target.Value.x)&&Finite(target.Value.y)?target:null; }
+
+        // Gamepad ranged attacks need physical, rather than screen-space,
+        // target acquisition. This only picks a LIVE foe inside the stick
+        // direction's narrow cone; it never damages, teleports or persists
+        // a target. Actual release/impact still use WeaponShot's muzzle,
+        // projectile sweep and GameCore's canonical collision authority.
+        public Enemy AcquireRangedStickTarget(Point heading)
+        {
+            if(mode!="world"||Dying||save==null||
+               (save.weapon==0&&save.profession!=1)||
+               !Finite(heading.x)||!Finite(heading.y)||
+               heading.Length<.28f||!CanStand(Position))
+                return null;
+            Point look=heading.Normalized;
+            int weapon=save.weapon==0?1:save.weapon;
+            Enemy selected=null;
+            float bestScore=float.MaxValue;
+            foreach(Enemy enemy in enemies)
+            {
+                if(enemy==null||enemy.hp<=0||!CanStand(enemy.Position))
+                    continue;
+                Point vector=enemy.Position-Position;
+                float distance=vector.Length;
+                if(!Finite(distance)||distance<.6f||distance>12f)
+                    continue;
+                float alignment=(vector.x*look.x+vector.y*look.y)/distance;
+                if(alignment<.96f||
+                   !ClearAttackPath(Position,enemy.Position))
+                    continue;
+                // A centerline through open terrain may still bury the
+                // bow's actual hand against an adjacent wall. Check the
+                // same swept attachment as the real live shot.
+                Projectile probe=WeaponShot(Position,weapon,
+                    vector.Normalized,13f,1f,enemy.Position);
+                if(probe.blockedAtSpawn||
+                   !ClearAttackPath(probe.position,enemy.Position))
+                    continue;
+                // Prefer the aimed ray first, then the closer front foe;
+                // never depend on enemy serialization/spawn order.
+                float score=(1f-alignment)*12f+distance*.015f;
+                if(score<bestScore-.00001f)
+                { bestScore=score;selected=enemy; }
+            }
+            return selected;
+        }
         public bool ActuallyMoving { get { return movementDirection.Length > .001f; } }
         public int WalkFrame { get { return GaitFrame(walkDistance, WalkStride); } }
         // Native sprites need the fraction BETWEEN the four distance-driven
