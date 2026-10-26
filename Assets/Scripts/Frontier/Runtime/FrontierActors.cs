@@ -1130,6 +1130,21 @@ namespace Starfall
             // reduced-motion and vanish after the actual credited kill.
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
                 Ring(e.Position,.63f,PixelArt.C("#7acabb"),16);
+            // Only the living caller owns this painted warning over its
+            // original native full-body Sprite. The existing danger atlas
+            // animates above its planted feet; a kill, stun or room change
+            // removes the signal without leaving an unrelated body marked.
+            if(!drawingOutline&&Game.IsRidgeWatchCaller(e))
+            {
+                Color amber=PixelArt.C("#e6b46e");
+                Ring(e.Position,.77f,new Color(
+                    amber.r,amber.g,amber.b,.85f),20);
+                DrawNpcActionSignal(p,1,e.id,coverAlpha);
+                Text(p.x-78,p.y-151,156,22,
+                    Game.L("呼援中 · ","CALLING · ")+
+                    Game.RidgeWatchCallSecondsLeft.ToString("0.0")+
+                    Game.L("秒","s"),12,amber,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsCompanionFocusTarget(e))
             {
                 // The mark belongs to the SAME living enemy used by the

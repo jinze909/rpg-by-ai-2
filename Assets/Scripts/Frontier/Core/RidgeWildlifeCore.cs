@@ -51,6 +51,14 @@ namespace Starfall
         public bool RidgeWatchCallPending
         { get { return ridgeWatchCaller!=null&&ridgeWatchCallSeconds>0f&&
             IsActiveRidgeWatchPatrol(ridgeWatchCaller); } }
+        public bool IsRidgeWatchCaller(Enemy actor)
+        {
+            return actor!=null&&RidgeWatchCallPending&&
+                System.Object.ReferenceEquals(actor,ridgeWatchCaller);
+        }
+        public float RidgeWatchCallSecondsLeft
+        { get { return RidgeWatchCallPending?
+            Math.Max(0f,ridgeWatchCallSeconds):0f; } }
         public bool RidgeWatchAlarmActive
         {
             get { return ridgeWatchAlarmSeconds>0f &&

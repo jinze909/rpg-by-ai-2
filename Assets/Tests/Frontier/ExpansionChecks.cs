@@ -4170,11 +4170,18 @@ namespace Starfall.Tests
             Check(caller!=null&&g.IsActiveRidgeWatchPatrol(caller),
                 "A living mapped patrol is required for an audible call");
             hit.Invoke(g,new object[]{caller,1f,false,null,null});
-            Check(g.RidgeWatchCallPending,
-                "A real injury begins the explicit counterplay window");
+            Check(g.RidgeWatchCallPending&&g.IsRidgeWatchCaller(caller)&&
+                g.RidgeWatchCallSecondsLeft>.75f,
+                "A genuine injury gives only its living source a visible counterplay clock");
+            var falseCaller=new Enemy(caller.id,caller.kind,
+                caller.x,caller.y,caller.maxHp);
+            Check(!g.IsRidgeWatchCaller(falseCaller),
+                "Another actor cannot borrow the warning via the same numeric ID");
             // A second actual contact can defeat the caller before 850ms.
             hit.Invoke(g,new object[]{caller,999f,true,null,null});
             Check(!g.RidgeWatchCallPending&&
+                !g.IsRidgeWatchCaller(caller)&&
+                g.RidgeWatchCallSecondsLeft==0f&&
                 !g.RidgeWatchAlarmActive&&
                 g.RidgeWatchProgress(1)==1,
                 "Killing the caller stops the signal but credits only that one genuine patrol");
