@@ -52,6 +52,11 @@ namespace Starfall
                 (foe.Position-outerPatrolPost).Length<=2.35f&&
                 CanStand(foe.Position)&&
                 ClearAttackPath(foe.Position,outerPatrolPost)&&
+                // A real frontline raider stops an ordinary melee
+                // attack at release. A covered rear unit must not
+                // trigger an unavoidable-stock warning or claim the
+                // companion's limited emergency counter priority.
+                (foe.kind!=0||EnemyMeleeLaneClear(foe,outerPatrolPost))&&
                 !OuterPatrolHeroIntercepts(foe)&&
                 !OuterPatrolCompanionCanIntercept(foe);
         }

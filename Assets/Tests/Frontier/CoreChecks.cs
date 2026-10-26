@@ -3432,6 +3432,74 @@ namespace Starfall.Tests
                 "Emergency retarget updates the real projectile aim and target together");
         }
 
+        public static void StockWarningsAndCompanionCacheTargetsIgnoreBodyBlockedRaids(Campaign data)
+        {
+            WorldObject post=Array.Find(data.maps[0].objects,
+                o=>o.kind=="outerwatch");
+            Check(post!=null,"The original active patrol cache exists");
+            var g=new GameCore(data);g.mode="world";
+            g.save.room=0;g.enemies.Clear();g.projectiles.Clear();
+            g.save.x=post.x;g.save.y=post.y;
+            g.save.companion=1;
+            g.companionPosition=new Point(post.x+1.1f,post.y+1.1f);
+            g.save.flags.Add("outer_cache_0");
+            g.save.flags.Add("outer_patrol_done_0");
+            g.Talk(post);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_veteran");
+            Check(start>=0,"Live veteran stock-defense can begin");
+            g.Choose(start);
+            Enemy rear=g.enemies.Find(e=>e.kind==0);
+            Enemy front=g.enemies.Find(e=>e.kind==2);
+            Check(g.OuterPatrolVeteranActive&&rear!=null&&front!=null,
+                "Use the actual two raider archetypes from the active real stock siege");
+            PlaceShootableCacheContact(g,post,rear,front);
+            MoveToRealUncoveredStockObserver(g,post,rear,front);
+            Point stock=new Point(post.x,post.y);
+            rear.state=1;rear.timer=.4f;rear.windupDuration=.65f;
+            rear.targetingOuterPatrolStock=true;rear.target=stock;
+            rear.Face(stock-rear.Position);
+            front.state=0;front.stun=100f;front.timer=100f;
+            var lane=typeof(GameCore).GetMethod("EnemyMeleeLaneClear",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(lane!=null&&g.OuterPatrolIncomingStockThreat==rear,
+                "A genuinely exposed near-stock melee warning is visible");
+            Point oldFront=front.Position;
+            bool covered=false;
+            for(int i=3;i<=8&&!covered;i++)
+            {
+                Point position=rear.Position+(stock-rear.Position)*(i*.1f);
+                if(!g.CanStand(position))continue;
+                front.x=position.x;front.y=position.y;
+                covered=!(bool)lane.Invoke(g,new object[]{rear,stock});
+            }
+            Check(covered&&g.CanStand(front.Position),
+                "A living front raider occupies genuine standable ground on the rear saboteur's melee contact lane");
+            Check(g.OuterPatrolIncomingStockThreat==null&&
+                g.OuterPatrolIncomingStockSeconds<0f,
+                "The actual cache HUD retracts the impossible body-blocked pending stock hit");
+            float stockBefore=g.OuterPatrolIntegrity;
+            rear.timer=.001f;
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolActive&&g.OuterPatrolIntegrity==stockBefore&&
+                rear.state==0&&
+                g.effects.Exists(e=>e.kind=="number"&&
+                    e.text==g.L("队友挡路","ALLY BLOCK")&&e.outerPatrolOwned),
+                "The real blocked melee release consumes its attack without any fake stock loss and shows one encounter-owned ally-cover cue");
+            front.x=oldFront.x;front.y=oldFront.y;
+            rear.state=1;rear.timer=.001f;rear.windupDuration=.65f;
+            rear.releaseTime=rear.hitTime=rear.stun=0f;
+            rear.targetingOuterPatrolStock=true;rear.target=stock;
+            Check((bool)lane.Invoke(g,new object[]{rear,stock})&&
+                g.OuterPatrolIncomingStockThreat==rear,
+                "Opening the same real lane restores the true imminent stock-hit warning");
+            g.Tick(.05f,new Point());
+            Check(g.OuterPatrolIntegrity<stockBefore&&
+                g.save.version==2,
+                "An unobstructed released strike again takes actual protected stock rather than creating a permanent free shield");
+        }
+
         public static void CompanionPrioritizesSoonestAuthenticStockStrike(Campaign data)
         {
             WorldObject post=Array.Find(data.maps[0].objects,

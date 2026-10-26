@@ -178,6 +178,7 @@ namespace Starfall.Tests
         [Test] public void ManualArcherVolleyMustClearPhysicalMuzzle() { CoreChecks.ManualCompanionVolleyCannotSpendCooldownFromBlockedMuzzle(Data()); }
         [Test] public void CompanionReleaseReacquiresAfterMuzzleBlockOrTargetDeathAndPreservesManualAim() { CoreChecks.GuardedAllyRetargetsWhenLockedMuzzleBecomesBlocked(Data()); }
         [Test] public void GuardedCompanionRedirectsPreparedShotToRealStockThreat() { CoreChecks.GuardedAllyRedirectsPreparedRealArrowToIncomingStockThreat(Data()); }
+        [Test] public void CacheThreatHudOnlyWarnsForUncoveredMeleeContact() { CoreChecks.StockWarningsAndCompanionCacheTargetsIgnoreBodyBlockedRaids(Data()); }
         [Test] public void CompanionPrioritizesSoonestAuthenticStockStrike() { CoreChecks.CompanionPrioritizesSoonestAuthenticStockStrike(Data()); }
         [Test] public void StockWarningSelectsFiniteEarliestThreatAndStableTie() { CoreChecks.OuterPatrolWarningSelectsFiniteEarliestThreatAndStableTie(Data()); }
         [Test] public void NonFiniteEnemyWindupsRecoverAndRetractWarnings() { CoreChecks.OuterPatrolInvalidWindupsRecoverAndRetractWarnings(Data()); }
