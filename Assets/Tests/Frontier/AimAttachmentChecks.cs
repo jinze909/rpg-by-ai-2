@@ -94,6 +94,42 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void QuickEquipmentUsesOnlyRealUnlockedCombatProfiles(Campaign data)
+        {
+            foreach(int profession in new[]{0,1,2})
+            {
+                var g=Fresh(data,profession);
+                g.enemies.Clear();
+                g.save.flags.RemoveAll(f=>f=="weapon_1"||f=="weapon_2");
+                g.save.weapon=0;
+                float oldEnergy=g.save.energy;
+                int oldRevision=g.revision;
+                g.Equip(2);
+                Check(g.save.weapon==0&&g.revision==oldRevision&&
+                    g.save.energy==oldEnergy,
+                    "Locked weapon refuses equip without effects or consumption");
+                g.save.flags.Add("weapon_1");
+                g.save.flags.Add("weapon_2");
+                g.Equip(2);
+                Check(g.save.weapon==2&&g.revision==oldRevision+1,
+                    "Unlocked staff changes only through native weapon transaction");
+                oldRevision=g.revision;
+                g.Attack(new Point(1,0));
+                ActorAction attack=g.playerAction;
+                Check(attack!=null&&attack.equippedWeapon==2,
+                    "The actual equipped full-body staff generates authentic class-specific attack");
+                float spent=g.save.energy;
+                g.Equip(2);
+                Check(g.playerAction==attack&&g.revision==oldRevision&&
+                    g.save.energy==spent,
+                    "Reselecting current weapon preserves the unreleased full-body action and its damage expense");
+                g.Equip(1);
+                Check(g.playerAction==null&&g.save.weapon==1&&
+                    g.save.energy==spent&&g.save.version==2,
+                    "A distinct unlocked weapon cancels old attack and combo without refunding or duplicating stamina or altering saves");
+            }
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);
