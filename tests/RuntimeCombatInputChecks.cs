@@ -128,12 +128,17 @@ public static class RuntimeCombatInputChecks
 
     private static void ControllerRightStickAimsAwayFromActualMovement(FrontierRuntime app)
     {
+        string config=File.ReadAllText("ProjectSettings/InputManager.asset");
+        Check(config.Contains("m_Name: Combat Aim Horizontal")&&
+            config.Contains("m_Name: Combat Aim Vertical"),
+            "Native input asset must expose joystick-only independent aim axes");
         for(int profession=0;profession<3;profession++)
         {
             Prepare(app,profession);
             Input.axes["Horizontal"]=1f; // left stick: east
-            Input.axes["Debug Horizontal"]=0f;
-            Input.axes["Debug Vertical"]=1f; // right stick: north in GUI
+            Input.axes["Combat Aim Horizontal"]=0f;
+            Input.axes["Combat Aim Vertical"]=1f; // right stick: north in GUI
+            Input.axes["Debug Horizontal"]=1f; // simulated keyboard arrows must NOT steal aim
             Input.held.Add(KeyCode.JoystickButton2);
             Point start=app.Game.Position;
             Update(app);
@@ -147,8 +152,8 @@ public static class RuntimeCombatInputChecks
             Input.held.Clear();
             Prepare(app,profession);
             Input.axes["Horizontal"]=-1f;
-            Input.axes["Debug Horizontal"]=0f;
-            Input.axes["Debug Vertical"]=1f;
+            Input.axes["Combat Aim Horizontal"]=0f;
+            Input.axes["Combat Aim Vertical"]=1f;
             Input.keys.Add(KeyCode.JoystickButton3); // Y: class Q
             Update(app);
             ActorAction cast=app.Game.playerAction;
@@ -160,8 +165,8 @@ public static class RuntimeCombatInputChecks
         // Locomotion supplies the original facing in its absence.
         Prepare(app,1);
         Input.axes["Horizontal"]=-1f;
-        Input.axes["Debug Horizontal"]=.07f;
-        Input.axes["Debug Vertical"]=.12f;
+        Input.axes["Combat Aim Horizontal"]=.07f;
+        Input.axes["Combat Aim Vertical"]=.12f;
         Update(app);
         Check(app.Game.aim.x<-.99f,
             "Neutral right-stick jitter preserves familiar left-stick movement facing");

@@ -139,7 +139,11 @@ namespace Starfall
             Point pointer = MouseVirtual();
             bool pointerMoved=pointerSeen&&(pointer-lastPointer).Length>2;
             bool keyboardMove=Input.GetKey(KeyCode.W)||Input.GetKey(KeyCode.A)||Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.D)||Input.GetKey(KeyCode.UpArrow)||Input.GetKey(KeyCode.DownArrow)||Input.GetKey(KeyCode.LeftArrow)||Input.GetKey(KeyCode.RightArrow);
-            if(movement.Length>.19f&&!keyboardMove||!keyboardMove&&(Math.Abs(Input.GetAxisRaw("Debug Horizontal"))>.5f||Math.Abs(Input.GetAxisRaw("Debug Vertical"))>.5f))controllerUsed=true;
+            if(movement.Length>.19f&&!keyboardMove||!keyboardMove&&
+                (Math.Abs(Input.GetAxisRaw("Combat Aim Horizontal"))>.28f||
+                 Math.Abs(Input.GetAxisRaw("Combat Aim Vertical"))>.28f||
+                 Math.Abs(Input.GetAxisRaw("Debug Horizontal"))>.5f||
+                 Math.Abs(Input.GetAxisRaw("Debug Vertical"))>.5f))controllerUsed=true;
             bool keyboardAction=Input.GetKey(KeyCode.J);
             foreach(KeyCode key in keyboardControls)keyboardAction|=Input.GetKeyDown(key);
             if (pointerMoved || Input.GetMouseButton(0)||keyboardMove||keyboardAction) controllerUsed = false;
@@ -374,15 +378,15 @@ namespace Starfall
             { Game.SetAimTarget(null);return null; }
             if(controllerUsed)
             {
-                // The shipped legacy InputManager already binds Debug
-                // Horizontal/Vertical to the controller's RIGHT stick
-                // (axes 5/6). In-world these axes are independent aim;
-                // menus still own the same axes for focus and map cursor.
+                // Joystick-only InputManager axes 5/6 are independent
+                // right-stick aim. Separate names avoid accidentally
+                // treating keyboard arrows (also mapped to the Debug axes)
+                // as combat aim when a pad button is pressed.
                 // Leave a neutral stick unclaimed: left-stick locomotion
                 // can continue to set the usual default facing.
                 Point stick=new Point(
-                    Input.GetAxisRaw("Debug Horizontal"),
-                    -Input.GetAxisRaw("Debug Vertical"));
+                    Input.GetAxisRaw("Combat Aim Horizontal"),
+                    -Input.GetAxisRaw("Combat Aim Vertical"));
                 Game.SetAimTarget(null);
                 return stick.Length>=.28f?(Point?)stick.Normalized:null;
             }
