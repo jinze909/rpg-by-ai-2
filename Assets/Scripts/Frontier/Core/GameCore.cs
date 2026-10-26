@@ -1971,14 +1971,23 @@ namespace Starfall
                         // Only an uninterrupted genuine enemy release can
                         // strike the receiver. Nearby bodyguards draw the
                         // enemy's locked intent and prevent stock damage.
-                        if(stockRaider&&e.targetingAfterlightStock)
+                        // A teammate can move into the declared civilian or
+                        // stock contact lane DURING the windup. Recheck the
+                        // actual living cover at release just as we do for
+                        // the player's HP; heavy area blows are not melee.
+                        bool objectiveLaneClear=e.boss||e.kind!=0||
+                            EnemyMeleeLaneClear(e,e.target);
+                        if(stockRaider&&e.targetingAfterlightStock&&objectiveLaneClear)
                             DamageAfterlightWatchStock(e);
-                        if(patrolSaboteur&&e.targetingOuterPatrolStock)
+                        if(patrolSaboteur&&e.targetingOuterPatrolStock&&objectiveLaneClear)
                             DamageOuterPatrolStock(e);
-                        if (travelerAttacker && e.targetingWayfarer) DamageWayfarer(e);
-                        if (reliefMissionRoom != 0 &&
-                            (IsReliefMissionEnemy(e) || escortPatrol) &&
-                            e.targetingReliefCivilian && e.kind != 1)
+                        if(travelerAttacker&&e.targetingWayfarer&&objectiveLaneClear)
+                            DamageWayfarer(e);
+                        if(reliefMissionRoom!=0 &&
+                            (IsReliefMissionEnemy(e)||escortPatrol) &&
+                            e.targetingReliefCivilian && e.kind!=1 &&
+                            (e.kind!=0||e.boss||
+                             EnemyMeleeLaneClear(e,reliefFollowerPosition)))
                             DamageReliefCivilian(e);
                         // Rescue archers only injure civilians where their real
                         // arrow actually flies. No hitscan at the windup release.
@@ -2033,7 +2042,10 @@ namespace Starfall
                 // Backline melee must keep moving to find a genuine side
                 // contact rather than attacking through its own frontline.
                 bool teammateCover = !e.boss && e.kind==0 &&
-                    distance<2.5f && !EnemyMeleeLaneClear(e,Position);
+                    ((distance<2.5f && !EnemyMeleeLaneClear(e,Position)) ||
+                     ((travelerAttacker||reliefAttacker||escortPatrol||
+                       stockRaider||patrolSaboteur) &&
+                      !EnemyMeleeLaneClear(e,pursuit)));
                 if (!e.backpedaling && (distance > desired || !visible || teammateCover))
                 {
                     // Actual archer missile LOS may be shut by a corner
@@ -2070,7 +2082,8 @@ namespace Starfall
                      EnemyBowFlightLaneClear(e,Position)) &&
                     (e.boss||e.kind!=0||EnemyMeleeLaneClear(e,Position));
                 bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
-                    ClearAttackPath(e.Position, pursuit);
+                    ClearAttackPath(e.Position, pursuit) &&
+                    (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 // Standing in the raider's reach lets the hero draw its attention.
                 // Otherwise the telegraphed strike lands on the vulnerable traveler.
                 bool strikeTraveler = nearTraveler && (!heroInRange || distance > 2.2f);
@@ -2081,15 +2094,18 @@ namespace Starfall
                     (pursuit - e.Position).Length < (e.kind == 1 ? 6.5f : 2.1f) &&
                     ClearAttackPath(e.Position, pursuit) &&
                     (e.kind!=1||e.boss||
-                     EnemyBowFlightLaneClear(e,pursuit));
+                     EnemyBowFlightLaneClear(e,pursuit)) &&
+                    (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 bool strikeCivilian = nearCivilian &&
                     (!heroInRange || distance > 2.2f);
                 bool nearStock=stockRaider&&(pursuit-e.Position).Length<2.2f &&
-                    ClearAttackPath(e.Position,pursuit);
+                    ClearAttackPath(e.Position,pursuit) &&
+                    (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 bool strikeStock=nearStock&&(!heroInRange||distance>2.2f);
                 bool nearPatrolStock=patrolSaboteur&&
                     (pursuit-e.Position).Length<2.2f&&
-                    ClearAttackPath(e.Position,pursuit);
+                    ClearAttackPath(e.Position,pursuit)&&
+                    (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 bool strikePatrolStock=nearPatrolStock&&(!heroInRange||distance>2.2f);
                 // A still-buried enemy may recover its footing when the
                 // world opens again, but must not start a new windup from an

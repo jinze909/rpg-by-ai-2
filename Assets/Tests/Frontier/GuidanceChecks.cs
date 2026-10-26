@@ -1966,6 +1966,76 @@ namespace Starfall.Tests
             g.AcceptBounty(0); Check(g.save.trackedQuest == "bounty", "Accepting a contract automatically tracks it"); g.save.trackedQuest = "invalid"; g.save.explored = null; g.Load(g.save); Check(g.save.trackedQuest == "main" && g.save.explored.Length == data.maps.Length, "Malformed fields repaired");
         }
 
+        public static void RoadsideRaidersCannotStrikeTravelerThroughLivingFrontline(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.level=10;
+            g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();
+            WorldObject traveler=Object(g,"wayfarer1");
+            Point site=new Point(traveler.x,traveler.y);
+            g.save.x=site.x;g.save.y=site.y;
+            Action(g,traveler.kind,"wayfarer_defend_1");
+            Enemy attacker=g.enemies.Find(e=>e.kind==0);
+            Enemy blocker=g.enemies.Find(e=>e!=attacker);
+            Check(attacker!=null&&blocker!=null,
+                "Real roadside defense begins with two distinct physical raider archetypes");
+            // Keep the entire line physically walkable, not merely the two
+            // endpoints; this is the actual authored forest traveler location.
+            Point direction=new Point();
+            Point[] options={new Point(1,0),new Point(-1,0),
+                             new Point(0,1),new Point(0,-1)};
+            foreach(Point candidate in options)
+            {
+                bool clear=true;
+                for(int i=0;i<=20;i++)
+                    if(!g.CanStand(site+candidate*(i*.095f)))
+                    {clear=false;break;}
+                if(clear){direction=candidate;break;}
+            }
+            Check(direction.Length>.9f,
+                "Authored roadside traveler offers a real standable approach lane");
+            attacker.x=site.x+direction.x*1.9f;
+            attacker.y=site.y+direction.y*1.9f;
+            blocker.x=site.x+direction.x*.9f;
+            blocker.y=site.y+direction.y*.9f;
+            attacker.state=0;attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
+            attacker.timer=.001f;blocker.stun=100f;
+            bool distant=false;
+            for(int y=3;y<g.Map.rows.Length-3&&!distant;y++)
+            for(int x=3;x<g.Map.rows[y].Length-3&&!distant;x++)
+            {
+                Point foot=new Point(x+.5f,y+.5f);
+                if((foot-site).Length<7f||!g.CanStand(foot))continue;
+                g.save.x=foot.x;g.save.y=foot.y;distant=true;
+            }
+            Check(distant,"Roadside defense has safe distant player footing");
+            g.invulnerable=100f;
+            g.Tick(.05f,new Point());
+            Check(attacker.state==0&&!attacker.targetingWayfarer&&
+                g.WayfarerIntegrity==100,
+                "Rear hunter cannot lock a dishonest traveler hit through the living lead raider");
+            g.enemies.Remove(blocker);
+            attacker.x=site.x+direction.x*1.9f;
+            attacker.y=site.y+direction.y*1.9f;
+            attacker.state=0;attacker.timer=.001f;
+            attacker.stun=attacker.hitTime=attacker.releaseTime=0f;
+            g.Tick(.05f,new Point());
+            Check(attacker.state==1&&attacker.targetingWayfarer,
+                "Clear near-side physical opening immediately restores the authentic traveler attack windup");
+            // No resource-free rescue: reinserting the enemy body before
+            // contact blocks only this genuine rear attack, not the timer.
+            blocker.x=site.x+direction.x*.9f;
+            blocker.y=site.y+direction.y*.9f;
+            g.enemies.Add(blocker);
+            for(int i=0;i<15;i++)g.Tick(.05f,new Point());
+            Check(g.WayfarerIntegrity==100&&g.WayfarerEncounterRoom==1&&
+                attacker.state==0,
+                "Lead raider crossing after windup keeps the traveler unharmed until an actual unblocked strike");
+            Check(g.save.version==2&&!g.Has("wayfarer_1"),
+                "Body cover never fabricates rescue victory, payments or save migration");
+        }
+
         public static void MissingTravelersOfferSupplyAndCombatRescues(Campaign data)
         {
             var hit = typeof(GameCore).GetMethod("Hit",
