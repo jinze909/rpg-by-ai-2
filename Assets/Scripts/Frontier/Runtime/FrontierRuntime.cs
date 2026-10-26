@@ -70,6 +70,8 @@ namespace Starfall
         private float worldActorOpacity = 1f;
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
+        // Live enemy reference only; never a serialized lock or reused spawn ID.
+        private Enemy controllerAimEnemy;
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
@@ -375,21 +377,30 @@ namespace Starfall
         private Point? InputAim(bool technique=false)
         {
             if(Game.mode!="world")
-            { Game.SetAimTarget(null);return null; }
+            {
+                controllerAimEnemy=null;Game.SetAimTarget(null);return null;
+            }
             if(controllerUsed)
             {
-                // Joystick-only InputManager axes 5/6 are independent
-                // right-stick aim. Separate names avoid accidentally
-                // treating keyboard arrows (also mapped to the Debug axes)
-                // as combat aim when a pad button is pressed.
-                // Leave a neutral stick unclaimed: left-stick locomotion
-                // can continue to set the usual default facing.
+                // Only a live, ranged, unobstructed foe inside the actual
+                // aiming cone receives snap. The selected world coordinate
+                // becomes the same action snapshot as a pointer click; the
+                // projectile still uses the authoritative hand attachment
+                // and fully swept physical collision.
                 Point stick=new Point(
                     Input.GetAxisRaw("Combat Aim Horizontal"),
                     -Input.GetAxisRaw("Combat Aim Vertical"));
+                controllerAimEnemy=Game.AcquireRangedStickTarget(stick);
+                if(controllerAimEnemy!=null)
+                {
+                    Point target=controllerAimEnemy.Position;
+                    Game.SetAimTarget(target);
+                    return (target-Game.Position).Normalized;
+                }
                 Game.SetAimTarget(null);
                 return stick.Length>=.28f?(Point?)stick.Normalized:null;
             }
+            controllerAimEnemy=null;
             Point mouse=MouseVirtual();
             if(PointerOverInterface(mouse))
                 return pointerAimActive?(Point?)Game.aim:null;
@@ -629,6 +640,26 @@ namespace Starfall
             // decoration. Render their lean outlines after solid scenery
             // and actor bodies, before flying projectiles and impacts.
             DrawHazardWarnings();
+            // A restrained world-space sight ring tells gamepad users which
+            // actual foe will receive the snapped projectile. It follows a
+            // live actor reference, never a reused spawn ID or stored flag.
+            if(Game.mode=="world"&&controllerUsed&&
+               controllerAimEnemy!=null&&controllerAimEnemy.hp>0f&&
+               Game.enemies.Contains(controllerAimEnemy)&&
+               Game.aimTarget.HasValue)
+            {
+                Point target=controllerAimEnemy.Position;
+                if((Game.aimTarget.Value-target).Length<.02f)
+                {
+                    Ring(target,controllerAimEnemy.boss?1.05f:.68f,
+                        new Color(.58f,.98f,.81f,.84f),24);
+                    Point at=ScreenPoint(target);
+                    Text(at.x-37,at.y-(controllerAimEnemy.boss?94:72),
+                        74,17,Game.L("瞄准","FOCUS"),11,
+                        new Color(.67f,1f,.87f),
+                        TextAnchor.MiddleCenter);
+                }
+            }
             foreach (Projectile p in Game.projectiles) DrawProjectileVisual(p);
             foreach (Effect e in Game.effects) if (!IsGroundEffect(e)) DrawCombatEffect(e);
             // Source-painted optional impact cells are already drawn in the
