@@ -311,6 +311,28 @@ namespace Starfall
                 }
                 return true;
             }
+            // A genuine last-frame sighting wins over sound-search expiry.
+            // Otherwise a sentry who sees the hero just before returning
+            // home would drop that information before its whistle could
+            // complete. Preserve the physical FOV and interrupt windows.
+            if(alert.impactOnly&&ArrowSoundCannotOverrideObjective(e))
+            {
+                enemyHitAlert.Remove(e);
+                return false;
+            }
+            if(alert.impactOnly&&ImpactSearchGuardSeesHero(e))
+            {
+                alert.lastKnown=Position;
+                alert.impactOnly=false;
+                alert.remaining=Math.Max(alert.remaining,EnemyHitAlertSeconds);
+                if(e.stun<=0f&&e.hitTime<=0f&&
+                   e.releaseTime<=0f&&e.state!=1)
+                {
+                    alert.whistleRemaining=.35f;
+                    effects.Add(new Effect("number",e.Position,.6f,
+                        L("准备呼警！","WHISTLE WINDUP")));
+                }
+            }
             if(alert.remaining<=0f)
             {
                 if(alert.impactOnly&&CanStand(alert.homeFoot)&&
@@ -326,14 +348,6 @@ namespace Starfall
                         L("返回哨位","BACK TO POST")));
                     return true;
                 }
-                enemyHitAlert.Remove(e);
-                return false;
-            }
-            // An actor that changes to a protected objective while a
-            // sound search is active must stop advertising INVESTIGATING.
-            // The real civilian/ward/stock intention now owns that body.
-            if(alert.impactOnly&&ArrowSoundCannotOverrideObjective(e))
-            {
                 enemyHitAlert.Remove(e);
                 return false;
             }
@@ -359,25 +373,9 @@ namespace Starfall
                         NotifyPatrolOfRealSighting(e);
                 }
             }
-            if(alert.impactOnly)
-            {
-                // Face-to-face sighting, not mere proximity, ends the
-                // sound search. The existing 8-tile awareness still governs
-                // ALL normal combat, mission raiders and genuine hit alarms.
-                if(ImpactSearchGuardSeesHero(e))
-                {
-                    alert.lastKnown=Position;
-                    alert.impactOnly=false;
-                    if(e.stun<=0f&&e.hitTime<=0f&&
-                       e.releaseTime<=0f&&e.state!=1)
-                    {
-                        alert.whistleRemaining=.35f;
-                        effects.Add(new Effect("number",e.Position,.6f,
-                            L("准备呼警！","WHISTLE WINDUP")));
-                    }
-                }
-            }
-            else if(ClearAttackPath(e.Position,Position))
+            // Only a witnessed hero position may refresh the alert.
+            // Sound-only patrols never learn a concealed live player foot.
+            if(!alert.impactOnly&&ClearAttackPath(e.Position,Position))
                 alert.lastKnown=Position;
             return true;
         }

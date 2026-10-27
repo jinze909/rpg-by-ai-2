@@ -88,6 +88,53 @@ namespace Starfall.Tests
                         g.save.version==2&&caller.hp>0f,
                         "Canceled physical whistle cannot alert teammates or mutate the old save");
                 }
+                // The final simulation slice of a real sound-search has
+                // reached its expiry, but a genuine visible hero still
+                // deserves the full interruptible 350ms whistle.
+                var edge=Fresh(data);edge.save.stage=3;edge.Enter(1);
+                edge.enemies.Clear();edge.mode="world";
+                edge.save.x=6.5f;edge.save.y=10.5f;
+                var lookout=new Enemy(79947,0,16.5f,12.5f,200f);
+                lookout.stun=100f;lookout.timer=100f;
+                edge.enemies.Add(lookout);
+                edge.projectiles.Add(new Projectile{
+                    friendly=true,source="arrow",visual="arrow",
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(12f,0),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                Advance(edge,1.1f);
+                Check(edge.IsEnemyInvestigatingImpact(lookout),
+                    "Real stone contact opened a live late-expiry search");
+                var alertField=typeof(GameCore).GetField("enemyHitAlert",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(alertField!=null,"Authentic patrol alert has live state");
+                var alertMap=(System.Collections.IDictionary)alertField.GetValue(edge);
+                object record=alertMap[lookout];
+                Check(record!=null,"Real arrow contact owns a physical patrol alert");
+                var clock=record.GetType().GetField("remaining");
+                Check(clock!=null,"Real alert exposes finite world-time expiry");
+                float left=(float)clock.GetValue(record);
+                for(int frame=0;frame<250&&left>.045f;frame++)
+                {
+                    edge.Tick(.02f,new Point());
+                    left=(float)clock.GetValue(record);
+                }
+                Check(left>0f&&left<=.045f&&
+                    edge.IsEnemyInvestigatingImpact(lookout),
+                    "Sentry remains distracted only until the last authentic expiry slice");
+                lookout.stun=0f;lookout.Face(new Point(1,0));
+                edge.save.x=21.5f;edge.save.y=12.5f;
+                edge.sounds.Clear();
+                edge.Tick(left+.012f,new Point());
+                Check(edge.IsEnemyPreparingSentryWhistle(lookout)&&
+                    !edge.IsEnemyInvestigatingImpact(lookout),
+                    "Last-frame physical sighting supersedes expiry and begins a real interruptible whistle");
+                Advance(edge,.42f);
+                Check(new System.Collections.Generic.List<string>(edge.sounds)
+                    .Contains("sentryAlarm")&&edge.save.version==2,
+                    "Surviving last-frame sight broadcasts one authentic alarm without new save fields");
             }
             finally{data.maps[1]=previous;}
         }
