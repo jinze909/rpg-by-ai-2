@@ -122,7 +122,10 @@ namespace Starfall
                     if(ClearAttackPath(witness.Position,Position))
                         oldWitness.lastKnown=Position;
                 }
-                else enemyHitAlert[witness]=new EnemyHitAlert(4f,Position);
+                else
+                    enemyHitAlert[witness]=new EnemyHitAlert(4f,
+                        ClearAttackPath(witness.Position,Position)?
+                        Position:e.Position);
             }
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)

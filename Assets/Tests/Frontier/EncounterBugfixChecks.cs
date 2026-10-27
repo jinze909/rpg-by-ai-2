@@ -3,6 +3,77 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void DistantAlertInvestigatesLastRealSightlineAndReacquiresAfterGateOpens(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.save.stage=3;g.Enter(1);g.enemies.Clear();
+                g.mode="world";g.invulnerable=300f;
+                g.save.x=7.5f;g.save.y=10.5f;
+                var foe=new Enemy(77001,0,21.5f,10.5f,220f);
+                foe.timer=1f;g.enemies.Add(foe);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var ray=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(hit!=null&&ray!=null,
+                    "Original physical hit and collision-aware LOS remain authoritative");
+                hit.Invoke(g,new object[]{
+                    foe,2f,false,(Point?)null,
+                    new ImpactProfile(1,0,1,0,0f,true,1)});
+                Check(foe.hp<220f,
+                    "The world response begins with an actual damaging ranged hit");
+
+                // The live hero moves SOUTH beyond freshly closed stone.
+                // Its real last visible location was west, 14 tiles away.
+                g.save.x=7.5f;g.save.y=17.5f;
+                string[] open=(string[])g.Map.rows.Clone();
+                char[] wall=g.Map.rows[13].ToCharArray();
+                for(int x=3;x<=25;x++)wall[x]='#';
+                g.Map.rows[13]=new string(wall);
+                try
+                {
+                    Check(!(bool)ray.Invoke(g,
+                        new object[]{foe.Position,g.Position}),
+                        "The live player is genuinely hidden by a solid east-west wall");
+                    Point before=foe.Position;
+                    Advance(g,.85f);
+                    Check(foe.Position.x<before.x-.45f &&
+                        Math.Abs(foe.Position.y-10.5f)<.48f &&
+                        g.CanStand(foe.Position),
+                        "Provoked enemy investigates the actual last-seen west foot instead of tracking the hidden south foot");
+                    // Only genuine reopened LOS may refresh the patrol
+                    // target. Its original body and attack clocks survive.
+                    g.Map.rows=open;
+                    Check((bool)ray.Invoke(g,
+                        new object[]{foe.Position,g.Position}),
+                        "Removing real cover physically reveals the moved player");
+                    before=foe.Position;
+                    Advance(g,.8f);
+                    Check(foe.Position.y>before.y+.12f &&
+                        g.CanStand(foe.Position),
+                        "Same live enemy reacquires a now-visible hero and physically changes course");
+                }
+                finally {g.Map.rows=open;}
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void LethalDistantSnipeStillAlertsGenuineSeeingPatrolWitness(Campaign data)
         {
             MapData previous=data.maps[1];
