@@ -86,6 +86,23 @@ namespace Starfall.Tests
                     g.aim=scenario==2?new Point(-1,0):new Point(1,0);
                     Check(g.CanSoundAmbushNow(guard)==(scenario==1),
                         "Live visible BACKSTAB cue appears only behind an unalerted search guard with sword aimed at its body");
+                    if(scenario==1)
+                    {
+                        // Markers must not promise the longer third-combo
+                        // reach on a normal first slash. The same real
+                        // action timer/finisher identity owns the preview.
+                        g.save.x=guard.x-2.05f;g.save.y=guard.y;
+                        g.comboTimer=0f;g.combo=0;
+                        Check(!g.CanSoundAmbushNow(guard),
+                            "Basic sword attack cannot show a false 2.2-tile backstab prompt");
+                        g.combo=1;g.comboTimer=1f;
+                        Check(g.CanSoundAmbushNow(guard),
+                            "Earned third sword chain presents its real extended 2.2-tile reach");
+                        g.comboTimer=0f;g.combo=0;
+                        g.save.x=guard.x-1.25f;
+                        Check(g.CanSoundAmbushNow(guard),
+                            "Returning inside normal range restores a valid first-strike opening");
+                    }
                     g.Attack(scenario==2?new Point(-1,0):new Point(1,0));
                     Advance(g,.35f);
                     float dealt=240f-guard.hp;

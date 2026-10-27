@@ -207,7 +207,13 @@ namespace Starfall
             Point approach=direction*(-1f/distance);
             float facingDot=approach.x*enemy.facing.x+
                 approach.y*enemy.facing.y;
-            return aimDot>-.15f&&
+            // Preview the NEXT actual sword swing's authored collision
+            // radius. A basic slash stops at 1.85 tiles; only the earned
+            // third combo finisher reaches 2.2. Never show a green prompt
+            // at a distance where pressing attack would whiff.
+            int nextCombo=comboTimer>0f?(combo+1)%3:0;
+            float actualReach=nextCombo==2?2.2f:1.85f;
+            return distance<actualReach&&aimDot>-.15f&&
                 SoundAmbushGeometry(enemy,distance,facingDot);
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
