@@ -239,7 +239,7 @@ namespace Starfall
                 if (PadDown(6)) OpenMenu("journal"); if (PadDown(7)) { OpenMenu("pause"); Save(); }
             }
             else if (Game.mode == "fish" && (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))) Game.FishHit();
-            else if (Game.mode == "dialog")
+            else if (Game.mode == "dialog" && !dialogueHistoryOpen)
             {
                 int count = Game.conversation == null || !DialogueChoicesVisible() ? 0 : Game.conversation.choices.Length;
                 // A long chronicle section may span multiple choice pages.

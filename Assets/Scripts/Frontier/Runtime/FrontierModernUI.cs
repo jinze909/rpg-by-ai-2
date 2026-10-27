@@ -7,6 +7,51 @@ namespace Starfall
     {
         private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, dialogueChoicePage, recordsPage, questPage;
         private const int DialogueChoicesPerPage = 6;
+        // In-game, read-only transcript overlay; never runs archived choice
+        // handlers. The conversation underneath remains the REAL live menu.
+        private bool dialogueHistoryOpen;
+        private int dialogueHistoryIndex,dialogueHistoryPage;
+        private void ToggleDialogueHistory()
+        {
+            if(Game==null||Game.mode!="dialog"||
+               Game.DialogueRecordCount==0)return;
+            dialogueHistoryOpen=!dialogueHistoryOpen;
+            if(dialogueHistoryOpen)
+            {
+                dialogueHistoryIndex=Game.DialogueRecordCount-1;
+                dialogueHistoryPage=0;
+            }
+            confirmControl=null;
+            Game.sound="ui";
+        }
+        private void MoveDialogueHistory(int delta)
+        {
+            if(!dialogueHistoryOpen||Game==null||
+               Game.DialogueRecordCount==0)return;
+            var entry=Game.DialogueRecordAt(dialogueHistoryIndex);
+            if(entry==null)return;
+            int count=DialogueLayout.Pages(
+                Game.L(entry.text,entry.textEn),
+                Game.save.largeText).Count;
+            int next=dialogueHistoryPage+delta;
+            if(next>=0&&next<count)dialogueHistoryPage=next;
+            else if(next<0&&dialogueHistoryIndex>0)
+            {
+                dialogueHistoryIndex--;
+                entry=Game.DialogueRecordAt(dialogueHistoryIndex);
+                dialogueHistoryPage=DialogueLayout.Pages(
+                    Game.L(entry.text,entry.textEn),
+                    Game.save.largeText).Count-1;
+            }
+            else if(next>=count&&
+                    dialogueHistoryIndex<Game.DialogueRecordCount-1)
+            {
+                dialogueHistoryIndex++;
+                dialogueHistoryPage=0;
+            }
+            confirmControl=null;
+            Game.sound="ui";
+        }
         private int DialogueChoicePageCount
         {
             get { return Game == null || Game.conversation == null ? 1 :
@@ -1464,7 +1509,7 @@ namespace Starfall
         }
         private void DrawDialogue()
         {
-            if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; }
+            if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; dialogueHistoryOpen=false; }
             string localizedText = Game.L(c.text, c.textEn);
             if (dialoguePages == null ||
                 !System.Object.ReferenceEquals(dialoguePagesConversation, c) ||
@@ -1478,7 +1523,64 @@ namespace Starfall
             }
             var pages = dialoguePages;
             dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
-            Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506); Portrait(SpeakerPortrait(c.speaker), 112, 209, 174, 219); Text(112, 452, 174, 78, Game.L(c.speaker, c.en), 18, gold, TextAnchor.MiddleCenter); Text(320, 208, 831, 36, Game.L(c.speaker, c.en), 23, gold); Text(320, 264, 832, 228, DialogueLayout.VisiblePageText(pages[dialoguePage]), 19, paper);
+            Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506);
+            if (Button(967, 211, 184, 34, dialogueHistoryOpen?
+                Game.L("返回当前对话","Back to dialogue"):
+                Game.L("回看对话 · F2","Review speech · F2")))
+                ToggleDialogueHistory();
+            if(dialogueHistoryOpen)
+            {
+                // Use the actual recorded speaker and both original language
+                // strings, never rebind a past NPC's button to today's source.
+                DialogueRecord entry=Game.DialogueRecordAt(dialogueHistoryIndex);
+                if(entry!=null)
+                {
+                    string reviewed=Game.L(entry.text,entry.textEn);
+                    List<string> transcriptPages=DialogueLayout.Pages(
+                        reviewed,Game.save.largeText);
+                    dialogueHistoryPage=Math.Max(0,Math.Min(
+                        transcriptPages.Count-1,dialogueHistoryPage));
+                    string person=Game.L(entry.speaker,entry.en);
+                    Portrait(SpeakerPortrait(entry.speaker),112,209,174,219);
+                    Text(112,452,174,78,person,17,gold,
+                        TextAnchor.MiddleCenter);
+                    Text(320,208,614,36,person,23,gold);
+                    Text(320,264,832,228,
+                        DialogueLayout.VisiblePageText(
+                            transcriptPages[dialogueHistoryPage]),19,paper);
+                    Text(320,498,534,30,
+                        Game.L("已读对话 ","Speech history ")+
+                        (dialogueHistoryIndex+1)+"/"+
+                        Game.DialogueRecordCount+
+                        Game.L(" · 第 "," · page ")+
+                        (dialogueHistoryPage+1)+"/"+
+                        transcriptPages.Count,12,muted);
+                    if(Button(320,542,385,39,
+                        Game.L("上一段 / 上一页 · PgUp",
+                            "Earlier speech / page · PgUp"),
+                        false,dialogueHistoryIndex>0||
+                            dialogueHistoryPage>0))
+                        MoveDialogueHistory(-1);
+                    if(Button(720,542,431,39,
+                        Game.L("下一段 / 下一页 · PgDn",
+                            "Later speech / page · PgDn"),
+                        false,dialogueHistoryIndex<
+                            Game.DialogueRecordCount-1||
+                            dialogueHistoryPage<transcriptPages.Count-1))
+                        MoveDialogueHistory(1);
+                    Text(320,600,832,42,
+                        Game.L("只读记录：不会重选任务、再次领奖或改变当前对话。退格/F2 返回。",
+                            "Read-only: no choices or rewards can be replayed. Backspace/F2 returns."),
+                        13,muted);
+                }
+                return;
+            }
+            Portrait(SpeakerPortrait(c.speaker),112,209,174,219);
+            Text(112,452,174,78,Game.L(c.speaker,c.en),18,gold,
+                TextAnchor.MiddleCenter);
+            Text(320,208,637,36,Game.L(c.speaker,c.en),23,gold);
+            Text(320,264,832,228,
+                DialogueLayout.VisiblePageText(pages[dialoguePage]),19,paper);
             if (pages.Count > 1)
             {
                 Text(320, 497, 349, 26, Game.L("对话页 ", "Page ") +

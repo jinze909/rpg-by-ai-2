@@ -44,6 +44,7 @@ namespace Starfall
             {
                 lastConversation = Game.conversation;
                 dialoguePage = dialogueChoicePage = 0;
+                dialogueHistoryOpen=false;
                 confirmControl = null;
             }
             // Never carry an old journal inspection through a different
@@ -181,6 +182,27 @@ namespace Starfall
                 return;
             }
             if (Game.mode == "world") { if (Input.GetKeyDown(KeyCode.Escape)) Back(); return; }
+            // History is a modal, read-only reader layered over the original
+            // active NPC. It must consume keyboard/pad input BEFORE normal
+            // dialogue choice navigation or world interactions see it.
+            if(Game.mode=="dialog"&&Input.GetKeyDown(KeyCode.F2))
+            { ToggleDialogueHistory(); return; }
+            if(Game.mode=="dialog"&&dialogueHistoryOpen)
+            {
+                if(Input.GetKeyDown(KeyCode.Escape)||
+                   Input.GetKeyDown(KeyCode.Backspace)||
+                   PadDown(1)||PadDown(0)||
+                   Input.GetKeyDown(KeyCode.Return)||
+                   Input.GetKeyDown(KeyCode.Space))
+                { ToggleDialogueHistory(); return; }
+                if(Input.GetKeyDown(KeyCode.PageUp)||PadDown(4))
+                { MoveDialogueHistory(-1); return; }
+                if(Input.GetKeyDown(KeyCode.PageDown)||PadDown(5))
+                { MoveDialogueHistory(1); return; }
+                // Consume other dialogue input. Archived text must never
+                // perform hidden on-screen menu choices.
+                return;
+            }
             if (PadDown(0) || PadDown(1) || PadDown(4) || PadDown(5) || PadDown(7)) controllerUsed = true;
             bool controllerBack=PadDown(1);
             if (controllerBack || Input.GetKeyDown(KeyCode.Escape))
