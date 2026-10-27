@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -84,6 +84,7 @@ namespace Starfall
             if (name == "step") return Footstep("grass", 0);
             if (name == "fishBite") return FishBite();
             if (name == "stoneImpact") return StoneImpact();
+            if (name == "ambush") return AmbushContact();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -139,6 +140,31 @@ namespace Starfall
                 double pebble=Math.Exp(-t*17)*Math.Sin(ringPhase)*.16;
                 double envelope=Math.Min(1,t*460)*Math.Min(1,(.23-t)*90);
                 wave[i]=(float)((crack+pebble)*envelope);
+            }
+            return wave;
+        }
+        // A clean, tight rear blade contact sounds nothing like a perfect
+        // dodge counter. Real contact alone dispatches this transient.
+        // A low metallic strike rolls into a short scabbard/rustle tail.
+        private static float[] AmbushContact()
+        {
+            var wave=new float[(int)(Rate*.29f)];
+            var random=new Random(97131);
+            double phase=0,filtered=0;
+            for(int i=0;i<wave.Length;i++)
+            {
+                double seconds=i/(double)Rate;
+                double t=i/(double)wave.Length;
+                double noise=random.NextDouble()*2-1;
+                filtered+=(noise-filtered)*.16;
+                double f=430-280*t;
+                phase+=2*Math.PI*f/Rate;
+                double steel=Math.Sin(phase)*Math.Exp(-seconds*19)*.28;
+                double edge=filtered*Math.Exp(-seconds*32)*.45;
+                double tail=Math.Sin(phase*.48)*Math.Exp(-seconds*12)*.08;
+                double envelope=Math.Min(1,seconds*280)*
+                    Math.Min(1,(.29-seconds)*65);
+                wave[i]=(float)((steel+edge+tail)*envelope);
             }
             return wave;
         }

@@ -8,6 +8,27 @@ namespace Starfall.Tests
 
 
 
+        public static void RearAmbushHasItsOwnFiniteProceduralContactSound(Campaign data)
+        {
+            Check(Array.IndexOf(AudioSynthesis.Events,"ambush")>=0,
+                "Ambush impact must be registered as a real runtime AudioSource event");
+            float[] samples=AudioSynthesis.Event("ambush");
+            Check(samples.Length>AudioSynthesis.Rate*.26f&&
+                samples.Length<AudioSynthesis.Rate*.31f,
+                "A real stealth contact has a short, distinct perceptual strike instead of a perfect dodge jingle");
+            float peak=0;
+            foreach(float s in samples)
+            {
+                Check(!float.IsNaN(s)&&!float.IsInfinity(s),
+                    "Original ambush blade samples are finite in every native sound buffer");
+                peak=Math.Max(peak,Math.Abs(s));
+            }
+            Check(peak>.01f&&peak<1f&&
+                Math.Abs(samples[0])<.001f&&
+                Math.Abs(samples[samples.Length-1])<.001f,
+                "The rear-strike clip is audible without clipping or a broken attack-sound seam");
+        }
+
         public static void RealSoundSearchOffersOnePhysicalRearSwordAmbush(Campaign data)
         {
             MapData previous=data.maps[1];
@@ -74,6 +95,9 @@ namespace Starfall.Tests
                     if(scenario==1)
                     {
                         ambush=dealt;
+                        Check(new System.Collections.Generic.List<string>(
+                            g.sounds).Contains("ambush"),
+                            "Actual stealth sword contact triggers the dedicated live AudioSource event, not a false perfect-dodge cue");
                         Check(!g.IsEnemyInvestigatingImpact(guard)&&
                             g.effects.Exists(effect=>
                                 effect.kind=="number"&&

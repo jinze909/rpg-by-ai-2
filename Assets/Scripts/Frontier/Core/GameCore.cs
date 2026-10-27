@@ -1189,7 +1189,9 @@ namespace Starfall
                 ApplyEnemyControl(e,.85f);
                 effects.Add(new Effect("number",e.Position,.85f,
                     L("背后奇袭！","SOUND AMBUSH")));
-                sound="counter";
+                // A backstab has its own contact sound. Never reuse the
+                // perfect-dodge parry cue for an entirely different action.
+                sound="ambush";
             }
             // The post-release recovery is a brief, player-owned punish window.
             if (profile.playerOwned && e.releaseTime > .001f && e.stun <= 0)
