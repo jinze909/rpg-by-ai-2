@@ -1293,6 +1293,11 @@ namespace Starfall
                 save.companion>=0?companionPosition:e.Position;
             AlertRidgeWatchOnRealHit(e,strikeSource);
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f;
+            // A REAL player-owned HP strike exposes the shooter at any
+            // distance, not just the existing >8-tile ranged alarm. A
+            // quiet player cannot repeatedly shoot an enemy six tiles
+            // away and remain unrecognized by that same living target.
+            if(profile.playerOwned)patrolsThatSawHero.Add(e);
             NotifyEnemyOfActualDistantPlayerHit(e,profile); e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'

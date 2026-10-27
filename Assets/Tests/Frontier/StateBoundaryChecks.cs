@@ -775,6 +775,63 @@ namespace Starfall.Tests
             finally {data.maps[1]=old;}
         }
 
+        public static void RealQuietShotRevealsHeroWithoutGrantingGhostAlert(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.save.x=7.5f;g.save.y=10.5f;
+                var guard=new Enemy(61201,0,13.5f,10.5f,500f);
+                guard.timer=100f;g.enemies.Add(guard);
+                g.Tick(.05f,new Point(),null,false,true);
+                Check(g.QuietStepping&&
+                    (guard.Position-new Point(13.5f,10.5f)).Length<.001f,
+                    "Unaware guard genuinely ignores a quiet hero at six tiles");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Physical HP damage flows through production combat contact");
+                // Exact original player-owned projectile impact; cosmetic
+                // zero-damage effects and companion hits are not exposure.
+                hit.Invoke(g,new object[]{guard,5f,false,(Point?)null,
+                    new ImpactProfile(1,0,1,0,0f,true,1)});
+                Check(guard.hp<500f,
+                    "Real player arrow contact has actually reduced original enemy HP");
+                Point exposed=guard.Position;
+                for(int i=0;i<16;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check((guard.Position-exposed).Length>.25f&&
+                    g.QuietStepping&&g.save.version==2,
+                    "Actual HP hit exposes the quiet shooter and restores physical pursuit without save mutation");
+                // Reloading a live v2 world cannot carry transient memory
+                // to a different physical guard using an identical ID.
+                g.Load(CloneSave(g.save));
+                g.enemies.Clear();
+                var replacement=new Enemy(61201,0,13.5f,10.5f,500f);
+                replacement.timer=100f;g.enemies.Add(replacement);
+                Point newFoot=replacement.Position;
+                for(int i=0;i<8;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check((replacement.Position-newFoot).Length<.001f&&
+                    g.save.version==2,
+                    "Fresh same-ID enemy cannot inherit old alert after save reload");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void RemoteWorldDialogueCannotExecuteChoices(Campaign data)
         {
             var g = Fresh(data);
