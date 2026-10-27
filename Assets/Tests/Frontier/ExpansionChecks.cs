@@ -789,6 +789,65 @@ namespace Starfall.Tests
             ClearOuterPatrolLull(g);
         }
 
+
+        public static void CitadelLastDirectiveCannotBeForgedByDuplicateEnemyIds(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2"})
+                g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();g.projectiles.Clear();
+            g.invulnerable=180;g.save.reducedMotion=true;
+            WorldObject core=Object(g,"lastdirectivecore");
+            g.save.x=core.x;g.save.y=core.y;
+            Action(g,core.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Real original citadel console spawns two independently owned first-wave guards");
+            Enemy real=g.enemies.Find(e=>e.id==90300);
+            Check(real!=null,"First original guard has a physical authored position");
+            Enemy impostor=new Enemy(90300,real.kind,real.x,real.y,60);
+            g.enemies.Add(impostor);
+            Check(g.LastDirectiveEnemies==2,
+                "Duplicate same-ID foreign actor cannot appear as a signed story defender");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check(hit!=null,"Original contact handler available for verified lethal kills");
+            hit.Invoke(g,new object[]{impostor,99999f,false,null,null});
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Killing unrelated same-ID enemy cannot fake breaking the first citadel lock");
+            Enemy replacement=new Enemy(90300,real.kind,real.x,real.y,100);
+            g.enemies.Remove(real);g.enemies.Add(replacement);
+            g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==0&&g.enemies.Contains(replacement)&&
+                !g.enemies.Exists(e=>e.id==90301)&&g.save.version==2,
+                "An unconfirmed missing original guard cancels only the live wave despite numeric-ID impersonation");
+            g.enemies.Clear();g.save.x=core.x;g.save.y=core.y;
+            Action(g,core.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "Canceled original citadel defense is still replayable at its physical console");
+            foreach(Enemy guard in g.enemies.FindAll(e=>e.id>=90300&&e.id<=90301))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            for(int i=0;i<8&&g.LastDirectiveWave==1;i++)g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0,
+                "Only both actual original lethal combat callbacks unlock the authentic second citadel wave");
+            g.save.energy=100;g.save.x=core.x;g.save.y=core.y;
+            Action(g,core.kind,"last_directive_second");
+            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3,
+                "Second original seal spawns three distinct owned living threats for a playable finale");
+            foreach(Enemy guard in g.enemies.FindAll(e=>e.id>=90302&&e.id<=90304))
+                hit.Invoke(g,new object[]{guard,99999f,false,null,null});
+            for(int i=0;i<8&&g.LastDirectiveWave==3;i++)g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==4&&g.LastDirectiveEnemies==0,
+                "Three genuine final-wave deaths permit the player's original civilian choice");
+            g.save.x=core.x;g.save.y=core.y;
+            Action(g,core.kind,"last_directive_open");
+            Check(g.LastDirectiveChoice==1&&g.LastDirectiveWave==0&&
+                g.save.version==2,
+                "Authentic original civic outcome remains permanently saved in unchanged v2 schema");
+        }
+
         public static void LastDirectiveCannotStartDuringActiveFieldwork(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;

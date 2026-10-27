@@ -2,6 +2,11 @@ using System;
 namespace Starfall {
 public sealed partial class GameCore {
     private int directiveRoom=-1, directivePhase, directiveKills;
+    // A resident's final battle is owned by its ACTUAL spawned actors.
+    // Reused numeric identifiers must never stand in for a vanished
+    // defender, count as a verified lethal kill or absorb mission-only
+    // cleanup and visual effects.
+    private readonly Enemy[] directiveActors=new Enemy[3];
     private float directiveSurgeLeft;
     private static readonly Point[] directiveSpawns={new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(106.5f,73.5f)};
     public bool LastDirectiveStarted {get{return Has("last_directive_started");}}
@@ -11,22 +16,31 @@ public sealed partial class GameCore {
     public int LastDirectiveEnemies {get{int n=0;foreach(Enemy e in enemies)if(IsLastDirectiveEnemy(e))n++;return n;}}
     public bool LastDirectiveReady {get{return LastDirectiveStarted&&LastDirectiveClues==3;}}
     public int LastDirectiveChoice {get{return Has("last_directive_open")?1:Has("last_directive_shelter")?2:0;}}
-    private bool IsLastDirectiveEnemy(Enemy e){return e!=null&&e.id>=90300&&e.id<=90304;}
+    private bool IsLastDirectiveEnemy(Enemy e){
+        if(e==null||directiveRoom!=4)return false;
+        foreach(Enemy guard in directiveActors)
+            if(System.Object.ReferenceEquals(e,guard))return true;
+        return false;
+    }
     private void ResetLastDirective(){enemies.RemoveAll(IsLastDirectiveEnemy);projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);hazards.RemoveAll(h=>h.lastDirectiveOwned);
+        for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
         directiveRoom=-1;directivePhase=directiveKills=0;directiveSurgeLeft=0;}
     private void OnLastDirectiveEnemyDefeated(Enemy e){
         if(directiveRoom!=4||save.room!=4||(directivePhase!=1&&directivePhase!=3)||!IsLastDirectiveEnemy(e))return;
-        int first=directivePhase==1?90300:90302;int count=directivePhase==1?2:3;
-        if(e.id>=first&&e.id<first+count)directiveKills|=1<<(e.id-first);
+        int count=directivePhase==1?2:3;
+        for(int i=0;i<count;i++)
+            if(System.Object.ReferenceEquals(e,directiveActors[i]))
+            {directiveKills|=1<<i;break;}
     }
     private void TickLastDirective(float dt){
         if(directiveRoom<0)return;
         if(save.room!=4||Dying||practicing){ResetLastDirective();return;}
         if(directivePhase!=1&&directivePhase!=3)return;
-        int first=directivePhase==1?90300:90302,count=directivePhase==1?2:3;
+        int count=directivePhase==1?2:3;
         bool clear=true;
         for(int i=0;i<count;i++){
-            bool present=enemies.Exists(e=>e.id==first+i);
+            bool present=directiveActors[i]!=null&&
+                enemies.Contains(directiveActors[i]);
             if(!present&&(directiveKills&(1<<i))==0){ResetLastDirective();revision++;Notify("守卫异常离场，真实战斗必须重试。","Guardian vanished without defeat; retry combat.");return;}
             if(present||(directiveKills&(1<<i))==0)clear=false;
         }
@@ -50,6 +64,9 @@ public sealed partial class GameCore {
             return;
         }
         directivePhase=directivePhase==1?2:4;directiveKills=0;
+        // This wave is finished: no old guard reference may own the next
+        // wave's projectiles or be mistaken for a later enemy.
+        for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
         projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);
         hazards.RemoveAll(h=>h.lastDirectiveOwned);revision++;sound="reward";
         Notify(directivePhase==2?"第一道保密卫队已击败。在终端以25耐力解除二级封锁。":"三名最终守卫已击败，回控制台决定公共权力归属。",
@@ -66,9 +83,13 @@ public sealed partial class GameCore {
         for(int i=0;i<count;i++)if(!CanStand(directiveSpawns[first+i]))return false;
         directiveRoom=4;directivePhase=wave==1?1:3;directiveKills=0;
         directiveSurgeLeft=wave==2?2.6f:0;
+        for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
         for(int i=0;i<count;i++){
             Point p=directiveSpawns[first+i];int kind=wave==1?i:i==2?2:i;
-            enemies.Add(CreatePlacedEnemy(90300+first+i,kind,p,wave==1?79+12*i:111+17*i));
+            Enemy guard=CreatePlacedEnemy(90300+first+i,kind,p,
+                wave==1?79+12*i:111+17*i);
+            directiveActors[i]=guard;
+            enemies.Add(guard);
             effects.Add(new Effect("danger",p,.8f){radius=.6f,lastDirectiveOwned=true});
         }
         revision++;sound="windup";
