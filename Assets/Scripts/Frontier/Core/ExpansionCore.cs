@@ -299,8 +299,19 @@ namespace Starfall
                 foreach (Projectile shot in projectiles)
                 {
                     if(shot==null)continue;
-                    if (shot.friendly || shot.life <= 0 || shot.damage <= 0)
+                    if (shot.friendly || shot.life <= 0 || shot.damage <= 0 ||
+                        shot.blockedAtSpawn ||
+                        !Finite(shot.position.x)||!Finite(shot.position.y)||
+                        !Finite(shot.velocity.x)||!Finite(shot.velocity.y)||
+                        !Finite(shot.life)||!Finite(shot.damage))
                         continue;
+                    // A gate may close around the already-flying missile,
+                    // or a release may discover its hand buried in masonry.
+                    // Projectile update retires either WITHOUT any damaging
+                    // body contact or free area explosion. Such an inert
+                    // head cannot lock the hero's nearby camp/fast travel
+                    // for an extra frame just because its center is close.
+                    if(ShotBlocked(shot,shot.position))continue;
                     float dx = shot.position.x - x, dy = shot.position.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
                     // The incoming projectile may be beyond the safety

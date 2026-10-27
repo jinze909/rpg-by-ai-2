@@ -85,6 +85,51 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void SealedOrUnreleasedHostileShotCannotFakeNearbyTravelDanger(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,0);
+                g.save.x=12.5f;g.save.y=15.5f;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                var incoming=new Projectile
+                {
+                    position=new Point(14.5f,15.5f),
+                    velocity=new Point(-8f,0f),life=1f,
+                    damage=14f,visual="enemyArrow",friendly=false
+                };
+                g.projectiles.Add(incoming);
+                Check(!g.SafeTravel,
+                    "Authentic close incoming enemy arrow stops immediate unsafe escape");
+                incoming.blockedAtSpawn=true;
+                Check(g.SafeTravel,
+                    "An unreleased arrow whose hand is physically sealed cannot keep travel disabled until next projectile tick");
+                incoming.blockedAtSpawn=false;
+                char[] row=g.Map.rows[15].ToCharArray();
+                row[14]='#';g.Map.rows[15]=new string(row);
+                Check(g.CanStand(g.Position)&&g.SafeTravel,
+                    "A gate closing AROUND the active projectile makes it immediately inert, not an inescapable near-body travel lock");
+                row[14]='.';g.Map.rows[15]=new string(row);
+                Check(!g.SafeTravel,
+                    "Reopening a real physical lane restores the nearby hostile shot's true danger");
+                incoming.velocity=new Point(float.NaN,0);
+                Check(g.SafeTravel,
+                    "Malformed nonfinite transient shots cannot poison safe-travel physical queries");
+                incoming.velocity=new Point(-8f,0);
+                var rift=new Hazard{position=g.Position,radius=1.4f,
+                    damage=13f,timer=.6f,kind="rift"};
+                g.hazards.Add(rift);incoming.blockedAtSpawn=true;
+                Check(!g.SafeTravel,
+                    "A separately owned genuine warned explosion still blocks travel even when an inert arrow does not");
+                g.hazards.Clear();
+                Check(g.SafeTravel&&g.save.version==2&&
+                    g.projectiles.Count==1&&incoming.life==1f,
+                    "Threat evaluation preserves actual world physics, projectile ownership and old-save fields");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void TruePlayerWalkingVelocityNeverIncludesDodgeOrPlantedAttack(Campaign data)
         {
             MapData original=data.maps[1];
