@@ -3433,18 +3433,28 @@ namespace Starfall
         // their real bodies. The quest guidance is explicitly opt-in; no
         // hand-held pin, chapter flag, rewards or journal selection changes
         // merely because the player heard someone's testimony.
-        private QuestGuide LocalCompanionFieldWork(int region)
+        private List<QuestGuide> AvailableCompanionFieldJobs(int region)
         {
+            var jobs=new List<QuestGuide>();
+            if(region<5||region>7||!CanEnter(region))return jobs;
+            // Stable, authored candidate order. Each live QuestGuide owns
+            // its physical region, gating, reward and dynamic next step.
+            // Never invent quest IDs or let a distant completed quest
+            // masquerade as a local companion's unfinished assignment.
             string[] preferred={"farshore_relief","relief_rescue",
                 "stations","far_couriers","outer_rescue","outer_delivery"};
             foreach(string id in preferred)
             {
                 QuestGuide work=GetQuest(id);
                 if(work!=null&&!work.locked&&!work.complete&&
-                   work.room==region&&CanEnter(region))
-                    return work;
+                   work.room==region)jobs.Add(work);
             }
-            return null;
+            return jobs;
+        }
+        private QuestGuide LocalCompanionFieldWork(int region)
+        {
+            List<QuestGuide> jobs=AvailableCompanionFieldJobs(region);
+            return jobs.Count>0?jobs[0]:null;
         }
         private bool ChooseCompanionFieldCouncil(string action)
         {
@@ -3470,6 +3480,18 @@ namespace Starfall
                 return true;
             }
             QuestGuide work=LocalCompanionFieldWork(save.room);
+            bool chosenLocalWork=choice.StartsWith("pick_",
+                StringComparison.Ordinal);
+            if(chosenLocalWork)
+            {
+                string idWanted=choice.Substring("pick_".Length);
+                QuestGuide matched=null;
+                foreach(QuestGuide candidate in
+                        AvailableCompanionFieldJobs(save.room))
+                    if(candidate.id==idWanted)matched=candidate;
+                if(matched==null)return true;
+                work=matched;
+            }
             // QuestGuide is localized at creation. Both sides of the
             // bilingual dialogue must use THEIR OWN official localized
             // live quest text regardless of the user's present language.
@@ -3477,7 +3499,7 @@ namespace Starfall
                 InnJobGuideInLanguage(work.id,false);
             QuestGuide workEn=work==null?null:
                 InnJobGuideInLanguage(work.id,true);
-            if(choice=="track")
+            if(choice=="track"||chosenLocalWork)
             {
                 if(work!=null)
                 {
@@ -3498,6 +3520,37 @@ namespace Starfall
                             "companion_field_open_"+id),
                         C("结束交谈","Finish talking","close"));
                 }
+                return true;
+            }
+            if(choice=="jobs")
+            {
+                List<QuestGuide> available=AvailableCompanionFieldJobs(
+                    save.room);
+                var tasks=new List<Choice>();
+                // The original dialogue paginates >6 options, but these
+                // three deliberate live local projects fit in one page,
+                // leaving explicit return/close controls in reach.
+                for(int k=0;k<Math.Min(3,available.Count);k++)
+                {
+                    string questId=available[k].id;
+                    QuestGuide zh=InnJobGuideInLanguage(questId,false);
+                    QuestGuide en=InnJobGuideInLanguage(questId,true);
+                    tasks.Add(C(zh.title,en.title,
+                        "companion_field_pick_"+questId+"_"+id));
+                }
+                tasks.Add(C("返回当地议事","Back to local discussion",
+                    "companion_field_open_"+id));
+                tasks.Add(C("结束交谈","Finish talking","close"));
+                Dialog(host.name,host.en,
+                    new[]{
+                        "米拉把码头的三张工作单压在木板下。\n\n“先挑一件你亲自去做的。名单上的名字不会因为你把纸拿走就平安回家。”",
+                        "伊沃在工程图上找出还没标成绿色的工位。\n\n“开着的机器不代表有人在用。你亲手去一趟，回来告诉我它到底响没响。”",
+                        "森沿着风雪中的三个守路点划线。\n\n“先选一条真能走通的路。画在地图上，不等于有人在那里等你。”"}[id],
+                    new[]{
+                        "Mira pins the three work slips beneath a plank.\n\n'Choose one you will actually walk. Taking a name off a list does not bring that person home.'",
+                        "Ivo finds the stations still unmarked on his repair diagram.\n\n'A running machine does not mean anyone has used it. Walk there and tell me what you hear.'",
+                        "Sen draws a line between three watch posts in the snow.\n\n'Choose a road that someone can really walk. A line on a map cannot stand guard.'"}[id],
+                    tasks.ToArray());
                 return true;
             }
             if(choice=="witness")
@@ -3547,9 +3600,13 @@ namespace Starfall
                 "Hear what the official report left out",
                 "companion_field_witness_"+id));
             if(work!=null)
-                choices.Add(C("查看并追踪这附近还没做完的事",
-                    "Choose a real unfinished local task",
+                choices.Add(C("查看并追踪当前最紧要的一件事",
+                    "Track the most urgent local task",
                     "companion_field_track_"+id));
+            if(AvailableCompanionFieldJobs(save.room).Count>1)
+                choices.Add(C("看看附近其它真正的委托",
+                    "Browse other nearby work",
+                    "companion_field_jobs_"+id));
             choices.Add(C("返回同伴交谈","Back to companion",
                 "companion_field_back_"+id));
             choices.Add(C("先告辞","Leave for now","close"));

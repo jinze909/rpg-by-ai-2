@@ -72,6 +72,65 @@ namespace Starfall.Tests
 
 
 
+
+        public static void RealCompanionLocalJobsOfferDistinctLiveQuestChoices(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(5);
+            WorldObject companion=Object(g,"captain");
+            Check(PlaceWithinTalkReach(g,companion),
+                "An original reachable captain is required to browse local work");
+            g.Talk(companion);
+            int field=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="companion_field_open_0");
+            Check(field>=0,"The original NPC offers the field council");
+            g.Choose(field);
+            int more=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="companion_field_jobs_0");
+            Check(more>=0,
+                "At least two distinct unfinished regional quests are genuinely available in early farshore civil works");
+            int coins=g.save.coins,shards=g.save.shards,
+                flags=g.save.flags.Count;
+            string before=g.save.trackedQuest;
+            g.Choose(more);
+            Check(g.mode=="dialog"&&g.conversationSource==companion&&
+                g.conversation.speaker==companion.name,
+                "Job browser is spoken only by the physically present captain");
+            var choices=new List<Choice>();
+            foreach(Choice choice in g.conversation.choices)
+                if(choice.action.StartsWith("companion_field_pick_"))
+                    choices.Add(choice);
+            Check(choices.Count>=2&&choices.Count<=3,
+                "NPC must list two or three actual playable different regional missions, not fake decorative links");
+            for(int i=0;i<choices.Count;i++)
+            {
+                string suffix=choices[i].action.Substring(
+                    "companion_field_pick_".Length);
+                string id=suffix.Substring(0,suffix.LastIndexOf('_'));
+                QuestGuide quest=g.GetQuest(id);
+                Check(!quest.locked&&!quest.complete&&quest.room==5&&
+                    quest.title==choices[i].label,
+                    "Every distinct displayed choice names its true unlocked uncompleted local mission");
+            }
+            Check(g.save.trackedQuest==before&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Browsing multiple real jobs cannot automatically track or pay any of them");
+            // Select a non-default task, proving the choice determines
+            // the committed saved tracker rather than always taking first.
+            Choice chosen=choices[1];
+            string selected=chosen.action.Substring(
+                "companion_field_pick_".Length);
+            selected=selected.Substring(0,selected.LastIndexOf('_'));
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                ch=>ch.action==chosen.action));
+            Check(g.save.trackedQuest==selected&&
+                g.TakeJournalFocusRequest()==selected&&
+                g.conversationSource==companion&&
+                g.conversation.speaker==companion.name&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                g.save.flags.Count==flags&&g.save.version==2,
+                "Picking the second authentic live quest changes ONLY the explicit journal track and maintains actual human speaker/source");
+        }
+
         public static void PhysicalCompanionCouncilOnlyTracksRealActionableRegionalQuest(Campaign data)
         {
             string[] kinds={"captain","tinker","keeper"};
