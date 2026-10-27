@@ -138,6 +138,17 @@ namespace Starfall
         // pin. Manual pins, journal navigation and region transitions cancel.
         private string atlasSurveyRoadId;
         private WorldObject atlasSurveyMarker;
+        private WorldObject atlasPendingMarker;
+        private MapData atlasPendingMap;
+        private int atlasPendingRoom=-1;
+        private float atlasPendingRetry;
+        public bool AtlasSurveyHandoffPending
+        {
+            get {return atlasPendingMarker!=null &&
+                save!=null&&atlasPendingRoom==save.room&&
+                Object.ReferenceEquals(atlasPendingMap,Map)&&
+                !Has("waytrail_"+atlasPendingMarker.id);}
+        }
         private int atlasSurveyRoom=-1;
         private MapData atlasSurveyMap;
         private bool atlasSurveyArrived;
@@ -145,6 +156,8 @@ namespace Starfall
         {
             atlasSurveyRoadId=null;atlasSurveyMarker=null;
             atlasSurveyRoom=-1;atlasSurveyMap=null;atlasSurveyArrived=false;
+            atlasPendingMarker=null;atlasPendingMap=null;
+            atlasPendingRoom=-1;atlasPendingRetry=0f;
         }
         private void OwnAtlasSurvey(WorldObject marker)
         {
@@ -174,7 +187,10 @@ namespace Starfall
         {
             get
             {
-                if(!AtlasSurveyNavigationActive)return "";
+                if(!AtlasSurveyNavigationActive&&!AtlasSurveyHandoffPending)return "";
+                if(AtlasSurveyHandoffPending)
+                    return L("星图旧路封闭 · 等待道路恢复",
+                        "ATLAS ROUTE BLOCKED · WAIT FOR ROAD");
                 int done=0;
                 foreach(string side in new[]{"s","e"})
                 {
@@ -189,6 +205,40 @@ namespace Starfall
                 return L(south?"星图：前往南侧旧路":"星图：前往东侧旧路",
                     south?"ATLAS: SOUTHERN ROAD":"ATLAS: EASTERN ROAD")+progress;
             }
+        }
+        // Once a real first-road survey earned its next physical step,
+        // retain the next destination while an ordinary gate or tidal wall
+        // is closed. Never paint a false arrow through that closed wall.
+        // Retry at most once per 1.25 world seconds; no saved timers/flags.
+        private void AwaitAtlasSurveyRoute(WorldObject next)
+        {
+            ResetLocalWaymark();
+            atlasPendingMarker=next;atlasPendingMap=Map;
+            atlasPendingRoom=save.room;atlasPendingRetry=1.25f;
+            revision++;
+        }
+        private void TickPendingAtlasSurvey(float dt)
+        {
+            if(!AtlasSurveyHandoffPending)return;
+            if(mode!="world"||Dying||practicing)return;
+            atlasPendingRetry-=dt;
+            if(atlasPendingRetry>0f)return;
+            atlasPendingRetry=1.25f;
+            WorldObject next=atlasPendingMarker;
+            if(next==null||!SourceBelongsToActiveMap(next)||
+               !IsObjectPresent(next)||next.kind!="waytrail")
+            {
+                ResetAtlasSurvey();revision++;
+                Notify("旧路标已不在现场，星图待续路线已取消。",
+                    "The old road marker is gone. Atlas auto-follow was cancelled.");
+                return;
+            }
+            Point foot;
+            if(!TryQuestApproachFoot(new Point(next.x,next.y),out foot))return;
+            CommitLocalWaymark(foot,null);
+            OwnAtlasSurvey(next);
+            Notify("道路已经开放！星图自动恢复通往下一处旧路标的步行引导。",
+                "The road reopened! The atlas resumed the next physical walking route.");
         }
         private void AdvanceAtlasSurvey(WorldObject surveyed)
         {
@@ -214,13 +264,13 @@ namespace Starfall
             else
             {
                 bool unfinished=next!=null&&!Has("waytrail_"+next.id);
-                ResetLocalWaymark();
-                revision++;
+                if(unfinished)AwaitAtlasSurveyRoute(next);
+                else { ResetLocalWaymark(); revision++; }
                 Notify(unfinished?
-                    "旧路标已实地测绘。另一条旧路目前封闭，先寻找通路。":
+                    "旧路标已实地测绘。另一条旧路暂时封闭；星图将等待道路恢复，地图内可取消。":
                     "本地区两处旧路标都已实地测绘，星图路线完成。",
                     unfinished?
-                    "Road surveyed. The other route is blocked; find an open crossing.":
+                    "Road surveyed. The next road is blocked; the atlas will retry when it opens. Cancel from the map.":
                     "Both local old roads surveyed. Atlas route complete.");
             }
         }

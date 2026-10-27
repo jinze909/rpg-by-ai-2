@@ -511,7 +511,11 @@ namespace Starfall
             bool remoteOwnsCompass=Game.QuestApproachTravelHandoffPending&&
                 (!objective.HasValue||
                     Game.PlayerRequestedRemoteExitTarget(objective.Value));
-            if(Game.QuestApproachTravelArrivalBlocked && !objective.HasValue)
+            if(Game.AtlasSurveyHandoffPending)
+                Text(1024,178,166,12,
+                    Game.L("星图旧路 · 等待通行","ATLAS · ROAD BLOCKED"),
+                    9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
+            else if(Game.QuestApproachTravelArrivalBlocked && !objective.HasValue)
                 Text(1024,178,166,12,
                     Game.L("到达目标地区 · 路线封闭","QUEST ARRIVAL BLOCKED"),
                     9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
@@ -548,7 +552,7 @@ namespace Starfall
             // guidance is OFF, without ever implying fast-travel happened.
             if(remoteOwnsCompass)
                 Text(1024,204,166,11,Game.RemoteQuestNextStop,9,mint,TextAnchor.MiddleCenter);
-            else if(Game.AtlasSurveyNavigationActive)
+            else if(Game.AtlasSurveyNavigationActive||Game.AtlasSurveyHandoffPending)
                 Text(1024,204,166,11,Game.AtlasSurveyNextStop,9,mint,TextAnchor.MiddleCenter);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
         }
@@ -1306,6 +1310,12 @@ namespace Starfall
                             "Cancel pending remote quest route")))
                     Game.ClearLocalWaymark();
             }
+            else if(Game.AtlasSurveyHandoffPending&&!mapTileCursor.Active)
+            {
+                if(Button(888,571,306,35,
+                    Game.L("取消等待中的星图路线","Cancel pending atlas route")))
+                    Game.ClearLocalWaymark();
+            }
             else if(selectedRegion==Game.save.room)
             {
                 if(mapTileCursor.Active)
@@ -1364,6 +1374,10 @@ namespace Starfall
                 Text(888,607,306,18,Game.RemoteQuestNextStop,
                     11,mint,TextAnchor.MiddleCenter);
             if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
+                Game.AtlasSurveyHandoffPending)
+                Text(888,605,306,11,Game.AtlasSurveyNextStop,
+                    9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
+            else if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
                 Game.HasLocalWaymark)
                 Text(888,605,306,11,
                     Game.QuestApproachNextStageBlocked?

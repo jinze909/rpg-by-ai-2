@@ -156,7 +156,8 @@ namespace Starfall
         }
         public bool ClearLocalWaymark()
         {
-            if(!localWaymarkSet && !QuestApproachTravelHandoffPending)return false;
+            if(!localWaymarkSet && !QuestApproachTravelHandoffPending &&
+               !AtlasSurveyHandoffPending)return false;
             ResetLocalWaymark();
             revision++;
             return true;
@@ -390,7 +391,11 @@ namespace Starfall
                 }
                 return;
             }
-            if(!mark.HasValue)return;
+            if(!mark.HasValue)
+            {
+                if(AtlasSurveyHandoffPending)TickPendingAtlasSurvey(dt);
+                return;
+            }
             bool fromQuest=!string.IsNullOrEmpty(localWaymarkQuestId);
             if(!localWaymarkQuestStageRoutePending &&
                 (Position-mark.Value).Length<=.85f &&
