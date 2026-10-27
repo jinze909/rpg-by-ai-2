@@ -7178,7 +7178,19 @@ public static class RuntimeCombatInputChecks
             g.save.energy<100f,
             "Actual clickable pebble HUD respects player facing instead of aiming at its own screen position");
         GUI.queuedClick=null;Input.Clear();
-        Console.WriteLine("PASS Real keyboard U and clickable aiming-safe pebble HUD, physical projectile, cooldown and modal isolation");
+        // The existing controller uses R3 for target lock. Holding L3
+        // with one discrete R3 press must throw exactly one stone without
+        // activating the previous interaction/target cycle.
+        g.projectiles.Clear();g.pebbleCooldown=0f;g.save.energy=100f;
+        g.aim=new Point(1,0);
+        Input.held.Add(KeyCode.JoystickButton8);
+        Input.keys.Add((KeyCode)((int)KeyCode.JoystickButton0+9));
+        Update(app);
+        Check(g.projectiles.Exists(p=>p.visual=="pebble"&&
+            p.velocity.x>10f)&&g.pebbleCooldown>0f,
+            "Live controller L3+R3 chord throws the same actual world pebble without mutating saved target state");
+        Input.Clear();
+        Console.WriteLine("PASS Real keyboard U, clickable HUD and gamepad L3+R3 on one physical pebble, cooldown and modal isolation");
     }
 
     private static void LiveQuietRearOpenerUsesActualWorldAimSpriteAndSword(FrontierRuntime app)

@@ -192,12 +192,21 @@ namespace Starfall
                 // Process it before a same-frame Q / attack captures aim.
                 if(PadDown(9))
                 {
+                    // L3+R3 is an intentional controller throw chord.
+                    // Consume R3 here so it cannot also select another
+                    // speaker or toggle combat target lock in this frame.
+                    // R3 alone retains every existing original behavior.
+                    if(Input.GetKey(KeyCode.JoystickButton8))
+                        Game.ThrowPebble(Game.aim);
+                    else
+                    {
                     // R3 keeps enemy lock during combat. In a peaceful,
                     // crowded scene it instead cycles the actual E target,
                     // including two speakers sharing the same physical foot.
                     if(Game.SafeTravel&&Game.NearbyInteractionCount()>1)
                         Game.CycleNearbyInteraction();
                     else ToggleControllerTargetLock();
+                    }
                 }
                 if(Input.GetKeyDown(KeyCode.O))
                     Game.CycleNearbyInteraction();

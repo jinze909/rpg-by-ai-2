@@ -464,8 +464,11 @@ namespace Starfall
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
                 ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
                 if(Button(24,691,304,27,
-                    Game.L("U · 投石诱敌 · 8耐力",
-                           "U · THROW PEBBLE · 8 EN"),
+                    controllerUsed?
+                        Game.L("L3+R3 · 投石 · 8耐力",
+                               "L3+R3 · PEBBLE · 8 EN"):
+                        Game.L("U · 投石诱敌 · 8耐力",
+                               "U · THROW PEBBLE · 8 EN"),
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
                     !Game.practicing))
