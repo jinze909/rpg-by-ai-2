@@ -60,7 +60,7 @@ namespace Starfall.Tests
             atlasPin=g.LocalWaymark;
             WorldObject[] original=g.Map.objects;
             WorldObject[] swapped=(WorldObject[])original.Clone();
-            int slot=Array.FindIndex(swapped,o=>Object.ReferenceEquals(o,south));
+            int slot=Array.FindIndex(swapped,o=>System.Object.ReferenceEquals(o,south));
             Check(slot>=0,"The survey owns the actual authored object reference");
             swapped[slot]=new WorldObject{id=south.id,kind=south.kind,
                 name=south.name,en=south.en,x=south.x,y=south.y};
