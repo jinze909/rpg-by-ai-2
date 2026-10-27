@@ -2340,6 +2340,7 @@ namespace Starfall
                 bool ordinaryPatrol=!e.boss&&!wardAttacker&&
                     !travelerAttacker&&!reliefAttacker&&!escortPatrol&&
                     !stockRaider&&!patrolSaboteur;
+                bool trackingOrdinaryFoot=false;
                 if(ordinaryPatrol)
                 {
                     // Awareness memory must be earned by an actual clear
@@ -2369,6 +2370,7 @@ namespace Starfall
                             // Never turn toward a concealed live player.
                             // Steer the original collision-aware AI to the
                             // last real visual or missile-contact foot.
+                            trackingOrdinaryFoot=true;
                             pursuit=lastSeen;
                             delta=pursuit-e.Position;
                             distance=delta.Length;
@@ -2389,7 +2391,8 @@ namespace Starfall
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = playerHitProvoked&&
+                float desired = trackingOrdinaryFoot ? .22f :
+                    playerHitProvoked&&
                     (IsEnemyInvestigatingImpact(e)||
                      IsEnemyReturningFromImpact(e)) ? .22f :
                     wardBow ? 4.5f :
