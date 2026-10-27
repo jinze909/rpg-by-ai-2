@@ -352,7 +352,7 @@ namespace Starfall.Tests
                     (g.PredictRangedTargetPoint(target,13f,.28f,false)-
                      target.Position).Length<.00001f,
                     "Sword Q aims ahead of genuine moving enemies without changing basic sword aim");
-                Check(Object.ReferenceEquals(
+                Check(System.Object.ReferenceEquals(
                     g.AcquireRangedStickTarget(new Point(1f,0f)),target),
                     "Ranger Q target selection remains available with the true equipped sword hand");
                 g.save.technique=1;
