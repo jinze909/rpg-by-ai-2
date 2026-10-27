@@ -3,6 +3,54 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void LethalDistantSnipeStillAlertsGenuineSeeingPatrolWitness(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";g.invulnerable=300f;
+                g.save.x=7.5f;g.save.y=10.5f;
+                var victim=new Enemy(76101,0,21.5f,10.5f,6f);
+                var mate=new Enemy(76102,0,20.5f,13.5f,200f);
+                victim.timer=mate.timer=1f;
+                g.enemies.Add(victim);g.enemies.Add(mate);
+                Point standing=mate.Position;
+                var impact=new ImpactProfile(1,0,1,0,0f,true,1);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"Genuine lethal damage uses the actual core pipeline");
+                hit.Invoke(g,new object[]{victim,30f,false,(Point?)null,impact});
+                Check(!g.enemies.Contains(victim)&&
+                    g.enemies.Contains(mate),
+                    "The distant lethal contact removes only its real victim");
+                Advance(g,.75f);
+                Check((mate.Position-standing).Length>.2f&&
+                    g.CanStand(mate.Position),
+                    "A seeing patrol mate physically responds even when the actual struck body died instantly");
+                g.Enter(0);g.Enter(1);g.enemies.Clear();
+                var fresh=new Enemy(76102,0,20.5f,13.5f,200f);
+                fresh.timer=1f;g.enemies.Add(fresh);
+                Point newFoot=fresh.Position;
+                Advance(g,.35f);
+                Check((fresh.Position-newFoot).Length<.01f,
+                    "No dead witness target or old alert survives a real region transition");
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void LongRangePlayerHitCausesRealBoundedPhysicalEnemyPursuit(Campaign data)
         {
             MapData previous=data.maps[1];
@@ -33,13 +81,21 @@ namespace Starfall.Tests
                 hidden.timer=1f;g.enemies.Add(hidden);
                 char[] barrier=g.Map.rows[10].ToCharArray();
                 barrier[22]='#';g.Map.rows[10]=new string(barrier);
+                var lane=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(lane!=null,"The authoritative obstacle-aware strike lane is available");
+                bool seeing=(bool)lane.Invoke(g,
+                    new object[]{foe.Position,witness.Position});
+                bool shielded=(bool)lane.Invoke(g,
+                    new object[]{foe.Position,hidden.Position});
+                bool heroLane=(bool)lane.Invoke(g,
+                    new object[]{g.Position,foe.Position});
                 Check(g.CanStand(witness.Position)&&g.CanStand(hidden.Position)&&
-                    g.ClearAttackPath(foe.Position,witness.Position)&&
-                    !g.ClearAttackPath(foe.Position,hidden.Position),
-                    "A nearby allied witness can see the hit while a same-distance ally behind real stone cannot");
-                Check(g.CanStand(foe.Position)&&
-                    g.ClearAttackPath(g.Position,foe.Position),
-                    "The tested distant hit has an actual traversable ranged lane");
+                    seeing&&!shielded,
+                    "A nearby ally sees the attack while a similar ally behind actual solid stone does not");
+                Check(g.CanStand(foe.Position)&&heroLane,
+                    "The tested distant player contact has a real traversable ranged lane");
                 Point start=foe.Position,seenStart=witness.Position,
                     hiddenStart=hidden.Position;
                 Advance(g,.55f);

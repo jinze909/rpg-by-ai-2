@@ -68,15 +68,21 @@ namespace Starfall
         private void NotifyEnemyOfActualDistantPlayerHit(Enemy e,ImpactProfile impact)
         {
             if(e==null||impact==null||!impact.playerOwned||
-               e.boss||e.hp<=0||practicing||mode!="world"||
+               e.boss||practicing||mode!="world"||
                !enemies.Contains(e))return;
             float range=(e.Position-Position).Length;
             if(!Finite(range)||range<=8f||range>18f)return;
             EnsureEnemyHitAlertSession();
-            if(!enemyHitAlert.ContainsKey(e))
-                effects.Add(new Effect("number",e.Position,.7f,
-                    L("察觉袭击","UNDER ATTACK")));
-            enemyHitAlert[e]=EnemyHitAlertSeconds;
+            // Lethal sniping still produces a real witnessed strike:
+            // the original enemy dies and cannot pursue, but companions
+            // who saw the fatal contact may react normally.
+            if(e.hp>0)
+            {
+                if(!enemyHitAlert.ContainsKey(e))
+                    effects.Add(new Effect("number",e.Position,.7f,
+                        L("察觉袭击","UNDER ATTACK")));
+                enemyHitAlert[e]=EnemyHitAlertSeconds;
+            }
             // Nearby living patrol mates can see a comrade get struck.
             // This is not a magical room-wide alarm: only neighbors
             // within three and a half physical tiles with a genuinely
