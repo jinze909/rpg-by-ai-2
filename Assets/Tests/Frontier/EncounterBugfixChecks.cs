@@ -401,7 +401,7 @@ namespace Starfall.Tests
                         quiet=dealt;
                         Check(g.effects.Exists(fx=>fx.kind=="number"&&
                               (fx.text=="轻步突袭！"||fx.text=="QUIET OPENER"))&&
-                              new List<string>(g.sounds).Contains("ambush"),
+                              new System.Collections.Generic.List<string>(g.sounds).Contains("ambush"),
                             "Earned quiet opener plays the existing ambush audio and actual contact text");
                     }
                 }
