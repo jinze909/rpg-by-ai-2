@@ -53,7 +53,7 @@ namespace Starfall.Tests
                 "Original final choice reveals only the unlocked reconstruction chapter and its live quest");
             foreach(StoryBeat beat in beats)
             {
-                Check(beat.chapter>=1 && beat.chapter<=11 &&
+                Check(beat.chapter>=1 && beat.chapter<=12 &&
                     !string.IsNullOrEmpty(beat.title) &&
                     !string.IsNullOrEmpty(beat.summary) &&
                     !string.IsNullOrEmpty(beat.next) &&
@@ -103,6 +103,63 @@ namespace Starfall.Tests
             Check(game.StoryRecap()[3].summary.Contains("You kept the shield") &&
                 !game.StoryRecap()[3].summary.Contains("你保留了屏障"),
                 "The specific past ending is also readable in English without a duplicated Chinese suffix");
+        }
+
+        public static void ChapterTwelveStoryRecapTracksActualThreeRegionAudit(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.stage=3;game.save.ending=1;
+            Check(!game.StoryRecap().Exists(b=>b.chapter==12),
+                "The new story recap never reveals Chapter Twelve before the genuine completed public grid");
+            game.save.flags.Add("civic_conduit_complete");
+            List<StoryBeat> opened=game.StoryRecap();
+            StoryBeat chapter=opened[opened.Count-1];
+            Check(chapter.chapter==12&&chapter.questId=="civic_aftercare"&&
+                chapter.title.Contains("第十二章")&&!chapter.complete&&
+                chapter.next==game.GetQuest("civic_aftercare").next&&
+                chapter.summary.Contains("夜行旅人"),
+                "Completing the three real grid valves reveals the previously missing twelfth story and its actionable Inn quest");
+            game.save.flags.Add("civic_aftercare_started");
+            List<StoryBeat> started=game.StoryRecap();
+            Check(started[started.Count-1].chapter==12&&
+                started[started.Count-1].summary.Contains("巡路簿")&&
+                started[started.Count-1].next==
+                    game.GetQuest("civic_aftercare").next,
+                "Chapter Twelve speaks of the actual accepted road ledger, not an unstarted task");
+            game.save.flags.Add("civic_aftercare_waytrail_0");
+            Check(game.StoryRecap()[game.StoryRecap().Count-1].next==
+                game.GetQuest("civic_aftercare").next&&
+                game.GetQuest("civic_aftercare").room==3,
+                "The story recap follows the real second regional waypoint after Canal is surveyed");
+            game.save.flags.Add("civic_aftercare_waytrail_3");
+            game.save.flags.Add("civic_aftercare_waytrail_5");
+            StoryBeat ready=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(!ready.complete&&ready.next==
+                game.GetQuest("civic_aftercare").next&&
+                game.GetQuest("civic_aftercare").room==9,
+                "Three visited landmarks are not falsely counted as a published report; the live goal returns to the Inn");
+            game.save.english=true;
+            StoryBeat english=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(english.title.StartsWith("Chapter Twelve")&&
+                english.summary.Contains("Hearth Inn")&&
+                !english.summary.Contains("夜行旅人")&&
+                english.next==game.GetQuest("civic_aftercare").next,
+                "The same earned chapter and actual quest goal render entirely in English");
+            game.save.flags.Add("civic_aftercare_published");
+            StoryBeat complete=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(complete.chapter==12&&complete.complete&&
+                complete.summary.Contains("route ledger")&&
+                complete.next.Contains("field kits"),
+                "Real public publication retires the road audit and records its permanent field-kit legacy");
+            int count=game.save.flags.Count,coins=game.save.coins;
+            game.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(game.save));
+            reloaded.Start();
+            List<StoryBeat> resumed=reloaded.StoryRecap();
+            Check(reloaded.save.version==2&&resumed[resumed.Count-1].chapter==12&&
+                resumed[resumed.Count-1].complete&&
+                reloaded.save.flags.Count==count&&reloaded.save.coins==coins,
+                "No Chapter Twelve cache or SaveData migration is required to restore the final public road ledger");
         }
 
         public static void StoryRecapNeverRewritesExistingSaveOrQuestTracking(Campaign data)

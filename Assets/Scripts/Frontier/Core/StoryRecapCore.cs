@@ -54,7 +54,7 @@ namespace Starfall
         // No downstream chapter name, choice or outcome leaks on a new game.
         public List<StoryBeat> StoryRecap()
         {
-            var beats=new List<StoryBeat>(11);
+            var beats=new List<StoryBeat>(12);
             AddRecapBeat(beats,1,"第一章 · 密林的星根",
                 "Chapter One · The Forest Roots",
                 Has("scout_saved")?
@@ -143,6 +143,21 @@ namespace Starfall
                 "New civic rights need a working grid. Tune three physical valves, avoid live arcs and restore power to public refuges.",
                 "三个阀门已经校准，公共电网持续服务远岸居民。",
                 "Three tuned valves keep the public grid serving the farshore.");
+            // The town's chronicle ALREADY has Chapter Twelve; the tracked
+            // story recap must not strand a player after the grid ending.
+            // Reuse the real road-audit quest for both unlock and next foot,
+            // so none of the three regional checks can be fabricated here.
+            AddUnlockedRecap(beats,12,"civic_aftercare",
+                "第十二章 · 电网之后，谁守着路",
+                "Chapter Twelve · Who Keeps the Road After the Grid",
+                Has("civic_aftercare_started")?
+                    "电网重新送来了光。夜行旅人摊开巡路簿，等着引水渠、赤铁矿场和雾港的旧路标留下亲自核验的记号。已确认的路能带人回家，未到过的路仍是空白。":
+                    "三道阀门都接通了，但灯亮不代表夜路安全。去炉火旅店找夜行旅人，领走巡路簿，替引水渠、赤铁矿场和雾港重新走一遍旧路标。",
+                Has("civic_aftercare_started")?
+                    "The grid carries light again. At Hearth Inn the night traveler has spread out the road ledger, waiting for first-hand marks from Canal, Ironreach and Mistport. A checked road brings people home; the unwalked routes remain blank.":
+                    "All three valves carry current, but lamplight alone cannot make a night road safe. Find the night traveler at Hearth Inn, take the route ledger and walk the old markers in Canal, Ironreach and Mistport.",
+                "三地巡路实录已经公开，守路人会在核验路标旁留下药箱，照顾后来的人。",
+                "The three-region road ledger is published. Its surveyed markers now keep herbal field kits for those who come after.");
             return beats;
         }
 
