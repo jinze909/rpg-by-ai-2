@@ -3478,15 +3478,15 @@ namespace Starfall
                     journalFocusRequest=work.id;
                     Dialog(host.name,host.en,
                         new[]{
-                        "米拉在实地簿上圈出这段仍需人走的岸路。\\n\\n“我会守着这份返航名册。你去亲眼看过，路标才算数。”",
-                        "伊沃把一枚铜螺钉放在工程图上。\\n\\n“纸上写着已修复，可我只信阀门真正给居民送过水。”",
-                        "森合上守夜簿，指向窗外仍亮着的暖站。\\n\\n“路终究要有人去走。回来时告诉我，哪一处还听不见人声。”"}[id]+
-                        "\\n\\n"+work.next,
+                        "米拉在实地簿上圈出这段仍需人走的岸路。\n\n“我会守着这份返航名册。你去亲眼看过，路标才算数。”",
+                        "伊沃把一枚铜螺钉放在工程图上。\n\n“纸上写着已修复，可我只信阀门真正给居民送过水。”",
+                        "森合上守夜簿，指向窗外仍亮着的暖站。\n\n“路终究要有人去走。回来时告诉我，哪一处还听不见人声。”"}[id]+
+                        "\n\n"+work.next,
                         new[]{
-                        "Mira circles the stretch of coast that still needs a living witness.\\n\\n'I will mind the return list. Walk the markers yourself. Then the route means something.'",
-                        "Ivo sets a copper screw on the works drawing.\\n\\n'Ink says repaired. I believe it only when the valve gives water to somebody.'",
-                        "Sen shuts the night ledger and points to the lit refuge.\\n\\n'Someone still has to walk that road. Tell me where voices are going unheard.'"}[id]+
-                        "\\n\\n"+work.next,
+                        "Mira circles the stretch of coast that still needs a living witness.\n\n'I will mind the return list. Walk the markers yourself. Then the route means something.'",
+                        "Ivo sets a copper screw on the works drawing.\n\n'Ink says repaired. I believe it only when the valve gives water to somebody.'",
+                        "Sen shuts the night ledger and points to the lit refuge.\n\n'Someone still has to walk that road. Tell me where voices are going unheard.'"}[id]+
+                        "\n\n"+work.next,
                         C("返回实地议事","Back to field discussion",
                             "companion_field_open_"+id),
                         C("结束交谈","Finish talking","close"));
@@ -3496,14 +3496,14 @@ namespace Starfall
             if(choice=="witness")
             {
                 string[] testimonyZh={
-                    "米拉把一页潮汐簿压在栏杆下。\\n\\n“过去公会数的是船，港务厅数的是货。名单上同一个夜晚，北岸有三户人家在等船，可台账只写着‘船位不足’。我弟弟在空白处记下了他们的姓。”\\n\\n她抬头看向渡口。\\n\\n“浮桥修好了，我很高兴。可下一次涨潮，谁负责核对最后一班船的人数？别再让一句‘已经完工’替活人作答。”",
-                    "伊沃从修理箱里取出旧值夜牌。\\n\\n“这牌子原本只准工头碰阀门。夜里缺水，值班的女人用自己的钥匙把阀门开了一格。第二天所有人有水喝，她却挨了罚。”\\n\\n他翻过牌子，背面刻着一串歪歪扭扭的用水数字。\\n\\n“我把它留着，提醒自己：机器以后要记住用水的人，不是惩罚敢开阀的人。”",
-                    "森把碎裂的旧钟槌放在避风的石栏上。\\n\\n“我教过新兵：雾一起来，就按钟表敲响三次。那年夜里有孩子在冰下叫人，钟声却盖过了他。”\\n\\n他摸了摸断面。\\n\\n“如今守路的人先走到火盆边，听一听有没有人求救，然后才敲钟。不是钟变了，是我们终于肯改那本手册。”"
+                    "米拉把一页潮汐簿压在栏杆下。\n\n“过去公会数的是船，港务厅数的是货。名单上同一个夜晚，北岸有三户人家在等船，可台账只写着‘船位不足’。我弟弟在空白处记下了他们的姓。”\n\n她抬头看向渡口。\n\n“浮桥修好了，我很高兴。可下一次涨潮，谁负责核对最后一班船的人数？别再让一句‘已经完工’替活人作答。”",
+                    "伊沃从修理箱里取出旧值夜牌。\n\n“这牌子原本只准工头碰阀门。夜里缺水，值班的女人用自己的钥匙把阀门开了一格。第二天所有人有水喝，她却挨了罚。”\n\n他翻过牌子，背面刻着一串歪歪扭扭的用水数字。\n\n“我把它留着，提醒自己：机器以后要记住用水的人，不是惩罚敢开阀的人。”",
+                    "森把碎裂的旧钟槌放在避风的石栏上。\n\n“我教过新兵：雾一起来，就按钟表敲响三次。那年夜里有孩子在冰下叫人，钟声却盖过了他。”\n\n他摸了摸断面。\n\n“如今守路的人先走到火盆边，听一听有没有人求救，然后才敲钟。不是钟变了，是我们终于肯改那本手册。”"
                 };
                 string[] testimonyEn={
-                    "Mira anchors a tide ledger under her hand.\\n\\n'The guild counted boats. Harbor officials counted cargo. That same night, three families waited on the north bank, but the log only said no berths. My brother wrote down their names in the margin.'\\n\\nShe looks over the quay.\\n\\n'The pontoon is repaired. Good. But when the next tide comes, who checks the last ferry's passenger list? Do not let the words work complete answer for living people.'",
-                    "Ivo takes an old night-shift key tag from his repair case.\\n\\n'Only the foreman was allowed to turn that valve. One dry night a worker used her own key and opened it a notch. Everyone had water by morning. She got the fine.'\\n\\nHe turns the tag over. Crooked water readings are scratched into its back.\\n\\n'I keep it so the next machine remembers who needs water, not who dared to turn the wheel.'",
-                    "Sen rests a cracked bell clapper on a sheltered stone rail.\\n\\n'I taught new watchmen: when fog comes, strike three times to the clock. That night a child called from under the ice. The bell drowned him out.'\\n\\nHe touches the fracture.\\n\\n'Now a watchman walks to the brazier and listens before striking. The bell did not change. We finally changed the manual.'"
+                    "Mira anchors a tide ledger under her hand.\n\n'The guild counted boats. Harbor officials counted cargo. That same night, three families waited on the north bank, but the log only said no berths. My brother wrote down their names in the margin.'\n\nShe looks over the quay.\n\n'The pontoon is repaired. Good. But when the next tide comes, who checks the last ferry's passenger list? Do not let the words work complete answer for living people.'",
+                    "Ivo takes an old night-shift key tag from his repair case.\n\n'Only the foreman was allowed to turn that valve. One dry night a worker used her own key and opened it a notch. Everyone had water by morning. She got the fine.'\n\nHe turns the tag over. Crooked water readings are scratched into its back.\n\n'I keep it so the next machine remembers who needs water, not who dared to turn the wheel.'",
+                    "Sen rests a cracked bell clapper on a sheltered stone rail.\n\n'I taught new watchmen: when fog comes, strike three times to the clock. That night a child called from under the ice. The bell drowned him out.'\n\nHe touches the fracture.\n\n'Now a watchman walks to the brazier and listens before striking. The bell did not change. We finally changed the manual.'"
                 };
                 Dialog(host.name,host.en,testimonyZh[id],
                     testimonyEn[id],
@@ -3515,25 +3515,25 @@ namespace Starfall
             if(choice!="open")return true;
             string[] currentZh={
                 Has("farshore_relief_5")?
-                    "米拉望向已搭起的民用浮桥。\\n\\n“桥板不再漏水，可每次救援还得有人在潮前点名。等候者不会因为工程竣工就不再害怕。”":
-                    "米拉把潮位刻在木柱上。\\n\\n“船能靠岸，伤者却无处躺下。先让浮桥和避难站真正能接人，我们才谈得上下一次救援。”",
+                    "米拉望向已搭起的民用浮桥。\n\n“桥板不再漏水，可每次救援还得有人在潮前点名。等候者不会因为工程竣工就不再害怕。”":
+                    "米拉把潮位刻在木柱上。\n\n“船能靠岸，伤者却无处躺下。先让浮桥和避难站真正能接人，我们才谈得上下一次救援。”",
                 Has("farshore_relief_6")?
-                    "伊沃听着遮阳道旁的水泵。\\n\\n“现在路上的人也能喝水了。可风沙一夜就能埋住引流槽，明天还是得有人来清。”":
-                    "伊沃指着储水机的旧铭牌。\\n\\n“灯是亮着的，可人得顶着太阳走很远才有一口水。这条遮阳补给道还欠他们一次真正的修理。”",
+                    "伊沃听着遮阳道旁的水泵。\n\n“现在路上的人也能喝水了。可风沙一夜就能埋住引流槽，明天还是得有人来清。”":
+                    "伊沃指着储水机的旧铭牌。\n\n“灯是亮着的，可人得顶着太阳走很远才有一口水。这条遮阳补给道还欠他们一次真正的修理。”",
                 Has("farshore_relief_7")?
-                    "森往防寒棚里添了一块炭。\\n\\n“炉火已经能护住山路，但离得最远的人还得赶在夜雪前回来。下一班守路人要知道谁没回来。”":
-                    "森站在没有点亮的山路边。\\n\\n“我们从前只修钟，现在先修火盆。再大的钟声也暖不了冻伤的手。”"
+                    "森往防寒棚里添了一块炭。\n\n“炉火已经能护住山路，但离得最远的人还得赶在夜雪前回来。下一班守路人要知道谁没回来。”":
+                    "森站在没有点亮的山路边。\n\n“我们从前只修钟，现在先修火盆。再大的钟声也暖不了冻伤的手。”"
             };
             string[] currentEn={
                 Has("farshore_relief_5")?
-                    "Mira watches the new civilian pontoon.\\n\\n'The boards hold. Someone still has to call every name before the tide turns. Finished construction does not end the waiting.'":
-                    "Mira scratches the tide level into a post.\\n\\n'Boats can land, but the injured have nowhere to lie down. Make the pontoons and refuge fit for people first.'",
+                    "Mira watches the new civilian pontoon.\n\n'The boards hold. Someone still has to call every name before the tide turns. Finished construction does not end the waiting.'":
+                    "Mira scratches the tide level into a post.\n\n'Boats can land, but the injured have nowhere to lie down. Make the pontoons and refuge fit for people first.'",
                 Has("farshore_relief_6")?
-                    "Ivo listens to the pump beside the shaded lane.\\n\\n'Travelers can drink again. One night of sand can still bury the channel. Someone has to clear it tomorrow.'":
-                    "Ivo points to the old reservoir plate.\\n\\n'The light burns. People still walk half a day in the sun for one cup. This shaded supply line owes them a real repair.'",
+                    "Ivo listens to the pump beside the shaded lane.\n\n'Travelers can drink again. One night of sand can still bury the channel. Someone has to clear it tomorrow.'":
+                    "Ivo points to the old reservoir plate.\n\n'The light burns. People still walk half a day in the sun for one cup. This shaded supply line owes them a real repair.'",
                 Has("farshore_relief_7")?
-                    "Sen adds charcoal to the warming shelter.\\n\\n'The fire can keep a road open. The farthest travelers still need someone to notice if they never come back.'":
-                    "Sen stands beside an unlit road marker.\\n\\n'We used to repair bells. Now we repair braziers first. A loud bell cannot warm a frozen hand.'"
+                    "Sen adds charcoal to the warming shelter.\n\n'The fire can keep a road open. The farthest travelers still need someone to notice if they never come back.'":
+                    "Sen stands beside an unlit road marker.\n\n'We used to repair bells. Now we repair braziers first. A loud bell cannot warm a frozen hand.'"
             };
             var choices=new List<Choice>();
             choices.Add(C("听那份没写进报告的事",
@@ -3547,11 +3547,11 @@ namespace Starfall
                 "companion_field_back_"+id));
             choices.Add(C("先告辞","Leave for now","close"));
             Dialog(host.name,host.en,currentZh[id]+
-                (work!=null?"\\n\\n"+work.title+"："+work.next:
-                "\\n\\n眼下这条路没有新的委托。路标和伤员仍有人守着。"),
+                (work!=null?"\n\n"+work.title+"："+work.next:
+                "\n\n眼下这条路没有新的委托。路标和伤员仍有人守着。"),
                 currentEn[id]+
-                (work!=null?"\\n\\n"+work.title+": "+work.next:
-                "\\n\\nThere is no new local commission right now. The watch still keeps the roads and refuges."),
+                (work!=null?"\n\n"+work.title+": "+work.next:
+                "\n\nThere is no new local commission right now. The watch still keeps the roads and refuges."),
                 choices.ToArray());
             return true;
         }

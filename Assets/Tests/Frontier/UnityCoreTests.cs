@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void GenuineCivicQuestFollowUpFromLocalCompanionHasOneExplicitTrackedDestination() { CoreChecks.PhysicalCompanionCouncilOnlyTracksRealActionableRegionalQuest(Data()); }
+        [Test] public void BuiltSheltersChangeAuthenticCompanionConversationWithoutRepeatingRewards() { CoreChecks.FinishedRegionalWorkDoesNotOfferPhantomCompanionAssignment(Data()); }
         [Test] public void ThreeCompanionsHaveAuthenticPostReportFieldCouncils() { CoreChecks.ActualThreeCompanionsHoldLocalFieldCouncilWithOwnVoices(Data()); }
         [Test] public void RemoteOrStaleNPCNeverSpoofsLocalCompanionCouncil() { CoreChecks.FieldCouncilCannotBeOperatedThroughRemoteNpcOrStaleWorld(Data()); }
         [Test] public void OriginalNpcSpeechAndAcceptedChoicesBuildSafeStoryTranscript() { CoreChecks.AuthenticDialogueTranscriptCapturesSpeakersAndOnlyAcceptedChoices(Data()); }

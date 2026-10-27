@@ -71,6 +71,105 @@ namespace Starfall.Tests
 
 
 
+
+        public static void PhysicalCompanionCouncilOnlyTracksRealActionableRegionalQuest(Campaign data)
+        {
+            string[] kinds={"captain","tinker","keeper"};
+            for(int id=0;id<3;id++)
+            {
+                var g=Unlocked(data);
+                // The genuine campaign's civic works are built in room
+                // order. Move this particular in-progress work marker
+                // without creating a new quest, a new save field, or
+                // pretending a distant NPC exists on another map.
+                for(int previous=5;previous<5+id;previous++)
+                    g.save.flags.Add("farshore_relief_"+previous);
+                g.Enter(5+id);
+                WorldObject resident=Object(g,kinds[id]);
+                Check(PlaceWithinTalkReach(g,resident),
+                    "The action lives at the actual authentic companion and reachable footing");
+                QuestGuide local=g.GetQuest("farshore_relief");
+                Check(!local.locked&&!local.complete&&
+                    local.room==g.save.room,
+                    "The authored unfinished civilian-refuge quest is genuinely reachable from this region");
+                int coins=g.save.coins,shards=g.save.shards,
+                    flags=g.save.flags.Count;
+                string old=g.save.trackedQuest;
+                g.Talk(resident);
+                int open=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="companion_field_open_"+id);
+                Check(open>=0,"Local true companion offers field report");
+                g.Choose(open);
+                Check(g.save.trackedQuest==old&&
+                    g.conversation.text.Contains("\n\n")&&
+                    g.conversation.textEn.Contains("\n\n"),
+                    "Spoken field status includes true readable paragraphs and never auto-tracks");
+                int track=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="companion_field_track_"+id);
+                Check(track>=0&&g.conversation.text.Contains(local.next),
+                    "Genuine local task offer includes exact unlocked game journal next step");
+                g.Choose(track);
+                Check(g.save.trackedQuest==local.id&&
+                    g.TakeJournalFocusRequest()==local.id&&
+                    g.conversationSource==resident&&
+                    g.conversation.speaker==resident.name&&
+                    g.conversation.textEn.Contains(local.next==""
+                        ?"__never__":g.GetQuest(local.id).next),
+                    "Explicit original choice focuses authentic local quest while retaining speaker and official task target");
+                Check(g.save.coins==coins&&g.save.shards==shards&&
+                    g.save.version==2&&g.save.flags.Count==flags,
+                    "Following signed journal guidance cannot duplicate building rewards or alter original V2 flags");
+                int back=Array.FindIndex(g.conversation.choices,
+                    choice=>choice.action=="companion_field_open_"+id);
+                Check(back>=0,"After tracking, the same companion can discuss actual work again");
+                g.Choose(back);
+                Check(g.conversationSource==resident&&
+                    g.conversation.speaker==resident.name,
+                    "After task selection the authored conversation remains attached to its one real living NPC");
+            }
+        }
+
+        public static void FinishedRegionalWorkDoesNotOfferPhantomCompanionAssignment(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("farshore_relief_5");
+            g.save.flags.Add("farshore_relief_6");
+            g.save.flags.Add("farshore_relief_7");
+            g.save.flags.Add("farshore_relief_complete");
+            // All three civic shelters are historical accomplishments;
+            // suggestions must never reactivate a finished task in place
+            // of an actual new open regional assignment.
+            g.Enter(5);
+            WorldObject host=Object(g,"captain");
+            Check(PlaceWithinTalkReach(g,host),
+                "Authentic captain remains physically talkable after the shelters are built");
+            g.Talk(host);
+            int open=Array.FindIndex(g.conversation.choices,
+                q=>q.action=="companion_field_open_0");
+            Check(open>=0,"Post-build council still has a real human voice");
+            g.Choose(open);
+            Check(g.conversation.text.Contains("浮桥")&&
+                g.conversation.textEn.Contains("pontoon")&&
+                g.save.version==2,
+                "Local physical service changes the companion's actual spoken aftermath in both languages");
+            if(Array.Exists(g.conversation.choices,q=>
+                q.action=="companion_field_track_0"))
+            {
+                // Other original quests may remain unfinished: they may
+                // be offered, but only if they really are unlocked and
+                // physically assigned to this same region.
+                var pending=new List<string>();
+                foreach(string id in GameCore.QuestIds)
+                {
+                    QuestGuide q=g.GetQuest(id);
+                    if(!q.locked&&!q.complete&&q.room==5)
+                        pending.Add(id);
+                }
+                Check(pending.Count>0,
+                    "A newly suggested local job must refer to some true unfinished region-five original objective");
+            }
+        }
+
         public static void ActualThreeCompanionsHoldLocalFieldCouncilWithOwnVoices(Campaign data)
         {
             string[] kinds={"captain","tinker","keeper"};
