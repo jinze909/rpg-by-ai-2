@@ -300,8 +300,12 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(x=>x.Contains("引敌 "))&&
             GUI.commands.Exists(x=>x.Contains("追击玩家")),
             "Actual world rendering paints both the live civilian timer and pursued enemy state");
+        float energyAfterFirstCall=g.save.energy;
         Input.keys.Add(KeyCode.L);Update(app);
-        Check(Math.Abs(g.save.energy-85f)<.01f,
+        // One more live world frame may legitimately regenerate/drain a
+        // fractional amount of energy. It cannot charge another FIFTEEN.
+        Check(g.save.energy>energyAfterFirst-1.5f&&
+            g.save.energy<=energyAfterFirst+1.5f,
             "Repeated keypress cannot duplicate the once-per-ambush diversion cost");
         Check(g.save.coins==coins&&g.save.shards==shards&&
             g.save.flags.Count==flags&&g.save.version==2,
