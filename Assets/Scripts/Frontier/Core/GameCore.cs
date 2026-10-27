@@ -2008,7 +2008,7 @@ namespace Starfall
                     wardAttacker ? (wardBow ? Position :
                         ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
                     travelerAttacker ? (IsWayfarerDecoyTarget(e)?
-                        Position:ObjectPoint(wayfarerEncounterRoom,
+                        WayfarerDecoyPursuitFoot(e):ObjectPoint(wayfarerEncounterRoom,
                             "wayfarer"+wayfarerEncounterRoom,Position)) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition :
                     RidgeWatchPursuitFoot(e,Position);

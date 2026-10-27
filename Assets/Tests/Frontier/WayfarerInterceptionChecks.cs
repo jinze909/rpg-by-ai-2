@@ -7,6 +7,83 @@ namespace Starfall.Tests
 
 
 
+
+        public static void ShoutedTravelerRaiderCannotTrackHiddenHeroThroughFreshStone(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,
+                    spawnX=12.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{
+                        new WorldObject{kind="wayfarer1",id="wayfarer1",
+                            x=10.5f,y=10.5f,
+                            name="旅人",en="Wayfarer"}},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.Enter(1);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=10.5f;
+                WorldObject npc=Object(g,"wayfarer1");
+                Action(g,npc.kind,"wayfarer_defend_1");
+                Check(g.WayfarerEncounterRoom==1,
+                    "Actual vulnerable traveler begins a real physical ambush");
+                var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(raiders.Count==2,
+                    "Both authored attackers exist on genuinely standable ground");
+                Enemy listener=raiders[0];
+                listener.x=15.5f;listener.y=10.5f;
+                listener.stun=0f;listener.timer=100f;
+                raiders[1].stun=100f;raiders[1].timer=100f;
+                raiders[1].x=25.5f;raiders[1].y=25.5f;
+                Check(g.WayfarerDecoyAvailable,
+                    "Shouting hero is genuinely audible from the real hostile");
+                Check(g.QuickDrawWayfarerFire()&&
+                    g.IsWayfarerDecoyTarget(listener)&&
+                    g.WayfarerDecoyCanSeeHero(listener),
+                    "Real player shout acquires exactly the original visible sound foot");
+                Point hearingFoot=g.Position;
+                char[] cover=rows[12].ToCharArray();
+                for(int x=10;x<=16;x++)cover[x]='#';
+                rows[12]=new string(cover);
+                g.save.x=11.5f;g.save.y=14.5f;
+                Check(!g.WayfarerDecoyCanSeeHero(listener),
+                    "Newly closed stone really separates original caller and hidden hero");
+                var seek=typeof(GameCore).GetMethod(
+                    "WayfarerDecoyPursuitFoot",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(seek!=null&&
+                    ((Point)seek.Invoke(g,new object[]{listener})-
+                        hearingFoot).Length<.01f,
+                    "Raider MUST remember original actually heard foot rather than live hidden hero");
+                Point from=listener.Position;
+                for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+                Check(listener.x<from.x-.17f&&
+                    listener.y<from.y+.09f&&
+                    g.WayfarerDecoyTime>0f&&
+                    g.CanStand(listener.Position)&&
+                    !g.WayfarerDecoyCanSeeHero(listener),
+                    "Real pursuing raider advances along ORIGINAL audible near-side ground and never magically follows hero SOUTH through new stone");
+                g.save.x=12.5f;g.save.y=10.5f;
+                Check(g.WayfarerDecoyCanSeeHero(listener),
+                    "Genuine hero reappearance restores actual visible contact");
+                Point ret=(Point)seek.Invoke(g,new object[]{listener});
+                Check((ret-g.Position).Length<.01f&&
+                    g.save.version==2,
+                    "Only genuine reacquired line of sight may update live player foot, preserving v2 save format");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,

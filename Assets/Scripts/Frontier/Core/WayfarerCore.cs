@@ -17,6 +17,8 @@ namespace Starfall
         // alive spawned enemy instances, NEVER numeric IDs across loads.
         private readonly HashSet<Enemy> wayfarerDecoyTargets=
             new HashSet<Enemy>();
+        private readonly Dictionary<Enemy,Point> wayfarerDecoyLastSeen=
+            new Dictionary<Enemy,Point>();
         private bool wayfarerDecoyUsed;
         private float wayfarerDecoyTime;
         public float WayfarerDecoyTime
@@ -27,6 +29,29 @@ namespace Starfall
             return enemy!=null&&wayfarerEncounterRoom==save.room&&
                 wayfarerDecoyTime>0f&&enemy.hp>0&&
                 enemies.Contains(enemy)&&wayfarerDecoyTargets.Contains(enemy);
+        }
+        public bool WayfarerDecoyCanSeeHero(Enemy enemy)
+        {
+            return IsWayfarerDecoyTarget(enemy)&&
+                CanStand(Position)&&CanStand(enemy.Position)&&
+                ClearAttackPath(enemy.Position,Position);
+        }
+        // A successful player shout teaches the raider where the actual
+        // sound came from. Subsequent pursuit can update ONLY on real
+        // clear sight; going behind a pillar preserves that last-known foot,
+        // not the magically updated live hero coordinates.
+        private Point WayfarerDecoyPursuitFoot(Enemy enemy)
+        {
+            if(!IsWayfarerDecoyTarget(enemy))return Position;
+            Point last;
+            if(!wayfarerDecoyLastSeen.TryGetValue(enemy,out last))
+                last=Position;
+            if(WayfarerDecoyCanSeeHero(enemy))
+            {
+                last=Position;
+                wayfarerDecoyLastSeen[enemy]=last;
+            }
+            return last;
         }
         private List<Enemy> WayfarerAudibleRaiders()
         {
@@ -85,6 +110,7 @@ namespace Starfall
             wayfarerCoverUsed=false;wayfarerCoverTime=0f;
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
+            wayfarerDecoyLastSeen.Clear();
             wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
@@ -225,6 +251,7 @@ namespace Starfall
                 foreach(Enemy raider in heard)
                 {
                     wayfarerDecoyTargets.Add(raider);
+                    wayfarerDecoyLastSeen[raider]=Position;
                     effects.Add(new Effect("number",raider.Position,.75f,
                         L("转向玩家！","DRAWN TO HERO")){wayfarerOwned=true});
                 }
@@ -453,7 +480,11 @@ namespace Starfall
             { ResetWayfarerEncounter(); return; }
             wayfarerCoverTime=Math.Max(0f,wayfarerCoverTime-dt);
             wayfarerDecoyTime=Math.Max(0f,wayfarerDecoyTime-dt);
-            if(wayfarerDecoyTime<=0f)wayfarerDecoyTargets.Clear();
+            if(wayfarerDecoyTime<=0f)
+            {
+                wayfarerDecoyTargets.Clear();
+                wayfarerDecoyLastSeen.Clear();
+            }
             int first=82000+wayfarerEncounterRoom*10;
             bool anyStillAlive=false;
             // Validate BOTH authored identities before waiting for either.

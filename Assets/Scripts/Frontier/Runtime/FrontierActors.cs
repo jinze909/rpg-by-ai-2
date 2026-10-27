@@ -1201,7 +1201,10 @@ namespace Starfall
                 Color lure=PixelArt.C("#efbd69");
                 Ring(e.Position,.66f,lure,18);
                 Text(p.x-72,p.y-132,144,20,
-                    Game.L("追击玩家","DRAWN TO HERO"),10,lure,
+                    Game.WayfarerDecoyCanSeeHero(e)?
+                        Game.L("追击玩家","DRAWN TO HERO"):
+                        Game.L("追查呼喊处","LAST SHOUT"),
+                    10,lure,
                     TextAnchor.MiddleCenter);
             }
             // The ordinary guard is genuinely investigating an audible
