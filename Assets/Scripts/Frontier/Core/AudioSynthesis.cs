@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush", "sentryAlarm" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush", "sentryAlarm", "wayfarerShout" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -86,6 +86,7 @@ namespace Starfall
             if (name == "stoneImpact") return StoneImpact();
             if (name == "ambush") return AmbushContact();
             if (name == "sentryAlarm") return SentryAlarm();
+            if (name == "wayfarerShout") return WayfarerShout();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -98,6 +99,37 @@ namespace Starfall
                 phase += 2 * Math.PI * f / Rate; double noise = name == "hit" || name == "attack" || name == "step" ? (random.NextDouble() * 2 - 1) * .18 : 0;
                 if (name == "slam" || name == "arrow") noise = (random.NextDouble() * 2 - 1) * .2;
                 wave[i] = (float)((Math.Sin(phase) * .36 + noise) * (1 - t) * Math.Min(1, t * 30));
+            }
+            return wave;
+        }
+        // An original, sharp two-beat field call, unmistakably different
+        // from ordinary parry/guard, a hostile watch whistle, and a
+        // reward. This is the one real-time physical lure action's audio.
+        // No imported recording, copyright dependency or Unity GUID.
+        private static float[] WayfarerShout()
+        {
+            var wave=new float[(int)(Rate*.38f)];
+            var random=new Random(27911);
+            double phase=0, filtered=0;
+            for(int i=0;i<wave.Length;i++)
+            {
+                double t=i/(double)wave.Length;
+                double seconds=i/(double)Rate;
+                bool second=t>.43;
+                double local=second?(t-.43)/.57:t/.43;
+                double pitch=second?480-170*local:670-110*local;
+                phase+=2*Math.PI*pitch/Rate;
+                double breath=random.NextDouble()*2-1;
+                filtered+=(breath-filtered)*.13;
+                double start=second?.44:0;
+                double end=second?1:.41;
+                double envelope=Math.Min(1,Math.Max(0,t-start)*95)*
+                    Math.Min(1,Math.Max(0,end-t)*65);
+                double fundamental=Math.Sin(phase)*.25+
+                    Math.Sin(phase*2)*.075+
+                    Math.Sin(phase*3)*.035;
+                wave[i]=(float)((fundamental+filtered*.05)*
+                    envelope);
             }
             return wave;
         }

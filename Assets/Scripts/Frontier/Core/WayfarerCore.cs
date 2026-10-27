@@ -230,7 +230,7 @@ namespace Starfall
                 }
                 effects.Add(new Effect("discover",Position,.45f)
                     {wayfarerOwned=true});
-                sound="guard";revision++;
+                sound="wayfarerShout";revision++;
                 Notify("成功引开 "+heard.Count+
                     " 名真正听到呼喊的劫匪！5秒内他们将追击你；已释放的攻击不会倒退取消。",
                     "Drew "+heard.Count+

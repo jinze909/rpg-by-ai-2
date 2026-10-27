@@ -6,6 +6,32 @@ namespace Starfall.Tests
     {
 
 
+
+        public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
+        {
+            Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,
+                "Original real-time diversion sound is registered with Unity AudioSource's production event roster");
+            float[] samples=AudioSynthesis.Event("wayfarerShout");
+            Check(samples.Length>AudioSynthesis.Rate*.36f&&
+                samples.Length<AudioSynthesis.Rate*.4f,
+                "Two-burst rescue shout lasts a real audible frame-safe 380ms");
+            int above=0;float peak=0;
+            foreach(float v in samples)
+            {
+                Check(!float.IsNaN(v)&&!float.IsInfinity(v),
+                    "Every original contact vocalization sample is finite");
+                peak=Math.Max(peak,Math.Abs(v));
+                if(Math.Abs(v)>.035f)above++;
+            }
+            Check(above>AudioSynthesis.Rate*.1f&&
+                peak>.08f&&peak<.95f&&
+                Math.Abs(samples[0])<.001f&&
+                Math.Abs(samples[samples.Length-1])<.001f,
+                "Original two-beat live taunt has sustained audible energy, no clipping or boundary pop");
+            Check(AudioSynthesis.Event("guard").Length!=samples.Length,
+                "A tactical civilian rescue shout does not reuse old guard/parry sound");
+        }
+
         public static void OriginalTravelerShoutActuallyRepositionsAnUnlockedRaider(Campaign data)
         {
             MapData old=data.maps[1];
@@ -118,7 +144,7 @@ namespace Starfall.Tests
                 int energy=(int)game.save.energy;
                 bool processed=(bool)selected.Invoke(game,
                     new object[]{"wayfarer_drawfire"});
-                Check(processed&&
+                Check(processed&&game.sound=="wayfarerShout"&&
                     game.save.energy==energy-15f&&
                     game.WayfarerDecoyTime==5f&&
                     game.IsWayfarerDecoyTarget(near[0])&&

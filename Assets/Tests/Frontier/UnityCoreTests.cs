@@ -15,6 +15,7 @@ namespace Starfall.Tests
         [Test] public void LongArchiveReviewKeepsOnlyNewestEighteenEntries() { CoreChecks.TranscriptBoundedAcrossLongInnAndArchiveConversations(Data()); }
         [Test] public void PlayerCoverOrRealArrowHitCanInterruptSentryWhistle() { CoreChecks.SentryWhistleStopsIfHeroEscapesOrContactInterrupts(Data()); }
         [Test] public void GuardTracksLastWitnessedFootInsteadOfHeroThroughStone() { CoreChecks.AlertGuardFollowsLastVisibleFootAcrossCloseSolidCover(Data()); }
+        [Test] public void WayfarerLureHasRealNativeSafeOriginalVoiceSfx() { CoreChecks.OriginalWayfarerShoutIsFiniteNativeAudibleClip(Data()); }
         [Test] public void AudibleTravelerShoutMovesRealRaiderBeforeResettingOnTravel() { CoreChecks.OriginalTravelerShoutActuallyRepositionsAnUnlockedRaider(Data()); }
         [Test] public void RealTravelerShoutTemporarilyRedirectsOnlyPhysicallyHearingAttackers() { CoreChecks.LiveTravelerCallDrawsOnlyAudibleActualRaiders(Data()); }
         [Test] public void SentryWhistleHasActualNativeRegisteredAudio() { CoreChecks.TrueSentryWhistleIsAudibleAndOriginal(Data()); }
