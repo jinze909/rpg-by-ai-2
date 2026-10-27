@@ -639,6 +639,67 @@ namespace Starfall.Tests
             finally {data.maps[1]=previous;}
         }
 
+        public static void MobileRescueCivilianSharesExplicitNpcInteractionRing(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var resident=new WorldObject {
+                    id="fieldGarden",kind="garden",name="杏",
+                    en="An",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData {
+                    id=1,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new[]{resident},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.save.x=10.5f;g.save.y=11.5f;
+                // The actual mission runtime tracks a moving follower, not
+                // a fabricated map object with a duplicate NPC id.
+                g.reliefMissionRoom=1;g.reliefMissionWave=1;
+                g.reliefMissionTime=60f;g.reliefFollowerSafety=75f;
+                g.reliefFollowerPosition=new Point(10.6f,10.5f);
+                Check(g.NearbyInteractionCount()==2&&
+                    g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                    "Active mobile rescue speaker really wins ordinary proximity");
+                Check(g.CycleNearbyInteraction()&&g.Nearest()==resident&&
+                    !g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                    "Player can explicitly choose the resident despite a closer rescue actor");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.conversation.speaker=="杏"&&
+                    System.Object.ReferenceEquals(g.conversationSource,resident),
+                    "Real E opens the selected resident, not the overlapping rescue menu");
+                g.Close();
+                Check(g.CycleNearbyInteraction()&&
+                    g.ReliefCivilianIsInteractionTarget(g.Nearest()),
+                    "Next cycle genuinely chooses the moving civilian mission actor");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.conversation.speaker=="平民紧急集结点"&&
+                    Array.Exists(g.conversation.choices,
+                        choice=>choice.action=="relief_field_guard"),
+                    "Actual E now opens the real civilian guard menu and its action");
+                g.Close();
+                g.reliefFollowerPosition=new Point(20.5f,20.5f);
+                Check(!g.ReliefCivilianIsInteractionTarget(g.Nearest())&&
+                    g.Nearest()==resident&&g.NearbyInteractionCount()==1,
+                    "Moving civilian beyond reach retires mission focus without stealing the resident");
+                g.reliefMissionWave=0;
+                Check(!g.CycleNearbyInteraction()&&g.Nearest()==resident&&
+                    g.save.version==2,
+                    "Finished rescue restores ordinary nearest selection with unchanged save contract");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RemoteWorldDialogueCannotExecuteChoices(Campaign data)
         {
             var g = Fresh(data);

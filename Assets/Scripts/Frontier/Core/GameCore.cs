@@ -149,6 +149,10 @@ namespace Starfall
         // reachable in the SAME streamed map/save. The normal facing-aware
         // nearest object remains the default until a player cycles.
         private WorldObject interactionFocus;
+        // A moving rescue civilian is a real world interaction but is not
+        // an entry in Map.objects. Null in the candidate ring represents
+        // THIS active mission actor, not an invented persistent WorldObject.
+        private bool interactionFocusRelief;
         private MapData interactionFocusMap;
         private SaveData interactionFocusSave;
         // Dialogue is bound to BOTH the real source object and the map in
@@ -3053,8 +3057,25 @@ namespace Starfall
         private void ClearInteractionFocus()
         {
             interactionFocus=null;
+            interactionFocusRelief=false;
             interactionFocusMap=null;
             interactionFocusSave=null;
+        }
+        private bool InteractionReliefFocusIsValid()
+        {
+            if(!interactionFocusRelief)return false;
+            if(!System.Object.ReferenceEquals(interactionFocusMap,Map)||
+               !System.Object.ReferenceEquals(interactionFocusSave,save)||
+               reliefMissionRoom==0||reliefMissionRoom!=save.room||
+               reliefMissionWave<1||reliefMissionWave>3||
+               !CanStand(Position)||
+               (Position-reliefFollowerPosition).Length>=1.7f||
+               !ClearAttackPath(Position,reliefFollowerPosition))
+            {
+                ClearInteractionFocus();
+                return false;
+            }
+            return true;
         }
         private bool InteractionFocusIsValid()
         {
@@ -3077,7 +3098,7 @@ namespace Starfall
         public int NearbyInteractionCount()
         {
             if(Map==null||Map.objects==null||!CanStand(Position))return 0;
-            int count=0;
+            int count=ReliefCivilianIsInteractionTarget(null)?1:0;
             foreach(WorldObject entry in Map.objects)
                 if(IsObjectPresent(entry)&&
                    HasPhysicalInteractionReach(new Point(entry.x,entry.y)))
@@ -3093,26 +3114,45 @@ namespace Starfall
                 if(IsObjectPresent(entry)&&
                    HasPhysicalInteractionReach(new Point(entry.x,entry.y)))
                     nearby.Add(entry);
+            // The transient physically present civilian competes in the
+            // SAME E target cycle as resident NPCs and map landmarks.
+            bool hasCivilian=ReliefCivilianIsInteractionTarget(null);
+            if(hasCivilian)nearby.Add(null);
             if(nearby.Count<2)
             {
                 ClearInteractionFocus();
                 return false;
             }
-            // The first switch starts after the facing-aware target that
-            // E would otherwise open. Subsequent switches follow original
-            // map order, even if overlapping objects share exact coordinates.
+            // The first switch starts after the actual E winner, including
+            // a rescue actor currently stealing the ordinary nearest.
+            // A NULL ring entry means the current moving rescue civilian.
             WorldObject current=Nearest();
+            if(InteractionReliefFocusIsValid()||
+               (hasCivilian&&ReliefCivilianIsInteractionTarget(current)))
+                current=null;
             int at=nearby.IndexOf(current);
             WorldObject selected=nearby[(at+1)%nearby.Count];
             interactionFocus=selected;
+            interactionFocusRelief=selected==null;
             interactionFocusMap=Map;
             interactionFocusSave=save;
-            Notify("已选择："+selected.name+" · 按 E 交互。",
-                "Selected: "+selected.en+" · E to interact.");
+            if(interactionFocusRelief)
+                Notify(reliefMissionWave==3?
+                    "已选择：获救居民 · 按 E 交互。":
+                    "已选择：平民紧急集结点 · 按 E 交互。",
+                    reliefMissionWave==3?
+                    "Selected: rescued civilian · E to interact.":
+                    "Selected: civilian rally point · E to interact.");
+            else
+                Notify("已选择："+selected.name+" · 按 E 交互。",
+                    "Selected: "+selected.en+" · E to interact.");
             return true;
         }
         public WorldObject Nearest()
         {
+            // Revalidate non-map mission actors even when the renderer
+            // queries only the nearest static prop this frame.
+            if(interactionFocusRelief)InteractionReliefFocusIsValid();
             WorldObject[] objects = Map.objects;
             // Draw/recovery screens may intentionally have no active world
             // objects (or a stripped decoration-only map). Nothing can
@@ -3167,6 +3207,7 @@ namespace Starfall
             float d=(Position-reliefFollowerPosition).Length;
             if(d>=1.7f || !ClearAttackPath(Position,reliefFollowerPosition))
                 return false;
+            if(InteractionReliefFocusIsValid())return true;
             if(nearby==null)return true;
             Point nearbyPoint=new Point(nearby.x,nearby.y);
             // The civilian is deliberately staged at the SAME physical

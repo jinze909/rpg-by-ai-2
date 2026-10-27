@@ -850,11 +850,18 @@ namespace Starfall
                 string name=Game.reliefMissionWave==3 ?
                     Game.L("获救居民","Rescued civilian"):
                     Game.L("平民紧急集结点","Civilian rally point");
-                Panel(s.x-125,s.y+14,250,35,
-                    new Color(.04f,.075f,.12f,.94f),gold);
-                Text(s.x-117,s.y+18,234,27,
+                bool crowded=Game.NearbyInteractionCount()>1;
+                Panel(s.x-(crowded?155:125),s.y+14,crowded?310:250,
+                    crowded?54:35,new Color(.04f,.075f,.12f,.94f),gold);
+                Text(s.x-(crowded?147:117),s.y+18,
+                    crowded?294:234,27,
                     ControlKey("E","B")+"  "+name,14,paper,
                     TextAnchor.MiddleCenter);
+                if(crowded)
+                    Text(s.x-147,s.y+42,294,19,
+                        Game.L("O / R3 · 切换交互对象",
+                               "O / R3 · CYCLE INTERACTION"),
+                        11,muted,TextAnchor.MiddleCenter);
             }
             else if (near != null && Game.mode == "world" && Game.SafeTravel)
             {
