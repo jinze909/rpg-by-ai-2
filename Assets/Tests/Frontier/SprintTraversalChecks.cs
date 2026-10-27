@@ -25,6 +25,39 @@ namespace Starfall.Tests
             Check(g.CanStand(g.Position),"Sprint fixture starts on a complete physical foot");
             return g;
         }
+        public static void TruePlayerWalkingVelocityNeverIncludesDodgeOrPlantedAttack(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                foreach(int profession in new[]{0,1,2})
+                {
+                    var g=SprintTestWorld(data,profession);
+                    g.Tick(.05f,new Point(0,1));
+                    Check(g.WalkingVelocity.y>.5f&&
+                        Math.Abs(g.WalkingVelocity.x)<.001f,
+                        "Walking enemy lead reads actual player swept northward foot translation");
+                    g.Tick(.05f,new Point());
+                    Check(g.WalkingVelocity.Length<.00001f,
+                        "Releasing movement immediately clears previously sampled velocity");
+                    g.Tick(.05f,new Point(1,0),null,true);
+                    Check(g.WalkingVelocity.x>g.Speed*1.3f&&g.Sprinting,
+                        "Enemy aim reads real faster sprint gait rather than ordinary walking intent");
+                    g.Dash(new Point(1,0));
+                    g.Tick(.05f,new Point());
+                    Check(g.WalkingVelocity.Length<.00001f,
+                        "Dash displacement never looks like ordinary predictable foot velocity");
+                    for(int i=0;i<18;i++)g.Tick(.05f,new Point());
+                    Check(g.WalkingVelocity.Length<.00001f,
+                        "Stopped player cannot leave ghost sprint or dash velocity");
+                    g.Enter(1);
+                    Check(g.WalkingVelocity.Length<.00001f&&g.save.version==2,
+                        "Crossing room resets the transient target motion, preserving v2 save schema");
+                }
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void HoldingSprintMovesFasterAndChargesRealDistance(Campaign data)
         {
             MapData original=data.maps[1];

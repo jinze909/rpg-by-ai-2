@@ -297,6 +297,7 @@ namespace Starfall
             // None of these transient inputs belong to persisted SaveData.
             aim = dashDirection = new Point(1, 0);
             aimTarget = null;
+            walkingVelocity=new Point();
             fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
             fishHits = fishMisses = 0;FishExpertCast=false;
             FishFeedbackZh=FishFeedbackEn="";

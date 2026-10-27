@@ -260,6 +260,10 @@ namespace Starfall
             locomotionFacing = aim; aimTarget=null;
             Sprinting=false;SprintFatigued=false;
         }
+        // Live, unsaved player FOOT travel for fair archer prediction.
+        // A dash, recoil or planted attack is not a walking trajectory.
+        private Point walkingVelocity;
+        public Point WalkingVelocity { get { return walkingVelocity; } }
         private void TickMovement(float dt, Point movement, Point? explicitAim,
             float hitLockedDt,bool sprintHeld)
         {
@@ -355,6 +359,14 @@ namespace Starfall
                 controlled.Length>.001f;
             Point walking=wasDashing&&!walkedAfterDash?actual:controlled;
             movementDirection=walking;
+            // Sample only the real swept free-walk portion. A wall-blocked
+            // stick, sliding dash or authored attack lunge cannot teach the
+            // enemy a fictional movement speed or lead direction.
+            walkingVelocity=new Point();
+            if(!wasDashing&&playerAction==null&&
+               playerHitTime<=0f&&movement.Length>.1f&&
+               controlled.Length>.001f&&Finite(dt)&&dt>.000001f)
+                walkingVelocity=controlled*(1f/dt);
             if(wasDashing&&!walkedAfterDash&&dashTime<=0f&&actual.Length>.001f)
                 locomotionFacing=dashDirection;
             bool translating=walking.Length>.001f&&
