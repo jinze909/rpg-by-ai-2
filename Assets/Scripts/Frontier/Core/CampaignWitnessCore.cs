@@ -11,19 +11,28 @@ namespace Starfall
         // Each live witness defense has exactly two authored sentinels.
         // Missing actors never count as beaten without genuine lethal Hit.
         private int witnessConfirmedKills;
+        // Pair members are authentic world Enemy instances, not a numeric
+        // range. Foreign actors reusing 89972..89977 are not evidence guards.
+        private Enemy witnessActorA,witnessActorB;
         private float witnessDefenseTime, witnessPulse;
         private void OnWitnessEnemyDefeated(Enemy enemy)
         {
             if (enemy == null || witnessDefenseRoom != save.room ||
                 !IsWitnessEnemy(enemy)) return;
-            int index = enemy.id - (89970 + witnessDefenseRoom * 2);
-            if (index >= 0 && index < 2)
-                witnessConfirmedKills |= 1 << index;
+            if(System.Object.ReferenceEquals(enemy,witnessActorA))
+                witnessConfirmedKills |= 1;
+            if(System.Object.ReferenceEquals(enemy,witnessActorB))
+                witnessConfirmedKills |= 2;
         }
         public int WitnessDefenseRoom { get { return witnessDefenseRoom; } }
         public float WitnessDefenseTime { get { return witnessDefenseTime; } }
         public bool IsWitnessEnemy(Enemy e)
-        { return e != null && e.id >= 89972 && e.id <= 89977; }
+        {
+            return e!=null&&witnessDefenseRoom==save.room&&
+                witnessDefenseRoom>=1&&witnessDefenseRoom<=3&&
+                (System.Object.ReferenceEquals(e,witnessActorA)||
+                 System.Object.ReferenceEquals(e,witnessActorB));
+        }
         public int WitnessesFiled
         {
             get { int n=0; for(int i=1;i<=3;i++) if(Has("witness_complete_"+i))n++; return n; }
@@ -43,6 +52,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.witnessOwned);
             effects.RemoveAll(e=>e.witnessOwned);
             witnessDefenseRoom=0;witnessConfirmedKills=0;
+            witnessActorA=witnessActorB=null;
             witnessDefenseTime=0;witnessPulse=0;
         }
         private bool SpawnWitnessDefense(int region)
@@ -64,14 +74,15 @@ namespace Starfall
                 chosen.Add(at);
             }
             if(chosen.Count!=2)return false;
-            for(int i=0;i<2;i++)
-            {
-                var e=new Enemy(89970+region*2+i,
-                    region==1?0:region==2?1:2,chosen[i].x,chosen[i].y,
-                    region==1?60:region==2?85:110);
-                e.timer=.8f+i*.3f;
-                enemies.Add(e);
-            }
+            Enemy first=new Enemy(89970+region*2,
+                region==1?0:region==2?1:2,chosen[0].x,chosen[0].y,
+                region==1?60:region==2?85:110);
+            Enemy second=new Enemy(89971+region*2,
+                region==1?0:region==2?1:2,chosen[1].x,chosen[1].y,
+                region==1?60:region==2?85:110);
+            first.timer=.8f;second.timer=1.1f;
+            witnessActorA=first;witnessActorB=second;
+            enemies.Add(first);enemies.Add(second);
             witnessDefenseRoom=region;witnessConfirmedKills=0;
             witnessDefenseTime=65;
             witnessPulse=3.1f;
@@ -323,14 +334,14 @@ namespace Starfall
             int region=witnessDefenseRoom;
             if(save.room!=region || Dying || practicing)
             {ResetWitnessDefense();revision++;return;}
-            // Missing from the collection is not proof of combat success.
-            // Validate both reserved IDs independently, even if the final
-            // guard vanished in the same frame as another real kill.
-            int first = 89970 + region * 2;
+            // Missing from the collection is not proof of a combat kill.
+            // Check the exact spawned actor instead of any similarly
+            // numbered world enemy. Authenticated Hit callbacks are the
+            // only way to register either original guard's defeat.
             for (int i = 0; i < 2; i++)
             {
                 if ((witnessConfirmedKills & (1 << i)) != 0 ||
-                    enemies.Exists(e => e.id == first + i)) continue;
+                    enemies.Contains(i==0?witnessActorA:witnessActorB)) continue;
                 ResetWitnessDefense(); revision++;
                 Notify("封锁守卫异常离场，未确认击败。现场记录保留，请重新发起保全。",
                     "A guard vanished without a confirmed defeat. Your evidence remains; restart the defense.");

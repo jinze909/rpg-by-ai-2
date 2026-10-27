@@ -353,6 +353,81 @@ namespace Starfall.Tests
                 "A newly undertaken miner investigation outranks incomplete earlier optional testimony");
         }
 
+        public static void ThreeRegionWitnessDefenseRejectsForeignMatchingIds(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Witness battles use real lethal combat contacts");
+            for(int region=1;region<=3;region++)
+            {
+                var g=Fresh(data);g.save.stage=region;g.invulnerable=200;
+                g.save.flags.Add(region==1?"scout_saved":"gate_"+region);
+                g.Enter(region);g.enemies.Clear();
+                var npc=Object(g,"witnessnpc"+region);
+                var source=Object(g,"witnesssite1"+region);
+                var archive=Object(g,"witnesssite2"+region);
+                g.save.x=npc.x;g.save.y=npc.y;
+                Action(g,npc.kind,"witness_begin_"+region);
+                g.save.x=source.x;g.save.y=source.y;
+                if(region==1)g.save.inventory[2]=Math.Max(1,g.save.inventory[2]);
+                if(region==3)g.save.inventory[4]=Math.Max(1,g.save.inventory[4]);
+                Action(g,source.kind,"witness_answer_"+region+"_"+(region==1?1:2));
+                g.save.x=archive.x;g.save.y=archive.y;
+                Action(g,archive.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==region&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
+                    "Each original real regional testimony places exactly two true guardian instances");
+                var genuine=g.enemies.FindAll(g.IsWitnessEnemy);
+                Enemy forged=new Enemy(genuine[0].id,genuine[0].kind,
+                    genuine[0].x,genuine[0].y,30){stun=150f,timer=150f};
+                g.enemies.Add(forged);
+                Check(!g.IsWitnessEnemy(forged)&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
+                    "An attacker with an equal 89972-series ID cannot acquire signed witness ownership");
+                int coins=g.save.coins,shards=g.save.shards;
+                hit.Invoke(g,new object[]{forged,99999f,false,null,null});
+                Check(g.WitnessDefenseRoom==region&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2&&
+                    !g.Has("witness_defeated_"+region),
+                    "A counterfeit enemy's genuine death never contributes to an original guard seal");
+                // A replacement with a matching ID cannot conceal a real
+                // defender removed without a legitimate damage callback.
+                g.enemies.Remove(genuine[0]);
+                Enemy replacement=new Enemy(genuine[0].id,genuine[0].kind,
+                    genuine[0].x,genuine[0].y,40){stun=150f};
+                g.enemies.Add(replacement);
+                g.Tick(.05f,new Point());
+                Check(g.WitnessDefenseRoom==0&&
+                    !g.Has("witness_defeated_"+region)&&
+                    !g.Has("witness_sealed_"+region)&&
+                    g.enemies.Contains(replacement)&&
+                    !g.enemies.Contains(genuine[1])&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "Real guardian disappearance resets only its owned fight, without deleting an unrelated same-ID enemy or minting evidence");
+                g.enemies.Clear();
+                g.save.x=archive.x;g.save.y=archive.y;
+                Action(g,archive.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==region&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
+                    "Free retry after source-authenticated cancellation restores the actual two-actor fight");
+                foreach(Enemy e in g.enemies.FindAll(g.IsWitnessEnemy))
+                    hit.Invoke(g,new object[]{e,99999f,false,null,null});
+                g.Tick(.05f,new Point());
+                Check(g.WitnessDefenseRoom==0&&
+                    g.Has("witness_defeated_"+region)&&
+                    !g.Has("witness_complete_"+region),
+                    "Exactly two real damage-confirmed kills permit authentic evidence sealing, not remote reward");
+                Action(g,archive.kind,"witness_seal_"+region);
+                g.save.x=npc.x;g.save.y=npc.y;
+                Action(g,npc.kind,"witness_finish_"+region);
+                Check(g.Has("witness_complete_"+region)&&
+                    g.save.coins==coins+region*10+15&&
+                    g.save.shards==shards+1&&g.save.version==2,
+                    "Original living regional witness still signs one irreversible story reward under unchanged v2 save");
+            }
+        }
+
         public static void UnconfirmedWitnessGuardDisappearanceCannotForgeLivingTestimony(Campaign data)
         {
             var g = Fresh(data);
