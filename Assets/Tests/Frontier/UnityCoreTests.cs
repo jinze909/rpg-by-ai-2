@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void AudibleLureCanCreateRealOneShotRearSwordAmbush() { CoreChecks.RealSoundSearchOffersOnePhysicalRearSwordAmbush(Data()); }
         [Test] public void StoneLuredSentryActuallyWalksBackToItsGuardPost() { CoreChecks.HiddenArrowDistractionGuardReturnsToActualOriginalPost(Data()); }
         [Test] public void StoneDecoyGuardsSweepPhysicalGroundNotJustPaintAQuestionMark() { CoreChecks.AudibleImpactPatrolSweepsActualReachableNearSideGround(Data()); }
         [Test] public void AuthenticArrowStoneContactHasDistinctAudio() { CoreChecks.RealArrowStoneImpactHasOwnAudiblePhysicalContact(Data()); }

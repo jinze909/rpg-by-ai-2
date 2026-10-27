@@ -154,6 +154,40 @@ namespace Starfall
                         launchFoot:e.Position);
             }
         }
+        // A guard following an unexpected stone impact has a real field
+        // of view rather than 360-degree supernatural discovery. Front
+        // vision and a close physical bump expose the hero; a rear approach
+        // can remain unseen until a committed sword contact. This applies
+        // ONLY to sound-only search, never ordinary combat or mission AI.
+        private bool ImpactSearchGuardSeesHero(Enemy enemy)
+        {
+            if(enemy==null||!CanStand(enemy.Position)||
+               !CanStand(Position)||
+               !ClearAttackPath(enemy.Position,Position))return false;
+            Point toward=Position-enemy.Position;
+            float distance=toward.Length;
+            if(!Finite(distance))return false;
+            if(distance<.8f)return true;
+            if(distance<.001f)return true;
+            Point facing=enemy.facing.Length>.001f?
+                enemy.facing.Normalized:new Point(1,0);
+            Point sight=toward*(1f/distance);
+            return facing.x*sight.x+facing.y*sight.y>=.12f;
+        }
+        private bool EligibleForSoundAmbush(Enemy enemy,ImpactProfile impact,
+            bool technique,float distance,float facingDot)
+        {
+            return impact!=null&&impact.playerOwned&&
+                impact.weapon==0&&!technique&&
+                !practicing&&mode=="world"&&
+                enemy!=null&&enemy.hp>0&&!enemy.boss&&
+                enemy.state!=1&&
+                distance>0f&&distance<2.2f&&facingDot<-.65f&&
+                IsEnemyInvestigatingImpact(enemy)&&
+                !ImpactSearchGuardSeesHero(enemy)&&
+                CanStand(Position)&&CanStand(enemy.Position)&&
+                ClearAttackPath(Position,enemy.Position);
+        }
         private bool TickEnemyHitAlert(Enemy e,float dt)
         {
             EnsureEnemyHitAlertSession();
@@ -211,16 +245,19 @@ namespace Starfall
                 enemyHitAlert.Remove(e);
                 return false;
             }
-            if(ClearAttackPath(e.Position,Position))
+            if(alert.impactOnly)
             {
-                alert.lastKnown=Position;
-                alert.impactOnly=false;
+                // Face-to-face sighting, not mere proximity, ends the
+                // sound search. The existing 8-tile awareness still governs
+                // ALL normal combat, mission raiders and genuine hit alarms.
+                if(ImpactSearchGuardSeesHero(e))
+                {
+                    alert.lastKnown=Position;
+                    alert.impactOnly=false;
+                }
             }
-            else if(range<=8f)
-                // Ordinary local aggression takes ownership when the hero
-                // closes to melee awareness; this is no longer JUST
-                // searching for a past stone impact.
-                alert.impactOnly=false;
+            else if(ClearAttackPath(e.Position,Position))
+                alert.lastKnown=Position;
             return true;
         }
         // A missed physical arrow still makes a tactical SOUND where

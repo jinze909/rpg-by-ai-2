@@ -1150,6 +1150,8 @@ namespace Starfall
             if (practicing) { if(profile.playerOwned){if (technique) PracticeSkill(); else PracticeHit();} return; }
             Point approach = attackDirection.HasValue ? attackDirection.Value * -1 : (Position - e.Position).Normalized;
             float facingDot = approach.x * e.facing.x + approach.y * e.facing.y;
+            bool soundAmbush=EligibleForSoundAmbush(e,profile,technique,
+                (Position-e.Position).Length,facingDot);
             if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 &&
                 e.armorOpenTime<=0f && facingDot > .45f)
             { damage *= .4f; effects.Add(new Effect("number", e.Position, .7f, L("正面护甲", "GUARDED"))); sound = "guard"; }
@@ -1174,6 +1176,20 @@ namespace Starfall
                             e.Position+new Point(0,.55f),.8f,
                             L("破甲！","ARMOR OPEN")));
                 }
+            }
+            // A real sword strike from behind an unaware, sound-searching
+            // ordinary guard gets a single tactical opening. Spend it at
+            // actual HP contact, not aim time, animation start or sight.
+            // Once struck, the enemy becomes aware; a rapid combo cannot
+            // repeatedly farm the same noise alert or freeze a Boss.
+            if(soundAmbush)
+            {
+                enemyHitAlert.Remove(e);
+                damage*=1.65f;
+                ApplyEnemyControl(e,.85f);
+                effects.Add(new Effect("number",e.Position,.85f,
+                    L("背后奇袭！","SOUND AMBUSH")));
+                sound="counter";
             }
             // The post-release recovery is a brief, player-owned punish window.
             if (profile.playerOwned && e.releaseTime > .001f && e.stun <= 0)
@@ -1962,8 +1978,9 @@ namespace Starfall
                 if(playerHitProvoked&&!e.boss&&
                    !wardAttacker&&!travelerAttacker&&!reliefAttacker&&
                    !escortPatrol&&!stockRaider&&!patrolSaboteur&&
-                   (e.Position-Position).Length>8f&&
-                   !ClearAttackPath(e.Position,Position))
+                   (IsEnemyInvestigatingImpact(e)||
+                    (e.Position-Position).Length>8f&&
+                    !ClearAttackPath(e.Position,Position)))
                     pursuit=LiveSoundSearchGoal(e,
                         LastKnownEnemyHitOrigin(e,pursuit));
                 Point delta = pursuit - e.Position; float distance = delta.Length;
@@ -2316,7 +2333,8 @@ namespace Starfall
                     e.Face(e.backpedaling?Position-e.Position:travelled);
                 }
                 delta = Position - e.Position; distance = delta.Length;
-                bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
+                bool heroInRange = !IsEnemyInvestigatingImpact(e)&&
+                    distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&
                     (e.boss||e.kind!=1||
                      EnemyBowFlightLaneClear(e,Position)) &&

@@ -7,6 +7,88 @@ namespace Starfall.Tests
 
 
 
+
+        public static void RealSoundSearchOffersOnePhysicalRearSwordAmbush(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] stone=rows[10].ToCharArray();
+                stone[8]=stone[19]='#';rows[10]=new string(stone);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                float baseline=0f,ambush=0f;
+                for(int scenario=0;scenario<3;scenario++)
+                {
+                    var g=Fresh(data);
+                    g.save.stage=3;g.Enter(1);g.enemies.Clear();
+                    g.mode="world";g.save.weapon=0;
+                    g.save.x=6.5f;g.save.y=10.5f;
+                    var guard=new Enemy(79841,0,16.5f,12.5f,240f);
+                    guard.stun=10f;guard.timer=10f;
+                    guard.Face(new Point(1,0));g.enemies.Add(guard);
+                    if(scenario!=0)
+                    {
+                        g.projectiles.Add(new Projectile{
+                            friendly=true,visual="arrow",source="arrow",
+                            position=new Point(10.5f,10.5f),
+                            velocity=new Point(12f,0f),damage=5f,life=2f,
+                            impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                                new Point(10.5f,10.5f))});
+                    }
+                    Advance(g,1.1f);
+                    if(scenario!=0)
+                        Check(g.IsEnemyInvestigatingImpact(guard),
+                            "Actual physical player-owned arrow struck stone and raised a search alert");
+                    g.save.x=scenario==2?17.75f:15.25f;
+                    g.save.y=12.5f;
+                    g.save.seed=78123;
+                    g.Tick(.02f,new Point());
+                    Check(scenario==0||scenario==1?
+                        !g.IsEnemyInvestigatingImpact(guard)||scenario==1:
+                        !g.IsEnemyInvestigatingImpact(guard),
+                        "Actual front acquisition cancels search; control scenario remains unaffected");
+                    if(scenario==1)
+                        Check(g.IsEnemyInvestigatingImpact(guard),
+                            "A rear approach outside touching distance stays undetected while the guard listens toward the wall");
+                    // Use an actual sword input, contact animation and enemy
+                    // HP resolution; no directly forged Hit method call.
+                    g.Attack(scenario==2?new Point(-1,0):new Point(1,0));
+                    Advance(g,.35f);
+                    float dealt=240f-guard.hp;
+                    Check(dealt>0&&guard.hp>0,
+                        "Committed contact from real melee animation damages the existing world actor");
+                    if(scenario==0)baseline=dealt;
+                    if(scenario==1)
+                    {
+                        ambush=dealt;
+                        Check(!g.IsEnemyInvestigatingImpact(guard)&&
+                            g.effects.Exists(effect=>
+                                effect.kind=="number"&&
+                                effect.text=="SOUND AMBUSH" || 
+                                effect.kind=="number"&&
+                                effect.text=="背后奇袭！"),
+                            "True rear sword impact earns a single visible ambush and consumes its physical sound investigation");
+                    }
+                    if(scenario==2)
+                        Check(dealt<=baseline*1.05f,
+                            "Facing a real guard head-on cannot gain a rear contact multiplier");
+                }
+                Check(ambush>baseline*1.45f&&ambush<baseline*1.9f,
+                    "Only the legitimate original rear-sword contact receives the 65 percent ambush damage opening");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void HiddenArrowDistractionGuardReturnsToActualOriginalPost(Campaign data)
         {
             MapData previous=data.maps[1];
