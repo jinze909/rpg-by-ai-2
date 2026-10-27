@@ -188,6 +188,86 @@ namespace Starfall.Tests
             g.Close();
         }
 
+
+        public static void CombinedWatchReceiptsRespectPhysicalSourceCapacityAndReload(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.Enter(7);g.enemies.Clear();g.projectiles.Clear();
+            g.save.flags.Add("outer_patrol_done_7");
+            string[] debts={"outer_deliveries_complete","outer_patrol_all",
+                "outer_patrol_veteran_all","outer_patrol_flawless_all"};
+            foreach(string id in debts)
+            {
+                g.save.flags.Add(id);
+                g.save.flags.Add("outer_talent_due_"+id);
+            }
+            int coins=g.save.coins;
+            g.save.skillPoints=97;
+            WorldObject watch=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            WorldObject lamp=Array.Find(g.Map.objects,o=>o.kind=="outerrelay");
+            Check(watch!=null&&lamp!=null,"Original eighth-region watch and rescue relay are present");
+            TalkNearObject(g,lamp);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all")<0,
+                "Restored relay cannot impersonate the staffed watch for combined receipts");
+            g.Close();
+            TalkNearObject(g,watch);
+            int all=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all");
+            Check(all>=0&&g.conversation.choices[all].en.Contains("4 owed")&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_milestone_claim")>=0&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_routes")>=0,
+                "Four owed watch medals offer optional combined settlement without removing ordinary actions");
+            g.save.x+=12f;g.save.y+=12f;
+            g.Choose(all);
+            Check(g.save.skillPoints==97&&g.OuterMilestoneRewardPending(debts[0])&&
+                g.OuterMilestoneRewardPending(debts[3]),
+                "Walking out of the old conversation cannot remotely claim any of four owed medals");
+            TalkNearObject(g,watch);
+            all=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all");
+            g.Choose(all);
+            Check(g.save.skillPoints==99&&g.save.coins==coins&&
+                !g.OuterMilestoneRewardPending(debts[0])&&
+                !g.OuterMilestoneRewardPending(debts[1])&&
+                g.OuterMilestoneRewardPending(debts[2])&&
+                g.OuterMilestoneRewardPending(debts[3]),
+                "Authentic signed batch pays exactly two points into remaining capacity and keeps two unpaid IOUs");
+            TalkNearObject(g,watch);
+            all=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all");
+            Check(all>=0&&g.conversation.choices[all].en.Contains("2 owed"),
+                "Remaining two earned receipts are visible and correctly counted");
+            g.Choose(all);
+            Check(g.save.skillPoints==99&&g.OuterMilestoneRewardPending(debts[2])&&
+                g.OuterMilestoneRewardPending(debts[3]),
+                "Full talent wallet cannot erase, overpay or retire either remaining medal");
+            g.PrepareSave();
+            g=new GameCore(data,CloneSave(g.save));g.Start();g.enemies.Clear();
+            Check(g.save.version==2&&g.OuterMilestoneRewardPending(debts[2])&&
+                g.OuterMilestoneRewardPending(debts[3]),
+                "Unpaid half of an authentic combined receipt survives v2 save reconstruction");
+            g.save.skillPoints=97;
+            watch=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            TalkNearObject(g,watch);
+            all=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all");
+            Check(all>=0,"Restored outpost offers the remaining two debts after reload");
+            g.Choose(all);
+            Check(g.save.skillPoints==99&&g.save.coins==coins&&
+                Array.TrueForAll(debts,id=>!g.OuterMilestoneRewardPending(id)),
+                "Second physical visit settles remaining earned ranks exactly once with no duplicated currency");
+            TalkNearObject(g,watch);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all")<0&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_milestone_claim")<0,
+                "Once settled, no further single or combined receipt action is offered");
+            g.Close();
+        }
+
         public static void AllFiveOuterMilestoneJournalHintsRouteToRealLocalClaimWorkers(Campaign data)
         {
             var g=Unlocked(data);

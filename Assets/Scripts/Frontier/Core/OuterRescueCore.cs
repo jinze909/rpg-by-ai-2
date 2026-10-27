@@ -66,6 +66,13 @@ namespace Starfall
                     if(OuterMilestoneRewardPending(id))return id;
             return null;
         }
+        private int CountUnpaidWatchTalents()
+        {
+            int count=0;
+            foreach(string id in OuterWatchTalentMilestones)
+                if(OuterMilestoneRewardPending(id))count++;
+            return count;
+        }
         private void AppendOuterMilestoneClaimChoice(WorldObject source)
         {
             if(source==null||mode!="dialog"||conversation==null||
@@ -80,14 +87,25 @@ namespace Starfall
             var options=new List<Choice>(conversation.choices);
             int insert=options.Count;
             if(insert>0&&options[insert-1].action=="close")insert--;
-            options.Insert(insert,C("签领八地巡路报酬 · 技能点1",
+            options.Insert(insert++,C("签领八地巡路报酬 · 技能点1",
                 "Claim earned roadwarden talent · +1",
                 "outer_milestone_claim"));
+            // Several separate watch medals can be owed to the same actual
+            // watchkeeper. Preserve the original one-at-a-time receipt, but
+            // offer an optional single visit to settle as many as the existing
+            // 99-point wallet can hold. Each individual signed debt remains
+            // independent in the unchanged v2 flags.
+            int unpaid=source.kind=="outerwatch"?CountUnpaidWatchTalents():0;
+            if(unpaid>1)
+                options.Insert(insert,C("合并签领欠付报酬 · 共 "+unpaid+" 点",
+                    "Sign available watch rewards · "+unpaid+" owed",
+                    "outer_milestone_claim_all"));
             conversation.choices=options.ToArray();
         }
         private bool ChooseOuterMilestoneClaim(string action)
         {
-            if(action!="outer_milestone_claim")return false;
+            bool collectAll=action=="outer_milestone_claim_all";
+            if(!collectAll&&action!="outer_milestone_claim")return false;
             WorldObject source=pendingDialogueSource;
             if(source==null||Dying||practicing||
                 pendingDialogueSourceRoom!=save.room||
@@ -99,6 +117,32 @@ namespace Starfall
             {
                 Notify("巡路人保留着你的技能点报酬。先使用已有技能点，再回来签领。",
                     "Your earned talent is reserved. Spend a skill point, then return to sign for the lesson.");
+                return true;
+            }
+            if(collectAll)
+            {
+                // Only an authenticated defended watch may settle multiple
+                // completed watches. A restored relay can never claim them.
+                if(source.kind!="outerwatch")return true;
+                int paid=0;
+                foreach(string id in OuterWatchTalentMilestones)
+                {
+                    if(save.skillPoints>=99)break;
+                    if(!OuterMilestoneRewardPending(id))continue;
+                    // Retire each earned IOU before the skill wallet changes.
+                    // Any remainder survives cap, travel and v2 reload.
+                    save.flags.Remove(OuterMilestoneDebt(id));
+                    CreditSkillPoints(1);
+                    paid++;
+                }
+                if(paid>0)
+                {
+                    revision++;sound="reward";
+                    Notify("巡路队签领完成：技能点 +"+paid+
+                        "。未能装入钱包的报酬仍在账册里。",
+                        "Watch rewards signed: +"+paid+
+                        " talent points. Any excess remains in the ledger.");
+                }
                 return true;
             }
             // Consume exactly this milestone's authenticated IOU before
