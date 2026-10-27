@@ -1973,15 +1973,16 @@ namespace Starfall
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition :
                     RidgeWatchPursuitFoot(e,Position);
-                // Only ordinary alerted patrols outside native awareness
-                // must search LAST SEEN ground when the hero breaks LOS.
-                // Bosses, wardens and civilian mission targets keep their
-                // own original high-priority physical objectives.
+                // An alerted sentry follows the last PHYSICALLY witnessed
+                // foot whenever cover closes, even if the concealed hero
+                // is within ordinary eight-tile melee awareness. Following
+                // live player coordinates through opaque stone is not a
+                // legitimate sound-search or teammate-whistle response.
+                // Bosses, wardens and civilian duties keep original AI.
                 if(playerHitProvoked&&!e.boss&&
                    !wardAttacker&&!travelerAttacker&&!reliefAttacker&&
                    !escortPatrol&&!stockRaider&&!patrolSaboteur&&
                    (IsEnemyInvestigatingImpact(e)||
-                    (e.Position-Position).Length>8f&&
                     !ClearAttackPath(e.Position,Position)))
                     pursuit=LiveSoundSearchGoal(e,
                         LastKnownEnemyHitOrigin(e,pursuit));

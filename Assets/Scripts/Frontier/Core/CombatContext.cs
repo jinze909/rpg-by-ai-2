@@ -489,6 +489,22 @@ namespace Starfall
                 enemyHitAlert.TryGetValue(enemy,out alert)&&
                 alert.returning&&alert.remaining>0f;
         }
+        // Read-only native actor cue: the sentry is following its actual
+        // last witnessed foot rather than the hero's hidden live location.
+        // A real combat sighting/hit alert owns this cue, not normal aggro
+        // or sound-only investigation. Never write this into SaveData.
+        public bool IsEnemyTrackingLastSight(Enemy enemy)
+        {
+            EnemyHitAlert alert;
+            return enemy!=null&&save!=null&&Map!=null&&
+                System.Object.ReferenceEquals(enemyHitAlertSave,save)&&
+                System.Object.ReferenceEquals(enemyHitAlertMap,Map)&&
+                enemies.Contains(enemy)&&enemy.hp>0&&!enemy.boss&&
+                !ArrowSoundCannotOverrideObjective(enemy)&&
+                enemyHitAlert.TryGetValue(enemy,out alert)&&
+                !alert.impactOnly&&!alert.returning&&alert.remaining>0f&&
+                !ClearAttackPath(enemy.Position,Position);
+        }
         public bool IsEnemySweepingImpact(Enemy enemy)
         {
             EnemyHitAlert alert;

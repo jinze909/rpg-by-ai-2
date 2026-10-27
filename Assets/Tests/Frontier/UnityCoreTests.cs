@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void GuardTracksLastWitnessedFootInsteadOfHeroThroughStone() { CoreChecks.AlertGuardFollowsLastVisibleFootAcrossCloseSolidCover(Data()); }
         [Test] public void SentryWhistleHasActualNativeRegisteredAudio() { CoreChecks.TrueSentryWhistleIsAudibleAndOriginal(Data()); }
         [Test] public void SentrySightingActuallyRecruitsOnlyAudibleGuardMates() { CoreChecks.VisibleSentryWarnsOnlyPhysicallyAudiblePatrolMates(Data()); }
         [Test] public void AudibleRearBladeImpactHasOriginalNativeReadyClip() { CoreChecks.RearAmbushHasItsOwnFiniteProceduralContactSound(Data()); }

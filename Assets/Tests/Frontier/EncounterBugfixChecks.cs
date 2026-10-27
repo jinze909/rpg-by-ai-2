@@ -10,6 +10,82 @@ namespace Starfall.Tests
 
 
 
+
+        public static void AlertGuardFollowsLastVisibleFootAcrossCloseSolidCover(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                for(int y=11;y<=14;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    cells[14]='#';rows[y]=new string(cells);
+                }
+                char[] stone=rows[10].ToCharArray();
+                stone[19]='#';rows[10]=new string(stone);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);game.save.stage=3;
+                game.Enter(1);game.enemies.Clear();
+                game.mode="world";game.invulnerable=200f;
+                game.save.x=6.5f;game.save.y=10.5f;
+                var guard=new Enemy(79921,0,16.5f,12.5f,300f);
+                guard.stun=10f;guard.timer=10f;
+                game.enemies.Add(guard);
+                game.projectiles.Add(new Projectile{
+                    friendly=true,source="arrow",visual="arrow",
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(12f,0),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                Advance(game,1.1f);
+                Check(game.IsEnemyInvestigatingImpact(guard),
+                    "Ordinary patrol is genuinely searching after a real wall collision");
+                game.save.x=21.5f;game.save.y=12.5f;
+                guard.Face(new Point(1,0));game.Tick(.02f,new Point());
+                Check(!game.IsEnemyInvestigatingImpact(guard),
+                    "Front-facing contact physically reveals the hero before an alert pursues them");
+                Point visibleFoot=game.Position;
+                game.save.x=11.5f;game.save.y=12.5f;
+                var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(sight!=null&&
+                    !(bool)sight.Invoke(game,new object[]{guard.Position,game.Position})&&
+                    (guard.Position-game.Position).Length<8f,
+                    "Hero really crosses behind an opaque pillar while still inside ordinary eight-tile awareness");
+                var memory=typeof(GameCore).GetMethod("LastKnownEnemyHitOrigin",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(memory!=null,"Ordinary alert preserves one real last-observed pursuit foot");
+                Check(game.IsEnemyTrackingLastSight(guard)&&
+                    ((Point)memory.Invoke(game,new object[]{
+                        guard,new Point(-99f,-99f)})-visibleFoot).Length<.01f,
+                    "Hidden hero relocation does not rewrite the real witnessed position");
+                Point before=guard.Position;guard.stun=0f;
+                Advance(game,.36f);
+                Check(guard.x>before.x+.2f&&
+                    game.IsEnemyTrackingLastSight(guard)&&
+                    game.CanStand(guard.Position)&&
+                    guard.hp==300f&&game.save.version==2,
+                    "A real alerted sentry advances EAST toward last-seen ground instead of pathfinding WEST to the hidden hero behind a wall");
+                game.save.x=21.5f;game.save.y=12.5f;
+                game.Tick(.02f,new Point());
+                Check(!game.IsEnemyTrackingLastSight(guard),
+                    "Reopening genuine LOS removes the lost-sighting cue without touching saves");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void TrueSentryWhistleIsAudibleAndOriginal(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"sentryAlarm")>=0,

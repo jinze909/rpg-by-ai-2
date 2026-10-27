@@ -1203,16 +1203,19 @@ namespace Starfall
             // unchanged; no OnGUI outline duplicate or blinking animation.
             if(!drawingOutline&&
                (Game.IsEnemyInvestigatingImpact(e)||
-                Game.IsEnemyReturningFromImpact(e)))
+                Game.IsEnemyReturningFromImpact(e)||
+                Game.IsEnemyTrackingLastSight(e)))
             {
                 bool returning=Game.IsEnemyReturningFromImpact(e);
+                bool lastSight=Game.IsEnemyTrackingLastSight(e);
                 bool ambushReady=Game.CanSoundAmbushNow(e);
                 Color suspicion=PixelArt.C(ambushReady?"#7bf0b2":
-                    returning?"#7acabb":"#e6b46e");
+                    returning?"#7acabb":lastSight?"#eea68b":"#e6b46e");
                 Ring(e.Position,ambushReady?.68f:.57f,suspicion,16);
                 Text(p.x-84,p.y-125,168,19,
                     ambushReady?Game.L("背后奇袭 · 攻击","BACKSTAB · ATTACK"):
                     returning?Game.L("返回原哨位","RETURNING"):
+                    lastSight?Game.L("追查最后目击点","LAST SEEN"):
                     Game.IsEnemySweepingImpact(e)?
                         Game.L("搜索声源附近","SEARCHING"):
                         Game.L("调查异响","INVESTIGATING"),
