@@ -1384,8 +1384,11 @@ namespace Starfall.Tests
                 Check(g.Conditions().Contains("现在操作"),
                     "Production HUD advertises an actionable green phase only after true eastbound route completion");
             count=0;
-            while(g.CivicConduitActive&&!g.CivicConduitWindowOpen&&count++<350)
+            while(g.CivicConduitActive&&
+                (!g.CivicConduitWindowOpen||!g.SafeTravel)&&count++<800)
                 g.Tick(.02f,new Point());
+            Check(g.CivicConduitActive&&g.CivicConduitWindowOpen&&g.SafeTravel,
+                "Final real valve input waits for both green phase and the end of its genuine warned live-grid surge");
             g.Talk(valve);ChooseStoryChoice(g,"civic_conduit_tune");
             Check(g.CivicConduitStage==1&&g.save.version==2&&
                 g.save.inventory[4]==0,
