@@ -101,12 +101,15 @@ namespace Starfall
                 // Earlier chapters are historical and must not change
                 // progression when selected. Only track a live, unlocked
                 // quest in the existing navigation system.
-                QuestGuide quest=Game.GetQuest(beat.questId);
+                string trackId=Game.StoryRecapTrackableQuestId(beat);
+                bool trackable=!string.IsNullOrEmpty(trackId);
+                bool followUp=beat.complete&&trackable;
                 if(Button(480,652,210,30,
+                    followUp?Game.L("追踪路站补给","Track waystations"):
                     beat.complete?Game.L("已载入历史","In the record"):
                         Game.L("追踪本章任务","Track this chapter"),
-                    false,!beat.complete&&!quest.locked))
-                    Game.TrackQuest(beat.questId);
+                    false,trackable))
+                    Game.TrackQuest(trackId);
             }
             else
                 Text(301,333,382,326,Game.WorldResponse(),14,paper);

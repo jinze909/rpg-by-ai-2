@@ -149,7 +149,8 @@ namespace Starfall.Tests
             StoryBeat complete=game.StoryRecap()[game.StoryRecap().Count-1];
             Check(complete.chapter==12&&complete.complete&&
                 complete.summary.Contains("road ledger")&&
-                complete.next.Contains("field kits"),
+                complete.next.Contains("stock the waystations")&&
+                game.StoryRecapTrackableQuestId(complete)=="civic_waystations",
                 "Real public publication retires the road audit and records its permanent field-kit legacy");
             int count=game.save.flags.Count,coins=game.save.coins;
             game.PrepareSave();
@@ -160,6 +161,56 @@ namespace Starfall.Tests
                 resumed[resumed.Count-1].complete&&
                 reloaded.save.flags.Count==count&&reloaded.save.coins==coins,
                 "No Chapter Twelve cache or SaveData migration is required to restore the final public road ledger");
+        }
+
+        public static void ChapterTwelveJournalNavigatesToRealWaystationsAfterAudit(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.stage=3;game.save.ending=3;
+            game.save.flags.Add("civic_conduit_complete");
+            StoryBeat pending=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(!pending.complete&&
+                game.StoryRecapTrackableQuestId(pending)=="civic_aftercare",
+                "The Journey panel first tracks the real unfinished three-region road audit");
+            game.save.flags.Add("civic_aftercare_started");
+            game.save.flags.Add("civic_aftercare_waytrail_0");
+            game.save.flags.Add("civic_aftercare_waytrail_3");
+            game.save.flags.Add("civic_aftercare_waytrail_5");
+            game.save.flags.Add("civic_aftercare_published");
+            StoryBeat published=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(published.chapter==12&&published.complete&&
+                game.StoryRecapTrackableQuestId(published)=="civic_waystations"&&
+                published.next.Contains(game.GetQuest("civic_waystations").next),
+                "The finished audit still gives a clickable, truthful task and destination for outstanding waystation construction");
+            int initialCoins=game.save.coins,flags=game.save.flags.Count;
+            game.TrackQuest(game.StoryRecapTrackableQuestId(published));
+            Check(game.save.trackedQuest=="civic_waystations"&&
+                game.save.coins==initialCoins&&game.save.flags.Count==flags,
+                "The actual Journey navigation selects live civic resupply without handing out any supplies or resurrecting the completed audit");
+            game.save.english=true;
+            StoryBeat english=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(english.next.Contains("stock the waystations")&&
+                english.next.Contains(game.GetQuest("civic_waystations").next)&&
+                !english.next.Contains("路站"),
+                "The continued road-network goal is bilingual and resolves the real local quest target");
+            game.save.flags.Add("civic_waystation_stocked_0");
+            game.save.flags.Add("civic_waystation_stocked_3");
+            StoryBeat shuttle=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(shuttle.next.Contains(game.GetQuest("civic_waystations").next)&&
+                shuttle.next.Contains("Shuttles now run"),
+                "After two paid outposts the same chapter follows real unlocked shuttles and the final unbuilt station");
+            game.save.flags.Add("civic_waystation_stocked_5");
+            game.save.flags.Add("civic_waystations_complete");
+            StoryBeat finished=game.StoryRecap()[game.StoryRecap().Count-1];
+            Check(game.StoryRecapTrackableQuestId(finished)==null&&
+                finished.next.Contains("herbal field kits")&&
+                !finished.next.Contains("stock the waystations"),
+                "After all three genuine outposts are complete the Journey button returns to a harmless historical record");
+            var previous=game.StoryRecap()[3];
+            Check(game.StoryRecapTrackableQuestId(previous)==null&&
+                game.StoryRecapTrackableQuestId(null)==null&&
+                game.save.version==2,
+                "Old completed chapters and missing pages never offer ghost task tracking");
         }
 
         public static void StoryRecapNeverRewritesExistingSaveOrQuestTracking(Campaign data)

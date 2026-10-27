@@ -49,6 +49,28 @@ namespace Starfall
             return "";
         }
 
+        // Resolve the Journey panel's real clickable continuation. A
+        // completed old chapter stays historical, except for Chapter Twelve:
+        // residents may still need to staff and provision the actual
+        // waystations after publishing the initial road audit. Do not
+        // re-track a finished audit or invent an unlocked quest.
+        public string StoryRecapTrackableQuestId(StoryBeat beat)
+        {
+            if(beat==null)return null;
+            if(!beat.complete)
+            {
+                QuestGuide current=GetQuest(beat.questId);
+                return current.locked||current.complete?null:beat.questId;
+            }
+            if(beat.chapter==12&&beat.questId=="civic_aftercare")
+            {
+                QuestGuide next=GetQuest("civic_waystations");
+                if(!next.locked&&!next.complete)
+                    return next.id;
+            }
+            return null;
+        }
+
         // Order is historical, visibility is NOT: the journal may only recap
         // chapters already reached or genuinely unlocked in this save slot.
         // No downstream chapter name, choice or outcome leaks on a new game.
@@ -158,6 +180,25 @@ namespace Starfall
                     "All three valves carry current, but lamplight alone cannot make a night road safe. Find the night traveler at Hearth Inn, take the route ledger and walk the old markers in Canal, Ironreach and Mistport.",
                 "三地巡路实录已经公开，守路人会在核验路标旁留下药箱，照顾后来的人。",
                 "The three-region road ledger is published. Its surveyed markers now keep herbal field kits for those who come after.");
+            // Chapter Twelve can be historically complete while residents
+            // still lack actual lumber and medicine. Make its NEXT-step
+            // text agree with the Journey panel's actionable follow-up
+            // instead of leaving the hero stranded on a disabled button.
+            if(beats.Count>0)
+            {
+                int last=beats.Count-1;
+                StoryBeat page=beats[last];
+                string nextId=StoryRecapTrackableQuestId(page);
+                if(page.chapter==12&&page.complete&&
+                   nextId=="civic_waystations")
+                {
+                    QuestGuide nextQuest=GetQuest(nextId);
+                    beats[last]=new StoryBeat(page.chapter,page.title,
+                        page.summary,L("巡路簿已经公开。下一步补给路站：",
+                            "Road ledger published. Next, stock the waystations: ")+
+                        nextQuest.next,page.questId,page.complete);
+                }
+            }
             return beats;
         }
 
