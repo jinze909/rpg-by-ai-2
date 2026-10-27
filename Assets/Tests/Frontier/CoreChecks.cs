@@ -6247,7 +6247,11 @@ namespace Starfall.Tests
                 if(medicineIntact)
                     Check(g.toast.Contains(g.save.english?"coins":"硬币")&&
                         g.toast.Contains(g.save.english?"Medicine intact":"药品完好"),
-                        "A real intact handoff must present the original money reward and local-care bonus in one toast");
+                        "A real intact handoff must present the original money reward and local-care bonus in one toast: room="+room+
+                        " toast="+g.toast.Replace("\n"," / ")+
+                        " integrity="+g.FarCourierIntegrity+
+                        " delivered="+g.FarCourierDelivered(room)+
+                        " pristine="+g.FarCourierPristine(room));
                 Check(g.FarCourierPristine(room)==medicineIntact,
                     "Only genuinely delivered cargo with at least 90 percent integrity preserves local medical stock");
                 Check(g.FarCourierDelivered(room)&&!g.FarCourierActive&&
