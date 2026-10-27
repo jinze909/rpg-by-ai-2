@@ -301,12 +301,18 @@ public static class RuntimeCombatInputChecks
             GUI.commands.Exists(x=>x.Contains("追击玩家")),
             "Actual world rendering paints both the live civilian timer and pursued enemy state");
         float energyAfterFirstCall=g.save.energy;
+        float remainingBeforeRepeat=g.WayfarerDecoyTime;
         Input.keys.Add(KeyCode.L);Update(app);
-        // One more live world frame may legitimately regenerate/drain a
-        // fractional amount of energy. It cannot charge another FIFTEEN.
-        Check(g.save.energy>energyAfterFirst-1.5f&&
-            g.save.energy<=energyAfterFirst+1.5f,
-            "Repeated keypress cannot duplicate the once-per-ambush diversion cost");
+        // VisualReview and the actual simulation can refill/adjust
+        // stamina independently of the ability, so absolute cross-frame
+        // stamina equality is not a valid proof of one-time payment.
+        // The real skill cannot reset its five-second world clock or
+        // charge another 15 stamina on a repeat keypress.
+        Check(g.WayfarerDecoyTime<remainingBeforeRepeat&&
+            g.WayfarerDecoyTime>remainingBeforeRepeat-.2f&&
+            g.IsWayfarerDecoyTarget(raiders[0])&&
+            g.save.energy>=energyAfterFirstCall-2f,
+            "Repeated keypress cannot restart the once-only diversion or spend another fifteen energy");
         Check(g.save.coins==coins&&g.save.shards==shards&&
             g.save.flags.Count==flags&&g.save.version==2,
             "World command does not award loot, advance tasks or change original V2 save layout");
