@@ -13,13 +13,19 @@ namespace Starfall
         public readonly int profession;
         public readonly float criticalChance;
         public readonly bool playerOwned;
+        // The immutable actual projectile/attack launch foot. A player
+        // can run behind cover before the shot arrives; a delayed hit must
+        // not publish that new hidden position as the shot's source.
+        public readonly Point? sourceFoot;
         public ImpactProfile(int weapon, int style, int masteryWeapon, int combo,
-            float criticalChance, bool playerOwned, int profession=-1)
+            float criticalChance, bool playerOwned, int profession=-1,
+            Point? sourceFoot=null)
         {
             this.weapon=weapon;this.style=style;
             this.masteryWeapon=masteryWeapon;this.combo=combo;
             this.criticalChance=criticalChance;this.playerOwned=playerOwned;
             this.profession=profession;
+            this.sourceFoot=sourceFoot;
         }
     }
     internal sealed class FrostField
@@ -79,7 +85,9 @@ namespace Starfall
             if(e==null||impact==null||!impact.playerOwned||
                e.boss||practicing||mode!="world"||
                !enemies.Contains(e))return;
-            float range=(e.Position-Position).Length;
+            Point launchFoot=impact.sourceFoot.HasValue?
+                impact.sourceFoot.Value:Position;
+            float range=(e.Position-launchFoot).Length;
             if(!Finite(range)||range<=8f||range>18f)return;
             EnsureEnemyHitAlertSession();
             // Lethal sniping still produces a real witnessed strike:
@@ -91,7 +99,7 @@ namespace Starfall
                     effects.Add(new Effect("number",e.Position,.7f,
                         L("察觉袭击","UNDER ATTACK")));
                 enemyHitAlert[e]=new EnemyHitAlert(
-                    EnemyHitAlertSeconds,Position);
+                    EnemyHitAlertSeconds,launchFoot);
             }
             // Nearby living patrol mates can see a comrade get struck.
             // This is not a magical room-wide alarm: only neighbors
@@ -104,10 +112,10 @@ namespace Starfall
                 if(witness==null||System.Object.ReferenceEquals(witness,e)||
                    witness.hp<=0||witness.boss)continue;
                 float between=(witness.Position-e.Position).Length;
-                float heroDistance=(witness.Position-Position).Length;
+                float originDistance=(witness.Position-launchFoot).Length;
                 if(!Finite(between)||between>3.5f||
-                   !Finite(heroDistance)||heroDistance>18f||
-                   heroDistance<=8f||
+                   !Finite(originDistance)||originDistance>18f||
+                   originDistance<=8f||
                    !CanStand(witness.Position)||
                    !ClearAttackPath(e.Position,witness.Position))continue;
                 if(!enemyHitAlert.ContainsKey(witness))
@@ -121,11 +129,15 @@ namespace Starfall
                     oldWitness.remaining=Math.Max(oldWitness.remaining,4f);
                     if(ClearAttackPath(witness.Position,Position))
                         oldWitness.lastKnown=Position;
+                    else if(ClearAttackPath(witness.Position,launchFoot))
+                        oldWitness.lastKnown=launchFoot;
                 }
                 else
                     enemyHitAlert[witness]=new EnemyHitAlert(4f,
                         ClearAttackPath(witness.Position,Position)?
-                        Position:e.Position);
+                        Position:
+                        ClearAttackPath(witness.Position,launchFoot)?
+                        launchFoot:e.Position);
             }
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
@@ -157,7 +169,8 @@ namespace Starfall
             weapon=(int)Clamp(weapon,0,2);
             return new ImpactProfile(weapon,save.weaponStyles[weapon],save.weapon,attackCombo,
                 Clamp(.06f+save.talents[0]*.025f+(Relic(5)?.12f:0),0,1),
-                playerOwned,playerOwned?save.profession:-1);
+                playerOwned,playerOwned?save.profession:-1,
+                playerOwned?(Point?)Position:null);
         }
         private void RetireFrostVisuals(FrostField field)
         {

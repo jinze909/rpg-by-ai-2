@@ -3,6 +3,65 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void RangedProjectileHitRemembersOriginalLaunchFootAfterPlayerRepositions(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";g.invulnerable=300f;
+                g.save.x=7.5f;g.save.y=10.5f;
+                Enemy target=new Enemy(77002,0,21.5f,10.5f,220f);
+                target.timer=1f;g.enemies.Add(target);
+                var capture=typeof(GameCore).GetMethod("CaptureImpact",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(capture!=null&&hit!=null,
+                    "A real ranged action snapshots its own immutable launch profile");
+                ImpactProfile arrow=(ImpactProfile)capture.Invoke(g,
+                    new object[]{1,0,true});
+                Check(arrow.sourceFoot.HasValue&&
+                    (arrow.sourceFoot.Value-g.Position).Length<.001f,
+                    "Shot identity captures the real hero foot before flight");
+                // Player retreats SOUTH and a wall seals that new location
+                // during the projectile's outbound travel. Its valid east-
+                // west launch path still reaches the original enemy.
+                g.save.x=7.5f;g.save.y=17.5f;
+                string[] oldRows=(string[])g.Map.rows.Clone();
+                char[] barrier=g.Map.rows[13].ToCharArray();
+                for(int x=3;x<=25;x++)barrier[x]='#';
+                g.Map.rows[13]=new string(barrier);
+                try
+                {
+                    hit.Invoke(g,new object[]{target,2f,false,
+                        (Point?)null,arrow});
+                    Check(target.hp<220f,"Delayed shot really damages its original enemy");
+                    Point oldTarget=target.Position;
+                    Advance(g,.85f);
+                    Check(target.Position.x<oldTarget.x-.45f&&
+                        Math.Abs(target.Position.y-10.5f)<.5f&&
+                        g.CanStand(target.Position),
+                        "A delayed arrow leads the patrol to its real original firing foot, not the shooter's later concealed position");
+                }
+                finally {g.Map.rows=oldRows;}
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void DistantAlertInvestigatesLastRealSightlineAndReacquiresAfterGateOpens(Campaign data)
         {
             MapData previous=data.maps[1];
