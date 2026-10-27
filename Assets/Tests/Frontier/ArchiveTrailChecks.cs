@@ -164,6 +164,45 @@ namespace Starfall.Tests
                         if(o.kind=="waytrail")
                             g.save.flags.Remove("waytrail_"+o.id);
                     g.Close();
+
+                    g.Talk(artifact);
+                    int routeMenu=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_routes_1");
+                    Check(routeMenu>=0,
+                        "Recovered atlas offers a genuine choice of two physical old roads");
+                    g.Choose(routeMenu);
+                    int east=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_go_1_e");
+                    int south=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_go_1_s");
+                    Check(g.conversation.speaker==artifact.name && east>=0 &&
+                        south>=0,"The two route choices belong to the recovered field record");
+                    int coinsBeforeRoad=g.save.coins,shardsBeforeRoad=g.save.shards;
+                    g.Choose(east);
+                    Point? easternPin=g.LocalWaymark;
+                    WorldObject easternObject=null;
+                    foreach(WorldObject candidate in g.Map.objects)
+                        if(candidate.id=="waytrail1e")easternObject=candidate;
+                    Check(easternObject!=null&&easternPin.HasValue&&
+                        (easternPin.Value-new Point(easternObject.x,easternObject.y)).Length<1.81f &&
+                        g.CanStand(easternPin.Value)&&g.save.coins==coinsBeforeRoad&&
+                        g.save.shards==shardsBeforeRoad,
+                        "Choosing the eastern route actually pins walkable interaction-side ground without a reward");
+                    g.Talk(artifact);
+                    routeMenu=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_routes_1");
+                    g.Choose(routeMenu);
+                    east=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_go_1_e");
+                    Check(east>=0,"The unsurveyed road appears in the actual choice menu");
+                    g.save.flags.Add("waytrail_waytrail1e");
+                    g.Choose(east);
+                    Check(g.LocalWaymark.HasValue &&
+                        (g.LocalWaymark.Value-easternPin.Value).Length<.001f &&
+                        g.toast.Contains("已经被记录"),
+                        "A stale already-surveyed road choice cannot overwrite a valid personal route");
+                    g.save.flags.Remove("waytrail_waytrail1e");
+                    g.Close();
                 }
                 // Review recovered evidence with Lin at the real town
                 // workbench before proceeding to the next regional clue.

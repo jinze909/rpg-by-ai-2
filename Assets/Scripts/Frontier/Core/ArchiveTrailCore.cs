@@ -69,7 +69,8 @@ namespace Starfall
                 Dialog(o.name, o.en, "你已把这份记录拓印进手帐。原件不必重复领取。",
                     "You already copied this record into the journal. It cannot be claimed twice.",
                     C("细读已留下的现场拓印", "Read the recovered field rubbing", "archive_review_" + region),
-                    C("寻找尚未调查的旧路标", "Chart an unvisited old road marker", "archive_pin_" + region),
+                    C("寻找最近未调查的旧路标", "Find the nearest unsurveyed marker", "archive_pin_" + region),
+                    C("比较南侧与东侧两条旧路", "Compare the southern and eastern routes", "archive_routes_" + region),
                     C("收起手帐", "Close journal", "close"));
                 return true;
             }
@@ -131,8 +132,94 @@ namespace Starfall
                 C("回到琳的委托", "Back to Lin's commission", "archive_return"),
                 C("合上记录", "Close the record", "close"));
         }
+        private WorldObject AtlasFieldSource(int region)
+        {
+            WorldObject o=pendingDialogueSource;
+            if(region<1||region>3||save.room!=region||
+               pendingDialogueSourceRoom!=region||
+               !Has("archive_fragment_"+region)||
+               o==null||o.kind!="archivefragment"+region||
+               !SourceBelongsToActiveMap(o)||!IsObjectPresent(o)||
+               !HasPhysicalInteractionReach(o))return null;
+            return o;
+        }
+        private WorldObject AtlasRoadMarker(int region,string side)
+        {
+            if((side!="s"&&side!="e")||Map.objects==null)return null;
+            string target="waytrail"+region+side;
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&o.kind=="waytrail"&&o.id==target&&
+                   IsObjectPresent(o))return o;
+            return null;
+        }
         private bool ChooseArchiveTrail(string action)
         {
+            // An explicit second route requires selecting its real road
+            // object on the original physical field page, never a remote
+            // inventory flag or a copied speaker identity.
+            if(action.StartsWith("archive_routes_",StringComparison.Ordinal))
+            {
+                int region;
+                if(!int.TryParse(action.Substring("archive_routes_".Length),
+                    out region))return true;
+                WorldObject page=AtlasFieldSource(region);
+                if(page==null)return true;
+                var choices=new System.Collections.Generic.List<Choice>();
+                foreach(string side in new[]{"s","e"})
+                {
+                    WorldObject marker=AtlasRoadMarker(region,side);
+                    if(marker==null||Has("waytrail_"+marker.id))continue;
+                    choices.Add(side=="s"?
+                        C("测绘南侧旧路", "Survey the southern trail",
+                            "archive_go_"+region+"_s"):
+                        C("测绘东侧旧路", "Survey the eastern trail",
+                            "archive_go_"+region+"_e"));
+                }
+                bool exhausted=choices.Count==0;
+                choices.Add(C("回到现场拓印","Back to the field rubbing",
+                    "archive_field_return_"+region));
+                choices.Add(C("收起星图","Close the atlas","close"));
+                Dialog(page.name,page.en,
+                    exhausted?
+                    "本地区两条旧路都已测绘，地图上保留的是已经有人走过的痕迹。":
+                    "拓印将南侧驿路与东侧岔路分别标出。选定一处尚未调查的路标；若道路封闭，原有个人导航不会被覆盖。",
+                    exhausted?
+                    "Both old roads here have been surveyed; the record preserves their real traces.":
+                    "The rubbing shows two distinct roads, south and east. Choose an unvisited marker. A blocked road will not overwrite your existing pin.",
+                    choices.ToArray());
+                return true;
+            }
+            if(action.StartsWith("archive_go_",StringComparison.Ordinal))
+            {
+                string suffix=action.Substring("archive_go_".Length);
+                int split=suffix.LastIndexOf('_'),region;
+                if(split<0||!int.TryParse(suffix.Substring(0,split),
+                    out region))return true;
+                string side=suffix.Substring(split+1);
+                if(AtlasFieldSource(region)==null)return true;
+                WorldObject marker=AtlasRoadMarker(region,side);
+                if(marker==null||Has("waytrail_"+marker.id))
+                {
+                    Notify("旧路标已经被记录或不再存在，个人导航没有改变。",
+                        "That marker was surveyed or is no longer here; your personal route is unchanged.");
+                    return true;
+                }
+                Point foot;
+                if(!TryQuestApproachFoot(new Point(marker.x,marker.y),out foot))
+                {
+                    Notify("所选旧路暂时无法步行抵达；请解除封锁或另找通路。原有标记会保留。",
+                        "The chosen road is unreachable on foot. Find another path; your pin is retained.");
+                    return true;
+                }
+                CommitLocalWaymark(foot,null);
+                Notify(side=="s"?
+                    "南侧旧路已标记。沿步行导航前进，到达后检查路标。":
+                    "东侧旧路已标记。沿步行导航前进，到达后检查路标。",
+                    side=="s"?
+                    "Southern road pinned. Follow the walking route and inspect the marker.":
+                    "Eastern road pinned. Follow the walking route and inspect the marker.");
+                return true;
+            }
             // A recovered field object remains a readable, on-site clue.
             // Reopening it cannot claim a second reward or switch to an
             // imagined remote NPC. The actual touched WorldObject and region
@@ -193,7 +280,7 @@ namespace Starfall
                         "Unvisited markers remain, but no walking route is open. Clear the obstruction or find another way.");
                 else
                     Notify("本地区的旧路标都已实地记录，不必重复测绘。",
-                        "All old road markers in this pinRegion are already surveyed.");
+                        "All old road markers in this region are already surveyed.");
                 return true;
             }
             if(action.StartsWith("archive_review_",StringComparison.Ordinal)||
