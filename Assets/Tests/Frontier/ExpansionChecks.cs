@@ -922,7 +922,7 @@ namespace Starfall.Tests
 
         public static void LastDirectiveThreePhysicalWitnessTracesDeepenInvestigation(Campaign data)
         {
-            var g=Fresh(data);g.save.stage=3;
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
             foreach(string flag in new[]{"gate_4","last_directive_started"})
                 g.save.flags.Add(flag);
             g.Enter(4);g.enemies.Clear();g.invulnerable=180;
@@ -960,7 +960,7 @@ namespace Starfall.Tests
                 Check(g.Has(flags[i])&&g.LastDirectiveTraces==i+1&&
                     g.conversation!=null&&
                     g.conversation.speaker==clue.name&&
-                    g.conversation.zh.Contains(expected[i]),
+                    g.conversation.text.Contains(expected[i]),
                     "Source-bound action opens unique authored story evidence under its actual speaker, not a different NPC");
                 g.Close();
                 g.Talk(clue);
@@ -982,8 +982,8 @@ namespace Starfall.Tests
             saved.save.x=board.x;saved.save.y=board.y;
             saved.Talk(board);
             Check(saved.conversation!=null&&
-                saved.conversation.en.Contains("rubbings")&&
-                saved.conversation.zh.Contains("拓印"),
+                saved.conversation.textEn.Contains("rubbings")&&
+                saved.conversation.text.Contains("拓印"),
                 "Original public council dynamically acknowledges the three independently verified witness records");
         }
 
