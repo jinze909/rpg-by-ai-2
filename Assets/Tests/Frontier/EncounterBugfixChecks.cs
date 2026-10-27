@@ -3,6 +3,111 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void DistinctArrowWallSoundsRedirectOnlySearchingGuards(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // Both east-facing shot corridors are open. The central
+                // four-cell pillar hides the archer from the stationary
+                // guard without blocking either stone-impact sound.
+                for(int y=11;y<=14;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    cells[14]='#';rows[y]=new string(cells);
+                }
+                for(int y=10;y<=15;y+=5)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    cells[19]='#';rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);
+                game.save.stage=3;game.Enter(1);
+                game.enemies.Clear();game.mode="world";
+                game.invulnerable=300f;
+                game.save.x=6.5f;game.save.y=10.5f;
+                var guard=new Enemy(79008,0,16.5f,12.5f,200f);
+                guard.stun=100f;guard.timer=100f;
+                game.enemies.Add(guard);
+                var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(sight!=null&&
+                    !(bool)sight.Invoke(game,new object[]{guard.Position,game.Position}),
+                    "A real pillar hides the archer from the enemy");
+                game.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(9.5f,10.5f),
+                    velocity=new Point(12f,0f),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(6.5f,10.5f))});
+                Advance(game,1.1f);
+                Check(game.IsEnemyInvestigatingImpact(guard)&&
+                    (guard.Position-new Point(16.5f,12.5f)).Length<.001f,
+                    "A real first arrow hits stone and alerts the stunned guard without moving it");
+                game.save.y=15.5f;
+                Check(!(bool)sight.Invoke(game,new object[]{guard.Position,game.Position}),
+                    "Second shot still originates behind cover");
+                game.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(9.5f,15.5f),
+                    velocity=new Point(12f,0f),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(6.5f,15.5f))});
+                Advance(game,1.1f);
+                Check(game.IsEnemyInvestigatingImpact(guard),
+                    "The real second arrow strikes before the first investigation expires");
+                Point before=guard.Position;
+                guard.stun=0f;
+                Advance(game,.5f);
+                Check(guard.Position.y>before.y+.12f&&
+                    game.IsEnemyInvestigatingImpact(guard)&&
+                    guard.hp==200f&&game.save.version==2,
+                    "Guard physically heads toward the NEW northern impact, not the stale southern one, without damage or save changes");
+
+                // The exact same missile cannot distract an active rescue
+                // attacker while it still owns its original civilian target.
+                var npc=new WorldObject{id="wayfarer1",kind="wayfarer1",
+                    name="Traveler",en="Traveler",x=10.5f,y=10.5f};
+                var defense=StartWayfarerCoverFixture(data,npc);
+                Enemy raider=defense.enemies.Find(e=>e.id==82010);
+                Enemy other=defense.enemies.Find(e=>e.id==82011);
+                Check(raider!=null&&other!=null,
+                    "Both actual traveler encounter attackers must exist");
+                raider.x=16.5f;raider.y=12.5f;
+                raider.stun=100f;raider.timer=100f;
+                other.x=25.5f;other.y=25.5f;
+                other.stun=100f;other.timer=100f;
+                char[] wall=data.maps[1].rows[10].ToCharArray();
+                wall[19]='#';data.maps[1].rows[10]=new string(wall);
+                defense.save.x=6.5f;defense.save.y=10.5f;
+                defense.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(9.5f,10.5f),
+                    velocity=new Point(12f,0f),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(6.5f,10.5f))});
+                Advance(defense,1.1f);
+                Check(defense.WayfarerEncounterRoom==1&&
+                    !defense.IsEnemyInvestigatingImpact(raider)&&
+                    raider.hp>0f&&!defense.Has("wayfarer_1"),
+                    "Civilian-defense combat stays authoritative; no false INVESTIGATING cue or rescue reward");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void AudibleArrowDecoysIgnoreFarSideCoverAndNonplayerExpiredShots(Campaign data)
         {
             MapData previous=data.maps[1];

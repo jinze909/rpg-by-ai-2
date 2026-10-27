@@ -175,6 +175,20 @@ namespace Starfall
         // concealed shooter, and only when the original player fired it.
         // A shot blocked at birth, a companion arrow, a shot expiring in air
         // or a confirmed actor hit cannot double-mint this distraction.
+        // Civilian, ward and supply attacks own a real priority objective.
+        // Noise cannot repaint those attackers as fake search patrols.
+        private bool ArrowSoundCannotOverrideObjective(Enemy enemy)
+        {
+            return (roadTrialRoom==save.room&&IsRoadwardenTrialEnemy(enemy))||
+                (wayfarerEncounterRoom==save.room&&IsWayfarerEnemy(enemy))||
+                (reliefMissionRoom==save.room&&
+                    ((reliefMissionWave==1||reliefMissionWave==2)&&
+                        IsReliefMissionEnemy(enemy)||
+                     reliefMissionWave==3&&
+                        (enemy.Position-reliefFollowerPosition).Length<8f))||
+                (IsAfterlightWatchEnemy(enemy)&&enemy.kind!=1)||
+                (IsOuterPatrolEnemy(enemy)&&enemy.kind!=1);
+        }
         private void InvestigateRealArrowWallImpact(Projectile shot)
         {
             if(shot==null||!shot.friendly||shot.explosive||
@@ -193,7 +207,8 @@ namespace Starfall
             foreach(Enemy enemy in enemies)
             {
                 if(enemy==null||enemy.hp<=0||enemy.boss||
-                   !CanStand(enemy.Position))continue;
+                   !CanStand(enemy.Position)||
+                   ArrowSoundCannotOverrideObjective(enemy))continue;
                 float heard=(enemy.Position-soundFoot).Length;
                 float fromHero=(enemy.Position-Position).Length;
                 if(!Finite(heard)||heard>4.5f||
@@ -204,8 +219,17 @@ namespace Starfall
                 EnemyHitAlert alert;
                 if(enemyHitAlert.TryGetValue(enemy,out alert))
                 {
-                    // An existing attack pursuit is a higher-quality
-                    // threat: do not overwrite its genuinely seen foot.
+                    // Real visual/weapon contact still outranks a noise.
+                    // A distinct SECOND physical sound may redirect a
+                    // searching guard, but repeated fire into the same
+                    // stone does not endlessly refresh the alert timer.
+                    if(!alert.impactOnly||
+                        (alert.lastKnown-soundFoot).Length<1.25f)
+                        continue;
+                    alert.lastKnown=soundFoot;
+                    alert.remaining=3.5f;
+                    effects.Add(new Effect("number",enemy.Position,.75f,
+                        L("新的撞击声","NEW IMPACT")));
                     continue;
                 }
                 enemyHitAlert[enemy]=new EnemyHitAlert(
