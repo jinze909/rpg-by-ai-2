@@ -920,6 +920,34 @@ namespace Starfall.Tests
             }
         }
 
+        public static void WitnessAuditJournalKeepsRealMainRouteAndShowsEarnedBattleCounter(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"civic_response_ledger",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2"})
+                g.save.flags.Add(flag);
+            var before=g.GetQuest("last_directive");
+            Check(before.description.Contains("0/3")&&
+                before.description.Contains("可选调查")&&
+                before.next.Contains("破解终端")&&
+                !before.complete,
+                "Optional original-witness inspections are discoverable without replacing the mandatory real terminal quest");
+            foreach(string flag in new[]{"last_directive_trace_0",
+                "last_directive_trace_1","last_directive_trace_2"})
+                g.save.flags.Add(flag);
+            var ready=g.GetQuest("last_directive");
+            Check(ready.description.Contains("3/3")&&
+                ready.description.Contains("20耐力")&&
+                ready.next.Contains("破解终端"),
+                "Three audited originals explain their once-only battle payoff while retaining ordinary story progression");
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            var completed=g.GetQuest("last_directive");
+            Check(completed.complete&&!completed.description.Contains("可选调查"),
+                "Completed story journal hides optional pre-battle advice but retains historical permanent rights");
+        }
+
         public static void AuditedWitnessesUnlockOneRealCitadelSurgeCounter(Campaign data)
         {
             foreach(bool audited in new[]{false,true})

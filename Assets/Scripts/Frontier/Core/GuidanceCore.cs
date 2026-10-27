@@ -1389,6 +1389,13 @@ namespace Starfall
                     "STORY AFTERMATH · TESTIMONY, CIPHER & COMBAT");
                 q.description=L("三地公共服务名册公开后，在余烬镇接到最后一道未署名的军用指令调查。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
                     "After publishing the regional service ledger, investigate an unsigned citadel order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
+                // A trace is an optional SECOND pass at each actual evidence
+                // object, not a hidden new ending requirement. Tell players
+                // where its gameplay payoff can be used before the final duel.
+                if(LastDirectiveStarted&&!LastDirectiveComplete)
+                    q.description+=L(
+                        "\n\n可选调查：返回三份证词各查验背面的痕迹（"+LastDirectiveTraces+"/3）。全部查证后，在最终三名守卫战中可到原终端消耗20耐力接地一次，清除当前电弧并延后下一次。不会替你击败守卫。",
+                        "\n\nOptional investigation: examine the reverse of all three original records ("+LastDirectiveTraces+"/3). Audit all three to ground one surge for 20 energy at the original console during the final three-guardian battle. The guards still need to be defeated.");
                 q.locked=!Has("civic_response_ledger");
                 // Publication already unlocks the next chapter, but an
                 // unpaid earned talent is still an actionable civic errand.
@@ -1402,6 +1409,11 @@ namespace Starfall
                 for(int i=0;i<3;i++)
                     q.steps.Add(new QuestStep(L(clueZh[i],clueEn[i]),
                         Has("last_directive_clue_"+i)));
+                if(LastDirectiveStarted&&!LastDirectiveComplete)
+                    q.steps.Add(new QuestStep(L(
+                        "可选 · 复核证词背页 "+LastDirectiveTraces+"/3",
+                        "Optional · Audit witness records "+LastDirectiveTraces+"/3"),
+                        LastDirectiveTraces==3));
                 q.steps.Add(new QuestStep(L("破解终端并击退两道实体封锁",
                     "Decode the terminal and defeat both real security waves"),
                     LastDirectiveChoice>0));
@@ -1434,6 +1446,9 @@ namespace Starfall
                     string obj=next<3?"lastdirectiveclue"+next:"lastdirectivecore";
                     q.target=ObjectPoint(4,obj,new Point(100.5f,73.5f));
                     q.next=next<3?L("亲自访问下一处堡垒外环证词","Reach the next physical citadel testimony"):
+                        LastDirectiveWave==3&&LastDirectiveEvidenceGroundAvailable?
+                            L("回控制台消耗20耐力接地一次，清除脉冲；仍须击败三名守卫",
+                                "Ground one grid surge at the console for 20 energy; still defeat all three guardians"):
                         LastDirectiveWave==1||LastDirectiveWave==3?
                             L("击败守卫，实际战斗不可跳过","Defeat real guardians in combat"):
                         LastDirectiveWave==2?L("回终端投入25耐力开启二级封锁",
