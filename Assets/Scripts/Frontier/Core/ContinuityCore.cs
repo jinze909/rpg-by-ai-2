@@ -193,6 +193,36 @@ namespace Starfall
                 Point p=shot.position+flightRay*(i/(float)samples);
                 if(ShotBlocked(shot,p))return current;
             }
+            // The terrain may be clear but another LIVE enemy can catch
+            // the actual missile first. The old leading reticle silently
+            // advertised a rear hit through that body, even though the
+            // shipped projectile resolves first circle-entry contact.
+            // Use precisely that contact radius and signed entry ordering,
+            // with the target at its predicted landing foot and cover at
+            // its presently observed physical foot. We do NOT redirect
+            // shots or alter their physics. An unreliable lead falls back
+            // to the actor's visible current center like sealed terrain.
+            Point ray=shot.velocity.Normalized;
+            float selectedRadius=(target.boss?.9f:.5f)+shot.Radius;
+            float selectedEntry=ProjectileCircleEntry(
+                shot.position,shot.velocity,predicted,selectedRadius);
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||other.hp<=0f||
+                   System.Object.ReferenceEquals(other,target)||
+                   !CanStand(other.Position))continue;
+                Point offsetToBody=other.Position-shot.position;
+                float along=offsetToBody.x*ray.x+offsetToBody.y*ray.y;
+                if(along<=0f)continue;
+                float side=offsetToBody.x*ray.y-offsetToBody.y*ray.x;
+                float radius=(other.boss?.9f:.5f)+shot.Radius;
+                if(Math.Abs(side)>=radius)continue;
+                float first=ProjectileCircleEntry(
+                    shot.position,shot.velocity,other.Position,radius);
+                if(first+.015f<selectedEntry&&
+                   ClearAttackPath(shot.position,other.Position))
+                    return current;
+            }
             return predicted;
         }
 

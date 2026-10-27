@@ -255,6 +255,48 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void MovingTargetLeadCannotIgnoreLivingFrontline(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                foreach(int weapon in new[]{1,2})
+                {
+                    var g=SprintTestWorld(data,1);
+                    g.save.weapon=weapon;
+                    var target=new Enemy(1205,0,15.5f,15.5f,80f);
+                    target.moving=true;
+                    target.moveVelocity=new Point(0f,2f);
+                    g.enemies.Add(target);
+                    Point bare=g.PredictRangedTargetPoint(
+                        target,weapon==1?12f:8f,.24f);
+                    Check(bare.y>target.y+.7f,
+                        "Clear arena retains a real moving-target bow/staff interception lane");
+                    Point muzzle=GameCore.WeaponOrigin(g.Position,weapon,
+                        (bare-g.Position).Normalized);
+                    Point midpoint=muzzle+(bare-muzzle)*.55f;
+                    var front=new Enemy(1206,0,midpoint.x,midpoint.y,90f);
+                    g.enemies.Add(front);
+                    Check((g.PredictRangedTargetPoint(target,
+                        weapon==1?12f:8f,.24f)-target.Position).Length<.0001f,
+                        "A live front-line enemy actually intersecting the predicted missile cancels misleading rear-target lead");
+                    front.hp=0f;
+                    Check((g.PredictRangedTargetPoint(target,
+                        weapon==1?12f:8f,.24f)-bare).Length<.0001f,
+                        "Defeated body cover immediately restores valid moving-target lead");
+                    front.hp=90f;
+                    front.y+=3f;
+                    Check((g.PredictRangedTargetPoint(target,
+                        weapon==1?12f:8f,.24f)-bare).Length<.0001f,
+                        "Living enemies off the genuine flight corridor cannot suppress a valid shot");
+                    Check(g.projectiles.Count==0&&target.hp==80f&&
+                        g.save.version==2,
+                        "Read-only body-aware lead never fabricates a hit or changes persisted save fields");
+                }
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void BallisticAimUsesRealCurrentStyleReleaseClock(Campaign data)
         {
             var g=Fresh(data,1);
