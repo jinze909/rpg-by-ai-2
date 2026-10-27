@@ -8,7 +8,7 @@ namespace Starfall
     {
         private int conduitRoom=-1,conduitStage;
         private float conduitElapsed,conduitWalked,conduitIntegrity,conduitPulseLeft;
-        private Point conduitLast;
+        private Point conduitLast,conduitStageOrigin;
         // An actual valve can ground its own circuit once per powered stage.
         // These are per-attempt bits, not new SaveData fields.
         private int conduitGroundedMask;
@@ -45,6 +45,17 @@ namespace Starfall
         public int CivicConduitStage { get{return CivicConduitActive?conduitStage:0;} }
         public float CivicConduitTimeLeft {get{return CivicConduitActive?Math.Max(0,80-conduitElapsed):0;}}
         public float CivicConduitIntegrity {get{return CivicConduitActive?conduitIntegrity:0;}}
+        // Tuning requires a real eastbound span FROM the previous valve,
+        // not a large odometer inflated by pacing around a single socket.
+        // The stage anchor is transient; old SaveData v2 remains unchanged.
+        private float CivicConduitRequiredSpan
+        { get { return conduitStage==0?7.2f:conduitStage==1?3.1f:5.1f; } }
+        public float CivicConduitForwardSpan
+        { get { return CivicConduitActive?
+            Math.Max(0f,Position.x-conduitStageOrigin.x):0f; } }
+        public float CivicConduitForwardRemaining
+        { get { return CivicConduitActive?
+            Math.Max(0f,CivicConduitRequiredSpan-CivicConduitForwardSpan):0f; } }
         public bool CivicConduitWindowOpen
         {
             get{return CivicConduitActive&&
@@ -62,7 +73,7 @@ namespace Starfall
         private void ResetCivicConduit()
         {
             conduitRoom=-1;conduitStage=0;conduitElapsed=conduitWalked=conduitIntegrity=conduitPulseLeft=0;
-            conduitLast=new Point();conduitGroundedMask=0;conduitRepairUsed=false;
+            conduitLast=conduitStageOrigin=new Point();conduitGroundedMask=0;conduitRepairUsed=false;
             hazards.RemoveAll(h=>h.civicConduitOwned);
             effects.RemoveAll(e=>e.civicConduitOwned);
         }
@@ -206,6 +217,8 @@ namespace Starfall
                 "\n导体完好度："+(int)Math.Ceiling(conduitIntegrity)+
                 "%，剩余 "+(int)Math.Ceiling(CivicConduitTimeLeft)+
                 " 秒。\n"+
+                "向东接通距离："+CivicConduitForwardSpan.ToString("0.0")+
+                "/"+CivicConduitRequiredSpan.ToString("0.0")+" 格。\n"+
                 (open?"绿色窗口剩余 ":"下个绿色窗口还有 ")+
                 CivicConduitWindowRemaining.ToString("0.0")+" 秒。"+
                 (open?"请在相位结束前确认。":"关闭面板后时间才会继续，记得躲避电弧。")+controlZh,
@@ -213,6 +226,8 @@ namespace Starfall
                 "\nConductor: "+(int)Math.Ceiling(conduitIntegrity)+
                 "%; "+(int)Math.Ceiling(CivicConduitTimeLeft)+
                 " seconds left.\n"+
+                "Eastward circuit span: "+CivicConduitForwardSpan.ToString("0.0")+
+                "/"+CivicConduitRequiredSpan.ToString("0.0")+" tiles.\n"+
                 (open?"Green phase remaining: ":"Next green phase in ")+
                 CivicConduitWindowRemaining.ToString("0.0")+"s. "+
                 (open?"Confirm while stable.":"Close dialogue to resume the clock; dodge the arcs.")+controlEn,
@@ -256,7 +271,7 @@ namespace Starfall
                 conduitRoom=4;conduitStage=0;conduitElapsed=conduitWalked=0;
                 conduitIntegrity=100;conduitPulseLeft=4.7f;
                 conduitGroundedMask=0;conduitRepairUsed=false;
-                conduitLast=Position;revision++;sound="quest";
+                conduitLast=conduitStageOrigin=Position;revision++;sound="quest";
                 TrackQuest("civic_conduit");
                 Notify("公共线路已通电！沿道路向东，在三处阀门绿色周期内操作。80秒。",
                     "Public conductor live! Walk east and tune all three valves during green phases within 80s.");
@@ -305,9 +320,20 @@ namespace Starfall
             if(action!="civic_conduit_tune"||!CivicConduitActive||valve==null||
                 !CivicConduitWindowOpen||!SafeTravel)return true;
             int slot=CivicConduitValveIndex(valve);
-            float required=conduitStage==0?7.2f:conduitStage==1?3.1f:5.1f;
-            if(slot!=conduitStage||conduitWalked<required)return true;
-            conduitStage++;conduitWalked=0;revision++;sound="quest";
+            float required=CivicConduitRequiredSpan;
+            if(slot!=conduitStage)return true;
+            if(conduitWalked<required||CivicConduitForwardSpan+.00001f<required)
+            {
+                Notify("线路还未向东拉开足够距离。再前进 "+
+                    CivicConduitForwardRemaining.ToString("0.0")+
+                    " 格，保持导体通电后重试。",
+                    "Circuit lacks a real eastbound span. Advance "+
+                    CivicConduitForwardRemaining.ToString("0.0")+
+                    " more tiles before tuning this valve.");
+                return true;
+            }
+            conduitStage++;conduitWalked=0;
+            conduitStageOrigin=Position;revision++;sound="quest";
             if(conduitStage==3)
             {
                 ResetCivicConduit();Flag("civic_conduit_complete");

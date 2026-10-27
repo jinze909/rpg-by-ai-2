@@ -1316,6 +1316,65 @@ namespace Starfall.Tests
                 "The first valve can be completed during its opening green window without waiting a full cycle");
         }
 
+        public static void CivicConduitCannotChargeValveByWalkingInCircles(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.stage=3;g.save.room=4;
+            g.save.flags.Add("last_directive_complete");
+            g.save.flags.Add("last_directive_open");
+            WorldObject master=Object(g,"civicconduitmaster");
+            WorldObject valve=Object(g,"civicConduitValve1");
+            g.save.x=master.x;g.save.y=master.y;
+            g.save.inventory[4]=1;g.save.energy=100;
+            g.enemies.Clear();g.invulnerable=120f;
+            Action(g,"civicconduitmaster","civic_conduit_start");
+            Check(g.CivicConduitActive&&g.CivicConduitStage==0,
+                "Real public circuit begins at its authored western fuse station");
+            int count=0;
+            while(g.Position.x<valve.x-1.9f&&count++<300)
+                g.Tick(.02f,new Point(1,0));
+            Check(count<300&&g.CivicConduitForwardSpan<7.2f&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2001f,
+                "Early approach is inside physical valve interaction range but short of the authentic 7.2-tile eastward span");
+            float shortSpan=g.CivicConduitForwardSpan;
+            for(int j=0;j<3;j++)
+            {
+                for(int i=0;i<32;i++)g.Tick(.02f,new Point(-1,0));
+                for(int i=0;i<32;i++)g.Tick(.02f,new Point(1,0));
+            }
+            Check(g.CivicConduitActive&&
+                g.CivicConduitForwardSpan<7.2f&&
+                Math.Abs(g.CivicConduitForwardSpan-shortSpan)<.2f,
+                "Repeated actual backtracking cannot mint net eastward conduit reach");
+            count=0;
+            while(g.CivicConduitActive&&!g.CivicConduitWindowOpen&&count++<350)
+                g.Tick(.02f,new Point());
+            Check(g.CivicConduitWindowOpen,
+                "Actual first valve exposes its original green timing window");
+            g.Talk(valve);
+            Check(StoryChoicePresent(g,"civic_conduit_tune")&&
+                g.conversation.textEn.Contains("Eastward circuit span"),
+                "Real in-game valve panel shows forward physical progress");
+            ChooseStoryChoice(g,"civic_conduit_tune");
+            Check(g.CivicConduitStage==0&&
+                g.toast.Contains("eastbound")&&
+                g.CivicConduitActive,
+                "Pacing the same western ground does not advance a powered valve or lose the already-paid fuse");
+            count=0;
+            while(g.CivicConduitForwardRemaining>.001f&&count++<100)
+                g.Tick(.02f,new Point(1,0));
+            Check(g.CivicConduitForwardRemaining<.001f&&
+                (g.Position-new Point(valve.x,valve.y)).Length<2.2001f,
+                "Genuine additional eastward walking fulfills the remaining real span");
+            count=0;
+            while(g.CivicConduitActive&&!g.CivicConduitWindowOpen&&count++<350)
+                g.Tick(.02f,new Point());
+            g.Talk(valve);ChooseStoryChoice(g,"civic_conduit_tune");
+            Check(g.CivicConduitStage==1&&g.save.version==2&&
+                g.save.inventory[4]==0,
+                "The physical first valve tunes normally after forward travel with the original one-time fuse cost");
+        }
+
         public static void ChapterElevenPublicGridUsesOrderedPhysicalValvesAndPersistsItsChoice(Campaign data)
         {
             foreach (int choice in new[] { 1, 2 })
