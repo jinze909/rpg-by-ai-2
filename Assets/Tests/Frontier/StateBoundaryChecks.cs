@@ -735,6 +735,10 @@ namespace Starfall.Tests
                     g.Tick(.05f,new Point(),null,false,true);
                 Check((sentry.Position-original).Length>.25f,
                     "Turning to face a quiet hero at real four-tile reach starts physical pursuit");
+                // Create actual chase room AFTER the first sighting:
+                // a guard already at sword distance correctly stops
+                // advancing, so displacement alone is not an aggro test.
+                g.save.x=9.4f;g.save.y=10.5f;
                 Point alerted=sentry.Position;
                 sentry.Face(new Point(1,0));
                 for(int i=0;i<8;i++)
