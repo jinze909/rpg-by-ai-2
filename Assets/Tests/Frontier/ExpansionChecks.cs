@@ -70,6 +70,124 @@ namespace Starfall.Tests
         }
 
 
+        public static void EightRegionRescueRewardsSurviveTalentCapAndV2Reload(Campaign data)
+        {
+            var g=Unlocked(data);
+            for(int r=0;r<7;r++)g.save.flags.Add("outer_cache_"+r);
+            g.save.flags.Add("outer_log_7");
+            g.save.flags.Add("outer_relay_7");
+            g.save.skillPoints=99;
+            g.Enter(7);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject cache=Array.Find(g.Map.objects,o=>o.kind=="outercache");
+            Check(cache!=null,"Actual eighth-region rescue chest remains present");
+            TalkNearObject(g,cache);
+            Check(g.Has("outer_rescues_complete")&&g.OuterRescueCount==8&&
+                g.OuterMilestoneRewardPending("outer_rescues_complete")&&
+                g.save.skillPoints==99,
+                "The real eighth chest owes its capped, one-time earned +1 talent rather than erasing it");
+            g.Close();g.PrepareSave();
+            g=new GameCore(data,CloneSave(g.save));g.Start();g.enemies.Clear();
+            Check(g.save.version==2&&g.OuterMilestoneRewardPending("outer_rescues_complete"),
+                "Original SaveData v2 persists unpaid skill point without a new serialized field");
+            WorldObject lamp=Array.Find(g.Map.objects,o=>o.kind=="outerrelay");
+            TalkNearObject(g,lamp);
+            int claim=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim");
+            Check(claim>=0&&g.conversation.text.Contains("八地账册"),
+                "The real repaired relay exposes a signed outstanding completion reward alongside ordinary options");
+            g.Choose(claim);
+            Check(g.save.skillPoints==99&&g.OuterMilestoneRewardPending("outer_rescues_complete"),
+                "Trying to claim at full talent capacity leaves the real IOU intact");
+            g.save.skillPoints=98;
+            TalkNearObject(g,lamp);
+            claim=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim");
+            Check(claim>=0,"The original relay continues to recognize the signed reward after capacity clears");
+            g.Choose(claim);
+            Check(g.save.skillPoints==99&&!g.OuterMilestoneRewardPending("outer_rescues_complete")&&
+                g.Has("outer_rescues_complete"),
+                "The original worker pays exactly one talent and never revokes or reruns the completed regional rescue");
+            TalkNearObject(g,lamp);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_milestone_claim")<0,
+                "An already signed talent cannot be duplicated by reopening the original relay dialogue");
+            g.Close();
+        }
+
+        public static void EighthRoadwardenDeliveryAndAllWatchMedalsKeepRealIndependentClaims(Campaign data)
+        {
+            var g=Unlocked(data);
+            for(int r=0;r<7;r++)g.save.flags.Add("outer_delivery_done_"+r);
+            g.save.flags.Add("outer_log_7");g.save.flags.Add("outer_relay_7");
+            g.save.flags.Add("outer_cache_7");g.save.flags.Add("outer_patrol_done_7");
+            g.save.skillPoints=99;g.Enter(7);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject watch=Array.Find(g.Map.objects,o=>o.kind=="outerwatch");
+            WorldObject lamp=Array.Find(g.Map.objects,o=>o.kind=="outerrelay");
+            Check(watch!=null&&lamp!=null,"Real watch, bridge supply network and rescue lamp are present");
+            // Reconstruct only the already-earned TRANSIENT final timed
+            // parcel leg; the original watchkeeper Choice still executes
+            // every real delivery, ownership and payout check.
+            var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+            typeof(GameCore).GetField("outerDeliveryRoom",flags).SetValue(g,7);
+            typeof(GameCore).GetField("outerDeliveryStage",flags).SetValue(g,2);
+            typeof(GameCore).GetField("outerDeliverySeconds",flags).SetValue(g,30f);
+            TalkNearObject(g,watch);
+            int deliver=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_delivery_deliver");
+            Check(deliver>=0,"Eighth real local watchkeeper offers the authenticated original final handoff");
+            g.Choose(deliver);
+            Check(g.Has("outer_deliveries_complete")&&g.OuterDeliveryWins==8&&
+                g.OuterMilestoneRewardPending("outer_deliveries_complete")&&
+                g.save.skillPoints==99,
+                "Eight genuine medicine receipts are completed, while one permanently earned capped talent stays payable");
+            TalkNearObject(g,lamp);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="outer_milestone_claim")<0,
+                "The wrong staffed relay cannot impersonate the watch for an eight-delivery talent");
+            g.Close();
+            string[] otherMilestones={"outer_patrol_all","outer_patrol_veteran_all",
+                "outer_patrol_flawless_all"};
+            var award=typeof(GameCore).GetMethod("AwardOuterMilestoneTalent",flags);
+            Check(award!=null,"All three rank-specific watch completions use the exact production reward transfer");
+            foreach(string id in otherMilestones)
+            {
+                g.save.flags.Add(id);award.Invoke(g,new object[]{id});
+                Check(g.OuterMilestoneRewardPending(id),
+                    "Ordinary, veteran and flawless ranks independently reserve their earned capped completion prize: "+id);
+            }
+            string[] all={"outer_deliveries_complete","outer_patrol_all",
+                "outer_patrol_veteran_all","outer_patrol_flawless_all"};
+            int initialCoins=g.save.coins;
+            for(int i=0;i<all.Length;i++)
+            {
+                g.save.skillPoints=98;TalkNearObject(g,watch);
+                int claim=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_milestone_claim");
+                Check(claim>=0&&Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_routes")>=0,
+                    "Authentic staffed post preserves existing road/veteran actions while exposing a real pending claim");
+                if(i==0)
+                {
+                    g.save.x+=12f;g.save.y+=12f;
+                    g.Choose(claim);
+                    Check(g.OuterMilestoneRewardPending(all[0]),
+                        "A cached watch conversation cannot remotely authorize even an earned completion prize");
+                    TalkNearObject(g,watch);
+                    claim=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="outer_milestone_claim");
+                }
+                g.Choose(claim);
+                Check(g.save.skillPoints==99&&
+                    !g.OuterMilestoneRewardPending(all[i])&&
+                    g.save.coins==initialCoins,
+                    "Each physical receipt pays precisely one talent in order without minting extra currency or replaying another rank");
+            }
+            TalkNearObject(g,watch);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim")<0&&g.save.version==2,
+                "All four actual watch debts are retired after one authentic signed claim each");
+            g.Close();
+        }
+
         public static void RemoteSoupRouteUsesThreeRealSheltersAndProvidesPhysicalCare(Campaign data)
         {
             var g=Unlocked(data);
