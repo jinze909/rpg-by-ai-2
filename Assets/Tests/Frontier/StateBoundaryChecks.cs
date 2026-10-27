@@ -804,7 +804,10 @@ namespace Starfall.Tests
                 Check((guard.Position-initial).Length>1.1f&&
                     guard.Position.x<14f&&
                     guard.Position.y>known.y+.22f,
-                    "Guard walks to the real last-known foot, then physically sweeps an adjacent safe lane rather than freezing or following the hidden hero");
+                    "Guard walks to the real last-known foot, then physically sweeps an adjacent safe lane rather than freezing or following the hidden hero (actual="+
+                    guard.Position.x.ToString("0.00")+","+
+                    guard.Position.y.ToString("0.00")+
+                    ", tracking="+g.IsOrdinaryPatrolTrackingLastSeen(guard)+")");
                 Check((g.OrdinaryPatrolLastSeenFoot(guard)-known).Length<.001f,
                     "Sweeping several nearby feet never rewrites the historically witnessed hero position");
                 for(int i=0;i<40;i++)
