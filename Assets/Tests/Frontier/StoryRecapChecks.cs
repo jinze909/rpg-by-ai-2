@@ -148,7 +148,7 @@ namespace Starfall.Tests
             game.save.flags.Add("civic_aftercare_published");
             StoryBeat complete=game.StoryRecap()[game.StoryRecap().Count-1];
             Check(complete.chapter==12&&complete.complete&&
-                complete.summary.Contains("route ledger")&&
+                complete.summary.Contains("road ledger")&&
                 complete.next.Contains("field kits"),
                 "Real public publication retires the road audit and records its permanent field-kit legacy");
             int count=game.save.flags.Count,coins=game.save.coins;
