@@ -700,6 +700,65 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void LostVisualPatrolInvestigatesOnlyOriginalWitnessFoot(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.mode="world";g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                var guard=new Enemy(66301,0,14f,10.5f,700f);
+                guard.Face(new Point(-1,0));guard.timer=100f;
+                g.enemies.Add(guard);
+                g.Tick(.05f,new Point(),null,false,true);
+                Point firstKnown=g.Position;
+                // The sentry has genuinely seen the quiet hero from ahead.
+                char[][] wallTiles=new char[rows.Length][];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    wallTiles[y]=rows[y].ToCharArray();
+                    if(y>=2&&y<=25)wallTiles[y][12]='#';
+                    rows[y]=new string(wallTiles[y]);
+                }
+                // The hero moves far along the other side of a newly
+                // sealed wall. A patrol must not follow the LIVE new Y.
+                g.save.x=10.5f;g.save.y=15.5f;
+                for(int i=0;i<8;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check(g.IsOrdinaryPatrolTrackingLastSeen(guard)&&
+                    (g.OrdinaryPatrolLastSeenFoot(guard)-firstKnown).Length<.001f,
+                    "Quiet hero escaping behind opaque cover leaves only the actual physically witnessed original foot");
+                Check(guard.Position.y<12f,
+                    "Enemy navigation follows the original chase line instead of tracking a hidden hero five tiles away along a wall");
+                // After a finite search the lost contact expires; a live
+                // replacement with a repeated spawn ID stays unrelated.
+                for(int i=0;i<112;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check(!g.IsOrdinaryPatrolTrackingLastSeen(guard),
+                    "Unsuccessful last-known search expires in bounded world time rather than homing forever");
+                var saved=CloneSave(g.save);
+                g.Load(saved);g.mode="world";g.enemies.Clear();
+                var sameId=new Enemy(66301,0,14f,10.5f,700f);
+                sameId.timer=100f;g.enemies.Add(sameId);
+                Check(!g.IsOrdinaryPatrolTrackingLastSeen(sameId)&&
+                    g.save.version==2,
+                    "Save reload and same numeric enemy ID cannot import old transient last-seen intelligence");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void QuietApproachRespectsPatrolFacingAndPhysicalCover(Campaign data)
         {
             MapData old=data.maps[1];

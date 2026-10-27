@@ -345,6 +345,73 @@ namespace Starfall
         public const float QuietSpeedFactor=.58f;
         private readonly HashSet<Enemy> patrolsThatSawHero=
             new HashSet<Enemy>();
+        // Ordinary patrols may chase only an ACTUALLY witnessed hero foot.
+        // This is identity-owned runtime search state, never a save flag.
+        private sealed class OrdinaryPatrolSight
+        {
+            public Point lastSeen;
+            public float unseen;
+            public OrdinaryPatrolSight(Point foot){lastSeen=foot;}
+        }
+        private readonly Dictionary<Enemy,OrdinaryPatrolSight> ordinarySights=
+            new Dictionary<Enemy,OrdinaryPatrolSight>();
+        private void RememberOrdinaryPatrolSight(Enemy e,Point witnessedFoot)
+        {
+            if(e==null||!Finite(witnessedFoot.x)||
+               !Finite(witnessedFoot.y))return;
+            patrolsThatSawHero.Add(e);
+            OrdinaryPatrolSight sight;
+            if(!ordinarySights.TryGetValue(e,out sight))
+                ordinarySights[e]=new OrdinaryPatrolSight(witnessedFoot);
+            else
+            {
+                sight.lastSeen=witnessedFoot;
+                sight.unseen=0f;
+            }
+        }
+        private void ForgetOrdinaryPatrolSight(Enemy e)
+        {
+            patrolsThatSawHero.Remove(e);
+            ordinarySights.Remove(e);
+        }
+        // Only the known, finite last-seen position can guide a lost
+        // sentry. It searches for at most five seconds; a new true sight
+        // refreshes this, but a wall, reload or a reused ID cannot.
+        private bool TryOrdinaryPatrolLastSeen(Enemy e,float dt,
+            out Point foot)
+        {
+            foot=new Point();
+            OrdinaryPatrolSight sight;
+            if(e==null||!ordinarySights.TryGetValue(e,out sight))
+                return false;
+            sight.unseen+=Math.Max(0f,dt);
+            if(sight.unseen>5f||!CanStand(sight.lastSeen))
+            {
+                ForgetOrdinaryPatrolSight(e);
+                return false;
+            }
+            foot=sight.lastSeen;
+            return true;
+        }
+        public bool IsOrdinaryPatrolTrackingLastSeen(Enemy e)
+        {
+            OrdinaryPatrolSight sight;
+            return e!=null&&e.hp>0f&&enemies.Contains(e)&&
+                !e.boss&&ordinarySights.TryGetValue(e,out sight)&&
+                sight.unseen>0f&&sight.unseen<=5f&&
+                !IsEnemyTrackingLastSight(e)&&
+                !IsEnemyInvestigatingImpact(e)&&
+                !IsEnemyReturningFromImpact(e)&&
+                !ArrowSoundCannotOverrideObjective(e)&&
+                !ClearAttackPath(e.Position,Position);
+        }
+        public Point OrdinaryPatrolLastSeenFoot(Enemy e)
+        {
+            OrdinaryPatrolSight sight;
+            return IsOrdinaryPatrolTrackingLastSeen(e)&&
+                ordinarySights.TryGetValue(e,out sight)?
+                sight.lastSeen:new Point();
+        }
         public bool Sprinting { get; private set; }
         public bool SprintFatigued { get; private set; }
         public const float SprintEnergyRate=22f;
@@ -356,6 +423,7 @@ namespace Starfall
             locomotionFacing = aim; aimTarget=null;
             Sprinting=false;SprintFatigued=false;
             QuietStepping=false;patrolsThatSawHero.Clear();
+            ordinarySights.Clear();
         }
         // Live, unsaved player FOOT travel for fair archer prediction.
         // A dash, recoil or planted attack is not a walking trajectory.

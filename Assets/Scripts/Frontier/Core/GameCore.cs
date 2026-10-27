@@ -1315,7 +1315,10 @@ namespace Starfall
             // distance, not just the existing >8-tile ranged alarm. A
             // quiet player cannot repeatedly shoot an enemy six tiles
             // away and remain unrecognized by that same living target.
-            if(profile.playerOwned)patrolsThatSawHero.Add(e);
+            if(profile.playerOwned)
+                RememberOrdinaryPatrolSight(e,
+                    profile.sourceFoot.HasValue?
+                    profile.sourceFoot.Value:Position);
             NotifyEnemyOfActualDistantPlayerHit(e,profile); e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
@@ -1347,7 +1350,7 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
-            patrolsThatSawHero.Remove(e);
+            ForgetOrdinaryPatrolSight(e);
             // Real death retires only this physical enemy's alert. Other
             // comrades retain their earned witness response until expiry.
             enemyHitAlert.Remove(e);
@@ -2342,28 +2345,41 @@ namespace Starfall
                     // Awareness memory must be earned by an actual clear
                     // sightline. Merely walking near a patrol on the other
                     // side of a sealed wall cannot mint a lasting sighting.
-                    if(!QuietStepping&&distance<=8f&&
-                       ClearAttackPath(e.Position,Position))
-                        patrolsThatSawHero.Add(e);
-                    // Only a genuinely lost, distant patrol can become
-                    // susceptible to a later quiet approach. Changing the
-                    // player's stance in place never erases known contact.
-                    if(distance>8.5f&&
-                       !ClearAttackPath(e.Position,Position))
-                        patrolsThatSawHero.Remove(e);
-                    // Quiet approach only reduces fresh ordinary patrol
-                    // detection. Use the same physical forward cone as
-                    // true sound searches: a rear approach behind the
-                    // shoulders is not magically seen at four tiles.
-                    // Within touching reach (.8), the collision itself
-                    // gives the sentry a genuine contact warning.
-                    bool quietCanSee=QuietStepping&&distance<=4f&&
+                    float heroRange=(e.Position-Position).Length;
+                    bool physicalSight=CanStand(e.Position)&&
+                        CanStand(Position)&&
+                        ClearAttackPath(e.Position,Position);
+                    // A previous true sight retains active pursuit while
+                    // still visible. Fresh quiet acquisition additionally
+                    // requires forward facing or touching proximity.
+                    bool quietCanSee=QuietStepping&&heroRange<=4f&&
                         ImpactSearchGuardSeesHero(e);
+                    bool actualSight=heroRange<=8f&&physicalSight&&
+                        (!QuietStepping||patrolsThatSawHero.Contains(e)||
+                         quietCanSee);
+                    if(actualSight)
+                        RememberOrdinaryPatrolSight(e,Position);
+                    else if(!playerHitProvoked&&
+                            patrolsThatSawHero.Contains(e))
+                    {
+                        Point lastSeen;
+                        if(TryOrdinaryPatrolLastSeen(e,freeDt,
+                            out lastSeen))
+                        {
+                            // Never turn toward a concealed live player.
+                            // Steer the original collision-aware AI to the
+                            // last real visual or missile-contact foot.
+                            pursuit=lastSeen;
+                            delta=pursuit-e.Position;
+                            distance=delta.Length;
+                        }
+                    }
+                    // No magic 360-degree perception during a fresh quiet
+                    // rear approach. An already alerted sentry may still
+                    // investigate, and actual combat alerts are independent.
                     if(QuietStepping&&e.state!=1&&!playerHitProvoked&&
                        !patrolsThatSawHero.Contains(e)&&!quietCanSee)
                         continue;
-                    if(distance<=4f&&(!QuietStepping||quietCanSee))
-                        patrolsThatSawHero.Add(e);
                 }
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     !escortPatrol && !stockRaider && !patrolSaboteur &&
