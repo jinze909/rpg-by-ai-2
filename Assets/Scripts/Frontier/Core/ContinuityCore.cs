@@ -275,6 +275,12 @@ namespace Starfall
         {
             if(shooter==null||shooter.boss||shooter.kind!=1||
                !enemies.Contains(shooter)||mode!="world"||
+               // Carrying the timed public medicine parcel already imposes
+               // an authored damage/integrity challenge. Introducing a new
+               // predictive enemy lane there changes whether the existing
+               // physically earned medicine/refuge rewards remain claimable.
+               // Preserve that mature encounter's prior bow behavior.
+               FarCourierActive||
                !CanStand(shooter.Position)||!CanStand(target)||
                !Finite(windup)||windup<=0f)
                 return target;
