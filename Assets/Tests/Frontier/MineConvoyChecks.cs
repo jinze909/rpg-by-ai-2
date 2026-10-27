@@ -486,6 +486,72 @@ namespace Starfall.Tests
                 "Aborting clears only owned windups, impacts and fading shots; unrelated effects survive");
         }
 
+
+        public static void MinecartDepotArrivalBanksOnPhysicalContactBeforeNextTimeout(Campaign data)
+        {
+            var reflection=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var timer=typeof(GameCore).GetField("<MineConvoyTime>k__BackingField",reflection);
+            var cart=typeof(GameCore).GetField("<MineCartPosition>k__BackingField",reflection);
+            var hit=typeof(GameCore).GetMethod("Hit",reflection);
+            Check(timer!=null&&cart!=null&&hit!=null,
+                "Use actual worker cart, deadline field and real lethal enemy transaction");
+            for(int scenario=0;scenario<3;scenario++)
+            {
+                var g=Fresh(data);g.save.stage=3;g.Enter(3);
+                g.enemies.Clear();g.projectiles.Clear();g.invulnerable=180;
+                g.save.reducedMotion=true;
+                g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+                var dispatch=MineCartTestPost(g,1);
+                var switchyard=MineCartTestPost(g,2);
+                var depot=MineCartTestPost(g,3);
+                g.save.x=dispatch.x;g.save.y=dispatch.y;g.Talk(dispatch);
+                Check(MineCartTestChoice(g,"mineconvoy_start"),
+                    "Workers genuinely dispatch this live cart on the original railway");
+                WalkBesideMinecart(g,new Point(switchyard.x,switchyard.y),1);
+                Check(g.MineConvoyStage==2&&
+                    g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                    "Both actual switchyard raiders are alive before the physical fight");
+                foreach(Enemy raider in g.enemies.FindAll(g.IsMineConvoyEnemy))
+                    hit.Invoke(g,new object[]{raider,99999f,false,null,null});
+                g.save.x=switchyard.x;g.save.y=switchyard.y;g.Talk(switchyard);
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==3,
+                    "Only real lethal fight clearance releases the rescued cart for its final leg");
+                int coins=g.save.coins;
+                g.save.x=depot.x;g.save.y=depot.y;
+                Point destination=new Point(depot.x,depot.y);
+                Point placed=scenario==0?new Point(depot.x-.10f,depot.y):
+                    scenario==1?new Point(depot.x-.20f,depot.y):
+                    new Point(depot.x-2.5f,depot.y);
+                Check(g.CanStand(placed)&&g.CanStand(destination),
+                    "Real mine depot and final approach have walkable cart feet");
+                cart.SetValue(g,placed);
+                timer.SetValue(g,scenario==1?.055f:.012f);
+                g.Tick(.05f,new Point());
+                if(scenario==2)
+                {
+                    Check(!g.MineConvoyActive&&!g.MineConvoyComplete&&
+                        g.save.coins==coins,
+                        "Expired distant cart cannot fake an arrival or a worker reward");
+                    continue;
+                }
+                Check(g.MineConvoyStage==4&&g.MineConvoyIntegrity>0&&
+                    !g.MineConvoyComplete&&g.save.coins==coins&&
+                    (g.MineCartPosition-destination).Length<.001f,
+                    "The original depot banks a "+(scenario==0?"previous-frame arrival":"same-frame final step")+
+                    " without automatically awarding the unsigned escort");
+                // Actual worker paperwork is still required and pays once.
+                g.Talk(depot);
+                Check(MineCartTestChoice(g,"mineconvoy_finish")&&
+                    g.MineConvoyComplete&&g.save.coins==coins+60,
+                    "Only an authentic in-person depot handoff releases the original one-time reward");
+                g.Tick(.05f,new Point());
+                Check(g.save.coins==coins+60&&g.save.version==2,
+                    "A banked and signed mine rescue never double-pays on later ticks");
+            }
+        }
+
         public static void IronreachMinecartEscortProtectsRealWorkers(Campaign data)
         {
             var g=Fresh(data);

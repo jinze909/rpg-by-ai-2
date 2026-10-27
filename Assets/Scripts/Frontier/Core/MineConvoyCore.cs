@@ -164,6 +164,20 @@ namespace Starfall
                 Math.Max(guard.hitTime,guard.releaseTime))+dt);
             return Math.Max(0f,dt-Math.Min(dt,locked));
         }
+        // Arrival and the subsequent signed paperwork are distinct real
+        // actions. Once the cart physically enters the depot contact circle,
+        // bank it immediately so another simulation tick (or its timeout)
+        // is not required just to recognize a journey already completed.
+        private void SecureMineConvoyDepot(WorldObject depot)
+        {
+            MineCartPosition=new Point(depot.x,depot.y);
+            MineConvoyStage=4;
+            hazards.RemoveAll(h=>h.mineConvoyOwned);
+            effects.RemoveAll(e=>e.mineConvoyOwned);
+            revision++;
+            Notify("矿车已抵达安全矿棚。走到交接台，与矿工办理救援登记。",
+                "Cart reached shelter. Walk to the dispatch desk and record the rescue.");
+        }
         private void TickMineConvoy(float dt)
         {
             if(!MineConvoyActive)return;
@@ -174,6 +188,21 @@ namespace Starfall
             // walk to the registry. Keep the no-travel field mission active:
             // rewards still require live interaction at the shelter desk.
             if(MineConvoyStage==4&&MineConvoyIntegrity>0)return;
+            // A physical final step on the preceding world frame must not
+            // lose the workers' rescue to the next frame's paperwork timer.
+            // The depot is authored map geometry; proximity to the hero
+            // without the real cart at that depot never counts.
+            if(MineConvoyStage==3&&MineConvoyIntegrity>0)
+            {
+                WorldObject depot=MineCartPost(3);
+                if(depot!=null&&
+                    (MineCartPosition-new Point(depot.x,depot.y)).Length<=.16f&&
+                    CanStand(MineCartPosition))
+                {
+                    SecureMineConvoyDepot(depot);
+                    return;
+                }
+            }
             MineConvoyTime-=dt;
             if(MineConvoyTime<=0||MineConvoyIntegrity<=0)
             {
@@ -257,11 +286,8 @@ namespace Starfall
                 }
                 else
                 {
-                    MineConvoyStage=4;
-                    hazards.RemoveAll(h=>h.mineConvoyOwned);
-                    effects.RemoveAll(e=>e.mineConvoyOwned);
-                    Notify("矿车已抵达安全矿棚。走到交接台，与矿工办理救援登记。",
-                        "Cart reached shelter. Walk to the dispatch desk and record the rescue.");
+                    SecureMineConvoyDepot(target);
+                    return;
                 }
                 revision++;return;
             }
@@ -273,6 +299,14 @@ namespace Starfall
             Point moved=MineCartPosition+delta.Normalized*step;
             if(!CanStand(moved))return;
             MineCartPosition=moved;
+            // A genuine last step may cross into the depot's .16-unit
+            // arrival radius with only a few milliseconds left. Do not
+            // demand an extra idle frame and risk an undeserved timeout.
+            if(MineConvoyStage==3&&(destination-moved).Length<=.16f)
+            {
+                SecureMineConvoyDepot(target);
+                return;
+            }
             revision++;
         }
         // The rescue cart, live reinforcement purchase and final
