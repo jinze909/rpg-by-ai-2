@@ -519,12 +519,19 @@ namespace Starfall.Tests
                     "Visible but distant hero cannot steal a sound-decoy return or strand the guard");
                 // A CLOSE hero behind genuine intervening stone is still
                 // hidden; mere geometric proximity must not cancel return.
-                string clearNear=game.Map.rows[12];
+                string[] nearRows=(string[])game.Map.rows.Clone();
                 try
                 {
-                    char[] blocked=clearNear.ToCharArray();
-                    blocked[15]='#';
-                    game.Map.rows[12]=new string(blocked);
+                    // A single blocked tile in row 12 does not cover the
+                    // diagonal line from an actual returning guard in
+                    // row 10/11. Seal the full x=15 wall column while
+                    // keeping both physically standable actor feet open.
+                    for(int y=8;y<=22;y++)
+                    {
+                        char[] blocked=game.Map.rows[y].ToCharArray();
+                        blocked[15]='#';
+                        game.Map.rows[y]=new string(blocked);
+                    }
                     game.save.x=13.5f;game.save.y=12.5f;
                     Check(game.CanStand(game.Position)&&
                         (sentry.Position-game.Position).Length<8f&&
@@ -534,7 +541,7 @@ namespace Starfall.Tests
                     Check(game.IsEnemyReturningFromImpact(sentry),
                         "Concealed nearby hero cannot erase return-to-post intent through rock");
                 }
-                finally{game.Map.rows[12]=clearNear;}
+                finally{game.Map.rows=nearRows;}
                 game.save.x=6.5f;game.save.y=10.5f;
                 float before=(sentry.Position-post).Length;
                 Advance(game,.85f);
