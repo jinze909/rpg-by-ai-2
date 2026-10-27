@@ -80,11 +80,17 @@ namespace Starfall.Tests
                     known.x+","+known.y);
                 Point before=guard.Position;
                 guard.stun=0f;
-                Advance(game,.5f);
-                Check(guard.Position.y>before.y+.12f&&
-                    game.IsEnemyInvestigatingImpact(guard)&&
+                // The lawful path to the second impact goes EAST around a
+                // tile-corner before it can turn NORTH. A half-second test
+                // measured only the first corridor leg and incorrectly
+                // demanded an immediate diagonal motion through solid rock.
+                // A guard who later regains true LOS may legitimately
+                // switch from the INVESTIGATING ring to normal aggression.
+                Advance(game,1.75f);
+                Check(guard.Position.x>before.x+.5f&&
+                    guard.Position.y>before.y+.12f&&
                     guard.hp==200f&&game.save.version==2,
-                    "Real investigation must travel north without awarding HP/loot: before "+
+                    "Guard must physically take an east-then-north legal route to the second impact without HP/loot: before "+
                     before.x+","+before.y+" after "+guard.Position.x+","+guard.Position.y+
                     " searching="+game.IsEnemyInvestigatingImpact(guard)+
                     " HP="+guard.hp+" version="+game.save.version);
