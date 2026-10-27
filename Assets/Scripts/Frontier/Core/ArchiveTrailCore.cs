@@ -145,16 +145,16 @@ namespace Starfall
             // schema changes. Failed navigation never overwrites a manual pin.
             if(action.StartsWith("archive_pin_",StringComparison.Ordinal))
             {
-                int region;
-                if(!int.TryParse(action.Substring("archive_pin_".Length),out region)||
-                   region<1||region>3)return true;
+                int pinRegion;
+                if(!int.TryParse(action.Substring("archive_pin_".Length),out pinRegion)||
+                   pinRegion<1||pinRegion>3)return true;
                 WorldObject record=pendingDialogueSource;
-                if(record==null||record.kind!="archivefragment"+region||
-                   save.room!=region||pendingDialogueSourceRoom!=region||
+                if(record==null||record.kind!="archivefragment"+pinRegion||
+                   save.room!=pinRegion||pendingDialogueSourceRoom!=pinRegion||
                    !SourceBelongsToActiveMap(record)||
                    !IsObjectPresent(record)||
                    !HasPhysicalInteractionReach(record)||
-                   !Has("archive_fragment_"+region))return true;
+                   !Has("archive_fragment_"+pinRegion))return true;
                 WorldObject selected=null;
                 Point approach=new Point();
                 int bestWalk=int.MaxValue;
@@ -193,7 +193,7 @@ namespace Starfall
                         "Unvisited markers remain, but no walking route is open. Clear the obstruction or find another way.");
                 else
                     Notify("本地区的旧路标都已实地记录，不必重复测绘。",
-                        "All old road markers in this region are already surveyed.");
+                        "All old road markers in this pinRegion are already surveyed.");
                 return true;
             }
             if(action.StartsWith("archive_review_",StringComparison.Ordinal)||
@@ -201,16 +201,16 @@ namespace Starfall
             {
                 bool returning=action.StartsWith("archive_field_return_",StringComparison.Ordinal);
                 string prefix=returning?"archive_field_return_":"archive_review_";
-                int region;
-                if(!int.TryParse(action.Substring(prefix.Length),out region)||
-                   region<1||region>3)return true;
+                int readRegion;
+                if(!int.TryParse(action.Substring(prefix.Length),out readRegion)||
+                   readRegion<1||readRegion>3)return true;
                 WorldObject record=pendingDialogueSource;
-                if(record==null||record.kind!="archivefragment"+region||
-                   save.room!=region||pendingDialogueSourceRoom!=region||
+                if(record==null||record.kind!="archivefragment"+readRegion||
+                   save.room!=readRegion||pendingDialogueSourceRoom!=readRegion||
                    !SourceBelongsToActiveMap(record)||
                    !IsObjectPresent(record)||
                    !HasPhysicalInteractionReach(record)||
-                   !Has("archive_fragment_"+region))return true;
+                   !Has("archive_fragment_"+readRegion))return true;
                 if(returning){TalkArchiveTrail(record);return true;}
                 string[] zh={
                     "树叶压在墨迹上留下一道细纹，像是有人走得太急，连晾纸的时间都没有。\n\n残图标出了林地夜行的方向，却在河岸边断掉。笔迹的最后一句是：‘涨水以后，不要带人走旧桥；先去遗迹核对渡口。’",
@@ -222,8 +222,8 @@ namespace Starfall
                     "The tide marks are carved above the highest waterline. The worn numbers are not cargo weights, but counts of steps still passable during each evacuation.\n\nThe ferrymen left an arrow toward the high slope east of Rediron. They did not record the miners' names; only the missing rangefinder can explain those.",
                     "A paper slip inside the rangefinder charts the escape slope the workers measured before the galleries fell. No gold seams are marked.\n\nThe names are etched on the reverse, so that nobody forgets who walked that road. The three records can now go back to Lin for a properly attributed atlas."
                 };
-                Dialog(record.name,record.en,zh[region-1],en[region-1],
-                    C("返回现场记录","Return to the field record","archive_field_return_"+region),
+                Dialog(record.name,record.en,zh[readRegion-1],en[readRegion-1],
+                    C("返回现场记录","Return to the field record","archive_field_return_"+readRegion),
                     C("收起拓印","Put away the rubbing","close"));
                 return true;
             }
