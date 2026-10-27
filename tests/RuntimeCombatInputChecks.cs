@@ -7900,7 +7900,42 @@ public static class RuntimeCombatInputChecks
         Check(g.conversation!=null&&g.conversation.speaker==witness.name &&
             g.conversationSource==witness,
             "Real input switches to the visibly targeted witness rather than reopening another NPC");
-        Console.WriteLine("PASS Actual NPC E prompt and keyboard dialogue retain exact speaker identity");
+        // A crowded pair is not only a core method: production O, R3 and E
+        // must agree with the REAL rendered world prompt on this shipped map.
+        g.Close();Input.Clear();
+        Mouse(app,g.Position+new Point(4,4));Update(app);
+        WorldObject starting=g.Nearest();
+        Check(g.SafeTravel&&g.NearbyInteractionCount()>1,
+            "Two original residents share a reachable peaceful interaction cluster");
+        Input.keys.Add(KeyCode.O);Update(app);
+        WorldObject chosen=g.Nearest();
+        Check(chosen!=null&&chosen!=starting,
+            "Production O key physically cycles to another live resident");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("E  "+chosen.name))&&
+              GUI.commands.Exists(x=>x.Contains("切换交互对象")),
+            "Rendered E prompt and O/R3 hint advertise the same selected resident");
+        Input.keys.Add(KeyCode.E);Update(app);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+            g.conversation.speaker==chosen.name&&g.conversationSource==chosen,
+            "Production E opens exactly the manually cycled real speaker");
+        g.Close();Input.Clear();
+        // R3 in this peaceful crowd cycles NPC targets; in combat it
+        // retains the separately verified enemy-lock functionality.
+        Input.keys.Add((KeyCode)((int)KeyCode.JoystickButton0+9));
+        Update(app);
+        WorldObject gamepadChoice=g.Nearest();
+        Check(gamepadChoice!=null&&gamepadChoice!=chosen,
+            "Real controller R3 input cycles a crowded peaceful E target");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("E  "+gamepadChoice.name)),
+            "After controller cycling, the world shows the actual gamepad-selected NPC");
+        Input.keys.Add(KeyCode.JoystickButton1);Update(app);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+              g.conversation.speaker==gamepadChoice.name&&
+              g.conversationSource==gamepadChoice&&g.save.version==2,
+            "Actual controller B opens exactly the selected real NPC without save migration");
+        Console.WriteLine("PASS Actual crowded-world keyboard O / gamepad R3 cycle and E / B selection share rendered NPC identity");
     }
 
     private static void LiveFrostCompanionEmberScreenIsVisibleInCombatHud(FrontierRuntime app)
