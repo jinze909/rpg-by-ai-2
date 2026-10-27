@@ -147,10 +147,15 @@ namespace Starfall
         private float remaining;
 
         public bool Advance(int currentRoom,bool actualThreat,
-            bool worldAdvancing,float dt)
+            bool livingThreatNearby,bool worldAdvancing,float dt)
         {
             if(currentRoom!=room)
             {room=currentRoom;remaining=0;}
+            // This is an in-fight recovery tail, never a ghost encounter.
+            // Killing or leaving the last actual foe must allow FrontierAudio
+            // to reverse a partially started battle fade immediately.
+            if(!livingThreatNearby)
+            {remaining=0f;return false;}
             if(actualThreat)
             {remaining=ReleaseSeconds;return true;}
             if(worldAdvancing && !float.IsNaN(dt) && !float.IsInfinity(dt) &&

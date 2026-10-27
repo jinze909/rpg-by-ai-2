@@ -34,10 +34,18 @@ namespace Starfall
             // disappear. Those menus suspend gameplay while the same physical
             // encounter remains; keep its song and existing fade phase.
             // The title has no live fight even if an old world object lingers.
-            bool encounterExists = game.mode != "title" && !game.practicing &&
-                game.enemies.Exists(e => e != null && e.hp > 0f &&
-                    (e.boss || e.state == 1 &&
-                        (e.Position - game.Position).Length < 7f));
+            bool encounterExists=false, livingThreatNearby=false;
+            if(game.mode!="title" && !game.practicing)
+                foreach(Enemy e in game.enemies)
+                {
+                    if(e==null || e.hp<=0f)continue;
+                    bool near=e.boss ||
+                        (e.Position-game.Position).Length<7f;
+                    if(!near)continue;
+                    livingThreatNearby=true;
+                    if(e.boss || e.state==1)
+                    {encounterExists=true;break;}
+                }
             // An ordinary foe is intermittently in its windup/recovery
             // state. Without a small transient release tail, the real
             // 1.5-second AudioSource crossfade repeatedly reverses during
@@ -46,7 +54,7 @@ namespace Starfall
             if(game.mode=="title" || game.practicing)combatLinger.Reset();
             bool combat = game.mode!="title" && !game.practicing &&
                 combatLinger.Advance(save.room,encounterExists,
-                    game.mode=="world",dt);
+                    livingThreatNearby,game.mode=="world",dt);
             int desired = AudioSynthesis.Theme(save.room, combat);
             // Combat proximity often changes again before a 1.5-second fade
             // completes. When the original theme becomes desirable again,

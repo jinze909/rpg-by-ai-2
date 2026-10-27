@@ -336,22 +336,26 @@ namespace Starfall.Tests
             // crossfader. A single living attack must not cause repeated
             // combat/exploration score swaps between recovery animations.
             var combatScore=new CombatMusicLinger();
-            Check(!combatScore.Advance(1,false,true,.05f),
+            Check(!combatScore.Advance(1,false,false,true,.05f),
                 "No unsighted fight can manufacture battle music");
-            Check(combatScore.Advance(1,true,true,.02f) &&
-                combatScore.Advance(1,false,true,1.2f),
-                "A real windup holds the battle score through enemy recovery");
-            Check(combatScore.Advance(1,false,false,300f),
-                "Reading a paused journal cannot exhaust the unsaved battle score");
-            Check(!combatScore.Advance(1,false,true,2f),
-                "After the last threat ends, exploration audio returns without an infinite combat loop");
-            Check(combatScore.Advance(1,true,true,0f) &&
-                !combatScore.Advance(2,false,true,.01f),
+            Check(combatScore.Advance(1,true,true,true,.02f) &&
+                combatScore.Advance(1,false,true,true,1.2f),
+                "A genuinely still-living nearby foe holds battle music through recovery");
+            Check(combatScore.Advance(1,false,true,false,300f),
+                "Reading a paused journal cannot exhaust an ongoing combat score");
+            Check(!combatScore.Advance(1,false,false,true,.02f),
+                "Defeating or leaving the last enemy must immediately reverse the partially started combat fade");
+            Check(combatScore.Advance(1,true,true,true,0f) &&
+                combatScore.Advance(1,false,true,true,1.4f) &&
+                !combatScore.Advance(1,false,true,true,1.7f),
+                "Even a surviving but idle opponent cannot hold combat audio indefinitely");
+            Check(combatScore.Advance(1,true,true,true,0f) &&
+                !combatScore.Advance(2,false,false,true,.01f),
                 "Changing authored rooms clears a previous region's combat tail");
-            Check(combatScore.Advance(2,true,true,0f),
+            Check(combatScore.Advance(2,true,true,true,0f),
                 "A new room's genuine threat still starts its own combat score");
             combatScore.Reset();
-            Check(!combatScore.Advance(2,false,true,.01f),
+            Check(!combatScore.Advance(2,false,false,true,.01f),
                 "Title/practice reset never preserve combat audio in fresh play");
             var g = Fresh(data); g.sounds.Clear(); g.sound = "hit"; g.sound = "quest"; Check(g.sounds.Count == 2 && g.sounds.Dequeue() == "hit", "Multiple events in one frame retain their audio cues");
         }
