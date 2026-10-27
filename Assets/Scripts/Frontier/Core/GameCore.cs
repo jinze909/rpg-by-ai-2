@@ -1202,6 +1202,16 @@ namespace Starfall
             float facingDot = approach.x * e.facing.x + approach.y * e.facing.y;
             bool soundAmbush=EligibleForSoundAmbush(e,profile,technique,
                 (Position-e.Position).Length,facingDot);
+            // The accepted quiet opener is pinned to the exact original
+            // victim before the attack begins. The guard may turn on
+            // hearing the swing; it cannot retroactively defend a real
+            // rear sword contact that was already physically committed.
+            // A miss, cover collision or canceled pose never calls Hit.
+            bool quietOpener=!soundAmbush&&
+                profile.playerOwned&&profile.weapon==0&&!technique&&
+                playerAction!=null&&playerAction.kind=="attack"&&
+                Object.ReferenceEquals(playerAction.quietOpenerTarget,e);
+            if(quietOpener)playerAction.quietOpenerTarget=null;
             if (!technique && !e.boss && e.kind == 2 && e.state == 0 && e.stun <= 0 &&
                 e.armorOpenTime<=0f && facingDot > .45f)
             { damage *= .4f; effects.Add(new Effect("number", e.Position, .7f, L("正面护甲", "GUARDED"))); sound = "guard"; }
@@ -1232,6 +1242,14 @@ namespace Starfall
             // actual HP contact, not aim time, animation start or sight.
             // Once struck, the enemy becomes aware; a rapid combo cannot
             // repeatedly farm the same noise alert or freeze a Boss.
+            if(quietOpener)
+            {
+                damage*=1.45f;
+                ApplyEnemyControl(e,.45f);
+                effects.Add(new Effect("number",e.Position,.85f,
+                    L("轻步突袭！","QUIET OPENER")));
+                sound="ambush";
+            }
             if(soundAmbush)
             {
                 enemyHitAlert.Remove(e);
@@ -1329,6 +1347,7 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
+            patrolsThatSawHero.Remove(e);
             // Real death retires only this physical enemy's alert. Other
             // comrades retain their earned witness response until expiry.
             enemyHitAlert.Remove(e);

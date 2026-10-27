@@ -355,6 +355,86 @@ namespace Starfall.Tests
                 "The rear-strike clip is audible without clipping or a broken attack-sound seam");
         }
 
+        public static void RealQuietRearBladeOpenerRewardsOnlyTrueSwordContact(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=11f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                float baseline=0f,quiet=0f;
+                for(int scenario=0;scenario<3;scenario++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.mode="world";
+                    g.save.weapon=0;g.save.seed=71423;
+                    var guard=new Enemy(62011+scenario,0,13f,10.5f,240f);
+                    guard.Face(new Point(1,0));
+                    guard.timer=100f;g.enemies.Add(guard);
+                    // Rear attack at real 1.3 sword reach; frontal
+                    // control uses the very same physical body and HP.
+                    g.save.x=scenario==2?14.3f:11.7f;
+                    g.save.y=10.5f;
+                    g.aim=scenario==2?new Point(-1,0):new Point(1,0);
+                    g.Tick(.02f,new Point(),null,false,scenario!=0);
+                    Check(g.CanQuietBladeOpenerNow(guard)==(scenario==1),
+                        "Only a truly quiet aimed sword behind an unaware ordinary guard advertises a tactical opener");
+                    g.Attack(g.aim);
+                    Check(!g.QuietStepping,
+                        "A committed physical blade windup immediately reveals the hero");
+                    Advance(g,.34f);
+                    float dealt=240f-guard.hp;
+                    Check(dealt>0f&&guard.hp>0f,
+                        "Actual sword animation resolves positive HP contact on the original victim");
+                    if(scenario==0)baseline=dealt;
+                    if(scenario==1)
+                    {
+                        quiet=dealt;
+                        Check(g.effects.Exists(fx=>fx.kind=="number"&&
+                              (fx.text=="轻步突袭！"||fx.text=="QUIET OPENER"))&&
+                              new List<string>(g.sounds).Contains("ambush"),
+                            "Earned quiet opener plays the existing ambush audio and actual contact text");
+                    }
+                }
+                Check(quiet>baseline*1.25f&&quiet<baseline*1.75f,
+                    "Only the genuine rear quiet blade receives its single 45 percent damage opening");
+                var missed=Fresh(data);missed.save.stage=3;
+                missed.Enter(1);missed.enemies.Clear();missed.mode="world";
+                missed.save.weapon=0;
+                missed.save.x=11.7f;missed.save.y=10.5f;
+                var behind=new Enemy(62020,0,13f,10.5f,300f);
+                behind.Face(new Point(1,0));behind.timer=100f;
+                missed.enemies.Add(behind);
+                missed.aim=new Point(1,0);
+                missed.Tick(.02f,new Point(),null,false,true);
+                Check(missed.CanQuietBladeOpenerNow(behind),
+                    "An actual eligible quiet rear target is initially available");
+                char[] wall=rows[10].ToCharArray();
+                // Closing solid stone after aiming must prevent the
+                // sword's actual contact from earning a rear reward.
+                missed.Attack(new Point(1,0));
+                wall[12]='#';rows[10]=new string(wall);
+                Advance(missed,.4f);
+                Check(behind.hp==300f&&!missed.effects.Exists(fx=>
+                    fx.kind=="number"&&(fx.text=="QUIET OPENER"||
+                    fx.text=="轻步突袭！")),
+                    "A newly sealed wall rejects both fake damage and quiet-opener reward");
+                wall[12]='.';rows[10]=new string(wall);
+                Check(missed.save.version==2,
+                    "Live rear attack never serializes attacker references or modifies v2");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RealSoundSearchOffersOnePhysicalRearSwordAmbush(Campaign data)
         {
             MapData previous=data.maps[1];

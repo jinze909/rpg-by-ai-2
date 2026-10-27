@@ -16,6 +16,9 @@ namespace Starfall
         // extra completed-attack afterglow when the authoring action ends.
         // Transient only: never written into v1/v2 saves.
         public bool released, riposteArmed, blockedAtContact;
+        // True actor identity captured before the quiet sword windup; this
+        // reference is transient, never SaveData nor a reusable spawn ID.
+        public Enemy quietOpenerTarget;
         public ImpactProfile impact;
         public float Progress { get { return GameCore.Clamp(elapsed / duration, 0, 1); } }
     }
@@ -528,6 +531,8 @@ namespace Starfall
             // An actual attack or cast reveals the hero immediately even
             // before the next movement tick; holding Ctrl cannot disguise
             // the visible windup under the quiet-step HUD.
+            Enemy quietOpener=kind=="attack"&&save.weapon==0?
+                PickQuietBladeOpener():null;
             QuietStepping=false;
             // The next visible Run always begins with a fresh, stable
             // canonical foot phase. There is no Walk raster under an action
@@ -542,6 +547,7 @@ namespace Starfall
                 equippedWeapon = save.weapon, profession = save.profession,
                 style = Style, combo = combo, technique = save.technique,
                 riposteArmed = kind == "attack" && riposteTime > 0,
+                quietOpenerTarget=quietOpener,
                 impact = CaptureImpact(kind == "skill" ? save.profession : save.weapon,kind == "attack" ? combo : 0) };
         }
         private void TickAction(float dt)

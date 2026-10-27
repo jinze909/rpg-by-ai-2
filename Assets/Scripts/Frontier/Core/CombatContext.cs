@@ -238,6 +238,45 @@ namespace Starfall
             return distance<actualReach&&aimDot>-.15f&&
                 SoundAmbushGeometry(enemy,distance,facingDot);
         }
+        // A voluntary slow, physically unseen sword approach creates ONE
+        // distinct tactical opener. Selecting it is read-only: only a real
+        // sword contact with the captured LIVE enemy awards damage/control.
+        // Explicitly exclude already-alerted, distracted, wounded and
+        // objective-owned enemies; a player cannot harvest both this
+        // payoff and the preexisting sound-search backstab.
+        public bool CanQuietBladeOpenerNow(Enemy enemy)
+        {
+            if(!QuietStepping||mode!="world"||Dying||practicing||
+               save.weapon!=0||enemy==null||enemy.hp<=0||
+               enemy.boss||enemy.kind==2||enemy.state==1||
+               enemy.stun>0f||enemy.hitTime>0f||
+               !enemies.Contains(enemy)||patrolsThatSawHero.Contains(enemy)||
+               ArrowSoundCannotOverrideObjective(enemy)||
+               IsEnemyInvestigatingImpact(enemy)||
+               IsEnemyReturningFromImpact(enemy)||
+               IsEnemyTrackingLastSight(enemy)||
+               !CanStand(Position)||!CanStand(enemy.Position)||
+               !ClearAttackPath(Position,enemy.Position))
+                return false;
+            Point d=enemy.Position-Position;
+            float range=d.Length;
+            if(!Finite(range)||range<=.8f)return false;
+            int next=comboTimer>0f?(combo+1)%3:0;
+            if(range>=(next==2?2.2f:1.85f))return false;
+            Point blade=aim.Length>.01f?aim.Normalized:new Point(1,0);
+            Point toward=d*(1f/range);
+            Point facing=enemy.facing.Length>.01f?
+                enemy.facing.Normalized:new Point(1,0);
+            return toward.x*blade.x+toward.y*blade.y>.55f &&
+                // The victim faces AWAY from the incoming quiet hero.
+                facing.x*toward.x+facing.y*toward.y>.65f;
+        }
+        private Enemy PickQuietBladeOpener()
+        {
+            foreach(Enemy candidate in enemies)
+                if(CanQuietBladeOpenerNow(candidate))return candidate;
+            return null;
+        }
         // A guard who ACTUALLY identifies a hidden archer can call the
         // nearby watch. This is a one-shot world event, not a room-global
         // alert: only present living ordinary teammates who hear the

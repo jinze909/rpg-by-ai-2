@@ -1207,6 +1207,17 @@ namespace Starfall
                     10,lure,
                     TextAnchor.MiddleCenter);
             }
+            // A genuine quiet rear sword opening uses the LIVE enemy's
+            // planted feet and original sprite. This preview is read-only:
+            // only actual sword contact pays damage or produces a sound.
+            if(!drawingOutline&&Game.CanQuietBladeOpenerNow(e))
+            {
+                Color silent=PixelArt.C("#7bf0b2");
+                Ring(e.Position,.68f,silent,16);
+                Text(p.x-84,p.y-125,168,19,
+                    Game.L("轻步突袭 · 攻击","QUIET OPENER · ATTACK"),
+                    10,silent,TextAnchor.MiddleCenter);
+            }
             // The ordinary guard is genuinely investigating an audible
             // physical stone contact. This read-only planted marker lives
             // on its REAL monster body, not on a forged patrol NPC/ID.
