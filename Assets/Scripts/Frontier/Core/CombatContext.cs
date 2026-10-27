@@ -166,7 +166,7 @@ namespace Starfall
                !ClearAttackPath(enemy.Position,Position))return false;
             Point toward=Position-enemy.Position;
             float distance=toward.Length;
-            if(!Finite(distance))return false;
+            if(!Finite(distance)||distance>7f)return false;
             if(distance<.8f)return true;
             if(distance<.001f)return true;
             Point facing=enemy.facing.Length>.001f?
@@ -215,6 +215,50 @@ namespace Starfall
             float actualReach=nextCombo==2?2.2f:1.85f;
             return distance<actualReach&&aimDot>-.15f&&
                 SoundAmbushGeometry(enemy,distance,facingDot);
+        }
+        // A guard who ACTUALLY identifies a hidden archer can call the
+        // nearby watch. This is a one-shot world event, not a room-global
+        // alert: only present living ordinary teammates who hear the
+        // original body through open terrain can respond. Their search
+        // remembers the caller's LAST VISIBLE hero foot, never magically
+        // tracks an unseen hero after the shout.
+        private void NotifyPatrolOfRealSighting(Enemy caller)
+        {
+            if(caller==null||caller.hp<=0||!enemies.Contains(caller)||
+               caller.boss||ArrowSoundCannotOverrideObjective(caller)||
+               practicing||Dying||mode!="world")return;
+            Point seen=Position;
+            bool heard=false;
+            foreach(Enemy witness in enemies)
+            {
+                if(witness==null||Object.ReferenceEquals(witness,caller)||
+                   witness.hp<=0||witness.boss||witness.state==1||
+                   ArrowSoundCannotOverrideObjective(witness)||
+                   !CanStand(witness.Position))continue;
+                float voice=(witness.Position-caller.Position).Length;
+                float source=(witness.Position-seen).Length;
+                if(!Finite(voice)||voice>5.5f||
+                   !Finite(source)||source<=8f||source>18f||
+                   !ClearAttackPath(caller.Position,witness.Position))
+                    continue;
+                EnemyHitAlert existing;
+                if(enemyHitAlert.TryGetValue(witness,out existing))
+                {
+                    // Do not overwrite active weapon contact. A guard
+                    // merely listening to stone, or heading home after a
+                    // decoy, may now follow an actual teammate sighting.
+                    if(!existing.impactOnly&&!existing.returning)continue;
+                }
+                enemyHitAlert[witness]=new EnemyHitAlert(5f,seen);
+                effects.Add(new Effect("number",witness.Position,.85f,
+                    L("同伴呼警","HEARD SENTRY")));
+                heard=true;
+            }
+            effects.Add(new Effect("number",caller.Position,.85f,
+                L("发现行踪！","PLAYER SPOTTED")));
+            // The player hears a single whistle at the EXACT sighting,
+            // even if this sentry has no available teammates.
+            sound="sentryAlarm";
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
         {
@@ -282,6 +326,7 @@ namespace Starfall
                 {
                     alert.lastKnown=Position;
                     alert.impactOnly=false;
+                    NotifyPatrolOfRealSighting(e);
                 }
             }
             else if(ClearAttackPath(e.Position,Position))

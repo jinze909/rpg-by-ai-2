@@ -8,6 +8,84 @@ namespace Starfall.Tests
 
 
 
+
+        public static void VisibleSentryWarnsOnlyPhysicallyAudiblePatrolMates(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] rock=rows[10].ToCharArray();
+                rock[8]=rock[19]='#';rows[10]=new string(rock);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);game.save.stage=3;
+                game.Enter(1);game.enemies.Clear();
+                game.mode="world";game.invulnerable=300f;
+                game.save.x=6.5f;game.save.y=10.5f;
+                Enemy caller=new Enemy(79901,0,16.5f,12.5f,200f);
+                caller.stun=10f;caller.timer=10f;
+                game.enemies.Add(caller);
+                game.projectiles.Add(new Projectile{
+                    friendly=true,source="arrow",visual="arrow",
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(12f,0),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                Advance(game,1.1f);
+                Check(game.IsEnemyInvestigatingImpact(caller),
+                    "Real physical stone arrow initiates a sound-only search");
+                Enemy hear=new Enemy(79902,0,16.5f,17.5f,200f);
+                hear.timer=5f;
+                Enemy walled=new Enemy(79903,0,21.5f,14.5f,200f);
+                walled.timer=5f;
+                game.enemies.Add(hear);game.enemies.Add(walled);
+                // The solid post separates caller from one bystander
+                // despite being close in Euclidean distance.
+                char[] cover=rows[13].ToCharArray();
+                cover[18]='#';rows[13]=new string(cover);
+                game.save.x=16.5f;game.save.y=6.5f;
+                caller.Face(new Point(0,-1));
+                game.sounds.Clear();
+                Point before=hear.Position;
+                game.Tick(.02f,new Point());
+                Check(!game.IsEnemyInvestigatingImpact(caller)&&
+                    new System.Collections.Generic.List<string>(game.sounds)
+                        .Contains("sentryAlarm"),
+                    "A guard's TRUE front-facing acquisition raises one audible world alarm");
+                var found=typeof(GameCore).GetMethod("LastKnownEnemyHitOrigin",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(found!=null,"Sighting remains a real transient patrol foot, not a save flag");
+                Point remembered=(Point)found.Invoke(game,new object[]{
+                    hear,new Point(-99f,-99f)});
+                Point impossible=(Point)found.Invoke(game,new object[]{
+                    walled,new Point(-99f,-99f)});
+                Check((remembered-game.Position).Length<.01f&&
+                    impossible.x<0f,
+                    "Only in-range physically unobstructed listener hears last actually witnessed player foot");
+                Advance(game,.6f);
+                Check((hear.Position-before).Length>.1f&&
+                    game.CanStand(hear.Position)&&
+                    game.save.version==2&&hear.hp==200f,
+                    "Recruited real guard physically advances toward the reported player footprint");
+                int alarmCount=0;
+                foreach(string sound in game.sounds)
+                    if(sound=="sentryAlarm")alarmCount++;
+                Check(alarmCount==1,
+                    "One continuous genuine sighting cannot mint repeated alarm clips or patrol rewards");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RearAmbushHasItsOwnFiniteProceduralContactSound(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"ambush")>=0,
