@@ -1201,11 +1201,15 @@ namespace Starfall
             // on its REAL monster body, not on a forged patrol NPC/ID.
             // Body atlas, palette, foot pivot and original movement remain
             // unchanged; no OnGUI outline duplicate or blinking animation.
-            if(!drawingOutline&&Game.IsEnemyInvestigatingImpact(e))
+            if(!drawingOutline&&
+               (Game.IsEnemyInvestigatingImpact(e)||
+                Game.IsEnemyReturningFromImpact(e)))
             {
-                Color suspicion=PixelArt.C("#e6b46e");
+                bool returning=Game.IsEnemyReturningFromImpact(e);
+                Color suspicion=PixelArt.C(returning?"#7acabb":"#e6b46e");
                 Ring(e.Position,.57f,suspicion,16);
                 Text(p.x-74,p.y-125,148,19,
+                    returning?Game.L("返回原哨位","RETURNING"):
                     Game.IsEnemySweepingImpact(e)?
                         Game.L("搜索声源附近","SEARCHING"):
                         Game.L("调查异响","INVESTIGATING"),

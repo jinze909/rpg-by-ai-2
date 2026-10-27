@@ -6,6 +6,63 @@ namespace Starfall.Tests
 
 
 
+
+        public static void HiddenArrowDistractionGuardReturnsToActualOriginalPost(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[8]=wall[19]='#';rows[10]=new string(wall);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);game.save.stage=3;
+                game.Enter(1);game.enemies.Clear();
+                game.mode="world";game.invulnerable=300f;
+                game.save.x=6.5f;game.save.y=10.5f;
+                var sentry=new Enemy(79807,0,16.5f,12.5f,200f);
+                sentry.timer=3f;game.enemies.Add(sentry);
+                Point post=sentry.Position;
+                game.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(12f,0f),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                bool homebound=false;
+                for(int tick=0;tick<280;tick++)
+                {
+                    game.Tick(.02f,new Point());
+                    if(game.IsEnemyReturningFromImpact(sentry))
+                    {homebound=true;break;}
+                }
+                Check(homebound&&!game.IsEnemyInvestigatingImpact(sentry)&&
+                    (sentry.Position-post).Length>.6f,
+                    "An original sentry physically leaves its posted guard foot on a real stone lure, then starts returning after investigation expires");
+                float before=(sentry.Position-post).Length;
+                Advance(game,.85f);
+                Check((sentry.Position-post).Length<before-.2f&&
+                    game.CanStand(sentry.Position)&&sentry.hp==200f&&
+                    game.save.version==2,
+                    "Sentry actually walks toward its ORIGINAL guard foot using unchanged world collision and zero loot/damage");
+                Advance(game,7.5f);
+                Check(!game.IsEnemyReturningFromImpact(sentry)&&
+                    (sentry.Position-post).Length<.75f&&
+                    game.save.version==2,
+                    "A completed or expired return stops its transient marker and restores local patrol coverage without persistent v2 fields");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void AudibleImpactPatrolSweepsActualReachableNearSideGround(Campaign data)
         {
             MapData previous=data.maps[1];

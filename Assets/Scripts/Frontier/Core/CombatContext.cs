@@ -64,9 +64,14 @@ namespace Starfall
             // at one point and staring into the wall. Search is per Enemy
             // instance, ephemeral, and never written into v2 saves.
             public int searchStep=-1;
-            public Point searchGoal;
-            public EnemyHitAlert(float time,Point foot,bool impactOnly=false)
-            {remaining=time;lastKnown=foot;this.impactOnly=impactOnly;}
+            public Point searchGoal,homeFoot;
+            public bool returning;
+            public EnemyHitAlert(float time,Point foot,bool impactOnly=false,
+                Point? home=null)
+            {
+                remaining=time;lastKnown=foot;this.impactOnly=impactOnly;
+                homeFoot=home.HasValue?home.Value:foot;
+            }
         }
         private readonly Dictionary<Enemy,EnemyHitAlert> enemyHitAlert =
             new Dictionary<Enemy,EnemyHitAlert>();
@@ -158,8 +163,43 @@ namespace Starfall
             alert.remaining-=Math.Max(0f,dt);
             float range=(e.Position-Position).Length;
             if(!enemies.Contains(e)||e.hp<=0||e.boss||
-               !Finite(range)||range>18f||alert.remaining<=0f)
+               !Finite(range)||range>18f)
             {
+                enemyHitAlert.Remove(e);
+                return false;
+            }
+            // A successful harmless distraction is not a permanent removal
+            // of a sentry from its post. If still hidden, send it back over
+            // the SAME physical AI route. The earlier patrol position is
+            // preserved across redirected sounds, but never into SaveData.
+            if(alert.returning)
+            {
+                if(ArrowSoundCannotOverrideObjective(e)||
+                   ClearAttackPath(e.Position,Position)||
+                   range<=8f||!CanStand(alert.homeFoot)||
+                   (e.Position-alert.homeFoot).Length<.42f||
+                   alert.remaining<=0f)
+                {
+                    enemyHitAlert.Remove(e);
+                    return false;
+                }
+                return true;
+            }
+            if(alert.remaining<=0f)
+            {
+                if(alert.impactOnly&&CanStand(alert.homeFoot)&&
+                   (e.Position-alert.homeFoot).Length>.5f&&
+                   !ArrowSoundCannotOverrideObjective(e))
+                {
+                    alert.returning=true;
+                    alert.impactOnly=false;
+                    alert.lastKnown=alert.homeFoot;
+                    alert.searchStep=-1;
+                    alert.remaining=7f;
+                    effects.Add(new Effect("number",e.Position,.7f,
+                        L("返回哨位","BACK TO POST")));
+                    return true;
+                }
                 enemyHitAlert.Remove(e);
                 return false;
             }
@@ -238,6 +278,20 @@ namespace Starfall
                 EnemyHitAlert alert;
                 if(enemyHitAlert.TryGetValue(enemy,out alert))
                 {
+                    // A returning sentry may react to a new physical noise
+                    // without forgetting its original posted foot. Ordinary
+                    // direct combat, in contrast, still outranks distractions.
+                    if(alert.returning)
+                    {
+                        alert.returning=false;
+                        alert.impactOnly=true;
+                        alert.lastKnown=soundFoot;
+                        alert.remaining=3.5f;
+                        alert.searchStep=-1;
+                        effects.Add(new Effect("number",enemy.Position,.75f,
+                            L("又有异响","NEW IMPACT")));
+                        continue;
+                    }
                     // Real visual/weapon contact still outranks a noise.
                     // A distinct SECOND physical sound may redirect a
                     // searching guard, but repeated fire into the same
@@ -253,7 +307,7 @@ namespace Starfall
                     continue;
                 }
                 enemyHitAlert[enemy]=new EnemyHitAlert(
-                    3.5f,soundFoot,true);
+                    3.5f,soundFoot,true,enemy.Position);
                 effects.Add(new Effect("number",enemy.Position,.75f,
                     L("听见异响","HEARD IMPACT")));
             }
@@ -313,6 +367,17 @@ namespace Starfall
             // expiry or a truly different impact, rather than jittering into
             // an unreachable wall or magically reacquiring the hidden hero.
             return enemy.Position;
+        }
+        public bool IsEnemyReturningFromImpact(Enemy enemy)
+        {
+            EnemyHitAlert alert;
+            return enemy!=null&&save!=null&&Map!=null&&
+                System.Object.ReferenceEquals(enemyHitAlertSave,save)&&
+                System.Object.ReferenceEquals(enemyHitAlertMap,Map)&&
+                enemies.Contains(enemy)&&enemy.hp>0&&!enemy.boss&&
+                !ArrowSoundCannotOverrideObjective(enemy)&&
+                enemyHitAlert.TryGetValue(enemy,out alert)&&
+                alert.returning&&alert.remaining>0f;
         }
         public bool IsEnemySweepingImpact(Enemy enemy)
         {

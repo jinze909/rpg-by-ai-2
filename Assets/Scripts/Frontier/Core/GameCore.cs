@@ -2239,7 +2239,8 @@ namespace Starfall
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
                 float desired = playerHitProvoked&&
-                    IsEnemyInvestigatingImpact(e) ? .22f :
+                    (IsEnemyInvestigatingImpact(e)||
+                     IsEnemyReturningFromImpact(e)) ? .22f :
                     wardBow ? 4.5f :
                     (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
                     wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
