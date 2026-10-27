@@ -225,6 +225,20 @@ namespace Starfall
 
         private void DrawProjectileVisual(Projectile projectile)
         {
+            // A real colliding gray river stone must not masquerade as
+            // an arrow or magic bolt. This is only a small in-flight
+            // presentation of the GameCore-owned physical projectile.
+            if(projectile.visual=="pebble")
+            {
+                Point foot=ScreenPoint(projectile.position);
+                float arc=(float)Math.Sin(Math.PI*
+                    Math.Min(1f,projectile.age/.65f))*9f;
+                float y=foot.y-projectile.height-arc;
+                Box(foot.x-4f,y-3f,9f,7f,PixelArt.C("#44505a"));
+                Box(foot.x-3f,y-3f,7f,4f,PixelArt.C("#a8b4b3"));
+                Box(foot.x-1f,y-3f,3f,2f,PixelArt.C("#d9d2bd"));
+                return;
+            }
             if (effectSheet == null) RecoverPublishedVisualAtlases();
             Point p = ScreenPoint(projectile.position); string visual = projectile.visual ?? (projectile.friendly ? projectile.explosive ? "starfire" : "arrow" : "enemyOrb");
             float height = projectile.height; p.y -= height;

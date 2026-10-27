@@ -1049,7 +1049,6 @@ namespace Starfall
             // foot, but only the later, physical LANDING lures guards.
             QuietStepping=false;
             projectiles.Add(pebble);
-            sound="throw";
             revision++;
         }
         public void Attack(Point direction)

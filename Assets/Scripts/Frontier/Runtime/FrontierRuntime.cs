@@ -74,7 +74,7 @@ namespace Starfall
         private Enemy controllerAimEnemy, controllerPinnedEnemy, pointerAimEnemy;
         private SaveData controllerPinSave;
         private int controllerPinRoom=-1, controllerPinFloor=-1;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.LeftControl,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.U,KeyCode.LeftControl,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -237,6 +237,11 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.P)) Game.ToggleCompanionHold();
                 if (Input.GetKeyDown(KeyCode.H)) Game.ReturnToTown();
                 if (Input.GetKeyDown(KeyCode.R)) Game.UseExplorationAbility();
+                // The noncombat lure has its own real projectile, stamina
+                // budget and cooldown; its only alert comes at physical
+                // impact, never from a menu or cosmetic button press.
+                if (Input.GetKeyDown(KeyCode.U))
+                    Game.ThrowPebble(InputAim()??Game.aim);
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
