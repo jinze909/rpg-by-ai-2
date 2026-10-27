@@ -1007,6 +1007,41 @@ namespace Starfall.Tests
                 "An existing-schema save reload retains the precise covenant account");
         }
 
+        public static void DeepChronicleAndFirstStormSpeakInsideTheWorld(Campaign data)
+        {
+            var g=Fresh(data);g.NewGame(0);g.Close();
+            WorldObject book=Object(g,"worldchronicle");
+            g.save.x=book.x;g.save.y=book.y;
+            g.save.frontierEnding=1;
+            g.save.flags.Add("storm_started");
+            int coins=g.save.coins,shards=g.save.shards;
+            int flags=g.save.flags.Count;
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            Check(StoryChoicePresent(g,"story_read_abyss")&&
+                StoryChoicePresent(g,"story_read_storm"),
+                "Earned farshore covenant and first storm expose the two live in-world chronicle pages");
+            ChooseStoryChoice(g,"story_read_abyss");
+            Check(g.conversation.text.Contains("六层遗迹")&&
+                g.conversation.text.Contains("莉雅")&&
+                !g.conversation.text.Contains("检验玩家")&&
+                g.conversation.textEn.Contains("Six levels")&&
+                g.conversation.textEn.Contains("Lyra"),
+                "Root Abyss preserves its real six-level stakes but reads like a lived account, not a player-facing design brief");
+            ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_storm");
+            Check(g.conversation.text.Contains("八单位")&&
+                g.conversation.text.Contains("三单位")&&
+                g.conversation.text.Contains("两单位")&&
+                g.conversation.text.Contains("莫芽")&&
+                g.conversation.textEn.Contains("eight reserve")&&
+                g.conversation.textEn.Contains("Three units")&&
+                g.conversation.textEn.Contains("two"),
+                "First storm makes the actual resource choice through named residents while retaining the exact three/two-unit costs");
+            Check(g.save.coins==coins&&g.save.shards==shards&&
+                g.save.flags.Count==flags&&g.save.version==2,
+                "Bilingual in-world history cannot award supplies, rewrite milestones or change old saves");
+        }
+
         public static void WorldChronicleRespectsChapterProgressAndRealInteractions(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0);

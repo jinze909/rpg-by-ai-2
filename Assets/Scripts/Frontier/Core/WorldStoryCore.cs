@@ -1004,16 +1004,16 @@ namespace Starfall
                     break;
                 case "abyss":
                     headingZh = "地脉深渊：星根的伤口"; headingEn = "Root Abyss: A Wound in the Network";
-                    zh = "远岸达成治理协定后，居民才允许打开深入星根的旧备用管道。六层遗迹存着祝福、危险和未结算物资。\n\n深入不是为了占有更多力量，而是检验玩家在面对高风险回报时，能否守住已有的互助约定。未能安全带回的东西，不应被记作属于自己的资源。";
-                    en = "Only after a farshore covenant can travelers enter the six old reserve conduits beneath the starroot lattice. Boons, danger and unbanked supplies coexist there.\n\nThe descent tests whether the promise of shared care survives the temptation of greater extraction. Nothing is yours until it is brought back safely.";
+                    zh = "远岸协定签字那天，居民才同意解开通往星根深处的旧备用管道。六层遗迹一路沉入地下：裂开的输能井、未送出的补给，以及还在黑暗中微微发亮的根脉。\n\n“别把带不回来的东西写进账里。”莉雅在归途地图背面补上这一句。走得再深，也不能把本该送到别人手里的口粮当成战利品。";
+                    en = "The day the farshore covenant was signed, the residents unsealed the old service conduit beneath the starroot. Six levels descend past fractured relays, undelivered supplies, and living roots that still glow in the dark.\n\n'Never put something in the ledger until someone brings it home,' Lyra wrote on the back of the return map. No depth makes another family's provisions into treasure.";
                     break;
                 case "storm":
                     headingZh="第六章：公约第一夜";
                     headingEn="Chapter Six: First Night of the Commons";
-                    zh="战后第一场星雨到来时，军用调谐网不再自动决定谁能优先点灯。莉雅把仅有的八单位公共储备摆在三地居民面前，让受过星核代价的人自己决定庇护和生产的比例。\n\n"+
-                        "在第一次有真正民用管控的风暴里，庇护优先消耗三单位并加强公共疗养，供能优先仅消耗两单位但可以维持路灯、渡船和矿场工作。每个地区只有亲自通电、支付真实材料才算落实。\n\n";
-                    en="The first storm after the ending could not be governed by an unquestionable military grid. Lyra put eight units of public reserves before three living regions, letting people harmed by the old system choose their own balance between shelter and work.\n\n"+
-                        "Shelter-first uses three reserve units for real nearby healing. Utilities-first uses only two and keeps lamps, ferries and workshops running. Every decision needs actual installation and materials.\n\n";
+                    zh="星雨压过镇墙的夜里，军用调谐网第一次没能替所有人做决定。莉雅把八单位公共储备的铜牌放上议事桌。莫芽问伤患往哪里躲，阿菱问渡口还有没有灯，矿工们只想知道今晚能不能安全停炉。\n\n"+
+                        "拨出三单位，先点亮庇护与疗养灯；只拨两单位，便能让路灯、渡船和矿场继续运转。每地都得有人亲自接好线路、交足材料。桌上的铜牌不能替任何人挡雨。\n\n";
+                    en="Starfall rain beat against the town walls. For the first time, the military tuning grid could not decide whose lamps stayed lit. Lyra set eight reserve tokens on the council table. Moya asked where the wounded would sleep, Arin whether the ferry still had a beacon, and the miners if their furnaces could safely stop.\n\n"+
+                        "Three units would light shelters and treatment lamps; two would keep road lights, ferries and workshops running. Each district still had to wire its own circuit and deliver the materials. A token on a council table never kept anyone dry.\n\n";
                     for(int region=1;region<=3;region++)
                     {
                         if(StormPolicy(region)==0)
