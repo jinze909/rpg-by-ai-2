@@ -373,11 +373,46 @@ namespace Starfall
             if(!Finite(distance)||distance<.001f)return probe.position;
             // The warning is for the committed arrow center, not the
             // contemporary moving hero or an arbitrary GUI-only endpoint.
+            // A living front-line enemy may step INTO this flight while
+            // the real bow draws. Such a body cancels an ordinary archer's
+            // unspent attack just like cover, yet an old painted full line
+            // still promised impossible damage behind that friendly torso.
+            // Compute the nearest ACTUAL circle entry along the live ray,
+            // using the same enemy/Boss contact silhouette as projectile
+            // physics. Keep bodies beyond the target and dead impostors out.
+            Point ray=probe.velocity.Normalized;
+            float physicalEnd=distance;
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||System.Object.ReferenceEquals(other,shooter)||
+                   other.hp<=0f||!CanStand(other.Position))continue;
+                Point delta=other.Position-probe.position;
+                float along=delta.x*ray.x+delta.y*ray.y;
+                float across=delta.x*ray.y-delta.y*ray.x;
+                float radius=(other.boss?.9f:.5f)+probe.Radius;
+                if(along+radius<=0f||Math.Abs(across)>=radius)
+                    continue;
+                float entry=ProjectileCircleEntry(probe.position,
+                    probe.velocity,other.Position,radius);
+                // The last .38 tiles belong to the intended victim's
+                // actual contact circle. Never suppress a valid imminent
+                // target because an unrelated actor is farther away.
+                if(entry+.00001f>=distance-.38f||
+                   !ClearAttackPath(probe.position,other.Position))
+                    continue;
+                physicalEnd=Math.Min(physicalEnd,
+                    Math.Max(0f,entry-.07f));
+            }
+            // Sweep until the FIRST terrain or living collision. This is
+            // read-only even mid-windup: no enemy action, RNG, projectiles,
+            // time or v2 persistent fields are ever mutated.
             int steps=Math.Max(1,(int)Math.Ceiling(distance/.07f));
             Point lastFree=probe.position;
             for(int i=1;i<=steps;i++)
             {
                 Point next=probe.position+vector*(i/(float)steps);
+                if((next-probe.position).Length>physicalEnd+.00001f)
+                    return lastFree;
                 if(ShotBlocked(probe,next))return lastFree;
                 lastFree=next;
             }

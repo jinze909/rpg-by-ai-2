@@ -133,6 +133,54 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void EnemyBowWarningClipsNewLivingFrontline(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,0);
+                var bow=new Enemy(1744,1,12.5f,15.5f,100f)
+                    {state=1,timer=.32f,windupDuration=.65f};
+                bow.target=new Point(20.5f,15.5f);
+                bow.Face(bow.target-bow.Position);
+                g.enemies.Add(bow);
+                Check((g.ArcherWarningPhysicalEnd(bow)-bow.target).Length<.001f,
+                    "Unobstructed real bow windup paints a full committed target lane");
+                var guard=new Enemy(1745,0,16.5f,15.5f,100f)
+                    {stun=100f,timer=100f};
+                g.enemies.Add(guard);
+                Point small=g.ArcherWarningPhysicalEnd(bow);
+                Check(small.x>bow.Position.x&&
+                    small.x<guard.x-.5f&&
+                    Math.Abs(small.y-guard.y)<.001f,
+                    "A new living raider clips the genuine warning BEFORE an arrow overlaps its physical front edge");
+                guard.hp=0f;
+                Check((g.ArcherWarningPhysicalEnd(bow)-bow.target).Length<.001f,
+                    "Defeated body immediately releases the real committed sight line");
+                guard.hp=100f;guard.y=18.5f;
+                Check((g.ArcherWarningPhysicalEnd(bow)-bow.target).Length<.001f,
+                    "An off-ray live enemy cannot suppress a real archer warning");
+                var boss=new Enemy(1746,0,16.5f,15.5f,200f,true)
+                    {stun=100f,timer=100f};
+                g.enemies.Add(boss);
+                Point broad=g.ArcherWarningPhysicalEnd(bow);
+                Check(broad.x<small.x-.3f,
+                    "A living Boss blocks the warning with its larger genuine projectile-contact silhouette");
+                float cooldownBefore=bow.timer;
+                Point duplicate=g.ArcherWarningPhysicalEnd(bow);
+                Check((duplicate-broad).Length<.0001f&&
+                    bow.timer==cooldownBefore&&g.projectiles.Count==0,
+                    "Repeated production warning paints are read-only and do not launch or refresh a bow attack");
+                g.Tick(.05f,new Point());
+                Check(bow.state==0&&!g.projectiles.Exists(p=>
+                    !p.friendly&&System.Object.ReferenceEquals(p.hostileShooter,bow)),
+                    "The true enemy release cancels its pending arrow behind the same freshly occupied physical lane");
+                Check(g.save.version==2,
+                    "Live-body warning cannot change a legacy persistent schema");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void LiveCivilianContactNeverPassesThroughClosingCover(Campaign data)
         {
             MapData original=data.maps[1];
