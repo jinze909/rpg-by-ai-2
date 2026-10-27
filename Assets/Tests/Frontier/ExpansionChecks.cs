@@ -967,7 +967,7 @@ namespace Starfall.Tests
                 var choose=typeof(GameCore).GetMethod("ChooseLastDirective",
                     BindingFlags.Instance|BindingFlags.NonPublic);
                 Check(choose!=null,"Original story dialogue dispatcher can reject forged remote order");
-                int before=g.save.energy;
+                float before=g.save.energy;
                 choose.Invoke(g,new object[]{"last_directive_ground"});
                 Check(g.save.energy==before&&g.hazards.Contains(owned),
                     "A fabricated no-source combat order cannot remove genuine warnings or spend player energy");
