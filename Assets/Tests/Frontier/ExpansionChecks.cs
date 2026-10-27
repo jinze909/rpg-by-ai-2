@@ -446,6 +446,65 @@ namespace Starfall.Tests
             Check(g.save.health<=50.01f,
                 "A remote supplied shelter never heals a player standing far outside its true local radius");
         }
+        public static void RegionalCompanionTestimonyUnlocksSourceBoundTrust(Campaign data)
+        {
+            for(int id=0;id<3;id++)
+            {
+                int room=5+id;
+                var g=Fresh(data);
+                g.save.stage=3;g.save.flags.Add("exp_intro");
+                if(id>=1)g.save.flags.Add("harbor_report");
+                if(id>=2)g.save.flags.Add("desert_report");
+                g.Enter(room);g.enemies.Clear();
+                Check(g.save.room==room,"Each companion exists in their actual unlocked region");
+                string report=new[]{"harbor_report","desert_report","mountain_report"}[id];
+                string kind=new[]{"captain","tinker","keeper"}[id];
+                var npc=Object(g,kind);
+                g.save.flags.Add(report);g.save.flags.Add("companion_"+id);
+                g.save.x=npc.x;g.save.y=npc.y;
+                g.Talk(npc);
+                string open="companion_testimony_open_"+id;
+                int opener=Array.FindIndex(g.conversation.choices,c=>c.action==open);
+                Check(opener>=0&&g.conversation.speaker==npc.name,
+                    "Each physically present companion offers their own new testimony");
+                g.Choose(opener);
+                Check(g.mode=="dialog"&&g.conversation.speaker==npc.name&&
+                    g.conversation.textEn.Length>100,
+                    "The source-owned conversation has a real bilingual opening");
+                int detail=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="companion_testimony_detail_"+id);
+                Check(detail>=0,"A genuine second scene discusses the personal evidence");
+                g.Choose(detail);
+                Check(g.conversation.speaker==npc.name&&
+                    g.conversation.text.Length>130&&g.conversation.textEn.Length>130,
+                    "The companion-specific witness story is authored and remains that real person's voice");
+                int back=Array.FindIndex(g.conversation.choices,c=>c.action==open);
+                Check(back>=0,"Evidence reading can return to the same companion");
+                g.Choose(back);
+                int commit=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="companion_testimony_commit_"+id);
+                Check(commit>=0,"The player can respond to real testimony once");
+                int before=g.save.relationships[id],coins=g.save.coins,skill=g.save.skillPoints;
+                g.Choose(commit);
+                Check(g.Has("companion_testimony_"+id)&&
+                    g.save.relationships[id]==Math.Min(5,before+1)&&
+                    g.save.coins==coins&&g.save.skillPoints==skill &&
+                    g.conversation.speaker==npc.name,
+                    "The first face-to-face commitment permanently grants exactly one trust, not phantom currency");
+                g.Close();
+                g.Talk(npc);
+                g.Choose(Array.FindIndex(g.conversation.choices,c=>c.action==open));
+                Check(!Array.Exists(g.conversation.choices,
+                    c=>c.action=="companion_testimony_commit_"+id),
+                    "Revisiting personal testimony cannot award a second trust");
+                g.Close();g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(loaded.Has("companion_testimony_"+id)&&
+                    loaded.save.relationships[id]==g.save.relationships[id],
+                    "An unchanged v2 save stores one genuine trust as existing flag/relationship");
+            }
+        }
+
         public static void RegionalReportRewardsRequireOriginalPresentSpeaker(Campaign data)
         {
             var g=Fresh(data);

@@ -3299,12 +3299,119 @@ namespace Starfall
             if (!Has("boss_7")) { Dialog(o.name, o.en, "森：我负责给没有回到高原的人敲钟。北钟第三音、东钟第一音、南钟第二音，按 E 可以依次调整。\n\n这三口钟原本能稳住冰上的路。星陨后的寒潮让钟阵改成最低频率，镇住裂冰，却也压住撤离者在冰下呼救的声音。去山门见霜钟执事，找回事故原稿。失踪者的家人不该永远只听见钟声。", "Sen: I ring for those who never came down. Set the north chime to its third tone, east to first, south to second. E cycles the tones.\n\nThe bells once steadied the ice roads. After Starfall the lowest frequency stilled cracks, but also silenced evacuation cries beneath the ice. Find the Frost Prelate at the pass and recover the original record. Families deserve more than a bell without names.", C("我会找到记录", "I will find the record", "close")); return; }
             Dialog(o.name, o.en, "原稿证实了那场撤离失败：统领知道潮水会冲毁北岸，钟阵也封住了最后的求救声。执事担心公开事实会摧毁信任，失踪者的家人却有权知道发生了什么。\n\n你可以先保存原稿，在议事厅推动纠正；也可以把一个一个名字刻在山路上，让今后的每次撤离都记住他们。无论选择哪条，我都愿意陪你把证词带出去。", "The original record confirms the evacuation failure: Orrin knew the tide would overrun the north bank, and the chimes hid the last cries. The prelate fears disclosure would break public trust, but the families deserve the truth.\n\nYou can preserve the original for private reform or engrave every name in public on the mountain road. Either way, I will help carry this testimony beyond the bells.", C("保存原稿，推动纠正", "Preserve the record · seek reform", "mountain1"), C("公开名字，建立纪念碑", "Publish the names · build a memorial", "mountain2"), C("稍后决定", "Decide later", "close"));
         }
+        private bool CompanionTestimonyHost(int id,WorldObject o)
+        {
+            if(id<0||id>2||o==null||save.room!=id+5||
+               !Has(new[]{"harbor_report","desert_report","mountain_report"}[id])||
+               !Has("companion_"+id)||
+               o.kind!=new[]{"captain","tinker","keeper"}[id]||
+               !SourceBelongsToActiveMap(o)||
+               !IsObjectPresent(o)||!HasPhysicalInteractionReach(o))
+               return false;
+            return true;
+        }
+        private bool ChooseCompanionTestimony(string action)
+        {
+            const string prefix="companion_testimony_";
+            if(!action.StartsWith(prefix,StringComparison.Ordinal))return false;
+            int boundary=action.LastIndexOf('_'),id;
+            if(boundary<=prefix.Length||
+               !int.TryParse(action.Substring(boundary+1),out id)||
+               id<0||id>2)return true;
+            WorldObject host=pendingDialogueSource;
+            if(!CompanionTestimonyHost(id,host)||
+               pendingDialogueSourceRoom!=save.room||
+               !pendingDialogueSourceWasMapObject)return true;
+            string verb=action.Substring(prefix.Length,
+                boundary-prefix.Length);
+            string[] detailZh={
+                "米拉把名册摊平，用手指压住折角。\n\n“船只编号有两种墨水。父亲们离港时的名单写得整整齐齐，返航的那一栏却被擦过。我弟弟留在船上的铅笔，比港务厅的公章诚实。”\n\n她收起名单。“我不要一座纪念碑。我想知道下一趟船上的每个人，都能有人去接。”",
+                "伊沃从袖口拿出一枚被磨平的铜螺钉。\n\n“蓄光机不是真的忘不了旧主人。程序每晚都会确认那个姓名，没人敢改。我在旁边加过手写水位线，值夜的人也悄悄照着它分水。”\n\n他用指甲敲了敲螺钉：“机器会执行命令，但谁有资格改命令？这才是我想修的地方。”",
+                "森从钟楼带下一截裂开的钟槌。\n\n“那天值夜的学徒先听见求救。我告诉他继续敲钟，因为手册这么写。第二天他的嗓子喊哑了，还在问我为什么不去冰下看看。”\n\n他没有把钟槌收起来。“路牌上刻名字容易。明年有新人值夜时，我得站在这里告诉他，什么时候可以不听我说话。”"
+            };
+            string[] detailEn={
+                "Mira smooths the folded passenger register.\n\n'There are two inks on these pages. The outbound list is beautiful. The return column has been rubbed nearly clean. My brother's pencil was more honest than a harbor stamp.'\n\nShe folds it again. 'I don't need a monument. I need someone waiting for every person on the next boat.'",
+                "Ivo rolls a worn copper screw between his fingers.\n\n'The reservoir never missed its old master because the nightly program kept asking for him. No one dared change it. I drew the real waterline beside the dial. The night shift used my pencil mark to share what they could.'\n\nHe taps the screw. 'A machine follows orders. Who is allowed to change them? That's the part I want to mend.'",
+                "Sen carries down a cracked bell clapper.\n\n'The apprentice heard them calling first. I told him to keep ringing. It said so in the handbook. The next morning he'd shouted his voice raw asking why we hadn't looked beneath the ice.'\n\nHe leaves the clapper on the table. 'Carving names is easy. When next winter's watch comes, I must teach them when not to obey me.'"
+            };
+            string[] openingZh={
+                "米拉靠着栏杆，看了看不再满员的返航小船。\n\n“你已经看过水位记录。可我总想问：我们救回了谁，又把谁写成了‘未归’？”",
+                "伊沃合上修理箱。\n\n“地区报告已经存档；分水阀却每天还得开。你愿意听听这台机器以前是怎么被人偷偷改好的吗？”",
+                "森将手掌按在钟楼的旧铜扶手上。\n\n“原稿已经交出去了。纸上能写清责任，写不出那一夜值班的声音。你想听吗？”"
+            };
+            string[] openingEn={
+                "Mira leans on the railing and watches a returning ferry with empty benches.\n\n'You've read the tide report. I keep asking myself: whom did we bring home, and whom did we file under missing?'",
+                "Ivo shuts his repair case.\n\n'The regional report is filed, but the water valves open every morning. Want to hear how people kept this machine running against its own orders?'",
+                "Sen rests a hand on the old bell-tower railing.\n\n'The original record is public now. It tells you who was responsible, but not what the night watch sounded like. Will you listen?'"
+            };
+            if(verb=="back")
+            {
+                PersonalConversation(id,host);return true;
+            }
+            if(verb=="detail")
+            {
+                Dialog(host.name,host.en,detailZh[id],detailEn[id],
+                    C("返回证词讨论","Back to the testimony",
+                        "companion_testimony_open_"+id),
+                    C("结束交谈","Finish talking","close"));
+                return true;
+            }
+            if(verb=="commit")
+            {
+                if(!Has("companion_testimony_"+id))
+                {
+                    Flag("companion_testimony_"+id);
+                    save.relationships[id]=Math.Min(5,save.relationships[id]+1);
+                    revision++;sound="reward";
+                    RecordMoment(new[]{
+                        "米拉将返航名单交给真正负责接船的居民，约定不再省略失踪者的名字。",
+                        "伊沃与值夜工人一同改写分水阀的登记，让配水对每个活人可核对。",
+                        "森把新的守钟手册交给学徒，允许人声比钟声更紧急。"}[id],
+                        new[]{
+                        "Mira entrusted the return manifest to the families who meet each ferry.",
+                        "Ivo and the night shift made each water allocation publicly checkable.",
+                        "Sen taught the apprentices when a human voice must outweigh a bell."}[id]);
+                    Notify("真正听完证词，同伴信任 +1。","Witness heard; companion trust +1.");
+                }
+                PersonalConversation(id,host);
+                return true;
+            }
+            if(verb!="open")return true;
+            bool heard=Has("companion_testimony_"+id);
+            Dialog(host.name,host.en,heard?
+                new[]{"米拉翻开已经更正的返航名单。那些被划掉的名字，如今有家人在下一趟船边等待。",
+                      "伊沃打开水阀旁的新记录。每位取水人都可以核对当天的份额，而不是听一台机器决定。",
+                      "森让新学徒先听冰路尽头有没有求救声，再决定要不要敲钟。"}[id]:
+                openingZh[id],
+                heard?
+                new[]{"Mira opens the corrected return list. Families now wait at the dock for names once crossed out.",
+                      "Ivo opens the new valve log. Every traveler can check the day's water share.",
+                      "Sen asks the apprentice to listen for voices beyond the ice road before striking the bell."}[id]:
+                openingEn[id],
+                C("听听原稿之外的细节","Hear what the official record missed",
+                    "companion_testimony_detail_"+id),
+                heard?C("谢谢你还记得","Thank you for remembering","companion_testimony_back_"+id):
+                    C("一起把这件事交给后来者 · 信任 +1",
+                      "Help keep this truth in others' hands · Trust +1",
+                      "companion_testimony_commit_"+id),
+                C("返回同伴交谈","Back to companion","companion_testimony_back_"+id));
+            return true;
+        }
         private void PersonalConversation(int id, WorldObject o)
         {
             string[] zh = { "米拉：我总把活着带回一船人当成胜利，可有时我也得承认，没有回来的那个人不会再上船。弟弟留下的名册也许还有未写完的一页。", "伊沃：他们叫我机器的修理工。我给每台机器取名字，是因为人们给它们的命令从来只有继续工作。给我四个零件和四枚星晶，我想做一次属于自己的修理。", "森：一开始我以为，每敲一次钟，就少一个人死在雪里。后来才知道，钟也能让人听不见。带四株药草来，再让我看看密林的侦察记录。" };
             string[] en = { "Mira: A boat of survivors is a victory. But the one who never returned will not climb aboard again. My brother's manifest may hold an unfinished page.", "Ivo: They call me a repairman. I name machines because their only command is keep working. Four parts and four crystals would let me repair something for myself.", "Sen: I thought each bell saved someone from snow. Then I learned a bell could silence someone. Bring four herbs, and the forest's scouting log." };
             List<Choice> choices = new List<Choice>();
             if (!Has("personal_" + id)) choices.Add(C(new[] { "交回弟弟的名册", "帮助修复 · 零件4 星晶4", "交付药草4与密林记录" }[id], new[] { "Return the brother's manifest", "Repair · 4 parts, 4 crystals", "Bring 4 herbs and the forest log" }[id], "personal" + id));
+            // Only physically met regional companions can open this
+            // source-owned testimony; the synthetic party-story view is
+            // deliberately not a remote identity or reward terminal.
+            if(CompanionTestimonyHost(id,o))
+                choices.Add(C(Has("companion_testimony_"+id)?
+                    "再听那段证词":"谈谈那份地区证词",
+                    Has("companion_testimony_"+id)?
+                    "Revisit their testimony":"Discuss the regional testimony",
+                    "companion_testimony_open_"+id));
             choices.Add(C("送一份炖汤 · 每日一次", "Share a stew · once per day", "gift" + id));
             choices.Add(C("邀请同行", "Travel together", "join" + id)); choices.Add(C("再见", "Goodbye", "close"));
             string[] reliefZh = {
@@ -3391,6 +3498,7 @@ namespace Starfall
         }
         private bool ChooseExpansion(string action)
         {
+            if (ChooseCompanionTestimony(action)) return true;
             if (ChooseCivicAftercare(action)) return true;
             if (ChooseReliefFieldGuard(action)) return true;
             if (ChooseRescuedCivilian(action)) return true;
