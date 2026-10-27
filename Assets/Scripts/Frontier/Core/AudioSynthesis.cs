@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -83,6 +83,7 @@ namespace Starfall
         {
             if (name == "step") return Footstep("grass", 0);
             if (name == "fishBite") return FishBite();
+            if (name == "stoneImpact") return StoneImpact();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -116,6 +117,28 @@ namespace Starfall
                 double envelope = Math.Min(1, seconds * 90) *
                     Math.Exp(-seconds * 17) * Math.Min(1, (.24 - seconds) * 90);
                 wave[i] = (float)((Math.Sin(bubblePhase) * .34 + filteredWater * .22) * envelope);
+            }
+            return wave;
+        }
+        // A missed arrow clacks against rock: sharp brittle crack, followed
+        // by a short falling stone rattle. This is NOT an enemy-hit jingle.
+        // Deterministic samples keep native/CI behavior identical and no
+        // external audio files, imports or clip IDs are needed.
+        private static float[] StoneImpact()
+        {
+            var wave=new float[(int)(Rate*.23f)];
+            var random=new Random(90423);
+            double filtered=0, ringPhase=0;
+            for(int i=0;i<wave.Length;i++)
+            {
+                double t=i/(double)Rate;
+                double noise=random.NextDouble()*2-1;
+                filtered += (noise-filtered)*.34;
+                ringPhase+=2*Math.PI*(950-740*t/.23)/Rate;
+                double crack=Math.Exp(-t*58)*filtered*.7;
+                double pebble=Math.Exp(-t*17)*Math.Sin(ringPhase)*.16;
+                double envelope=Math.Min(1,t*460)*Math.Min(1,(.23-t)*90);
+                wave[i]=(float)((crack+pebble)*envelope);
             }
             return wave;
         }

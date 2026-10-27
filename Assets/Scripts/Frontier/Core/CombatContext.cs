@@ -211,6 +211,11 @@ namespace Starfall
             Point origin=shot.impact.sourceFoot.Value;
             if(!Finite(origin.x)||!Finite(origin.y)||!Finite(shot.damage)||
                shot.damage<=0f)return;
+            // Actual colliding stone is audible to the player even if no
+            // living enemy is close enough to respond. Never play it for
+            // an expired bolt, a companion shot, magic or a spawn-blocked
+            // projectile (all rejected at the source eligibility gate).
+            sound="stoneImpact";
             EnsureEnemyHitAlertSession();
             foreach(Enemy enemy in enemies)
             {

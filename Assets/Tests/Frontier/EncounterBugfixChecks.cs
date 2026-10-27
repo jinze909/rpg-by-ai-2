@@ -4,6 +4,68 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+
+        public static void RealArrowStoneImpactHasOwnAudiblePhysicalContact(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=21)
+                        for(int x=2;x<=29;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] rock=rows[10].ToCharArray();
+                rock[17]='#';rows[10]=new string(rock);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                float[] pcm=AudioSynthesis.Event("stoneImpact");
+                Check(Array.IndexOf(AudioSynthesis.Events,"stoneImpact")>=0&&
+                    pcm.Length>AudioSynthesis.Rate*.20f&&
+                    pcm.Length<AudioSynthesis.Rate*.25f,
+                    "True arrow-to-rock contact uses a registered, native-consumable 230ms original sound event");
+                float peak=0f;
+                foreach(float sample in pcm)
+                {
+                    Check(!float.IsNaN(sample)&&!float.IsInfinity(sample),
+                        "Synthesized collision samples never poison the live AudioClip");
+                    peak=Math.Max(peak,Math.Abs(sample));
+                }
+                Check(peak>.01f&&peak<1f&&Math.Abs(pcm[0])<.001f&&
+                    Math.Abs(pcm[pcm.Length-1])<.001f,
+                    "Distinct transient stone crack is audible but bounded and clean at both sample endpoints");
+                for(int scenario=0;scenario<4;scenario++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.mode="world";
+                    g.save.x=6.5f;g.save.y=10.5f;g.sounds.Clear();
+                    bool owned=scenario!=2;
+                    g.projectiles.Add(new Projectile{
+                        friendly=true,source="arrow",visual="arrow",
+                        blockedAtSpawn=scenario==1,
+                        position=scenario==1?new Point(17.5f,10.5f):
+                            new Point(10.5f,10.5f),
+                        velocity=new Point(12f,0),
+                        damage=5f,life=scenario==3?.12f:2f,
+                        impact=new ImpactProfile(1,0,1,0,0f,owned,1,
+                            new Point(6.5f,10.5f))});
+                    Advance(g,1.2f);
+                    bool heard=new System.Collections.Generic.List<string>(
+                        g.sounds).Contains("stoneImpact");
+                    Check(heard==(scenario==0)&&
+                        g.save.version==2,
+                        scenario==0?
+                        "Player-owned arrow truly strikes stone and plays audible world feedback":
+                        "Unlaunched, companion-owned or open-air-expired projectiles cannot play phantom stone sounds");
+                }
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void DistinctArrowWallSoundsRedirectOnlySearchingGuards(Campaign data)
         {
             MapData previous=data.maps[1];
