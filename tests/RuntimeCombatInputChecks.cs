@@ -7163,8 +7163,22 @@ public static class RuntimeCombatInputChecks
         Input.keys.Add(KeyCode.U);Update(app);
         Check(g.projectiles.Count==before,
             "Modal inventory cannot interpret U as a fresh world throw");
+        g.mode="world";g.projectiles.Clear();
+        g.pebbleCooldown=0f;g.save.energy=100f;
+        g.aim=new Point(1,0);
         Input.Clear();
-        Console.WriteLine("PASS Real keyboard U, physical pebble in FrontierRuntime, audible-contact ability HUD, cooldown and modal isolation");
+        // A pointer over bottom-left HUD points away from the enemy.
+        // Clicking the ability still follows the last real gameplay aim.
+        Mouse(app,g.Position+new Point(-4f,0));
+        GUI.queuedClick=new Rect(24,691,304,27);
+        Call(app,"OnGUI");
+        Check(GUI.queuedClick==null&&
+            g.projectiles.Exists(p=>p.visual=="pebble"&&
+                p.velocity.x>10f&&Math.Abs(p.velocity.y)<.001f)&&
+            g.save.energy<100f,
+            "Actual clickable pebble HUD respects player facing instead of aiming at its own screen position");
+        GUI.queuedClick=null;Input.Clear();
+        Console.WriteLine("PASS Real keyboard U and clickable aiming-safe pebble HUD, physical projectile, cooldown and modal isolation");
     }
 
     private static void LiveQuietRearOpenerUsesActualWorldAimSpriteAndSword(FrontierRuntime app)

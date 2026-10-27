@@ -469,7 +469,10 @@ namespace Starfall
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
                     !Game.practicing))
-                    Game.ThrowPebble(InputAim()??Game.aim);
+                    // A HUD click is over the button, not an aimed
+                    // ground point. Reuse the last deliberate in-world
+                    // facing instead of throwing toward the UI corner.
+                    Game.ThrowPebble(Game.aim);
                 Text(25, 725, 302, 24, Game.save.coins + Game.L(" 硬币  ·  ", " coins  ·  ") + WeaponName(Game.save.weapon), 13, paper); Text(25, 752, 302, 23, controllerUsed ? Game.L("X攻击 · B互动 · RB点按指令 / 长按驻守", "X attack · B interact · RB tap/hold companion") : Game.L("J/左键攻击 · 1/2/3切武器 · E互动", "J/click attack · 1/2/3 weapon · E interact"), 12, muted);
                 if (Button(972, 718, 130, 52, Game.L("手帐  ", "Journal  ") + ControlKey("TAB", "VIEW"))) OpenMenu("journal"); if (Button(1114, 718, 142, 52, Game.L("菜单  ", "Menu  ") + ControlKey("ESC", "START"))) { OpenMenu("pause"); Save(); }
             }
