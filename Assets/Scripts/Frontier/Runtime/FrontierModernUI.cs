@@ -885,6 +885,14 @@ namespace Starfall
                 float x = 279 + i * 318; bool owned = Game.Has("companion_" + i); Card(x, 177, 302, 449, Game.save.companion == i); Portrait(i + 3, x + 57, 192, 188, 182);
                 Text(x + 20, 385, 262, 35, Game.L(GameCore.CompanionNames[i], GameCore.CompanionNamesEn[i]), 25, gold, TextAnchor.MiddleCenter); Text(x + 20, 430, 262, 62, owned ? info[i] : Game.L("完成所在地区调查后加入。", "Joins after the regional report."), 15, muted, TextAnchor.MiddleCenter);
                 for (int n = 0; n < 5; n++) Box(x + 72 + n * 34, 510, 20, 4, n < Game.save.relationships[i] ? mint : PixelArt.C("#43566b"));
+                if(owned)
+                    Text(x+17,518,268,15,
+                        Game.Has("companion_testimony_"+i)?
+                            Game.L("地区证词已听取 · 信任加深","TESTIMONY HEARD · TRUST BUILT"):
+                        Game.Has(new[]{"harbor_report","desert_report","mountain_report"}[i])?
+                            Game.L("地区证词待当面聆听","VISIT IN PERSON TO HEAR TESTIMONY"):
+                            Game.L("继续地区调查以解锁证词","COMPLETE THE REGIONAL REPORT"),
+                        10,muted,TextAnchor.MiddleCenter);
                 if (Button(x + 17, 536, 268, 34, Game.L("邀请同行", "Travel together"), Game.save.companion == i, owned && Game.SafeTravel)) Game.SelectCompanion(i);
                 if (Button(x + 17, 583, 268, 32, Game.L("个人故事与赠礼", "Story & shared meal"), false, owned)) { dialogParent = "companions"; Game.CompanionStory(i); }
             }

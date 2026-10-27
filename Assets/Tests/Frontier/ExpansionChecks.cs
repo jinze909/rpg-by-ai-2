@@ -462,6 +462,17 @@ namespace Starfall.Tests
                 var npc=Object(g,kind);
                 g.save.flags.Add(report);g.save.flags.Add("companion_"+id);
                 g.save.x=npc.x;g.save.y=npc.y;
+                // Unowned dispatches are not a shortcut to relationship
+                // progress, even if the right saved report exists.
+                var witnessDispatch=typeof(GameCore).GetMethod(
+                    "ChooseExpansion",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                int startingTrust=g.save.relationships[id];
+                witnessDispatch.Invoke(g,new object[]{"companion_testimony_commit_"+id});
+                Check(!g.Has("companion_testimony_"+id)&&
+                    g.save.relationships[id]==startingTrust,
+                    "Remote/unowned testimony cannot manufacture companion trust");
                 g.Talk(npc);
                 string open="companion_testimony_open_"+id;
                 int opener=Array.FindIndex(g.conversation.choices,c=>c.action==open);
@@ -471,6 +482,9 @@ namespace Starfall.Tests
                 Check(g.mode=="dialog"&&g.conversation.speaker==npc.name&&
                     g.conversation.textEn.Length>100,
                     "The source-owned conversation has a real bilingual opening");
+                int premature=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="companion_testimony_commit_"+id);
+                Check(premature<0,"Trust cannot be taken from the opening scene before hearing the original testimony");
                 int detail=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="companion_testimony_detail_"+id);
                 Check(detail>=0,"A genuine second scene discusses the personal evidence");
@@ -483,8 +497,22 @@ namespace Starfall.Tests
                 g.Choose(back);
                 int commit=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="companion_testimony_commit_"+id);
-                Check(commit>=0,"The player can respond to real testimony once");
+                Check(commit>=0,"Reading the original testimony unlocks the one-time acknowledgement");
                 int before=g.save.relationships[id],coins=g.save.coins,skill=g.save.skillPoints;
+                // A stale menu taken from far outside physical reach must
+                // never award even a fully read story.
+                g.save.x=npc.x+5;g.save.y=npc.y+5;
+                g.Choose(commit);
+                Check(!g.Has("companion_testimony_"+id)&&
+                    g.save.relationships[id]==before,
+                    "A read testimony still cannot be claimed after walking away from its original speaker");
+                g.save.x=npc.x;g.save.y=npc.y;
+                g.Talk(npc);
+                opener=Array.FindIndex(g.conversation.choices,c=>c.action==open);
+                g.Choose(opener);
+                commit=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="companion_testimony_commit_"+id);
+                Check(commit>=0,"Returning to the same live speaker retains the fully read evidence");
                 g.Choose(commit);
                 Check(g.Has("companion_testimony_"+id)&&
                     g.save.relationships[id]==Math.Min(5,before+1)&&

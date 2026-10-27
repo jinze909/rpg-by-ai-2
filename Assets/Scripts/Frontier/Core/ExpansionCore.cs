@@ -3310,6 +3310,29 @@ namespace Starfall
                return false;
             return true;
         }
+        // A promise is earned by really reading the source's evidence,
+        // not by clicking the initial dialogue's reward line. The reading
+        // belongs to a particular map object, active save and room; it is
+        // never persisted or transferred between companions.
+        private SaveData companionTestimonyReadSave;
+        private WorldObject companionTestimonyReadSource;
+        private int companionTestimonyReadRoom=-1;
+        private int companionTestimonyReadId=-1;
+        private void ResetCompanionTestimonyReading()
+        {
+            companionTestimonyReadSave=null;
+            companionTestimonyReadSource=null;
+            companionTestimonyReadRoom=-1;
+            companionTestimonyReadId=-1;
+        }
+        private bool HasReadCompanionTestimony(int id,WorldObject host)
+        {
+            return companionTestimonyReadId==id &&
+                companionTestimonyReadRoom==save.room &&
+                System.Object.ReferenceEquals(companionTestimonyReadSave,save) &&
+                System.Object.ReferenceEquals(companionTestimonyReadSource,host) &&
+                CompanionTestimonyHost(id,host);
+        }
         private bool ChooseCompanionTestimony(string action)
         {
             const string prefix="companion_testimony_";
@@ -3350,6 +3373,10 @@ namespace Starfall
             }
             if(verb=="detail")
             {
+                companionTestimonyReadSave=save;
+                companionTestimonyReadSource=host;
+                companionTestimonyReadRoom=save.room;
+                companionTestimonyReadId=id;
                 Dialog(host.name,host.en,detailZh[id],detailEn[id],
                     C("返回证词讨论","Back to the testimony",
                         "companion_testimony_open_"+id),
@@ -3358,6 +3385,7 @@ namespace Starfall
             }
             if(verb=="commit")
             {
+                if(!HasReadCompanionTestimony(id,host))return true;
                 if(!Has("companion_testimony_"+id))
                 {
                     Flag("companion_testimony_"+id);
@@ -3373,11 +3401,22 @@ namespace Starfall
                         "Sen taught the apprentices when a human voice must outweigh a bell."}[id]);
                     Notify("真正听完证词，同伴信任 +1。","Witness heard; companion trust +1.");
                 }
+                ResetCompanionTestimonyReading();
                 PersonalConversation(id,host);
                 return true;
             }
             if(verb!="open")return true;
             bool heard=Has("companion_testimony_"+id);
+            var available=new List<Choice>();
+            available.Add(C("听听原稿之外的细节",
+                "Hear what the official record missed",
+                "companion_testimony_detail_"+id));
+            if(!heard&&HasReadCompanionTestimony(id,host))
+                available.Add(C("和他们一起守住这份记录 · 信任 +1",
+                    "Help preserve their evidence · Trust +1",
+                    "companion_testimony_commit_"+id));
+            available.Add(C("返回同伴交谈","Back to companion",
+                "companion_testimony_back_"+id));
             Dialog(host.name,host.en,heard?
                 new[]{"米拉翻开已经更正的返航名单。那些被划掉的名字，如今有家人在下一趟船边等待。",
                       "伊沃打开水阀旁的新记录。每位取水人都可以核对当天的份额，而不是听一台机器决定。",
@@ -3387,14 +3426,7 @@ namespace Starfall
                 new[]{"Mira opens the corrected return list. Families now wait at the dock for names once crossed out.",
                       "Ivo opens the new valve log. Every traveler can check the day's water share.",
                       "Sen asks the apprentice to listen for voices beyond the ice road before striking the bell."}[id]:
-                openingEn[id],
-                C("听听原稿之外的细节","Hear what the official record missed",
-                    "companion_testimony_detail_"+id),
-                heard?C("谢谢你还记得","Thank you for remembering","companion_testimony_back_"+id):
-                    C("一起把这件事交给后来者 · 信任 +1",
-                      "Help keep this truth in others' hands · Trust +1",
-                      "companion_testimony_commit_"+id),
-                C("返回同伴交谈","Back to companion","companion_testimony_back_"+id));
+                openingEn[id],available.ToArray());
             return true;
         }
         private void PersonalConversation(int id, WorldObject o)
