@@ -159,25 +159,25 @@ namespace Starfall
             // inventory flag or a copied speaker identity.
             if(action.StartsWith("archive_routes_",StringComparison.Ordinal))
             {
-                int region;
+                int selectorRegion;
                 if(!int.TryParse(action.Substring("archive_routes_".Length),
-                    out region))return true;
-                WorldObject page=AtlasFieldSource(region);
+                    out selectorRegion))return true;
+                WorldObject page=AtlasFieldSource(selectorRegion);
                 if(page==null)return true;
                 var choices=new System.Collections.Generic.List<Choice>();
                 foreach(string side in new[]{"s","e"})
                 {
-                    WorldObject marker=AtlasRoadMarker(region,side);
+                    WorldObject marker=AtlasRoadMarker(selectorRegion,side);
                     if(marker==null||Has("waytrail_"+marker.id))continue;
                     choices.Add(side=="s"?
                         C("测绘南侧旧路", "Survey the southern trail",
-                            "archive_go_"+region+"_s"):
+                            "archive_go_"+selectorRegion+"_s"):
                         C("测绘东侧旧路", "Survey the eastern trail",
-                            "archive_go_"+region+"_e"));
+                            "archive_go_"+selectorRegion+"_e"));
                 }
                 bool exhausted=choices.Count==0;
                 choices.Add(C("回到现场拓印","Back to the field rubbing",
-                    "archive_field_return_"+region));
+                    "archive_field_return_"+selectorRegion));
                 choices.Add(C("收起星图","Close the atlas","close"));
                 Dialog(page.name,page.en,
                     exhausted?
@@ -192,12 +192,12 @@ namespace Starfall
             if(action.StartsWith("archive_go_",StringComparison.Ordinal))
             {
                 string suffix=action.Substring("archive_go_".Length);
-                int split=suffix.LastIndexOf('_'),region;
+                int split=suffix.LastIndexOf('_'),chosenRegion;
                 if(split<0||!int.TryParse(suffix.Substring(0,split),
-                    out region))return true;
+                    out chosenRegion))return true;
                 string side=suffix.Substring(split+1);
-                if(AtlasFieldSource(region)==null)return true;
-                WorldObject marker=AtlasRoadMarker(region,side);
+                if(AtlasFieldSource(chosenRegion)==null)return true;
+                WorldObject marker=AtlasRoadMarker(chosenRegion,side);
                 if(marker==null||Has("waytrail_"+marker.id))
                 {
                     Notify("旧路标已经被记录或不再存在，个人导航没有改变。",
