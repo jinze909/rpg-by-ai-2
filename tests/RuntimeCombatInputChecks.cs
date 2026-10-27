@@ -193,7 +193,7 @@ public static class RuntimeCombatInputChecks
             new Point(0,.5f),new Point(-1f,0),new Point(1f,0)};
         foreach(Point offset in near)
         {
-            Point p=companion.Position+offset;
+            Point p=new Point(companion.x,companion.y)+offset;
             if(!g.CanStand(p))continue;
             g.save.x=p.x;g.save.y=p.y;
             g.Talk(companion);
