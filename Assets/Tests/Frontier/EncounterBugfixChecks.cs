@@ -764,6 +764,72 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void ThrownPebbleIsPhysicalNonlethalBoundedSoundLure(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] chars=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)chars[x]='.';
+                    rows[y]=new string(chars);
+                }
+                char[] barrier=rows[11].ToCharArray();
+                barrier[10]='#';rows[11]=new string(barrier);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.save.x=6.5f;g.save.y=10.5f;
+                g.save.energy=100f;
+                var guard=new Enemy(99131,0,14.5f,12.5f,300f);
+                guard.stun=100f;guard.timer=100f;
+                g.enemies.Add(guard);
+                float health=guard.hp;
+                g.ThrowPebble(new Point(1,0));
+                Check(g.projectiles.Exists(p=>p.visual=="pebble"&&
+                    p.source=="quietDecoy"&&p.damage==0)&&
+                    g.save.energy==100f-GameCore.PebbleEnergyCost&&
+                    g.pebbleCooldown>0f,
+                    "World button releases a real non-damaging, stamina-paid projectile with its own cooldown");
+                g.ThrowPebble(new Point(1,0));
+                Check(g.projectiles.Count==1&&
+                    g.save.energy==100f-GameCore.PebbleEnergyCost,
+                    "Spam cannot spawn free additional pebbles or double-spend energy");
+                Advance(g,.72f);
+                Check(!g.projectiles.Exists(p=>p.visual=="pebble")&&
+                    g.IsEnemyInvestigatingImpact(guard)&&
+                    guard.hp==health,
+                    "Only the actual projectile ground landing starts a local patrol investigation without HP damage");
+                Check(new System.Collections.Generic.List<string>(
+                    g.sounds).Contains("stoneImpact"),
+                    "The real physical pebble landing is audible to native AudioSource");
+                // Reload cancels the current distraction projectile,
+                // enemy search and short cooldown, not a save migration.
+                var saved=CloneSave(g.save);
+                g.Load(saved);g.mode="world";
+                Check(g.save.version==2&&g.pebbleCooldown==0f,
+                    "Transient decoy cooldown and alerts do not enter SaveData v2");
+                g.enemies.Clear();
+                var blocked=new Enemy(99132,0,14.5f,12.5f,300f);
+                blocked.stun=100f;g.enemies.Add(blocked);
+                g.save.x=6.5f;g.save.y=10.5f;
+                char[] closer=rows[10].ToCharArray();
+                closer[8]='#';rows[10]=new string(closer);
+                g.save.energy=50f;
+                g.ThrowPebble(new Point(1,0));
+                Advance(g,.72f);
+                Check(!g.IsEnemyInvestigatingImpact(blocked)&&
+                    blocked.hp==300f&&g.save.version==2,
+                    "A rock hit near the thrower cannot magically lure a guard beyond physical hearing distance");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void DistinctArrowWallSoundsRedirectOnlySearchingGuards(Campaign data)
         {
             MapData previous=data.maps[1];

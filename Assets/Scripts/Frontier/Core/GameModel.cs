@@ -212,7 +212,8 @@ namespace Starfall
         public SaveData rescueCoverSave;
         public MapData rescueCoverMap;
         public int rescueCoverRoom = -1;
-        public float Radius { get { return visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
+        public float Radius { get { return visual == "pebble" ? .12f :
+            visual == "arrow" || visual == "enemyArrow" ? .14f : .28f; } }
         public int theme;
         // A projectile can cross several independently spawned actors with the
         // SAME numeric ID (wave resets, restored encounters or procedural IDs).

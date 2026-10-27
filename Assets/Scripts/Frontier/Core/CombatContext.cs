@@ -511,6 +511,50 @@ namespace Starfall
                     L("听见异响","HEARD IMPACT")));
             }
         }
+        // A deliberate pebble can distract without a bow, but only after
+        // the REAL non-damaging projectile lands on a reachable floor/cover.
+        // Hearing is local and terrain-filtered. An active fight, physical
+        // sighting or civilian duty takes priority over a decoy. Reuse the
+        // same bounded near-side sound-search, never a saved enemy ID.
+        private void InvestigateRealPebbleLanding(Projectile pebble)
+        {
+            if(pebble==null||pebble.visual!="pebble"||
+               pebble.source!="quietDecoy"||!pebble.friendly||
+               !Finite(pebble.position.x)||!Finite(pebble.position.y)||
+               practicing||Dying||mode!="world")return;
+            sound="stoneImpact";
+            Point soundFoot=pebble.position;
+            EnsureEnemyHitAlertSession();
+            foreach(Enemy guard in enemies)
+            {
+                if(guard==null||guard.hp<=0||guard.boss||
+                   ArrowSoundCannotOverrideObjective(guard)||
+                   !CanStand(guard.Position)||
+                   (guard.Position-soundFoot).Length>5.5f||
+                   !ClearAttackPath(soundFoot,guard.Position)||
+                   // Do not reset actual visual pursuit or weapon alarm.
+                   patrolsThatSawHero.Contains(guard)||
+                   ImpactSearchGuardSeesHero(guard))
+                    continue;
+                EnemyHitAlert alert;
+                if(enemyHitAlert.TryGetValue(guard,out alert))
+                {
+                    if(!alert.impactOnly&&!alert.returning)continue;
+                    if(!alert.returning&&
+                       (alert.lastKnown-soundFoot).Length<1.25f)
+                        continue;
+                    alert.returning=false;alert.impactOnly=true;
+                    alert.lastKnown=soundFoot;alert.remaining=3.5f;
+                    alert.searchStep=-1;alert.whistleRemaining=0f;
+                }
+                else
+                    enemyHitAlert[guard]=new EnemyHitAlert(
+                        3.5f,soundFoot,true,guard.Position);
+                effects.Add(new Effect("number",guard.Position,.75f,
+                    L("听见投石","HEARD PEBBLE")));
+            }
+        }
+
         // The original actor renderer uses this read-only flag to
         // distinguish a real sound investigation from regular combat.
         // Identity, save, current map and finite expiry are all required.

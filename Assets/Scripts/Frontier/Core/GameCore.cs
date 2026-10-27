@@ -344,6 +344,7 @@ namespace Starfall
             dialogueRecords.Clear();
             ClearInteractionFocus();
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
+            pebbleCooldown=0f;
             invulnerable = 1; conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
             conversationSourceRoom = pendingDialogueSourceRoom = -1;
@@ -898,6 +899,7 @@ namespace Starfall
             if(blockedFootingNoticeShown && CanStand(Position))
                 blockedFootingNoticeShown=false;
             attackCooldown -= dt; dashCooldown -= dt;
+            pebbleCooldown=Math.Max(0f,pebbleCooldown-dt);
             // At 20ms/50ms updates a cooldown can land at 0.00000001f
             // instead of zero. Buffered Q's readiness uses a 10us
             // tolerance; keep the authoritative StartSkill (>0) guard
@@ -1018,6 +1020,37 @@ namespace Starfall
             if(blockedFootingNoticeShown)return;
             blockedFootingNoticeShown=true;
             Notify(zh,en);
+        }
+        // A tactical, non-damaging distraction must physically fly and
+        // LAND before the guard can hear its location. It never grants an
+        // arrow's HP contact or a fictitious alert on button press.
+        public float pebbleCooldown;
+        public const float PebbleEnergyCost=8f;
+        public const float PebbleRecoverySeconds=5f;
+        public void ThrowPebble(Point direction)
+        {
+            if(mode!="world"||Dying||practicing||playerAction!=null||
+               dashTime>0f||playerHitTime>0f||
+               pebbleCooldown>.00001f||save.energy<PebbleEnergyCost||
+               !CanStand(Position)||!Finite(direction.x)||
+               !Finite(direction.y)||direction.Length<.2f)return;
+            Point heading=direction.Normalized;
+            var pebble=new Projectile{
+                position=Position,velocity=heading*11f,
+                life=.65f,damage=0f,friendly=true,
+                source="quietDecoy",visual="pebble",
+                height=13f};
+            // Dynamic terrain can seal the source tile while aiming.
+            // Reject a stone spawned inside rock without spending energy.
+            if(ShotBlocked(pebble,pebble.position))return;
+            save.energy-=PebbleEnergyCost;
+            pebbleCooldown=PebbleRecoverySeconds;
+            // A release is a genuine audible action at the hero's own
+            // foot, but only the later, physical LANDING lures guards.
+            QuietStepping=false;
+            projectiles.Add(pebble);
+            sound="throw";
+            revision++;
         }
         public void Attack(Point direction)
         {
@@ -2819,6 +2852,44 @@ namespace Starfall
                 { float t=Clamp(p.age/.25f,0,1);t=t*t*(3-2*t);p.height=p.launchHeight+(p.flightHeight-p.launchHeight)*t; }
                 if (p.life <= 0 && flightDt <= 0)
                 { projectiles.Remove(p); AddProjectileFade(p); continue; }
+                // A tossed pebble is WORLD PHYSICS, not an attack.
+                // Sweep its small body through the same collision field
+                // without ever entering enemy HP, reflections, parries or
+                // mission stock-contact code. Only a real landing/impact
+                // produces a sound at the last legal physical foot.
+                if(p.visual=="pebble"&&p.source=="quietDecoy")
+                {
+                    bool startedInRock=p.blockedAtSpawn||
+                        ShotBlocked(p,p.position);
+                    bool hitGround=false;
+                    if(!startedInRock)
+                    {
+                        int segments=Math.Max(1,
+                            (int)Math.Ceiling(speed*flightDt/.08f));
+                        for(int segment=0;segment<segments;segment++)
+                        {
+                            Point next=p.position+
+                                p.velocity*(flightDt/segments);
+                            if(ShotBlocked(p,next))
+                            {
+                                hitGround=true;break;
+                            }
+                            p.position=next;
+                        }
+                        if(p.life<=.00001f)hitGround=true;
+                    }
+                    if(startedInRock||hitGround)
+                    {
+                        projectiles.Remove(p);
+                        if(hitGround)InvestigateRealPebbleLanding(p);
+                        // The same authored generic contact effect uses
+                        // existing VFX; no fabricated player or extra Sprite.
+                        if(hitGround)
+                            effects.Add(new Effect("projectileImpact",
+                                p.position,.26f){variant=8,height=12f});
+                    }
+                    continue;
+                }
                 int steps = Math.Max(1, (int)Math.Ceiling(p.velocity.Length * flightDt / .1f));
                 bool startedBlocked = p.blockedAtSpawn ||
                     ShotBlocked(p,p.position);
