@@ -153,18 +153,18 @@ public sealed partial class GameCore {
                 Dialog(o.name,o.en,"先完成三地的居民救援实战，再公开最后的保密令。","Publish all three civilian service records before investigating the unsigned order.",C("继续调查","Keep investigating","close"));return true;
             }
             if(LastDirectiveComplete){
-                string zh=LastDirectiveChoice==1?
+                string verdictZh=LastDirectiveChoice==1?
                     "民间监督与停机申诉权已经公开。":"民用紧急庇护已成为任何人的权利。";
-                string en=LastDirectiveChoice==1?
+                string verdictEn=LastDirectiveChoice==1?
                     "Public civilian oversight and shutdown appeals are now law.":
                     "Unconditional emergency shelter is now guaranteed.";
                 if(LastDirectiveTalentDue)
-                    Dialog(o.name,o.en,zh+"\n\n你挣得的最后一课还在居民公示簿上。技能点上限99；留出容量后亲自签领。",
-                        en+"\n\nYour earned final lesson remains in the public ledger. Talent capacity is 99; make room, then sign for it here.",
+                    Dialog(o.name,o.en,verdictZh+"\n\n你挣得的最后一课还在居民公示簿上。技能点上限99；留出容量后亲自签领。",
+                        verdictEn+"\n\nYour earned final lesson remains in the public ledger. Talent capacity is 99; make room, then sign for it here.",
                         C("签领最后指令报酬 · 技能点1",
                             "Sign final directive lesson · +1 talent","last_directive_claim"),
                         C("查阅记录","Review","close"));
-                else Dialog(o.name,o.en,zh,en,
+                else Dialog(o.name,o.en,verdictZh,verdictEn,
                     C("查阅记录","Review","close"));
                 return true;
             }
