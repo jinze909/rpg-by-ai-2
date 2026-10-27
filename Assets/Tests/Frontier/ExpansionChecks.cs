@@ -790,6 +790,51 @@ namespace Starfall.Tests
         }
 
 
+        public static void LastDirectivePublicationPreservesCappedTalentAndAuthenticDeskClaim(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string id in new[]{"civic_response_ledger","last_directive_started",
+                "last_directive_open"})g.save.flags.Add(id);
+            g.save.skillPoints=99;
+            g.Enter(0);g.enemies.Clear();g.projectiles.Clear();
+            WorldObject board=Object(g,"lastdirectiveboard");
+            g.save.x=board.x;g.save.y=board.y;
+            int originalCoins=g.save.coins,originalShards=g.save.shards;
+            Action(g,board.kind,"last_directive_publish");
+            Check(g.LastDirectiveComplete&&g.LastDirectiveTalentDue&&
+                g.save.skillPoints==99&&g.save.coins==originalCoins+95&&
+                g.save.shards==originalShards+5,
+                "Actual Chapter Ten publication preserves its full-wallet earned +1 in an original v2 signed ledger");
+            Check(g.GetQuest("last_directive").next.Contains("先使用一点"),
+                "Quest directs a full-wallet player to spend a point before visiting the real civic desk");
+            g.PrepareSave();
+            g=new GameCore(data,CloneSave(g.save));g.Start();g.enemies.Clear();
+            board=Object(g,"lastdirectiveboard");
+            g.save.x=board.x;g.save.y=board.y;
+            Check(g.LastDirectiveTalentDue&&g.save.version==2,
+                "Unpaid civic lesson persists in original SaveData v2 after loading a different session");
+            g.Talk(board);
+            int claim=Array.FindIndex(g.conversation.choices,c=>c.action=="last_directive_claim");
+            Check(claim>=0,"Published city board offers a physical one-time talent signature");
+            g.Choose(claim);
+            Check(g.LastDirectiveTalentDue&&g.save.skillPoints==99,
+                "Signing with no wallet space never discards a permanently earned chapter reward");
+            g.Learn(0);
+            Check(g.save.skillPoints==98&&g.GetQuest("last_directive").next.Contains("现在可"),
+                "Spending one real skill point immediately updates the actionable journal");
+            g.Talk(board);
+            claim=Array.FindIndex(g.conversation.choices,c=>c.action=="last_directive_claim");
+            Check(claim>=0,"Original board continues to honor signed reward when capacity returns");
+            g.Choose(claim);
+            Check(!g.LastDirectiveTalentDue&&g.save.skillPoints==99&&
+                g.save.coins==originalCoins+95&&g.save.shards==originalShards+5,
+                "Signed claim returns exactly the owed talent, never another set of story money or shards");
+            g.Talk(board);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="last_directive_claim")<0&&
+                !g.GetQuest("last_directive").next.Contains("欠付"),
+                "Already-paid civic debt cannot be claimed a second time or misreported in the quest journal");
+        }
+
         public static void CitadelGuardianFormationsAvoidHeroesAndAllies(Campaign data){
             var g=Fresh(data);g.save.stage=3;g.save.level=20;
             foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",

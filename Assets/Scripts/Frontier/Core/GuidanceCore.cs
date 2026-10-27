@@ -1403,10 +1403,20 @@ namespace Starfall
                     LastDirectiveChoice>0));
                 q.steps.Add(new QuestStep(L("向余烬镇公开最后指令",
                     "Publish the final order in Emberfall"),LastDirectiveComplete));
+                if(LastDirectiveTalentDue)
+                    q.steps.Add(new QuestStep(L("在居民议事台签领欠付技能点",
+                        "Sign for outstanding talent at the civic desk"),false));
                 if(!LastDirectiveStarted||LastDirectiveChoice>0)
                 {
                     q.room=0;q.target=ObjectPoint(0,"lastdirectiveboard",new Point(19.5f,15.5f));
-                    q.next=q.complete?L("最后指令已经公开；永久民用权限持续有效",
+                    q.next=LastDirectiveTalentDue?
+                        L(save.skillPoints>=99?
+                            "最后指令已公开，欠付技能点1。先使用一点，再到标记议事台签领。":
+                            "最后指令已公开，现在可到标记议事台签领欠付技能点1。",
+                          save.skillPoints>=99?
+                            "Final directive published, +1 talent owed. Spend a point, then sign at the marked civic desk.":
+                            "Final directive published. Sign now at the marked civic desk for your earned +1 talent."):
+                        q.complete?L("最后指令已经公开；永久民用权限持续有效",
                         "Last directive published; permanent civilian rights are active"):
                         !LastDirectiveStarted?L("在余烬镇居民议事台接取调查",
                             "Begin the inquiry at Emberfall's public council"):

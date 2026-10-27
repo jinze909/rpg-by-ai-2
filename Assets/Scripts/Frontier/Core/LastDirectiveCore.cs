@@ -11,6 +11,11 @@ public sealed partial class GameCore {
     private static readonly Point[] directiveSpawns={new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(106.5f,73.5f)};
     public bool LastDirectiveStarted {get{return Has("last_directive_started");}}
     public bool LastDirectiveComplete {get{return Has("last_directive_complete");}}
+    // Signed, unpaid Chapter Ten talent is represented by an existing
+    // SaveData v2 string flag. The civic decision can publish even when
+    // the saved 99-point talent wallet has no room.
+    public bool LastDirectiveTalentDue
+    {get{return LastDirectiveComplete&&Has("last_directive_talent_due");}}
     public int LastDirectiveClues {get{int n=0;for(int i=0;i<3;i++)if(Has("last_directive_clue_"+i))n++;return n;}}
     public int LastDirectiveWave {get{return directiveRoom==4?directivePhase:0;}}
     public int LastDirectiveEnemies {get{int n=0;foreach(Enemy e in enemies)if(IsLastDirectiveEnemy(e))n++;return n;}}
@@ -148,8 +153,20 @@ public sealed partial class GameCore {
                 Dialog(o.name,o.en,"先完成三地的居民救援实战，再公开最后的保密令。","Publish all three civilian service records before investigating the unsigned order.",C("继续调查","Keep investigating","close"));return true;
             }
             if(LastDirectiveComplete){
-                Dialog(o.name,o.en,LastDirectiveChoice==1?"民间监督与停机申诉权已经公开。":"民用紧急庇护已成为任何人的权利。",
-                    LastDirectiveChoice==1?"Public civilian oversight and shutdown appeals are now law.":"Unconditional emergency shelter is now guaranteed.",C("查阅记录","Review","close"));return true;
+                string zh=LastDirectiveChoice==1?
+                    "民间监督与停机申诉权已经公开。":"民用紧急庇护已成为任何人的权利。";
+                string en=LastDirectiveChoice==1?
+                    "Public civilian oversight and shutdown appeals are now law.":
+                    "Unconditional emergency shelter is now guaranteed.";
+                if(LastDirectiveTalentDue)
+                    Dialog(o.name,o.en,zh+"\n\n你挣得的最后一课还在居民公示簿上。技能点上限99；留出容量后亲自签领。",
+                        en+"\n\nYour earned final lesson remains in the public ledger. Talent capacity is 99; make room, then sign for it here.",
+                        C("签领最后指令报酬 · 技能点1",
+                            "Sign final directive lesson · +1 talent","last_directive_claim"),
+                        C("查阅记录","Review","close"));
+                else Dialog(o.name,o.en,zh,en,
+                    C("查阅记录","Review","close"));
+                return true;
             }
             if(LastDirectiveChoice>0){
                 Dialog(o.name,o.en,"你在真正的堡垒战斗后选定了最后一道权限。现在让所有人读到它。","The last directive was reclaimed through real battles. Publish the choice for all.",
@@ -234,12 +251,44 @@ public sealed partial class GameCore {
             if(!atBoard||!Has("civic_response_ledger")||LastDirectiveStarted)return true;
             Flag("last_directive_started");TrackQuest("last_directive");sound="quest";return true;
         }
+        if(action=="last_directive_claim"){
+            // Only the exact original civic desk may sign an earned debt;
+            // an old or forged menu from another room cannot pay it.
+            if(!atBoard||!LastDirectiveTalentDue||
+                !System.Object.ReferenceEquals(pendingDialogueSource,board)||
+                !SourceBelongsToActiveMap(board))return true;
+            if(!SafeTravel||FieldWorkPreventsRest||racing){
+                Notify("附近尚不安全，公示簿仍保留欠付报酬。",
+                    "Nearby fieldwork is unsafe. Your earned talent remains in the ledger.");
+                return true;
+            }
+            if(save.skillPoints>=99){
+                Notify("技能点已满99。先使用一点再回来签领。",
+                    "Talent wallet full at 99. Spend one point before signing.");
+                return true;
+            }
+            save.flags.Remove("last_directive_talent_due");
+            CreditSkillPoints(1);revision++;sound="reward";
+            Notify("最后指令报酬签领完成：技能点 +1。",
+                "Final directive ledger signed: +1 talent point.");
+            return true;
+        }
         if(action=="last_directive_publish"){
             if(!atBoard||!Has("civic_response_ledger")||LastDirectiveChoice==0||LastDirectiveComplete)return true;
-            Flag("last_directive_complete");CreditCoins(95);CreditShards(5);CreditSkillPoints(1);AddXp(140);revision++;sound="reward";
+            bool owed=save.skillPoints>=99;
+            Flag("last_directive_complete");CreditCoins(95);CreditShards(5);
+            if(owed)Flag("last_directive_talent_due");
+            else CreditSkillPoints(1);
+            AddXp(140);revision++;sound="reward";
             RecordMoment("第十章终结：旧堡垒被迫公布最后一道隐秘指令，真正的居民决定自己的安全。",
                 "Chapter Ten: the final hidden citadel order became a public civilian decision.");
-            Notify("第十章完成：硬币95、碎片5、技能点1、经验140。","Chapter Ten complete: 95 coins, 5 shards, 1 talent, 140 XP.");return true;
+            Notify(owed?
+                "第十章完成：硬币95、碎片5、经验140；技能点1已记入公示簿，可稍后签领。":
+                "第十章完成：硬币95、碎片5、技能点1、经验140。",
+                owed?
+                "Chapter Ten complete: 95 coins, 5 shards, 140 XP; +1 talent remains payable at the civic desk.":
+                "Chapter Ten complete: 95 coins, 5 shards, 1 talent, 140 XP.");
+            return true;
         }
         if(!atCore||!LastDirectiveReady||LastDirectiveChoice>0)return true;
         if(action.StartsWith("last_directive_code_")){
