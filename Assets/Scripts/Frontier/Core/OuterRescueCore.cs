@@ -76,7 +76,8 @@ namespace Starfall
         private void AppendOuterMilestoneClaimChoice(WorldObject source)
         {
             if(source==null||mode!="dialog"||conversation==null||
-                !SourceBelongsToActiveMap(source)||!HasPhysicalInteractionReach(source))
+                !SourceBelongsToActiveMap(source)||!HasPhysicalInteractionReach(source)||
+                !SafeTravel||FieldWorkPreventsRest||racing)
                 return;
             string milestone=NextOuterMilestoneAt(source);
             if(milestone==null)return;
@@ -124,6 +125,15 @@ namespace Starfall
                 pendingDialogueSourceRoom!=save.room||
                 !SourceBelongsToActiveMap(source)||
                 !HasPhysicalInteractionReach(source))return true;
+            // A stale pre-combat receipt menu cannot freeze an assault or
+            // a live timed delivery and quietly pay talents mid-encounter.
+            // Retain the IOU unchanged until the real watch is safe again.
+            if(!SafeTravel||FieldWorkPreventsRest||racing)
+            {
+                Notify("战斗或现场任务尚未结束。巡路队会替你保留这笔报酬。",
+                    "Finish the active fight or field duty first. The roadwarden keeps your earned receipt.");
+                return true;
+            }
             string milestone=NextOuterMilestoneAt(source);
             if(milestone==null)return true;
             if(save.skillPoints>=99)

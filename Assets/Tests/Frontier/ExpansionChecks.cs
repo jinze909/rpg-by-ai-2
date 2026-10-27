@@ -222,6 +222,24 @@ namespace Starfall.Tests
                 Array.FindIndex(g.conversation.choices,
                     c=>c.action=="outer_watch_routes")>=0,
                 "Four owed watch medals offer optional combined settlement without removing ordinary actions");
+            // A real attacker may reach the watch AFTER the receipt menu
+            // opened. Its old button must not bypass live combat safety.
+            g.enemies.Add(new Enemy(880091,0,g.Position.x+.6f,g.Position.y,50));
+            g.Choose(all);
+            Check(g.save.skillPoints==97&&g.OuterMilestoneRewardPending(debts[0])&&
+                g.OuterMilestoneRewardPending(debts[3]),
+                "A new hostile within travel-danger range invalidates an already-opened multi-claim menu");
+            TalkNearObject(g,watch);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all")<0&&
+                Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim")<0,
+                "Active combat hides unpaid talent actions without erasing their receipts");
+            g.enemies.Clear();g.Close();
+            TalkNearObject(g,watch);
+            all=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_milestone_claim_all");
+            Check(all>=0,"Clearing the danger restores the authentic combined receipt");
             g.save.x+=12f;g.save.y+=12f;
             g.Choose(all);
             Check(g.save.skillPoints==97&&g.OuterMilestoneRewardPending(debts[0])&&
