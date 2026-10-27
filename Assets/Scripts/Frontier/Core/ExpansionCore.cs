@@ -3647,8 +3647,8 @@ namespace Starfall
                 // actual BankFloor transaction cannot legally commit.
                 if (!CanBankFloor())
                 {
-                    Notify("本层结算条件已改变。请清理敌人后重新调查地脉门。",
-                        "Floor settlement is no longer ready. Clear hostiles and inspect the root gate again.");
+                    Notify("地脉门结算尚不安全。请清理敌人、避开射击与裂隙预警后重试。",
+                        "The root gate is not safe to bank. Clear enemies and evade incoming arrows or rift warnings first.");
                     return true;
                 }
                 BankFloor(); EndAbyss(true); Enter(0); return true;
@@ -3962,6 +3962,16 @@ namespace Starfall
         {
             if (!InAbyss) return;
             if (enemies.Count > 0) { Notify("先清理本层敌人，地脉门才会回应。", "Clear this floor before the root gate answers."); return; }
+            // Defeating the final raider does not erase an airborne shot
+            // or an already-warned rift. A premature gate dialogue could
+            // pause combat and bank/descend while a REAL hazard was still
+            // about to hit. Wait until the actual travel threat clears.
+            if(!SafeTravel)
+            {
+                Notify("地脉门附近仍有箭矢或裂隙预警。先避开危险，再来结算本层。",
+                    "Incoming arrows or warned rifts still threaten the root gate. Get clear before banking this floor.");
+                return;
+            }
             Flag("abyss_clear_" + save.abyssFloor);
             List<Choice> choices = new List<Choice>();
             if (save.abyssFloor < 6)
@@ -4017,6 +4027,10 @@ namespace Starfall
         private bool CanBankFloor()
         {
             return !Dying && InAbyss && enemies.Count == 0 &&
+                // Revalidate even after a menu has opened. A real incoming
+                // strike added before dispatch must not become an untouchable
+                // boons/loot escape just because UI temporarily paused time.
+                SafeTravel &&
                 Has("abyss_clear_" + save.abyssFloor);
         }
         private void BankFloor()

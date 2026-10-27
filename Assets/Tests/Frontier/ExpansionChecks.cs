@@ -345,6 +345,56 @@ namespace Starfall.Tests
                 "A legitimately defeated sixth-floor guardian does not resurrect on reload");
         }
 
+        public static void RootGateCannotBankDuringRealLingeringMissilesOrRifts(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            WorldObject gate=Array.Find(g.Map.objects,o=>o.kind=="abyssGate");
+            g.save.x=gate.x;g.save.y=gate.y;
+            g.save.runCoins=48;g.save.runShards=2;g.save.runXp=20;
+            int originalCoins=g.save.coins;
+            var threat=new Projectile {
+                position=g.Position+new Point(1.3f,0f),
+                velocity=new Point(-9f,0f),life=.75f,
+                damage=14f,visual="enemyArrow",friendly=false
+            };
+            g.projectiles.Add(threat);
+            Check(!g.SafeTravel,"A live nearby enemy arrow remains physically threatening even after every foe dies");
+            g.Talk(gate);
+            Check(g.mode=="world"&&!g.Has("abyss_clear_1")&&
+                g.save.runCoins==48,
+                "Root gate refuses early banking while an actual incoming arrow still occupies the cleared room");
+            threat.friendly=true;
+            g.Talk(gate);
+            Check(g.mode=="dialog"&&g.Has("abyss_clear_1"),
+                "A reflected harmless arrow restores legitimate gate access without changing saved loot");
+            g.projectiles.Clear();
+            var blast=new Hazard { position=g.Position,
+                radius=1.5f,timer=.6f,damage=12f,kind="rift" };
+            g.hazards.Add(blast);
+            Check(!g.SafeTravel&&g.save.runCoins==48,
+                "A real rift warning may appear after the root gate menu opens");
+            int bank=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action=="abyssBank")bank=i;
+            Check(bank>=0,"Live gate still exposes original return-and-bank action");
+            g.Choose(bank);
+            Check(g.InAbyss&&g.save.abyssFloor==1&&
+                g.save.runCoins==48&&g.save.coins==originalCoins,
+                "Late incoming rift invalidates stale banking before spending, leaving world and unbanked rewards intact");
+            g.hazards.Clear();
+            g.Talk(gate);
+            int boon=-1;
+            for(int i=0;i<g.conversation.choices.Length;i++)
+                if(g.conversation.choices[i].action=="boon0")boon=i;
+            Check(boon>=0,"After actual warning ends the original onward boon route is usable");
+            g.Choose(boon);
+            Check(g.InAbyss&&g.save.abyssFloor==2&&
+                g.save.coins>=originalCoins+48&&g.save.boons[0]==1&&
+                g.save.runCoins==0&&g.save.version==2,
+                "Only safe physical clearance permits ordinary banking and an earned next-floor boon");
+        }
+
         public static void AbyssOptionalInteractionsRequirePhysicalReach(Campaign data)
         {
             var g = new GameCore(data);
