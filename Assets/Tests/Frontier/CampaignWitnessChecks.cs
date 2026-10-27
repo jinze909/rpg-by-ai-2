@@ -353,6 +353,52 @@ namespace Starfall.Tests
                 "A newly undertaken miner investigation outranks incomplete earlier optional testimony");
         }
 
+
+        public static void ActiveWitnessSecurityGuidesActualTimerAndOwnedGuardCount(Campaign data)
+        {
+            for(int region=1;region<=3;region++)
+            {
+                var g=Fresh(data);g.save.stage=region;
+                g.save.flags.Add(region==1?"scout_saved":"gate_"+region);
+                g.Enter(region);g.enemies.Clear();g.invulnerable=200;
+                WorldObject npc=Object(g,"witnessnpc"+region);
+                WorldObject first=Object(g,"witnesssite1"+region);
+                WorldObject site=Object(g,"witnesssite2"+region);
+                g.save.x=npc.x;g.save.y=npc.y;
+                Action(g,npc.kind,"witness_begin_"+region);
+                g.save.x=first.x;g.save.y=first.y;
+                if(region==1)g.save.inventory[2]=Math.Max(1,g.save.inventory[2]);
+                if(region==3)g.save.inventory[4]=Math.Max(1,g.save.inventory[4]);
+                Action(g,first.kind,"witness_answer_"+region+"_"+(region==1?1:2));
+                g.save.x=site.x;g.save.y=site.y;
+                Action(g,site.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==region,
+                    "Real second witness site starts the authentic chapter security timer");
+                var quest=g.GetQuest("campaign_witness");
+                Check(quest.room==region&&
+                    (quest.target-new Point(site.x,site.y)).Length<.01f&&
+                    quest.next.Contains("守卫 2/2")&&quest.next.Contains("65秒"),
+                    "In-progress witness mission sends hero to its real site with live 65s bilingual guidance");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                Check(hit!=null,"Actual lethal attack path is testable");
+                Enemy firstGuard=g.enemies.Find(g.IsWitnessEnemy);
+                hit.Invoke(g,new object[]{firstGuard,99999f,false,null,null});
+                Check(g.GetQuest("campaign_witness").next.Contains("守卫 1/2"),
+                    "Only actual owned guard death updates the real-time chapter objective");
+                g.save.english=true;
+                Check(g.GetQuest("campaign_witness").next.Contains("GUARDS 1/2")&&
+                    g.GetQuest("campaign_witness").next.Contains("WITNESS DEFENSE"),
+                    "English quest overlay agrees with the actual original combat roster");
+                var secondGuard=g.enemies.Find(g.IsWitnessEnemy);
+                hit.Invoke(g,new object[]{secondGuard,99999f,false,null,null});
+                g.Tick(.05f,new Point());
+                Check(g.WitnessDefenseRoom==0&&
+                    !g.GetQuest("campaign_witness").next.Contains("WITNESS DEFENSE"),
+                    "After true combat settlement the original quest guidance returns to physical evidence sealing");
+            }
+        }
+
         public static void ThreeRegionWitnessDefenseRejectsForeignMatchingIds(Campaign data)
         {
             var hit=typeof(GameCore).GetMethod("Hit",

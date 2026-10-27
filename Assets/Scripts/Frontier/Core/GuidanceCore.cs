@@ -2761,6 +2761,21 @@ namespace Starfall
                         "Defeat the guards and preserve the second site"):
                     L("返回证人身边亲自签署记录",
                         "Return for the witness's signed testimony");
+                // Actual timed witnesses must retain a live combat
+                // objective even if another journal entry was manually
+                // pinned. This is the real remaining Enemy roster.
+                if(WitnessDefenseRoom>0&&WitnessDefenseRoom==save.room)
+                {
+                    int remaining=enemies.FindAll(IsWitnessEnemy).Count;
+                    q.room=save.room;
+                    q.target=WitnessPoint(save.room,"site2");
+                    q.next=L("证词保全 · 守卫 "+remaining+
+                            "/2 · "+(int)Math.Ceiling(WitnessDefenseTime)+
+                            "秒。闪避落点预警，击败两名守卫！",
+                        "WITNESS DEFENSE · GUARDS "+remaining+
+                            "/2 · "+(int)Math.Ceiling(WitnessDefenseTime)+
+                            "s. Dodge warned pulses and defeat the guards!");
+                }
                 q.reward=L("每章一次性硬币25/35/45、碎片1、经验25/30/35；三章可削弱第四章审计守卫",
                     "Per chapter: 25/35/45 coins, 1 shard, 25/30/35 XP; all three weaken Chapter Four audit security");
                 return q;
