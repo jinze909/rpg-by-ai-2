@@ -700,6 +700,76 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void QuietApproachRespectsPatrolFacingAndPhysicalCover(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=11.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.save.x=11.5f;g.save.y=10.5f;
+                var sentry=new Enemy(61501,0,13f,10.5f,500f);
+                sentry.Face(new Point(1,0));sentry.timer=100f;
+                g.enemies.Add(sentry);
+                Point original=sentry.Position;
+                for(int i=0;i<10;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check(g.QuietStepping&&
+                    (sentry.Position-original).Length<.001f,
+                    "A quiet hero genuinely behind an unaware ordinary guard is not automatically spotted inside four tiles");
+                // The same living guard turns toward the hero. Only an
+                // unobstructed real sightline now earns pursuit memory.
+                sentry.Face(new Point(-1,0));
+                for(int i=0;i<10;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check((sentry.Position-original).Length>.25f,
+                    "Turning to face a quiet hero at real four-tile reach starts physical pursuit");
+                Point alerted=sentry.Position;
+                sentry.Face(new Point(1,0));
+                for(int i=0;i<8;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check((sentry.Position-alerted).Length>.20f,
+                    "Turning away again does not cancel a previously earned sighting");
+                var hidden=Fresh(data);hidden.save.stage=3;
+                hidden.Enter(1);hidden.enemies.Clear();
+                hidden.mode="world";hidden.save.x=11.5f;
+                hidden.save.y=10.5f;
+                var blind=new Enemy(61502,0,13f,10.5f,500f);
+                blind.Face(new Point(-1,0));
+                blind.timer=100f;hidden.enemies.Add(blind);
+                char[] wall=rows[10].ToCharArray();
+                wall[12]='#';rows[10]=new string(wall);
+                // Wall endpoints are physically separated; the existing
+                // line-of-sight check may not invent an alert through rock.
+                hidden.Tick(.05f,new Point(),null,false,true);
+                Check((blind.Position-new Point(13f,10.5f)).Length<.001f,
+                    "A nearby guard facing rock does not gain quiet sight through a solid wall");
+                // Still physically obstructed: normal locomotion may
+                // investigate, but cannot establish persistent sight memory.
+                hidden.Tick(.05f,new Point(),null,false,false);
+                Point blockedFoot=blind.Position;
+                hidden.Tick(.05f,new Point(),null,false,true);
+                Check((blind.Position-blockedFoot).Length<.001f,
+                    "Walking behind opaque rock never creates a phantom persistent alert");
+                wall[12]='.';rows[10]=new string(wall);
+                hidden.Tick(.05f,new Point(),null,false,true);
+                Check((blind.Position-blockedFoot).Length>.001f,
+                    "Opening that exact physical line restores ordinary true visual acquisition");
+            }
+            finally {data.maps[1]=old;}
+        }
+
         public static void QuietFootPatrolStealthPreservesActualExposure(Campaign data)
         {
             MapData old=data.maps[1];
@@ -720,7 +790,9 @@ namespace Starfall.Tests
                 walker.Enter(1);walker.enemies.Clear();
                 walker.mode="world";walker.save.x=7.5f;walker.save.y=10.5f;
                 var observer=new Enemy(61101,0,13.5f,10.5f,500f);
-                observer.timer=100f;walker.enemies.Add(observer);
+                observer.timer=100f;
+                observer.Face(new Point(-1,0));
+                walker.enemies.Add(observer);
                 Point post=observer.Position;
                 for(int i=0;i<15;i++)
                     walker.Tick(.05f,new Point(0,1),null,false,true);

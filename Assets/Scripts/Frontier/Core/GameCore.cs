@@ -2320,7 +2320,11 @@ namespace Starfall
                     !stockRaider&&!patrolSaboteur;
                 if(ordinaryPatrol)
                 {
-                    if(!QuietStepping&&distance<=8f)
+                    // Awareness memory must be earned by an actual clear
+                    // sightline. Merely walking near a patrol on the other
+                    // side of a sealed wall cannot mint a lasting sighting.
+                    if(!QuietStepping&&distance<=8f&&
+                       ClearAttackPath(e.Position,Position))
                         patrolsThatSawHero.Add(e);
                     // Only a genuinely lost, distant patrol can become
                     // susceptible to a later quiet approach. Changing the
@@ -2328,10 +2332,19 @@ namespace Starfall
                     if(distance>8.5f&&
                        !ClearAttackPath(e.Position,Position))
                         patrolsThatSawHero.Remove(e);
+                    // Quiet approach only reduces fresh ordinary patrol
+                    // detection. Use the same physical forward cone as
+                    // true sound searches: a rear approach behind the
+                    // shoulders is not magically seen at four tiles.
+                    // Within touching reach (.8), the collision itself
+                    // gives the sentry a genuine contact warning.
+                    bool quietCanSee=QuietStepping&&distance<=4f&&
+                        ImpactSearchGuardSeesHero(e);
                     if(QuietStepping&&e.state!=1&&!playerHitProvoked&&
-                       !patrolsThatSawHero.Contains(e)&&distance>4f)
+                       !patrolsThatSawHero.Contains(e)&&!quietCanSee)
                         continue;
-                    if(distance<=4f)patrolsThatSawHero.Add(e);
+                    if(distance<=4f&&(!QuietStepping||quietCanSee))
+                        patrolsThatSawHero.Add(e);
                 }
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     !escortPatrol && !stockRaider && !patrolSaboteur &&
