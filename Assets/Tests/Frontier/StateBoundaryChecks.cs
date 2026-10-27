@@ -417,33 +417,61 @@ namespace Starfall.Tests
 
         public static void AbortedTravelerAmbushCannotKeepRaiderArrowsAlive(Campaign data)
         {
-            var g = Fresh(data);
-            g.enemies.Clear(); g.projectiles.Clear(); g.effects.Clear();
-            g.save.x = 18.5f; g.save.y = 14.5f; g.invulnerable = 100;
-            var archer = new Enemy(82011, 1, 21.5f, 14.5f, 100);
-            archer.state = 1; archer.timer = .005f;
-            archer.target = g.Position; archer.Face(new Point(-1, 0));
-            g.enemies.Add(archer);
-            var playerShot = new Projectile { position = new Point(12, 14),
-                velocity = new Point(1, 0), friendly = true, damage = 0, life = 3 };
-            var ambient = new Effect("discover", new Point(12, 14), 3);
-            g.projectiles.Add(playerShot); g.effects.Add(ambient);
-            g.Tick(.05f, new Point());
-            Projectile arrow = g.projectiles.Find(p => !p.friendly);
-            Check(arrow != null && arrow.wayfarerOwned && arrow.age == 0,
-                "Actual traveler raider projectile preserves its rescue mission ownership from launch");
-            var cleanup = typeof(GameCore).GetMethod("ResetWayfarerEncounter",
-                System.Reflection.BindingFlags.Instance |
+            var g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("scout_saved");
+            g.Enter(1);g.mode="world";
+            g.enemies.Clear();g.projectiles.Clear();g.effects.Clear();
+            WorldObject traveler=Array.Find(g.Map.objects,
+                obj=>obj.kind=="wayfarer1");
+            Check(traveler!=null,
+                "Real published forest map has its original stranded traveler");
+            g.save.x=traveler.x;g.save.y=traveler.y;
+            g.Talk(traveler);
+            int defend=Array.FindIndex(g.conversation.choices,
+                choice=>choice.action=="wayfarer_defend_1");
+            Check(defend>=0,"Actual traveler dialogue offers the defense");
+            g.Choose(defend);
+            Check(g.WayfarerEncounterRoom==1,
+                "Actual traveler dialogue starts the two-raider encounter");
+            var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+            Check(raiders.Count==2&&raiders[0]!=raiders[1],
+                "Published traveler fight owns two real distinct combat actors");
+            // This projectile is a deliberately injected interrupted-flight
+            // cleanup record. The real authored enemies are melee/area,
+            // NOT a made-up archer with a conveniently matching numeric ID.
+            var missionShot=new Projectile{
+                position=new Point(12,14),velocity=new Point(1,0),
+                friendly=false,damage=10,life=3,wayfarerOwned=true};
+            var playerShot=new Projectile{
+                position=new Point(12,14),velocity=new Point(1,0),
+                friendly=true,damage=0,life=3};
+            var warning=new Effect("danger",raiders[0].Position,3)
+                {wayfarerOwned=true};
+            var ambient=new Effect("discover",new Point(12,14),3);
+            g.projectiles.Add(missionShot);g.projectiles.Add(playerShot);
+            g.effects.Add(warning);g.effects.Add(ambient);
+            // Equal number, DIFFERENT body: cleanup must never remove an
+            // unrelated actor just because its ID resembles an old raider.
+            var unrelated=new Enemy(raiders[0].id,0,
+                raiders[0].x,raiders[0].y,100);
+            g.enemies.Add(unrelated);
+            var cleanup=typeof(GameCore).GetMethod("ResetWayfarerEncounter",
+                System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
-            Check(cleanup != null, "Original escort cleanup function exists");
-            cleanup.Invoke(g, new object[0]);
-            Check(!g.enemies.Contains(archer) &&
-                !g.projectiles.Contains(arrow) &&
-                g.projectiles.Contains(playerShot) && g.effects.Contains(ambient),
-                "A failed ambush retires only its attackers and outgoing arrows, not unrelated player combat");
-            g.Tick(.05f, new Point());
-            Check(!g.projectiles.Contains(arrow) && g.projectiles.Contains(playerShot),
-                "The canceled ambush cannot resurrect its hostile shot on the next gameplay frame");
+            Check(cleanup!=null,"Actual encounter cleanup method exists");
+            cleanup.Invoke(g,new object[0]);
+            Check(g.WayfarerEncounterRoom==0&&
+                !g.enemies.Contains(raiders[0])&&
+                !g.enemies.Contains(raiders[1])&&
+                g.enemies.Contains(unrelated)&&
+                !g.projectiles.Contains(missionShot)&&
+                !g.effects.Contains(warning)&&
+                g.projectiles.Contains(playerShot)&&g.effects.Contains(ambient),
+                "Abort retires genuine raiders and owned threats, not a same-ID stranger or independent effects");
+            g.Tick(.05f,new Point());
+            Check(!g.projectiles.Contains(missionShot)&&
+                g.projectiles.Contains(playerShot),
+                "Canceled rescue cannot resurrect its owned flight on the next real tick");
         }
 
         public static void StaleDialogueChoicesCannotResolveWorldActionsRemotely(Campaign data)
