@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void ThreeCompanionsHaveAuthenticPostReportFieldCouncils() { CoreChecks.ActualThreeCompanionsHoldLocalFieldCouncilWithOwnVoices(Data()); }
+        [Test] public void RemoteOrStaleNPCNeverSpoofsLocalCompanionCouncil() { CoreChecks.FieldCouncilCannotBeOperatedThroughRemoteNpcOrStaleWorld(Data()); }
         [Test] public void OriginalNpcSpeechAndAcceptedChoicesBuildSafeStoryTranscript() { CoreChecks.AuthenticDialogueTranscriptCapturesSpeakersAndOnlyAcceptedChoices(Data()); }
         [Test] public void LongArchiveReviewKeepsOnlyNewestEighteenEntries() { CoreChecks.TranscriptBoundedAcrossLongInnAndArchiveConversations(Data()); }
         [Test] public void PlayerCoverOrRealArrowHitCanInterruptSentryWhistle() { CoreChecks.SentryWhistleStopsIfHeroEscapesOrContactInterrupts(Data()); }

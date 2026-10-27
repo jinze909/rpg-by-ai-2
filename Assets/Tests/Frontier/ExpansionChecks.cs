@@ -70,6 +70,91 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void ActualThreeCompanionsHoldLocalFieldCouncilWithOwnVoices(Campaign data)
+        {
+            string[] kinds={"captain","tinker","keeper"};
+            string[] anchorsZh={"米拉","伊沃","森"};
+            string[] anchorsEn={"Mira","Ivo","Sen"};
+            for(int id=0;id<3;id++)
+            {
+                var g=Unlocked(data);g.Enter(5+id);
+                WorldObject host=Object(g,kinds[id]);
+                Check(host!=null&&host.kind==kinds[id],
+                    "Each signed report has a real live regional companion");
+                Check(PlaceWithinTalkReach(g,host),
+                    "The three local councils require the exact real physical source");
+                int coins=g.save.coins,shards=g.save.shards;
+                int relation=g.save.relationships[id];
+                g.Talk(host);
+                int open=Array.FindIndex(g.conversation.choices,
+                    ch=>ch.action=="companion_field_open_"+id);
+                Check(open>=0&&g.conversationSource==host,
+                    "The companion's original conversation offers their own field council");
+                g.Choose(open);
+                Check(g.mode=="dialog"&&g.conversationSource==host&&
+                    g.conversation.speaker==host.name&&
+                    g.conversation.en==host.en&&
+                    g.conversation.text.Contains(anchorsZh[id])&&
+                    g.conversation.textEn.Contains(anchorsEn[id]),
+                    "Every local aftermath speaks in the genuine NPC's Chinese and English voice");
+                int witness=Array.FindIndex(g.conversation.choices,
+                    ch=>ch.action=="companion_field_witness_"+id);
+                Check(witness>=0,"Actual council offers source-specific first-hand testimony");
+                g.Choose(witness);
+                Check(g.mode=="dialog"&&g.conversationSource==host&&
+                    g.conversation.speaker==host.name&&
+                    g.conversation.text.Length>120&&
+                    g.conversation.textEn.Length>120,
+                    "The authored human aftermath is a real multi-paragraph dialogue branch, not a generic generated toast");
+                int back=Array.FindIndex(g.conversation.choices,
+                    ch=>ch.action=="companion_field_open_"+id);
+                Check(back>=0,"Detailed testimony returns to the SAME companion council");
+                g.Choose(back);
+                int backToPerson=Array.FindIndex(g.conversation.choices,
+                    ch=>ch.action=="companion_field_back_"+id);
+                Check(backToPerson>=0,"Council still offers original personal quest menu");
+                g.Choose(backToPerson);
+                Check(g.conversationSource==host&&
+                    g.conversation.speaker==host.name&&
+                    Array.Exists(g.conversation.choices,
+                        ch=>ch.action=="gift"+id),
+                    "Following the branch does not steal the person or remove original gifts and quests");
+                Check(g.save.coins==coins&&g.save.shards==shards&&
+                    g.save.relationships[id]==relation&&g.save.version==2,
+                    "Witness reading is free, does not mint trust or rewrite old saves");
+            }
+        }
+
+        public static void FieldCouncilCannotBeOperatedThroughRemoteNpcOrStaleWorld(Campaign data)
+        {
+            var g=Unlocked(data);g.Enter(5);
+            WorldObject host=Object(g,"captain");
+            Check(PlaceWithinTalkReach(g,host),"The original captain can be approached");
+            g.Talk(host);
+            int open=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="companion_field_open_0");
+            Check(open>=0,"Actual local council option exists");
+            int count=g.DialogueRecordCount;
+            string tracked=g.save.trackedQuest;
+            g.save.room=6;
+            g.Choose(open);
+            Check(g.mode=="world"&&g.DialogueRecordCount==count&&
+                g.save.trackedQuest==tracked,
+                "Stale menu after a room change neither impersonates a remote source nor logs a false decision");
+            g.Enter(5);
+            var fake=new WorldObject{kind="tinker",
+                name="伪装传话人",en="Impostor",x=host.x,y=host.y};
+            g.Talk(host);
+            // Remote/synthetic UI companion stories lack a physical NPC;
+            // they must not manufacture the actual locality-bound council.
+            g.Close();g.CompanionStory(0);
+            Check(g.conversation!=null&&
+                !Array.Exists(g.conversation.choices,
+                    ch=>ch.action=="companion_field_open_0"),
+                "Synthetic companion profile cannot impersonate local, living field-council source");
+        }
+
         public static void EightRegionRescueRewardsSurviveTalentCapAndV2Reload(Campaign data)
         {
             var g=Unlocked(data);
