@@ -354,6 +354,55 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void SignedWitnessFieldObjectsNeverSpeakAsRemoteCitizens(Campaign data)
+        {
+            string[] npcSpeakers={"","密林巡路员 · 莫芽",
+                "遗迹渡口幸存者 · 阿菱","赤铁矿工 · 维恩"};
+            for(int region=1;region<=3;region++)
+            {
+                var g=Fresh(data);g.save.stage=region;
+                g.save.flags.Add(region==1?"scout_saved":"gate_"+region);
+                g.save.flags.Add("witness_started_"+region);
+                g.save.flags.Add("witness_read_"+region);
+                g.save.flags.Add("witness_sealed_"+region);
+                g.save.flags.Add("witness_complete_"+region);
+                g.Enter(region);g.enemies.Clear();
+                WorldObject resident=Object(g,"witnessnpc"+region);
+                WorldObject first=Object(g,"witnesssite1"+region);
+                WorldObject archive=Object(g,"witnesssite2"+region);
+                g.save.x=resident.x;g.save.y=resident.y;
+                g.Talk(resident);
+                Check(g.conversation!=null&&
+                    g.conversation.speaker==npcSpeakers[region],
+                    "Original completed living NPC retains genuine dialogue instead of an anonymous object speaker");
+                g.Close();
+                foreach(WorldObject site in new[]{first,archive})
+                {
+                    g.save.x=site.x;g.save.y=site.y;
+                    g.Talk(site);
+                    Check(g.conversation!=null&&
+                        g.conversation.speaker==site.name&&
+                        g.conversation.en==site.en&&
+                        g.conversation.speaker!=npcSpeakers[region]&&
+                        g.conversation.choices.Length==1&&
+                        g.conversation.choices[0].action=="close",
+                        "Reading a completed original scene keeps that archive's actual speaker, not a remote civilian NPC portrait");
+                    Check(site==first?
+                        g.conversation.textEn.Contains("Moya")||
+                        g.conversation.textEn.Contains("Arin")||
+                        g.conversation.textEn.Contains("Venn"):
+                        g.conversation.textEn.Contains("archive")||
+                        g.conversation.textEn.Contains("preserved"),
+                        "Site-specific archive prose truthfully describes this original field evidence and its continuing civic effect");
+                    g.Close();
+                }
+                Check(g.Has("witness_complete_"+region)&&
+                    g.save.version==2,
+                    "Revisiting physical witness sites cannot reset real signed progress or add save fields");
+            }
+        }
+
         public static void ActiveWitnessSecurityGuidesActualTimerAndOwnedGuardCount(Campaign data)
         {
             for(int region=1;region<=3;region++)

@@ -112,14 +112,43 @@ namespace Starfall
             }
             if(Has("witness_complete_"+region))
             {
-                Dialog(whoZh[region],whoEn[region],
-                    region==1?"受伤的根系已经能够自愈。我的证词不再会被称作采掘损耗。":
-                    region==2?"公用闸门重新开放，渡口不再只认公会印章。":
-                    "工房一旦过热，矿工有权停止机器。公会已经保留了我们的原始日志。",
-                    region==1?"The wounded roots now heal. My testimony can no longer be written off as extraction loss.":
-                    region==2?"The public gate now recognizes travelers, not just guild stamps.":
-                    "When the foundry overheats, workers have the right to stop the machinery. The guild preserved our original logs.",
-                    C("继续前行","Continue","close"));
+                if(resident)
+                {
+                    Dialog(whoZh[region],whoEn[region],
+                        region==1?"受伤的根系已经能够自愈。我的证词不再会被称作采掘损耗。":
+                        region==2?"公用闸门重新开放，渡口不再只认公会印章。":
+                        "工房一旦过热，矿工有权停止机器。公会已经保留了我们的原始日志。",
+                        region==1?"The wounded roots now heal. My testimony can no longer be written off as extraction loss.":
+                        region==2?"The public gate now recognizes travelers, not just guild stamps.":
+                        "When the foundry overheats, workers have the right to stop the machinery. The guild preserved our original logs.",
+                        C("继续前行","Continue","close"));
+                }
+                else
+                {
+                    // The site is NOT the resident. After completing the
+                    // testimony, an archived machine or marker must not
+                    // magically speak under the witness NPC's portrait.
+                    string[] firstZh={"",
+                        "曾被列为废料的疗养根系正在抽出嫩芽。伤口旁挂着莫芽留下的记录牌；证人本人还在巡路岗。",
+                        "旧水闸的记录台已改成公共通行告示。闸门的钥匙归还居民；阿菱本人仍在渡口讲述这一夜。",
+                        "停机牌挂在过热警戒线上。工人签过字的安全条例仍在，维恩本人留在工房向后来的矿工说明。"};
+                    string[] secondZh={"",
+                        "封锁卫兵的警戒灯已经熄灭。疗养根系的原始记录保存在此，署名已送往公会。",
+                        "旧封锁的铁链已被取下。渡口的姓名单按原样封存在现场，不再被记作货运。",
+                        "守卫的巡检记录已开放。矿工关于撤离与停机的签名留在这台档案机里。"};
+                    string[] firstEn={"",
+                        "New shoots grow from the healing roots once listed as waste. Moya's field marker remains here; she herself is still with the roadwardens.",
+                        "The sluice station now displays public passage rules. Its key belongs to the residents; Arin is at the ferry, not inside this ledger.",
+                        "The shutdown placard hangs by the overheating line. Venn's signed safety rules remain here; he speaks to workers at the foundry."};
+                    string[] secondEn={"",
+                        "The obsolete security light has gone out. Original healing records remain at this archive; their signed copy is with the guild.",
+                        "The old lock chains are gone. Passenger names are preserved here as written, not converted into lost freight.",
+                        "The guard patrol log is public. The miners' evacuation and shutdown signatures remain in the archive."};
+                    Dialog(o.name,o.en,
+                        first?firstZh[region]:secondZh[region],
+                        first?firstEn[region]:secondEn[region],
+                        C("查看已保全记录","Inspect archived record","close"));
+                }
                 return true;
             }
             if(resident)
