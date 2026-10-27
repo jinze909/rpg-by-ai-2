@@ -144,6 +144,13 @@ namespace Starfall
         }
         // Transient identity of the interacted NPC, not the nearest NPC on each render.
         public WorldObject conversationSource;
+        // Explicit crowded-world interaction focus. An actual object
+        // reference, never its reusable id, survives only while physically
+        // reachable in the SAME streamed map/save. The normal facing-aware
+        // nearest object remains the default until a player cycles.
+        private WorldObject interactionFocus;
+        private MapData interactionFocusMap;
+        private SaveData interactionFocusSave;
         // Dialogue is bound to BOTH the real source object and the map in
         // which the player originally opened it. The same world coordinates
         // in a later region or a replaced/deleted NPC are not authorization.
@@ -331,6 +338,7 @@ namespace Starfall
             // Old dialogue belongs to the previous save/session. Never
             // share story spoilers or a different character's NPC voice.
             dialogueRecords.Clear();
+            ClearInteractionFocus();
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
@@ -3042,6 +3050,67 @@ namespace Starfall
             float face=(delta.x*facing.x+delta.y*facing.y)/d;
             return d-.30f*face;
         }
+        private void ClearInteractionFocus()
+        {
+            interactionFocus=null;
+            interactionFocusMap=null;
+            interactionFocusSave=null;
+        }
+        private bool InteractionFocusIsValid()
+        {
+            if(interactionFocus==null)return false;
+            if(!System.Object.ReferenceEquals(interactionFocusMap,Map)||
+               !System.Object.ReferenceEquals(interactionFocusSave,save)||
+               !SourceBelongsToActiveMap(interactionFocus)||
+               !IsObjectPresent(interactionFocus)||
+               !CanStand(Position)||
+               !HasPhysicalInteractionReach(interactionFocus))
+            {
+                ClearInteractionFocus();
+                return false;
+            }
+            return true;
+        }
+        // Real reachable map objects, not nearby props behind walls or
+        // actors that have disappeared. The production E prompt and the
+        // interact command resolve from this same source each frame.
+        public int NearbyInteractionCount()
+        {
+            if(Map==null||Map.objects==null||!CanStand(Position))return 0;
+            int count=0;
+            foreach(WorldObject entry in Map.objects)
+                if(IsObjectPresent(entry)&&
+                   HasPhysicalInteractionReach(new Point(entry.x,entry.y)))
+                    count++;
+            return count;
+        }
+        public bool CycleNearbyInteraction()
+        {
+            if(mode!="world"||Dying||Map==null||Map.objects==null||
+               !CanStand(Position))return false;
+            var nearby=new List<WorldObject>();
+            foreach(WorldObject entry in Map.objects)
+                if(IsObjectPresent(entry)&&
+                   HasPhysicalInteractionReach(new Point(entry.x,entry.y)))
+                    nearby.Add(entry);
+            if(nearby.Count<2)
+            {
+                ClearInteractionFocus();
+                return false;
+            }
+            // The first switch starts after the facing-aware target that
+            // E would otherwise open. Subsequent switches follow original
+            // map order, even if overlapping objects share exact coordinates.
+            WorldObject current=Nearest();
+            int at=nearby.IndexOf(current);
+            WorldObject selected=nearby[(at+1)%nearby.Count];
+            interactionFocus=selected;
+            interactionFocusMap=Map;
+            interactionFocusSave=save;
+            Notify("已选择："+selected.name+" · 按 E 交互。",
+                "Selected: "+selected.en+" · E to interact.");
+            return true;
+        }
         public WorldObject Nearest()
         {
             WorldObject[] objects = Map.objects;
@@ -3049,7 +3118,8 @@ namespace Starfall
             // objects (or a stripped decoration-only map). Nothing can
             // be interacted with, so do not query terrain collision at all.
             if (objects == null) return null;
-            if (objects.Length == 0) return null;
+            if (objects.Length == 0) { ClearInteractionFocus(); return null; }
+            if(InteractionFocusIsValid())return interactionFocus;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
@@ -3103,6 +3173,10 @@ namespace Starfall
             // location as a regional survey landmark (relay1, receiver,
             // bell2). That original map prop remains valid for exploration,
             // but must not steal an actual rescue actor's E menu on contact.
+            // Explicitly cycling to the landmark is authoritative. The
+            // moving rescue actor cannot silently steal its E / dialogue.
+            if(nearby!=null&&System.Object.ReferenceEquals(nearby,interactionFocus)&&
+               InteractionFocusIsValid())return false;
             bool sharedMissionMarker=save.room>=5&&save.room<=7 &&
                 nearby.kind==FieldSurveyLandmarks[save.room-5] &&
                 (new Point(nearby.x,nearby.y)-reliefFollowerPosition).Length<.35f;

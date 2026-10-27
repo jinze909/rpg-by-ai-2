@@ -575,6 +575,70 @@ namespace Starfall.Tests
                 "Opening the world map is a UI action, not a fabricated cross-map interaction");
         }
 
+        public static void CrowdedWorldNpcSelectionOpensExactlyChosenSpeaker(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=22)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                var a=new WorldObject {
+                    id="busyGarden",kind="garden",name="杏",
+                    en="An",x=10.2f,y=10.5f};
+                var b=new WorldObject {
+                    id="busyFish",kind="fish",name="老潮",
+                    en="Old Tide",x=10.7f,y=10.5f};
+                data.maps[1]=new MapData {
+                    id=1,spawnX=10.5f,spawnY=11.5f,rows=rows,
+                    objects=new[]{a,b},decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.save.x=10.5f;g.save.y=11.5f;
+                g.aim=new Point(1,0);
+                Check(g.CanStand(g.Position)&&g.NearbyInteractionCount()==2,
+                    "Two real neighbors occupy the same reachable talk radius");
+                WorldObject first=g.Nearest();
+                Check(first==a||first==b,
+                    "Normal facing-weighted nearest still picks one actual speaker");
+                Check(g.CycleNearbyInteraction()&&
+                    g.Nearest()!=(first)&&
+                    (g.Nearest()==a||g.Nearest()==b),
+                    "Explicit O/R3 switches to another live NPC, not a reused ID");
+                WorldObject selected=g.Nearest();
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.conversation.speaker==selected.name&&
+                    System.Object.ReferenceEquals(g.conversationSource,selected),
+                    "The visible selected E target opens that exact NPC's real authored dialogue");
+                g.Close();
+                Check(g.CycleNearbyInteraction()&&g.Nearest()==first,
+                    "Cycling wraps back to the other actual neighbor after dialogue");
+                g.save.x=18.5f;g.save.y=18.5f;
+                Check(g.Nearest()==null&&g.NearbyInteractionCount()==0,
+                    "Leaving physical reach retires any explicitly selected NPC");
+                g.save.x=10.5f;g.save.y=11.5f;
+                Check(g.Nearest()==first,
+                    "Returning to the crowd restores ordinary facing-first selection");
+                g.CycleNearbyInteraction();
+                WorldObject removed=g.Nearest();
+                data.maps[1].objects=removed==a?new[]{b}:new[]{a};
+                Check(g.Nearest()==(removed==a?b:a)&&
+                    !g.CycleNearbyInteraction(),
+                    "Removing a selected real map actor clears focus instead of redirecting a stale dialogue");
+                g.Load(CloneSave(g.save));
+                Check(g.Nearest()==data.maps[1].objects[0]&&
+                    g.save.version==2,
+                    "Save-slot reload never persists a chosen NPC or mutates v2 format");
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void RemoteWorldDialogueCannotExecuteChoices(Campaign data)
         {
             var g = Fresh(data);

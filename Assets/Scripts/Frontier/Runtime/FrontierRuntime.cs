@@ -74,7 +74,7 @@ namespace Starfall
         private Enemy controllerAimEnemy, controllerPinnedEnemy, pointerAimEnemy;
         private SaveData controllerPinSave;
         private int controllerPinRoom=-1, controllerPinFloor=-1;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -188,7 +188,17 @@ namespace Starfall
                 // selects only a visible, attackable live enemy reference;
                 // no serialization, target IDs, damage or aim-through-walls.
                 // Process it before a same-frame Q / attack captures aim.
-                if(PadDown(9)) ToggleControllerTargetLock();
+                if(PadDown(9))
+                {
+                    // R3 keeps enemy lock during combat. In a peaceful,
+                    // crowded scene it instead cycles the actual E target,
+                    // including two speakers sharing the same physical foot.
+                    if(Game.SafeTravel&&Game.NearbyInteractionCount()>1)
+                        Game.CycleNearbyInteraction();
+                    else ToggleControllerTargetLock();
+                }
+                if(Input.GetKeyDown(KeyCode.O))
+                    Game.CycleNearbyInteraction();
                 // The shipped Unity InputManager has a real Mouse ScrollWheel
                 // axis. One physical scroll notch advances through the
                 // UNLOCKED weapon roster, never an unearned future weapon.
@@ -849,7 +859,25 @@ namespace Starfall
             else if (near != null && Game.mode == "world" && Game.SafeTravel)
             {
                 Point s = ScreenPoint(new Point(near.x, near.y)); string label = ControlKey("E", "B") + "  " + Game.L(near.name, near.en);
-                Panel(s.x - 125, s.y + 14, 250, 35, new Color(.04f, .075f, .12f, .94f), gold); Text(s.x - 117, s.y + 18, 234, 27, label, 14, paper, TextAnchor.MiddleCenter);
+                bool crowded=Game.NearbyInteractionCount()>1;
+                if(crowded)
+                {
+                    Panel(s.x-155,s.y+14,310,54,
+                        new Color(.04f,.075f,.12f,.94f),gold);
+                    Text(s.x-147,s.y+17,294,26,label,14,paper,
+                        TextAnchor.MiddleCenter);
+                    Text(s.x-147,s.y+42,294,19,
+                        Game.L("O / R3 · 切换交互对象",
+                               "O / R3 · CYCLE INTERACTION"),
+                        11,muted,TextAnchor.MiddleCenter);
+                }
+                else
+                {
+                    Panel(s.x-125,s.y+14,250,35,
+                        new Color(.04f,.075f,.12f,.94f),gold);
+                    Text(s.x-117,s.y+18,234,27,label,14,paper,
+                        TextAnchor.MiddleCenter);
+                }
             }
         }
         private void DrawHero() { DrawPlayerActor(); }
