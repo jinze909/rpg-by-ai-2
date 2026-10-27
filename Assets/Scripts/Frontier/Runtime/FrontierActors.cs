@@ -1243,6 +1243,21 @@ namespace Starfall
                         Game.L("调查异响","INVESTIGATING"),
                     10,suspicion,TextAnchor.MiddleCenter);
             }
+            // Only a physical, remembered sighting earns this marker.
+            // Draw over the ORIGINAL live enemy Sprite at its current foot;
+            // never place a fabricated guard or imply the concealed hero
+            // is still visible. The search target is its last seen foot.
+            if(!drawingOutline&&Game.IsOrdinaryPatrolTrackingLastSeen(e))
+            {
+                Color searching=PixelArt.C("#efbd69");
+                Ring(e.Position,.62f,searching,16);
+                Text(p.x-84,p.y-123,168,20,
+                    Game.L("失去视线 · 追查足迹",
+                           "LOST SIGHT · LAST FOOT"),
+                    10,searching,TextAnchor.MiddleCenter);
+                Point lastFoot=Game.OrdinaryPatrolLastSeenFoot(e);
+                Ring(lastFoot,.27f,searching,12);
+            }
             // A genuine spotted guard has a short visible whistle windup
             // and can be interrupted before a single teammate is alerted.
             // Reuse the exact living SpriteRenderer actor/feet without
