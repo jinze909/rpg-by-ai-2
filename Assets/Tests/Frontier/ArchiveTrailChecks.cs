@@ -4,6 +4,76 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void AtlasBlockedSecondRoadResumesOnlyWhenPhysicalPathOpens(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("archive_started");
+            g.save.flags.Add("archive_fragment_1");
+            WorldObject page=Object(g,"archivefragment1"),south=null,east=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.id=="waytrail1s")south=o;
+                if(o.id=="waytrail1e")east=o;
+            }
+            Check(south!=null&&east!=null,"The blocked-route scenario owns two real regional waytrails");
+            g.save.x=page.x;g.save.y=page.y;
+            g.Talk(page);
+            int selector=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_routes_1");
+            Check(selector>=0,"The original chart has a physical route selector");
+            g.Choose(selector);
+            int chooseSouth=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_go_1_s");
+            Check(chooseSouth>=0,"The southern authored trail can be selected");
+            g.Choose(chooseSouth);
+            Point? foot=g.LocalWaymark;
+            Check(foot.HasValue,"The south-road approach was committed before the crossing closed");
+
+            // Seal a real 5x5 region around the ORIGINAL eastern marker.
+            // The survey is allowed to finish at the southern marker but
+            // must not draw an impossible line across a new physical wall.
+            string[] originalRows=g.Map.rows;
+            string[] sealedRows=(string[])originalRows.Clone();
+            int cx=(int)Math.Floor(east.x),cy=(int)Math.Floor(east.y);
+            for(int y=cy-2;y<=cy+2;y++)
+            {
+                char[] cells=sealedRows[y].ToCharArray();
+                for(int x=cx-2;x<=cx+2;x++)cells[x]='#';
+                sealedRows[y]=new string(cells);
+            }
+            g.Map.rows=sealedRows;
+            try
+            {
+                g.save.x=foot.Value.x;g.save.y=foot.Value.y;
+                g.Talk(south);
+                Check(g.Has("waytrail_"+south.id)&&g.AtlasSurveyHandoffPending&&
+                    !g.LocalWaymark.HasValue&&
+                    g.AtlasSurveyNextStop.Contains("等待道路恢复"),
+                    "A first actual survey waits at the genuinely sealed second road without inventing a path");
+                g.Close();
+                for(int i=0;i<35;i++)g.Tick(.05f,new Point());
+                Check(g.AtlasSurveyHandoffPending&&!g.LocalWaymark.HasValue,
+                    "Repeated retry ticks on a closed road cannot create a false compass arrow");
+                // A pending atlas handoff is transient: old v2 saves remain
+                // ordinary exploration saves, with only true road flags.
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(!loaded.AtlasSurveyHandoffPending&&!loaded.LocalWaymark.HasValue&&
+                    loaded.Has("waytrail_"+south.id),
+                    "A save reload keeps completed surveys but not unsaved blocked navigation");
+
+                g.Map.rows=originalRows;
+                for(int i=0;i<50&&!g.LocalWaymark.HasValue;i++)
+                    g.Tick(.05f,new Point());
+                Check(g.LocalWaymark.HasValue&&
+                    (g.LocalWaymark.Value-new Point(east.x,east.y)).Length<1.81f &&
+                    !g.AtlasSurveyHandoffPending&&g.AtlasSurveyNavigationActive,
+                    "A reopened real crossing automatically resumes the next physically reachable old road");
+            }
+            finally {g.Map.rows=originalRows;}
+        }
+
         public static void AtlasSurveyRespectsManualNavigationAndRetiresReplacedMapObjects(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;
@@ -107,7 +177,10 @@ namespace Starfall.Tests
             Check(originalPin.HasValue&&
                 (originalPin.Value-new Point(south.x,south.y)).Length<1.81f,
                 "Choosing south creates a real physical-side survey pin");
-            g.save.x=south.x;g.save.y=south.y;
+            // The authored pin lands on interaction-side WALKABLE ground,
+            // not the object's visual center. Simulate arriving at the
+            // actual committed foot before looking for the E prompt.
+            g.save.x=originalPin.Value.x;g.save.y=originalPin.Value.y;
             g.Tick(.05f,new Point());
             Check(g.LocalWaymark.HasValue&&
                 (g.LocalWaymark.Value-originalPin.Value).Length<.001f &&
