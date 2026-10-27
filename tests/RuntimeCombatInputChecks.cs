@@ -7907,10 +7907,22 @@ public static class RuntimeCombatInputChecks
         WorldObject starting=g.Nearest();
         Check(g.SafeTravel&&g.NearbyInteractionCount()>1,
             "Two original residents share a reachable peaceful interaction cluster");
-        Input.keys.Add(KeyCode.O);Update(app);
-        WorldObject chosen=g.Nearest();
-        Check(chosen!=null&&chosen!=starting,
-            "Production O key physically cycles to another live resident");
+        // The real town cluster also contains non-dialogue props. Cycle
+        // through every actual candidate until the OTHER authored NPC is
+        // selected; do not silently remove craft/lore targets to appease
+        // a test which wrongly assumes the next array entry is an NPC.
+        WorldObject chosen=starting;
+        int possible=g.NearbyInteractionCount();
+        for(int tries=0;tries<possible;tries++)
+        {
+            Input.keys.Add(KeyCode.O);Update(app);
+            chosen=g.Nearest();
+            if(chosen!=starting&&(chosen==archivist||chosen==witness))
+                break;
+        }
+        Check(chosen!=null&&chosen!=starting&&
+            (chosen==archivist||chosen==witness),
+            "Production O key can select the other real resident amid nearby fixtures");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(x=>x.Contains("E  "+chosen.name))&&
               GUI.commands.Exists(x=>x.Contains("切换交互对象")),
@@ -7918,15 +7930,26 @@ public static class RuntimeCombatInputChecks
         Input.keys.Add(KeyCode.E);Update(app);
         Check(g.mode=="dialog"&&g.conversation!=null&&
             g.conversation.speaker==chosen.name&&g.conversationSource==chosen,
-            "Production E opens exactly the manually cycled real speaker");
+            "Production E opens selected NPC; chosen="+chosen.kind+
+            ":"+chosen.name+" actual="+
+            (g.conversation==null?"<none>":g.conversation.speaker)+
+            " mode="+g.mode);
         g.Close();Input.Clear();
         // R3 in this peaceful crowd cycles NPC targets; in combat it
         // retains the separately verified enemy-lock functionality.
-        Input.keys.Add((KeyCode)((int)KeyCode.JoystickButton0+9));
-        Update(app);
-        WorldObject gamepadChoice=g.Nearest();
-        Check(gamepadChoice!=null&&gamepadChoice!=chosen,
-            "Real controller R3 input cycles a crowded peaceful E target");
+        WorldObject gamepadChoice=chosen;
+        for(int tries=0;tries<possible;tries++)
+        {
+            Input.keys.Add((KeyCode)((int)KeyCode.JoystickButton0+9));
+            Update(app);
+            gamepadChoice=g.Nearest();
+            if(gamepadChoice!=chosen&&
+               (gamepadChoice==archivist||gamepadChoice==witness))
+                break;
+        }
+        Check(gamepadChoice!=null&&gamepadChoice!=chosen&&
+            (gamepadChoice==archivist||gamepadChoice==witness),
+            "Real controller R3 can select the other resident without dropping props");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(x=>x.Contains("E  "+gamepadChoice.name)),
             "After controller cycling, the world shows the actual gamepad-selected NPC");
@@ -7934,7 +7957,10 @@ public static class RuntimeCombatInputChecks
         Check(g.mode=="dialog"&&g.conversation!=null&&
               g.conversation.speaker==gamepadChoice.name&&
               g.conversationSource==gamepadChoice&&g.save.version==2,
-            "Actual controller B opens exactly the selected real NPC without save migration");
+            "Production controller B opens selected NPC; chosen="+
+            gamepadChoice.kind+":"+gamepadChoice.name+
+            " actual="+(g.conversation==null?"<none>":g.conversation.speaker)+
+            " mode="+g.mode);
         Console.WriteLine("PASS Actual crowded-world keyboard O / gamepad R3 cycle and E / B selection share rendered NPC identity");
     }
 
