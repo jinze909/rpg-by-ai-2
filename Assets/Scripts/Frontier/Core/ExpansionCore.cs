@@ -3348,14 +3348,14 @@ namespace Starfall
             string verb=action.Substring(prefix.Length,
                 boundary-prefix.Length);
             string[] detailZh={
-                "米拉把名册摊平，用手指压住折角。\n\n“船只编号有两种墨水。父亲们离港时的名单写得整整齐齐，返航的那一栏却被擦过。我弟弟留在船上的铅笔，比港务厅的公章诚实。”\n\n她收起名单。“我不要一座纪念碑。我想知道下一趟船上的每个人，都能有人去接。”",
-                "伊沃从袖口拿出一枚被磨平的铜螺钉。\n\n“蓄光机不是真的忘不了旧主人。程序每晚都会确认那个姓名，没人敢改。我在旁边加过手写水位线，值夜的人也悄悄照着它分水。”\n\n他用指甲敲了敲螺钉：“机器会执行命令，但谁有资格改命令？这才是我想修的地方。”",
-                "森从钟楼带下一截裂开的钟槌。\n\n“那天值夜的学徒先听见求救。我告诉他继续敲钟，因为手册这么写。第二天他的嗓子喊哑了，还在问我为什么不去冰下看看。”\n\n他没有把钟槌收起来。“路牌上刻名字容易。明年有新人值夜时，我得站在这里告诉他，什么时候可以不听我说话。”"
+                "米拉把名册摊平，用手指压住折角。\n\n“船只编号有两种墨水。父亲们离港时的名单写得整整齐齐，返航的那一栏却被擦过。我弟弟留在船上的铅笔，比港务厅的公章诚实。”\n\n她把被擦掉的一行重新誊写在纸边：不是“第七艘船”，而是阿树一家三口。他们的邻居至今在码头留着一盏灯。\n\n她收起名单。“我不要一座纪念碑。我想知道下一趟船上的每个人，都能有人去接。”",
+                "伊沃从袖口拿出一枚被磨平的铜螺钉。\n\n“蓄光机不是真的忘不了旧主人。程序每晚都会确认那个姓名，没人敢改。我在旁边加过手写水位线，值夜的人也悄悄照着它分水。”\n\n后来有个挑水的老人拧坏了旧阀门，值夜的人替他担下责任。伊沃把那张罚单压进修理箱，到现在还没有丢。\n\n他用指甲敲了敲螺钉：“机器会执行命令，但谁有资格改命令？这才是我想修的地方。”",
+                "森从钟楼带下一截裂开的钟槌。\n\n“那天值夜的学徒先听见求救。我告诉他继续敲钟，因为手册这么写。第二天他的嗓子喊哑了，还在问我为什么不去冰下看看。”\n\n学徒后来再没碰过那截钟槌。他说自己不是害怕钟声，而是害怕下次听见人喊时，手又先去抓绳子。\n\n森没有把钟槌收起来。“路牌上刻名字容易。明年有新人值夜时，我得站在这里告诉他，什么时候可以不听我说话。”"
             };
             string[] detailEn={
-                "Mira smooths the folded passenger register.\n\n'There are two inks on these pages. The outbound list is beautiful. The return column has been rubbed nearly clean. My brother's pencil was more honest than a harbor stamp.'\n\nShe folds it again. 'I don't need a monument. I need someone waiting for every person on the next boat.'",
-                "Ivo rolls a worn copper screw between his fingers.\n\n'The reservoir never missed its old master because the nightly program kept asking for him. No one dared change it. I drew the real waterline beside the dial. The night shift used my pencil mark to share what they could.'\n\nHe taps the screw. 'A machine follows orders. Who is allowed to change them? That's the part I want to mend.'",
-                "Sen carries down a cracked bell clapper.\n\n'The apprentice heard them calling first. I told him to keep ringing. It said so in the handbook. The next morning he'd shouted his voice raw asking why we hadn't looked beneath the ice.'\n\nHe leaves the clapper on the table. 'Carving names is easy. When next winter's watch comes, I must teach them when not to obey me.'"
+                "Mira smooths the folded passenger register.\n\n'There are two inks on these pages. The outbound list is beautiful. The return column has been rubbed nearly clean. My brother's pencil was more honest than a harbor stamp.'\n\nShe copies one erased entry into the margin: not 'boat seven' but A-Shu and his two children. Their neighbors still leave a lamp burning on the quay.\n\nShe folds the list. 'I don't need a monument. I need someone waiting for every person on the next boat.'",
+                "Ivo rolls a worn copper screw between his fingers.\n\n'The reservoir never missed its old master because the nightly program kept asking for him. No one dared change it. I drew the real waterline beside the dial. The night shift used my pencil mark to share what they could.'\n\nOnce, an old traveler broke the worn valve while drawing water. The night shift took the blame. Ivo still carries their penalty slip under the repair kit's lining.\n\nHe taps the screw. 'A machine follows orders. Who is allowed to change them? That's the part I want to mend.'",
+                "Sen carries down a cracked bell clapper.\n\n'The apprentice heard them calling first. I told him to keep ringing. It said so in the handbook. The next morning he'd shouted his voice raw asking why we hadn't looked beneath the ice.'\n\nThe apprentice hasn't touched that clapper since. He says it isn't the sound he fears, but reaching for a rope before reaching for someone calling in the dark.\n\nSen leaves the clapper on the table. 'Carving names is easy. When next winter's watch comes, I must teach them when not to obey me.'"
             };
             string[] openingZh={
                 "米拉靠着栏杆，看了看不再满员的返航小船。\n\n“你已经看过水位记录。可我总想问：我们救回了谁，又把谁写成了‘未归’？”",
