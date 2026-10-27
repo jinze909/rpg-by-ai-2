@@ -17,7 +17,8 @@ namespace Starfall
                     Dialog(o.name, o.en,
                         "你找回的不是一张藏宝图。那是测绘师为每一个后来者留下的撤离路线。如今公会把它挂在大厅里，提醒人们别把归途当作理所当然。",
                         "It was never a treasure map. The surveyor drew escape routes for the people who would follow. The guild now displays the atlas as a promise of safe passage.",
-                        C("再看看修好的星图", "Admire the restored atlas", "close"));
+                        C("翻阅修复好的三段星图", "Read the restored three-part atlas", "archive_interpret"),
+                        C("谢谢你，琳", "Thank you, Lin", "close"));
                     return true;
                 }
                 if (!Has("archive_started"))
@@ -34,12 +35,20 @@ namespace Starfall
                         "三份记录齐了。测绘师没有标出黄金，而是标出了被洪水切断的安全路、矿坑坍塌前的撤离坡道，以及穿越林地的夜间方向。让我把它们重新拼起来。",
                         "All three records are here. They chart safe routes through floods, collapsing mines and the night forest, not buried gold. Let me restore the atlas.",
                         C("交付三份记录", "Restore and deliver the atlas", "archive_complete"),
+                        C("先核对三份记录", "Compare the three records first", "archive_interpret"),
                         C("稍后再来", "Return later", "close"));
                 else Dialog(o.name, o.en,
                     "测绘师的三份记录必须按顺序阅读。下一件藏在" +
-                    (!Has("archive_fragment_1") ? "荆棘密林的东侧道路。" : "沉没遗迹靠近西侧的旧刻石。"),
+                    (!Has("archive_fragment_1") ? "荆棘密林的东侧道路。" :
+                     !Has("archive_fragment_2") ? "沉没遗迹西侧的潮刻石板。" :
+                     "赤铁矿场东侧的旧测距仪。") +
+                    "\n\n琳用铅笔在空白地图上画了一个小圈：‘没看见原件以前，我不会替测绘师补上缺失的路。’",
                     "Read the records in sequence. The next is " +
-                    (!Has("archive_fragment_1") ? "east of the Thornwood path." : "near the western tide-carved stones of the Sunken Ruins."),
+                    (!Has("archive_fragment_1") ? "east of the Thornwood path." :
+                     !Has("archive_fragment_2") ? "beside the western tide-carved stones of the Sunken Ruins." :
+                     "at the old rangefinder east of the Rediron mine.") +
+                    "\n\nLin circles the blank section in pencil. ‘Until we see the original, I won't invent the missing road.’",
+                    C("核对已经找到的证据", "Compare the evidence already recovered", "archive_interpret"),
                     C("查看任务手帐", "Check the journal", "archive_track"),
                     C("我继续寻找", "Keep searching", "close"));
                 return true;
@@ -84,8 +93,56 @@ namespace Starfall
                 C("暂时放下", "Leave it for now", "close"));
             return true;
         }
+        // A real, optional dialogue investigation at Lin's actual town
+        // workbench. Never narrate a fragment that has not been physically
+        // collected; reopened pages retain Lin as their living speaker.
+        // No new rewards, flags, teleports, or save schema changes.
+        private void InterpretRecoveredAtlas(WorldObject lin)
+        {
+            string zh,en;
+            if(Has("archive_complete"))
+            {
+                zh="琳把修复好的星图摊在桌上，三种墨迹在灯下呈现出不同的颜色。\n\n“密林的巡路人记了夜间方位；遗迹的渡工留下涨潮时的绕行线；矿工把逃生坡道和同伴的名字刻进了测距仪。”\n\n她没有把这些路涂成一条漂亮的直线。\n\n“那样会抹掉走过这些路的人。现在每段记录都能由后来者拿着原件核对。”";
+                en="Lin spreads the restored atlas across the workbench. Three inks catch the lamplight.\n\n‘The forest surveyor recorded bearings for travel after dark. The ferrymen left a detour for high tide. The miners carved an escape slope and the names of those who used it into their rangefinder.’\n\nShe refuses to turn them into one neat line. ‘That would erase the people who walked them. Now anyone can check each route against the record itself.’";
+            }
+            else if(Has("archive_fragment_3"))
+            {
+                zh="琳在三份拓印之间拉起细绳。\n\n“林地指向水路，水路指向矿场。这不是藏宝图，是一份接力传下来的撤离手册。”\n\n她把还没装订的纸压在玻璃下。\n\n“最后一步得把原始出处写清楚。交给我归档，别让后来的人把它读成另一场寻宝。”";
+                en="Lin runs a thread between the three rubbings.\n\n‘The forest points toward the water; the water points toward the mine. This isn't a treasure map. It's an evacuation manual passed from one crew to the next.’\n\nShe weighs down the loose pages beneath glass. ‘We still need to credit the original hands. Let me archive them before someone mistakes this for a hunt for gold.’";
+            }
+            else if(Has("archive_fragment_2"))
+            {
+                zh="琳指着潮刻石板的拓印，避开上面一道被海盐侵蚀的裂缝。\n\n“渡工记录的不是船能开多快，而是潮水涨起来以后，人该从哪条山路撤走。那条线通向赤铁矿场东侧。”\n\n她在地图的末端留下一格空白。\n\n“最后一份测距仪还没有找到。矿工到底写了谁的名字，我现在不能替他们回答。”";
+                en="Lin traces the tide inscription, avoiding a seam eaten away by salt.\n\n‘The ferrymen weren't recording speed. They marked where people could climb when the water rose. That line goes east of the Rediron mine.’\n\nShe leaves the last space blank. ‘We haven't found the rangefinder. I can't tell you whose names the miners wrote until we read them.’";
+            }
+            else if(Has("archive_fragment_1"))
+            {
+                zh="琳将密林残图转到灯下，图角露出被水浸过的旧标记。\n\n“你找到的是夜间撤离的起点。这里写着：涨潮时转向西侧遗迹，寻找潮刻石板。”\n\n她没替第二段补线。\n\n“过去的地图最容易把危险画成一条捷径。我们先把那块石板找回来，再决定水路通向哪儿。”";
+                en="Lin turns the forest scrap toward the light. An old water stain runs across its edge.\n\n‘You've found the starting bearings for a night evacuation. It says to head toward the western ruins at high tide and look for the tide inscription.’\n\nShe won't draw the next line from memory. ‘Maps are very good at making danger look like a shortcut. Let's find that stone before deciding where the crossing leads.’";
+            }
+            else
+            {
+                zh="琳敲了敲地图东侧的空白。\n\n“有人说测绘师把宝藏藏在森林。可最后一封信只问了一件事：下雨以后，走不动的人怎么回家？”\n\n她收起铅笔。\n\n“先去荆棘密林东侧把残图找回来。没有原件，我不打算编一个能让人迷路的答案。”";
+                en="Lin taps the empty eastern edge of the map.\n\n‘People say the surveyor buried treasure in the woods. But the last letter asked something else: how does someone who can't walk fast get home after the rain?’\n\nShe puts down her pencil. ‘Bring me the scrap east of Thornwood first. Without the original, I won't invent an answer that could lead somebody astray.’";
+            }
+            Dialog(lin.name,lin.en,zh,en,
+                C("回到琳的委托", "Back to Lin's commission", "archive_return"),
+                C("合上记录", "Close the record", "close"));
+        }
         private bool ChooseArchiveTrail(string action)
         {
+            if(action=="archive_interpret"||action=="archive_return")
+            {
+                WorldObject lin=pendingDialogueSource;
+                if(save.room!=0||lin==null||lin.kind!="archivekeeper"||
+                    pendingDialogueSourceRoom!=0||
+                    !SourceBelongsToActiveMap(lin)||
+                    !HasPhysicalInteractionReach(lin)||
+                    !Has("archive_started"))return true;
+                if(action=="archive_interpret")InterpretRecoveredAtlas(lin);
+                else TalkArchiveTrail(lin);
+                return true;
+            }
             if (action == "archive_track")
             {
                 if (Has("archive_started")) TrackQuest("archive_trail");
