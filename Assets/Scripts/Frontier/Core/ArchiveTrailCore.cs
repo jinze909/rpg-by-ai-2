@@ -68,6 +68,7 @@ namespace Starfall
             {
                 Dialog(o.name, o.en, "你已把这份记录拓印进手帐。原件不必重复领取。",
                     "You already copied this record into the journal. It cannot be claimed twice.",
+                    C("细读已留下的现场拓印", "Read the recovered field rubbing", "archive_review_" + region),
                     C("收起手帐", "Close journal", "close"));
                 return true;
             }
@@ -131,6 +132,41 @@ namespace Starfall
         }
         private bool ChooseArchiveTrail(string action)
         {
+            // A recovered field object remains a readable, on-site clue.
+            // Reopening it cannot claim a second reward or switch to an
+            // imagined remote NPC. The actual touched WorldObject and region
+            // must match, including after a back/forward dialogue transition.
+            if(action.StartsWith("archive_review_",StringComparison.Ordinal)||
+               action.StartsWith("archive_field_return_",StringComparison.Ordinal))
+            {
+                bool returning=action.StartsWith("archive_field_return_",StringComparison.Ordinal);
+                string prefix=returning?"archive_field_return_":"archive_review_";
+                int region;
+                if(!int.TryParse(action.Substring(prefix.Length),out region)||
+                   region<1||region>3)return true;
+                WorldObject record=pendingDialogueSource;
+                if(record==null||record.kind!="archivefragment"+region||
+                   save.room!=region||pendingDialogueSourceRoom!=region||
+                   !SourceBelongsToActiveMap(record)||
+                   !IsObjectPresent(record)||
+                   !HasPhysicalInteractionReach(record)||
+                   !Has("archive_fragment_"+region))return true;
+                if(returning){TalkArchiveTrail(record);return true;}
+                string[] zh={
+                    "树叶压在墨迹上留下一道细纹，像是有人走得太急，连晾纸的时间都没有。\n\n残图标出了林地夜行的方向，却在河岸边断掉。笔迹的最后一句是：‘涨水以后，不要带人走旧桥；先去遗迹核对渡口。’",
+                    "潮刻石板的刻痕在高水位线之上。磨损的数字并非货物吨数，而是一次次撤离时还能通行的台阶。\n\n渡工在末端划了一道箭头，指向赤铁矿场东侧的高坡。它并没有写下矿工的名字，最后那份测距仪才知道。",
+                    "测距仪的镜筒里嵌着纸片，记录的不是金矿方位，而是工人们在矿道塌落之前标出的逃生坡。\n\n名字被刻在仪器背面，像是怕任何人把走过这条路的人忘掉。三段记录可以带回镇上，请琳把出处一并归档。"
+                };
+                string[] en={
+                    "A pressed leaf leaves its trace across the ink, as though the surveyor had no time to dry the paper.\n\nThe scrap gives bearings for a night crossing of the forest, but stops at the riverbank. Its final note reads: 'When the water rises, do not lead anyone across the old bridge. Verify the ferry at the ruins first.'",
+                    "The tide marks are carved above the highest waterline. The worn numbers are not cargo weights, but counts of steps still passable during each evacuation.\n\nThe ferrymen left an arrow toward the high slope east of Rediron. They did not record the miners' names; only the missing rangefinder can explain those.",
+                    "A paper slip inside the rangefinder charts the escape slope the workers measured before the galleries fell. No gold seams are marked.\n\nThe names are etched on the reverse, so that nobody forgets who walked that road. The three records can now go back to Lin for a properly attributed atlas."
+                };
+                Dialog(record.name,record.en,zh[region-1],en[region-1],
+                    C("返回现场记录","Return to the field record","archive_field_return_"+region),
+                    C("收起拓印","Put away the rubbing","close"));
+                return true;
+            }
             if(action=="archive_interpret"||action=="archive_return")
             {
                 WorldObject lin=pendingDialogueSource;

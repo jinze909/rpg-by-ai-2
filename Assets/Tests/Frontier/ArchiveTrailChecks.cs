@@ -33,6 +33,21 @@ namespace Starfall.Tests
             Check(g.Has("archive_started") && !g.GetQuest("archive_trail").locked &&
                 g.save.trackedQuest == "archive_trail",
                 "Talking to Lin accepts and tracks the atlas quest");
+            g.Talk(keeper);
+            int interpret=Array.FindIndex(g.conversation.choices,c=>c.action=="archive_interpret");
+            Check(interpret>=0,"The accepted commission exposes a physical evidence-reading conversation");
+            g.Choose(interpret);
+            Check(g.mode=="dialog" && g.conversation.speaker==keeper.name &&
+                g.conversation.text.Contains("荆棘密林") &&
+                !g.conversation.text.Contains("矿工把逃生坡道"),
+                "Lin does not impersonate another speaker or narrate uncollected mine evidence");
+            int back=Array.FindIndex(g.conversation.choices,c=>c.action=="archive_return");
+            Check(back>=0,"The evidence discussion offers a genuine return to the same commission");
+            g.Choose(back);
+            Check(g.mode=="dialog" && g.conversation.speaker==keeper.name &&
+                Array.Exists(g.conversation.choices,c=>c.action=="archive_interpret"),
+                "Returning from the evidence page keeps Lin's own interactive commission");
+            g.Close();
             // Chapters are still locked by the original main quest: the atlas
             // must neither teleport nor grant premature access to region 2.
             g.Enter(2);
@@ -88,6 +103,48 @@ namespace Starfall.Tests
                 g.Talk(artifact);
                 Check(!Array.Exists(g.conversation.choices, c => c.action == "archive_claim_" + region),
                     "Collected artifacts cannot be repeatedly claimed");
+                int review=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="archive_review_"+region);
+                Check(review>=0,
+                    "Each real recovered atlas artifact remains an interactive field record");
+                int coinsBeforeReview=g.save.coins,shardsBeforeReview=g.save.shards;
+                g.Choose(review);
+                Check(g.mode=="dialog" && g.conversation.speaker==artifact.name &&
+                    g.conversation.text.Length>100 &&
+                    !Array.Exists(g.conversation.choices,c=>c.action=="archive_claim_"+region),
+                    "An on-site annotation is fully authored, keeps its object's name and cannot reopen the claim");
+                int fieldReturn=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="archive_field_return_"+region);
+                Check(fieldReturn>=0,
+                    "The physical artifact's detailed note can return to its original dialogue");
+                g.Choose(fieldReturn);
+                Check(g.mode=="dialog" && g.conversation.speaker==artifact.name &&
+                    g.save.coins==coinsBeforeReview && g.save.shards==shardsBeforeReview &&
+                    Array.Exists(g.conversation.choices,c=>c.action=="archive_review_"+region),
+                    "Reading/reopening the physical note preserves identity, rewards and choices");
+                g.Close();
+                // Review recovered evidence with Lin at the real town
+                // workbench before proceeding to the next regional clue.
+                g.Enter(0);g.enemies.Clear();
+                g.save.x=keeper.x;g.save.y=keeper.y;
+                g.Talk(keeper);
+                string targetRegion=region==1?"沉没遗迹":
+                    region==2?"赤铁矿场":"三份记录";
+                Check(g.conversation.text.Contains(targetRegion),
+                    "Lin's next-step narration must point to the actual next chapter site");
+                interpret=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="archive_interpret");
+                Check(interpret>=0,
+                    "All recovered stages expose their evidence comparison dialogue");
+                g.Choose(interpret);
+                Check(g.mode=="dialog" && g.conversation.speaker==keeper.name &&
+                    g.conversation.textEn.Length>150,
+                    "Lin's comparison must remain bilingual and physically owned at each stage");
+                if(region==2)
+                    Check(g.conversation.text.Contains("赤铁矿场东侧") &&
+                        g.conversation.text.Contains("不能替他们回答") &&
+                        !g.conversation.text.Contains("把逃生坡道和同伴的名字刻进"),
+                        "The second-stage scene names Rediron but does not fabricate unread miner testimony");
                 g.Close();
             }
             Check(!g.GetQuest("archive_trail").complete && g.GetQuest("archive_trail").room == 0,
@@ -115,7 +172,16 @@ namespace Starfall.Tests
             g.Talk(keeper);
             Check(!Array.Exists(g.conversation.choices, c => c.action == "archive_complete"),
                 "Completed town dialogue cannot pay a second final reward");
-            g.Close(); g.PrepareSave();
+            interpret=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_interpret");
+            Check(interpret>=0,"A finished atlas has a real readable epilogue rather than a dead-end close");
+            g.Choose(interpret);
+            Check(g.conversation.speaker==keeper.name &&
+                g.conversation.text.Contains("三种墨迹") &&
+                g.conversation.textEn.Contains("three inks") == false &&
+                g.conversation.textEn.Contains("Three inks"),
+                "Finished atlas reading credits the three original crews in both languages");
+            g.Close();g.PrepareSave();
             var loaded = new GameCore(data, CloneSave(g.save)); loaded.Start();
             Check(loaded.GetQuest("archive_trail").complete &&
                 loaded.save.coins == g.save.coins &&
