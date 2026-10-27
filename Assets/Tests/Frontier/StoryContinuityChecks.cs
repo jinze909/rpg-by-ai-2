@@ -1357,7 +1357,7 @@ namespace Starfall.Tests
                 "Real in-game valve panel shows forward physical progress");
             ChooseStoryChoice(g,"civic_conduit_tune");
             Check(g.CivicConduitStage==0&&
-                g.toast.Contains("eastbound")&&
+                g.toast.Contains("向东")&&
                 g.CivicConduitActive,
                 "Pacing the same western ground does not advance a powered valve or lose the already-paid fuse");
             count=0;
