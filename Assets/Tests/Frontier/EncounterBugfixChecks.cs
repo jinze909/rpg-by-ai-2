@@ -62,6 +62,9 @@ namespace Starfall.Tests
                             "A rear approach outside touching distance stays undetected while the guard listens toward the wall");
                     // Use an actual sword input, contact animation and enemy
                     // HP resolution; no directly forged Hit method call.
+                    g.aim=scenario==2?new Point(-1,0):new Point(1,0);
+                    Check(g.CanSoundAmbushNow(guard)==(scenario==1),
+                        "Live visible BACKSTAB cue appears only behind an unalerted search guard with sword aimed at its body");
                     g.Attack(scenario==2?new Point(-1,0):new Point(1,0));
                     Advance(g,.35f);
                     float dealt=240f-guard.hp;

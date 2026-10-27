@@ -1206,9 +1206,12 @@ namespace Starfall
                 Game.IsEnemyReturningFromImpact(e)))
             {
                 bool returning=Game.IsEnemyReturningFromImpact(e);
-                Color suspicion=PixelArt.C(returning?"#7acabb":"#e6b46e");
-                Ring(e.Position,.57f,suspicion,16);
-                Text(p.x-74,p.y-125,148,19,
+                bool ambushReady=Game.CanSoundAmbushNow(e);
+                Color suspicion=PixelArt.C(ambushReady?"#7bf0b2":
+                    returning?"#7acabb":"#e6b46e");
+                Ring(e.Position,ambushReady?.68f:.57f,suspicion,16);
+                Text(p.x-84,p.y-125,168,19,
+                    ambushReady?Game.L("背后奇袭 · 攻击","BACKSTAB · ATTACK"):
                     returning?Game.L("返回原哨位","RETURNING"):
                     Game.IsEnemySweepingImpact(e)?
                         Game.L("搜索声源附近","SEARCHING"):

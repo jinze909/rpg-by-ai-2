@@ -174,19 +174,41 @@ namespace Starfall
             Point sight=toward*(1f/distance);
             return facing.x*sight.x+facing.y*sight.y>=.12f;
         }
+        private bool SoundAmbushGeometry(Enemy enemy,float distance,
+            float facingDot)
+        {
+            return !practicing&&mode=="world"&&
+                !Dying&&enemy!=null&&enemy.hp>0&&!enemy.boss&&
+                enemy.state!=1&&
+                distance>.8f&&distance<2.2f&&facingDot<-.65f&&
+                IsEnemyInvestigatingImpact(enemy)&&
+                !ImpactSearchGuardSeesHero(enemy)&&
+                CanStand(Position)&&CanStand(enemy.Position)&&
+                ClearAttackPath(Position,enemy.Position);
+        }
         private bool EligibleForSoundAmbush(Enemy enemy,ImpactProfile impact,
             bool technique,float distance,float facingDot)
         {
             return impact!=null&&impact.playerOwned&&
                 impact.weapon==0&&!technique&&
-                !practicing&&mode=="world"&&
-                enemy!=null&&enemy.hp>0&&!enemy.boss&&
-                enemy.state!=1&&
-                distance>0f&&distance<2.2f&&facingDot<-.65f&&
-                IsEnemyInvestigatingImpact(enemy)&&
-                !ImpactSearchGuardSeesHero(enemy)&&
-                CanStand(Position)&&CanStand(enemy.Position)&&
-                ClearAttackPath(Position,enemy.Position);
+                SoundAmbushGeometry(enemy,distance,facingDot);
+        }
+        // Exact, read-only gameplay affordance at the actual sprite feet.
+        // Do not promise a backstab if the player faces away, has the bow
+        // equipped, is outside real sword reach or is looking at a Boss.
+        public bool CanSoundAmbushNow(Enemy enemy)
+        {
+            if(save==null||save.weapon!=0||enemy==null)return false;
+            Point direction=enemy.Position-Position;
+            float distance=direction.Length;
+            if(!Finite(distance)||distance<=.001f)return false;
+            Point blade=aim.Length>.001f?aim.Normalized:new Point(1,0);
+            float aimDot=(direction.x*blade.x+direction.y*blade.y)/distance;
+            Point approach=direction*(-1f/distance);
+            float facingDot=approach.x*enemy.facing.x+
+                approach.y*enemy.facing.y;
+            return aimDot>-.15f&&
+                SoundAmbushGeometry(enemy,distance,facingDot);
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
         {
