@@ -242,8 +242,8 @@ namespace Starfall
                         Color decoyTint=PixelArt.C("#efbd69");
                         Ring(new Point(o.x,o.y),.68f,decoyTint,20);
                         Text(p.x-75,p.y-139,150,19,
-                            Game.L("靠近交谈 · 引开劫匪",
-                                "TALK · DRAW FIRE"),
+                            Game.L("L · 引开劫匪 / 交谈",
+                                "L · DRAW FIRE / TALK"),
                             10,decoyTint,TextAnchor.MiddleCenter);
                     }
                     if(Game.WayfarerCoverTime>0)

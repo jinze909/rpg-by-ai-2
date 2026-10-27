@@ -74,7 +74,7 @@ namespace Starfall
         private Enemy controllerAimEnemy, controllerPinnedEnemy, pointerAimEnemy;
         private SaveData controllerPinSave;
         private int controllerPinRoom=-1, controllerPinFloor=-1;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -228,6 +228,11 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
+                // L is reserved for an actual actively defended traveler.
+                // No focus/modal/pause switch: the shout is a physical
+                // world action, with the very same cost/range/LOS as E.
+                if (Input.GetKeyDown(KeyCode.L))
+                    Game.QuickDrawWayfarerFire();
                 if (PadDown(4)) Game.Eat();
                 CompanionButtonAction companionPadAction=companionPadGesture.Advance(
                     Input.GetKey(KeyCode.JoystickButton5),frameDelta);

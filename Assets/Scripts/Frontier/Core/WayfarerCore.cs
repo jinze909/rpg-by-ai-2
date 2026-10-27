@@ -202,6 +202,15 @@ namespace Starfall
         // one-time stew are real NPC handovers, not radial telekinesis.
         private bool CanReachWayfarer(Point npc)
         { return PhysicalRefugeReach(npc,2.1001f); }
+        // The same validated physical shout can be used while actually
+        // fighting, without entering a paused NPC dialogue. A keypress
+        // outside this encounter never spends energy, changes focus or
+        // steals the surrounding world's existing skill buttons.
+        public bool QuickDrawWayfarerFire()
+        {
+            if(mode!="world"||!WayfarerDecoyAvailable)return false;
+            return ChooseWayfarer("wayfarer_drawfire");
+        }
         private bool ChooseWayfarer(string action)
         {
             if(action=="wayfarer_drawfire")
