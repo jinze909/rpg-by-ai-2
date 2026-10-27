@@ -920,6 +920,73 @@ namespace Starfall.Tests
             }
         }
 
+        public static void LastDirectiveThreePhysicalWitnessTracesDeepenInvestigation(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string flag in new[]{"gate_4","last_directive_started"})
+                g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=180;
+            var flags=new[]{"last_directive_trace_0",
+                "last_directive_trace_1","last_directive_trace_2"};
+            string[] expected={
+                "煤灰","渡船清单","炉火账簿"
+            };
+            int startXp=g.save.xp;
+            for(int i=0;i<3;i++)
+            {
+                WorldObject clue=Object(g,"lastdirectiveclue"+i);
+                g.save.x=clue.x;g.save.y=clue.y;
+                g.Talk(clue);
+                Check(g.LastDirectiveClues==i+1&&
+                    g.conversation!=null&&
+                    g.conversation.speaker==clue.name,
+                    "First physical visit identifies the exact original witness document and records earned testimony");
+                int choice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_trace_"+i);
+                Check(choice>=0,"Every original testimony offers a specific on-site second look");
+                if(i==0)
+                {
+                    // An old open dialogue cannot remotely examine evidence
+                    // after the hero physically walks out of source reach.
+                    g.save.x=clue.x+10f;g.save.y=clue.y;
+                    g.Choose(choice);
+                    Check(!g.Has(flags[i])&&g.LastDirectiveTraces==0,
+                        "Leaving the original witness before choosing cannot mint remote evidence");
+                    g.save.x=clue.x;g.save.y=clue.y;g.Talk(clue);
+                    choice=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="last_directive_trace_0");
+                }
+                g.Choose(choice);
+                Check(g.Has(flags[i])&&g.LastDirectiveTraces==i+1&&
+                    g.conversation!=null&&
+                    g.conversation.speaker==clue.name&&
+                    g.conversation.zh.Contains(expected[i]),
+                    "Source-bound action opens unique authored story evidence under its actual speaker, not a different NPC");
+                g.Close();
+                g.Talk(clue);
+                choice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_trace_"+i);
+                g.Choose(choice);g.Close();
+                Check(g.LastDirectiveTraces==i+1,
+                    "Rereading a witness is permitted without repeating its story flag or reward");
+            }
+            Check(g.save.xp==startXp+3*(14+8),
+                "Three genuine testimonies and three optional inspections each grant exactly one authored XP reward");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));saved.Start();
+            Check(saved.save.version==2&&saved.LastDirectiveTraces==3&&
+                saved.LastDirectiveClues==3,
+                "Old SaveData v2 persists optional evidence as ordinary quest flags without replacing chapter progress");
+            saved.enemies.Clear();saved.Enter(0);
+            var board=Object(saved,"lastdirectiveboard");
+            saved.save.x=board.x;saved.save.y=board.y;
+            saved.Talk(board);
+            Check(saved.conversation!=null&&
+                saved.conversation.en.Contains("rubbings")&&
+                saved.conversation.zh.Contains("拓印"),
+                "Original public council dynamically acknowledges the three independently verified witness records");
+        }
+
         public static void CitadelLastDirectiveCannotBeForgedByDuplicateEnemyIds(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;

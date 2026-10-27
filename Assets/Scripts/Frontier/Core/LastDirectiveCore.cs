@@ -17,6 +17,10 @@ public sealed partial class GameCore {
     public bool LastDirectiveTalentDue
     {get{return LastDirectiveComplete&&Has("last_directive_talent_due");}}
     public int LastDirectiveClues {get{int n=0;for(int i=0;i<3;i++)if(Has("last_directive_clue_"+i))n++;return n;}}
+    // Optional, physically audited witness details deepen the final
+    // investigation without invalidating old saves or gating its outcome.
+    public int LastDirectiveTraces
+    {get{int n=0;for(int i=0;i<3;i++)if(Has("last_directive_trace_"+i))n++;return n;}}
     public int LastDirectiveWave {get{return directiveRoom==4?directivePhase:0;}}
     public int LastDirectiveEnemies {get{int n=0;foreach(Enemy e in enemies)if(IsLastDirectiveEnemy(e))n++;return n;}}
     public bool LastDirectiveReady {get{return LastDirectiveStarted&&LastDirectiveClues==3;}}
@@ -173,10 +177,15 @@ public sealed partial class GameCore {
                     C("公开最后指令","Publish the last directive","last_directive_publish"),C("稍后","Later","close"));return true;
             }
             Dialog(o.name,o.en,LastDirectiveStarted?
-                "矿工、摆渡人和巡路队的证词散落在堡垒外围。收回三份原始记录，解开九年前封存的最后指令。":
-                "莉雅找到九年前没有署名的军用指令。被封锁的停机按钮究竟属于谁？沿堡垒外环走访当事人的证据，而不是依照旧长官的命令。",
-                LastDirectiveStarted?"Three authentic testimonies survive on the citadel's outer trails. Read them at the source.":
-                "Lyra discovered an unsigned nine-year-old order. Follow three physical testimonies in the citadel's outer region.",
+                (LastDirectiveTraces==3?
+                    "莉雅把三份拓印压在镇民簿上。\n\n“停机请求先被压下，船工的名单才遭涂改。炉边的人后来把名字一个个写回来。现在他们没法说那些人从来不存在了。”":
+                    "“原稿比军方抄本薄三页。”莉雅用指节敲了敲桌面。\n\n“矿工的停机请求、渡船的名单、巡路队的炉火记录都在堡垒外环。把日期对起来，谁先做了什么，就骗不了人。”"):
+                "莉雅把一封没有署名的旧命令放在桌上。\n\n“上面写着堡垒有权关掉所有供能。可九年前，谁让那些居民留在黑暗里的？找出原稿，别只听我的推测。”",
+                LastDirectiveStarted?
+                    (LastDirectiveTraces==3?
+                        "Lyra lays three rubbings across the council ledger.\n\n“They buried the miners' petition, then changed the ferry list. The people at the hearth wrote those names back. No one can pretend they never lived now.”":
+                        "“The military copy is three pages shorter,” Lyra says, tapping the desk.\n\n“The miners' shutdown petition, the ferry list, and the roadwardens' hearth book are still outside the citadel. Compare the dates. Then we can prove what came first.”"):
+                    "Lyra lays an unsigned order on the desk.\n\n“It says the citadel could cut power to anyone. Nine years ago, who decided those people would be left in darkness? Find the original records. Don't rely on my guesses.",
                 C(LastDirectiveStarted?"追踪现场证据":"接取第十章 · 最后指令",
                     LastDirectiveStarted?"Track the testimonies":"Begin Chapter Ten · Last Directive",
                     LastDirectiveStarted?"last_directive_track":"last_directive_begin"),C("稍后再谈","Later","close"));return true;
@@ -225,7 +234,17 @@ public sealed partial class GameCore {
         string[] zh={"矿工留下最早的停机请求：过载不该用人的名字冲销。","随后船工发现改道，失联者不能被写成货损。","最后巡路队和居民点燃炉火，让还未回来的人有地方可去。"};
         string[] en={"The miner first demanded shutdown: human lives cannot be erased as overload expenses.","The ferryman found erased passenger names after the shutdown order.","The roadwardens lit the last hearth so anyone not yet home had a place to go."};
         if(!known){Flag("last_directive_clue_"+index);AddXp(14);sound="quest";}
-        Dialog(o.name,o.en,zh[index]+(known?"":"\n首次记录经验+14。"),en[index]+(known?"":"\nFirst discovery: +14 XP."),
+        bool traced=Has("last_directive_trace_"+index);
+        Dialog(o.name,o.en,
+            zh[index]+(known?"":"\n首次记录经验+14。")+
+                (traced?"\n\n纸边的痕迹已经记录在你的调查笔记中。":
+                    "\n\n纸张背面仍有被忽略的痕迹。你可以留在现场查验。"),
+            en[index]+(known?"":"\nFirst discovery: +14 XP.")+
+                (traced?"\n\nThe marks along the edge are in your field notes.":
+                    "\n\nThere are marks on the reverse nobody copied. You can examine them here."),
+            C(traced?"重读现场记录":"查看原件背面的痕迹",
+                traced?"Review field notes":"Examine marks on the original",
+                "last_directive_trace_"+index),
             C("收起证词","Keep testimony","close"));return true;
     }
     private bool ChooseLastDirective(string action){
@@ -236,6 +255,40 @@ public sealed partial class GameCore {
         }
         bool atBoard=save.room==0&&board!=null&&HasPhysicalInteractionReach(board);
         bool atCore=save.room==4&&core!=null&&HasPhysicalInteractionReach(core);
+        if(action.StartsWith("last_directive_trace_",StringComparison.Ordinal))
+        {
+            int index;
+            if(!int.TryParse(action.Substring("last_directive_trace_".Length),
+                out index)||index<0||index>=3)return true;
+            WorldObject source=pendingDialogueSource;
+            if(save.room!=4||source==null||
+                source.kind!="lastdirectiveclue"+index||
+                pendingDialogueSourceRoom!=4||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||
+                !Has("last_directive_clue_"+index))return true;
+            bool first=!Has("last_directive_trace_"+index);
+            if(first)
+            {
+                Flag("last_directive_trace_"+index);
+                AddXp(8);revision++;sound="quest";
+            }
+            string[] detailsZh={
+                "煤灰卡在信纸的折痕里。你把纸贴近光，看见矿工曾写下：\n\n“先停机，让下面的人上来。”\n\n这一行被蓝笔划去，下面的签收栏仍是空白。信没有得到答复，矿井的钟却照常响了。",
+                "渡船清单的下半页被水浸透。原先每个姓名旁写着要送去的避难地点；另一支笔后来把它们改成了货号。\n\n有人在页脚添了一句：“我们把人送上了岸，不能拿货损两个字抵账。”",
+                "炉火账簿不记军阶，只记夜里还有多少人没回来。最后一页夹着一根焦黑的小树枝。\n\n巡路员写道：“他们关掉了灯，我们就守着这堆火。明天还会有人顺着它找到家。”"
+            };
+            string[] detailsEn={
+                "Coal dust clings to the fold. Held against the light, the miners' original demand appears:\n\n“Shut it down first. Get the people out.”\n\nBlue pencil strikes through the line. The acknowledgment box is blank, but the mine bell rang through another shift.",
+                "Water has blurred the lower half of the ferry manifest. Each passenger once had a shelter address; another hand replaced the names with cargo numbers.\n\nSomeone wrote along the margin: “We brought people ashore. You don't get to call them lost freight.”",
+                "The hearth book records no ranks. It counts how many people hadn't come home each night. A blackened twig lies between its last pages.\n\nA roadwarden wrote: “They put out the lamps. We'll keep this fire. Someone will find their way by it tomorrow.”"
+            };
+            Dialog(source.name,source.en,
+                detailsZh[index]+(first?"\n\n调查笔记更新，经验 +8。":""),
+                detailsEn[index]+(first?"\n\nField notes updated. +8 XP.":""),
+                C("合上原稿","Close the record","close"));
+            return true;
+        }
         if(action=="last_directive_abort")
         {
             if(atCore&&directiveRoom==4&&directivePhase>=1&&directivePhase<=4)
