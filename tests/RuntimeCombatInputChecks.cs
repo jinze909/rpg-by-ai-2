@@ -7108,7 +7108,7 @@ public static class RuntimeCombatInputChecks
         Input.held.Add(KeyCode.J);
         Update(app);
         Check(g.playerAction!=null&&
-            Object.ReferenceEquals(g.playerAction.quietOpenerTarget,victim)&&
+            System.Object.ReferenceEquals(g.playerAction.quietOpenerTarget,victim)&&
             !g.QuietStepping,
             "Production held attack captures the same living guard and instantly exits stealth");
         Input.held.Remove(KeyCode.J);
