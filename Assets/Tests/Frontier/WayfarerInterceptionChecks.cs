@@ -4,6 +4,79 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void LiveTravelerCallDrawsOnlyAudibleActualRaiders(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',32).ToCharArray();
+                    if(y>=2&&y<=29)
+                        for(int x=2;x<=29;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=12.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{new WorldObject{id="wayfarer1",
+                        kind="wayfarer1",name="旅人",en="Traveler",
+                        x=10.5f,y=10.5f}},decor=new Decoration[0]};
+                var game=Fresh(data);
+                game.save.stage=3;game.save.flags.Add("scout_saved");
+                game.Enter(1);game.enemies.Clear();
+                game.save.x=12.5f;game.save.y=10.5f;
+                WorldObject npc=Object(game,"wayfarer1");
+                Action(game,npc.kind,"wayfarer_defend_1");
+                Check(game.WayfarerEncounterRoom==1,
+                    "Real defensible traveler creates actual two-raider attack");
+                var near=game.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(near.Count==2,"Both original raider identities exist");
+                foreach(Enemy e in near)
+                {e.stun=100f;e.timer=100f;}
+                // Move one actual hostile inside line-of-sight to the
+                // speaking hero and keep the second behind a closed wall.
+                near[0].x=15.5f;near[0].y=10.5f;
+                near[1].x=16.5f;near[1].y=15.5f;
+                char[] wall=rows[12].ToCharArray();
+                for(int x=10;x<=18;x++)wall[x]='#';
+                rows[12]=new string(wall);
+                var selected=typeof(GameCore).GetMethod("ChooseWayfarer",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(selected!=null&&game.WayfarerDecoyAvailable,
+                    "Standing by the original traveler can truly call to one visible nearby enemy");
+                int energy=(int)game.save.energy;
+                bool processed=(bool)selected.Invoke(game,
+                    new object[]{"wayfarer_drawfire"});
+                Check(processed&&
+                    game.save.energy==energy-15f&&
+                    game.WayfarerDecoyTime==5f&&
+                    game.IsWayfarerDecoyTarget(near[0])&&
+                    !game.IsWayfarerDecoyTarget(near[1]),
+                    "Physical sound redirects ONLY the truly hearing raider and charges once");
+                selected.Invoke(game,new object[]{"wayfarer_drawfire"});
+                Check(game.save.energy==energy-15f,
+                    "A second call can never mint unlimited 5-second patrol lures");
+                game.Tick(.05f,new Point());
+                Check(game.IsWayfarerDecoyTarget(near[0])&&
+                    !game.IsWayfarerDecoyTarget(near[1])&&
+                    game.save.version==2,
+                    "Actual gameplay clock preserves original instance-owned lure and old save format");
+                for(int i=0;i<110;i++)game.Tick(.05f,new Point());
+                Check(game.WayfarerEncounterRoom==1&&
+                    game.WayfarerDecoyTime==0f&&
+                    !game.IsWayfarerDecoyTarget(near[0])&&
+                    !game.IsWayfarerDecoyTarget(near[1]),
+                    "Raider reverts to original civilian duty after exactly bounded diversion");
+                game.Close();game.Talk(npc);
+                Check(!game.WayfarerDecoyAvailable,
+                    "An expired diversion is once-per-encounter, not repeatable through conversation");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void TravelerFightRejectsMissingSecondRaiderWhileFirstStillLives(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=10;

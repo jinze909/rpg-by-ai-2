@@ -13,6 +13,48 @@ namespace Starfall
         // Physical command, ephemeral and non-serialized like the live ambush.
         private bool wayfarerCoverUsed;
         private float wayfarerCoverTime;
+        // Real time-limited, per-encounter provocation tied to the exact
+        // alive spawned enemy instances, NEVER numeric IDs across loads.
+        private readonly HashSet<Enemy> wayfarerDecoyTargets=
+            new HashSet<Enemy>();
+        private bool wayfarerDecoyUsed;
+        private float wayfarerDecoyTime;
+        public float WayfarerDecoyTime
+        {get{return wayfarerEncounterRoom==save.room?
+            wayfarerDecoyTime:0f;}}
+        public bool IsWayfarerDecoyTarget(Enemy enemy)
+        {
+            return enemy!=null&&wayfarerEncounterRoom==save.room&&
+                wayfarerDecoyTime>0f&&enemy.hp>0&&
+                enemies.Contains(enemy)&&wayfarerDecoyTargets.Contains(enemy);
+        }
+        private List<Enemy> WayfarerAudibleRaiders()
+        {
+            var heard=new List<Enemy>();
+            if(wayfarerEncounterRoom==0||
+               wayfarerEncounterRoom!=save.room||Dying||practicing||
+               !CanStand(Position))return heard;
+            foreach(Enemy enemy in enemies)
+                if(IsWayfarerEnemy(enemy)&&enemy.hp>0&&
+                   (enemy.Position-Position).Length<=7f&&
+                   ClearAttackPath(enemy.Position,Position))
+                    heard.Add(enemy);
+            return heard;
+        }
+        public bool WayfarerDecoyAvailable
+        {
+            get
+            {
+                if(wayfarerDecoyUsed||wayfarerEncounterRoom==0||
+                   save.room!=wayfarerEncounterRoom||
+                   save.energy<15f||Dying||practicing)return false;
+                Point civilian=ObjectPoint(wayfarerEncounterRoom,
+                    "wayfarer"+wayfarerEncounterRoom,
+                    new Point(-100,-100));
+                return CanReachWayfarer(civilian)&&
+                    WayfarerAudibleRaiders().Count>0;
+            }
+        }
         public float WayfarerCoverTime { get { return wayfarerCoverTime; } }
         public bool WayfarerCoverAvailable
         { get { return wayfarerEncounterRoom!=0 &&
@@ -41,6 +83,8 @@ namespace Starfall
             wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
             wayfarerWarned = wayfarerAidUsed = false;
             wayfarerCoverUsed=false;wayfarerCoverTime=0f;
+            wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
+            wayfarerDecoyTargets.Clear();
             wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
@@ -127,9 +171,13 @@ namespace Starfall
                     options.Add(C("布置临时掩护 · 耐力20 · 8秒减伤",
                         "Rally cover · 20 energy · 8s half damage",
                         "wayfarer_cover"));
+                if(WayfarerDecoyAvailable)
+                    options.Add(C("高声引开劫匪 · 耐力15 · 5秒",
+                        "Draw raider attention · 15 energy · 5s",
+                        "wayfarer_drawfire"));
                 options.Add(C("撤离战斗", "Withdraw", "wayfarer_abandon"));
-                Dialog(o.name, o.en, "伏击者袭击旅人！安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。你可以站在敌人与旅人之间拦截攻击，也可靠近旅人花20耐力部署一次8秒减伤掩护。" + (wayfarerCoverTime>0?" 掩护剩余 "+(int)Math.Ceiling(wayfarerCoverTime)+" 秒。":"") + "受伤后还可用一份物资紧急援助。",
-                    "Raiders attack the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept real strikes, or rally once beside the traveler for 20 energy: 8s of half damage." + (wayfarerCoverTime>0?" Cover: "+(int)Math.Ceiling(wayfarerCoverTime)+"s left.":"") + " One supply can heal after injury.",
+                Dialog(o.name, o.en, "伏击者袭击旅人！安全度 " + (int)Math.Ceiling(wayfarerIntegrity) + "/100。你可以站在敌人与旅人之间拦截攻击，也可靠近旅人花20耐力部署一次8秒减伤掩护。" + (wayfarerCoverTime>0?" 掩护剩余 "+(int)Math.Ceiling(wayfarerCoverTime)+" 秒。":"") + "受伤后还可用一份物资紧急援助。近身喊话可短暂引开真正听得见的劫匪。",
+                    "Raiders attack the traveler! Safety " + (int)Math.Ceiling(wayfarerIntegrity) + "/100. Intercept real strikes, or rally once beside the traveler for 20 energy: 8s of half damage." + (wayfarerCoverTime>0?" Cover: "+(int)Math.Ceiling(wayfarerCoverTime)+"s left.":"") + " One supply can heal after injury. A close call can draw off raiders who genuinely hear you.",
                     options.ToArray());
                 return true;
             }
@@ -156,6 +204,30 @@ namespace Starfall
         { return PhysicalRefugeReach(npc,2.1001f); }
         private bool ChooseWayfarer(string action)
         {
+            if(action=="wayfarer_drawfire")
+            {
+                if(!WayfarerDecoyAvailable)return true;
+                List<Enemy> heard=WayfarerAudibleRaiders();
+                if(heard.Count==0)return true;
+                save.energy-=15f;
+                wayfarerDecoyUsed=true;
+                wayfarerDecoyTime=5f;
+                wayfarerDecoyTargets.Clear();
+                foreach(Enemy raider in heard)
+                {
+                    wayfarerDecoyTargets.Add(raider);
+                    effects.Add(new Effect("number",raider.Position,.75f,
+                        L("转向玩家！","DRAWN TO HERO")){wayfarerOwned=true});
+                }
+                effects.Add(new Effect("discover",Position,.45f)
+                    {wayfarerOwned=true});
+                sound="guard";revision++;
+                Notify("成功引开 "+heard.Count+
+                    " 名真正听到呼喊的劫匪！5秒内他们将追击你；已释放的攻击不会倒退取消。",
+                    "Drew "+heard.Count+
+                    " raiders who actually heard you! They pursue you for 5s; committed attacks still resolve.");
+                return true;
+            }
             if (action == "wayfarer_cover")
             {
                 if(!WayfarerCoverAvailable)return true;
@@ -258,6 +330,8 @@ namespace Starfall
             wayfarerIntegrity = 100;
             wayfarerWarned = wayfarerAidUsed = false;
             wayfarerCoverUsed=false;wayfarerCoverTime=0f;
+            wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
+            wayfarerDecoyTargets.Clear();
             wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
             {
@@ -369,6 +443,8 @@ namespace Starfall
             if (save.room != wayfarerEncounterRoom || Dying || practicing)
             { ResetWayfarerEncounter(); return; }
             wayfarerCoverTime=Math.Max(0f,wayfarerCoverTime-dt);
+            wayfarerDecoyTime=Math.Max(0f,wayfarerDecoyTime-dt);
+            if(wayfarerDecoyTime<=0f)wayfarerDecoyTargets.Clear();
             int first=82000+wayfarerEncounterRoom*10;
             bool anyStillAlive=false;
             // Validate BOTH authored identities before waiting for either.

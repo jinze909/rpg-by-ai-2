@@ -2007,7 +2007,9 @@ namespace Starfall
                 Point pursuit = patrolSaboteur ? outerPatrolPost : stockRaider ? AfterlightPoint(save.room,"outlet") :
                     wardAttacker ? (wardBow ? Position :
                         ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
-                    travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
+                    travelerAttacker ? (IsWayfarerDecoyTarget(e)?
+                        Position:ObjectPoint(wayfarerEncounterRoom,
+                            "wayfarer"+wayfarerEncounterRoom,Position)) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition :
                     RidgeWatchPursuitFoot(e,Position);
                 // An alerted sentry follows the last PHYSICALLY witnessed
@@ -2379,7 +2381,9 @@ namespace Starfall
                     (e.boss||e.kind!=1||
                      EnemyBowFlightLaneClear(e,Position)) &&
                     (e.boss||e.kind!=0||EnemyMeleeLaneClear(e,Position));
-                bool nearTraveler = travelerAttacker && (pursuit - e.Position).Length < 2.2f &&
+                bool nearTraveler = travelerAttacker &&
+                    !IsWayfarerDecoyTarget(e)&&
+                    (pursuit - e.Position).Length < 2.2f &&
                     ClearAttackPath(e.Position, pursuit) &&
                     (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 // Standing in the raider's reach lets the hero draw its attention.

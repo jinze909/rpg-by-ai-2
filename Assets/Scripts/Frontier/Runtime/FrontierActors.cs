@@ -1196,6 +1196,14 @@ namespace Starfall
                     PixelArt.C("#e6b46e"):PixelArt.C("#7acabb");
                 Ring(e.Position,.63f,patrolTint,16);
             }
+            if(!drawingOutline&&Game.IsWayfarerDecoyTarget(e))
+            {
+                Color lure=PixelArt.C("#efbd69");
+                Ring(e.Position,.66f,lure,18);
+                Text(p.x-72,p.y-132,144,20,
+                    Game.L("追击玩家","DRAWN TO HERO"),10,lure,
+                    TextAnchor.MiddleCenter);
+            }
             // The ordinary guard is genuinely investigating an audible
             // physical stone contact. This read-only planted marker lives
             // on its REAL monster body, not on a forged patrol NPC/ID.
