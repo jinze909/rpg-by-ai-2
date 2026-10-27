@@ -162,6 +162,11 @@ namespace Starfall
                 alert.lastKnown=Position;
                 alert.impactOnly=false;
             }
+            else if(range<=8f)
+                // Ordinary local aggression takes ownership when the hero
+                // closes to melee awareness; this is no longer JUST
+                // searching for a past stone impact.
+                alert.impactOnly=false;
             return true;
         }
         // A missed physical arrow still makes a tactical SOUND where
@@ -173,6 +178,7 @@ namespace Starfall
         private void InvestigateRealArrowWallImpact(Projectile shot)
         {
             if(shot==null||!shot.friendly||shot.explosive||
+               shot.visual!="arrow"||
                shot.blockedAtSpawn||shot.hitActors.Count>0||
                shot.impact==null||!shot.impact.playerOwned||
                !shot.impact.sourceFoot.HasValue||

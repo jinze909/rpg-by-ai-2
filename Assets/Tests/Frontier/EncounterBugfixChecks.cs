@@ -3,6 +3,68 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void AudibleArrowDecoysIgnoreFarSideCoverAndNonplayerExpiredShots(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] stone=rows[10].ToCharArray();
+                stone[19]='#';rows[10]=new string(stone);
+                char[] blind=rows[12].ToCharArray();
+                blind[14]='#';rows[12]=new string(blind);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int mode=0;mode<3;mode++)
+                {
+                    var game=Fresh(data);
+                    game.save.stage=3;game.Enter(1);game.enemies.Clear();
+                    game.mode="world";game.invulnerable=300f;
+                    game.save.x=6.5f;game.save.y=10.5f;
+                    Enemy near=new Enemy(79001,0,16.5f,12.5f,200f);
+                    Enemy behindWall=new Enemy(79002,0,21.5f,10.5f,200f);
+                    near.timer=behindWall.timer=2f;
+                    game.enemies.Add(near);game.enemies.Add(behindWall);
+                    Point nearStart=near.Position,farStart=behindWall.Position;
+                    bool owned=mode!=1;
+                    game.projectiles.Add(new Projectile{
+                        friendly=true,visual="arrow",source="arrow",
+                        position=new Point(9.5f,10.5f),
+                        velocity=new Point(12f,0),
+                        damage=5f,life=mode==2?.12f:2f,
+                        impact=new ImpactProfile(1,0,1,0,0f,owned,1,
+                            new Point(6.5f,10.5f))});
+                    Advance(game,1.35f);
+                    Check((behindWall.Position-farStart).Length<.01f&&
+                        !game.IsEnemyInvestigatingImpact(behindWall),
+                        "An original wall shields a physically opposite-side guard from the decoy's alert");
+                    if(mode==0)
+                    {
+                        Check((near.Position-nearStart).Length>.18f&&
+                            game.IsEnemyInvestigatingImpact(near),
+                            "Only a real released player arrow striking stone creates a live near-side decoy");
+                    }
+                    else
+                    {
+                        Check((near.Position-nearStart).Length<.01f&&
+                            !game.IsEnemyInvestigatingImpact(near),
+                            mode==1?
+                            "A companion-owned shot cannot forge the player's sound lure":
+                            "A projectile expiring in open air cannot invent a nonexistent wall impact");
+                    }
+                }
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void BowAndRangerVolleyKeepActualProjectileReleaseFootAfterActionDisplacement(Campaign data)
         {
             MapData previous=data.maps[1];
