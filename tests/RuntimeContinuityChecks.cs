@@ -127,11 +127,54 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS Dynamic combat audio reversal, menu suspension and title exit (offline audio sources)");
     }
 
+    static void CombatMusicHoldsOnlyWhileLivingOpponentsRemain()
+    {
+        // Use the production FrontierAudio and actual GameCore enemy list,
+        // not only a stand-alone timer: the combat theme should survive
+        // a near foe's recovery, but never survive its true departure.
+        var g=new GameCore(CampaignFixture.Create());
+        g.NewGame(0);g.Close();g.mode="world";g.enemies.Clear();
+        g.save.music=true;g.save.room=0;
+        using(var audio=new FrontierAudio(new GameObject("living-combat-audio")))
+        {
+            audio.Update(g,false,1.6f);
+            var foe=new Enemy(88921,0,g.Position.x+2f,g.Position.y,100f)
+                {state=1};
+            g.enemies.Add(foe);
+            audio.Update(g,false,1.6f);
+            Check(Get<int>(audio,"theme")==6 &&
+                Get<int>(audio,"pending")==-1,
+                "An actual nearby enemy windup plays the authored combat score");
+            foe.state=0;
+            audio.Update(g,false,.9f);
+            Check(Get<int>(audio,"theme")==6 &&
+                Get<int>(audio,"pending")==-1,
+                "A still-present physical enemy keeps music through its short recovery");
+            foe.state=1;
+            audio.Update(g,false,.02f);
+            foe.state=0;
+            audio.Update(g,false,3.1f);
+            Check(Get<int>(audio,"theme")==0 &&
+                Get<int>(audio,"pending")==-1,
+                "An idle surviving foe cannot hold the combat score indefinitely");
+            foe.state=1;
+            audio.Update(g,false,1.6f);
+            Check(Get<int>(audio,"theme")==6,
+                "A genuine renewed attack re-enters combat music");
+            g.enemies.Remove(foe);
+            audio.Update(g,false,.15f);
+            Check(Get<int>(audio,"pending")==0,
+                "Physically removing the last foe immediately starts the original exploration reversal");
+        }
+        Console.WriteLine("PASS living enemy music recovery, timeout and physical departure (production offline mixer)");
+    }
+
     // Registered in RuntimeCombatInputChecks.Main: its explicit case roster
     // is the CI entry point (the optional visual Run() is not invoked there).
     public static void VerifyCombatMusicReversesOnThreatDeparture(FrontierRuntime app)
     {
         CombatMusicReversesWhenActualThreatLeaves();
+        CombatMusicHoldsOnlyWhileLivingOpponentsRemain();
     }
 
     static void WorldAndAudio(FrontierRuntime app)
