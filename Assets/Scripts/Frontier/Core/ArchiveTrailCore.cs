@@ -213,14 +213,14 @@ namespace Starfall
                    !Has("archive_fragment_"+readRegion))return true;
                 if(returning){TalkArchiveTrail(record);return true;}
                 string[] zh={
-                    "树叶压在墨迹上留下一道细纹，像是有人走得太急，连晾纸的时间都没有。\n\n残图标出了林地夜行的方向，却在河岸边断掉。笔迹的最后一句是：‘涨水以后，不要带人走旧桥；先去遗迹核对渡口。’",
-                    "潮刻石板的刻痕在高水位线之上。磨损的数字并非货物吨数，而是一次次撤离时还能通行的台阶。\n\n渡工在末端划了一道箭头，指向赤铁矿场东侧的高坡。它并没有写下矿工的名字，最后那份测距仪才知道。",
-                    "测距仪的镜筒里嵌着纸片，记录的不是金矿方位，而是工人们在矿道塌落之前标出的逃生坡。\n\n名字被刻在仪器背面，像是怕任何人把走过这条路的人忘掉。三段记录可以带回镇上，请琳把出处一并归档。"
+                    "树叶压在墨迹上留下一道细纹，像是有人走得太急，连晾纸的时间都没有。\n\n残图标出了林地夜行的方向，却在河岸边断掉。笔迹的最后一句是：‘涨水以后，不要带人走旧桥；先去遗迹核对渡口。’\n\n断裂边缘还有一条手推车的浅划痕。测绘师连伤员由谁推车、车轮在哪里会陷进泥里，都替后来的人想过。",
+                    "潮刻石板的刻痕在高水位线之上。磨损的数字并非货物吨数，而是一次次撤离时还能通行的台阶。\n\n渡工在末端划了一道箭头，指向赤铁矿场东侧的高坡。它并没有写下矿工的名字，最后那份测距仪才知道。\n\n石板末端还有三道刻痕。渡工把每次失败的渡口也记下来，好让后来者不必重走险路。",
+                    "测距仪的镜筒里嵌着纸片，记录的不是金矿方位，而是工人们在矿道塌落之前标出的逃生坡。\n\n名字被刻在仪器背面，像是怕任何人把走过这条路的人忘掉。三段记录可以带回镇上，请琳把出处一并归档。\n\n镜筒外缘另有一道小箭头。它没有指向矿脉，而是指向地表那条真正能让人出去的路。"
                 };
                 string[] en={
-                    "A pressed leaf leaves its trace across the ink, as though the surveyor had no time to dry the paper.\n\nThe scrap gives bearings for a night crossing of the forest, but stops at the riverbank. Its final note reads: 'When the water rises, do not lead anyone across the old bridge. Verify the ferry at the ruins first.'",
-                    "The tide marks are carved above the highest waterline. The worn numbers are not cargo weights, but counts of steps still passable during each evacuation.\n\nThe ferrymen left an arrow toward the high slope east of Rediron. They did not record the miners' names; only the missing rangefinder can explain those.",
-                    "A paper slip inside the rangefinder charts the escape slope the workers measured before the galleries fell. No gold seams are marked.\n\nThe names are etched on the reverse, so that nobody forgets who walked that road. The three records can now go back to Lin for a properly attributed atlas."
+                    "A pressed leaf leaves its trace across the ink, as though the surveyor had no time to dry the paper.\n\nThe scrap gives bearings for a night crossing of the forest, but stops at the riverbank. Its final note reads: 'When the water rises, do not lead anyone across the old bridge. Verify the ferry at the ruins first.'\n\nA shallow wheel mark crosses the torn edge. The surveyor even accounted for who would push the wounded and where a cart would sink into mud.",
+                    "The tide marks are carved above the highest waterline. The worn numbers are not cargo weights, but counts of steps still passable during each evacuation.\n\nThe ferrymen left an arrow toward the high slope east of Rediron. They did not record the miners' names; only the missing rangefinder can explain those.\n\nThree more cuts mark crossings that failed. The ferrymen kept the dangerous routes on the record so nobody would have to rediscover them at the cost of another life.",
+                    "A paper slip inside the rangefinder charts the escape slope the workers measured before the galleries fell. No gold seams are marked.\n\nThe names are etched on the reverse, so that nobody forgets who walked that road. The three records can now go back to Lin for a properly attributed atlas.\n\nA final arrow on the lens housing points not to a gold seam but to the surface exit the crew had measured for everyone else."
                 };
                 Dialog(record.name,record.en,zh[readRegion-1],en[readRegion-1],
                     C("返回现场记录","Return to the field record","archive_field_return_"+readRegion),
