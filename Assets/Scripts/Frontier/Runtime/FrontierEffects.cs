@@ -721,6 +721,20 @@ namespace Starfall
                 Point muzzle=GameCore.WeaponOrigin(enemy.Position,1,enemy.facing),lift=new Point(0,GameCore.WeaponHeight(1,enemy.facing)/Tile);
                 DrawWarningStroke(ScreenPoint(muzzle-lift),
                     ScreenPoint(enemy.target-lift),color);
+                if(enemy.archerLeading)
+                {
+                    // Show where this arrow is REALLY committed, not an
+                    // instant homing indicator above the moving hero.
+                    // The small warning circle remains fixed through the
+                    // entire visible draw. Color/reduced-motion follow the
+                    // existing hostile bow lane rather than adding flashy
+                    // UI labels or duplicating a hazard damage radius.
+                    Color leadColor=new Color(.98f,.72f,.42f,
+                        Game.save.reducedMotion?.75f:
+                        .46f+progress*.38f);
+                    DrawWarningArc(enemy.target,.24f,0f,
+                        (float)(Math.PI*2),leadColor,14);
+                }
                 return;
             }
             // Readability uses the same center, radius and angular bound as damage.

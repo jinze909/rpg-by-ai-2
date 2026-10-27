@@ -73,6 +73,8 @@ namespace Starfall.Tests
                     archer.target.y>g.Position.y+.25f &&
                     archer.target.y<=g.Position.y+1.351f,
                     "Real enemy archer commits a bounded ahead-of-walk bow warning when launching its genuine 650ms windup");
+                Check(archer.archerLeading,
+                    "World renderer must own an actual announced physical bow-lead marker, not a predicted repaint");
                 Point locked=archer.target;
                 Point launchFoot=archer.Position;
                 Point committedHeading=archer.facing;
@@ -92,7 +94,7 @@ namespace Starfall.Tests
                 var waiting=new Enemy(988,1,20.5f,15.5f,70f);
                 waiting.timer=0;stopped.enemies.Add(waiting);
                 stopped.Tick(.05f,new Point());
-                Check(waiting.state==1&&
+                Check(waiting.state==1&&!waiting.archerLeading&&
                     (waiting.target-stopped.Position).Length<.001f,
                     "Enemy ordinary arrow still aims exactly at stationary hero without false leading");
             }

@@ -2320,10 +2320,15 @@ namespace Starfall
                     // real player foot travel, never a civilian's motion.
                     // Reuse the exact target and direction for the warning
                     // line and physical projectile; no mid-windup homing.
+                    e.archerLeading=false;
                     if(e.kind==1&&!e.boss&&
                        !strikeTraveler&&!strikeCivilian&&
                        !strikeStock&&!strikePatrolStock)
-                        e.target=ArcherCommittedLead(e,e.target,e.timer);
+                    {
+                        Point current=e.target;
+                        e.target=ArcherCommittedLead(e,current,e.timer);
+                        e.archerLeading=(e.target-current).Length>.12f;
+                    }
                     e.Face(e.target - e.Position);
                     // A ground warning must precede the REAL damage, not
                     // appear for the first time on its contact frame.

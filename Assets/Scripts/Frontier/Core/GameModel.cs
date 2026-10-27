@@ -94,6 +94,10 @@ namespace Starfall
         // never written to EnemyRecord or SaveData v2. Powers physically
         // bounded leading shots rather than widening any hitboxes.
         public Point moveVelocity;
+        // True only for an ordinary archer's announced, frozen foot-lead.
+        // World telegraphs use this same actual projectile target, not an
+        // inferred target on GUI repaint. Not an enemy save-record field.
+        public bool archerLeading;
         // Ephemeral combat intent: roadside raiders may target the protected traveler.
         public bool targetingWayfarer, targetingReliefCivilian, targetingAfterlightStock, targetingOuterPatrolStock;
         public float x, y, hp, maxHp, timer, stun, flash, stagger, staggerRecovery;
