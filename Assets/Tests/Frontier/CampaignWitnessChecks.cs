@@ -37,6 +37,14 @@ namespace Starfall.Tests
                     "A real named NPC opens an actual tracked main story investigation");
                 g.save.x=first.x;g.save.y=first.y;
                 Check(g.Nearest()==first,"First independent record must be interactable");
+                g.Talk(first);
+                string pricedAction="witness_answer_"+region+"_"+(region==1?1:2);
+                Check(g.conversation!=null &&
+                    Array.Exists(g.conversation.choices,c=>
+                        c.action==pricedAction &&
+                        (region==2 || c.en.Contains("cost: 1"))),
+                    "Real field choices disclose the required Moonherb or Machine part before consuming it");
+                g.Close();
                 float initialEnergy=g.save.energy;
                 int wrong=region==1?0:1;
                 if(region==1)
@@ -381,8 +389,42 @@ namespace Starfall.Tests
                     g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
                     "The real witness encounter can place its two original connected guards");
                 Point authored=g.enemies.Find(g.IsWitnessEnemy).Position;
+                foreach(Enemy guard in g.enemies.FindAll(g.IsWitnessEnemy))
+                    foreach(WorldObject o in g.Map.objects)
+                        if(g.IsObjectPresent(o))
+                            Check((guard.Position-new Point(o.x,o.y)).Length>=1.35f,
+                                "A guard must not occupy the foot of a visible resident or field device");
                 Action(g,archive.kind,"witness_abort_"+region);
                 Check(g.WitnessDefenseRoom==0,"Original archive can safely abort the first encounter");
+                // Put a live field object at a previously legal guard foot.
+                // Redeployment must reroute two guards or fail without a partial spawn.
+                MapData fieldMap=g.Map;
+                WorldObject[] originalObjects=fieldMap.objects;
+                WorldObject visitor=new WorldObject{id="test-witness-visitor",
+                    kind="history",name="Visiting resident",en="Visiting resident",
+                    x=authored.x,y=authored.y};
+                var crowded=new WorldObject[originalObjects.Length+1];
+                Array.Copy(originalObjects,crowded,originalObjects.Length);
+                crowded[originalObjects.Length]=visitor;
+                fieldMap.objects=crowded;
+                try
+                {
+                    Action(g,archive.kind,"witness_defend_"+region);
+                    if(g.WitnessDefenseRoom==region)
+                    {
+                        Check(g.enemies.FindAll(g.IsWitnessEnemy).Count==2 &&
+                            g.enemies.FindAll(g.IsWitnessEnemy).TrueForAll(e=>
+                                (e.Position-authored).Length>=1.35f),
+                            "Live interactable in deployment lane forces both original guards onto different feet");
+                        Action(g,archive.kind,"witness_abort_"+region);
+                    }
+                    else
+                        Check(g.enemies.FindAll(g.IsWitnessEnemy).Count==0,
+                            "Crowded interactive terrain aborts deployment atomically");
+                    Check(fieldMap.objects[fieldMap.objects.Length-1]==visitor,
+                        "Witness combat cannot delete an unrelated world object");
+                }
+                finally { fieldMap.objects=originalObjects; }
                 g.save.companion=1;
                 g.companionPosition=authored;
                 Action(g,archive.kind,"witness_defend_"+region);

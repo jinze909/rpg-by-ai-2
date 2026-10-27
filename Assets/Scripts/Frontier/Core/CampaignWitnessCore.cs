@@ -78,6 +78,12 @@ namespace Starfall
                     (save.companion>=0 &&
                      (at-companionPosition).Length<1.6f))
                     continue;
+                // Terrain-valid feet can still overlap a visible NPC or a
+                // non-solid interactive archive. Check the same present-object
+                // predicate used by world drawing before placing either guard.
+                if(Map.objects!=null && Array.Exists(Map.objects,
+                    o=>o!=null && IsObjectPresent(o) &&
+                        (new Point(o.x,o.y)-at).Length<1.35f))continue;
                 if(chosen.Exists(p=>(p-at).Length<1.8f))continue;
                 if(enemies.Exists(e=>(e.Position-at).Length<1.5f))continue;
                 chosen.Add(at);
@@ -213,11 +219,11 @@ namespace Starfall
                     C(region==1?"继续抽取所有能量":region==2?"保留货运优先权":"矿机必须永不停歇",
                         region==1?"Keep extracting every surplus":region==2?"Keep freight-only priority":"Mine engines must never pause",
                         "witness_answer_"+region+"_0"),
-                    C(region==1?"给根系一株月光草，恢复自愈":region==2?"只给交过桥税的人过河":"让矿机只在午夜休息",
-                        region==1?"Give the wounded roots a Moonherb to restore renewal":region==2?"Let only those who paid cross":"Rest the machinery only at midnight",
+                    C(region==1?"给根系一株月光草，恢复自愈（消耗月光草×1）":region==2?"只给交过桥税的人过河":"让矿机只在午夜休息",
+                        region==1?"Give the wounded roots a Moonherb (cost: 1 Moonherb)":region==2?"Let only those who paid cross":"Rest the machinery only at midnight",
                         "witness_answer_"+region+"_1"),
-                    C(region==2?"撤销许可证，开放公共渡口":"设立过热停机与撤离指令",
-                        region==2?"Restore the public crossing":"Allow heat shutdown and evacuation",
+                    C(region==1?"保留采矿优先权，直接封住根系伤口":region==2?"撤销许可证，开放公共渡口":"设立过热停机与撤离指令（消耗零件×1）",
+                        region==1?"Keep mining first; seal the roots without healing":region==2?"Restore the public crossing":"Allow heat shutdown and evacuation (cost: 1 Machine part)",
                         "witness_answer_"+region+"_2"),
                     C("检查完毕，暂不修改","Inspect later","close"));
                 return true;
@@ -322,8 +328,8 @@ namespace Starfall
                     !HasPhysicalInteractionReach(WitnessPoint(region,"site2")))return true;
                 if(!SpawnWitnessDefense(region))
                 {
-                    Notify("守卫接近路线暂时受阻，调整站位后再试。",
-                        "Guard deployment path obstructed; reposition and retry.");
+                    Notify("守卫部署区有人或设施阻挡。换个站位、移开同伴后再试。",
+                        "Guards need clear feet around people and field devices. Move or reposition your companion, then retry.");
                     return true;
                 }
                 Notify("两名封锁守卫已出现！65秒内击败他们，避开延迟冲击。",
