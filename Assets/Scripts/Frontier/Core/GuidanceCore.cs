@@ -1390,7 +1390,11 @@ namespace Starfall
                 q.description=L("三地公共服务名册公开后，在余烬镇接到最后一道未署名的军用指令调查。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
                     "After publishing the regional service ledger, investigate an unsigned citadel order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
                 q.locked=!Has("civic_response_ledger");
-                q.complete=LastDirectiveComplete;
+                // Publication already unlocks the next chapter, but an
+                // unpaid earned talent is still an actionable civic errand.
+                // Keep this journal entry OUT of the "completed quests"
+                // filter until its original physical ledger is signed.
+                q.complete=LastDirectiveComplete&&!LastDirectiveTalentDue;
                 q.steps.Add(new QuestStep(L("到余烬镇居民议事台开启调查",
                     "Open the inquiry at Emberfall's public council"),LastDirectiveStarted));
                 string[] clueZh={"矿工的停机请求","船工的失联名单","巡路队的最后炉火"};

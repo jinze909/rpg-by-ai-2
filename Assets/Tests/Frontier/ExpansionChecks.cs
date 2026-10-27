@@ -790,6 +790,39 @@ namespace Starfall.Tests
         }
 
 
+        public static void UnpaidLastDirectiveTalentKeepsActualQuestTrackable(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            foreach(string key in new[]{"civic_response_ledger",
+                "last_directive_started","last_directive_open"})g.save.flags.Add(key);
+            g.save.skillPoints=99;g.Enter(0);g.enemies.Clear();
+            var board=Object(g,"lastdirectiveboard");
+            g.save.x=board.x;g.save.y=board.y;
+            Action(g,board.kind,"last_directive_publish");
+            Check(g.LastDirectiveComplete&&g.LastDirectiveTalentDue,
+                "Original public vote completes the canon Chapter Ten state and preserves one owed point");
+            QuestGuide pending=g.GetQuest("last_directive");
+            Check(!pending.locked&&!pending.complete&&
+                pending.room==0&&pending.next.Contains("先使用一点"),
+                "The signed but unpaid chapter must remain in active-quest filtering and point to the real desk");
+            g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));reloaded.Start();
+            Check(!reloaded.GetQuest("last_directive").complete&&
+                reloaded.LastDirectiveComplete,
+                "Old v2 reload keeps the collectible journal active without revoking permanent civic rights");
+            reloaded.enemies.Clear();
+            reloaded.save.x=board.x;reloaded.save.y=board.y;
+            reloaded.Learn(0);
+            reloaded.Talk(board);
+            int claim=Array.FindIndex(reloaded.conversation.choices,
+                c=>c.action=="last_directive_claim");
+            Check(claim>=0,"Only the physical original civic desk can settle the earned reward");
+            reloaded.Choose(claim);
+            Check(!reloaded.LastDirectiveTalentDue&&
+                reloaded.GetQuest("last_directive").complete,
+                "After paying its exact debt the published story becomes a genuinely finished journal entry");
+        }
+
         public static void LastDirectivePublicationPreservesCappedTalentAndAuthenticDeskClaim(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;
