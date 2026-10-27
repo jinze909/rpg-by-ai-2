@@ -5,7 +5,10 @@ permissions:
   contents: read
 jobs:
   core:
-    runs-on: ubuntu-latest
+    # Pin the tested package environment: changing ubuntu-latest images
+    # have stalled the mandatory Mono package installation, blocking actual
+    # C# gameplay/Unity-declaration verification.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
