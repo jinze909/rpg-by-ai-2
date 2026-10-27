@@ -28,8 +28,11 @@ namespace Starfall
         public float WitnessDefenseTime { get { return witnessDefenseTime; } }
         public bool IsWitnessEnemy(Enemy e)
         {
-            return e!=null&&witnessDefenseRoom==save.room&&
-                witnessDefenseRoom>=1&&witnessDefenseRoom<=3&&
+            // Cleanup may run AFTER a failed world transition, rescue or
+            // death has changed save.room. Identity, not the current room,
+            // decides who belongs to the interrupted mission. The actual
+            // lethal confirmation still checks the original room.
+            return e!=null&&witnessDefenseRoom>=1&&witnessDefenseRoom<=3&&
                 (System.Object.ReferenceEquals(e,witnessActorA)||
                  System.Object.ReferenceEquals(e,witnessActorB));
         }

@@ -355,6 +355,49 @@ namespace Starfall.Tests
 
 
 
+
+        public static void WitnessAbortRetiresOnlyActualGuardsAfterRegionTransition(Campaign data)
+        {
+            var g=Fresh(data);g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();
+            WorldObject npc=Object(g,"witnessnpc1");
+            WorldObject first=Object(g,"witnesssite11");
+            WorldObject archive=Object(g,"witnesssite21");
+            g.save.x=npc.x;g.save.y=npc.y;
+            Action(g,npc.kind,"witness_begin_1");
+            g.save.x=first.x;g.save.y=first.y;
+            g.save.inventory[2]=Math.Max(1,g.save.inventory[2]);
+            Action(g,first.kind,"witness_answer_1_1");
+            g.save.x=archive.x;g.save.y=archive.y;
+            Action(g,archive.kind,"witness_defend_1");
+            var owned=g.enemies.FindAll(g.IsWitnessEnemy);
+            Check(owned.Count==2,"Original forest witness defense registers two real live actors");
+            var other=new Enemy(owned[0].id,owned[0].kind,
+                owned[0].x,owned[0].y,65);
+            g.enemies.Add(other);
+            var hazard=new Hazard{position=g.Position,damage=5,
+                radius=1f,timer=7f,kind="root",witnessOwned=true};
+            var unrelated=new Hazard{position=g.Position,damage=3,
+                radius=.8f,timer=7f,kind="environment"};
+            g.hazards.Add(hazard);g.hazards.Add(unrelated);
+            // A faulted transition can change the active map before the
+            // source encounter is reset. Nothing from that encounter may
+            // be carried forward, and the unrelated actor must survive.
+            g.save.room=0;
+            var reset=typeof(GameCore).GetMethod("ResetWitnessDefense",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(reset!=null,"Use the original mission teardown path");
+            reset.Invoke(g,null);
+            Check(g.WitnessDefenseRoom==0&&
+                !g.enemies.Contains(owned[0])&&!g.enemies.Contains(owned[1])&&
+                g.enemies.Contains(other)&&!g.hazards.Contains(hazard)&&
+                g.hazards.Contains(unrelated),
+                "Teardown after room change removes only genuinely registered guards and owned warnings, not a foreign same-ID actor");
+            Check(g.save.version==2&&!g.Has("witness_defeated_1"),
+                "Canceled evidence combat never changes persistent signed history or save format");
+        }
+
         public static void SignedWitnessFieldObjectsNeverSpeakAsRemoteCitizens(Campaign data)
         {
             string[] npcSpeakers={"","密林巡路员 · 莫芽",
