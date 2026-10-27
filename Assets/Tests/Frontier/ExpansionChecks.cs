@@ -395,6 +395,35 @@ namespace Starfall.Tests
                 "Only safe physical clearance permits ordinary banking and an earned next-floor boon");
         }
 
+        public static void AbyssFieldHudMatchesTrueLootGateSafety(Campaign data)
+        {
+            var g=Unlocked(data);g.StartAbyss(0);
+            Check(g.enemies.Count>0&&
+                g.Conditions().Contains("击退本层敌人")&&
+                !g.Conditions().Contains("地脉门可结算"),
+                "Real-time abyss HUD never advertises a bank gate while genuine enemies survive");
+            g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+            g.save.runShards=5;
+            Check(g.SafeTravel&&g.Conditions().Contains("地脉门可结算")&&
+                g.Conditions().Contains("未结算碎片 5"),
+                "A truly clear and safe floor shows usable gate guidance without banking or losing real shard count");
+            var danger=new Hazard{position=g.Position,
+                radius=1.2f,timer=.8f,damage=16f,kind="rift"};
+            g.hazards.Add(danger);
+            Check(!g.SafeTravel&&
+                g.Conditions().Contains("危险未退")&&
+                !g.Conditions().Contains("地脉门可结算"),
+                "A newly warned authentic rift immediately retracts false bank-ready HUD guidance");
+            g.save.english=true;
+            Check(g.Conditions().Contains("LIVE THREAT")&&
+                !g.Conditions().Contains("GATE READY"),
+                "The same real-danger warning is visible in the English abyss HUD");
+            g.hazards.Clear();
+            Check(g.SafeTravel&&g.Conditions().Contains("GATE READY")&&
+                g.save.runShards==5&&g.save.version==2,
+                "When physical danger ends the in-game HUD immediately returns to a real safe settlement state with no save mutation");
+        }
+
         public static void AbyssOptionalInteractionsRequirePhysicalReach(Campaign data)
         {
             var g = new GameCore(data);

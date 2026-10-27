@@ -2914,7 +2914,18 @@ namespace Starfall
                 (AbyssCircuitComplete ? L(" · 星根回路已接通", " · STARROOT CIRCUIT LINKED") :
                     L(" · 回路 ", " · CIRCUIT ") + AbyssCircuitProgress + "/3" +
                         L(" 下个 ", " NEXT ") + AbyssCircuitSymbol(AbyssCircuitNextNode)) +
-                (AbyssCircuitSheltered ? L(" · 信标庇护", " · RELAY SHELTER") : "");
+                (AbyssCircuitSheltered ? L(" · 信标庇护", " · RELAY SHELTER") : "") +
+                // Publish the SAME physical clearance as BankFloor in the
+                // always-visible combat HUD. A slain last enemy is not a
+                // promise that a real flying arrow has expired.
+                "\n" + (enemies.Count>0 ?
+                    L("击退本层敌人后，前往东侧地脉门",
+                      "DEFEAT FLOOR ENEMIES · EAST ROOT GATE") :
+                    !SafeTravel ?
+                    L("危险未退 · 躲避箭矢与裂隙预警",
+                      "LIVE THREAT · EVADE ARROWS OR RIFTS") :
+                    L("地脉门可结算 · 本层待结算收益仍在",
+                      "GATE READY · UNBANKED REWARDS INTACT"));
             // The same world HUD used for other real field defenses exposes
             // both the contested meter and its single tactical vent.
             if(GlasswindSite!=0 && save.room==6)
@@ -3731,6 +3742,9 @@ namespace Starfall
                 string goal = enemies.Count > 0 ?
                     L("清理本层敌人 · 小心地脉落印，东门可结算",
                         "Clear this floor · avoid rift marks; bank at the east gate") :
+                    !SafeTravel ?
+                    L("本层敌人已清，但还有箭矢或裂隙预警 · 先避险，不能立即结算",
+                        "Floor cleared, but incoming arrows or rifts remain · get clear before banking") :
                     guidedTestimony != null ?
                         L("正在追踪巡路证词 " + (AbyssTestimonyProgress + 1) +
                             "/5：" + guidedTestimony.name + "，尚未结算战利品。",
