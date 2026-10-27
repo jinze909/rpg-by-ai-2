@@ -158,6 +158,57 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void PredictiveRangedLeadRespectsTrueVelocityCoverAndSave(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                for(int profession=0;profession<3;profession++)
+                {
+                    var g=SprintTestWorld(data,profession);
+                    g.save.weapon=1;
+                    var moving=new Enemy(1203,0,g.Position.x+7f,g.Position.y,60f);
+                    g.enemies.Add(moving);
+                    moving.moving=true;moving.moveVelocity=new Point(0,2f);
+                    Point visible=moving.Position;
+                    Point lead=g.PredictRangedTargetPoint(moving,12f,.24f);
+                    Check(lead.y>visible.y+.5f&&lead.y<visible.y+1.71f&&
+                        Math.Abs(lead.x-visible.x)<.001f,
+                        "Physical moving target receives bounded lateral projectile flight lead for every class");
+                    Check(moving.hp==60f&&g.projectiles.Count==0&&
+                        g.save.version==2,
+                        "Read-only projectile leading never emits contacts or changes an original save");
+                    moving.moving=false;
+                    Check((g.PredictRangedTargetPoint(moving,12f,.24f)-
+                        visible).Length<.00001f,
+                        "A stopped target immediately resumes exact ordinary aimed shots");
+                    moving.moving=true;moving.moveVelocity=new Point(float.NaN,0);
+                    Check((g.PredictRangedTargetPoint(moving,12f,.24f)-
+                        visible).Length<.00001f,
+                        "Malformed physical motion cannot produce NaN projectiles or ghost targets");
+                    moving.moveVelocity=new Point(0,2f);
+                    char[] wall=g.Map.rows[(int)visible.y+1].ToCharArray();
+                    for(int x=(int)visible.x-1;x<=(int)visible.x+2;x++)wall[x]='#';
+                    g.Map.rows[(int)visible.y+1]=new string(wall);
+                    Check((g.PredictRangedTargetPoint(moving,12f,.24f)-
+                        visible).Length<.00001f,
+                        "Lead prediction falls back to the physical current center instead of targeting through a closed wall");
+                    wall=g.Map.rows[(int)visible.y+1].ToCharArray();
+                    for(int x=(int)visible.x-1;x<=(int)visible.x+2;x++)wall[x]='.';
+                    g.Map.rows[(int)visible.y+1]=new string(wall);
+                    g.save.weapon=0;
+                    Check((g.PredictRangedTargetPoint(moving,12f,.24f)-
+                        visible).Length<.00001f,
+                        "Sword melee never receives an inappropriate remote ballistic aim lead");
+                    g.save.weapon=2;
+                    Point magic=g.PredictRangedTargetPoint(moving,8f,.24f);
+                    Check(magic.y>visible.y+.5f&&magic.y<=visible.y+1.46f,
+                        "Slower actual staff projectile receives its own capped travel lead");
+                }
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

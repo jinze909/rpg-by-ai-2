@@ -97,6 +97,68 @@ namespace Starfall
             }
             return selected;
         }
+        // Aim ahead of an actually MOVING enemy without widening its
+        // collision circle or altering an authored attack's on-contact
+        // authority. Estimated projectile speed is the real held weapon's
+        // flight speed (bow 12, staff 8; Ranger volley 13); the preparation
+        // delay matches the release pose rather than instantaneous hitscan.
+        // If a predicted landing foot or *any* muzzle/ray sample is sealed,
+        // revert to the enemy's visible current center, never fire through
+        // world cover on the strength of an aim-assist estimate.
+        public Point PredictRangedTargetPoint(Enemy target,
+            float speed,float windupSeconds)
+        {
+            if(target==null)return Position;
+            Point current=target.Position;
+            if(mode!="world"||Dying||save==null||
+               !enemies.Contains(target)||target.hp<=0f||
+               save.weapon==0||!CanStand(Position)||
+               !Finite(speed)||speed<1f||
+               !Finite(windupSeconds)||
+               !target.moving||
+               !Finite(target.moveVelocity.x)||
+               !Finite(target.moveVelocity.y))
+                return current;
+            Point velocity=target.moveVelocity;
+            float enemySpeed=velocity.Length;
+            if(!Finite(enemySpeed)||enemySpeed<.2f||enemySpeed>4.5f)
+                return current;
+            int weapon=save.weapon;
+            Point muzzle=WeaponOrigin(Position,weapon,
+                (current-Position).Normalized);
+            float flight=(current-muzzle).Length/speed;
+            if(!Finite(flight))return current;
+            float horizon=Clamp(windupSeconds,0,.45f)+
+                Clamp(flight,0,1.5f);
+            Point offset=velocity*horizon;
+            float maxLead=weapon==1?1.7f:1.45f;
+            if(offset.Length>maxLead)
+                offset=offset.Normalized*maxLead;
+            Point predicted=current+offset;
+            if(!CanStand(predicted)||
+               !ClearAttackPath(current,predicted)||
+               !ClearAttackPath(Position,predicted))
+                return current;
+            Point direction=(predicted-Position).Normalized;
+            Projectile shot=WeaponShot(Position,weapon,direction,
+                speed,1f,predicted);
+            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+                return current;
+            Point flightRay=predicted-shot.position;
+            float flightDistance=flightRay.Length;
+            if(!Finite(flightDistance)||flightDistance<.05f||
+                flightDistance>speed*shot.life)
+                return current;
+            int samples=Math.Max(1,
+                (int)Math.Ceiling(flightDistance/.1f));
+            for(int i=1;i<=samples;i++)
+            {
+                Point p=shot.position+flightRay*(i/(float)samples);
+                if(ShotBlocked(shot,p))return current;
+            }
+            return predicted;
+        }
+
         public bool ActuallyMoving { get { return movementDirection.Length > .001f; } }
         public int WalkFrame { get { return GaitFrame(walkDistance, WalkStride); } }
         // Native sprites need the fraction BETWEEN the four distance-driven
