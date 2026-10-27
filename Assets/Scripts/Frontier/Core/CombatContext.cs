@@ -157,6 +157,14 @@ namespace Starfall
                 enemyHitAlert.Remove(e);
                 return false;
             }
+            // An actor that changes to a protected objective while a
+            // sound search is active must stop advertising INVESTIGATING.
+            // The real civilian/ward/stock intention now owns that body.
+            if(alert.impactOnly&&ArrowSoundCannotOverrideObjective(e))
+            {
+                enemyHitAlert.Remove(e);
+                return false;
+            }
             if(ClearAttackPath(e.Position,Position))
             {
                 alert.lastKnown=Position;
@@ -248,6 +256,7 @@ namespace Starfall
                 System.Object.ReferenceEquals(enemyHitAlertSave,save)&&
                 System.Object.ReferenceEquals(enemyHitAlertMap,Map)&&
                 enemies.Contains(e)&&e.hp>0&&!e.boss&&
+                !ArrowSoundCannotOverrideObjective(e)&&
                 enemyHitAlert.TryGetValue(e,out alert)&&
                 alert.impactOnly&&alert.remaining>0f;
         }

@@ -89,6 +89,34 @@ namespace Starfall.Tests
                     " searching="+game.IsEnemyInvestigatingImpact(guard)+
                     " HP="+guard.hp+" version="+game.save.version);
 
+                // One stone cannot freeze a patrol indefinitely through
+                // rapid repeated misses. Two actual arrow contacts at the
+                // same foot retain the first real alert expiry.
+                var repeat=Fresh(data);
+                repeat.save.stage=3;repeat.Enter(1);
+                repeat.enemies.Clear();repeat.mode="world";
+                repeat.save.x=6.5f;repeat.save.y=10.5f;
+                var repeatGuard=new Enemy(79009,0,16.5f,12.5f,200f);
+                repeatGuard.stun=100f;repeatGuard.timer=100f;
+                repeat.enemies.Add(repeatGuard);
+                for(int shot=0;shot<2;shot++)
+                {
+                    if(shot==1)Advance(repeat,1.45f);
+                    repeat.projectiles.Add(new Projectile{
+                        friendly=true,visual="arrow",source="arrow",
+                        position=new Point(9.5f,10.5f),
+                        velocity=new Point(12f,0f),damage=5f,life=2f,
+                        impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                            new Point(6.5f,10.5f))});
+                    Advance(repeat,1.1f);
+                    Check(repeat.IsEnemyInvestigatingImpact(repeatGuard),
+                        "Both real wall contacts occur while the original guard still investigates");
+                }
+                Advance(repeat,1f);
+                Check(!repeat.IsEnemyInvestigatingImpact(repeatGuard)&&
+                    repeatGuard.hp==200f&&repeat.save.version==2,
+                    "Repeated arrows at the same wall cannot refresh a stale sound alert forever or damage a guard");
+
                 // The exact same missile cannot distract an active rescue
                 // attacker while it still owns its original civilian target.
                 var npc=new WorldObject{id="wayfarer1",kind="wayfarer1",
