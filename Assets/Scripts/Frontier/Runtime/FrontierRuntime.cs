@@ -480,6 +480,18 @@ namespace Starfall
                 if(controllerAimEnemy!=null)
                 {
                     Point lockedTarget=controllerAimEnemy.Position;
+                    // Only flying ranged attacks receive predictive lead.
+                    // Standard Vanguard/Arcanist Q is rooted at the hero,
+                    // and sword strikes must keep the true visible center.
+                    if(Game.save.weapon>0&&
+                       (!technique||Game.save.profession==1))
+                    {
+                        float speed=technique?13f:
+                            Game.save.weapon==1?12f:8f;
+                        lockedTarget=Game.PredictRangedTargetPoint(
+                            controllerAimEnemy,speed,
+                            technique?.28f:.24f);
+                    }
                     Game.SetAimTarget(lockedTarget);
                     return (lockedTarget-Game.Position).Normalized;
                 }
@@ -736,13 +748,29 @@ namespace Starfall
                Game.aimTarget.HasValue)
             {
                 Point target=controllerAimEnemy.Position;
-                if((Game.aimTarget.Value-target).Length<.02f)
+                Point landing=Game.aimTarget.Value;
+                // The full target ring follows the REAL living actor. A
+                // separate smaller circle shows where the physical bow or
+                // staff is aiming ahead of a genuinely moving foe; never
+                // mislabel that predicted point as an enemy's actual body.
+                if((landing-target).Length<=1.75f&&
+                   Game.CanStand(landing))
                 {
                     bool pinned=System.Object.ReferenceEquals(
                         controllerPinnedEnemy,controllerAimEnemy);
                     Ring(target,controllerAimEnemy.boss?1.05f:.68f,
                         pinned?new Color(1f,.8f,.38f,.94f):
                             new Color(.58f,.98f,.81f,.84f),24);
+                    if((landing-target).Length>.12f)
+                    {
+                        Ring(landing,.18f,
+                            new Color(.95f,.85f,.48f,.82f),12);
+                        Point leadAt=ScreenPoint(landing);
+                        Text(leadAt.x-26,leadAt.y-32,52,16,
+                            Game.L("提前量","LEAD"),10,
+                            new Color(.95f,.85f,.48f,.82f),
+                            TextAnchor.MiddleCenter);
+                    }
                     Point at=ScreenPoint(target);
                     Text(at.x-37,at.y-(controllerAimEnemy.boss?94:72),
                         74,17,pinned?Game.L("锁定","LOCK"):
