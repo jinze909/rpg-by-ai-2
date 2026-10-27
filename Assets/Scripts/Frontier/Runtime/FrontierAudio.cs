@@ -15,6 +15,7 @@ namespace Starfall
         private int active, theme = -1, pending = -1, ambientRoom = -1, ambientPending = -1;
         private float crossfade = 1, ambientFade;
         private int lastContact, contactRoom = -1;
+        private readonly CombatMusicLinger combatLinger=new CombatMusicLinger();
         public FrontierAudio(GameObject host)
         {
             for (int i = 0; i < 2; i++) { music[i] = host.AddComponent<AudioSource>(); music[i].loop = true; }
@@ -37,7 +38,15 @@ namespace Starfall
                 game.enemies.Exists(e => e != null && e.hp > 0f &&
                     (e.boss || e.state == 1 &&
                         (e.Position - game.Position).Length < 7f));
-            bool combat = encounterExists;
+            // An ordinary foe is intermittently in its windup/recovery
+            // state. Without a small transient release tail, the real
+            // 1.5-second AudioSource crossfade repeatedly reverses during
+            // one continuous fight. Paused menus suspend that tail; title
+            // and practice never inherit the previous room's combat music.
+            if(game.mode=="title" || game.practicing)combatLinger.Reset();
+            bool combat = game.mode!="title" && !game.practicing &&
+                combatLinger.Advance(save.room,encounterExists,
+                    game.mode=="world",dt);
             int desired = AudioSynthesis.Theme(save.room, combat);
             // Combat proximity often changes again before a 1.5-second fade
             // completes. When the original theme becomes desirable again,

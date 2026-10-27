@@ -135,4 +135,31 @@ namespace Starfall
             return wave;
         }
     }
+
+    // Transient ear-level combat intent: keep a truly started battle's music
+    // through its recovery/chase beats instead of crossfading to exploration
+    // every time a surviving foe leaves windup for a few frames. This lives
+    // outside SaveData and is reset on title, practice and room transition.
+    public sealed class CombatMusicLinger
+    {
+        public const float ReleaseSeconds=3f;
+        private int room=int.MinValue;
+        private float remaining;
+
+        public bool Advance(int currentRoom,bool actualThreat,
+            bool worldAdvancing,float dt)
+        {
+            if(currentRoom!=room)
+            {room=currentRoom;remaining=0;}
+            if(actualThreat)
+            {remaining=ReleaseSeconds;return true;}
+            if(worldAdvancing && !float.IsNaN(dt) && !float.IsInfinity(dt) &&
+                dt>0f)
+                remaining=Math.Max(0f,remaining-dt);
+            return remaining>0f;
+        }
+
+        public void Reset()
+        {room=int.MinValue;remaining=0f;}
+    }
 }
