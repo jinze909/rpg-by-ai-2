@@ -188,6 +188,52 @@ namespace Starfall.Tests
             g.Close();
         }
 
+        public static void AllFiveOuterMilestoneJournalHintsRouteToRealLocalClaimWorkers(Campaign data)
+        {
+            var g=Unlocked(data);
+            string[] achievements={"outer_rescues_complete","outer_deliveries_complete",
+                "outer_patrol_all","outer_patrol_veteran_all","outer_patrol_flawless_all"};
+            string[] quests={"outer_rescue","outer_delivery",
+                "outer_watch","outer_watch_veteran","outer_watch_flawless"};
+            for(int room=0;room<8;room++)
+            {
+                g.save.flags.Add("outer_cache_"+room);
+                g.save.flags.Add("outer_relay_"+room);
+                g.save.flags.Add("outer_patrol_done_"+room);
+                g.save.flags.Add("outer_delivery_done_"+room);
+                g.save.flags.Add("outer_patrol_veteran_"+room);
+                g.save.flags.Add("outer_patrol_flawless_"+room);
+            }
+            g.Enter(3);g.enemies.Clear();
+            int flagsBefore=g.save.flags.Count,coins=g.save.coins;
+            for(int i=0;i<quests.Length;i++)
+            {
+                var ordinary=g.GetQuest(quests[i]);
+                Check(ordinary.complete&&!ordinary.next.Contains("欠付技能点"),
+                    "Real eight-region completed quest initially reports history, not a fabricated unpaid talent");
+                g.save.flags.Add(achievements[i]);
+                g.save.flags.Add("outer_talent_due_"+achievements[i]);
+                QuestGuide debt=g.GetQuest(quests[i]);
+                string worker=i==0?"outerrelay":"outerwatch";
+                WorldObject expected=Array.Find(g.Map.objects,o=>o.kind==worker);
+                Check(debt.complete&&debt.room==3&&expected!=null&&
+                    (debt.target-new Point(expected.x,expected.y)).Length<.001f&&
+                    debt.next.Contains("欠付技能点1"),
+                    "Every paid-in-combat but capped final prize directs the existing in-game journal toward the ACTUAL local claim worker");
+                g.save.english=true;
+                Check(g.GetQuest(quests[i]).next.Contains("talent is owed")&&
+                    g.GetQuest(quests[i]).room==3,
+                    "Live English quest guidance gives the same original physical worker instead of replaying completed combat");
+                g.save.english=false;
+                g.save.flags.Remove("outer_talent_due_"+achievements[i]);
+                Check(!g.GetQuest(quests[i]).next.Contains("欠付技能点"),
+                    "Paying a saved IOU immediately returns its completed quest to regular historical guidance");
+            }
+            Check(g.save.coins==coins&&g.save.version==2&&
+                g.save.flags.Count==flagsBefore+achievements.Length,
+                "Journal reads never mutate wallet or completion records; only test-owned signed milestone flags are added");
+        }
+
         public static void RemoteSoupRouteUsesThreeRealSheltersAndProvidesPhysicalCare(Campaign data)
         {
             var g=Unlocked(data);

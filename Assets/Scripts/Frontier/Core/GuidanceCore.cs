@@ -17,6 +17,29 @@ namespace Starfall
     public sealed partial class GameCore
     {
         public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill" };
+        // Completed public errands can still owe an earned final talent
+        // when the 99-point wallet was full. Show the REAL local worker
+        // and their original desk, not the obsolete eighth pickup/battle.
+        // Reading the quest does not claim the debt or change SaveData.
+        private void RouteOuterOutstandingTalent(QuestGuide guide,
+            string completionFlag,string workerKind)
+        {
+            if(!guide.complete||
+               !OuterMilestoneRewardPending(completionFlag))return;
+            int room=save.room>=0&&save.room<8?save.room:0;
+            bool ready=workerKind=="outerrelay"?
+                OuterRelayRestored(room):OuterPatrolDone(room);
+            if(!ready)
+                for(int i=0;i<8;i++)
+                    if((workerKind=="outerrelay"?
+                        OuterRelayRestored(i):OuterPatrolDone(i))&&CanEnter(i))
+                    {room=i;break;}
+            guide.room=room;
+            guide.target=ObjectPoint(room,workerKind,new Point(18,15));
+            guide.next=L(
+                "八地任务已完成，仍欠付技能点1。先使用已有技能点，再到标记的巡路人身边亲自签领。",
+                "All eight regions are complete, but +1 talent is owed. Spend a skill point, then sign for it beside the marked roadwarden.");
+        }
         private void SanitizeGuidance()
         {
             if (save.presentationVersion == 0)
@@ -1960,6 +1983,7 @@ namespace Starfall
                 q.next=q.complete?L("全部八处救援岗已守住","All eight relief outposts defended"):
                     target<0?L("先找回至少一处外环救援箱","Recover an outer-ring rescue chest first"):
                     L("走到救援岗主动发起防卫","Reach the watchpost and start the defense");
+                RouteOuterOutstandingTalent(q,"outer_patrol_all","outerwatch");
                 q.reward=L("每岗硬币 +14、碎片 +1、经验 +28；八岗全守住再得1技能点",
                     "Each defense: +14 coins, +1 shard, +28 XP; all eight: +1 talent point");
                 return q;
@@ -2003,6 +2027,7 @@ namespace Starfall
                         "Unlock a defended veteran outpost first"):
                     L("在标记哨岗完成无路障、无抢修的真实精英战",
                         "Defend the marked cache without repairs or a barricade");
+                RouteOuterOutstandingTalent(q,"outer_patrol_flawless_all","outerwatch");
                 q.reward=L("每枚徽章强化当地安全医疗恢复；八地全部完成再得技能点 +1",
                     "Each medal improves care at that safe outpost; all eight: +1 talent point");
                 return q;
@@ -2045,6 +2070,7 @@ namespace Starfall
                         "Defend one standard supply post to unlock veteran challenges"):
                     L("到已守住的救援岗发起三人精英防卫",
                         "Challenge three live raiders at a defended outpost");
+                RouteOuterOutstandingTalent(q,"outer_patrol_veteran_all","outerwatch");
                 q.reward=L("每处首次获胜：硬币26、碎片2、经验60，强化安全恢复；八处再得技能点1",
                     "First clear each: 26 coins, 2 shards, 60 XP, better local care; all eight: +1 talent");
                 return q;
@@ -2103,6 +2129,7 @@ namespace Starfall
                         "Defend a relief outpost to unlock courier missions"):
                     L("在修好的信号灯旁接受九十秒急送",
                         "Start the 90-second run at the repaired lamp");
+                RouteOuterOutstandingTalent(q,"outer_deliveries_complete","outerwatch");
                 q.reward=L("每处真实交付：硬币24、经验40；八地全部送达再得技能点1。",
                     "Each authentic delivery: 24 coins and 40 XP; all eight earn one extra skill point.");
                 return q;
@@ -2135,6 +2162,7 @@ namespace Starfall
                     phase==0?L("前往南部外环寻找书面证据","Find the southern outer-ring log"):
                     phase==1?L("抵达东侧信号灯并使用一枚零件","Repair the eastern beacon using one part"):
                     L("沿信号灯向南寻找救援箱","Follow the signal south to the relief chest");
+                RouteOuterOutstandingTalent(q,"outer_rescues_complete","outerrelay");
                 q.reward=L("每盏修好的信号灯提供安全休整；每处救援箱获得硬币18、材料2、经验22。八地全部完成，额外获得1点技能点。",
                     "Each repaired light becomes a safe rest point; each recovered chest grants 18 coins, 2 materials, 22 XP. Complete all eight for an extra talent point.");
                 return q;
