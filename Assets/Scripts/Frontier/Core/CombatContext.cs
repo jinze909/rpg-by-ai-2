@@ -301,8 +301,12 @@ namespace Starfall
             if(alert.returning)
             {
                 if(ArrowSoundCannotOverrideObjective(e)||
-                   ClearAttackPath(e.Position,Position)||
-                   range<=8f||!CanStand(alert.homeFoot)||
+                   // An open ray from fourteen tiles away is not a
+                   // confirmed sighting inside normal 8-tile awareness.
+                   // Conversely, a hidden hero within eight tiles must
+                   // not cancel the guard's return through solid stone.
+                   (range<=8f&&ClearAttackPath(e.Position,Position))||
+                   !CanStand(alert.homeFoot)||
                    (e.Position-alert.homeFoot).Length<.42f||
                    alert.remaining<=0f)
                 {

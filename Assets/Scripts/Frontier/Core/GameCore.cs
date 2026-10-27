@@ -2014,14 +2014,16 @@ namespace Starfall
                     RidgeWatchPursuitFoot(e,Position);
                 // An alerted sentry follows the last PHYSICALLY witnessed
                 // foot whenever cover closes, even if the concealed hero
-                // is within ordinary eight-tile melee awareness. Following
-                // live player coordinates through opaque stone is not a
-                // legitimate sound-search or teammate-whistle response.
+                // is within ordinary eight-tile melee awareness. A sentry
+                // returning from a harmless sound decoy follows its actual
+                // posted foot even across an open line to a hero outside
+                // normal awareness. Neither state tracks a hidden hero.
                 // Bosses, wardens and civilian duties keep original AI.
                 if(playerHitProvoked&&!e.boss&&
                    !wardAttacker&&!travelerAttacker&&!reliefAttacker&&
                    !escortPatrol&&!stockRaider&&!patrolSaboteur&&
                    (IsEnemyInvestigatingImpact(e)||
+                    IsEnemyReturningFromImpact(e)||
                     !ClearAttackPath(e.Position,Position)))
                     pursuit=LiveSoundSearchGoal(e,
                         LastKnownEnemyHitOrigin(e,pursuit));

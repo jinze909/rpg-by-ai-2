@@ -500,6 +500,42 @@ namespace Starfall.Tests
                 Check(homebound&&!game.IsEnemyInvestigatingImpact(sentry)&&
                     (sentry.Position-post).Length>.6f,
                     "An original sentry physically leaves its posted guard foot on a real stone lure, then starts returning after investigation expires");
+                var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(sight!=null,"Returned sentry uses the real world line-of-sight test");
+                // A physically visible hero OUTSIDE normal awareness cannot
+                // cancel the return or turn it into long-range hero pursuit.
+                Point farHero=new Point(28.5f,22.5f);
+                Check(game.CanStand(farHero),"Distant observer foot is walkable");
+                game.save.x=farHero.x;game.save.y=farHero.y;
+                Check((sentry.Position-game.Position).Length>8f&&
+                    (bool)sight.Invoke(game,new object[]{sentry.Position,game.Position}),
+                    "Returning guard sees a distant unobstructed hero outside eight-tile awareness");
+                float farDistance=(sentry.Position-post).Length;
+                game.Tick(.04f,new Point());
+                Check(game.IsEnemyReturningFromImpact(sentry)&&
+                    (sentry.Position-post).Length<farDistance-.025f,
+                    "Visible but distant hero cannot steal a sound-decoy return or strand the guard");
+                // A CLOSE hero behind genuine intervening stone is still
+                // hidden; mere geometric proximity must not cancel return.
+                string clearNear=game.Map.rows[12];
+                try
+                {
+                    char[] blocked=clearNear.ToCharArray();
+                    blocked[15]='#';
+                    game.Map.rows[12]=new string(blocked);
+                    game.save.x=13.5f;game.save.y=12.5f;
+                    Check(game.CanStand(game.Position)&&
+                        (sentry.Position-game.Position).Length<8f&&
+                        !(bool)sight.Invoke(game,new object[]{sentry.Position,game.Position}),
+                        "Nearby concealed hero is separated from returning sentry by real cover");
+                    game.Tick(.02f,new Point());
+                    Check(game.IsEnemyReturningFromImpact(sentry),
+                        "Concealed nearby hero cannot erase return-to-post intent through rock");
+                }
+                finally{game.Map.rows[12]=clearNear;}
+                game.save.x=6.5f;game.save.y=10.5f;
                 float before=(sentry.Position-post).Length;
                 Advance(game,.85f);
                 Check((sentry.Position-post).Length<before-.2f&&
