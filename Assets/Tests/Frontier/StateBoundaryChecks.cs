@@ -759,6 +759,63 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void OrdinaryPatrolPhysicallySweepsLostSightInsteadOfCamping(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.mode="world";g.enemies.Clear();
+                g.save.x=10.5f;g.save.y=10.5f;
+                var guard=new Enemy(66303,0,13.5f,10.5f,750f);
+                guard.Face(new Point(-1,0));
+                guard.timer=100f;g.enemies.Add(guard);
+                g.Tick(.05f,new Point(),null,false,true);
+                Point known=g.Position;
+                // A real wall later seals the OTHER side, leaving the
+                // original observed foot and its side-check positions
+                // walkable to the actual guard.
+                for(int y=2;y<=25;y++)
+                {
+                    char[] row=rows[y].ToCharArray();
+                    row[19]='#';rows[y]=new string(row);
+                }
+                g.save.x=22.5f;g.save.y=15.5f;
+                g.Tick(.05f,new Point(),null,false,true);
+                Check(g.IsOrdinaryPatrolTrackingLastSeen(guard)&&
+                    (g.OrdinaryPatrolLastSeenFoot(guard)-known).Length<.001f,
+                    "Guard tracks actual original hero foot across a real, newly sealed sight barrier");
+                // Sprint or automatic enemy movement cannot invent a
+                // real-time hidden hero target on the far side.
+                Point initial=guard.Position;
+                for(int i=0;i<78;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check((guard.Position-initial).Length>1.1f&&
+                    guard.Position.x<14f&&
+                    guard.Position.y>known.y+.22f,
+                    "Guard walks to the real last-known foot, then physically sweeps an adjacent safe lane rather than freezing or following the hidden hero");
+                Check((g.OrdinaryPatrolLastSeenFoot(guard)-known).Length<.001f,
+                    "Sweeping several nearby feet never rewrites the historically witnessed hero position");
+                for(int i=0;i<40;i++)
+                    g.Tick(.05f,new Point(),null,false,true);
+                Check(!g.IsOrdinaryPatrolTrackingLastSeen(guard)&&
+                    g.save.version==2,
+                    "Search terminates after its finite world-clock window without v2 mutation");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void QuietApproachRespectsPatrolFacingAndPhysicalCover(Campaign data)
         {
             MapData old=data.maps[1];

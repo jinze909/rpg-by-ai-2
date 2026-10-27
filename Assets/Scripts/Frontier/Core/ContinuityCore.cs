@@ -351,6 +351,8 @@ namespace Starfall
         {
             public Point lastSeen;
             public float unseen;
+            public int searchStep=-1;
+            public Point searchFoot;
             public OrdinaryPatrolSight(Point foot){lastSeen=foot;}
         }
         private readonly Dictionary<Enemy,OrdinaryPatrolSight> ordinarySights=
@@ -367,6 +369,7 @@ namespace Starfall
             {
                 sight.lastSeen=witnessedFoot;
                 sight.unseen=0f;
+                sight.searchStep=-1;
             }
         }
         private void ForgetOrdinaryPatrolSight(Enemy e)
@@ -390,7 +393,46 @@ namespace Starfall
                 ForgetOrdinaryPatrolSight(e);
                 return false;
             }
-            foot=sight.lastSeen;
+            // A last-known position is not enough for an interesting
+            // patrol. Once actually reached, search a few distinct,
+            // reachable feet around it. This is ordinary swept foot
+            // navigation; no teleport, hidden-live-hero knowledge,
+            // fake hits or perpetual chase after the bounded timer.
+            if(sight.searchStep<0)
+            {
+                if((e.Position-sight.lastSeen).Length>.78f)
+                {
+                    foot=sight.lastSeen;
+                    return true;
+                }
+                sight.searchStep=0;
+            }
+            else if((e.Position-sight.searchFoot).Length>.36f)
+            {
+                foot=sight.searchFoot;
+                return true;
+            }
+            else sight.searchStep++;
+            for(;sight.searchStep<4;sight.searchStep++)
+            {
+                Point offset;
+                switch(sight.searchStep)
+                {
+                    case 0:offset=new Point(-1.15f,.9f);break;
+                    case 1:offset=new Point(1.15f,.9f);break;
+                    case 2:offset=new Point(1.15f,-.9f);break;
+                    default:offset=new Point(-1.15f,-.9f);break;
+                }
+                Point target=sight.lastSeen+offset;
+                if(!CanStand(target)||
+                   !ClearAttackPath(sight.lastSeen,target)||
+                   !ClearAttackPath(e.Position,target))
+                    continue;
+                sight.searchFoot=target;
+                foot=target;
+                return true;
+            }
+            foot=e.Position;
             return true;
         }
         public bool IsOrdinaryPatrolTrackingLastSeen(Enemy e)
