@@ -1808,10 +1808,19 @@ namespace Starfall
                 !CanStand(attacker.Position)||
                 !ClearAttackPath(attacker.Position,target))
                 return false;
-            if(attacker.boss||attacker.kind==2)return true;
+            // A heavy's civilian hit must actually lie inside its locked
+            // strike circle. Ordinary claws obey the SAME front-facing
+            // 1.5-tile arc as a real hero contact, not the wider pursuit
+            // radius which merely starts a windup.
+            if(attacker.boss||attacker.kind==2)
+                return (attacker.target-target).Length<
+                    EnemyAreaRadius(attacker)&&
+                    ClearAttackPath(attacker.Position,attacker.target)&&
+                    ClearAttackPath(attacker.target,target);
             if(attacker.kind==1)
                 return EnemyBowFlightLaneClear(attacker,target);
-            return EnemyMeleeLaneClear(attacker,target);
+            return InEnemyMeleeArc(attacker,target)&&
+                EnemyMeleeLaneClear(attacker,target);
         }
 
         // Only ordinary locomotion uses crowd spacing. Boss dashes, hit recoil,
