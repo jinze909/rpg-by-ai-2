@@ -2660,6 +2660,7 @@ namespace Starfall
                 bool startedBlocked = p.blockedAtSpawn ||
                     ShotBlocked(p,p.position);
                 bool dead = startedBlocked, civilianImpactProduced = false;
+                bool genuineWallContact=false;
                 float impactRadius = 0;
                 // Capture collision candidates once per flying projectile,
                 // not on every 0.1-tile sweep subdivision. Refresh only
@@ -2682,6 +2683,7 @@ namespace Starfall
                     if (ShotBlocked(p,next))
                     {
                         dead = true;
+                        genuineWallContact=!startedBlocked;
                         // The leading edge can touch a wall AFTER the arrow
                         // is already inside one or more exposed hurt circles.
                         // Resolve those true body contacts from the last legal
@@ -2850,6 +2852,8 @@ namespace Starfall
                 if (p.friendly) projectileTargets.Clear();
                 if (dead && projectiles.Remove(p))
                 {
+                    if(genuineWallContact)
+                        InvestigateRealArrowWallImpact(p);
                     // The original muzzle/wall contract requires a small
                     // near-side CONTACT spark even if a projectile is born
                     // obstructed. That is not a full mage-area explosion.

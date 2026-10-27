@@ -158,6 +158,49 @@ namespace Starfall
                 alert.lastKnown=Position;
             return true;
         }
+        // A missed physical arrow still makes a tactical SOUND where
+        // it actually strikes solid cover. Nearby ordinary patrols can
+        // investigate that real same-side impact, never the unreachable
+        // concealed shooter, and only when the original player fired it.
+        // A shot blocked at birth, a companion arrow, a shot expiring in air
+        // or a confirmed actor hit cannot double-mint this distraction.
+        private void InvestigateRealArrowWallImpact(Projectile shot)
+        {
+            if(shot==null||!shot.friendly||shot.explosive||
+               shot.blockedAtSpawn||shot.hitActors.Count>0||
+               shot.impact==null||!shot.impact.playerOwned||
+               !shot.impact.sourceFoot.HasValue||
+               practicing||Dying||mode!="world"||
+               !Finite(shot.position.x)||!Finite(shot.position.y))
+                return;
+            Point soundFoot=shot.position;
+            Point origin=shot.impact.sourceFoot.Value;
+            if(!Finite(origin.x)||!Finite(origin.y)||!Finite(shot.damage)||
+               shot.damage<=0f)return;
+            EnsureEnemyHitAlertSession();
+            foreach(Enemy enemy in enemies)
+            {
+                if(enemy==null||enemy.hp<=0||enemy.boss||
+                   !CanStand(enemy.Position))continue;
+                float heard=(enemy.Position-soundFoot).Length;
+                float fromHero=(enemy.Position-Position).Length;
+                if(!Finite(heard)||heard>4.5f||
+                   !Finite(fromHero)||fromHero<=8f||fromHero>18f||
+                   // An opaque wall blocks direct impact noise: don't
+                   // alarm a soldier sheltered on its far side.
+                   !ClearAttackPath(soundFoot,enemy.Position))continue;
+                EnemyHitAlert alert;
+                if(enemyHitAlert.TryGetValue(enemy,out alert))
+                {
+                    // An existing attack pursuit is a higher-quality
+                    // threat: do not overwrite its genuinely seen foot.
+                    continue;
+                }
+                enemyHitAlert[enemy]=new EnemyHitAlert(3.5f,soundFoot);
+                effects.Add(new Effect("number",enemy.Position,.75f,
+                    L("听见异响","HEARD IMPACT")));
+            }
+        }
         private Point LastKnownEnemyHitOrigin(Enemy e,Point fallback)
         {
             EnemyHitAlert state;

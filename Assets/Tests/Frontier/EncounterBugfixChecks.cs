@@ -3,6 +3,79 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void ActualArrowImpactOnStoneLuresOnlyNearbySameSideGuards(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // A solid target wall x=19; small x=14 blind corner
+                // prevents the guard seeing the actual archer at x=6.
+                char[] stone=rows[10].ToCharArray();
+                stone[19]='#';rows[10]=new string(stone);
+                char[] blind=rows[12].ToCharArray();
+                blind[14]='#';rows[12]=new string(blind);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";g.invulnerable=200f;
+                g.save.x=6.5f;g.save.y=10.5f;
+                Enemy guard=new Enemy(78001,0,16.5f,12.5f,200f);
+                guard.timer=2f;g.enemies.Add(guard);
+                var ray=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                var fired=typeof(GameCore).GetMethod("CaptureImpact",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(ray!=null&&fired!=null,"Real combat sight/launch APIs exist");
+                Check(!(bool)ray.Invoke(g,new object[]{
+                    guard.Position,g.Position})&&
+                    (bool)ray.Invoke(g,new object[]{
+                        new Point(18.3f,10.5f),guard.Position}),
+                    "The wall sound is visible to the nearby guard although the archer is hidden by an actual corner");
+                var impact=(ImpactProfile)fired.Invoke(g,
+                    new object[]{1,0,true});
+                var arrow=new Projectile{
+                    friendly=true,damage=5f,position=new Point(9.5f,10.5f),
+                    velocity=new Point(12f,0f),visual="arrow",source="arrow",
+                    impact=impact,life=2f};
+                g.projectiles.Add(arrow);
+                Point start=guard.Position;
+                Advance(g,1.25f);
+                Check(!g.projectiles.Contains(arrow)&&
+                    (guard.Position-start).Length>.18f &&
+                    guard.Position.x>start.x+.12f &&
+                    guard.hp==200f && g.CanStand(guard.Position),
+                    "Real missed arrow collides with stone and pulls a hidden ordinary guard toward the actual sound without HP damage");
+                // Creating a shot already embedded into the same wall is
+                // not an earned ranged release and creates no lure.
+                var quiet=Fresh(data);quiet.save.stage=3;quiet.Enter(1);
+                quiet.enemies.Clear();quiet.mode="world";
+                quiet.save.x=6.5f;quiet.save.y=10.5f;
+                Enemy quietGuard=new Enemy(78002,0,16.5f,12.5f,200f);
+                quietGuard.timer=2f;quiet.enemies.Add(quietGuard);
+                quiet.projectiles.Add(new Projectile{
+                    friendly=true,blockedAtSpawn=true,
+                    damage=5f,position=new Point(19.5f,10.5f),
+                    velocity=new Point(12f,0f),visual="arrow",source="arrow",
+                    impact=impact,life=2f});
+                Point quietStart=quietGuard.Position;
+                Advance(quiet,1.25f);
+                Check((quietGuard.Position-quietStart).Length<.01f,
+                    "An unlaunched projectile buried in a wall never creates a false enemy investigation");
+            }
+            finally {data.maps[1]=previous;}
+        }
+
         public static void RangedProjectileHitRemembersOriginalLaunchFootAfterPlayerRepositions(Campaign data)
         {
             MapData previous=data.maps[1];
