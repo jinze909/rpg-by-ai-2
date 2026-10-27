@@ -29,6 +29,28 @@ namespace Starfall
             {"Each well has two columns in the water ledger: caravans and residents. Ink blots out the residents' share, but the figures survive in the margin.", "Sand has buried half the oasis signal. A replacement part would let travelers find the shared water station again.", "Wrapped herbs and an empty canteen lie inside. A note tied to its neck says: for the family south of here still waiting for water."},
             {"A distress note sticks out of the snow: take the lee slope; the hearth is still burning. A later evacuation notice was pasted over its arrow.", "Only the snowline lamp's frame remains. One part would restore a light visible along the ridge, even in a high wind.", "Dry firewood, cloth strips and half a flint remain in the chest. A narrow line inside the lid points toward the nearest warming shelter."}
         };
+        // Completing an eight-region public service is irreversible. When
+        // the player already holds 99 skill points, CreditSkillPoints would
+        // silently clamp the one-time completion prize to zero. Record the
+        // unpaid point on the same existing SaveData v2 flag list so it can
+        // later be signed for at a REAL staffed relay or watch post.
+        private static string OuterMilestoneDebt(string completionFlag)
+        {return "outer_talent_due_"+completionFlag;}
+        private void AwardOuterMilestoneTalent(string completionFlag)
+        {
+            if(save.skillPoints>=99)
+                Flag(OuterMilestoneDebt(completionFlag));
+            else CreditSkillPoints(1);
+        }
+        public bool OuterMilestoneRewardPending(string completionFlag)
+        {
+            if(completionFlag!="outer_rescues_complete"&&
+               completionFlag!="outer_deliveries_complete"&&
+               completionFlag!="outer_patrol_all"&&
+               completionFlag!="outer_patrol_veteran_all"&&
+               completionFlag!="outer_patrol_flawless_all")return false;
+            return Has(completionFlag)&&Has(OuterMilestoneDebt(completionFlag));
+        }
         public bool OuterLogFound(int room)
         { return room>=0&&room<8&&Has("outer_log_"+room); }
         public bool OuterRelayRestored(int room)
@@ -270,7 +292,8 @@ namespace Starfall
             Flag("outer_delivery_done_"+room);
             CreditCoins(24);AddXp(40);
             if(OuterDeliveryWins==8&&!Has("outer_deliveries_complete"))
-            {Flag("outer_deliveries_complete");CreditSkillPoints(1);}
+            {Flag("outer_deliveries_complete");
+             AwardOuterMilestoneTalent("outer_deliveries_complete");}
             revision++;sound="reward";
             RecordMoment("第 "+(room+1)+" 片边境，巡路队在九十秒内收到亲手送达的药布和原始收据。",
                 "Dressings and their original receipt reached the defended watch in region "+(room+1)+" by hand.");
@@ -392,7 +415,8 @@ namespace Starfall
                 CreditInventory(material, 2);
                 AddXp(22);sound="reward";revision++;
                 if(OuterRescueCount==8&&!Has("outer_rescues_complete"))
-                { Flag("outer_rescues_complete");CreditSkillPoints(1);revision++; }
+                { Flag("outer_rescues_complete");
+                  AwardOuterMilestoneTalent("outer_rescues_complete");revision++; }
                 RecordMoment("第 "+(room+1)+" 片边境的求援灯已恢复，救援箱里留下的人名与物资都被找回。",
                     "The remote rescue signal and relief chest were recovered in region "+(room+1)+".");
                 Notify("救援物资已登记 · 硬币 +18、材料 +2、经验 +22",
