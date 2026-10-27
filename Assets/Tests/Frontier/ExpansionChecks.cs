@@ -790,6 +790,58 @@ namespace Starfall.Tests
         }
 
 
+        public static void CitadelGuardianFormationsAvoidHeroesAndAllies(Campaign data){
+            var g=Fresh(data);g.save.stage=3;g.save.level=20;
+            foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",
+                "last_directive_started","last_directive_clue_0",
+                "last_directive_clue_1","last_directive_clue_2","companion_1"})
+                g.save.flags.Add(flag);
+            g.Enter(4);g.enemies.Clear();g.invulnerable=180;
+            g.save.companion=1;g.save.reducedMotion=true;
+            var core=Object(g,"lastdirectivecore");
+            g.save.x=core.x;g.save.y=core.y;
+            // An ally occupies the first fixed military ambush marker.
+            g.companionPosition=new Point(98.5f,74.5f);
+            Check(g.CanStand(g.companionPosition)&&g.CanStand(g.Position),
+                "Original blocked guardian marker is a legal companion tile");
+            Action(g,core.kind,"last_directive_code_0");
+            Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                "First authentic defender pair spawns despite original marker occupancy");
+            var first=g.enemies.FindAll(e=>e.id>=90300&&e.id<=90301);
+            Check(first.Count==2,"Two real story guards own the first wave");
+            foreach(Enemy foe in first){
+                Check(g.CanStand(foe.Position)&&
+                    (foe.Position-g.Position).Length>=1.75f&&
+                    (foe.Position-g.companionPosition).Length>=1.5f&&
+                    g.NavigationPath(foe.Position).Count>0,
+                    "Original first-wave defender approaches on walkable connected ground without actor overlap");
+            }
+            Check((first[0].Position-first[1].Position).Length>=1.5f,
+                "First-wave defenders do not share the same physical tile");
+            var hit=typeof(GameCore).GetMethod("Hit",BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(hit!=null,"Use the original player's genuine damage transaction");
+            foreach(Enemy foe in first)hit.Invoke(g,new object[]{foe,99999f,false,null,null});
+            for(int k=0;k<9&&g.LastDirectiveWave==1;k++)g.Tick(.05f,new Point());
+            Check(g.LastDirectiveWave==2,"Registered lethal kills still advance the first lock");
+            g.companionPosition=new Point(106.5f,73.5f);
+            g.save.energy=100;g.save.x=core.x;g.save.y=core.y;
+            Action(g,core.kind,"last_directive_second");
+            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&g.save.energy==75,
+                "Original second wave costs 25 energy only when all three guard feet are valid");
+            var second=g.enemies.FindAll(e=>e.id>=90302&&e.id<=90304);
+            Check(second.Count==3,"Original final-wave combat retains all three distinct tactical roles");
+            for(int i=0;i<second.Count;i++){
+                Point foot=second[i].Position;
+                Check(g.CanStand(foot)&&(foot-g.Position).Length>=1.75f&&
+                    (foot-g.companionPosition).Length>=1.5f&&
+                    g.NavigationPath(foot).Count>0,
+                    "Actual last-directive final guard has safe connected ground away from the hero and ally");
+                for(int j=0;j<i;j++)
+                    Check((foot-second[j].Position).Length>=1.5f,
+                        "All three final guardians retain individual collision-safe combat feet");
+            }
+        }
+
         public static void CitadelLastDirectiveCannotBeForgedByDuplicateEnemyIds(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;

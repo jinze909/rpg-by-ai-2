@@ -72,6 +72,41 @@ public sealed partial class GameCore {
         Notify(directivePhase==2?"第一道保密卫队已击败。在终端以25耐力解除二级封锁。":"三名最终守卫已击败，回控制台决定公共权力归属。",
             directivePhase==2?"First wave defeated. Spend 25 energy at the terminal to lift the second lock.":"All three final guards defeated. Choose public control at the terminal.");
     }
+    // A defended terminal requires accessible, distinct living guard feet.
+    // Preflight the entire original formation before constructing enemies.
+    private static readonly Point[] directiveFootOffsets={
+        new Point(0f,0f),new Point(0f,1.5f),new Point(0f,-1.5f),
+        new Point(1.5f,0f),new Point(-1.5f,0f),
+        new Point(1.5f,1.5f),new Point(-1.5f,1.5f),
+        new Point(1.5f,-1.5f),new Point(-1.5f,-1.5f),
+        new Point(0f,2.5f),new Point(0f,-2.5f),
+        new Point(2.5f,0f),new Point(-2.5f,0f)
+    };
+    private bool TryLastDirectiveGuardianFeet(int first,int count,out Point[] feet){
+        feet=new Point[count];
+        if(!CanStand(Position))return false;
+        for(int i=0;i<count;i++){
+            bool chosen=false;
+            foreach(Point offset in directiveFootOffsets){
+                Point foot=directiveSpawns[first+i]+offset;
+                if(!CanStand(foot)||
+                    (foot-Position).Length<1.75f||
+                    (save.companion>=0&&(foot-companionPosition).Length<1.5f)||
+                    !BossSummonHasLocalRoute(foot,Position))continue;
+                bool occupied=false;
+                foreach(Enemy living in enemies)
+                    if(living!=null&&living.hp>0&&(foot-living.Position).Length<1.5f)
+                    {occupied=true;break;}
+                if(occupied)continue;
+                for(int j=0;j<i;j++)
+                    if((foot-feet[j]).Length<1.5f){occupied=true;break;}
+                if(occupied)continue;
+                feet[i]=foot;chosen=true;break;
+            }
+            if(!chosen)return false;
+        }
+        return true;
+    }
     private bool SpawnLastDirective(int wave){
         // The earned first-wave clear is a valid intermission state.
         // Do not destroy it until the full second wave can spawn.
@@ -80,12 +115,13 @@ public sealed partial class GameCore {
             (directiveRoom>=0&&!secondWave)||Dying||practicing||
             !SafeTravel||LastDirectiveChoice>0)return false;
         int first=wave==1?0:2,count=wave==1?2:3;
-        for(int i=0;i<count;i++)if(!CanStand(directiveSpawns[first+i]))return false;
+        Point[] feet;
+        if(!TryLastDirectiveGuardianFeet(first,count,out feet))return false;
         directiveRoom=4;directivePhase=wave==1?1:3;directiveKills=0;
         directiveSurgeLeft=wave==2?2.6f:0;
         for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
         for(int i=0;i<count;i++){
-            Point p=directiveSpawns[first+i];int kind=wave==1?i:i==2?2:i;
+            Point p=feet[i];int kind=wave==1?i:i==2?2:i;
             Enemy guard=CreatePlacedEnemy(90300+first+i,kind,p,
                 wave==1?79+12*i:111+17*i);
             directiveActors[i]=guard;
