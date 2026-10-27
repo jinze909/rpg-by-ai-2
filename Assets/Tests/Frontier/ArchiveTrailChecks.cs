@@ -4,6 +4,77 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void AtlasSurveyRespectsManualNavigationAndRetiresReplacedMapObjects(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("archive_started");
+            g.save.flags.Add("archive_fragment_1");
+            WorldObject page=Object(g,"archivefragment1"),south=null;
+            foreach(WorldObject candidate in g.Map.objects)
+                if(candidate.id=="waytrail1s")south=candidate;
+            Check(south!=null,"A canonical southern trail exists on the actual field map");
+            g.save.x=page.x;g.save.y=page.y;
+            g.Talk(page);
+            int select=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_routes_1");
+            g.Choose(select);
+            int chooseSouth=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_go_1_s");
+            Check(chooseSouth>=0,"Live atlas offers the original southern marker");
+            g.Choose(chooseSouth);
+            Point? atlasPin=g.LocalWaymark;
+            Check(atlasPin.HasValue,"An atlas field pin is genuinely active");
+
+            // A new player-chosen pin must never be seized later by the
+            // atlas when that abandoned marker is physically investigated.
+            g.mode="map";
+            Point manual=new Point(
+                (float)Math.Floor(page.x)+.5f,
+                (float)Math.Floor(page.y)+.5f);
+            Check(g.PlaceLocalWaymark(manual),
+                "A player can deliberately override an atlas pin on the real local map");
+            Point? ownPin=g.LocalWaymark;
+            Check(ownPin.HasValue&&
+                (ownPin.Value-atlasPin.Value).Length>.1f,
+                "The manual pin replaces the transient atlas-owned destination");
+            g.mode="world";
+            g.save.x=south.x;g.save.y=south.y;
+            g.Talk(south);
+            Check(g.Has("waytrail_"+south.id)&&g.LocalWaymark.HasValue &&
+                (g.LocalWaymark.Value-ownPin.Value).Length<.001f,
+                "A separately surveyed road cannot silently overwrite deliberate manual routing");
+            g.Close();
+
+            // A later atlas choice is bound to the same live WorldObject,
+            // not an impostor replacing its ID at identical coordinates.
+            g.save.flags.Remove("waytrail_"+south.id);
+            g.save.x=page.x;g.save.y=page.y;
+            g.Talk(page);
+            select=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_routes_1");
+            g.Choose(select);
+            chooseSouth=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_go_1_s");
+            g.Choose(chooseSouth);
+            atlasPin=g.LocalWaymark;
+            WorldObject[] original=g.Map.objects;
+            WorldObject[] swapped=(WorldObject[])original.Clone();
+            int slot=Array.FindIndex(swapped,o=>Object.ReferenceEquals(o,south));
+            Check(slot>=0,"The survey owns the actual authored object reference");
+            swapped[slot]=new WorldObject{id=south.id,kind=south.kind,
+                name=south.name,en=south.en,x=south.x,y=south.y};
+            g.Map.objects=swapped;
+            try
+            {
+                g.save.x=atlasPin.Value.x;g.save.y=atlasPin.Value.y;
+                g.Tick(.05f,new Point());
+                Check(!g.LocalWaymark.HasValue,
+                    "Replacing an active trail with a same-ID impostor invalidates the stale atlas pin");
+            }
+            finally {g.Map.objects=original;}
+        }
+
         public static void AtlasRouteAdvancesOnlyAfterActuallySurveyingBothOldRoads(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.Enter(1);g.enemies.Clear();

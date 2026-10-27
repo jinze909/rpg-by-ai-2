@@ -137,30 +137,32 @@ namespace Starfall
         // This is runtime-only and owned by a deliberately selected personal
         // pin. Manual pins, journal navigation and region transitions cancel.
         private string atlasSurveyRoadId;
+        private WorldObject atlasSurveyMarker;
         private int atlasSurveyRoom=-1;
         private MapData atlasSurveyMap;
         private bool atlasSurveyArrived;
         private void ResetAtlasSurvey()
         {
-            atlasSurveyRoadId=null;atlasSurveyRoom=-1;
-            atlasSurveyMap=null;atlasSurveyArrived=false;
+            atlasSurveyRoadId=null;atlasSurveyMarker=null;
+            atlasSurveyRoom=-1;atlasSurveyMap=null;atlasSurveyArrived=false;
         }
         private void OwnAtlasSurvey(WorldObject marker)
         {
-            atlasSurveyRoadId=marker.id;atlasSurveyRoom=save.room;
+            atlasSurveyRoadId=marker.id;atlasSurveyMarker=marker;
+            atlasSurveyRoom=save.room;
             atlasSurveyMap=Map;atlasSurveyArrived=false;
         }
         private bool AtlasSurveyAtDestination()
         {
-            if(string.IsNullOrEmpty(atlasSurveyRoadId)||
-               atlasSurveyRoom!=save.room||
-               !Object.ReferenceEquals(atlasSurveyMap,Map)||
-               Has("waytrail_"+atlasSurveyRoadId))return false;
-            foreach(WorldObject marker in Map.objects)
-                if(marker!=null&&marker.kind=="waytrail"&&
-                   marker.id==atlasSurveyRoadId&&
-                   IsObjectPresent(marker))return true;
-            return false;
+            return !string.IsNullOrEmpty(atlasSurveyRoadId) &&
+                atlasSurveyMarker!=null &&
+                atlasSurveyRoom==save.room &&
+                Object.ReferenceEquals(atlasSurveyMap,Map) &&
+                atlasSurveyMarker.kind=="waytrail" &&
+                atlasSurveyMarker.id==atlasSurveyRoadId &&
+                SourceBelongsToActiveMap(atlasSurveyMarker) &&
+                IsObjectPresent(atlasSurveyMarker) &&
+                !Has("waytrail_"+atlasSurveyRoadId);
         }
         private void AdvanceAtlasSurvey(WorldObject surveyed)
         {
@@ -168,6 +170,8 @@ namespace Starfall
                atlasSurveyRoom!=save.room||
                !Object.ReferenceEquals(atlasSurveyMap,Map)||
                surveyed.id!=atlasSurveyRoadId||
+               !Object.ReferenceEquals(surveyed,atlasSurveyMarker)||
+               !SourceBelongsToActiveMap(surveyed)||
                !Has("waytrail_"+surveyed.id))return;
             string otherSide=surveyed.id.EndsWith("s",StringComparison.Ordinal)?
                 "e":"s";
