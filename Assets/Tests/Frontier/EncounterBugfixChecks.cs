@@ -11,6 +11,87 @@ namespace Starfall.Tests
 
 
 
+
+        public static void SentryWhistleStopsIfHeroEscapesOrContactInterrupts(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=23)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                for(int y=11;y<=14;y++)
+                {
+                    char[] cells=rows[y].ToCharArray();
+                    cells[14]='#';rows[y]=new string(cells);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[19]='#';rows[10]=new string(wall);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int scenario=0;scenario<2;scenario++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.mode="world";
+                    g.save.x=6.5f;g.save.y=10.5f;
+                    var caller=new Enemy(79940+scenario,0,16.5f,12.5f,200f);
+                    caller.stun=2f;caller.timer=10f;
+                    g.enemies.Add(caller);
+                    g.projectiles.Add(new Projectile{
+                        friendly=true,source="arrow",visual="arrow",
+                        position=new Point(10.5f,10.5f),
+                        velocity=new Point(12f,0),damage=5f,life=2f,
+                        impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                            new Point(10.5f,10.5f))});
+                    Advance(g,1.1f);
+                    Check(g.IsEnemyInvestigatingImpact(caller),
+                        "Authentic stone sound makes a nearby guard search before detection");
+                    caller.stun=0f;caller.Face(new Point(1,0));
+                    g.save.x=21.5f;g.save.y=12.5f;
+                    g.sounds.Clear();
+                    g.Tick(.02f,new Point());
+                    Check(g.IsEnemyPreparingSentryWhistle(caller)&&
+                        !new System.Collections.Generic.List<string>(g.sounds)
+                            .Contains("sentryAlarm"),
+                        "True sighting opens a readable whistle counterplay window");
+                    if(scenario==0)
+                    {
+                        // The player ducks behind the actually opaque
+                        // original pillar before the whistle can finish.
+                        g.save.x=11.5f;g.save.y=12.5f;
+                    }
+                    else
+                    {
+                        // The physically flying player arrow strikes the
+                        // original sentry before its 350ms call completes.
+                        g.projectiles.Add(new Projectile{
+                            friendly=true,source="arrow",visual="arrow",
+                            position=new Point(17.6f,12.5f),
+                            velocity=new Point(-12f,0),
+                            damage=5f,life=1f,
+                            impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                                new Point(21.5f,12.5f))});
+                    }
+                    Advance(g,.15f);
+                    Check(!g.IsEnemyPreparingSentryWhistle(caller)&&
+                        (scenario==0||caller.hp<200f),
+                        "Cover escape or actual arrow HP contact interrupts the sentry before whistle release");
+                    Advance(g,.5f);
+                    Check(!new System.Collections.Generic.List<string>(g.sounds)
+                        .Contains("sentryAlarm")&&
+                        g.save.version==2&&caller.hp>0f,
+                        "Canceled physical whistle cannot alert teammates or mutate the old save");
+                }
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void AlertGuardFollowsLastVisibleFootAcrossCloseSolidCover(Campaign data)
         {
             MapData previous=data.maps[1];
@@ -144,15 +225,18 @@ namespace Starfall.Tests
                 Advance(game,1.1f);
                 Check(game.IsEnemyInvestigatingImpact(caller),
                     "Real physical stone arrow initiates a sound-only search");
-                Enemy hear=new Enemy(79902,0,16.5f,17.5f,200f);
+                Enemy hear=new Enemy(79902,0,16.5f,15.5f,200f);
                 hear.timer=5f;
-                Enemy walled=new Enemy(79903,0,21.5f,14.5f,200f);
+                Enemy walled=new Enemy(79903,0,20.5f,14.5f,200f);
                 walled.timer=5f;
                 game.enemies.Add(hear);game.enemies.Add(walled);
                 // The solid post separates caller from one bystander
                 // despite being close in Euclidean distance.
-                char[] cover=rows[13].ToCharArray();
-                cover[18]='#';rows[13]=new string(cover);
+                for(int y=12;y<=13;y++)
+                {
+                    char[] cover=rows[y].ToCharArray();
+                    cover[18]='#';rows[y]=new string(cover);
+                }
                 game.save.x=16.5f;game.save.y=3.5f;
                 caller.Face(new Point(0,-1));
                 game.sounds.Clear();
@@ -162,12 +246,22 @@ namespace Starfall.Tests
                         game.sounds).Contains("sentryAlarm"),
                     "A distant hero outside a seven-tile sighting radius cannot trigger supernatural watch-wide warnings");
                 game.save.y=6.5f;
+                // A real patrol sees the hero, but does not teleport a
+                // warning into allies' heads on the same sighting frame.
+                // Keep the caller un-stunned so it can actually blow.
+                caller.stun=0f;
                 Point before=hear.Position;
                 game.Tick(.02f,new Point());
                 Check(!game.IsEnemyInvestigatingImpact(caller)&&
+                    game.IsEnemyPreparingSentryWhistle(caller)&&
+                    !new System.Collections.Generic.List<string>(game.sounds)
+                        .Contains("sentryAlarm"),
+                    "Front discovery first announces a real interruptible 350ms whistle windup");
+                Advance(game,.37f);
+                Check(!game.IsEnemyPreparingSentryWhistle(caller)&&
                     new System.Collections.Generic.List<string>(game.sounds)
                         .Contains("sentryAlarm"),
-                    "A guard's TRUE front-facing acquisition raises one audible world alarm");
+                    "An uninterrupted actual whistle sounds ONCE after visible release, not at spotting input");
                 var found=typeof(GameCore).GetMethod("LastKnownEnemyHitOrigin",
                     System.Reflection.BindingFlags.Instance|
                     System.Reflection.BindingFlags.NonPublic);

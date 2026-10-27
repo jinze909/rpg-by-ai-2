@@ -66,6 +66,10 @@ namespace Starfall
             public int searchStep=-1;
             public Point searchGoal,homeFoot;
             public bool returning;
+            // A real sentry must spend time blowing the warning whistle.
+            // Hero cover, physical hits and stun can cancel this warning
+            // BEFORE nearby allies hear it. No SaveData timing fields.
+            public float whistleRemaining;
             public EnemyHitAlert(float time,Point foot,bool impactOnly=false,
                 Point? home=null)
             {
@@ -228,7 +232,6 @@ namespace Starfall
                caller.boss||ArrowSoundCannotOverrideObjective(caller)||
                practicing||Dying||mode!="world")return;
             Point seen=Position;
-            bool heard=false;
             foreach(Enemy witness in enemies)
             {
                 if(witness==null||Object.ReferenceEquals(witness,caller)||
@@ -252,7 +255,6 @@ namespace Starfall
                 enemyHitAlert[witness]=new EnemyHitAlert(5f,seen);
                 effects.Add(new Effect("number",witness.Position,.85f,
                     L("同伴呼警","HEARD SENTRY")));
-                heard=true;
             }
             effects.Add(new Effect("number",caller.Position,.85f,
                 L("发现行踪！","PLAYER SPOTTED")));
@@ -317,6 +319,28 @@ namespace Starfall
                 enemyHitAlert.Remove(e);
                 return false;
             }
+            if(alert.whistleRemaining>0f)
+            {
+                // A whistle is a REAL interruptible enemy action: a strike,
+                // stun, authentic cover escape or new authored objective can
+                // stop it before anything is broadcast to other patrols.
+                if(e.stun>0f||e.hitTime>0f||e.releaseTime>0f||
+                   e.state==1||!CanStand(e.Position)||
+                   ArrowSoundCannotOverrideObjective(e)||
+                   !ImpactSearchGuardSeesHero(e))
+                {
+                    alert.whistleRemaining=0f;
+                    effects.Add(new Effect("number",e.Position,.65f,
+                        L("呼警中断","ALARM STOPPED")));
+                }
+                else
+                {
+                    alert.whistleRemaining=Math.Max(0f,
+                        alert.whistleRemaining-Math.Max(0f,dt));
+                    if(alert.whistleRemaining<=0f)
+                        NotifyPatrolOfRealSighting(e);
+                }
+            }
             if(alert.impactOnly)
             {
                 // Face-to-face sighting, not mere proximity, ends the
@@ -326,7 +350,13 @@ namespace Starfall
                 {
                     alert.lastKnown=Position;
                     alert.impactOnly=false;
-                    NotifyPatrolOfRealSighting(e);
+                    if(e.stun<=0f&&e.hitTime<=0f&&
+                       e.releaseTime<=0f&&e.state!=1)
+                    {
+                        alert.whistleRemaining=.35f;
+                        effects.Add(new Effect("number",e.Position,.6f,
+                            L("准备呼警！","WHISTLE WINDUP")));
+                    }
                 }
             }
             else if(ClearAttackPath(e.Position,Position))
@@ -493,6 +523,19 @@ namespace Starfall
         // last witnessed foot rather than the hero's hidden live location.
         // A real combat sighting/hit alert owns this cue, not normal aggro
         // or sound-only investigation. Never write this into SaveData.
+        public float SentryWhistleSecondsLeft(Enemy enemy)
+        {
+            EnemyHitAlert alert;
+            return enemy!=null&&save!=null&&Map!=null&&
+                System.Object.ReferenceEquals(enemyHitAlertSave,save)&&
+                System.Object.ReferenceEquals(enemyHitAlertMap,Map)&&
+                enemies.Contains(enemy)&&enemy.hp>0f&&!enemy.boss&&
+                !ArrowSoundCannotOverrideObjective(enemy)&&
+                enemyHitAlert.TryGetValue(enemy,out alert)?
+                Math.Max(0f,alert.whistleRemaining):0f;
+        }
+        public bool IsEnemyPreparingSentryWhistle(Enemy enemy)
+        { return SentryWhistleSecondsLeft(enemy)>.0001f; }
         public bool IsEnemyTrackingLastSight(Enemy enemy)
         {
             EnemyHitAlert alert;

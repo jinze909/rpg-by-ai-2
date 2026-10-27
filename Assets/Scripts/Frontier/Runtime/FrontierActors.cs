@@ -1221,6 +1221,20 @@ namespace Starfall
                         Game.L("调查异响","INVESTIGATING"),
                     10,suspicion,TextAnchor.MiddleCenter);
             }
+            // A genuine spotted guard has a short visible whistle windup
+            // and can be interrupted before a single teammate is alerted.
+            // Reuse the exact living SpriteRenderer actor/feet without
+            // swapping the canonical protagonist or making dummy NPCs.
+            if(!drawingOutline&&Game.IsEnemyPreparingSentryWhistle(e))
+            {
+                Color whistleTint=PixelArt.C("#f5b16f");
+                Ring(e.Position,.73f,whistleTint,18);
+                Text(p.x-82,p.y-145,164,19,
+                    Game.L("即将吹哨 · ","WHISTLE · ")+
+                    Game.SentryWhistleSecondsLeft(e).ToString("0.0")+
+                    Game.L("秒","s"),
+                    10,whistleTint,TextAnchor.MiddleCenter);
+            }
             // Only the living caller owns this painted warning over its
             // original native full-body Sprite. The existing danger atlas
             // animates above its planted feet; a kill, stun or room change
