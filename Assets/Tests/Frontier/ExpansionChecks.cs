@@ -215,6 +215,8 @@ namespace Starfall.Tests
             int all=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_milestone_claim_all");
             Check(all>=0&&g.conversation.choices[all].en.Contains("4 owed")&&
+                g.conversation.text.Contains("4 笔未结")&&
+                g.conversation.textEn.Contains("4 unpaid")&&
                 Array.FindIndex(g.conversation.choices,
                     c=>c.action=="outer_milestone_claim")>=0&&
                 Array.FindIndex(g.conversation.choices,
@@ -300,6 +302,14 @@ namespace Starfall.Tests
                     (debt.target-new Point(expected.x,expected.y)).Length<.001f&&
                     debt.next.Contains("欠付技能点1"),
                     "Every paid-in-combat but capped final prize directs the existing in-game journal toward the ACTUAL local claim worker");
+                Check(!debt.next.Contains("先使用已有技能点")&&
+                    debt.next.Contains(i==0?"修复的求援灯":"已守住的值守岗"),
+                    "With wallet space available, live journal directs an immediate correct physical receipt instead of unnecessary skill spending");
+                int availableWallet=g.save.skillPoints;
+                g.save.skillPoints=99;
+                Check(g.GetQuest(quests[i]).next.Contains("先使用已有技能点"),
+                    "A full talent wallet correctly asks the player to free room before collecting the authentic IOU");
+                g.save.skillPoints=availableWallet;
                 g.save.english=true;
                 Check(g.GetQuest(quests[i]).next.Contains("talent is owed")&&
                     g.GetQuest(quests[i]).room==3,

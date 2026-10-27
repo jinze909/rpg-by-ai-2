@@ -82,8 +82,22 @@ namespace Starfall
             if(milestone==null)return;
             foreach(Choice choice in conversation.choices)
                 if(choice.action=="outer_milestone_claim")return;
-            conversation.text+="\n\n巡路人从装订好的八地账册里抽出一张欠条：“人和货都已经到了，最后那一点技艺传授，还得你亲自回来签领。”";
-            conversation.textEn+="\n\nThe roadwarden slips an unpaid note from the eight-region ledger. “The people and supplies are safe. We still owe you the last lesson. Come sign for it yourself.”";
+            int unpaid=source.kind=="outerwatch"?CountUnpaidWatchTalents():0;
+            if(unpaid>1)
+            {
+                conversation.text+="\n\n值守员摊开厚厚的八地账册，指着其中 "+unpaid+" 笔未结报酬：“每次守岗都有签名，你该拿的，我们一笔都没划掉。”";
+                conversation.textEn+="\n\nThe watchkeeper opens the eight-region ledger to "+unpaid+" unpaid entries. “Every defended post has a signature. None of your earned lessons were crossed out.”";
+            }
+            else if(source.kind=="outerrelay")
+            {
+                conversation.text+="\n\n修复的灯柱上挂着一册八地账册。封夹里还压着巡路队留给你的欠条：最后一课等你在这盏灯下签领。";
+                conversation.textEn+="\n\nAn eight-region ledger hangs beneath the repaired signal. Inside is a roadwarden's signed note: your last lesson remains unclaimed here at the lamp.";
+            }
+            else
+            {
+                conversation.text+="\n\n巡路人从装订好的八地账册里抽出一张欠条：“人和货都已经到了，最后那一点技艺传授，还得你亲自回来签领。”";
+                conversation.textEn+="\n\nThe roadwarden slips an unpaid note from the eight-region ledger. “The people and supplies are safe. We still owe you the last lesson. Come sign for it yourself.”";
+            }
             var options=new List<Choice>(conversation.choices);
             int insert=options.Count;
             if(insert>0&&options[insert-1].action=="close")insert--;
@@ -95,7 +109,6 @@ namespace Starfall
             // offer an optional single visit to settle as many as the existing
             // 99-point wallet can hold. Each individual signed debt remains
             // independent in the unchanged v2 flags.
-            int unpaid=source.kind=="outerwatch"?CountUnpaidWatchTalents():0;
             if(unpaid>1)
                 options.Insert(insert,C("合并签领欠付报酬 · 共 "+unpaid+" 点",
                     "Sign available watch rewards · "+unpaid+" owed",

@@ -36,9 +36,19 @@ namespace Starfall
                     {room=i;break;}
             guide.room=room;
             guide.target=ObjectPoint(room,workerKind,new Point(18,15));
+            string siteZh=workerKind=="outerrelay"?"修复的求援灯":"已守住的值守岗";
+            string siteEn=workerKind=="outerrelay"?"repaired signal lamp":"defended watchkeeper";
+            // A debt at the wallet cap needs space first; once capacity
+            // exists, sending players back to the skill menu is misleading.
+            // A rescue-light receipt is attached to the actual lamp, while
+            // the four watch medals belong at a genuinely defended post.
             guide.next=L(
-                "八地任务已完成，仍欠付技能点1。先使用已有技能点，再到标记的巡路人身边亲自签领。",
-                "All eight regions are complete, but +1 talent is owed. Spend a skill point, then sign for it beside the marked roadwarden.");
+                "八地任务已完成，仍欠付技能点1。"+
+                    (save.skillPoints>=99?"先使用已有技能点，再到标记的":"现在即可到标记的")+
+                    siteZh+"旁签领。",
+                "All eight regions are complete, but +1 talent is owed. "+
+                    (save.skillPoints>=99?"Spend a skill point, then sign at the marked ":"Sign now at the marked ")+
+                    siteEn+".");
         }
         private void SanitizeGuidance()
         {
