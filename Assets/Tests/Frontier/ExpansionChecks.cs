@@ -446,6 +446,41 @@ namespace Starfall.Tests
             Check(g.save.health<=50.01f,
                 "A remote supplied shelter never heals a player standing far outside its true local radius");
         }
+        public static void MiraWitnessTrustStrengthensHerRealReleasedHealingCommand(Campaign data)
+        {
+            var ordinary=Fresh(data);
+            var witnessed=Fresh(data);
+            foreach(GameCore g in new[]{ordinary,witnessed})
+            {
+                g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("companion_0");
+                g.Enter(5);
+                g.enemies.Clear();
+                g.save.relationships[0]=1;
+            }
+            // This is the exact permanent +1 relationship the testimony
+            // conversation grants; do not invent a new combat modifier.
+            witnessed.save.relationships[0]++;
+            witnessed.save.flags.Add("companion_testimony_0");
+            foreach(GameCore g in new[]{ordinary,witnessed})
+            {
+                g.save.health=20;g.save.energy=30;
+                g.SelectCompanion(0);
+                g.mode="world";
+                g.CommandCompanion();
+                Check(g.companionAction!=null&&g.companionCooldown>0,
+                    "The original player-commanded Mira treatment enters a real release action");
+            }
+            Advance(ordinary,.22f);
+            Advance(witnessed,.22f);
+            Check(ordinary.save.health>20&&
+                Math.Abs((witnessed.save.health-ordinary.save.health)-3f)<.01f &&
+                ordinary.save.energy==witnessed.save.energy,
+                "The earned single relationship point improves genuine physical Mira healing by exactly 3 HP at contact");
+        }
+
         public static void RegionalCompanionTestimonyUnlocksSourceBoundTrust(Campaign data)
         {
             for(int id=0;id<3;id++)
@@ -513,6 +548,30 @@ namespace Starfall.Tests
                 commit=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="companion_testimony_commit_"+id);
                 Check(commit>=0,"Returning to the same live speaker retains the fully read evidence");
+                WorldObject[] originalObjects=g.Map.objects;
+                WorldObject[] substituted=(WorldObject[])originalObjects.Clone();
+                int replaced=Array.FindIndex(substituted,
+                    o=>System.Object.ReferenceEquals(o,npc));
+                Check(replaced>=0,"The original companion is a canonical map source");
+                substituted[replaced]=new WorldObject{id=npc.id,
+                    name=npc.name,en=npc.en,kind=npc.kind,
+                    x=npc.x,y=npc.y};
+                g.Map.objects=substituted;
+                try
+                {
+                    g.Choose(commit);
+                    Check(!g.Has("companion_testimony_"+id)&&
+                        g.save.relationships[id]==before,
+                        "A same-ID replacement cannot inherit a departed original companion's read testimony");
+                }
+                finally {g.Map.objects=originalObjects;}
+                g.Talk(npc);
+                opener=Array.FindIndex(g.conversation.choices,c=>c.action==open);
+                g.Choose(opener);
+                commit=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="companion_testimony_commit_"+id);
+                Check(commit>=0,
+                    "The authentic original speaker can still honor the already read evidence");
                 g.Choose(commit);
                 Check(g.Has("companion_testimony_"+id)&&
                     g.save.relationships[id]==Math.Min(5,before+1)&&

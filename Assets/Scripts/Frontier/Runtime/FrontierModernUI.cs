@@ -888,7 +888,7 @@ namespace Starfall
                 if(owned)
                     Text(x+17,518,268,15,
                         Game.Has("companion_testimony_"+i)?
-                            Game.L("地区证词已听取 · 信任加深","TESTIMONY HEARD · TRUST BUILT"):
+                            Game.L("已听取证词 · 战斗支援增强","TESTIMONY HEARD · SUPPORT IMPROVED"):
                         Game.Has(new[]{"harbor_report","desert_report","mountain_report"}[i])?
                             Game.L("地区证词待当面聆听","VISIT IN PERSON TO HEAR TESTIMONY"):
                             Game.L("继续地区调查以解锁证词","COMPLETE THE REGIONAL REPORT"),
