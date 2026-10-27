@@ -209,6 +209,39 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void BallisticAimUsesRealCurrentStyleReleaseClock(Campaign data)
+        {
+            var g=Fresh(data,1);
+            for(int weapon=1;weapon<=2;weapon++)
+            for(int style=0;style<3;style++)
+            {
+                g.save.weapon=weapon;
+                g.save.weaponStyles[weapon]=style;
+                float actual=g.Profile(weapon,g.Style).interval*
+                    (weapon==1?.55f:.45f);
+                Check(Math.Abs(g.RangedAimWindupSeconds(false)-actual)<.00001f,
+                    "Ranged lead follows the real heavy/quick/natural action contact time for every weapon and style");
+                Check(g.RangedAimProjectileSpeed(false)==
+                    (weapon==1?12f:8f),
+                    "Leading solution shares authentic bow/staff release velocity rather than invented cosmetic speed");
+                Check(Math.Abs(g.RangedAimWindupSeconds(true)-.28f)<.00001f&&
+                    g.RangedAimProjectileSpeed(true)==13f,
+                    "Ranger volley preserves its genuine separate 13-speed projectile and 280ms contact");
+            }
+            g.save.profession=0;
+            Check(g.RangedAimProjectileSpeed(true)==0f&&
+                g.RangedAimWindupSeconds(true)==0f,
+                "Vanguard radial Q cannot acquire a fake remote ballistic lead");
+            g.save.profession=2;
+            Check(g.RangedAimProjectileSpeed(true)==0f,
+                "Arcanist radial Q retains its honest hero-rooted area contact");
+            g.save.weapon=0;g.save.profession=1;
+            Check(g.RangedAimProjectileSpeed(false)==0f,
+                "Sword melee never creates phantom ranged travel");
+            Check(g.save.version==2,
+                "Actual attack release preview remains transient and save-compatible");
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

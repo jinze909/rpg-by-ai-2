@@ -97,6 +97,26 @@ namespace Starfall
             }
             return selected;
         }
+        // Exact launched weapon timing, including the player's current
+        // 30%-slow heavy style or 20%-fast quick style. This must share
+        // Profile() and BeginAction's existing contact fraction; a fixed
+        // "about 240ms" lead otherwise misses moving foes after upgrades.
+        // Q's Ranger volley has its own fixed .28s contact. Standard
+        // Vanguard/Arcanist Q is grounded AoE and gets no ballistic lead.
+        public float RangedAimWindupSeconds(bool technique)
+        {
+            if(save==null||save.weapon<=0)return 0f;
+            return technique ? save.profession==1?.28f:0f:
+                Profile(save.weapon,Style).interval*
+                (save.weapon==1?.55f:.45f);
+        }
+        public float RangedAimProjectileSpeed(bool technique)
+        {
+            if(save==null||save.weapon<=0||
+               technique&&save.profession!=1)return 0f;
+            return technique?13f:save.weapon==1?12f:8f;
+        }
+
         // Aim ahead of an actually MOVING enemy without widening its
         // collision circle or altering an authored attack's on-contact
         // authority. Estimated projectile speed is the real held weapon's

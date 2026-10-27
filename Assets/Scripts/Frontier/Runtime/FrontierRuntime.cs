@@ -492,15 +492,11 @@ namespace Starfall
                     // Only flying ranged attacks receive predictive lead.
                     // Standard Vanguard/Arcanist Q is rooted at the hero,
                     // and sword strikes must keep the true visible center.
-                    if(Game.save.weapon>0&&
-                       (!technique||Game.save.profession==1))
-                    {
-                        float speed=technique?13f:
-                            Game.save.weapon==1?12f:8f;
+                    float rangedSpeed=Game.RangedAimProjectileSpeed(technique);
+                    if(rangedSpeed>0f)
                         lockedTarget=Game.PredictRangedTargetPoint(
-                            controllerAimEnemy,speed,
-                            technique?.28f:.24f);
-                    }
+                            controllerAimEnemy,rangedSpeed,
+                            Game.RangedAimWindupSeconds(technique));
                     Game.SetAimTarget(lockedTarget);
                     return (lockedTarget-Game.Position).Normalized;
                 }
@@ -518,14 +514,11 @@ namespace Starfall
             // the cursor is actually over a LIVE enemy does its bow/staff
             // shot gain the same physically verified leading solution as
             // controller aim. No new auto-target radius or virtual damage.
-            if(pointerAimEnemy!=null&&Game.save.weapon>0&&
-               (!technique||Game.save.profession==1))
-            {
-                float speed=technique?13f:
-                    Game.save.weapon==1?12f:8f;
+            float pointerSpeed=Game.RangedAimProjectileSpeed(technique);
+            if(pointerAimEnemy!=null&&pointerSpeed>0f)
                 target=Game.PredictRangedTargetPoint(
-                    pointerAimEnemy,speed,technique?.28f:.24f);
-            }
+                    pointerAimEnemy,pointerSpeed,
+                    Game.RangedAimWindupSeconds(technique));
             Point d=target-Game.Position;
             Game.SetAimTarget(target);
             return d.Length>.05f?d:Game.aim;
