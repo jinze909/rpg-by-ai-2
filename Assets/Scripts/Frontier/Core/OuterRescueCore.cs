@@ -51,6 +51,66 @@ namespace Starfall
                completionFlag!="outer_patrol_flawless_all")return false;
             return Has(completionFlag)&&Has(OuterMilestoneDebt(completionFlag));
         }
+        private static readonly string[] OuterWatchTalentMilestones={
+            "outer_deliveries_complete","outer_patrol_all",
+            "outer_patrol_veteran_all","outer_patrol_flawless_all"
+        };
+        private string NextOuterMilestoneAt(WorldObject site)
+        {
+            if(site==null||save.room<0||save.room>=8)return null;
+            if(site.kind=="outerrelay"&&OuterRelayRestored(save.room))
+                return OuterMilestoneRewardPending("outer_rescues_complete")?
+                    "outer_rescues_complete":null;
+            if(site.kind=="outerwatch"&&OuterPatrolDone(save.room))
+                foreach(string id in OuterWatchTalentMilestones)
+                    if(OuterMilestoneRewardPending(id))return id;
+            return null;
+        }
+        private void AppendOuterMilestoneClaimChoice(WorldObject source)
+        {
+            if(source==null||mode!="dialog"||conversation==null||
+                !SourceBelongsToActiveMap(source)||!HasPhysicalInteractionReach(source))
+                return;
+            string milestone=NextOuterMilestoneAt(source);
+            if(milestone==null)return;
+            foreach(Choice choice in conversation.choices)
+                if(choice.action=="outer_milestone_claim")return;
+            conversation.text+="\n\n巡路人从装订好的八地账册里抽出一张欠条：“人和货都已经到了，最后那一点技艺传授，还得你亲自回来签领。”";
+            conversation.textEn+="\n\nThe roadwarden slips an unpaid note from the eight-region ledger. “The people and supplies are safe. We still owe you the last lesson. Come sign for it yourself.”";
+            var options=new List<Choice>(conversation.choices);
+            int insert=options.Count;
+            if(insert>0&&options[insert-1].action=="close")insert--;
+            options.Insert(insert,C("签领八地巡路报酬 · 技能点1",
+                "Claim earned roadwarden talent · +1",
+                "outer_milestone_claim"));
+            conversation.choices=options.ToArray();
+        }
+        private bool ChooseOuterMilestoneClaim(string action)
+        {
+            if(action!="outer_milestone_claim")return false;
+            WorldObject source=pendingDialogueSource;
+            if(source==null||Dying||practicing||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source))return true;
+            string milestone=NextOuterMilestoneAt(source);
+            if(milestone==null)return true;
+            if(save.skillPoints>=99)
+            {
+                Notify("巡路人保留着你的技能点报酬。先使用已有技能点，再回来签领。",
+                    "Your earned talent is reserved. Spend a skill point, then return to sign for the lesson.");
+                return true;
+            }
+            // Consume exactly this milestone's authenticated IOU before
+            // paying. Another regional milestone or a forged same-kind
+            // actor cannot cause a duplicate / remote reward.
+            save.flags.Remove(OuterMilestoneDebt(milestone));
+            CreditSkillPoints(1);
+            revision++;sound="reward";
+            Notify("巡路队已结清一份八地报酬：技能点 +1。",
+                "Roadwarden completion payment signed: +1 talent point.");
+            return true;
+        }
         public bool OuterLogFound(int room)
         { return room>=0&&room<8&&Has("outer_log_"+room); }
         public bool OuterRelayRestored(int room)
@@ -594,6 +654,7 @@ namespace Starfall
         }
         private bool ChooseOuterRescue(string action)
         {
+            if(ChooseOuterMilestoneClaim(action))return true;
             if(ChooseOuterDelivery(action))return true;
             if(ChooseOuterSignalRoads(action))return true;
             if(action=="outer_signal_rest")

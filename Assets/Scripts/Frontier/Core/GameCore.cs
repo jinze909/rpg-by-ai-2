@@ -3158,6 +3158,9 @@ namespace Starfall
                 // This applies regardless of which preexisting shelter
                 // conversation owns the source (civic duties included).
                 if(mode=="dialog"&&conversation!=previousConversation&&
+                    (o.kind=="outerrelay"||o.kind=="outerwatch"))
+                    AppendOuterMilestoneClaimChoice(o);
+                if(mode=="dialog"&&conversation!=previousConversation&&
                     o.kind=="farshelter")
                 {
                     AppendSoupRouteChoice(o);

@@ -923,7 +923,7 @@ namespace Starfall
                         !Has("outer_patrol_flawless_all"))
                     {
                         Flag("outer_patrol_flawless_all");
-                        CreditSkillPoints(1);
+                        AwardOuterMilestoneTalent("outer_patrol_flawless_all");
                     }
                     RecordMoment("精英救援岗取得真正的无损防卫：未使用路障和抢修，物资保持90%以上。",
                         "Earned flawless relief watch: three raiders defeated, no barricade or patch, >=90% real stock.");
@@ -942,7 +942,8 @@ namespace Starfall
                 Flag("outer_patrol_veteran_"+completedRoom);
                 CreditCoins(26);CreditShards(2);AddXp(60);
                 if(OuterPatrolVeteranWins==8&&!Has("outer_patrol_veteran_all"))
-                { Flag("outer_patrol_veteran_all");CreditSkillPoints(1); }
+                { Flag("outer_patrol_veteran_all");
+                  AwardOuterMilestoneTalent("outer_patrol_veteran_all"); }
                 revision++;sound="reward";
                 RecordMoment("精英补给守卫战已胜利：重甲袭击者确实被击退，哨岗获得强化。",
                     "Veteran cache defense cleared in live combat; field refuge staffing improved.");
@@ -957,7 +958,8 @@ namespace Starfall
             CreditCoins(14);CreditShards(1);
             AddXp(28);
             if(OuterPatrolWins==8&&!Has("outer_patrol_all"))
-            { Flag("outer_patrol_all");CreditSkillPoints(1); }
+            { Flag("outer_patrol_all");
+              AwardOuterMilestoneTalent("outer_patrol_all"); }
             revision++;sound="reward";
             RecordMoment("八地救援岗中的第 "+(completedRoom+1)+" 处已经守住：真正的危险被击退，居民不再只能等待。",
                 "A relief outpost in region "+(completedRoom+1)+
