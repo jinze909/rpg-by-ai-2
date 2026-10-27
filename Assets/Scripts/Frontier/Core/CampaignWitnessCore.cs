@@ -69,8 +69,14 @@ namespace Starfall
             for(int j=0;j<steps.Length && chosen.Count<2;j++)
             {
                 Point at=center+steps[(j+region)%steps.Length];
+                // Chapter witnesses are defended by an actual party,
+                // not actors who may materialize through an ally's body.
+                // Keep the original connected authored candidate feet and
+                // try another before aborting deployment atomically.
                 if(!CanStand(at) || !ClearAttackPath(center,at) ||
-                    NavigationPath(at).Count==0 || (at-Position).Length<1.6f)
+                    NavigationPath(at).Count==0 || (at-Position).Length<1.6f ||
+                    (save.companion>=0 &&
+                     (at-companionPosition).Length<1.6f))
                     continue;
                 if(chosen.Exists(p=>(p-at).Length<1.8f))continue;
                 if(enemies.Exists(e=>(e.Position-at).Length<1.5f))continue;

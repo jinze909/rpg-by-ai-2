@@ -356,6 +356,62 @@ namespace Starfall.Tests
 
 
 
+
+        public static void WitnessSecurityNeverSpawnsInsidePhysicalCompanion(Campaign data)
+        {
+            for(int region=1;region<=3;region++)
+            {
+                var g=Fresh(data);g.save.stage=region;
+                g.save.flags.Add(region==1?"scout_saved":"gate_"+region);
+                g.save.flags.Add("companion_1");
+                g.Enter(region);g.enemies.Clear();g.invulnerable=200;
+                var npc=Object(g,"witnessnpc"+region);
+                var source=Object(g,"witnesssite1"+region);
+                var archive=Object(g,"witnesssite2"+region);
+                g.save.x=npc.x;g.save.y=npc.y;
+                Action(g,npc.kind,"witness_begin_"+region);
+                g.save.x=source.x;g.save.y=source.y;
+                if(region==1)g.save.inventory[2]=Math.Max(1,g.save.inventory[2]);
+                if(region==3)g.save.inventory[4]=Math.Max(1,g.save.inventory[4]);
+                Action(g,source.kind,"witness_answer_"+region+"_"+(region==1?1:2));
+                g.save.x=archive.x;g.save.y=archive.y;
+                g.save.companion=-1;
+                Action(g,archive.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==region&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
+                    "The real witness encounter can place its two original connected guards");
+                Point authored=g.enemies.Find(g.IsWitnessEnemy).Position;
+                Action(g,archive.kind,"witness_abort_"+region);
+                Check(g.WitnessDefenseRoom==0,"Original archive can safely abort the first encounter");
+                g.save.companion=1;
+                g.companionPosition=authored;
+                Action(g,archive.kind,"witness_defend_"+region);
+                if(g.WitnessDefenseRoom==region)
+                {
+                    var guards=g.enemies.FindAll(g.IsWitnessEnemy);
+                    Check(guards.Count==2&&
+                        (guards[0].Position-guards[1].Position).Length>=1.8f,
+                        "Both genuine guards have distinct original deployment feet");
+                    foreach(Enemy e in guards)
+                        Check((e.Position-g.companionPosition).Length>=1.6f&&
+                            g.CanStand(e.Position)&&
+                            (e.Position-g.Position).Length>=1.6f,
+                            "A physically stationed recruited ally can never share a newly spawned hostile foot");
+                    Action(g,archive.kind,"witness_abort_"+region);
+                }
+                else
+                {
+                    Check(g.enemies.FindAll(e=>e.id>=89972&&e.id<=89977).Count==0,
+                        "If an ally occupies the only safe formation, no partially spawned guardians remain");
+                }
+                g.companionPosition=g.Position;
+                Action(g,archive.kind,"witness_defend_"+region);
+                Check(g.WitnessDefenseRoom==region&&
+                    g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
+                    "Repositioning the ally restores the authored two-guardian challenge with no lost evidence");
+            }
+        }
+
         public static void WitnessAbortRetiresOnlyActualGuardsAfterRegionTransition(Campaign data)
         {
             var g=Fresh(data);g.save.flags.Add("scout_saved");
