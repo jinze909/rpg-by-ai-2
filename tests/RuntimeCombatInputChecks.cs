@@ -202,9 +202,11 @@ public static class RuntimeCombatInputChecks
             Update(app);
             ActorAction shot=game.playerAction;
             Check(shot!=null&&shot.kind=="skill"&&shot.target.HasValue&&
-                (shot.target.Value-target.Position).Length<.2f &&
-                (game.aimTarget.Value-target.Position).Length<.2f,
-                "Ranger/warrior/mage Q captures the visible target's real center via the production InputAim path");
+                game.aimTarget.HasValue&&
+                (shot.target.Value-game.aimTarget.Value).Length<.001f&&
+                (shot.target.Value-target.Position).Length<
+                    (profession==1?1.85f:.2f),
+                "Three class Q captures its actual live target: Ranger bow may physically lead, area Q stays rooted");
             Check(System.Object.ReferenceEquals(
                 typeof(FrontierRuntime).GetField("controllerAimEnemy",Private).GetValue(app),target),
                 "HUD reticle owns the actual selected enemy reference, never a phantom numeric ID");
@@ -307,7 +309,7 @@ public static class RuntimeCombatInputChecks
         // The live reference MUST stay pinned; the next explicit Q samples
         // its newly moved position with exact coordinates.
         Check((g.Position-before).Length>.01f&&g.aimTarget.HasValue&&
-            (g.aimTarget.Value-selected.Position).Length<.20f &&
+            (g.aimTarget.Value-selected.Position).Length<1.85f &&
             System.Object.ReferenceEquals(pinned.GetValue(app),selected),
             "Neutral right stick retains the locked target while left stick moves independently: moved="+
             (g.Position-before).Length+" pin="+
@@ -315,9 +317,10 @@ public static class RuntimeCombatInputChecks
             " target="+g.aimTarget.HasValue);
         Input.keys.Add(KeyCode.JoystickButton3);Update(app);
         Check(g.playerAction!=null&&g.playerAction.kind=="skill"&&
-            g.playerAction.target.HasValue&&
-            (g.playerAction.target.Value-selected.Position).Length<.001f,
-            "R3 lock survives into the actual production Q contact snapshot");
+            g.playerAction.target.HasValue&&g.aimTarget.HasValue&&
+            (g.playerAction.target.Value-g.aimTarget.Value).Length<.001f&&
+            (g.playerAction.target.Value-selected.Position).Length<1.85f,
+            "R3 lock keeps its real motion-compensated world target in the actual Q contact snapshot");
         Input.keys.Add((KeyCode)((int)KeyCode.JoystickButton0+9));
         Update(app);
         Check(pinned.GetValue(app)==null,
