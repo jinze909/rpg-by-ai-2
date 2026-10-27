@@ -126,7 +126,7 @@ namespace Starfall
         public string mode
         {
             get { return currentMode; }
-            set { currentMode = value; if (value != "world") { ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge(); } }
+            set { currentMode = value; if (value != "world") { QuietStepping=false; ClearBufferedSkill(); ClearBufferedAttack(); ClearBufferedDodge(); } }
         }
         public string toast = "";
         public Conversation conversation;
@@ -999,7 +999,7 @@ namespace Starfall
                 }
                 return;
             }
-            CancelAction();
+            CancelAction(); QuietStepping=false;
             // A dodge is airborne/low-contact locomotion, not the next step of
             // the previous walk cycle. Restart its legs on the first real run
             // frame without manufacturing a footstep during the dodge.
@@ -1578,6 +1578,7 @@ namespace Starfall
             DamageCivicConduit(actualDamage,source);
             DamageFloodReliefParcel(actualDamage,source);
             DamageAfterlightCharge(actualDamage,source);
+            QuietStepping=false;
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
             if (!save.reducedMotion) { hitStop = .045f; impactShake = source == "slam" ? .18f : 0; }
             effects.Add(new Effect("hurt", Position, .5f));

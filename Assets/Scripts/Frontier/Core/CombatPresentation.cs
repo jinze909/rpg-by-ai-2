@@ -525,6 +525,10 @@ namespace Starfall
         }
         private void BeginAction(string kind, float damage, float duration, float contact)
         {
+            // An actual attack or cast reveals the hero immediately even
+            // before the next movement tick; holding Ctrl cannot disguise
+            // the visible windup under the quiet-step HUD.
+            QuietStepping=false;
             // The next visible Run always begins with a fresh, stable
             // canonical foot phase. There is no Walk raster under an action
             // and no accumulated hidden gait during moving recovery.
