@@ -487,6 +487,55 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void MinecartDuplicateRaiderIdsCannotForgeCombatOwnership(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(3);
+            g.enemies.Clear();g.projectiles.Clear();g.invulnerable=180;
+            g.save.reducedMotion=true;
+            g.save.flags.Add("boss_3");g.save.flags.Add("gate_3");
+            var depot=MineCartTestPost(g,1);
+            var junction=MineCartTestPost(g,2);
+            g.save.x=depot.x;g.save.y=depot.y;g.Talk(depot);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "Authentic mine workers dispatch one real guarded cart");
+            WalkBesideMinecart(g,new Point(junction.x,junction.y),1);
+            Check(g.MineConvoyStage==2&&g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "Actual ambush retains two separately identifiable living actors");
+            var real=g.enemies.FindAll(g.IsMineConvoyEnemy);
+            var impostor=new Enemy(real[0].id,real[0].kind,
+                real[0].x,real[0].y,12);
+            g.enemies.Add(impostor);
+            Check(!g.IsMineConvoyEnemy(impostor)&&g.IsMineConvoyEnemy(real[0])&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "A duplicate numeric raider ID is not a member of this authored encounter");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Use original lethal contact pipeline for ID collision test");
+            hit.Invoke(g,new object[]{impostor,10000f,false,null,null});
+            Check(g.MineConvoyStage==2&&g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "Killing a foreign same-ID actor cannot mark either real mine guard defeated");
+            g.save.x=junction.x;g.save.y=junction.y;
+            g.Talk(junction);
+            Check(!MineCartTestChoice(g,"mineconvoy_go")&&
+                !MineCartTestChoice(g,"mineconvoy_brace"),
+                "Foreign lethal contact cannot authorize the real switchyard departure");
+            g.Close();
+            // Even a living ID impostor cannot replace a registered actor
+            // removed without a legitimate Hit() kill callback.
+            g.enemies.Remove(real[0]);
+            var replacement=new Enemy(real[0].id,0,
+                real[0].x,real[0].y,30);
+            g.enemies.Add(replacement);
+            Check(!g.IsMineConvoyEnemy(replacement),
+                "Replacement numeric ID never inherits the removed actor's ownership");
+            g.Tick(.05f,new Point());
+            Check(!g.MineConvoyActive&&!g.MineConvoyComplete&&
+                g.enemies.Contains(replacement)&&
+                !g.enemies.Contains(real[1])&&g.save.version==2,
+                "Authenticated despawn cancels only the original encounter and preserves unrelated actors");
+        }
+
         public static void MinecartDepotArrivalBanksOnPhysicalContactBeforeNextTimeout(Campaign data)
         {
             var reflection=System.Reflection.BindingFlags.NonPublic|

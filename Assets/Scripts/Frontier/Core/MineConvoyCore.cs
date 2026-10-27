@@ -49,6 +49,11 @@ namespace Starfall
         // A missing enemy is not a player victory; only Hit's lethal callback
         // can record the two actually defeated switchyard attackers.
         private int mineConvoyConfirmedKills;
+        // Registration belongs to the exact spawned actors, not their
+        // reusable numeric IDs. A different world enemy with ID 91300 or
+        // 91301 cannot injure the cart, spoof a lethal guard kill or keep an
+        // interrupted escort alive by standing in for a despawned raider.
+        private Enemy mineConvoyActorA,mineConvoyActorB;
         private bool MineConvoyGuardsDefeated { get { return mineConvoyConfirmedKills==3; } }
         private void OnMineConvoyEnemyDefeated(Enemy enemy)
         {
@@ -59,7 +64,11 @@ namespace Starfall
         public bool MineConvoyActive { get { return MineConvoyStage>0; } }
         public bool MineConvoyComplete { get { return Has("mineconvoy_complete"); } }
         public bool IsMineConvoyEnemy(Enemy e)
-        { return e!=null&&e.id>=91300&&e.id<91310; }
+        {
+            return e!=null&&MineConvoyStage==2&&save.room==3&&
+                (System.Object.ReferenceEquals(e,mineConvoyActorA)||
+                 System.Object.ReferenceEquals(e,mineConvoyActorB));
+        }
         private WorldObject MineCartPost(int stage)
         {
             string id=stage==1?"mineconvoy_1":stage==2?"mineconvoy_2":"mineconvoy_3";
@@ -76,6 +85,7 @@ namespace Starfall
             MineConvoyStage=0;MineConvoyTime=MineConvoyIntegrity=0;
             MineCartPosition=new Point();mineConvoySteam=0;
             mineConvoyBraced=false;mineConvoyConfirmedKills=0;
+            mineConvoyActorA=mineConvoyActorB=null;
             mineConvoyBlockNoticeTime=0;
         }
         // Keep the authored two-guard confrontation, but do not summon a
@@ -125,13 +135,14 @@ namespace Starfall
                !TryMineConvoyAmbushFoot(new Point(65.5f,42.5f),
                 first,true,out second))return false;
             Point[] points={first,second};
-            for(int i=0;i<points.Length;i++)
-            {
-                Enemy guard=new Enemy(91300+i,i==0?0:2,points[i].x,points[i].y,
-                    i==0?90:115);
-                guard.timer=.75f+i*.25f;
-                enemies.Add(guard);
-            }
+            // Commit the complete verified pair together. Identity also
+            // isolates projectiles and defeat bookkeeping from impostors.
+            Enemy firstGuard=new Enemy(91300,0,points[0].x,points[0].y,90);
+            Enemy secondGuard=new Enemy(91301,2,points[1].x,points[1].y,115);
+            firstGuard.timer=.75f;
+            secondGuard.timer=1f;
+            mineConvoyActorA=firstGuard;mineConvoyActorB=secondGuard;
+            enemies.Add(firstGuard);enemies.Add(secondGuard);
             mineConvoyConfirmedKills=0;
             return true;
         }
@@ -216,7 +227,7 @@ namespace Starfall
                 mineConvoyBlockNoticeTime=Math.Max(0,mineConvoyBlockNoticeTime-dt);
                 for(int i=0;i<2;i++)
                     if((mineConvoyConfirmedKills&(1<<i))==0 &&
-                        !enemies.Exists(e=>e.id==91300+i))
+                        !enemies.Contains(i==0?mineConvoyActorA:mineConvoyActorB))
                     {
                         ResetMineConvoy();revision++;
                         Notify("袭击者异常离场，战斗未完成。矿车已返回发车岗，可免费重试。",
