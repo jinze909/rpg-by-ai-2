@@ -482,6 +482,12 @@ namespace Starfall.Tests
                     "An attacker with an equal 89972-series ID cannot acquire signed witness ownership");
                 int coins=g.save.coins,shards=g.save.shards;
                 hit.Invoke(g,new object[]{forged,99999f,false,null,null});
+                // Foreign live enemies keep their ordinary 6-coin loot.
+                // Only mission-owned enemies are excluded from normal
+                // combat economy and may record witness guard deaths.
+                int afterOrdinaryKill=g.save.coins;
+                Check(afterOrdinaryKill==coins+6,
+                    "The forged-ID world enemy is an ordinary foe and still pays its normal unrelated combat reward");
                 Check(g.WitnessDefenseRoom==region&&
                     g.enemies.FindAll(g.IsWitnessEnemy).Count==2&&
                     !g.Has("witness_defeated_"+region),
@@ -498,7 +504,7 @@ namespace Starfall.Tests
                     !g.Has("witness_sealed_"+region)&&
                     g.enemies.Contains(replacement)&&
                     !g.enemies.Contains(genuine[1])&&
-                    g.save.coins==coins&&g.save.shards==shards,
+                    g.save.coins==afterOrdinaryKill&&g.save.shards==shards,
                     "Real guardian disappearance resets only its owned fight, without deleting an unrelated same-ID enemy or minting evidence");
                 g.enemies.Clear();
                 g.save.x=archive.x;g.save.y=archive.y;
@@ -517,7 +523,7 @@ namespace Starfall.Tests
                 g.save.x=npc.x;g.save.y=npc.y;
                 Action(g,npc.kind,"witness_finish_"+region);
                 Check(g.Has("witness_complete_"+region)&&
-                    g.save.coins==coins+region*10+15&&
+                    g.save.coins==afterOrdinaryKill+region*10+15&&
                     g.save.shards==shards+1&&g.save.version==2,
                     "Original living regional witness still signs one irreversible story reward under unchanged v2 save");
             }
