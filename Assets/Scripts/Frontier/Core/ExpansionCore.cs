@@ -2841,9 +2841,15 @@ namespace Starfall
                     (int)Math.Ceiling(CivicConduitTimeLeft)+"s · "+
                     (int)Math.Ceiling(CivicConduitIntegrity)+"%\n"+
                     L("阀门 ","VALVE ")+(CivicConduitStage+1)+"/3 · "+
-                    (CivicConduitWindowOpen?
-                        L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
-                        L("闭锁 · 等待绿色窗口","LOCKED · WAIT FOR GREEN"));
+                    (!CivicConduitProgressReady?
+                        (CivicConduitForwardRemaining>.001f?
+                            L("继续向东 ","MOVE EAST ")+
+                                CivicConduitForwardRemaining.ToString("0.0")+
+                                L(" 格"," TILES"):
+                            L("沿线路继续前进","ADVANCE ALONG THE CIRCUIT")):
+                        CivicConduitWindowOpen?
+                            L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
+                            L("闭锁 · 等待绿色窗口","LOCKED · WAIT FOR GREEN"));
             if(LastDirectiveWave==1||LastDirectiveWave==3)
                 return L("最后指令 · 保密卫队","LAST DIRECTIVE · SECURITY")+
                     "\n"+L("击败实体守卫 ","REAL GUARDIANS LEFT ")+LastDirectiveEnemies;

@@ -56,6 +56,10 @@ namespace Starfall
         public float CivicConduitForwardRemaining
         { get { return CivicConduitActive?
             Math.Max(0f,CivicConduitRequiredSpan-CivicConduitForwardSpan):0f; } }
+        public bool CivicConduitProgressReady
+        { get { return CivicConduitActive &&
+            conduitWalked+.00001f>=CivicConduitRequiredSpan &&
+            CivicConduitForwardRemaining<=.00001f; } }
         public bool CivicConduitWindowOpen
         {
             get{return CivicConduitActive&&
@@ -322,7 +326,7 @@ namespace Starfall
             int slot=CivicConduitValveIndex(valve);
             float required=CivicConduitRequiredSpan;
             if(slot!=conduitStage)return true;
-            if(conduitWalked<required||CivicConduitForwardSpan+.00001f<required)
+            if(!CivicConduitProgressReady)
             {
                 Notify("线路还未向东拉开足够距离。再前进 "+
                     CivicConduitForwardRemaining.ToString("0.0")+

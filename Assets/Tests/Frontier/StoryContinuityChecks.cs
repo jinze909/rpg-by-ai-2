@@ -1334,6 +1334,15 @@ namespace Starfall.Tests
             Action(g,"civicconduitmaster","civic_conduit_start");
             Check(g.CivicConduitActive&&g.CivicConduitStage==0,
                 "Real public circuit begins at its authored western fuse station");
+            Check(!g.CivicConduitProgressReady&&
+                g.Conditions().Contains("继续向东")&&
+                !g.Conditions().Contains("现在操作"),
+                "Production HUD directs real eastward travel instead of falsely promising tune-now at the western fuse desk");
+            g.save.english=true;
+            Check(g.Conditions().Contains("MOVE EAST")&&
+                !g.Conditions().Contains("TUNE NOW"),
+                "English combat HUD reports the same true uncharged circuit state");
+            g.save.english=false;
             int count=0;
             while(g.Position.x<valve.x-1.9f&&count++<300)
                 g.Tick(.02f,new Point(1,0));
@@ -1368,8 +1377,12 @@ namespace Starfall.Tests
             while(g.CivicConduitForwardRemaining>.001f&&count++<100)
                 g.Tick(.02f,new Point(1,0));
             Check(g.CivicConduitForwardRemaining<.001f&&
+                g.CivicConduitProgressReady&&
                 (g.Position-new Point(valve.x,valve.y)).Length<2.2001f,
                 "Genuine additional eastward walking fulfills the remaining real span");
+            if(g.CivicConduitWindowOpen)
+                Check(g.Conditions().Contains("现在操作"),
+                    "Production HUD advertises an actionable green phase only after true eastbound route completion");
             count=0;
             while(g.CivicConduitActive&&!g.CivicConduitWindowOpen&&count++<350)
                 g.Tick(.02f,new Point());
