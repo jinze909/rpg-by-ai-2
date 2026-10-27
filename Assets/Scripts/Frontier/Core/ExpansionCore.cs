@@ -290,7 +290,18 @@ namespace Starfall
                     float tx=foe.target.x-x,ty=foe.target.y-y;
                     if (tx*tx+ty*ty<reach*reach &&
                         ClearAttackPath(foe.Position,Position))
+                    {
+                        // An ordinary archer can have a committed warning
+                        // whose arrow is physically intercepted by another
+                        // living hostile body or a newly sealed wall.
+                        // Reuse actual enemy-bow release geometry, not just
+                        // the old zero-radius sight line. Heavy/Boss ground
+                        // areas keep their existing separate threat radius.
+                        if(foe.kind==1&&!foe.boss&&
+                            !EnemyBowFlightLaneClear(foe,foe.target))
+                            continue;
                         return false;
+                    }
                 }
                 // A nearby hostile shot can arrive after its archer has moved
                 // beyond the safety radius. A travel shortcut must not make

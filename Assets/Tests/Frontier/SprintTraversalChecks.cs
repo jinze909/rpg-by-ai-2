@@ -130,6 +130,52 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void CoveredRemoteArcherOnlyBlocksTravelWhenShotCanActuallyArrive(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,0);
+                g.save.x=12.5f;g.save.y=15.5f;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                var archer=new Enemy(1775,1,20.5f,15.5f,90f)
+                {
+                    state=1,timer=.32f,windupDuration=.65f,
+                    target=g.Position
+                };
+                archer.Face(archer.target-archer.Position);
+                g.enemies.Add(archer);
+                Check(!g.SafeTravel,
+                    "An actual distant live archer aiming at the hero blocks unsafe retreat while its arrow lane is clear");
+                var cover=new Enemy(1776,0,18.65f,15.5f,75f)
+                {
+                    state=0,stun=2f
+                };
+                g.enemies.Add(cover);
+                Check((cover.Position-g.Position).Length>6f&&g.SafeTravel,
+                    "An unrelated living enemy outside the near danger radius intercepts the distant archer's TRUE committed arrow and restores travel");
+                cover.y+=3f;
+                Check(!g.SafeTravel,
+                    "Moving living body cover out of the arrow lane makes the imminent strike dangerous again without retargeting");
+                cover.y=15.5f;cover.hp=0f;
+                Check(!g.SafeTravel,
+                    "A dead front-line raider can no longer shield the hero from the genuine approaching arrow");
+                cover.hp=75f;
+                char[] row=g.Map.rows[15].ToCharArray();
+                row[19]='#';g.Map.rows[15]=new string(row);
+                Check(g.SafeTravel,
+                    "A real new wall sealing the archer's muzzle also releases the impossible distant bow travel lock");
+                row[19]='.';g.Map.rows[15]=new string(row);
+                Check(g.SafeTravel,
+                    "Removing the wall still leaves genuine live body cover between archer and hero");
+                g.enemies.Remove(cover);
+                Check(!g.SafeTravel&&g.projectiles.Count==0&&
+                    g.save.version==2&&archer.state==1,
+                    "Threat cues respond to actual cover removal without spawning arrows, canceling combat or editing persisted v2 fields");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void TruePlayerWalkingVelocityNeverIncludesDodgeOrPlantedAttack(Campaign data)
         {
             MapData original=data.maps[1];
