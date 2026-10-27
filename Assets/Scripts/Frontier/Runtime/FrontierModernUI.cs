@@ -6,6 +6,8 @@ namespace Starfall
     public sealed partial class FrontierRuntime
     {
         private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, dialogueChoicePage, recordsPage, questPage;
+        private bool journalSpeechOpen;
+        private int journalSpeechIndex,journalSpeechPage;
         private const int DialogueChoicesPerPage = 6;
         // In-game, read-only transcript overlay; never runs archived choice
         // handlers. The conversation underneath remains the REAL live menu.
@@ -1020,6 +1022,80 @@ namespace Starfall
             if (journalTab == 3) { DrawJourney(); return; }
             if (journalTab == 1)
             {
+                // The same actually witnessed dialogue remains readable
+                // from the ordinary JOURNAL after leaving an NPC. This is a
+                // memory of the CURRENT play session, not a new quest, lore
+                // unlock or serialized data field. Switching this tab
+                // never re-enters a dialogue choice handler.
+                if(Button(998,691,219,30,journalSpeechOpen?
+                    Game.L("返回世界档案","World records"):
+                    Game.L("最近对话记录","Recent speech")))
+                {
+                    journalSpeechOpen=!journalSpeechOpen;
+                    journalSpeechIndex=Math.Max(0,Game.DialogueRecordCount-1);
+                    journalSpeechPage=0;
+                }
+                if(journalSpeechOpen)
+                {
+                    int amount=Game.DialogueRecordCount;
+                    if(amount==0)
+                    {
+                        Card(279,229,938,402);
+                        Text(315,320,856,135,
+                            Game.L("本次旅程还没有可回看的对话。与居民交谈后，原文会暂存在这里。",
+                            "No dialogue has been heard this session. Talk to a resident to review their actual words here."),
+                            21,paper);
+                        return;
+                    }
+                    journalSpeechIndex=Math.Max(0,Math.Min(amount-1,
+                        journalSpeechIndex));
+                    DialogueRecord record=Game.DialogueRecordAt(journalSpeechIndex);
+                    List<string> speechPages=DialogueLayout.Pages(
+                        Game.L(record.text,record.textEn),Game.save.largeText);
+                    journalSpeechPage=Math.Max(0,Math.Min(
+                        speechPages.Count-1,journalSpeechPage));
+                    Card(279,229,938,402);
+                    Text(313,244,854,35,Game.L(record.speaker,record.en),
+                        23,gold);
+                    Text(313,290,855,305,
+                        DialogueLayout.VisiblePageText(
+                            speechPages[journalSpeechPage]),18,paper);
+                    Text(300,607,891,23,
+                        Game.L("已读原文 ","Witnessed words ")+
+                        (journalSpeechIndex+1)+"/"+amount+
+                        Game.L(" · 页 "," · page ")+
+                        (journalSpeechPage+1)+"/"+speechPages.Count,
+                        12,muted,TextAnchor.MiddleCenter);
+                    if(Button(279,648,289,38,
+                        Game.L("上一段 / 上一页","Earlier / previous page"),
+                        false,journalSpeechIndex>0||journalSpeechPage>0))
+                    {
+                        if(journalSpeechPage>0)journalSpeechPage--;
+                        else if(journalSpeechIndex>0)
+                        {
+                            journalSpeechIndex--;
+                            DialogueRecord prev=Game.DialogueRecordAt(
+                                journalSpeechIndex);
+                            journalSpeechPage=DialogueLayout.Pages(
+                                Game.L(prev.text,prev.textEn),
+                                Game.save.largeText).Count-1;
+                        }
+                    }
+                    if(Button(928,648,289,38,
+                        Game.L("下一段 / 下一页","Later / next page"),
+                        false,journalSpeechIndex<amount-1||
+                            journalSpeechPage<speechPages.Count-1))
+                    {
+                        if(journalSpeechPage<speechPages.Count-1)
+                            journalSpeechPage++;
+                        else if(journalSpeechIndex<amount-1)
+                        {journalSpeechIndex++;journalSpeechPage=0;}
+                    }
+                    Text(590,651,312,31,
+                        Game.L("只读 · 不重复触发选项","Read-only · never replay"),
+                        12,muted,TextAnchor.MiddleCenter);
+                    return;
+                }
                 int pages = Math.Max(1, (Game.data.lore.Length + 9) / 10); recordsPage = (int)GameCore.Clamp(recordsPage, 0, pages - 1);
                 for (int cell = 0; cell < 10 && recordsPage * 10 + cell < Game.data.lore.Length; cell++) { int i = recordsPage * 10 + cell; bool found = Game.Has("history_" + i) || i < 3 && Game.Has("lore_" + (i + 1)); float x = 279 + cell % 2 * 477, y = 229 + cell / 2 * 85; Card(x, y, 460, 71); Icon("journal", x + 11, y + 17, 35); if (Button(x + 62, y + 14, 382, 44, found ? Game.L(Game.data.lore[i].title, Game.data.lore[i].en) : Game.L("未发现记录 ", "Undiscovered record ") + (i + 1), false, found)) { dialogParent = "journal"; Game.OpenCodex(i); } }
                 if (Button(279, 650, 221, 38, Game.L("上一页", "Previous page"), false, recordsPage > 0)) recordsPage--;
