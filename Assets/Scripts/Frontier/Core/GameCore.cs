@@ -290,6 +290,7 @@ namespace Starfall
             // damage state alive, allowing an old cast to pulse after travel
             // or a save-slot replacement at the same world coordinates.
             ClearFrost();
+            ResetEnemyHitAlert();
             projectiles.Clear(); effects.Clear();
             flightReadyAtFrameStart.Clear();
             // A new journey/slot must never inherit pointer targeting, facing,
@@ -1221,7 +1222,8 @@ namespace Starfall
             Point strikeSource=profile.playerOwned?Position:
                 save.companion>=0?companionPosition:e.Position;
             AlertRidgeWatchOnRealHit(e,strikeSource);
-            e.hp -= damage; e.flash = .09f; e.hitTime = .18f; e.recoil = attackDirection ?? (e.Position - Position).Normalized;
+            e.hp -= damage; e.flash = .09f; e.hitTime = .18f;
+            NotifyEnemyOfActualDistantPlayerHit(e,profile); e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
             // distinct combat element, but only after the authoritative HP,
@@ -1894,6 +1896,7 @@ namespace Starfall
                 // amount of unlocked AI time. Otherwise one NaN can propagate
                 // through freeDt and turn an ordinary foe into a frozen actor.
                 if (RepairEnemyTransientClocks(e)) continue;
+                bool playerHitProvoked=TickEnemyHitAlert(e,dt);
                 // Reactions overlap on one shared simulation clock. When a
                 // 40ms stun ends inside a 50ms tick, only the UNLOCKED 10ms
                 // may advance pursuit or a telegraphed attack. Previously all
@@ -2214,7 +2217,8 @@ namespace Starfall
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     !escortPatrol && !stockRaider && !patrolSaboteur &&
                     distance > (e.boss ? 18 : 8) &&
-                    !(RidgeWatchRespondsToAlarm(e)&&distance<=18f)) continue;
+                    !(RidgeWatchRespondsToAlarm(e)&&distance<=18f) &&
+                    !(playerHitProvoked&&distance<=18f)) continue;
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.

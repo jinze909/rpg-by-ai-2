@@ -3,6 +3,76 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void LongRangePlayerHitCausesRealBoundedPhysicalEnemyPursuit(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.save.stage=3;g.Enter(1);g.enemies.Clear();
+                g.save.x=7.5f;g.save.y=10.5f;
+                g.invulnerable=300f;g.mode="world";
+                var foe=new Enemy(76001,0,21.5f,10.5f,220f);
+                foe.timer=1f;g.enemies.Add(foe);
+                Check(g.CanStand(foe.Position)&&
+                    g.ClearAttackPath(g.Position,foe.Position),
+                    "The tested distant hit has an actual traversable ranged lane");
+                Point start=foe.Position;
+                Advance(g,.55f);
+                Check((foe.Position-start).Length<.01f,
+                    "A calm enemy outside eight tiles is not a perpetual global hunter");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(hit!=null,"The authoritative damage pipeline exists");
+                var hero=new ImpactProfile(1,0,1,0,0f,true,1);
+                float beforeHp=foe.hp;
+                hit.Invoke(g,new object[]{foe,2f,false,(Point?)null,hero});
+                Check(foe.hp<beforeHp,
+                    "Long-range provocation follows genuine dealt HP damage");
+                Advance(g,.8f);
+                Check((foe.Position-start).Length>.25f&&
+                    g.CanStand(foe.Position),
+                    "An authentically struck hunter physically walks toward the player");
+                // A second live actor with the same numeric ID cannot borrow
+                // the first actor's recently-hit timer or response.
+                var impersonator=new Enemy(foe.id,0,23.5f,16.5f,220f);
+                impersonator.timer=1f;g.enemies.Add(impersonator);
+                Point otherStart=impersonator.Position;
+                Advance(g,.4f);
+                Check((impersonator.Position-otherStart).Length<.01f,
+                    "An untouched matching-ID actor remains asleep");
+                Advance(g,6.5f);
+                // The six-second provocation has ended. A fresh actor
+                // outside ordinary awareness must no longer walk on it.
+                foe.x=21.5f;foe.y=10.5f;foe.state=0;
+                foe.timer=1f;foe.stun=foe.releaseTime=foe.hitTime=0f;
+                Point expired=foe.Position;
+                Advance(g,.4f);
+                Check((foe.Position-expired).Length<.01f,
+                    "Expired provocation no longer permits 14-tile passive pursuit");
+                g.Enter(0);g.Enter(1);g.enemies.Clear();
+                var another=new Enemy(76001,0,21.5f,10.5f,220f);
+                another.timer=1f;g.enemies.Add(another);
+                Point loaded=another.Position;
+                Advance(g,.4f);
+                Check((another.Position-loaded).Length<.01f,
+                    "Room travel cannot transfer an old hit reaction into a new enemy body");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
 
 
 

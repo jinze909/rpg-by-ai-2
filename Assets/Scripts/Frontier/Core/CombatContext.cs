@@ -40,6 +40,58 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private FrostField frost, companionFrost;
+        // Only a real player-owned, nonlethal contact beyond ordinary
+        // local aggro grants a bounded pursuit response. The physical
+        // Enemy reference owns the alarm, never its reuseable numeric ID.
+        // This is a runtime reaction: no SaveData or historical aggro.
+        private readonly Dictionary<Enemy,float> enemyHitAlert =
+            new Dictionary<Enemy,float>();
+        private SaveData enemyHitAlertSave;
+        private MapData enemyHitAlertMap;
+        private const float EnemyHitAlertSeconds=6f;
+        private void EnsureEnemyHitAlertSession()
+        {
+            if(!System.Object.ReferenceEquals(enemyHitAlertSave,save)||
+               !System.Object.ReferenceEquals(enemyHitAlertMap,Map))
+            {
+                enemyHitAlert.Clear();
+                enemyHitAlertSave=save;
+                enemyHitAlertMap=Map;
+            }
+        }
+        private void ResetEnemyHitAlert()
+        {
+            enemyHitAlert.Clear();
+            enemyHitAlertSave=null;
+            enemyHitAlertMap=null;
+        }
+        private void NotifyEnemyOfActualDistantPlayerHit(Enemy e,ImpactProfile impact)
+        {
+            if(e==null||impact==null||!impact.playerOwned||
+               e.boss||e.hp<=0||practicing||mode!="world"||
+               !enemies.Contains(e))return;
+            float range=(e.Position-Position).Length;
+            if(!Finite(range)||range<=8f||range>18f)return;
+            EnsureEnemyHitAlertSession();
+            enemyHitAlert[e]=EnemyHitAlertSeconds;
+        }
+        private bool TickEnemyHitAlert(Enemy e,float dt)
+        {
+            EnsureEnemyHitAlertSession();
+            float remaining;
+            if(e==null||!enemyHitAlert.TryGetValue(e,out remaining))
+                return false;
+            remaining-=Math.Max(0f,dt);
+            float range=(e.Position-Position).Length;
+            if(!enemies.Contains(e)||e.hp<=0||e.boss||
+               !Finite(range)||range>18f||remaining<=0f)
+            {
+                enemyHitAlert.Remove(e);
+                return false;
+            }
+            enemyHitAlert[e]=remaining;
+            return true;
+        }
         private ImpactProfile CaptureImpact(int weapon,int attackCombo=0,bool playerOwned=true)
         {
             weapon=(int)Clamp(weapon,0,2);
