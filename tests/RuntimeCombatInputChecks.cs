@@ -7994,14 +7994,26 @@ public static class RuntimeCombatInputChecks
         Check(junction!=null,"Ironreach still contains the actual contested rail junction");
         Point cart=new Point(junction.x,junction.y);
         g.save.x=cart.x+1.25f;g.save.y=cart.y;
-        var raider=new Enemy(91300,0,cart.x+3f,cart.y,95f)
-            {stun=100f,timer=100f};
+        // The HUD must be fed an ACTUAL production-owned saboteur.
+        // Numeric IDs alone no longer authenticate a raider, so spawn
+        // the real pair from its authored switchyard and retain the one
+        // physical contact lane this offline tactical overlay exercises.
+        typeof(GameCore).GetField("<MineCartPosition>k__BackingField",Private).SetValue(g,cart);
+        var spawn=typeof(GameCore).GetMethod("SpawnMineConvoyAmbush",Private);
+        Check(spawn!=null&&(bool)spawn.Invoke(g,null),
+            "Original switchyard generator places two genuine minecart guards on playable terrain");
+        typeof(GameCore).GetField("<MineConvoyStage>k__BackingField",Private).SetValue(g,2);
+        var raider=g.enemies.Find(e=>g.IsMineConvoyEnemy(e)&&e.kind==0);
+        Check(raider!=null,"The actual registered melee saboteur belongs to the escort");
+        // The second genuine guard has no stake in this single-lane HUD
+        // scene; it must not create an unrelated second intercept indicator.
+        g.enemies.RemoveAll(e=>g.IsMineConvoyEnemy(e)&&
+            !System.Object.ReferenceEquals(e,raider));
+        raider.x=cart.x+3f;raider.y=cart.y;
+        raider.stun=100f;raider.timer=100f;
         Check(g.CanStand(cart)&&g.CanStand(g.Position)&&
             g.CanStand(raider.Position),
-            "Hero, original cart station and real sabotage lane fit authored Ironreach terrain");
-        g.enemies.Add(raider);
-        typeof(GameCore).GetField("<MineConvoyStage>k__BackingField",Private).SetValue(g,2);
-        typeof(GameCore).GetField("<MineCartPosition>k__BackingField",Private).SetValue(g,cart);
+            "Hero, original cart station and registered sabotage lane fit authored Ironreach terrain");
         typeof(GameCore).GetField("<MineConvoyIntegrity>k__BackingField",Private).SetValue(g,74f);
         typeof(GameCore).GetField("<MineConvoyTime>k__BackingField",Private).SetValue(g,88f);
         Check(g.MineConvoyBodyguarding && g.Conditions().Contains("INTERCEPTING"),
