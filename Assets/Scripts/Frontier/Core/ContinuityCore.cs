@@ -264,6 +264,38 @@ namespace Starfall
         // A dash, recoil or planted attack is not a walking trajectory.
         private Point walkingVelocity;
         public Point WalkingVelocity { get { return walkingVelocity; } }
+        // The warning ray must stop at the SAME physical obstruction that
+        // would cancel a real enemy arrow's body-side muzzle or flying head.
+        // Dynamic gates can shut after windup; a ghost laser painted through
+        // the sealed wall would lie about which flank must be dodged.
+        // Read-only; no spawned shot, action transition, RNG or save mutation.
+        public Point ArcherWarningPhysicalEnd(Enemy shooter)
+        {
+            if(shooter==null||shooter.boss||shooter.kind!=1||
+               !enemies.Contains(shooter)||
+               !Finite(shooter.target.x)||!Finite(shooter.target.y))
+                return new Point();
+            Point muzzle=WeaponOrigin(shooter.Position,1,shooter.facing);
+            Projectile probe=WeaponShot(shooter.Position,1,
+                shooter.facing,5f,0f,shooter.target);
+            if(probe.blockedAtSpawn||ShotBlocked(probe,probe.position))
+                return muzzle;
+            Point vector=shooter.target-probe.position;
+            float distance=vector.Length;
+            if(!Finite(distance)||distance<.001f)return probe.position;
+            // The warning is for the committed arrow center, not the
+            // contemporary moving hero or an arbitrary GUI-only endpoint.
+            int steps=Math.Max(1,(int)Math.Ceiling(distance/.07f));
+            Point lastFree=probe.position;
+            for(int i=1;i<=steps;i++)
+            {
+                Point next=probe.position+vector*(i/(float)steps);
+                if(ShotBlocked(probe,next))return lastFree;
+                lastFree=next;
+            }
+            return shooter.target;
+        }
+
         // Ordinary hostile archers may lead the hero's CURRENT genuine
         // walking gait once at their visible 650ms bow draw. They do NOT
         // re-aim in mid-windup. Real attack collision and warning strokes

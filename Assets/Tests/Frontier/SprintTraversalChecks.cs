@@ -101,6 +101,38 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void EnemyBowWarningStopsAtActualClosingWall(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,0);
+                var bow=new Enemy(1740,1,12.5f,15.5f,90f);
+                bow.state=1;bow.timer=.32f;bow.windupDuration=.65f;
+                bow.target=new Point(20.5f,15.5f);
+                bow.Face(bow.target-bow.Position);
+                g.enemies.Add(bow);
+                Point clear=g.ArcherWarningPhysicalEnd(bow);
+                Check((clear-bow.target).Length<.001f&&
+                    g.projectiles.Count==0,
+                    "A clear enemy bow warning follows the actual unspent arrow from its physical muzzle to locked impact");
+                char[] row=g.Map.rows[15].ToCharArray();
+                row[16]='#';g.Map.rows[15]=new string(row);
+                Point clipped=g.ArcherWarningPhysicalEnd(bow);
+                Check(clipped.x>bow.Position.x&&clipped.x<16f&&
+                    Math.Abs(clipped.y-bow.Position.y)<.001f&&
+                    g.projectiles.Count==0,
+                    "A newly sealed gate clips the genuine enemy bow warning BEFORE its leading arrow head hits the wall");
+                g.Tick(.05f,new Point());
+                Check(bow.state==0&&!g.projectiles.Exists(p=>
+                    !p.friendly&&System.Object.ReferenceEquals(p.hostileShooter,bow)),
+                    "Real enemy archer attack retires against the same freshly blocked lane; no ghost missile flies behind the warning");
+                Check(g.save.version==2,
+                    "Physical telegraph is a read-only world query, not a serialized attack workaround");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void HoldingSprintMovesFasterAndChargesRealDistance(Campaign data)
         {
             MapData original=data.maps[1];

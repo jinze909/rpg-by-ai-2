@@ -718,10 +718,26 @@ namespace Starfall
             Color color=new Color(.875f,.54f,.408f,.35f+progress*.4f);
             if(enemy.kind==1)
             {
-                Point muzzle=GameCore.WeaponOrigin(enemy.Position,1,enemy.facing),lift=new Point(0,GameCore.WeaponHeight(1,enemy.facing)/Tile);
+                Point muzzle=GameCore.WeaponOrigin(enemy.Position,1,enemy.facing),
+                    lift=new Point(0,GameCore.WeaponHeight(1,enemy.facing)/Tile);
+                Point endpoint=Game.ArcherWarningPhysicalEnd(enemy);
+                bool interruptedByCover=
+                    (endpoint-enemy.target).Length>.08f;
                 DrawWarningStroke(ScreenPoint(muzzle-lift),
-                    ScreenPoint(enemy.target-lift),color);
-                if(enemy.archerLeading)
+                    ScreenPoint(endpoint-lift),color);
+                if(interruptedByCover)
+                {
+                    // Terrain may have closed AFTER the attack warning
+                    // began. Mark the short physical end, not an imaginary
+                    // hit behind stone. The real release cancels this bow
+                    // shot when its muzzle/ray is sealed.
+                    DrawWarningArc(endpoint,.14f,0f,
+                        (float)(Math.PI*2),
+                        new Color(.92f,.65f,.5f,
+                            Game.save.reducedMotion?.62f:
+                            .35f+progress*.32f),10);
+                }
+                if(enemy.archerLeading&&!interruptedByCover)
                 {
                     // Show where this arrow is REALLY committed, not an
                     // instant homing indicator above the moving hero.
