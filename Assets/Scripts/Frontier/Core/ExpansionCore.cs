@@ -2847,6 +2847,8 @@ namespace Starfall
                                 CivicConduitForwardRemaining.ToString("0.0")+
                                 L(" 格"," TILES"):
                             L("沿线路继续前进","ADVANCE ALONG THE CIRCUIT")):
+                        !SafeTravel?
+                            L("攻击或电弧预警 · 先避险","LIVE THREAT · EVADE OR GROUND"):
                         CivicConduitWindowOpen?
                             L("绿色稳定 · 现在操作","GREEN PHASE · TUNE NOW"):
                             L("闭锁 · 等待绿色窗口","LOCKED · WAIT FOR GREEN"));

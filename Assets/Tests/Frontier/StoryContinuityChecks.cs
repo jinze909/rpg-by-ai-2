@@ -1306,6 +1306,25 @@ namespace Starfall.Tests
             Check(g.CivicConduitWindowOpen && g.CivicConduitWindowRemaining >= .85f,
                 "The first green window must leave a usable interaction margin after the 7.2-unit approach");
 
+            Check(g.CivicConduitProgressReady&&g.SafeTravel&&
+                g.Conditions().Contains("现在操作"),
+                "Completed physical approach and a genuinely safe green phase render a truthful TUNE NOW world condition");
+            float beforeGroundEnergy=g.save.energy;
+            g.hazards.Add(new Hazard { position=g.Position,radius=1.25f,
+                timer=1.0f,damage=13f,kind="rift",civicConduitOwned=true });
+            Check(!g.SafeTravel&&!g.Conditions().Contains("现在操作")&&
+                g.Conditions().Contains("先避险"),
+                "A real pending circuit arc instantly withdraws the false green TUNE NOW HUD claim");
+            g.Talk(valve);
+            Check(!StoryChoicePresent(g,"civic_conduit_tune")&&
+                StoryChoicePresent(g,"civic_conduit_ground")&&
+                g.conversation.textEn.Contains("arc warning"),
+                "The physical valve offers real one-time grounding instead of silently accepting an unsafe tune");
+            ChooseStoryChoice(g,"civic_conduit_ground");
+            Check(g.SafeTravel&&g.CivicConduitActive&&
+                g.save.energy<=beforeGroundEnergy-19.9f&&
+                !g.hazards.Exists(h=>h.civicConduitOwned),
+                "A genuine 20-energy grounding transaction cancels only owned live-grid arcs without skipping the valve stage");
             g.Talk(valve);
             int tune = -1;
             for (int i = 0; i < g.conversation.choices.Length; i++)

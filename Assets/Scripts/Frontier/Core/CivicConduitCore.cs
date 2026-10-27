@@ -195,6 +195,7 @@ namespace Starfall
                     C("返回上一个","Backtrack","close"));return true;
             }
             bool open=CivicConduitWindowOpen;
+            bool clear=SafeTravel;
             // The grounding option remains visible even at zero energy, so
             // players know the resource requirement before trying it.
             string controlZh=(conduitGroundedMask&(1<<conduitStage))==0?
@@ -210,9 +211,13 @@ namespace Starfall
                 controlEn+=" Conductor damaged: one spare part restores 35 integrity at this valve, once per run.";
             }
             var commands=new System.Collections.Generic.List<Choice>();
-            commands.Add(C(open?"执行实际调谐":"关闭面板并等待绿色周期",
-                open?"Tune now":"Close panel and wait for green",
-                open?"civic_conduit_tune":"close"));
+            commands.Add(C(open&&clear?"执行实际调谐":
+                    !clear?"附近仍有攻击预警 · 先避险":
+                    "关闭面板并等待绿色周期",
+                open&&clear?"Tune now":
+                    !clear?"Live threat nearby · get clear":
+                    "Close panel and wait for green",
+                open&&clear?"civic_conduit_tune":"close"));
             if((conduitGroundedMask&(1<<conduitStage))==0)
                 commands.Add(C("手动接地 · 耐力20",
                     "Ground valve · 20 energy","civic_conduit_ground"));
@@ -221,7 +226,9 @@ namespace Starfall
                     "Repair conductor · 1 spare part","civic_conduit_repair"));
             commands.Add(C("暂时离开","Leave","close"));
             Dialog(o.name,o.en,
-                (open?"当前阀门稳定！":"当前阀门处于高压闭锁期。")+
+                (open&&clear?"当前阀门稳定！":
+                    !clear?"阀门有电，但附近的攻击或电弧仍在预警，暂不可调谐。":
+                    "当前阀门处于高压闭锁期。")+
                 "\n导体完好度："+(int)Math.Ceiling(conduitIntegrity)+
                 "%，剩余 "+(int)Math.Ceiling(CivicConduitTimeLeft)+
                 " 秒。\n"+
@@ -230,7 +237,9 @@ namespace Starfall
                 (open?"绿色窗口剩余 ":"下个绿色窗口还有 ")+
                 CivicConduitWindowRemaining.ToString("0.0")+" 秒。"+
                 (open?"请在相位结束前确认。":"关闭面板后时间才会继续，记得躲避电弧。")+controlZh,
-                (open?"Valve stable now!":"Valve pressure locked!")+
+                (open&&clear?"Valve stable now!":
+                    !clear?"The valve is powered, but a live strike or arc warning blocks safe tuning.":
+                    "Valve pressure locked!")+
                 "\nConductor: "+(int)Math.Ceiling(conduitIntegrity)+
                 "%; "+(int)Math.Ceiling(CivicConduitTimeLeft)+
                 " seconds left.\n"+
@@ -326,7 +335,16 @@ namespace Starfall
                 return true;
             }
             if(action!="civic_conduit_tune"||!CivicConduitActive||valve==null||
-                !CivicConduitWindowOpen||!SafeTravel)return true;
+                !CivicConduitWindowOpen)return true;
+            // An action opened before a hostile arc arrives still has to
+            // pass the same live contact safety gate. Do not silently eat
+            // the input; tell the player to evade or ground the source.
+            if(!SafeTravel)
+            {
+                Notify("附近仍有攻击预警。先避开电弧、清除威胁，或使用阀门接地。",
+                    "A live attack or arc warning blocks tuning. Evade or ground the valve first.");
+                return true;
+            }
             int slot=CivicConduitValveIndex(valve);
             float required=CivicConduitRequiredSpan;
             if(slot!=conduitStage)return true;
