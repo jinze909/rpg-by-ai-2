@@ -473,17 +473,45 @@ namespace Starfall.Tests
             Check(g.effects.Exists(e=>e.kind=="projectileFade"&&e.mineConvoyOwned)&&
                 g.effects.Exists(e=>e.kind=="projectileFade"&&e.frostSignalOwned),
                 "Real projectile expiration tags the correct authored combat source");
-            Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&e.mineConvoyOwned)&&
-                g.effects.Exists(e=>e.kind=="burst"&&e.mineConvoyOwned)&&
+            Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&!e.mineConvoyOwned)&&
+                g.effects.Exists(e=>e.kind=="burst"&&!e.mineConvoyOwned)&&
                 !g.effects.Exists(e=>e.kind=="danger"&&e.mineConvoyOwned),
-                "Minecart raider release and post-contact burst inherit mission ownership without a phantom danger warning");
+                "A same-ID impostor outside the actual guard roster retains ordinary combat visuals, not stolen minecart mission ownership");
             g.Talk(west);
             Check(MineCartTestChoice(g,"mineconvoy_abort"),
                 "The western civilian post can actually cancel its active fight");
             Check(!g.effects.Exists(e=>e.mineConvoyOwned)&&
                 g.effects.Exists(e=>e.frostSignalOwned)&&
+                g.effects.Exists(e=>e.kind=="enemyRelease"&&!e.mineConvoyOwned)&&
                 !g.projectiles.Exists(p=>p.mineConvoyOwned),
-                "Aborting clears only owned windups, impacts and fading shots; unrelated effects survive");
+                "Aborting clears only owned windups, impacts and fading shots; an unregistered enemy and unrelated quest effects survive");
+            // Also test the opposite side of the ownership contract:
+            // the genuine physical second-stage heavy uses the production
+            // release/burst effects tagged to the ongoing escort.
+            g.enemies.Remove(raider);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(MineCartTestChoice(g,"mineconvoy_start"),
+                "A canceled cart can launch its original real escort again");
+            var junction=MineCartTestPost(g,2);
+            WalkBesideMinecart(g,new Point(junction.x,junction.y),1);
+            Check(g.MineConvoyStage==2&&
+                g.enemies.FindAll(g.IsMineConvoyEnemy).Count==2,
+                "Actual registered raider pair protects the original switchyard");
+            Enemy heavy=g.enemies.Find(e=>g.IsMineConvoyEnemy(e)&&e.kind==2);
+            Check(heavy!=null,"Physical mine convoy owns a heavy guard, not the forged actor");
+            Point position=g.Position;
+            Point attackFoot=new Point(position.x+1.4f,position.y);
+            if(!g.CanStand(attackFoot))
+                attackFoot=new Point(position.x-1.4f,position.y);
+            Check(g.CanStand(attackFoot),
+                "A real heavy escort raider can stand on the original reachable junction floor");
+            heavy.x=attackFoot.x;heavy.y=attackFoot.y;
+            heavy.state=1;heavy.timer=.01f;heavy.target=g.Position;
+            heavy.Face(g.Position-heavy.Position);
+            g.Tick(.05f,new Point());
+            Check(g.effects.Exists(e=>e.kind=="enemyRelease"&&e.mineConvoyOwned)&&
+                g.effects.Exists(e=>e.kind=="burst"&&e.mineConvoyOwned),
+                "Registered heavy guard's genuine release and contact effects still carry exact mine mission ownership");
         }
 
 
