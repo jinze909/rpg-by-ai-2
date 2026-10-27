@@ -69,13 +69,25 @@ namespace Starfall.Tests
                 Advance(game,1.1f);
                 Check(game.IsEnemyInvestigatingImpact(guard),
                     "The real second arrow strikes before the first investigation expires");
+                var origin=typeof(GameCore).GetMethod("LastKnownEnemyHitOrigin",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(origin!=null,"The real alert retains its owned investigation foot");
+                Point known=(Point)origin.Invoke(game,new object[]{
+                    guard,new Point(-99f,-99f)});
+                Check(known.y>14.5f,
+                    "Second real impact must retarget the actual guard search foot; got "+
+                    known.x+","+known.y);
                 Point before=guard.Position;
                 guard.stun=0f;
                 Advance(game,.5f);
                 Check(guard.Position.y>before.y+.12f&&
                     game.IsEnemyInvestigatingImpact(guard)&&
                     guard.hp==200f&&game.save.version==2,
-                    "Guard physically heads toward the NEW northern impact, not the stale southern one, without damage or save changes");
+                    "Real investigation must travel north without awarding HP/loot: before "+
+                    before.x+","+before.y+" after "+guard.Position.x+","+guard.Position.y+
+                    " searching="+game.IsEnemyInvestigatingImpact(guard)+
+                    " HP="+guard.hp+" version="+game.save.version);
 
                 // The exact same missile cannot distract an active rescue
                 // attacker while it still owns its original civilian target.
