@@ -52,6 +52,46 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void ControllerLockRespectsRealProjectileWidthAtWallCorners(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                foreach(int weapon in new[]{0,1,2})
+                {
+                    var g=SprintTestWorld(data,1);
+                    g.save.weapon=weapon;
+                    g.save.x=8.5f;g.save.y=15.75f;
+                    var enemy=new Enemy(1240,0,18.5f,15.75f,80f);
+                    g.enemies.Add(enemy);
+                    Check(g.CanStand(g.Position)&&g.CanStand(enemy.Position),
+                        "Oblique muzzle test uses legal hero and enemy feet");
+                    Check(System.Object.ReferenceEquals(
+                        g.AcquireRangedStickTarget(new Point(1f,0f)),enemy),
+                        "Open physical lane acquires the true moving-capable target before cover arrives");
+                    char[] wall=g.Map.rows[16].ToCharArray();
+                    for(int x=12;x<=15;x++)wall[x]='#';
+                    g.Map.rows[16]=new string(wall);
+                    Check(!g.Blocked(13.5f,15.75f)&&
+                        g.CanStand(g.Position)&&g.CanStand(enemy.Position),
+                        "Live sidewall leaves visible centerline clear and both actors unburied");
+                    Check((g.AcquireRangedStickTarget(new Point(1f,0f))==enemy)==
+                        (weapon==1),
+                        "Thin physical arrowhead slips safely past cover, but actual wider sword-Q/staff projectiles lose their impossible target locks");
+                    wall=g.Map.rows[16].ToCharArray();
+                    for(int x=12;x<=15;x++)wall[x]='.';
+                    g.Map.rows[16]=new string(wall);
+                    Check(System.Object.ReferenceEquals(
+                        g.AcquireRangedStickTarget(new Point(1f,0f)),enemy),
+                        "Removing the same real wall restores target lock without artificial cooldown");
+                    Check(g.projectiles.Count==0&&enemy.hp==80f&&
+                        g.save.version==2,
+                        "Projectile-radius target selection creates no shots, harm, save fields or legacy resource edits");
+                }
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void ControllerAimHonorsFrontBodiesAndStableLivingIdentity(Campaign data)
         {
             MapData original=data.maps[1];

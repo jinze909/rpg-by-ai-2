@@ -59,6 +59,13 @@ namespace Starfall
                 if(probe.blockedAtSpawn||
                    !ClearAttackPath(probe.position,enemy.Position))
                     continue;
+                // A visible center ray can pass a corner while the REAL
+                // arrowhead or staff orb clips its side. Do not advertise
+                // a lock unless the same nine-point ShotBlocked footprint
+                // and <=.1-tile swept flight can actually reach the actor.
+                // Bow and staff deliberately have different real radii.
+                if(!ProjectileLaneClear(probe,enemy.Position))
+                    continue;
                 // A farther enemy can be perfectly aligned with the stick
                 // while a nearer hostile body would absorb the actual
                 // arrow. Never promise a rear lock through an intervening
@@ -101,6 +108,34 @@ namespace Starfall
             }
             return selected;
         }
+        // A read-only projection of the actual projectile's footprint,
+        // not merely its center sight ray. Uses the same <=.1-tile world
+        // samples as UpdateProjectiles, including the real muzzle and
+        // original lifetime. Shared by controller locks and moving leads:
+        // neither may promise a route the genuine shot cannot traverse.
+        private bool ProjectileLaneClear(Projectile shot,Point target)
+        {
+            if(shot==null||shot.blockedAtSpawn||
+               !Finite(target.x)||!Finite(target.y)||
+               !Finite(shot.position.x)||!Finite(shot.position.y)||
+               !Finite(shot.velocity.x)||!Finite(shot.velocity.y)||
+               ShotBlocked(shot,shot.position))
+                return false;
+            Point flight=target-shot.position;
+            float length=flight.Length;
+            float speed=shot.velocity.Length;
+            if(!Finite(length)||!Finite(speed)||speed<.001f||
+               !Finite(shot.life)||length>speed*shot.life)
+                return false;
+            // Never call the sampled sweep with a nonfinite or very long
+            // path from a corrupt untrusted battle record.
+            int count=Math.Max(1,(int)Math.Ceiling(length/.1f));
+            for(int i=1;i<=count;i++)
+                if(ShotBlocked(shot,shot.position+
+                    flight*(i/(float)count)))return false;
+            return true;
+        }
+
         // Exact launched weapon timing, including the player's current
         // 30%-slow heavy style or 20%-fast quick style. This must share
         // Profile() and BeginAction's existing contact fraction; a fixed
@@ -193,20 +228,12 @@ namespace Starfall
             Point direction=(predicted-Position).Normalized;
             Projectile shot=WeaponShot(Position,weapon,direction,
                 speed,1f,predicted);
-            if(shot.blockedAtSpawn||ShotBlocked(shot,shot.position))
+            // The target interception and manual R3 selection now share
+            // identical projectile-radius and real-flight obstruction
+            // checks. No extra shot, aim homing or saved state is created.
+            if(!ProjectileLaneClear(shot,predicted)||
+               (predicted-shot.position).Length<.05f)
                 return current;
-            Point flightRay=predicted-shot.position;
-            float flightDistance=flightRay.Length;
-            if(!Finite(flightDistance)||flightDistance<.05f||
-                flightDistance>speed*shot.life)
-                return current;
-            int samples=Math.Max(1,
-                (int)Math.Ceiling(flightDistance/.1f));
-            for(int i=1;i<=samples;i++)
-            {
-                Point p=shot.position+flightRay*(i/(float)samples);
-                if(ShotBlocked(shot,p))return current;
-            }
             // The terrain may be clear but another LIVE enemy can catch
             // the actual missile first. The old leading reticle silently
             // advertised a rear hit through that body, even though the
