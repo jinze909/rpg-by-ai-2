@@ -10,6 +10,71 @@ public static class RuntimePolishChecks
     static void Invoke(object value, string method) { value.GetType().GetMethod(method, Private).Invoke(value, null); }
     static void Set(object value, string field, object data) { value.GetType().GetField(field, Private).SetValue(value, data); }
     static void Key(FrontierRuntime app, KeyCode key) { Input.keys.Add(key); Event.current.type = EventType.KeyDown; Invoke(app, "Update"); Invoke(app, "OnGUI"); Check(Event.current.type == EventType.Used, "Handled keys cannot also activate native IMGUI focus"); GUI.commands.Clear(); Input.keys.Clear(); Event.current.type = EventType.Repaint; }
+    // Executes within the registered production input harness. Forged
+    // numeric identities must not mask a missing real traveler attacker.
+    private static void VerifyWayfarerLethalOwnership()
+    {
+        var game=new GameCore(CampaignFixture.Create());
+        game.NewGame(0);game.Close();
+        game.save.stage=3;game.save.flags.Add("scout_saved");
+        game.Enter(1);game.mode="world";
+        game.enemies.Clear();
+        WorldObject traveler=null;
+        foreach(WorldObject actor in game.Map.objects)
+            if(actor.kind=="wayfarer1"){traveler=actor;break;}
+        Check(traveler!=null,"Published region has a real roadside traveler");
+        game.save.x=traveler.x;game.save.y=traveler.y;
+        game.Talk(traveler);
+        int choice=Array.FindIndex(game.conversation.choices,
+            c=>c.action=="wayfarer_defend_1");
+        Check(choice>=0,"Actual traveler offers physical defense");
+        game.Choose(choice);
+        Check(game.WayfarerEncounterRoom==1,
+            "The authored rescue spawned its real defense encounter");
+        var attackers=game.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+        Check(attackers.Count==2,
+            "Actual rescue spawns two distinct attacker bodies");
+        int coins=game.save.coins;
+        var counterfeit=new Enemy(attackers[0].id,attackers[0].kind,
+            attackers[0].x,attackers[0].y,25f);
+        game.enemies.Add(counterfeit);
+        typeof(GameCore).GetMethod("OnWayfarerEnemyDefeated",Private)
+            .Invoke(game,new object[]{counterfeit});
+        // Removing the real actor WITHOUT a genuine death must abort the
+        // mission even when an impersonator shares its reserved numeric ID.
+        game.enemies.Remove(attackers[0]);
+        typeof(GameCore).GetMethod("TickWayfarerEncounter",Private)
+            .Invoke(game,new object[]{.02f});
+        Check(game.WayfarerEncounterRoom==0&&
+            !game.save.flags.Contains("wayfarer_1")&&
+            game.save.coins==coins&&game.save.version==2,
+            "False same-ID lethal proof cannot finish or strand the rescue");
+        // The normal physical two-kill completion path must remain valid.
+        game.enemies.Remove(counterfeit);
+        game.save.x=traveler.x;game.save.y=traveler.y;
+        game.Talk(traveler);
+        choice=Array.FindIndex(game.conversation.choices,
+            c=>c.action=="wayfarer_defend_1");
+        Check(choice>=0,"Aborted rescue can be retried without lost progress");
+        game.Choose(choice);
+        attackers=game.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+        Check(attackers.Count==2,
+            "Retry spawns new legitimate attacker identities");
+        foreach(Enemy attacker in attackers)
+        {
+            typeof(GameCore).GetMethod("OnWayfarerEnemyDefeated",Private)
+                .Invoke(game,new object[]{attacker});
+            game.enemies.Remove(attacker);
+        }
+        typeof(GameCore).GetMethod("TickWayfarerEncounter",Private)
+            .Invoke(game,new object[]{.02f});
+        Check(game.WayfarerEncounterRoom==0&&
+            game.save.flags.Contains("wayfarer_defended_1")&&
+            game.save.version==2,
+            "Both authentic raider deaths still complete original rescue with V2 schema");
+        Console.WriteLine("PASS Wayfarer genuine Enemy ownership: fake-ID kill rejected, failed encounter retried, authentic two-kill reward accepted");
+    }
+
         // This entrypoint is registered in the actually executed offline
         // FrontierRuntime input harness. Avoid running the unrelated legacy
         // UI/save setup above just to test room audio transitions.
@@ -96,6 +161,7 @@ public static class RuntimePolishChecks
             Console.WriteLine("PASS Procedural forest/coast/weather atmosphere: deterministic seamless PCM loop and stable edge loudness");
             }
             finally { atmosphere.Dispose(); }
+            VerifyWayfarerLethalOwnership();
         }
 
     public static void Run(FrontierRuntime app)

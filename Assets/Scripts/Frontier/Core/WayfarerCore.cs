@@ -15,6 +15,10 @@ namespace Starfall
         private float wayfarerCoverTime;
         // Real time-limited, per-encounter provocation tied to the exact
         // alive spawned enemy instances, NEVER numeric IDs across loads.
+        // Combat ownership is a live Enemy INSTANCE, never a reusable ID.
+        // An unrelated actor with the same numeric ID must not intercept a
+        // traveler strike or falsely settle the rescue's two lethal slots.
+        private readonly Enemy[] wayfarerRaiders=new Enemy[2];
         private readonly HashSet<Enemy> wayfarerDecoyTargets=
             new HashSet<Enemy>();
         private readonly Dictionary<Enemy,Point> wayfarerDecoyLastSeen=
@@ -92,17 +96,24 @@ namespace Starfall
         {
             if(wayfarerEncounterRoom==0 || save.room!=wayfarerEncounterRoom ||
                 !IsWayfarerEnemy(enemy))return;
-            int index=enemy.id-(82000+wayfarerEncounterRoom*10);
-            if(index>=0&&index<2)wayfarerConfirmedKills|=1<<index;
+            int index=Object.ReferenceEquals(enemy,wayfarerRaiders[0])?0:
+                Object.ReferenceEquals(enemy,wayfarerRaiders[1])?1:-1;
+            if(index>=0)wayfarerConfirmedKills|=1<<index;
         }
         public int WayfarerEncounterRoom { get { return wayfarerEncounterRoom; } }
         public float WayfarerIntegrity { get { return wayfarerIntegrity; } }
-        private static bool IsWayfarerEnemy(Enemy e) { return e != null && e.id >= 82000 && e.id < 82100; }
+        private bool IsWayfarerEnemy(Enemy e)
+        {
+            return e!=null&&
+                (Object.ReferenceEquals(e,wayfarerRaiders[0])||
+                 Object.ReferenceEquals(e,wayfarerRaiders[1]));
+        }
         private void ResetWayfarerEncounter()
         {
             // Retire a rescue's own raiders, inbound arrows and warnings
             // on cancellation, failure, restart and save reload.
             enemies.RemoveAll(IsWayfarerEnemy);
+            wayfarerRaiders[0]=wayfarerRaiders[1]=null;
             projectiles.RemoveAll(p => p.wayfarerOwned);
             effects.RemoveAll(e => e.wayfarerOwned);
             wayfarerEncounterRoom = 0; wayfarerIntegrity = 0;
@@ -368,13 +379,17 @@ namespace Starfall
             wayfarerCoverUsed=false;wayfarerCoverTime=0f;
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
+            wayfarerDecoyLastSeen.Clear();
+            wayfarerRaiders[0]=wayfarerRaiders[1]=null;
             wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
             {
                 var e = new Enemy(82000 + room * 10 + slot, slot == 0 ? 0 : 2,
                     positions[slot].x, positions[slot].y, 50 + room * 16);
                 // Reserved high IDs must never become multi-hour opening cooldowns.
-                e.timer = .9f + slot * .3f; enemies.Add(e);
+                e.timer = .9f + slot * .3f;
+                wayfarerRaiders[slot]=e;
+                enemies.Add(e);
                 effects.Add(new Effect("discover", positions[slot], .6f) {
                     wayfarerOwned = true });
             }
@@ -485,7 +500,6 @@ namespace Starfall
                 wayfarerDecoyTargets.Clear();
                 wayfarerDecoyLastSeen.Clear();
             }
-            int first=82000+wayfarerEncounterRoom*10;
             bool anyStillAlive=false;
             // Validate BOTH authored identities before waiting for either.
             // Previously a surviving first raider made this method return
@@ -493,7 +507,9 @@ namespace Starfall
             // lethal hit and leaving the rescue in a broken active state.
             for(int i=0;i<2;i++)
             {
-                bool present=enemies.Exists(e=>e.id==first+i&&e.hp>0);
+                Enemy owned=wayfarerRaiders[i];
+                bool present=owned!=null&&owned.hp>0&&
+                    enemies.Contains(owned);
                 if(!present&&(wayfarerConfirmedKills&(1<<i))==0)
                 {
                     ResetWayfarerEncounter();revision++;
