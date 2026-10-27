@@ -25,12 +25,27 @@ namespace Starfall.Tests
                 g.invulnerable=300f;g.mode="world";
                 var foe=new Enemy(76001,0,21.5f,10.5f,220f);
                 foe.timer=1f;g.enemies.Add(foe);
+                // One real nearby witness has an unobstructed view of the
+                // strike, another stands behind a genuinely solid column.
+                var witness=new Enemy(76002,0,20.5f,13.5f,220f);
+                witness.timer=1f;g.enemies.Add(witness);
+                var hidden=new Enemy(76003,0,23.5f,10.5f,220f);
+                hidden.timer=1f;g.enemies.Add(hidden);
+                char[] barrier=g.Map.rows[10].ToCharArray();
+                barrier[22]='#';g.Map.rows[10]=new string(barrier);
+                Check(g.CanStand(witness.Position)&&g.CanStand(hidden.Position)&&
+                    g.ClearAttackPath(foe.Position,witness.Position)&&
+                    !g.ClearAttackPath(foe.Position,hidden.Position),
+                    "A nearby allied witness can see the hit while a same-distance ally behind real stone cannot");
                 Check(g.CanStand(foe.Position)&&
                     g.ClearAttackPath(g.Position,foe.Position),
                     "The tested distant hit has an actual traversable ranged lane");
-                Point start=foe.Position;
+                Point start=foe.Position,seenStart=witness.Position,
+                    hiddenStart=hidden.Position;
                 Advance(g,.55f);
-                Check((foe.Position-start).Length<.01f,
+                Check((foe.Position-start).Length<.01f&&
+                    (witness.Position-seenStart).Length<.01f &&
+                    (hidden.Position-hiddenStart).Length<.01f,
                     "A calm enemy outside eight tiles is not a perpetual global hunter");
                 var hit=typeof(GameCore).GetMethod("Hit",
                     System.Reflection.BindingFlags.NonPublic|
@@ -43,8 +58,10 @@ namespace Starfall.Tests
                     "Long-range provocation follows genuine dealt HP damage");
                 Advance(g,.8f);
                 Check((foe.Position-start).Length>.25f&&
-                    g.CanStand(foe.Position),
-                    "An authentically struck hunter physically walks toward the player");
+                    g.CanStand(foe.Position)&&
+                    (witness.Position-seenStart).Length>.25f&&
+                    (hidden.Position-hiddenStart).Length<.01f,
+                    "The actual wounded hunter and seeing patrol mate pursue on real ground while a wall-protected ally stays put");
                 // A second live actor with the same numeric ID cannot borrow
                 // the first actor's recently-hit timer or response.
                 var impersonator=new Enemy(foe.id,0,23.5f,16.5f,220f);

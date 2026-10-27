@@ -1254,6 +1254,9 @@ namespace Starfall
             if (e.hp > 0) return;
             fallen.Add(new FallenActor(e, save.room, e.boss ? 1.4f : .65f));
             enemies.Remove(e);
+            // Real death retires only this physical enemy's alert. Other
+            // comrades retain their earned witness response until expiry.
+            enemyHitAlert.Remove(e);
             // Defeating a guardian also ends its unresolved timed ground
             // strikes. Keep ambient storms and another live guardian's
             // warnings: numeric IDs alone are not unique across encounters.

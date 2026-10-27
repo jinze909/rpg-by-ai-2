@@ -73,7 +73,36 @@ namespace Starfall
             float range=(e.Position-Position).Length;
             if(!Finite(range)||range<=8f||range>18f)return;
             EnsureEnemyHitAlertSession();
+            if(!enemyHitAlert.ContainsKey(e))
+                effects.Add(new Effect("number",e.Position,.7f,
+                    L("察觉袭击","UNDER ATTACK")));
             enemyHitAlert[e]=EnemyHitAlertSeconds;
+            // Nearby living patrol mates can see a comrade get struck.
+            // This is not a magical room-wide alarm: only neighbors
+            // within three and a half physical tiles with a genuinely
+            // clear line to the original hit acquire a shorter response.
+            // Matching IDs, distant actors, solid-walled rooms and Bosses
+            // cannot borrow the attacked body's alarm.
+            foreach(Enemy witness in enemies)
+            {
+                if(witness==null||System.Object.ReferenceEquals(witness,e)||
+                   witness.hp<=0||witness.boss)continue;
+                float between=(witness.Position-e.Position).Length;
+                float heroDistance=(witness.Position-Position).Length;
+                if(!Finite(between)||between>3.5f||
+                   !Finite(heroDistance)||heroDistance>18f||
+                   heroDistance<=8f||
+                   !CanStand(witness.Position)||
+                   !ClearAttackPath(e.Position,witness.Position))continue;
+                if(!enemyHitAlert.ContainsKey(witness))
+                {
+                    effects.Add(new Effect("number",witness.Position,.7f,
+                        L("同伴示警","PATROL ALERT")));
+                }
+                enemyHitAlert[witness]=Math.Max(
+                    enemyHitAlert.ContainsKey(witness)?
+                        enemyHitAlert[witness]:0f,4f);
+            }
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
         {
