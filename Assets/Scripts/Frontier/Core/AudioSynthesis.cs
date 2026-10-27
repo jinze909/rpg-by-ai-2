@@ -20,11 +20,21 @@ namespace Starfall
             for (int i = 0; i < wave.Length; i++)
             {
                 double time = i / (double)Rate, local = time % .5, f = Frequency(notes[(int)(time * 2) % 8]);
-                double envelope = Math.Min(1, local * 35) * Math.Exp(-local * 5.8), bass = Frequency(notes[(int)(time / 4) * 2 % 8] - 24);
+                // Every half-second phrase must release its note before the next
+                // phrase (including the 16-second loop seam). A short
+                // per-note tail replaces the old full-mix fade-out that made
+                // every looping Unity AudioSource audibly duck at 16 seconds.
+                double envelope = Math.Min(1, local * 35) * Math.Exp(-local * 5.8) *
+                    Math.Min(1, (.5 - local) * 38);
+                double bass = Frequency(notes[(int)(time / 4) * 2 % 8] - 24);
                 double note = (Math.Sin(2 * Math.PI * f * time) + .25 * Math.Sin(4 * Math.PI * f * time)) * envelope * .16;
                 double bed = Math.Sin(2 * Math.PI * bass * time) * .09 * Math.Pow(Math.Sin(Math.PI * (time % 4) / 4), 2);
                 double pulse = theme == 6 ? Math.Sin(2 * Math.PI * 68 * local) * Math.Exp(-local * 28) * .12 : 0;
-                double fade = Math.Min(1, Math.Min(time * 8, (16 - time) * 8)); wave[i] = (float)((note + bed + pulse) * fade);
+                // The bass resolves at the four-second bar boundary and combat
+                // percussion resolves at each half-second beat. Therefore
+                // all three voices naturally meet at zero at the buffer seam
+                // without a 125ms fade of the entire audible score.
+                wave[i] = (float)(note + bed + pulse);
             }
             return wave;
         }

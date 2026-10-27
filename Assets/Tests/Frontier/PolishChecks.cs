@@ -309,7 +309,29 @@ namespace Starfall.Tests
         public static void SoundFeedbackAndRegionalScores(Campaign data)
         {
             float[] a = AudioSynthesis.Event("hit"), b = AudioSynthesis.Event("hurt"); double difference = 0; foreach (float v in a) Check(!float.IsNaN(v) && Math.Abs(v) <= 1, "Sound sample remains finite and unclipped"); for (int i = 0; i < Math.Min(a.Length, b.Length); i++) difference += Math.Abs(a[i] - b[i]); Check(difference > 50, "Hit and injury cues are distinguishable");
-            foreach (int room in new[] { 0, 1, 5, 6, 7, 8 }) { var music = AudioSynthesis.Music(AudioSynthesis.Theme(room, false)); Check(music.Length == AudioSynthesis.Rate * 16 && Math.Abs(music[0]) < .01f && Math.Abs(music[music.Length - 1]) < .01f, "Regional music fades cleanly at loop boundaries"); }
+            // Every one of the seven real looping Unity tracks must end
+            // smoothly without suppressing its whole final 125ms phrase.
+            for(int theme=0;theme<=6;theme++)
+            {
+                var music=AudioSynthesis.Music(theme);
+                Check(music.Length==AudioSynthesis.Rate*16,
+                    "Every authored region and combat score retains the existing 16-second loop");
+                double lastEnergy=0, priorBarEnergy=0;
+                int window=AudioSynthesis.Rate/8;
+                for(int i=0;i<window;i++)
+                {
+                    float tail=music[music.Length-window+i];
+                    float prior=music[music.Length-4*AudioSynthesis.Rate-window+i];
+                    Check(!float.IsNaN(tail) && !float.IsInfinity(tail) &&
+                        Math.Abs(tail)<1,"The generated score must remain finite, unclipped PCM");
+                    lastEnergy+=tail*tail;
+                    priorBarEnergy+=prior*prior;
+                }
+                Check(Math.Abs(music[0]-music[music.Length-1])<.005f,
+                    "Looped AudioSource has a quiet sample-to-sample musical seam");
+                Check(priorBarEnergy>.00001 && lastEnergy>priorBarEnergy*.78,
+                    "The full music mix must not fade away during the final eighth-second of every 16-second loop");
+            }
             var g = Fresh(data); g.sounds.Clear(); g.sound = "hit"; g.sound = "quest"; Check(g.sounds.Count == 2 && g.sounds.Dequeue() == "hit", "Multiple events in one frame retain their audio cues");
         }
         public static void TravelClearanceAndCivicEnemyHudUseExactRealDistances(Campaign data)
