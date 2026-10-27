@@ -3866,6 +3866,24 @@ namespace Starfall.Tests
                     int coins = g.save.coins, shards = g.save.shards; Combat(g, false);
                     Check(g.save.coins == coins && g.save.shards == shards && g.save.runCoins > 0, "Abyss loot is pending until banked");
                     if (floor == 2) { g = new GameCore(data, CloneSave(g.save)); g.Start(); Check(g.enemies.Count == 0 && g.save.runCoins > 0, "A cleared floor and pending loot survive reconstruction"); }
+                    // The original autopilot teleported to the root gate
+                    // and immediately pressed bank on the SAME world frame
+                    // as the last real enemy death. Lingering hostile
+                    // missiles/rift warnings are valid gameplay and can no
+                    // longer be escaped via an instant pause-menu payout.
+                    // Simulate reaching the gate and waiting for the TRUE
+                    // combat threat to clear, instead of faking a safe gate
+                    // or clearing real projectile lists in the test.
+                    WorldObject gate=Array.Find(g.Map.objects,
+                        o=>o.kind=="abyssGate");
+                    Check(gate!=null&&g.CanStand(new Point(gate.x,gate.y)),
+                        "Every seeded floor has a genuine standable settlement gate");
+                    g.save.x=gate.x;g.save.y=gate.y;
+                    int wait=0;
+                    while(!g.SafeTravel&&wait++<200)
+                        g.Tick(.02f,new Point());
+                    Check(g.SafeTravel&&g.InAbyss&&g.enemies.Count==0,
+                        "The cleared abyss gate must become safe once its real lingering threats expire, floor "+floor);
                     if (floor < 6) Action(g, "abyssGate", "boon" + ((floor - 1) % 3)); else Action(g, "abyssGate", "abyssBank");
                     Check(g.save.coins > coins && g.save.shards > shards, "Every cleared floor can bank rewards");
                 }
