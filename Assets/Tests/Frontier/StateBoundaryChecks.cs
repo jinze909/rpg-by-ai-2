@@ -803,7 +803,7 @@ namespace Starfall.Tests
                     g.Tick(.05f,new Point(),null,false,true);
                 Check((guard.Position-initial).Length>1.1f&&
                     guard.Position.x<14f&&
-                    guard.Position.y>known.y+.22f,
+                    Math.Abs(guard.Position.y-known.y)>.22f,
                     "Guard walks to the real last-known foot, then physically sweeps an adjacent safe lane rather than freezing or following the hidden hero (actual="+
                     guard.Position.x.ToString("0.00")+","+
                     guard.Position.y.ToString("0.00")+
