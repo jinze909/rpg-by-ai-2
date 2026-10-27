@@ -130,6 +130,34 @@ namespace Starfall.Tests
             }
         }
 
+        public static void EnemyVelocityComesFromTrueFootTranslation(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,1);
+                g.save.x=24.5f;g.save.y=15.5f;
+                var ranger=new Enemy(501,1,17.5f,15.5f,80f);
+                ranger.timer=1f;ranger.state=0;
+                g.enemies.Add(ranger);
+                Point before=ranger.Position;
+                g.Tick(.05f,new Point());
+                Point movement=ranger.Position-before;
+                Check(movement.Length>.002f&&ranger.moving&&
+                    (ranger.moveVelocity-movement*20f).Length<.001f,
+                    "Pursuing enemies expose actual physical foot displacement / elapsed time, not intended heading");
+                Check(ranger.moveVelocity.x>0f,
+                    "A rushing archer's live velocity follows the occupied ground rather than the hero's old input");
+                ranger.stun=2f;
+                g.Tick(.05f,new Point());
+                Check(ranger.moveVelocity.Length<.00001f,
+                    "No phantom target leading may remain when a live stun stops motion");
+                Check(g.save.version==2&&g.save.worldEnemies==null,
+                    "Velocity samples are transient and do not mutate v2 world encounter snapshots");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

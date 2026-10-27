@@ -1865,6 +1865,10 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!enemies.Contains(e) || mode != "world") continue;
+                // Sample only actual present-frame movement. An interrupted
+                // windup, stun, collision or blocked alley must immediately
+                // stop contributing phantom velocity to ranged target leads.
+                e.moveVelocity=new Point();
                 // Sanitize ALL reaction clocks before Math.Max/Min derives the
                 // amount of unlocked AI time. Otherwise one NaN can propagate
                 // through freeDt and turn an ordinary foe into a frozen actor.
@@ -2261,7 +2265,12 @@ namespace Starfall
                     e.x = swept.x; e.y = swept.y;
                 }
                 Point travelled = e.Position - before; e.moving = travelled.Length > .001f;
-                if (e.moving) { e.moveTime += travelled.Length; e.Face(e.backpedaling?Position-e.Position:travelled); }
+                if(e.moving)
+                {
+                    e.moveVelocity=travelled*(1f/dt);
+                    e.moveTime += travelled.Length;
+                    e.Face(e.backpedaling?Position-e.Position:travelled);
+                }
                 delta = Position - e.Position; distance = delta.Length;
                 bool heroInRange = distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&

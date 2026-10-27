@@ -89,6 +89,11 @@ namespace Starfall
     {
         public int id, kind, state, cycle;
         public bool boss, moving;
+        // Actual displacement over the most recently simulated world tick,
+        // NOT facing (archers face the hero while backpedaling). Transient,
+        // never written to EnemyRecord or SaveData v2. Powers physically
+        // bounded leading shots rather than widening any hitboxes.
+        public Point moveVelocity;
         // Ephemeral combat intent: roadside raiders may target the protected traveler.
         public bool targetingWayfarer, targetingReliefCivilian, targetingAfterlightStock, targetingOuterPatrolStock;
         public float x, y, hp, maxHp, timer, stun, flash, stagger, staggerRecovery;
