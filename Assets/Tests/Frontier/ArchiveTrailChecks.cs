@@ -123,6 +123,48 @@ namespace Starfall.Tests
                     Array.Exists(g.conversation.choices,c=>c.action=="archive_review_"+region),
                     "Reading/reopening the physical note preserves identity, rewards and choices");
                 g.Close();
+                if(region==1)
+                {
+                    // The old survey record is now a usable navigation
+                    // instrument, not merely a collectible dialogue page.
+                    g.Talk(artifact);
+                    int pin=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_pin_1");
+                    Check(pin>=0,
+                        "Recovered field evidence offers actionable walking guidance to real unvisited waytrails");
+                    string previousTracking=g.save.trackedQuest;
+                    int coinBeforePin=g.save.coins,shardBeforePin=g.save.shards;
+                    g.Choose(pin);
+                    Point? mark=g.LocalWaymark;
+                    Check(mark.HasValue&&g.CanStand(mark.Value)&&
+                        g.save.trackedQuest==previousTracking&&
+                        g.save.coins==coinBeforePin&&g.save.shards==shardBeforePin,
+                        "Physical atlas route pins reachable walking ground without changing tracked quests or paying a duplicate reward");
+                    bool nearRealMarker=false;
+                    foreach(WorldObject o in g.Map.objects)
+                        if(o.kind=="waytrail"&&!g.Has("waytrail_"+o.id)&&
+                           (mark.Value-new Point(o.x,o.y)).Length<1.81f)
+                           nearRealMarker=true;
+                    Check(nearRealMarker,
+                        "An atlas pin ends at actual interaction-side footing beside an unvisited authored road marker");
+                    // Even after running out of unmapped local roads, the
+                    // player must keep the previously committed personal pin.
+                    foreach(WorldObject o in g.Map.objects)
+                        if(o.kind=="waytrail")
+                            g.save.flags.Add("waytrail_"+o.id);
+                    g.Talk(artifact);
+                    pin=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="archive_pin_1");
+                    g.Choose(pin);
+                    Check(g.LocalWaymark.HasValue&&
+                        (g.LocalWaymark.Value-mark.Value).Length<.001f&&
+                        g.toast.Contains("都已实地记录"),
+                        "Exhausted atlas discoveries cannot erase a previous personal route or claim phantom roads");
+                    foreach(WorldObject o in g.Map.objects)
+                        if(o.kind=="waytrail")
+                            g.save.flags.Remove("waytrail_"+o.id);
+                    g.Close();
+                }
                 // Review recovered evidence with Lin at the real town
                 // workbench before proceeding to the next regional clue.
                 g.Enter(0);g.enemies.Clear();

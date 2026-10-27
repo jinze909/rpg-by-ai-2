@@ -69,6 +69,7 @@ namespace Starfall
                 Dialog(o.name, o.en, "你已把这份记录拓印进手帐。原件不必重复领取。",
                     "You already copied this record into the journal. It cannot be claimed twice.",
                     C("细读已留下的现场拓印", "Read the recovered field rubbing", "archive_review_" + region),
+                    C("寻找尚未调查的旧路标", "Chart an unvisited old road marker", "archive_pin_" + region),
                     C("收起手帐", "Close journal", "close"));
                 return true;
             }
@@ -136,6 +137,65 @@ namespace Starfall
             // Reopening it cannot claim a second reward or switch to an
             // imagined remote NPC. The actual touched WorldObject and region
             // must match, including after a back/forward dialogue transition.
+            // The surveyor's copied bearings now have a real navigation use.
+            // From the physical record, choose the nearest still-unmapped
+            // old road marker by the player's ACTUAL collision-aware walking
+            // route. This sets only an existing transient local waypoint:
+            // no teleport, story gate, route completion flag, money or save
+            // schema changes. Failed navigation never overwrites a manual pin.
+            if(action.StartsWith("archive_pin_",StringComparison.Ordinal))
+            {
+                int region;
+                if(!int.TryParse(action.Substring("archive_pin_".Length),out region)||
+                   region<1||region>3)return true;
+                WorldObject record=pendingDialogueSource;
+                if(record==null||record.kind!="archivefragment"+region||
+                   save.room!=region||pendingDialogueSourceRoom!=region||
+                   !SourceBelongsToActiveMap(record)||
+                   !IsObjectPresent(record)||
+                   !HasPhysicalInteractionReach(record)||
+                   !Has("archive_fragment_"+region))return true;
+                WorldObject selected=null;
+                Point approach=new Point();
+                int bestWalk=int.MaxValue;
+                float bestNear=float.MaxValue;
+                bool anyUnmapped=false;
+                foreach(WorldObject marker in Map.objects)
+                {
+                    if(marker==null||marker.kind!="waytrail"||
+                       !IsObjectPresent(marker)||
+                       Has("waytrail_"+marker.id))continue;
+                    anyUnmapped=true;
+                    Point site=new Point(marker.x,marker.y);
+                    Point foot;
+                    if(!TryQuestApproachFoot(site,out foot))continue;
+                    float direct=(site-Position).Length;
+                    int walked=NavigationPathFrom(Position,foot,true).Count;
+                    if(selected==null||walked<bestWalk||
+                       (walked==bestWalk&&direct<bestNear))
+                    {
+                        selected=marker;
+                        approach=foot;
+                        bestWalk=walked;
+                        bestNear=direct;
+                    }
+                }
+                if(selected!=null)
+                {
+                    // The waypoint is deliberately distinct from the NPC
+                    // interaction point: it is real walkable ground in reach.
+                    CommitLocalWaymark(approach,null);
+                    Notify("已按旧星图规划通往未测绘路标的步行路线。返回世界跟随导航，再与路标交互。",
+                        "The old atlas charts a walking route to an unvisited marker. Follow your pin and inspect it.");
+                }
+                else if(anyUnmapped)
+                    Notify("旧路标仍在，但现有道路无法步行到达。请先解除封锁或另找通路。",
+                        "Unvisited markers remain, but no walking route is open. Clear the obstruction or find another way.");
+                else
+                    Notify("本地区的旧路标都已实地记录，不必重复测绘。",
+                        "All old road markers in this region are already surveyed.");
+                return true;
+            }
             if(action.StartsWith("archive_review_",StringComparison.Ordinal)||
                action.StartsWith("archive_field_return_",StringComparison.Ordinal))
             {
