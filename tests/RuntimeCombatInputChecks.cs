@@ -107,6 +107,14 @@ public static class RuntimeCombatInputChecks
             "dialogueHistoryOpen",Private).GetValue(app)&&
             game.mode=="dialog",
             "Escape closes ONLY history, restoring exact active NPC choices");
+        // Original long NPC testimony retains its own reading gates.
+        // Return from review, genuinely read each still-unread page and
+        // only THEN select an active option; history cannot skip speech.
+        int pages=DialogueLayout.Pages(testimony,false).Count;
+        for(int page=1;page<pages;page++)
+        {
+            Input.keys.Add(KeyCode.Space);Update(app);Call(app,"OnGUI");
+        }
         // A genuine live menu choice must still work after review exits.
         Input.keys.Add(KeyCode.Alpha1);Update(app);
         Check(game.mode=="world"&&game.conversation==null&&
