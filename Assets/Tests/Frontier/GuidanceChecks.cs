@@ -3168,7 +3168,7 @@ namespace Starfall.Tests
                 "Existing v2 slots retain actual roadwarden rewards without transient wave counters");
         }
 
-        public static void LastDirectiveBlockedSecondWavePreservesEarnedFirstWave(Campaign data)
+        public static void LastDirectiveObstructedSecondWaveUsesSafeAlternates(Campaign data)
         {
             var g=Fresh(data);g.save.stage=4;
             g.save.flags.Add("civic_response_ledger");
@@ -3203,19 +3203,23 @@ namespace Starfall.Tests
                 };
                 map.decor=blocked;
                 Check(!g.CanStand(new Point(98.5f,74.5f)),
-                    "An actual collision footprint prevents the second wave spawn");
+                    "An authentic dynamic obstacle seals the original second-wave spawn marker");
                 Action(g,"lastdirectivecore","last_directive_second");
-                Check(g.LastDirectiveWave==2&&g.LastDirectiveEnemies==0&&
-                    g.save.energy==100&&g.LastDirectiveChoice==0,
-                    "Failed second wave preserves first-wave clear, 25 energy, and the civic outcome");
+                Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
+                    g.save.energy==75&&g.LastDirectiveChoice==0,
+                    "The blocked marker is avoided by a physically connected alternate guardian formation, costing exactly 25 energy");
+                foreach(Enemy foe in g.enemies.FindAll(e=>e.id>=90302&&e.id<=90304))
+                    Check(g.CanStand(foe.Position)&&
+                        (foe.Position-new Point(98.5f,74.5f)).Length>.9f,
+                        "No genuine final citadel guard materializes within the dynamically sealed original tile");
+                Action(g,"lastdirectivecore","last_directive_second");
+                Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
+                    g.save.energy==75,
+                    "A second cached unlock cannot spend the last 25 energy twice or duplicate live enemies");
             }
             finally { map.decor=oldDecor; }
             Check(g.CanStand(new Point(98.5f,74.5f)),
-                "Restored authored terrain reopens the original security deployment");
-            Action(g,"lastdirectivecore","last_directive_second");
-            Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
-                g.save.energy==75,
-                "A normal retry spends energy exactly once and deploys three genuine guards");
+                "Removing the real collision obstacle restores original citadel terrain without altering the battle");
             g.PrepareSave();var saved=new GameCore(data,CloneSave(g.save));
             Check(saved.save.version==2&&saved.LastDirectiveWave==0&&
                 saved.LastDirectiveChoice==0&&saved.LastDirectiveClues==3,
