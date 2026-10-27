@@ -272,7 +272,8 @@ namespace Starfall
                     // collapsing hazard/restore frame. They cannot exert
                     // authentic hostile travel pressure, and must never
                     // crash safe-camp or fast-travel checks.
-                    if(foe==null)continue;
+                    if(foe==null||foe.hp<=0f||!Finite(foe.x)||!Finite(foe.y))
+                        continue;
                     float dx = foe.x - x, dy = foe.y - y;
                     if (dx * dx + dy * dy < rangeSquared) return false;
                     // A Boss/elite can lock an actual ground strike from
@@ -318,7 +319,12 @@ namespace Starfall
                     Point nearest=shot.position+shot.velocity*approach;
                     float nx=nearest.x-x,ny=nearest.y-y;
                     if(nx*nx+ny*ny<rangeSquared&&
-                        ClearAttackPath(shot.position,nearest))
+                        // A bare center ray can clear a corner while the
+                        // ACTUAL hostile bolt/orb with its own footprint
+                        // would already explode into the near wall. Share
+                        // the game's existing swept projectile collision,
+                        // not a new permissive visual-only safety shortcut.
+                        ProjectileLaneClear(shot,nearest))
                         return false;
                 }
                 // A live telegraphed explosion is also combat. Previously

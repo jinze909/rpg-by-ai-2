@@ -25,6 +25,66 @@ namespace Starfall.Tests
             Check(g.CanStand(g.Position),"Sprint fixture starts on a complete physical foot");
             return g;
         }
+        public static void TravelThreatUsesRealLivingActorsAndPhysicalProjectileWidth(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,0);
+                g.save.x=12f;g.save.y=15.75f;
+                g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
+                Check(g.CanStand(g.Position)&&g.SafeTravel,
+                    "Real open-ground travel begins safely without threats");
+                var fallen=new Enemy(1771,2,14f,15.75f,0f,true)
+                {
+                    state=1,target=g.Position
+                };
+                g.enemies.Add(fallen);
+                Check(g.SafeTravel,
+                    "Defeated combat bodies retained during the current world frame cannot falsely block refuge or travel");
+                fallen.hp=50f;
+                Check(!g.SafeTravel,
+                    "The same physically living guardian still blocks unsafe real travel");
+                fallen.hp=0f;
+                var shot=new Projectile
+                {
+                    position=new Point(20f,15.75f),
+                    velocity=new Point(-10f,0f),
+                    life=1.2f,damage=13f,
+                    friendly=false,visual="enemyArrow"
+                };
+                g.projectiles.Add(shot);
+                Check(!g.SafeTravel,
+                    "A genuinely inbound thin archer projectile still locks fast travel before reaching the hero");
+                char[] row=g.Map.rows[16].ToCharArray();
+                row[16]='#';g.Map.rows[16]=new string(row);
+                Check(g.CanStand(g.Position)&&
+                    !g.Blocked(16.5f,15.75f)&&!g.SafeTravel,
+                    "A 0.14-radius real arrow still passes the center lane next to a thin south wall");
+                shot.visual="staffOrb";
+                Check(g.SafeTravel,
+                    "A wider hostile orb whose actual 0.28-radius footprint hits the real south wall cannot threaten the hero through it");
+                shot.visual="enemyArrow";
+                Check(!g.SafeTravel,
+                    "Switching back to the physical thin-arrow silhouette restores the valid incoming attack");
+                g.Map.rows[16]=g.Map.rows[16].Substring(0,16)+
+                    "."+g.Map.rows[16].Substring(17);
+                shot.visual="staffOrb";
+                Check(!g.SafeTravel,
+                    "Removing the real wall restores the orb's authentic danger without waiting a frame");
+                shot.life=.1f;
+                Check(g.SafeTravel,
+                    "Expired range of a hostile orb cannot block an unreachable travel destination");
+                shot.life=1.2f;shot.friendly=true;
+                Check(g.SafeTravel,
+                    "Friendly projectiles cannot lock the hero's own travel");
+                Check(g.projectiles.Count==1&&g.save.version==2&&
+                    fallen.hp==0f,
+                    "Physical safety queries never retire a shot, animate a defeat or modify the old save contract");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void TruePlayerWalkingVelocityNeverIncludesDodgeOrPlantedAttack(Campaign data)
         {
             MapData original=data.maps[1];
