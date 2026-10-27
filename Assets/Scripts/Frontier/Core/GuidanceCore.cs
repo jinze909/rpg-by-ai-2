@@ -2761,6 +2761,48 @@ namespace Starfall
                         "Defeat the guards and preserve the second site"):
                     L("返回证人身边亲自签署记录",
                         "Return for the witness's signed testimony");
+                // A record consuming a herb or machine part cannot advance
+                // while that item is missing. Guide to an actual unharvested
+                // local resource, then resume the original field objective.
+                // Town rest is the existing way to renew exhausted nodes.
+                int supply=next==1?2:next==3?4:-1;
+                if(!q.complete && !q.locked && next==save.room &&
+                    Has("witness_started_"+next) && !Has("witness_read_"+next) &&
+                    supply>=0 && save.inventory[supply]<1)
+                {
+                    string nodeKind=next==1?"herb":"ore";
+                    WorldObject nearest=null;
+                    float nearestDistance=float.MaxValue;
+                    if(Map.objects!=null)
+                        foreach(WorldObject source in Map.objects)
+                        {
+                            if(source==null || source.kind!=nodeKind ||
+                                !IsObjectPresent(source) ||
+                                Has("node_"+source.id))continue;
+                            float d=(new Point(source.x,source.y)-Position).Length;
+                            if(d<nearestDistance)
+                            {nearest=source;nearestDistance=d;}
+                        }
+                    if(nearest!=null)
+                    {
+                        q.target=new Point(nearest.x,nearest.y);
+                        q.next=next==1?
+                            L("缺少月光草×1：先采集标记的密林药草，再恢复原始记录。",
+                              "Need 1 Moonherb: gather the marked herb, then restore the field record."):
+                            L("缺少零件×1：先开采标记的矿点获取零件，再恢复停机规则。",
+                              "Need 1 Machine part: mine the marked ore for parts, then restore the shutdown rule.");
+                    }
+                    else
+                    {
+                        q.room=0;
+                        q.target=ObjectPoint(0,"rest",new Point(21,17));
+                        q.next=next==1?
+                            L("密林药草已采完：回余烬镇长椅休息，使采集点刷新。",
+                              "Herbs exhausted: rest on the Emberfall bench to renew gathering nodes."):
+                            L("矿场矿点已采完：回余烬镇长椅休息，使采集点刷新。",
+                              "Ore exhausted: rest on the Emberfall bench to renew gathering nodes.");
+                    }
+                }
                 // Actual timed witnesses must retain a live combat
                 // objective even if another journal entry was manually
                 // pinned. This is the real remaining Enemy roster.

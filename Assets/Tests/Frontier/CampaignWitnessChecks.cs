@@ -45,6 +45,39 @@ namespace Starfall.Tests
                         (region==2 || c.en.Contains("cost: 1"))),
                     "Real field choices disclose the required Moonherb or Machine part before consuming it");
                 g.Close();
+                if(region==1 || region==3)
+                {
+                    int material=region==1?2:4, savedCount=g.save.inventory[material];
+                    string sourceKind=region==1?"herb":"ore";
+                    g.save.inventory[material]=0;
+                    var gatherQuest=g.GetQuest("campaign_witness");
+                    Check(gatherQuest.room==region &&
+                        Array.Exists(g.Map.objects,o=>o!=null &&
+                            o.kind==sourceKind && !g.Has("node_"+o.id) &&
+                            (gatherQuest.target-new Point(o.x,o.y)).Length<.01f) &&
+                        (region==1?gatherQuest.next.Contains("月光草"):
+                            gatherQuest.next.Contains("零件")),
+                        "Missing genuine witness supplies redirect the live compass to harvestable regional nodes");
+                    var marked=new System.Collections.Generic.List<string>();
+                    foreach(WorldObject node in g.Map.objects)
+                        if(node!=null&&node.kind==sourceKind&&!g.Has("node_"+node.id))
+                        {
+                            string flag="node_"+node.id;
+                            g.save.flags.Add(flag);marked.Add(flag);
+                        }
+                    var exhausted=g.GetQuest("campaign_witness");
+                    WorldObject rest=Array.Find(data.maps[0].objects,o=>o.kind=="rest");
+                    Check(rest!=null&&exhausted.room==0 &&
+                        (exhausted.target-new Point(rest.x,rest.y)).Length<.01f &&
+                        exhausted.next.Contains("休息"),
+                        "Exhausted resource nodes navigate to the real town bench that renews them");
+                    foreach(string flag in marked)g.save.flags.Remove(flag);
+                    g.save.inventory[material]=savedCount;
+                    var resumed=g.GetQuest("campaign_witness");
+                    Check(resumed.room==region &&
+                        (resumed.target-new Point(first.x,first.y)).Length<.01f,
+                        "Replenished supplies restore the original first-site quest target without persistent state");
+                }
                 float initialEnergy=g.save.energy;
                 int wrong=region==1?0:1;
                 if(region==1)
