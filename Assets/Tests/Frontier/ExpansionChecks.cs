@@ -290,6 +290,61 @@ namespace Starfall.Tests
             }
         }
 
+        public static void ClearedAbyssFloorReloadRetainsEarnedUnbankedRewards(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.StartAbyss(0);
+            Check(g.InAbyss&&g.enemies.Count>0,
+                "Physical abyss test starts with a real uncleared enemy roster");
+            // This is the genuine post-combat/pre-gate snapshot. Floor
+            // rewards and optional caches must not be banked yet.
+            g.enemies.Clear();
+            g.save.runCoins=48;g.save.runShards=3;g.save.runXp=27;
+            int permanentCoins=g.save.coins,permanentShards=g.save.shards;
+            g.PrepareSave();
+            Check(g.save.abyssSnapshotFloor==1&&g.save.abyssEnemies!=null&&
+                g.save.abyssEnemies.Length==0&&!g.Has("abyss_clear_1"),
+                "Preparing a v2 save after the final enemy preserves a VALID empty encounter roster before bank");
+            var resumed=new GameCore(data,CloneSave(g.save));
+            resumed.Start();
+            Check(resumed.InAbyss&&resumed.enemies.Count==0&&
+                resumed.save.runCoins==48&&resumed.save.runShards==3&&
+                resumed.save.runXp==27&&resumed.save.coins==permanentCoins&&
+                resumed.save.shards==permanentShards&&
+                !resumed.Has("abyss_clear_1"),
+                "Reloading an earned empty floor no longer respawns enemies or destroys unbanked exploration");
+            WorldObject gate=Array.Find(resumed.Map.objects,
+                o=>o.kind=="abyssGate");
+            resumed.save.x=gate.x;resumed.save.y=gate.y;
+            resumed.Talk(gate);
+            Check(resumed.Has("abyss_clear_1")&&resumed.mode=="dialog",
+                "The actually cleared, restored floor can still be banked through its existing physical root gate");
+            resumed.Close();
+            resumed.PrepareSave();
+            var twice=new GameCore(data,CloneSave(resumed.save));
+            twice.Start();
+            Check(twice.enemies.Count==0&&twice.save.runCoins==48&&
+                twice.save.runShards==3&&twice.save.runXp==27&&
+                twice.save.version==2,
+                "Repeated before-extraction saves cannot mint a replacement enemy wave or discard pending rewards");
+            var last=Unlocked(data);
+            last.StartAbyss(0);
+            last.save.abyssFloor=6;last.enemies.Clear();
+            last.save.abyssSnapshotFloor=6;
+            last.save.abyssEnemies=new EnemyRecord[0];
+            last.save.runCoins=73;
+            var restoredBoss=new GameCore(data,CloneSave(last.save));
+            restoredBoss.Start();
+            Check(restoredBoss.enemies.Count==1&&restoredBoss.enemies[0].boss&&
+                restoredBoss.save.runCoins==73,
+                "An inconsistent empty sixth-floor roster cannot bypass the real Root Reaper; restores ONLY its required guardian");
+            last.save.flags.Add("boss_8");
+            var defeatedBoss=new GameCore(data,CloneSave(last.save));
+            defeatedBoss.Start();
+            Check(defeatedBoss.enemies.Count==0&&defeatedBoss.save.runCoins==73,
+                "A legitimately defeated sixth-floor guardian does not resurrect on reload");
+        }
+
         public static void AbyssOptionalInteractionsRequirePhysicalReach(Campaign data)
         {
             var g = new GameCore(data);

@@ -508,7 +508,23 @@ namespace Starfall
         }
         private bool RestoreAbyssEnemies()
         {
-            if (save.abyssSnapshotFloor != save.abyssFloor || save.abyssEnemies == null || save.abyssEnemies.Length == 0) return false;
+            if (save.abyssSnapshotFloor != save.abyssFloor ||
+                save.abyssEnemies == null)return false;
+            // A ZERO-LENGTH v2 roster is a real snapshot: the player
+            // killed the last enemy but has not yet reached the banking
+            // gate. Treating it as "no snapshot" respawned the entire
+            // floor and ERASED accumulated, still-unbanked loot at load.
+            // Null remains the sentinel for an unvisited floor.
+            if(save.abyssEnemies.Length==0)
+            {
+                // A sixth-floor snapshot without a defeated Reaper flag
+                // still owes the player the original guardian fight.
+                // Restore ONLY that missing Boss, not a full fresh wave.
+                if(save.abyssFloor==6&&!Has("boss_8"))
+                    enemies.Add(CreatePlacedEnemy(++enemyId,3,
+                        new Point(29,9),CurrentBoss.hp,true));
+                return true;
+            }
             var ids = new HashSet<int>();
             foreach (EnemyRecord r in save.abyssEnemies)
             {
