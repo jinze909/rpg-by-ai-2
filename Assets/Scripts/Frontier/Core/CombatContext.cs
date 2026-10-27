@@ -56,8 +56,11 @@ namespace Starfall
             // Last PHYSICALLY observed player location, not the hero's
             // hidden live coordinate beyond new walls or doors.
             public Point lastKnown;
-            public EnemyHitAlert(float time,Point foot)
-            {remaining=time;lastKnown=foot;}
+            // A meaningful sound-only investigation owns a distinct,
+            // readable alert; actual visual acquisition supersedes it.
+            public bool impactOnly;
+            public EnemyHitAlert(float time,Point foot,bool impactOnly=false)
+            {remaining=time;lastKnown=foot;this.impactOnly=impactOnly;}
         }
         private readonly Dictionary<Enemy,EnemyHitAlert> enemyHitAlert =
             new Dictionary<Enemy,EnemyHitAlert>();
@@ -155,7 +158,10 @@ namespace Starfall
                 return false;
             }
             if(ClearAttackPath(e.Position,Position))
+            {
                 alert.lastKnown=Position;
+                alert.impactOnly=false;
+            }
             return true;
         }
         // A missed physical arrow still makes a tactical SOUND where
@@ -196,10 +202,24 @@ namespace Starfall
                     // threat: do not overwrite its genuinely seen foot.
                     continue;
                 }
-                enemyHitAlert[enemy]=new EnemyHitAlert(3.5f,soundFoot);
+                enemyHitAlert[enemy]=new EnemyHitAlert(
+                    3.5f,soundFoot,true);
                 effects.Add(new Effect("number",enemy.Position,.75f,
                     L("听见异响","HEARD IMPACT")));
             }
+        }
+        // The original actor renderer uses this read-only flag to
+        // distinguish a real sound investigation from regular combat.
+        // Identity, save, current map and finite expiry are all required.
+        public bool IsEnemyInvestigatingImpact(Enemy e)
+        {
+            EnemyHitAlert alert;
+            return e!=null&&save!=null&&Map!=null&&
+                System.Object.ReferenceEquals(enemyHitAlertSave,save)&&
+                System.Object.ReferenceEquals(enemyHitAlertMap,Map)&&
+                enemies.Contains(e)&&e.hp>0&&!e.boss&&
+                enemyHitAlert.TryGetValue(e,out alert)&&
+                alert.impactOnly&&alert.remaining>0f;
         }
         private Point LastKnownEnemyHitOrigin(Enemy e,Point fallback)
         {

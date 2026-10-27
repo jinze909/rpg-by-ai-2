@@ -1196,6 +1196,19 @@ namespace Starfall
                     PixelArt.C("#e6b46e"):PixelArt.C("#7acabb");
                 Ring(e.Position,.63f,patrolTint,16);
             }
+            // The ordinary guard is genuinely investigating an audible
+            // physical stone contact. This read-only planted marker lives
+            // on its REAL monster body, not on a forged patrol NPC/ID.
+            // Body atlas, palette, foot pivot and original movement remain
+            // unchanged; no OnGUI outline duplicate or blinking animation.
+            if(!drawingOutline&&Game.IsEnemyInvestigatingImpact(e))
+            {
+                Color suspicion=PixelArt.C("#e6b46e");
+                Ring(e.Position,.57f,suspicion,16);
+                Text(p.x-74,p.y-125,148,19,
+                    Game.L("调查异响","INVESTIGATING"),
+                    10,suspicion,TextAnchor.MiddleCenter);
+            }
             // Only the living caller owns this painted warning over its
             // original native full-body Sprite. The existing danger atlas
             // animates above its planted feet; a kill, stun or room change

@@ -52,6 +52,7 @@ namespace Starfall.Tests
                 Point start=guard.Position;
                 Advance(g,1.25f);
                 Check(!g.projectiles.Contains(arrow)&&
+                    g.IsEnemyInvestigatingImpact(guard)&&
                     (guard.Position-start).Length>.18f &&
                     guard.Position.x>start.x+.12f &&
                     guard.hp==200f && g.CanStand(guard.Position),
@@ -70,8 +71,19 @@ namespace Starfall.Tests
                     impact=impact,life=2f});
                 Point quietStart=quietGuard.Position;
                 Advance(quiet,1.25f);
-                Check((quietGuard.Position-quietStart).Length<.01f,
+                Check((quietGuard.Position-quietStart).Length<.01f&&
+                    !quiet.IsEnemyInvestigatingImpact(quietGuard),
                     "An unlaunched projectile buried in a wall never creates a false enemy investigation");
+                // Sound suspicion does not remain pinned forever or leak
+                // from its original guard into later identically named foes.
+                Advance(g,4f);
+                Check(!g.IsEnemyInvestigatingImpact(guard),
+                    "The original alert and marker retire after bounded world time");
+                g.Enter(0);g.Enter(1);g.enemies.Clear();
+                var sameId=new Enemy(guard.id,0,16.5f,12.5f,200f);
+                g.enemies.Add(sameId);
+                Check(!g.IsEnemyInvestigatingImpact(sameId),
+                    "A map transition cannot transfer a previous body's impact marker to a replacement ID");
             }
             finally {data.maps[1]=previous;}
         }
