@@ -3,6 +3,67 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void BowAndRangerVolleyKeepActualProjectileReleaseFootAfterActionDisplacement(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[24];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=21)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=7.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int mode=0;mode<2;mode++)
+                {
+                    var game=Fresh(data,1);
+                    game.save.stage=3;game.Enter(1);
+                    game.enemies.Clear();
+                    game.mode="world";
+                    game.save.weapon=1;
+                    game.save.x=7.5f;game.save.y=10.5f;
+                    if(mode==0)game.Attack(new Point(1,0));
+                    else game.Skill(new Point(1,0));
+                    ActorAction action=game.playerAction;
+                    Check(action!=null&&action.impact!=null&&
+                        action.impact.sourceFoot.HasValue&&
+                        (action.impact.sourceFoot.Value-new Point(7.5f,10.5f)).Length<.001f,
+                        "Both real ranged actions snapshot input-time character identity and position");
+                    // A physical relocation before contact can come from
+                    // knockback or authored motion. The muzzle must speak
+                    // for its actual release foot instead of the stale
+                    // input-position snapshot.
+                    game.save.x=9.5f;
+                    var release=typeof(GameCore).GetMethod(
+                        mode==0?"ReleaseAttack":"ResolveSkill",
+                        System.Reflection.BindingFlags.Instance|
+                        System.Reflection.BindingFlags.NonPublic);
+                    Check(release!=null,
+                        "Both actual authoritatively released projectile paths are preserved");
+                    release.Invoke(game,new object[]{action});
+                    Check(game.projectiles.Count>0,
+                        "A genuine input-driven bow or ranger-volley release emits real flying shots");
+                    foreach(Projectile shot in game.projectiles)
+                    {
+                        Check(shot.impact!=null&&shot.impact.sourceFoot.HasValue&&
+                            (shot.impact.sourceFoot.Value-new Point(9.5f,10.5f)).Length<.001f&&
+                            shot.impact.weapon==action.impact.weapon&&
+                            shot.impact.style==action.impact.style&&
+                            shot.impact.playerOwned,
+                            "The actual release foot wins without changing damage-critical weapon/style identity");
+                    }
+                    Check((action.impact.sourceFoot.Value-new Point(7.5f,10.5f)).Length<.001f,
+                        "The original immutable action input snapshot is never rewritten");
+                }
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void ActualArrowImpactOnStoneLuresOnlyNearbySameSideGuards(Campaign data)
         {
             MapData previous=data.maps[1];

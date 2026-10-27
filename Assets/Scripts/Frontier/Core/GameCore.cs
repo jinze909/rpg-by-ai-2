@@ -1095,11 +1095,13 @@ namespace Starfall
                 int visualWeapon = action.equippedWeapon;
                 int released = 0;
                 Projectile blocked = null;
+                ImpactProfile releasedImpact=AtActualProjectileRelease(
+                    action.impact,Position);
                 for (int i = -2; i <= 2; i++)
                 {
                     Projectile shot = FriendlyShot(Position, visualWeapon,
                         action.direction, 13, action.damage * 1.25f, false,
-                        action.target, action.impact);
+                        action.target, releasedImpact);
                     // The release at the hand must be physically valid.
                     // A neighboring wall can enclose the muzzle while the
                     // actor's feet and the target centerline remain clear.

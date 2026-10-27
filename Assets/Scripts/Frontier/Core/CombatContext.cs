@@ -227,6 +227,22 @@ namespace Starfall
             return e!=null&&enemyHitAlert.TryGetValue(e,out state)?
                 state.lastKnown:fallback;
         }
+        // A snapshot's critical/stats/class identity belongs to input
+        // time. A released projectile's physical SOURCE, however, is the
+        // actor's planted foot at the actual hand-release frame. Rebase
+        // only that immutable field, once per release, never each
+        // projectile sweep or after the hero has already dodged away.
+        private static ImpactProfile AtActualProjectileRelease(
+            ImpactProfile original,Point plantedFoot)
+        {
+            if(original==null||!original.playerOwned)return original;
+            if(original.sourceFoot.HasValue&&
+               (original.sourceFoot.Value-plantedFoot).Length<.0001f)
+                return original;
+            return new ImpactProfile(original.weapon,original.style,
+                original.masteryWeapon,original.combo,original.criticalChance,
+                original.playerOwned,original.profession,plantedFoot);
+        }
         private ImpactProfile CaptureImpact(int weapon,int attackCombo=0,bool playerOwned=true)
         {
             weapon=(int)Clamp(weapon,0,2);

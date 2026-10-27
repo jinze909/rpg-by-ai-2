@@ -619,12 +619,14 @@ namespace Starfall
                 int spread = a.weapon == 1 && a.style == 2 ? 1 : 0;
                 var ready = new List<Projectile>();
                 Projectile blocked = null;
+                ImpactProfile releasedImpact=AtActualProjectileRelease(
+                    a.impact,Position);
                 for (int n = -spread; n <= spread; n++)
                 {
                     Projectile shot = FriendlyShot(Position, a.weapon,
                         a.direction, a.weapon == 1 ? 12 : 8,
                         a.damage * (spread > 0 ? .65f : 1),
-                        a.weapon == 2, a.target, a.impact);
+                        a.weapon == 2, a.target, releasedImpact);
                     if (shot.blockedAtSpawn)
                     {
                         blocked = shot;
