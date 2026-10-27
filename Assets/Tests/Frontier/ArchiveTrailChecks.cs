@@ -24,7 +24,10 @@ namespace Starfall.Tests
             Check(chooseSouth>=0,"Live atlas offers the original southern marker");
             g.Choose(chooseSouth);
             Point? atlasPin=g.LocalWaymark;
-            Check(atlasPin.HasValue,"An atlas field pin is genuinely active");
+            Check(atlasPin.HasValue&&g.AtlasSurveyNavigationActive &&
+                !g.AtlasSurveyAwaitingInteraction &&
+                g.AtlasSurveyNextStop.Contains("南侧旧路"),
+                "The real atlas HUD identifies the unsurveyed southern road");
 
             // A new player-chosen pin must never be seized later by the
             // atlas when that abandoned marker is physically investigated.
@@ -36,8 +39,10 @@ namespace Starfall.Tests
                 "A player can deliberately override an atlas pin on the real local map");
             Point? ownPin=g.LocalWaymark;
             Check(ownPin.HasValue&&
-                (ownPin.Value-atlasPin.Value).Length>.1f,
-                "The manual pin replaces the transient atlas-owned destination");
+                (ownPin.Value-atlasPin.Value).Length>.1f &&
+                !g.AtlasSurveyNavigationActive &&
+                string.IsNullOrEmpty(g.AtlasSurveyNextStop),
+                "A manual pin replaces both the atlas destination and the stale HUD label");
             g.mode="world";
             g.save.x=south.x;g.save.y=south.y;
             g.Talk(south);
@@ -105,8 +110,10 @@ namespace Starfall.Tests
             g.save.x=south.x;g.save.y=south.y;
             g.Tick(.05f,new Point());
             Check(g.LocalWaymark.HasValue&&
-                (g.LocalWaymark.Value-originalPin.Value).Length<.001f,
-                "The atlas approach marker remains until the real road has been investigated");
+                (g.LocalWaymark.Value-originalPin.Value).Length<.001f &&
+                g.AtlasSurveyAwaitingInteraction &&
+                g.AtlasSurveyNextStop.Contains("按 E"),
+                "At the real atlas waypoint the HUD requests E, not proximity-only completion");
             int coins=g.save.coins,shards=g.save.shards;
             g.Talk(south);
             Check(g.Has("waytrail_"+south.id)&&
@@ -115,8 +122,12 @@ namespace Starfall.Tests
             Point? next=g.LocalWaymark;
             Check(next.HasValue&&
                 (next.Value-new Point(east.x,east.y)).Length<1.81f &&
-                (next.Value-originalPin.Value).Length>.1f,
-                "Actual first survey automatically routes to the other unvisited original road");
+                (next.Value-originalPin.Value).Length>.1f &&
+                g.AtlasSurveyNavigationActive &&
+                !g.AtlasSurveyAwaitingInteraction &&
+                g.AtlasSurveyNextStop.Contains("东侧旧路") &&
+                g.AtlasSurveyNextStop.Contains("1/2"),
+                "Surveying the first road updates route, real destination and progress together");
             g.Close();
             g.save.x=east.x;g.save.y=east.y;
             g.Tick(.05f,new Point());
@@ -126,8 +137,10 @@ namespace Starfall.Tests
             g.Talk(east);
             Check(g.Has("waytrail_"+east.id)&&
                 g.save.coins==coins+8&&g.save.shards==shards+1 &&
-                !g.LocalWaymark.HasValue,
-                "Completing both original road surveys grants only established rewards and retires the pin");
+                !g.LocalWaymark.HasValue &&
+                !g.AtlasSurveyNavigationActive &&
+                string.IsNullOrEmpty(g.AtlasSurveyNextStop),
+                "Both roads complete: only original rewards, no leftover atlas pin or HUD");
             g.Close();
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));

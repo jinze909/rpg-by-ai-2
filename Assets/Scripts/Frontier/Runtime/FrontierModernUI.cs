@@ -526,6 +526,12 @@ namespace Starfall
                 Text(1024,178,166,12,
                     Game.L("跨区任务 · 到达后接续","REMOTE QUEST · AUTO-ROUTE"),
                     9,mint,TextAnchor.MiddleCenter);
+            else if(Game.AtlasSurveyNavigationActive)
+                Text(1024,178,166,12,
+                    Game.AtlasSurveyAwaitingInteraction?
+                    Game.L("星图旧路 · 按 E 调查","AT ATLAS MARKER · PRESS E"):
+                    Game.L("星图测绘 · 跟随路线","ATLAS SURVEY · FOLLOW ROUTE"),
+                    9,mint,TextAnchor.MiddleCenter);
             else if(Game.PersonalNavigationActive)
                 Text(1024,178,166,12,
                     Game.QuestApproachNextStageBlocked?
@@ -542,6 +548,8 @@ namespace Starfall
             // guidance is OFF, without ever implying fast-travel happened.
             if(remoteOwnsCompass)
                 Text(1024,204,166,11,Game.RemoteQuestNextStop,9,mint,TextAnchor.MiddleCenter);
+            else if(Game.AtlasSurveyNavigationActive)
+                Text(1024,204,166,11,Game.AtlasSurveyNextStop,9,mint,TextAnchor.MiddleCenter);
             if (Button(1190, 184, 48, 25, "M")) OpenMenu("map");
         }
         private bool NavigationRouteRowsUnchanged(string[] rows)
@@ -1321,6 +1329,8 @@ namespace Starfall
                             Game.L("道路封闭 · 清除标记","Route blocked · Clear pin") :
                         Game.QuestApproachNavigationActive?
                             Game.L("取消任务自动导航","Cancel quest route auto-follow"):
+                        Game.AtlasSurveyNavigationActive?
+                            Game.L("取消星图实地测绘","Cancel atlas field survey"):
                             Game.L("清除个人地图标记","Clear personal map pin")))
                         Game.ClearLocalWaymark();
                 }
@@ -1365,6 +1375,8 @@ namespace Starfall
                     Game.QuestApproachNavigationActive?
                         Game.L("任务下一阶段会自动更新目标 · R/Y 改为手动标记",
                             "Auto-follows next quest step · R/Y makes a manual pin"):
+                    Game.AtlasSurveyNavigationActive?
+                        Game.AtlasSurveyNextStop:
                         Game.L("按 R / 手柄 Y 可直接移动旧标记",
                             "R / gamepad Y: move existing pin without clearing"),
                     9,mint,TextAnchor.MiddleCenter);

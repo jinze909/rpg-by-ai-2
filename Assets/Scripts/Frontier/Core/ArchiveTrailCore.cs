@@ -164,6 +164,32 @@ namespace Starfall
                 IsObjectPresent(atlasSurveyMarker) &&
                 !Has("waytrail_"+atlasSurveyRoadId);
         }
+        // HUD and map consume only live, physically authenticated road
+        // ownership. No saved extra quest, route or fake reward.
+        public bool AtlasSurveyNavigationActive
+        { get { return LocalWaymark.HasValue && AtlasSurveyAtDestination(); } }
+        public bool AtlasSurveyAwaitingInteraction
+        { get { return AtlasSurveyNavigationActive && atlasSurveyArrived; } }
+        public string AtlasSurveyNextStop
+        {
+            get
+            {
+                if(!AtlasSurveyNavigationActive)return "";
+                int done=0;
+                foreach(string side in new[]{"s","e"})
+                {
+                    WorldObject marker=AtlasRoadMarker(save.room,side);
+                    if(marker!=null&&Has("waytrail_"+marker.id))done++;
+                }
+                bool south=atlasSurveyRoadId.EndsWith("s",StringComparison.Ordinal);
+                string progress=" ("+done+"/2)";
+                if(AtlasSurveyAwaitingInteraction)
+                    return L("已到旧路标 · 按 E 拓印",
+                        "AT ROAD MARKER · PRESS E")+progress;
+                return L(south?"星图：前往南侧旧路":"星图：前往东侧旧路",
+                    south?"ATLAS: SOUTHERN ROAD":"ATLAS: EASTERN ROAD")+progress;
+            }
+        }
         private void AdvanceAtlasSurvey(WorldObject surveyed)
         {
             if(surveyed==null||string.IsNullOrEmpty(atlasSurveyRoadId)||
