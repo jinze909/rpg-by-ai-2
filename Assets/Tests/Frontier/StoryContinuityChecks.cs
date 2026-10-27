@@ -28,6 +28,44 @@ namespace Starfall.Tests
         }
 
 
+        public static void BilingualLiveQuestJournalSpeaksInTheWorldNotAboutSaveFiles(Campaign data)
+        {
+            var g=Fresh(data);
+            int coins=g.save.coins,shards=g.save.shards;
+            int flags=g.save.flags.Count;
+            QuestGuide soup=g.GetQuest("soup_route");
+            QuestGuide witness=g.GetQuest("campaign_witness");
+            Check(soup.description.Contains("老潮")&&
+                soup.description.Contains("南侧避险棚")&&
+                soup.description.Contains("重新上路")&&
+                !soup.description.Contains("玩家"),
+                "Actual Chinese warm-meal quest tells a real journey and physical relief story, never addresses a player outside the world");
+            Check(witness.description.Contains("莫芽")&&
+                witness.description.Contains("阿菱")&&
+                witness.description.Contains("维恩")&&
+                witness.description.Contains("第四章")&&
+                !witness.description.Contains("旧存档")&&
+                !witness.description.Contains("旧章节"),
+                "Live Chapter Four witness quest preserves causality and key actors without narrating save-system migration details");
+            g.save.english=true;
+            QuestGuide soupEn=g.GetQuest("soup_route");
+            QuestGuide witnessEn=g.GetQuest("campaign_witness");
+            Check(soupEn.description.Contains("Old Tide")&&
+                soupEn.description.Contains("Frostchime")&&
+                soupEn.description.Contains("refuge")&&
+                !soupEn.description.Contains("player"),
+                "English quest journal carries the same material delivery and refuge stakes");
+            Check(witnessEn.description.Contains("Moya")&&
+                witnessEn.description.Contains("Arin")&&
+                witnessEn.description.Contains("Venn")&&
+                witnessEn.description.Contains("Chapter Four")&&
+                !witnessEn.description.Contains("campaign gates"),
+                "English witness journal keeps all three real witnesses and the audit without exposing technical quest-gate notes");
+            Check(g.save.version==2&&g.save.coins==coins&&
+                g.save.shards==shards&&g.save.flags.Count==flags,
+                "Switching real bilingual journal pages cannot edit original saved resources or any quest completion milestones");
+        }
+
         public static void MainChapterStarcoreHandoffPreservesAllFiniteSupplyRewards(Campaign data)
         {
             var g=Fresh(data);g.Enter(0);g.enemies.Clear();

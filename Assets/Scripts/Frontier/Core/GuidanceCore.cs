@@ -997,8 +997,8 @@ namespace Starfall
                 q.locked=!PublicFishKitchenStocked;
                 q.complete=SoupRouteComplete;
                 q.description=L(
-                    "老潮把公共汤锅重新烧旺后，密林、雾港和霜钟高原最远端的守棚人仍缺晚饭。分别把背包里的一碗暖潮炖汤亲手交到各地已修好的南侧避险棚。交付需要附近安全；每处交接后，玩家在棚屋旁可获得额外的生命与耐力恢复。",
-                    "Old Tide reopened the public kitchen, but the remote refuge keepers in Thornwood, Mistport and Frostchime still lack hot meals. Carry one real Tide stew to each repaired southern shelter. Handoffs require safety; each stocked shelter gives additional local health and energy recovery.");
+                    "老潮把公共汤锅重新烧旺后，密林、雾港和霜钟高原最远端的守棚人仍没吃上热饭。每到一处，先确认巡路安全，再把随身带来的一碗暖潮炖汤交到修好的南侧避险棚。守棚人会把火留着；受伤、疲惫的旅人也能在棚边歇口气，重新上路。",
+                    "Old Tide has the lakeside cauldron burning again, but the farthest shelter keepers in Thornwood, Mistport and Frostchime still go to bed hungry. Carry a bowl of Tide stew to each repaired southern refuge and hand it over once the road is safe. The keepers will tend their fires for wounded, weary travelers who need strength for the next stretch.");
                 int next=-1;
                 string[] z={"荆棘密林","雾港","霜钟高原"};
                 string[] e={"Thornwood","Mistport","Frostchime"};
@@ -2646,8 +2646,8 @@ namespace Starfall
             {
                 q.title=L("主线证词 · 未被计入的人","Main Story · The Uncounted Witnesses");
                 q.category=L("前三章关键人物与实战","ACT I–III · LIVING TESTIMONY");
-                q.description=L("三位居民亲自见证旧星核命令的损失。密林的疗养根系、遗迹的公共渡口与矿场的过热停机记录都被当成损耗。每章先正确恢复现场记录，再保护另一处证据免受真实守卫封锁，返回证人签署。这些证词会实质帮助第四章的三核审计。旧章节与旧存档的原有进度仍有效。",
-                    "Three living witnesses document what obsolete starcore orders erased: healing roots, public sluices and miners' emergency shutdown. Restore a first field record, physically defeat security at the second site, then return to its witness for a signed account. All three make Chapter Four's audit fight easier. Original campaign gates remain intact.");
+                q.description=L("莫芽、阿菱和维恩保留着三份没有被堡垒账本承认的证据：密林里受伤的疗养根系、遗迹旁属于居民的渡口，以及矿场工人被夺走的停机权。先找回每人的现场记录，再击退看守另一份证物的守卫，最后请本人签字。三份证词齐了，第四章的三核审计才有人能够当面反驳旧命令。公会证物墙上已钉好的签名，不必再讨第二次。",
+                    "Moya, Arin and Venn kept the evidence the citadel's ledgers refused to count: wounded healing roots, a crossing meant for ordinary families, and the miners' right to shut down a dangerous furnace. Recover each witness's field record, defeat the guards holding the second piece, then bring both back for a signature. All three can challenge the old orders in Chapter Four's three-core reckoning. Once a testimony is pinned to the guild wall, nobody has to ask that witness to sign it twice.");
                 int next=0;
                 for(int i=1;i<=3;i++)
                 {
