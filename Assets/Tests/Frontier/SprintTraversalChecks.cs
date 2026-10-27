@@ -58,6 +58,47 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void ArcherWarnsThenFiresAtCommittedPlayerFootLead(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,1);
+                g.save.x=14.5f;g.save.y=15.5f;
+                var archer=new Enemy(987,1,20.5f,15.5f,70f);
+                archer.state=0;archer.timer=0;
+                g.enemies.Add(archer);
+                g.Tick(.05f,new Point(0,1));
+                Check(g.WalkingVelocity.y>.5f&&archer.state==1&&
+                    archer.target.y>g.Position.y+.25f &&
+                    archer.target.y<=g.Position.y+1.351f,
+                    "Real enemy archer commits a bounded ahead-of-walk bow warning when launching its genuine 650ms windup");
+                Point locked=archer.target;
+                Point launchFoot=archer.Position;
+                Point committedHeading=archer.facing;
+                for(int n=0;n<16;n++)g.Tick(.05f,new Point());
+                Check(g.projectiles.Exists(p=>!p.friendly&&
+                    p.visual=="enemyArrow"&&
+                    System.Object.ReferenceEquals(p.hostileShooter,archer)),
+                    "Finishing the original bow draw launches a real enemyArrow, not bonus hitscan or ghost danger");
+                Check((archer.target-locked).Length<.001f&&
+                    (committedHeading-(locked-launchFoot).Normalized).Length<.001f,
+                    "Lateral hero dodge during the draw cannot cause last-frame unfair auto-aim; original warning and bow facing stay committed");
+                Check(g.save.version==2,
+                    "Ordinary enemy predictive windup creates no permanent save fields");
+
+                var stopped=SprintTestWorld(data,0);
+                stopped.save.x=14.5f;stopped.save.y=15.5f;
+                var waiting=new Enemy(988,1,20.5f,15.5f,70f);
+                waiting.timer=0;stopped.enemies.Add(waiting);
+                stopped.Tick(.05f,new Point());
+                Check(waiting.state==1&&
+                    (waiting.target-stopped.Position).Length<.001f,
+                    "Enemy ordinary arrow still aims exactly at stationary hero without false leading");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void HoldingSprintMovesFasterAndChargesRealDistance(Campaign data)
         {
             MapData original=data.maps[1];

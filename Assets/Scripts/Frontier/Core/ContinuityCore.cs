@@ -264,6 +264,42 @@ namespace Starfall
         // A dash, recoil or planted attack is not a walking trajectory.
         private Point walkingVelocity;
         public Point WalkingVelocity { get { return walkingVelocity; } }
+        // Ordinary hostile archers may lead the hero's CURRENT genuine
+        // walking gait once at their visible 650ms bow draw. They do NOT
+        // re-aim in mid-windup. Real attack collision and warning strokes
+        // share the exact immutable intent at the time of commitment.
+        // Bounded by a 1.35 tile reticle and true bow-hand terrain LOS:
+        // no global homing, sudden hitscan, wall shots or sprint punishment
+        // from an impossible future tile.
+        public Point ArcherCommittedLead(Enemy shooter,Point target,float windup)
+        {
+            if(shooter==null||shooter.boss||shooter.kind!=1||
+               !enemies.Contains(shooter)||mode!="world"||
+               !CanStand(shooter.Position)||!CanStand(target)||
+               !Finite(windup)||windup<=0f)
+                return target;
+            Point velocity=walkingVelocity;
+            float speed=velocity.Length;
+            if(!Finite(velocity.x)||!Finite(velocity.y)||
+               !Finite(speed)||speed<.3f||speed>9f)
+                return target;
+            Point vector=target-shooter.Position;
+            float distance=vector.Length;
+            if(!Finite(distance)||distance<1f||distance>7.2f)
+                return target;
+            float flight=distance/5f; // Fire(e,e.facing,5) is the real arrow
+            Point lead=velocity*Clamp(windup+flight,0f,1.8f);
+            const float maxLead=1.35f;
+            if(lead.Length>maxLead)lead=lead.Normalized*maxLead;
+            if(lead.Length<.12f)return target;
+            Point candidate=target+lead;
+            if(!CanStand(candidate)||
+               !ClearAttackPath(target,candidate)||
+               !ClearAttackPath(shooter.Position,candidate)||
+               !EnemyBowFlightLaneClear(shooter,candidate))
+                return target;
+            return candidate;
+        }
         private void TickMovement(float dt, Point movement, Point? explicitAim,
             float hitLockedDt,bool sprintHeld)
         {
