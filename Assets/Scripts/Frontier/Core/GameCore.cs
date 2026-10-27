@@ -1953,6 +1953,16 @@ namespace Starfall
                     travelerAttacker ? ObjectPoint(wayfarerEncounterRoom, "wayfarer" + wayfarerEncounterRoom, Position) :
                     reliefAttacker || escortPatrol ? reliefFollowerPosition :
                     RidgeWatchPursuitFoot(e,Position);
+                // Only ordinary alerted patrols outside native awareness
+                // must search LAST SEEN ground when the hero breaks LOS.
+                // Bosses, wardens and civilian mission targets keep their
+                // own original high-priority physical objectives.
+                if(playerHitProvoked&&!e.boss&&
+                   !wardAttacker&&!travelerAttacker&&!reliefAttacker&&
+                   !escortPatrol&&!stockRaider&&!patrolSaboteur&&
+                   (e.Position-Position).Length>8f&&
+                   !ClearAttackPath(e.Position,Position))
+                    pursuit=LastKnownEnemyHitOrigin(e,pursuit);
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {

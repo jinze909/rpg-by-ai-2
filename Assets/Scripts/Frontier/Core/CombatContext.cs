@@ -44,8 +44,17 @@ namespace Starfall
         // local aggro grants a bounded pursuit response. The physical
         // Enemy reference owns the alarm, never its reuseable numeric ID.
         // This is a runtime reaction: no SaveData or historical aggro.
-        private readonly Dictionary<Enemy,float> enemyHitAlert =
-            new Dictionary<Enemy,float>();
+        private sealed class EnemyHitAlert
+        {
+            public float remaining;
+            // Last PHYSICALLY observed player location, not the hero's
+            // hidden live coordinate beyond new walls or doors.
+            public Point lastKnown;
+            public EnemyHitAlert(float time,Point foot)
+            {remaining=time;lastKnown=foot;}
+        }
+        private readonly Dictionary<Enemy,EnemyHitAlert> enemyHitAlert =
+            new Dictionary<Enemy,EnemyHitAlert>();
         private SaveData enemyHitAlertSave;
         private MapData enemyHitAlertMap;
         private const float EnemyHitAlertSeconds=6f;
@@ -81,7 +90,8 @@ namespace Starfall
                 if(!enemyHitAlert.ContainsKey(e))
                     effects.Add(new Effect("number",e.Position,.7f,
                         L("察觉袭击","UNDER ATTACK")));
-                enemyHitAlert[e]=EnemyHitAlertSeconds;
+                enemyHitAlert[e]=new EnemyHitAlert(
+                    EnemyHitAlertSeconds,Position);
             }
             // Nearby living patrol mates can see a comrade get struck.
             // This is not a magical room-wide alarm: only neighbors
@@ -105,27 +115,39 @@ namespace Starfall
                     effects.Add(new Effect("number",witness.Position,.7f,
                         L("同伴示警","PATROL ALERT")));
                 }
-                enemyHitAlert[witness]=Math.Max(
-                    enemyHitAlert.ContainsKey(witness)?
-                        enemyHitAlert[witness]:0f,4f);
+                EnemyHitAlert oldWitness;
+                if(enemyHitAlert.TryGetValue(witness,out oldWitness))
+                {
+                    oldWitness.remaining=Math.Max(oldWitness.remaining,4f);
+                    if(ClearAttackPath(witness.Position,Position))
+                        oldWitness.lastKnown=Position;
+                }
+                else enemyHitAlert[witness]=new EnemyHitAlert(4f,Position);
             }
         }
         private bool TickEnemyHitAlert(Enemy e,float dt)
         {
             EnsureEnemyHitAlertSession();
-            float remaining;
-            if(e==null||!enemyHitAlert.TryGetValue(e,out remaining))
+            EnemyHitAlert alert;
+            if(e==null||!enemyHitAlert.TryGetValue(e,out alert))
                 return false;
-            remaining-=Math.Max(0f,dt);
+            alert.remaining-=Math.Max(0f,dt);
             float range=(e.Position-Position).Length;
             if(!enemies.Contains(e)||e.hp<=0||e.boss||
-               !Finite(range)||range>18f||remaining<=0f)
+               !Finite(range)||range>18f||alert.remaining<=0f)
             {
                 enemyHitAlert.Remove(e);
                 return false;
             }
-            enemyHitAlert[e]=remaining;
+            if(ClearAttackPath(e.Position,Position))
+                alert.lastKnown=Position;
             return true;
+        }
+        private Point LastKnownEnemyHitOrigin(Enemy e,Point fallback)
+        {
+            EnemyHitAlert state;
+            return e!=null&&enemyHitAlert.TryGetValue(e,out state)?
+                state.lastKnown:fallback;
         }
         private ImpactProfile CaptureImpact(int weapon,int attackCombo=0,bool playerOwned=true)
         {
