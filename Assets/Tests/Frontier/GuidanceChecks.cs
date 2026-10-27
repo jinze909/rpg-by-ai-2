@@ -3212,10 +3212,15 @@ namespace Starfall.Tests
                     Check(g.CanStand(foe.Position)&&
                         (foe.Position-new Point(98.5f,74.5f)).Length>.9f,
                         "No genuine final citadel guard materializes within the dynamically sealed original tile");
-                Action(g,"lastdirectivecore","last_directive_second");
+                g.Talk(terminal);
+                Check(g.conversation!=null&&
+                    !Array.Exists(g.conversation.choices,
+                        c=>c.action=="last_directive_second"),
+                    "Once live final guardians are deployed, the actual terminal dialogue removes the spent second-wave unlock");
+                g.Close();
                 Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&
                     g.save.energy==75,
-                    "A second cached unlock cannot spend the last 25 energy twice or duplicate live enemies");
+                    "Reopening the real guarded terminal cannot double-spend energy or duplicate final-wave enemies");
             }
             finally { map.decor=oldDecor; }
             Check(g.CanStand(new Point(98.5f,74.5f)),
