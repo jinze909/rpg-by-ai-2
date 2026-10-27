@@ -5,6 +5,74 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+
+        public static void OriginalTravelerShoutActuallyRepositionsAnUnlockedRaider(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                string[] rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] tiles=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,
+                    spawnX=10.5f,spawnY=12.5f,
+                    rows=rows,objects=new[]{
+                        new WorldObject{kind="wayfarer1",
+                            id="wayfarer1",x=10.5f,y=10.5f,
+                            name="受困旅人",en="Stranded traveler"}},
+                    decor=new Decoration[0]};
+                var game=Fresh(data);
+                game.save.stage=3;game.save.flags.Add("scout_saved");
+                game.Enter(1);game.enemies.Clear();
+                game.save.x=10.5f;game.save.y=12.5f;
+                var npc=Object(game,"wayfarer1");
+                Action(game,npc.kind,"wayfarer_defend_1");
+                Check(game.WayfarerEncounterRoom==1,
+                    "Living civilian really launches the protected ambush");
+                var raiders=game.enemies.FindAll(e=>
+                    e.id>=82000&&e.id<82100);
+                Check(raiders.Count==2,
+                    "Both original vulnerable-traveler raiders spawn");
+                var diverted=raiders[0];
+                diverted.x=15.5f;diverted.y=10.5f;
+                diverted.stun=0f;diverted.timer=100f;
+                raiders[1].stun=100f;raiders[1].timer=100f;
+                raiders[1].x=24.5f;raiders[1].y=24.5f;
+                Check(game.WayfarerDecoyAvailable,
+                    "Physically near hero can draw live audible raider");
+                var choose=typeof(GameCore).GetMethod("ChooseWayfarer",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                int originalCoin=game.save.coins,originalFlag=game.save.flags.Count;
+                choose.Invoke(game,new object[]{"wayfarer_drawfire"});
+                Check(game.IsWayfarerDecoyTarget(diverted)&&
+                    !game.IsWayfarerDecoyTarget(raiders[1]),
+                    "Taunt belongs only to one actual in-range enemy instance");
+                Point origin=diverted.Position;
+                for(int i=0;i<8;i++)game.Tick(.05f,new Point());
+                Check(diverted.y>origin.y+.18f&&
+                    game.CanStand(diverted.Position)&&
+                    game.WayfarerDecoyTime>4f&&
+                    game.save.coins==originalCoin&&
+                    game.save.flags.Count==originalFlag,
+                    "Real raider ACTUALLY walks toward elevated hero rather than straight along the civilian's original horizontal lane");
+                // A save/room reset must retire both decoy's exact enemy
+                // identity and its current timer, just like source ambush.
+                game.Close();game.Enter(0);
+                Check(game.WayfarerEncounterRoom==0&&
+                    game.WayfarerDecoyTime==0f&&
+                    !game.IsWayfarerDecoyTarget(diverted)&&
+                    game.save.version==2,
+                    "Leaving real combat retires the temporary redirected AI and leaves no serialized lure");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void LiveTravelerCallDrawsOnlyAudibleActualRaiders(Campaign data)
         {
             MapData original=data.maps[1];

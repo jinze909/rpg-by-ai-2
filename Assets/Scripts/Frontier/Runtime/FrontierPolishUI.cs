@@ -225,6 +225,27 @@ namespace Starfall
                     Bar(p.x - 35, p.y + 11, 70, Game.WayfarerIntegrity / 100f, safety, 6);
                     Text(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
                         (int)Math.Ceiling(Game.WayfarerIntegrity) + "%", 10, safety, TextAnchor.MiddleCenter);
+                    // Actual nearby shout opportunity belongs to the
+                    // same real civilian actor. A gold ring is an available
+                    // player command, not a bogus second NPC or Boss sprite.
+                    if(Game.WayfarerDecoyTime>0f)
+                    {
+                        Color decoyTint=PixelArt.C("#efbd69");
+                        Ring(new Point(o.x,o.y),.83f,decoyTint,24);
+                        Text(p.x-70,p.y-139,140,19,
+                            Game.L("引敌 ","DRAW FIRE ")+
+                            Game.WayfarerDecoyTime.ToString("0.0")+"s",
+                            11,decoyTint,TextAnchor.MiddleCenter);
+                    }
+                    else if(Game.WayfarerDecoyAvailable)
+                    {
+                        Color decoyTint=PixelArt.C("#efbd69");
+                        Ring(new Point(o.x,o.y),.68f,decoyTint,20);
+                        Text(p.x-75,p.y-139,150,19,
+                            Game.L("靠近交谈 · 引开劫匪",
+                                "TALK · DRAW FIRE"),
+                            10,decoyTint,TextAnchor.MiddleCenter);
+                    }
                     if(Game.WayfarerCoverTime>0)
                     {
                         Ring(new Point(o.x,o.y),.73f,mint,24);
