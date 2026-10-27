@@ -133,6 +133,62 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void LiveCivilianContactNeverPassesThroughClosingCover(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                // This is a real escort-wave enemy release, not merely a
+                // visibility helper: a contact valid at draw start must
+                // stop hurting the protected follower when a gate shuts.
+                foreach(bool gateClosed in new[]{false,true})
+                {
+                    var g=SprintTestWorld(data,0);
+                    g.save.x=9.5f;g.save.y=12.5f;
+                    g.reliefMissionRoom=1;g.reliefMissionWave=3;
+                    g.reliefMissionTime=75f;
+                    g.reliefFollowerSafety=100f;
+                    g.reliefFollowerPosition=new Point(20.5f,15.5f);
+                    var heavy=new Enemy(1741,2,18.5f,15.5f,140f)
+                    {state=1,timer=.02f,windupDuration=.65f,
+                     targetingReliefCivilian=true};
+                    heavy.target=g.reliefFollowerPosition;
+                    heavy.Face(heavy.target-heavy.Position);
+                    g.enemies.Add(heavy);
+                    Check(g.EnemyObjectiveContactLaneClear(heavy,heavy.target),
+                        "Clear heavy windup initially has a genuinely open objective contact lane");
+                    if(gateClosed)
+                    {
+                        char[] wall=g.Map.rows[15].ToCharArray();
+                        wall[19]='#';g.Map.rows[15]=new string(wall);
+                    }
+                    Check(g.EnemyObjectiveContactLaneClear(heavy,heavy.target)==!gateClosed,
+                        "A newly shut gate retracts the same heavy objective warning and damage authority");
+                    float priorSafety=g.reliefFollowerSafety;
+                    g.Tick(.05f,new Point());
+                    Check(gateClosed ?
+                        Math.Abs(g.reliefFollowerSafety-priorSafety)<.0001f :
+                        g.reliefFollowerSafety<priorSafety,
+                        "The actual escort contact respects fresh stone cover, while an unchanged open release still damages the civilian");
+                    Check(g.save.version==2,
+                        "Objective cover and warning synchronization change no old save fields");
+                }
+                // Living enemy cover stops an ordinary raider's objective
+                // contact, but cannot nullify the heavy's authored AoE.
+                var body=SprintTestWorld(data,0);
+                var hunter=new Enemy(1742,0,18.5f,15.5f,90f);
+                var guard=new Enemy(1743,0,19.5f,15.5f,90f);
+                Point protectedFoot=new Point(20.5f,15.5f);
+                body.enemies.Add(hunter);body.enemies.Add(guard);
+                Check(!body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
+                    "Living frontline cover also retracts a melee civilian threat before actual release");
+                guard.y=18.5f;
+                Check(body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
+                    "Removing physical body cover restores the ordinary objective contact lane");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void HoldingSprintMovesFasterAndChargesRealDistance(Campaign data)
         {
             MapData original=data.maps[1];

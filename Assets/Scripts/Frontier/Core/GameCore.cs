@@ -1794,6 +1794,26 @@ namespace Starfall
             }
             return true;
         }
+        // A civilian, escort or defense objective may be behind a gate
+        // that shuts AFTER an enemy commits its attack. Share one live
+        // physical contact rule with the shipped warning renderer and
+        // objective damage release. Ordinary melee respects a living
+        // frontline body, arrows also need their full swept bow lane,
+        // while heavy area attacks ignore bodies but never sealed terrain.
+        // Read-only; this cannot change a v2 save or any encounter timer.
+        public bool EnemyObjectiveContactLaneClear(Enemy attacker,Point target)
+        {
+            if(attacker==null||!enemies.Contains(attacker)||
+                !Finite(target.x)||!Finite(target.y)||
+                !CanStand(attacker.Position)||
+                !ClearAttackPath(attacker.Position,target))
+                return false;
+            if(attacker.boss||attacker.kind==2)return true;
+            if(attacker.kind==1)
+                return EnemyBowFlightLaneClear(attacker,target);
+            return EnemyMeleeLaneClear(attacker,target);
+        }
+
         // Only ordinary locomotion uses crowd spacing. Boss dashes, hit recoil,
         // telegraphed contacts and authored missile releases retain their own
         // committed motion/timing. A crowd never changes the terrain sweep.
@@ -2129,8 +2149,8 @@ namespace Starfall
                         bool heroCoveredReceiver=stockRaider&&
                             e.targetingAfterlightStock&&
                             AfterlightWatchHeroBodyBlocksStock(e);
-                        bool objectiveLaneClear=(e.boss||e.kind!=0||
-                            EnemyMeleeLaneClear(e,e.target))&&
+                        bool objectiveLaneClear=
+                            EnemyObjectiveContactLaneClear(e,e.target)&&
                             !heroCoveredReceiver;
                         bool objectiveThreat=(stockRaider&&e.targetingAfterlightStock)||
                             (patrolSaboteur&&e.targetingOuterPatrolStock)||
@@ -2159,8 +2179,8 @@ namespace Starfall
                         bool rescueThreat=reliefMissionRoom!=0 &&
                             (IsReliefMissionEnemy(e)||escortPatrol) &&
                             e.targetingReliefCivilian && e.kind!=1;
-                        bool rescueLaneClear=e.kind!=0||e.boss||
-                            EnemyMeleeLaneClear(e,reliefFollowerPosition);
+                        bool rescueLaneClear=EnemyObjectiveContactLaneClear(
+                            e,reliefFollowerPosition);
                         if(rescueThreat&&rescueLaneClear)
                             DamageReliefCivilian(e);
                         if(rescueThreat&&!rescueLaneClear)

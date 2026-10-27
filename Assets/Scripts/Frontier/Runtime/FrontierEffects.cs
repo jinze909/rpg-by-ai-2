@@ -691,27 +691,28 @@ namespace Starfall
                 enemy.targetingReliefCivilian &&
                     Game.reliefMissionRoom == Game.save.room &&
                     (Game.reliefMissionWave >= 1 && Game.reliefMissionWave <= 3);
-            if (targetedCivilian)
+            // Match the very same live topology/body cover predicate that
+            // authorizes objective HP damage on release. A newly closed
+            // gate, or a defender stepping into a melee lane, retracts the
+            // target danger cue rather than showing a false certain hit.
+            // Archers already draw their exact clipped physical arrow lane
+            // below; never superimpose a second unbounded civilian tether.
+            if (targetedCivilian &&
+                Game.EnemyObjectiveContactLaneClear(enemy,enemy.target) &&
+                (enemy.kind!=1||
+                 (Game.ArcherWarningPhysicalEnd(enemy)-enemy.target).Length<.08f))
             {
-                float laneProgress = Mathf.Clamp01(1 - enemy.timer / Math.Max(.01f, enemy.windupDuration));
+                float laneProgress = Mathf.Clamp01(1 - enemy.timer /
+                    Math.Max(.01f, enemy.windupDuration));
                 Color tether = PixelArt.C("#f4b58b");
-                float opacity = Game.save.reducedMotion ? .4f : .24f + laneProgress * .25f;
-                DrawWarningStroke(ScreenPoint(enemy.Position),
-                    ScreenPoint(enemy.target),
-                    new Color(tether.r,tether.g,tether.b,opacity));
+                float opacity = Game.save.reducedMotion ?
+                    .4f : .24f + laneProgress * .25f;
+                if(enemy.kind!=1)
+                    DrawWarningStroke(ScreenPoint(enemy.Position),
+                        ScreenPoint(enemy.target),
+                        new Color(tether.r,tether.g,tether.b,opacity));
                 DrawWarningArc(enemy.target,.34f,0f,(float)(Math.PI*2),
                     new Color(tether.r,tether.g,tether.b,.65f),16);
-                if (enemy.targetingReliefCivilian && enemy.kind == 1)
-                {
-                    // The projectile can be blocked mid-flight; warn about
-                    // the arrow's actual shot lane, not a ground shockwave.
-                    Point muzzle = GameCore.WeaponOrigin(enemy.Position, 1, enemy.facing);
-                    DrawWarningStroke(ScreenPoint(muzzle),
-                        ScreenPoint(enemy.target),
-                        new Color(tether.r,tether.g,tether.b,
-                            Game.save.reducedMotion ? .6f :
-                            .35f+laneProgress*.4f));
-                }
             }
             if(enemy.boss||enemy.kind==2){DrawTelegraph(enemy);return;}
             float progress=Mathf.Clamp01(1-enemy.timer/Math.Max(.01f,enemy.windupDuration));
