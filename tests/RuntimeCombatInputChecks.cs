@@ -7659,11 +7659,20 @@ public static class RuntimeCombatInputChecks
             "The shipped Frostchime scene contains the physical mid-route flame station");
         g.save.x=junction.x;g.save.y=junction.y;
         g.companionPosition=new Point(junction.x+1.5f,junction.y);
-        var guard=new Enemy(91400,0,junction.x+3f,junction.y,95f)
-            {stun=90f,timer=90f};
-        g.enemies.Add(guard);
+        // Render from a real, registered highland defender instead of a
+        // fabricated numeric ID. Ownership is now based on the exact
+        // original spawned enemy object, as in the shipped playable fight.
+        var spawn=typeof(GameCore).GetMethod("SpawnFrostSignalGuards",Private);
+        Check(spawn!=null&&(bool)spawn.Invoke(g,null),
+            "Original highland junction can genuinely place two reachable guards");
         typeof(GameCore).GetField("<FrostSignalStage>k__BackingField",Private)
             .SetValue(g,2);
+        var guard=g.enemies.Find(e=>g.IsFrostSignalEnemy(e)&&e.kind==0);
+        Check(guard!=null,"Real highland melee guard is registered to this active ember");
+        g.enemies.RemoveAll(e=>g.IsFrostSignalEnemy(e)&&
+            !System.Object.ReferenceEquals(e,guard));
+        guard.x=junction.x+3f;guard.y=junction.y;
+        guard.stun=90f;guard.timer=90f;
         typeof(GameCore).GetField("<FrostSignalTime>k__BackingField",Private)
             .SetValue(g,81f);
         typeof(GameCore).GetField("<FrostSignalFlame>k__BackingField",Private)

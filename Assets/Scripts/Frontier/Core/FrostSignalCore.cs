@@ -19,6 +19,11 @@ namespace Starfall
         // journal on every frame; it is reset with the transient mission.
         public Point FrostSignalBankedFoot { get; private set; }
         private int frostSignalConfirmedKills;
+        // Exactly two original actors own this physical ember encounter.
+        // An unrelated creature with a reused 91400/91401 numeric ID
+        // cannot fake a guard kill, drain flame or keep missing raiders
+        // registered through the old ID-only liveness check.
+        private Enemy frostSignalActorA,frostSignalActorB;
         private void OnFrostSignalEnemyDefeated(Enemy enemy)
         {
             if (FrostSignalStage != 2 || save.room != 7 ||
@@ -73,7 +78,11 @@ namespace Starfall
         public bool FrostSignalHearthBright
         { get { return FrostSignalComplete && Has("frostsignal_bright"); } }
         public bool IsFrostSignalEnemy(Enemy e)
-        { return e!=null&&e.id>=91400&&e.id<91410; }
+        {
+            return e!=null&&FrostSignalStage==2&&save.room==7&&
+                (System.Object.ReferenceEquals(e,frostSignalActorA)||
+                 System.Object.ReferenceEquals(e,frostSignalActorB));
+        }
         private WorldObject FrostSignalPost(int number)
         {
             if(number<1||number>3)return null;
@@ -88,6 +97,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.frostSignalOwned);
             effects.RemoveAll(e=>e.frostSignalOwned);
             FrostSignalStage=0;frostSignalConfirmedKills=0;
+            frostSignalActorA=frostSignalActorB=null;
             FrostSignalAtHearth=false;FrostSignalBankedFoot=new Point();
             FrostSignalTime=FrostSignalFlame=FrostSignalWindbreakTime=0;
         }
@@ -142,13 +152,13 @@ namespace Starfall
             if(!TryFrostSignalGuardFoot(desired[0],new Point(),false,out first) ||
                !TryFrostSignalGuardFoot(desired[1],first,true,out second))
                 return false;
-            Point[] posts={first,second};
-            for(int i=0;i<posts.Length;i++)
-            {
-                Enemy e=new Enemy(91400+i,i==0?0:2,
-                    posts[i].x,posts[i].y,i==0?95:112);
-                e.timer=.7f+i*.25f;enemies.Add(e);
-            }
+            // Validate both physical feet before atomically registering
+            // the exact two actors whose real deaths will unlock the road.
+            Enemy firstGuard=new Enemy(91400,0,first.x,first.y,95);
+            Enemy secondGuard=new Enemy(91401,2,second.x,second.y,112);
+            firstGuard.timer=.7f;secondGuard.timer=.95f;
+            frostSignalActorA=firstGuard;frostSignalActorB=secondGuard;
+            enemies.Add(firstGuard);enemies.Add(secondGuard);
             frostSignalConfirmedKills=0;
             return true;
         }
@@ -180,7 +190,7 @@ namespace Starfall
                 for (int index = 0; index < 2; index++)
                 {
                     if ((frostSignalConfirmedKills & (1 << index)) != 0 ||
-                        enemies.Exists(e => e.id == 91400 + index)) continue;
+                        enemies.Contains(index==0?frostSignalActorA:frostSignalActorB)) continue;
                     ResetFrostSignal(); revision++;
                     Notify("巡防守卫异常离场，未确认击败。火种返回西部站，可重新尝试。",
                         "A guard vanished without defeat. The ember was returned to the west post; retry for free.");

@@ -16,6 +16,51 @@ namespace Starfall.Tests
                 if(g.conversation.choices[i].action==a){g.Choose(i);return true;}
             return false;
         }
+
+        public static void HighlandSameIdImpostorsCannotTakeGuardOwnership(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("desert_report");g.save.flags.Add("boss_7");
+            g.Enter(7);g.enemies.Clear();g.projectiles.Clear();g.invulnerable=200;
+            var west=FrostPost(g,1);var junction=FrostPost(g,2);
+            g.save.x=west.x;g.save.y=west.y;g.Talk(west);
+            Check(FrostChoice(g,"frostsignal_start")&&g.FrostSignalStage==1,
+                "Original highland ember is taken at the actual western post");
+            g.save.x=junction.x;g.save.y=junction.y;g.Talk(junction);
+            Check(g.FrostSignalStage==2&&g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                "The original switch has exactly two independently owned live guards");
+            var original=g.enemies.FindAll(g.IsFrostSignalEnemy);
+            var impostor=new Enemy(original[0].id,original[0].kind,
+                original[0].x,original[0].y,30){stun=200f,timer=200f};
+            g.enemies.Add(impostor);
+            Check(!g.IsFrostSignalEnemy(impostor)&&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                "A same-ID world enemy never inherits carried-fire guard identity");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Actual combat lethal-contact callback is available");
+            hit.Invoke(g,new object[]{impostor,99999f,false,null,null});
+            Check(g.FrostSignalStage==2&&
+                g.enemies.FindAll(g.IsFrostSignalEnemy).Count==2,
+                "Killing a counterfeit same-ID enemy cannot count as a defeated ember guard");
+            g.Close();g.Talk(junction);
+            Check(!FrostChoice(g,"frostsignal_free"),
+                "The unchanged real switch dialog denies the unearned free transit");
+            g.Close();
+            // A living replacement with matching id cannot hide an original
+            // that vanished without combat defeat.
+            g.enemies.Remove(original[0]);
+            var replacement=new Enemy(original[0].id,0,
+                original[0].x,original[0].y,100){stun=200f};
+            g.enemies.Add(replacement);
+            g.Tick(.05f,new Point());
+            Check(!g.FrostSignalActive&&!g.FrostSignalComplete&&
+                g.enemies.Contains(replacement)&&
+                !g.enemies.Contains(original[1])&&g.save.version==2,
+                "Real guard disappearance cancels only its own escort, preserving unrelated actors and v2 data");
+        }
+
         public static void HighlandEmberCachedChoicesCannotCommitAcrossClosedPosts(Campaign data)
         {
             MapData original=data.maps[7];
