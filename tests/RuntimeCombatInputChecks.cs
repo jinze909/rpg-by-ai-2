@@ -478,7 +478,7 @@ public static class RuntimeCombatInputChecks
         Prepare(app,2);
         var free=app.Game;free.save.weapon=1;free.enemies.Clear();
         Point ground=free.Position+new Point(3.5f,-1.3f);
-        AimAt(app,ground);
+        Mouse(app,ground);
         Point sampled=(Point)Call(app,"WorldAtPointer",(Point)Call(app,
             "MouseVirtual"));
         Input.held.Add(KeyCode.J);
