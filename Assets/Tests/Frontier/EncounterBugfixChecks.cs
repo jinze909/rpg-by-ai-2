@@ -9,6 +9,31 @@ namespace Starfall.Tests
 
 
 
+
+        public static void TrueSentryWhistleIsAudibleAndOriginal(Campaign data)
+        {
+            Check(Array.IndexOf(AudioSynthesis.Events,"sentryAlarm")>=0,
+                "Actual guard acquisition has a registered Unity AudioClip event");
+            float[] samples=AudioSynthesis.Event("sentryAlarm");
+            Check(samples.Length>AudioSynthesis.Rate*.43f&&
+                samples.Length<AudioSynthesis.Rate*.48f,
+                "Two-note whistle is long enough to communicate an alert, short enough for combat");
+            float peak=0;
+            int active=0;
+            foreach(float sample in samples)
+            {
+                Check(!float.IsNaN(sample)&&!float.IsInfinity(sample),
+                    "Watch alarm PCM remains finite at every sample");
+                peak=Math.Max(peak,Math.Abs(sample));
+                if(Math.Abs(sample)>.03f)active++;
+            }
+            Check(peak>.08f&&peak<.8f&&
+                active>AudioSynthesis.Rate*.12f&&
+                Math.Abs(samples[0])<.001f&&
+                Math.Abs(samples[samples.Length-1])<.001f,
+                "Alert whistle has audible two-note energy with bounded quiet clip endpoints");
+        }
+
         public static void VisibleSentryWarnsOnlyPhysicallyAudiblePatrolMates(Campaign data)
         {
             MapData previous=data.maps[1];
@@ -52,9 +77,15 @@ namespace Starfall.Tests
                 // despite being close in Euclidean distance.
                 char[] cover=rows[13].ToCharArray();
                 cover[18]='#';rows[13]=new string(cover);
-                game.save.x=16.5f;game.save.y=6.5f;
+                game.save.x=16.5f;game.save.y=3.5f;
                 caller.Face(new Point(0,-1));
                 game.sounds.Clear();
+                game.Tick(.02f,new Point());
+                Check(game.IsEnemyInvestigatingImpact(caller)&&
+                    !new System.Collections.Generic.List<string>(
+                        game.sounds).Contains("sentryAlarm"),
+                    "A distant hero outside a seven-tile sighting radius cannot trigger supernatural watch-wide warnings");
+                game.save.y=6.5f;
                 Point before=hear.Position;
                 game.Tick(.02f,new Point());
                 Check(!game.IsEnemyInvestigatingImpact(caller)&&

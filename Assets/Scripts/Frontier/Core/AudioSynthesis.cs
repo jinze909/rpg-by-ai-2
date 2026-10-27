@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush", "sentryAlarm" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -85,6 +85,7 @@ namespace Starfall
             if (name == "fishBite") return FishBite();
             if (name == "stoneImpact") return StoneImpact();
             if (name == "ambush") return AmbushContact();
+            if (name == "sentryAlarm") return SentryAlarm();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -165,6 +166,34 @@ namespace Starfall
                 double envelope=Math.Min(1,seconds*280)*
                     Math.Min(1,(.29-seconds)*65);
                 wave[i]=(float)((steel+edge+tail)*envelope);
+            }
+            return wave;
+        }
+        // A two-breath sentry whistle, only emitted after a TRUE forward
+        // sighting. The short voiced lead and falling second note separate
+        // it from the stone-decoy crack, blade strike and dodge counter.
+        // Deterministic PCM is registered by native FrontierAudio alongside
+        // every existing Event, with no new import GUID or external sample.
+        private static float[] SentryAlarm()
+        {
+            var wave=new float[(int)(Rate*.46f)];
+            double phase=0,filtered=0;
+            var random=new Random(81753);
+            for(int i=0;i<wave.Length;i++)
+            {
+                double seconds=i/(double)Rate;
+                double t=seconds/.46;
+                double phrase=t<.48?t/.48:(t-.48)/.52;
+                double frequency=t<.48?820-90*phrase:690-210*phrase;
+                phase+=2*Math.PI*frequency/Rate;
+                filtered+=(random.NextDouble()*2-1-filtered)*.09;
+                double attack=t<.48?.04:.515;
+                double release=t<.48?.45:.98;
+                double envelope=Math.Min(1,Math.Max(0,seconds-attack*.46)*95)*
+                    Math.Min(1,Math.Max(0,release*.46-seconds)*72);
+                double voice=Math.Sin(phase)*.30+
+                    Math.Sin(phase*2)*.07+filtered*.035;
+                wave[i]=(float)(voice*envelope);
             }
             return wave;
         }
