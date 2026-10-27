@@ -665,7 +665,7 @@ namespace Starfall.Tests
                 // a fabricated map object with a duplicate NPC id.
                 g.reliefMissionRoom=1;g.reliefMissionWave=1;
                 g.reliefMissionTime=60f;g.reliefFollowerSafety=75f;
-                g.reliefFollowerPosition=new Point(10.6f,10.5f);
+                g.reliefFollowerPosition=new Point(10.6f,11.05f);
                 Check(g.NearbyInteractionCount()==2&&
                     g.ReliefCivilianIsInteractionTarget(g.Nearest()),
                     "Active mobile rescue speaker really wins ordinary proximity");
