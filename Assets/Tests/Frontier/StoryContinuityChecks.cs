@@ -845,6 +845,63 @@ namespace Starfall.Tests
                 "Reading the restored chapter never grants rewards or mutates existing v2 save progress");
         }
 
+        public static void ChapterTwelveArchiveRecordsOnlySuppliedRoadsAndRealShuttles(Campaign data)
+        {
+            var g=Fresh(data);g.NewGame(0);g.Close();
+            g.save.stage=3;g.save.ending=3;g.save.frontierEnding=3;
+            WorldObject book=Object(g,"worldchronicle");
+            g.save.flags.Add("civic_conduit_complete");
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_civic_aftermath");
+            Check(!g.conversation.text.Contains("守路人的补给册")&&
+                !g.conversation.textEn.Contains("Roadkeeper supply ledger"),
+                "The post-grid chapter cannot leak unearned waystation service records before the real route audit is published");
+            g.Close();g.save.flags.Add("civic_aftercare_published");
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_civic_aftermath");
+            Check(g.conversation.text.Contains("0/3")&&
+                g.conversation.text.Contains("公共接驳还不能")&&
+                g.conversation.textEn.Contains("0/3 waystations")&&
+                g.conversation.textEn.Contains("cannot run yet"),
+                "The signed road audit does not magically stock any stations or announce premature shuttle rides");
+            g.Close();g.save.flags.Add("civic_waystation_stocked_0");
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_civic_aftermath");
+            Check(g.conversation.text.Contains("1/3 处路站")&&
+                g.conversation.text.Contains("引水渠：药箱")&&
+                g.conversation.text.Contains("雾港：守路人")&&
+                g.conversation.textEn.Contains("Canal: The local keeper")&&
+                g.conversation.textEn.Contains("Mistport: The roadkeeper")&&
+                !g.conversation.textEn.Contains("Public shuttles now connect"),
+                "One genuinely paid station receives its own testimony, while both unstocked regions remain pending");
+            g.Close();g.save.flags.Add("civic_waystation_stocked_3");
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_civic_aftermath");
+            Check(g.conversation.text.Contains("2/3 处路站")&&
+                g.conversation.text.Contains("两处路站已经能互通公共接驳")&&
+                g.conversation.textEn.Contains("Public shuttles now connect the two supplied"),
+                "Public transit appears in Chapter Twelve only at the actual two-station mechanical unlock");
+            g.Close();g.save.flags.Add("civic_waystation_stocked_5");
+            g.save.flags.Add("civic_waystations_complete");
+            g.Talk(book);ChooseStoryChoice(g,"story_section_after");
+            ChooseStoryChoice(g,"story_read_civic_aftermath");
+            Check(g.conversation.text.Contains("3/3 处路站")&&
+                g.conversation.text.Contains("三处补给路站终于连成")&&
+                g.conversation.textEn.Contains("All three stocked stations"),
+                "The complete three-region service network has a distinct earned postwar chapter conclusion");
+            int coins=g.save.coins,flags=g.save.flags.Count;
+            g.Close();g.PrepareSave();
+            var reloaded=new GameCore(data,CloneSave(g.save));
+            reloaded.Start();
+            reloaded.Talk(Object(reloaded,"worldchronicle"));
+            ChooseStoryChoice(reloaded,"story_section_after");
+            ChooseStoryChoice(reloaded,"story_read_civic_aftermath");
+            Check(reloaded.conversation.text.Contains("3/3 处路站")&&
+                reloaded.save.version==2&&reloaded.save.coins==coins&&
+                reloaded.save.flags.Count==flags,
+                "Real in-world reconstruction chapter replays after v2 reload with no reward, duplicated flag or new save schema");
+        }
+
         public static void ChronicleEndingFollowsPostGridAccounts(Campaign data)
         {
             var g = Fresh(data); g.NewGame(0); g.Close();

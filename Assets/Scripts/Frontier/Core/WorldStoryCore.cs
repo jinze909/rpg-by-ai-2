@@ -1243,6 +1243,46 @@ namespace Starfall
                         zh+="\n\n可选后续行动：与炉火旅店的夜行旅人交谈，接取三地巡路复核，确认重连后的安全路线仍然可用。";
                         en+="\n\nOptional follow-up: speak with the night traveler at Hearth Inn to audit three old route markers and verify the restored network's safe paths.";
                     }
+                    // After the signed road audit, real residents can
+                    // provision each of the three actual route-marker sites.
+                    // A complete grid is not a fictional fully staffed road.
+                    // Describe only paid, flag-backed facilities and the
+                    // genuine two-station threshold for public shuttles.
+                    if(Has("civic_aftercare_published"))
+                    {
+                        int[] stationRooms={0,3,5};
+                        string[] placeZh={"引水渠","赤铁矿场","雾港"};
+                        string[] placeEn={"Canal","Ironreach","Mistport"};
+                        zh+="\n\n【守路人的补给册】"+CivicWaystationCount+
+                            "/3 处路站备齐了木材与药草。\n";
+                        en+="\n\n[Roadkeeper supply ledger] "+CivicWaystationCount+
+                            "/3 waystations received timber and herbs.\n";
+                        for(int wi=0;wi<stationRooms.Length;wi++)
+                        {
+                            bool supplied=Has("civic_waystation_stocked_"+stationRooms[wi]);
+                            zh+=placeZh[wi]+"："+(supplied?
+                                "药箱、木料都已由当地人接收；安全的旅人能在路标旁歇脚。":
+                                "守路人还在等木材两份与药草一份。")+"\n";
+                            en+=placeEn[wi]+": "+(supplied?
+                                "The local keeper signed for timber and herbs; weary travelers may recover by the marker.":
+                                "The roadkeeper still needs two timber and one herb.")+"\n";
+                        }
+                        if(CivicWaystationCount>=3)
+                        {
+                            zh+="三处补给路站终于连成了一张有人照料的路网。旅人可以在已修复的路标之间搭乘公共接驳，去处和归途都有人点灯。";
+                            en+="All three stocked stations now form a tended road network. Travelers can ride public shuttles between the supplied markers, with lamps kept burning in both directions.";
+                        }
+                        else if(CivicWaystationCount>=2)
+                        {
+                            zh+="两处路站已经能互通公共接驳；剩下的一处还没有守路人签收，不可算作通车。";
+                            en+="Public shuttles now connect the two supplied waystations. The remaining station has no signed supplies and cannot be counted as ready.";
+                        }
+                        else
+                        {
+                            zh+="供给尚未连成两站，公共接驳还不能开车；巡路人不会把未建成的路标写作车站。";
+                            en+="Fewer than two waystations are supplied. The public shuttle cannot run yet; the roadwardens will not list an unstocked marker as a stop.";
+                        }
+                    }
                     zh+="\n\n道路终于不只是把人送到堡垒。它必须让每个人都能回来，也让每个人有权问清楚：谁守着这盏灯？";
                     en+="\n\nA road should do more than bring people to the citadel. It must help everyone get home—and let everyone ask who keeps the light burning.";
                     break;
