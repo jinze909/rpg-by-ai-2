@@ -3252,6 +3252,73 @@ namespace Starfall.Tests
                 "Center-screen scenery stays fully visible");
         }
 
+
+        public static void FinalFrameWatchVictoryPrecedesTimeoutButRequiresRealKills(Campaign data)
+        {
+            var post=Array.Find(data.maps[0].objects,o=>o.kind=="outerwatch");
+            Check(post!=null,"Original first-region relief post exists on the live map");
+            var timer=typeof(GameCore).GetField("outerPatrolTime",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Check(timer!=null&&hit!=null,
+                "Exercise real patrol deadline and lethal combat transaction");
+            foreach(bool veteran in new[]{false,true})
+            {
+                var g=new GameCore(data);
+                g.save.flags.Add("intro");g.save.flags.Add("outer_cache_0");
+                if(veteran)g.save.flags.Add("outer_patrol_done_0");
+                g.Start();g.save.reducedMotion=true;
+                g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=post.x;g.save.y=post.y;
+                g.Talk(post);
+                int option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==(veteran?"outer_watch_veteran":"outer_watch_start"));
+                Check(option>=0,"Original staffed post offers the real "+(veteran?"veteran":"standard")+" defense");
+                g.Choose(option);
+                Enemy[] raiders=g.enemies.ToArray();
+                Check(g.OuterPatrolActive&&raiders.Length==(veteran?3:2)&&
+                    g.OuterPatrolTime>0,
+                    "Actual "+(veteran?"three":"two")+" attackers spawn in the timed live siege");
+                int before=g.save.coins;
+                timer.SetValue(g,.012f);
+                foreach(Enemy raider in raiders)
+                    hit.Invoke(g,new object[]{raider,10000f,true,null,null});
+                Check(g.OuterPatrolActive&&g.enemies.Count==0,
+                    "Real lethal Hit callbacks retire every owned attacker before the final deadline tick");
+                g.Tick(.05f,new Point());
+                Check(!g.OuterPatrolActive&&g.OuterPatrolDone(0)&&
+                    g.save.coins==before+(veteran?26:14)&&
+                    (!veteran||(g.OuterPatrolVeteranDone(0)&&
+                                 g.OuterPatrolFlawlessDone(0))),
+                    "Defeating all raiders during the final simulated frame settles the original one-time rewards and flawless medal");
+                g.Tick(.05f,new Point());
+                Check(g.save.coins==before+(veteran?26:14),
+                    "Victory cleanup cannot pay the same field encounter again");
+            }
+            // The deadline still matters. A single living enemy must lose;
+            // a missing but never defeated enemy cannot counterfeit success.
+            foreach(bool missing in new[]{false,true})
+            {
+                var g=new GameCore(data);g.save.flags.Add("intro");
+                g.save.flags.Add("outer_cache_0");g.Start();
+                g.enemies.Clear();g.projectiles.Clear();
+                g.save.x=post.x;g.save.y=post.y;g.Talk(post);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="outer_watch_start");
+                g.Choose(start);
+                Check(g.OuterPatrolActive&&g.enemies.Count==2,
+                    "Original two-raider relief siege launched for negative deadline proof");
+                int coins=g.save.coins;
+                if(missing)g.enemies.Clear();
+                timer.SetValue(g,.012f);
+                g.Tick(.05f,new Point());
+                Check(!g.OuterPatrolActive&&!g.OuterPatrolDone(0)&&
+                    g.save.coins==coins,
+                    "A "+(missing?"despawned":"living")+" raider cannot receive final-frame victory or rewards");
+            }
+        }
+
         public static void OutdoorRescueWatchStartsRealCombatAndOnlyRewardsRealWins(Campaign data)
         {
             for(int room=0;room<8;room++)

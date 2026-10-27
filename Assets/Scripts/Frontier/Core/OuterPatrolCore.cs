@@ -881,13 +881,10 @@ namespace Starfall
                 return;
             }
             outerPatrolTime=Math.Max(0f,outerPatrolTime-dt);
-            if(outerPatrolTime<=0f)
-            {
-                ResetOuterPatrol();revision++;
-                Notify("防卫时间结束，救援岗尚未守住。可以重新挑战。",
-                    "Relief defense timed out. Retry the outpost when ready.");
-                return;
-            }
+            // Final player / companion / projectile contacts resolve before
+            // this objective tick. Check authenticated lethal callbacks before
+            // declaring timeout: defeating the last raider in the final frame
+            // is a legitimate victory, not an invisible deadline failure.
             // Any unexpected removal aborts the attempt. Only registered
             // lethal damage against BOTH owned attackers can settle it.
             bool presentA=outerPatrolActorA!=null&&
@@ -905,8 +902,21 @@ namespace Starfall
                     "Defense interrupted: a missing enemy is never an earned kill.");
                 return;
             }
-            if(!outerPatrolADead||!outerPatrolBDead||presentA||presentB||
-                (outerPatrolVeteran&&(!outerPatrolCDead||presentC)))return;
+            bool allDefeated=outerPatrolADead&&outerPatrolBDead&&
+                !presentA&&!presentB&&
+                (!outerPatrolVeteran||(outerPatrolCDead&&!presentC));
+            if(!allDefeated)
+            {
+                // A still-living raider does not earn an extension, even
+                // when its HP is low or the defender struck another foe.
+                if(outerPatrolTime<=0f)
+                {
+                    ResetOuterPatrol();revision++;
+                    Notify("防卫时间结束，救援岗尚未守住。可以重新挑战。",
+                        "Relief defense timed out. Retry the outpost when ready.");
+                }
+                return;
+            }
             int completedRoom=outerPatrolRoom;
             bool veteranWin=outerPatrolVeteran;
             bool flawless=veteranWin&&outerPatrolStock>=90f&&
