@@ -162,6 +162,18 @@ public sealed partial class GameCore {
                 string verdictEn=LastDirectiveChoice==1?
                     "Public civilian oversight and shutdown appeals are now law.":
                     "Unconditional emergency shelter is now guaranteed.";
+                // Optional evidence is not a new ending or a mandatory key.
+                // But residents who traced each original record deserve to
+                // hear what their extra work changed in the public world.
+                if(LastDirectiveTraces==3)
+                {
+                    verdictZh+=LastDirectiveChoice==1?
+                        "\n\n莉雅把矿工的停机纸、船工的姓名单和炉火记录并排钉在墙上。\n\n“以后谁想关掉一座城的灯，先到这间屋里，把话对着这些名字说清楚。”":
+                        "\n\n议事台上的旧名单被送往每一处避难所。莉雅把最后一页压平。\n\n“等人来求救时，先让他进门。名字和理由，可以等火暖了再问。”";
+                    verdictEn+=LastDirectiveChoice==1?
+                        "\n\nLyra pins the miners' petition, the ferry names and the hearth book side by side.\n\n“Next time someone wants to turn out a town's lights, they'll answer here, with these names on the wall.”":
+                        "\n\nCopies of the old names now hang in every refuge. Lyra smooths the last page.\n\n“When someone knocks for shelter, let them in first. We can ask their name when they're warm.”";
+                }
                 if(LastDirectiveTalentDue)
                     Dialog(o.name,o.en,verdictZh+"\n\n你挣得的最后一课还在居民公示簿上。技能点上限99；留出容量后亲自签领。",
                         verdictEn+"\n\nYour earned final lesson remains in the public ledger. Talent capacity is 99; make room, then sign for it here.",

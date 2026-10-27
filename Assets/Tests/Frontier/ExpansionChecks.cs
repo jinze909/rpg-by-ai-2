@@ -920,6 +920,41 @@ namespace Starfall.Tests
             }
         }
 
+        public static void PublishedDirectiveRemembersAllThreeAuditedWitnesses(Campaign data)
+        {
+            foreach(bool publicOversight in new[]{true,false})
+            {
+                var g=Fresh(data);g.save.stage=3;
+                foreach(string flag in new[]{"civic_response_ledger",
+                    "last_directive_started","last_directive_complete",
+                    "last_directive_trace_0","last_directive_trace_1",
+                    "last_directive_trace_2"})
+                    g.save.flags.Add(flag);
+                g.save.flags.Add(publicOversight?
+                    "last_directive_open":"last_directive_shelter");
+                g.Enter(0);g.enemies.Clear();
+                WorldObject board=Object(g,"lastdirectiveboard");
+                g.save.x=board.x;g.save.y=board.y;
+                g.Talk(board);
+                string copy=g.conversation.textEn;
+                Check(copy.Contains(publicOversight?
+                    "names on the wall":"When someone knocks for shelter")&&
+                    g.conversation.text.Contains(publicOversight?
+                        "这些名字":"先让他进门"),
+                    "Original council physically acknowledges audited miner, ferry and hearth evidence under each distinct civilian outcome");
+                Check(g.LastDirectiveComplete&&g.LastDirectiveChoice==
+                    (publicOversight?1:2)&&g.LastDirectiveTraces==3,
+                    "Optional on-site investigations enrich narration without mutating the canon ending");
+                g.Close();
+                g.save.flags.Remove("last_directive_trace_2");
+                g.Talk(board);
+                Check(!g.conversation.textEn.Contains("names on the wall")&&
+                    !g.conversation.textEn.Contains("When someone knocks for shelter"),
+                    "Old saves and players who skipped optional on-site evidence retain the original published finale");
+                g.Close();
+            }
+        }
+
         public static void LastDirectiveThreePhysicalWitnessTracesDeepenInvestigation(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;
