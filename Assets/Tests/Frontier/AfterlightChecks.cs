@@ -1287,6 +1287,76 @@ namespace Starfall.Tests
             finally{data.maps[3]=original;}
         }
 
+
+        public static void CivicTwoWaveFinalContactHonorsDeadlineWithoutFreeOvertime(Campaign data)
+        {
+            var reflection=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var hit=typeof(GameCore).GetMethod("Hit",reflection);
+            var time=typeof(GameCore).GetField("afterlightWatchTime",reflection);
+            Check(hit!=null&&time!=null,
+                "Original civic defense exposes real lethal combat and clock paths");
+            foreach(int scenario in new[]{0,1,2,3})
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.ending=3;
+                g.save.reducedMotion=true;
+                foreach(string flag in new[]{"afterlight_started",
+                    "afterlight_complete","afterlight_done_1",
+                    "afterlight_steward_1","afterlight_reserve_1",
+                    "afterlight_plan_1_watch"})g.save.flags.Add(flag);
+                g.Enter(1);g.enemies.Clear();g.projectiles.Clear();
+                var receiver=Object(g,"afterlightoutlet1");
+                g.save.x=receiver.x;g.save.y=receiver.y;
+                Action(g,receiver.kind,"afterlight_watch_start_1");
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==1&&
+                    g.enemies.Count==2,"Original staffed receiver spawns real first-wave enemies");
+                int coins=g.save.coins;
+                if(scenario==3)
+                {
+                    // All of wave one may die at the buzzer, but there is
+                    // no time remaining to fight a whole extra wave.
+                    time.SetValue(g,.012f);
+                }
+                Enemy a=g.enemies[0],b=g.enemies[1];
+                hit.Invoke(g,new object[]{a,2000f,false,null,null});
+                hit.Invoke(g,new object[]{b,2000f,false,null,null});
+                g.Tick(.05f,new Point());
+                if(scenario==3)
+                {
+                    Check(!g.AfterlightWatchActive&&
+                        !g.AfterlightWatchDone(1)&&g.save.coins==coins,
+                        "Last-frame first-wave kills never create a free overtime second wave");
+                    continue;
+                }
+                Check(g.AfterlightWatchActive&&g.AfterlightWatchWave==2&&
+                    g.enemies.Count==2,"Wave two starts via authentic first-wave victory and physical raider placement");
+                time.SetValue(g,.012f);
+                if(scenario==2)
+                {
+                    g.enemies.RemoveAt(0);
+                }
+                else
+                {
+                    Enemy c=g.enemies[0];
+                    hit.Invoke(g,new object[]{c,2000f,false,null,null});
+                    if(scenario==0)
+                    {
+                        Enemy d=g.enemies[0];
+                        hit.Invoke(g,new object[]{d,2000f,false,null,null});
+                    }
+                }
+                g.Tick(.05f,new Point());
+                Check(!g.AfterlightWatchActive&&
+                    g.AfterlightWatchDone(1)==(scenario==0)&&
+                    g.save.coins==coins+(scenario==0?30:0),
+                    "Civic two-wave finale pays only when both genuine last-wave attackers die before objective judgment");
+                g.Tick(.05f,new Point());
+                Check(g.save.coins==coins+(scenario==0?30:0)&&
+                    g.save.version==2,
+                    "Timeout, abnormal despawn and replay ticks never duplicate civic awards or mutate save format");
+            }
+        }
+
         public static void AfterlightCivicDefenseRequiresTwoOwnedCombatWavesAndRealFirstClear(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.ending=3;

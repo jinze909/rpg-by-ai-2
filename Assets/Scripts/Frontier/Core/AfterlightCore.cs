@@ -326,13 +326,11 @@ namespace Starfall
                 return;
             }
             afterlightWatchTime-=dt;
-            if(afterlightWatchTime<=0)
-            {
-                ResetAfterlightWatch();revision++;
-                Notify("防卫时限结束，袭击者已退散。本次未获得胜利记录。",
-                    "Defense timed out; attackers dispersed. No victory credit awarded.");
-                return;
-            }
+            // A projectile, companion or hero can land a genuine final blow
+            // before this objective update in the last simulated frame.
+            // Validate registered kills before selecting timeout: the
+            // second wave can win at the boundary, but an unfinished first
+            // wave cannot start a free overtime wave two.
             bool presentA=afterlightWatchActorA!=null&&
                 enemies.Contains(afterlightWatchActorA);
             bool presentB=afterlightWatchActorB!=null&&
@@ -344,7 +342,17 @@ namespace Starfall
                     "Defense interrupted by a missing attacker. Only actual lethal contacts count.");
                 return;
             }
-            if(!afterlightWatchADead||!afterlightWatchBDead||presentA||presentB)return;
+            bool waveDefeated=afterlightWatchADead&&afterlightWatchBDead&&
+                !presentA&&!presentB;
+            if(afterlightWatchTime<=0f&&
+                (afterlightWatchWave!=2||!waveDefeated))
+            {
+                ResetAfterlightWatch();revision++;
+                Notify("防卫时限结束，袭击者已退散。本次未获得胜利记录。",
+                    "Defense timed out; attackers dispersed. No victory credit awarded.");
+                return;
+            }
+            if(!waveDefeated)return;
             if(afterlightWatchWave==1)
             {
                 if(!SpawnAfterlightWatchWave(2))
