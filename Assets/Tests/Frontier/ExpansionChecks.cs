@@ -923,7 +923,8 @@ namespace Starfall.Tests
         public static void LastDirectiveThreePhysicalWitnessTracesDeepenInvestigation(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=20;
-            foreach(string flag in new[]{"gate_4","last_directive_started"})
+            foreach(string flag in new[]{"gate_4","last_directive_started",
+                "civic_response_ledger"})
                 g.save.flags.Add(flag);
             g.Enter(4);g.enemies.Clear();g.invulnerable=180;
             var flags=new[]{"last_directive_trace_0",
