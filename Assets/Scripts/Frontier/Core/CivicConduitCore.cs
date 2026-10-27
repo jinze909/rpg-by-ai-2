@@ -58,8 +58,12 @@ namespace Starfall
             Math.Max(0f,CivicConduitRequiredSpan-CivicConduitForwardSpan):0f; } }
         public bool CivicConduitProgressReady
         { get { return CivicConduitActive &&
-            conduitWalked+.00001f>=CivicConduitRequiredSpan &&
-            CivicConduitForwardRemaining<=.00001f; } }
+            // A 20-50 ms physical step may end within a millimeter
+            // of the decimal authored threshold (e.g. x=102.699997).
+            // Match UI and actual valve contact epsilon; NEVER let
+            // a full backtracked tile satisfy the real eastbound span.
+            conduitWalked+.001f>=CivicConduitRequiredSpan &&
+            CivicConduitForwardRemaining<=.001f; } }
         public bool CivicConduitWindowOpen
         {
             get{return CivicConduitActive&&
