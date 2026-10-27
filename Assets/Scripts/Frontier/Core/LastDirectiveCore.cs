@@ -92,7 +92,13 @@ public sealed partial class GameCore {
                 if(!CanStand(foot)||
                     (foot-Position).Length<1.75f||
                     (save.companion>=0&&(foot-companionPosition).Length<1.5f)||
-                    !BossSummonHasLocalRoute(foot,Position))continue;
+                    // The third authored citadel guard is six cells from
+                    // the terminal. Boss summons deliberately use radius 5,
+                    // but this fixed three-guard battle spans a wider room.
+                    // Use the same collision-stamped FOUR-WAY route graph
+                    // across twelve local cells; never accept straight-line
+                    // sight or a blocked / isolated island instead.
+                    !ActorHasLocalRoute(foot,Position,12))continue;
                 bool occupied=false;
                 foreach(Enemy living in enemies)
                     if(living!=null&&living.hp>0&&(foot-living.Position).Length<1.5f)
