@@ -145,10 +145,28 @@ namespace Starfall
                 if(enemyHitAlert.TryGetValue(witness,out oldWitness))
                 {
                     oldWitness.remaining=Math.Max(oldWitness.remaining,4f);
+                    // Seeing a teammate ACTUALLY hit overrides an older
+                    // stone-impact decoy or walk-home instruction. Preserve
+                    // the witness's identity, but retire that search state.
+                    // A direct fight already in progress keeps its contact
+                    // intent; no new timer, reward or SaveData is minted.
+                    bool distracted=oldWitness.impactOnly||oldWitness.returning;
+                    if(distracted)
+                    {
+                        oldWitness.impactOnly=false;
+                        oldWitness.returning=false;
+                        oldWitness.searchStep=-1;
+                        oldWitness.whistleRemaining=0f;
+                    }
                     if(ClearAttackPath(witness.Position,Position))
                         oldWitness.lastKnown=Position;
                     else if(ClearAttackPath(witness.Position,launchFoot))
                         oldWitness.lastKnown=launchFoot;
+                    else if(distracted)
+                        // A witness saw the ally's REAL contact, but not
+                        // the concealed shooter. Search the body, not the
+                        // hidden hero position or the earlier decoy stone.
+                        oldWitness.lastKnown=e.Position;
                 }
                 else
                     enemyHitAlert[witness]=new EnemyHitAlert(4f,

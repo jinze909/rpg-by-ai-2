@@ -1119,6 +1119,68 @@ namespace Starfall.Tests
                 Check((mate.Position-standing).Length>.2f&&
                     g.CanStand(mate.Position),
                     "A seeing patrol mate physically responds even when the actual struck body died instantly");
+                // A witness who has been drawn away by an authentic stone
+                // impact must respond to the subsequent PHYSICAL attack on
+                // a teammate. Otherwise an active SOUND SEARCH hides a real
+                // lethal blow and keeps the guard chasing an obsolete stone.
+                var live=Fresh(data);
+                live.save.stage=3;live.Enter(1);
+                live.mode="world";live.enemies.Clear();
+                live.save.x=6.5f;live.save.y=10.5f;
+                var observed=new Enemy(76111,0,17.5f,11.5f,6f);
+                var searching=new Enemy(76112,0,16.5f,12.5f,200f);
+                observed.stun=searching.stun=100f;
+                observed.timer=searching.timer=100f;
+                live.enemies.Add(observed);live.enemies.Add(searching);
+                // Source rock is audible on the near side; central pillar
+                // hides the original shooter from the watchman's sight.
+                string[] oldRows=(string[])live.Map.rows.Clone();
+                try
+                {
+                    for(int y=11;y<=14;y++)
+                    {
+                        char[] row=live.Map.rows[y].ToCharArray();
+                        row[14]='#';live.Map.rows[y]=new string(row);
+                    }
+                    char[] rock=live.Map.rows[10].ToCharArray();
+                    rock[19]='#';live.Map.rows[10]=new string(rock);
+                    live.projectiles.Add(new Projectile {
+                        friendly=true,visual="arrow",source="arrow",
+                        position=new Point(9.5f,10.5f),
+                        velocity=new Point(12f,0f),damage=5f,life=2f,
+                        impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                            new Point(6.5f,10.5f))
+                    });
+                    Advance(live,1.1f);
+                    Check(live.IsEnemyInvestigatingImpact(searching),
+                        "Real arrow stone collision starts sound-only patrol search");
+                    Check((searching.Position-new Point(16.5f,12.5f)).Length<.001f,
+                        "Stunned sentry remains at its real witnessed foot");
+                    live.projectiles.Clear();
+                    hit.Invoke(live,new object[]{observed,30f,false,
+                        (Point?)null,new ImpactProfile(1,0,1,0,0f,true,1,
+                            new Point(6.5f,10.5f))});
+                    Check(!live.enemies.Contains(observed)&&
+                        !live.IsEnemyInvestigatingImpact(searching)&&
+                        !live.IsEnemyReturningFromImpact(searching),
+                        "Seeing authentic teammate death supersedes the sound-only search");
+                    var known=typeof(GameCore).GetMethod(
+                        "LastKnownEnemyHitOrigin",
+                        System.Reflection.BindingFlags.NonPublic|
+                        System.Reflection.BindingFlags.Instance);
+                    Check(known!=null&&
+                        ((Point)known.Invoke(live,new object[]{
+                            searching,new Point(-99,-99)})-observed.Position).Length<.01f,
+                        "Cover hides the shooter: sentry now investigates the true fatal contact foot, never the decoy rock");
+                    searching.stun=0f;searching.timer=100f;
+                    Point pre=searching.Position;
+                    Advance(live,.45f);
+                    Check((searching.Position-observed.Position).Length<
+                        (pre-observed.Position).Length-.15f&&
+                        live.save.version==2,
+                        "Alerted sentry physically moves toward observed ally hit without save-schema mutation");
+                }
+                finally{live.Map.rows=oldRows;}
                 g.Enter(0);g.Enter(1);g.enemies.Clear();
                 var fresh=new Enemy(76102,0,20.5f,13.5f,200f);
                 fresh.timer=1f;g.enemies.Add(fresh);
