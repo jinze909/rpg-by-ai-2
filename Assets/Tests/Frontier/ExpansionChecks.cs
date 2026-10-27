@@ -106,15 +106,22 @@ namespace Starfall.Tests
                     "Spoken field status includes true readable paragraphs and never auto-tracks");
                 int track=Array.FindIndex(g.conversation.choices,
                     choice=>choice.action=="companion_field_track_"+id);
-                Check(track>=0&&g.conversation.text.Contains(local.next),
-                    "Genuine local task offer includes exact unlocked game journal next step");
+                bool languageBefore=g.save.english;
+                g.save.english=true;
+                QuestGuide inEnglish=g.GetQuest(local.id);
+                g.save.english=languageBefore;
+                Check(track>=0&&g.conversation.text.Contains(local.next)&&
+                    g.conversation.textEn.Contains(inEnglish.next)&&
+                    g.conversation.textEn.Contains(inEnglish.title)&&
+                    g.conversation.text.Contains(local.title)&&
+                    g.save.english==languageBefore,
+                    "The original local job offer contains two distinct official localized titles and actionable steps without permanently changing language");
                 g.Choose(track);
                 Check(g.save.trackedQuest==local.id&&
                     g.TakeJournalFocusRequest()==local.id&&
                     g.conversationSource==resident&&
                     g.conversation.speaker==resident.name&&
-                    g.conversation.textEn.Contains(local.next==""
-                        ?"__never__":g.GetQuest(local.id).next),
+                    g.conversation.textEn.Contains(inEnglish.next),
                     "Explicit original choice focuses authentic local quest while retaining speaker and official task target");
                 Check(g.save.coins==coins&&g.save.shards==shards&&
                     g.save.version==2&&g.save.flags.Count==flags,

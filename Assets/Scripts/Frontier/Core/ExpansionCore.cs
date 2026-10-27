@@ -3470,6 +3470,13 @@ namespace Starfall
                 return true;
             }
             QuestGuide work=LocalCompanionFieldWork(save.room);
+            // QuestGuide is localized at creation. Both sides of the
+            // bilingual dialogue must use THEIR OWN official localized
+            // live quest text regardless of the user's present language.
+            QuestGuide workZh=work==null?null:
+                InnJobGuideInLanguage(work.id,false);
+            QuestGuide workEn=work==null?null:
+                InnJobGuideInLanguage(work.id,true);
             if(choice=="track")
             {
                 if(work!=null)
@@ -3481,12 +3488,12 @@ namespace Starfall
                         "米拉在实地簿上圈出这段仍需人走的岸路。\n\n“我会守着这份返航名册。你去亲眼看过，路标才算数。”",
                         "伊沃把一枚铜螺钉放在工程图上。\n\n“纸上写着已修复，可我只信阀门真正给居民送过水。”",
                         "森合上守夜簿，指向窗外仍亮着的暖站。\n\n“路终究要有人去走。回来时告诉我，哪一处还听不见人声。”"}[id]+
-                        "\n\n"+work.next,
+                        "\n\n"+workZh.next,
                         new[]{
                         "Mira circles the stretch of coast that still needs a living witness.\n\n'I will mind the return list. Walk the markers yourself. Then the route means something.'",
                         "Ivo sets a copper screw on the works drawing.\n\n'Ink says repaired. I believe it only when the valve gives water to somebody.'",
                         "Sen shuts the night ledger and points to the lit refuge.\n\n'Someone still has to walk that road. Tell me where voices are going unheard.'"}[id]+
-                        "\n\n"+work.next,
+                        "\n\n"+workEn.next,
                         C("返回实地议事","Back to field discussion",
                             "companion_field_open_"+id),
                         C("结束交谈","Finish talking","close"));
@@ -3547,10 +3554,10 @@ namespace Starfall
                 "companion_field_back_"+id));
             choices.Add(C("先告辞","Leave for now","close"));
             Dialog(host.name,host.en,currentZh[id]+
-                (work!=null?"\n\n"+work.title+"："+work.next:
+                (workZh!=null?"\n\n"+workZh.title+"："+workZh.next:
                 "\n\n眼下这条路没有新的委托。路标和伤员仍有人守着。"),
                 currentEn[id]+
-                (work!=null?"\n\n"+work.title+": "+work.next:
+                (workEn!=null?"\n\n"+workEn.title+": "+workEn.next:
                 "\n\nThere is no new local commission right now. The watch still keeps the roads and refuges."),
                 choices.ToArray());
             return true;
