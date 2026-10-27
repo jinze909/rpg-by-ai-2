@@ -2772,16 +2772,44 @@ namespace Starfall
                 {
                     string nodeKind=next==1?"herb":"ore";
                     WorldObject nearest=null;
-                    float nearestDistance=float.MaxValue;
+                    int bestWalk=int.MaxValue;
+                    float bestDistance=float.MaxValue;
+                    bool unharvested=false;
                     if(Map.objects!=null)
                         foreach(WorldObject source in Map.objects)
                         {
                             if(source==null || source.kind!=nodeKind ||
                                 !IsObjectPresent(source) ||
                                 Has("node_"+source.id))continue;
-                            float d=(new Point(source.x,source.y)-Position).Length;
-                            if(d<nearestDistance)
-                            {nearest=source;nearestDistance=d;}
+                            unharvested=true;
+                            Point site=new Point(source.x,source.y);
+                            float straight=(site-Position).Length;
+                            // A straight-line distance cannot beat an
+                            // established short WALKING route if its lower
+                            // bound already exceeds that many steps.
+                            if(nearest!=null && straight>bestWalk+2.75f)
+                                continue;
+                            bool inReach=HasPhysicalInteractionReach(site);
+                            int walked=0;
+                            if(!inReach)
+                            {
+                                List<Point> route=NavigationPath(site);
+                                if(route.Count==0)continue;
+                                Point last=route[route.Count-1];
+                                float remain=(site-last).Length;
+                                Point contact=remain>.55f?
+                                    site-(site-last).Normalized*.55f:last;
+                                if(remain>=1.75f ||
+                                   !ClearAttackPath(last,contact))continue;
+                                walked=route.Count;
+                            }
+                            if(walked<bestWalk ||
+                                (walked==bestWalk&&straight<bestDistance))
+                            {
+                                nearest=source;
+                                bestWalk=walked;
+                                bestDistance=straight;
+                            }
                         }
                     if(nearest!=null)
                     {
@@ -2791,6 +2819,19 @@ namespace Starfall
                               "Need 1 Moonherb: gather the marked herb, then restore the field record."):
                             L("缺少零件×1：先开采标记的矿点获取零件，再恢复停机规则。",
                               "Need 1 Machine part: mine the marked ore for parts, then restore the shutdown rule.");
+                    }
+                    else if(unharvested)
+                    {
+                        // Do not call an inaccessible, still-present resource
+                        // "exhausted", and never draw an impossible compass
+                        // route straight through the sealed wall. Re-evaluate
+                        // live topology on the next guide request.
+                        q.target=Position;
+                        q.next=next==1?
+                            L("密林仍有月光草，但道路暂时无法到达。先寻找通路或解除封锁。",
+                              "Moonherbs remain, but no safe gathering route is open. Find another path or clear the obstruction."):
+                            L("矿场仍有零件来源，但道路暂时无法到达。先寻找通路或解除封锁。",
+                              "Ore remains, but no safe route to parts is open. Find another path or clear the obstruction.");
                     }
                     else
                     {

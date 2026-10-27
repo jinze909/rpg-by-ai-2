@@ -50,6 +50,59 @@ namespace Starfall.Tests
                     int material=region==1?2:4, savedCount=g.save.inventory[material];
                     string sourceKind=region==1?"herb":"ore";
                     g.save.inventory[material]=0;
+                    // A closer-looking herb behind a real wall must NOT
+                    // steal the objective from a reachable original node.
+                    // Build only a test-time sealed pocket near the archive,
+                    // then restore all authored map objects and tiles.
+                    if(region==1)
+                    {
+                        MapData local=g.Map;
+                        string[] oldRows=local.rows;
+                        WorldObject[] oldObjects=local.objects;
+                        var fake=new WorldObject{id="test-sealed-herb",
+                            kind="herb",name="Inaccessible herb",
+                            en="Inaccessible herb",x=first.x-2f,y=first.y+3f};
+                        var added=new WorldObject[oldObjects.Length+1];
+                        Array.Copy(oldObjects,added,oldObjects.Length);
+                        added[oldObjects.Length]=fake;
+                        string[] blocked=(string[])oldRows.Clone();
+                        for(int row=18;row<=20;row++)
+                        {
+                            char[] tiles=blocked[row].ToCharArray();
+                            for(int col=11;col<=13;col++)tiles[col]='#';
+                            blocked[row]=new string(tiles);
+                        }
+                        local.rows=blocked;
+                        local.objects=added;
+                        try
+                        {
+                            var candidate=g.GetQuest("campaign_witness");
+                            Check(candidate.room==region &&
+                                (candidate.target-new Point(fake.x,fake.y)).Length>.01f &&
+                                candidate.next.Contains("月光草"),
+                                "A nearby resource behind a sealed wall cannot hijack live witness guidance");
+                            var harvested=new System.Collections.Generic.List<string>();
+                            foreach(WorldObject original in oldObjects)
+                                if(original!=null&&original.kind=="herb" &&
+                                    !g.Has("node_"+original.id))
+                                {
+                                    string key="node_"+original.id;
+                                    g.save.flags.Add(key);
+                                    harvested.Add(key);
+                                }
+                            var sealedRoute=g.GetQuest("campaign_witness");
+                            Check(sealedRoute.room==region &&
+                                (sealedRoute.target-g.Position).Length<.01f &&
+                                sealedRoute.next.Contains("暂时无法到达"),
+                                "A real but unreachable resource must not be mislabeled exhausted or shown as a false waypoint");
+                            foreach(string key in harvested)g.save.flags.Remove(key);
+                        }
+                        finally
+                        {
+                            local.rows=oldRows;
+                            local.objects=oldObjects;
+                        }
+                    }
                     var gatherQuest=g.GetQuest("campaign_witness");
                     Check(gatherQuest.room==region &&
                         Array.Exists(g.Map.objects,o=>o!=null &&
