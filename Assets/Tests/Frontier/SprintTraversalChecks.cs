@@ -166,10 +166,13 @@ namespace Starfall.Tests
                         "A newly shut gate retracts the same heavy objective warning and damage authority");
                     float priorSafety=g.reliefFollowerSafety;
                     g.Tick(.05f,new Point());
-                    Check(gateClosed ?
-                        Math.Abs(g.reliefFollowerSafety-priorSafety)<.0001f :
-                        g.reliefFollowerSafety<priorSafety,
-                        "The actual escort contact respects fresh stone cover, while an unchanged open release still damages the civilian");
+                    // Escort weather always applies independent, small
+                    // per-tick safety wear. Compare actual strike-sized
+                    // loss, not exact equality, when a fresh wall cancels
+                    // only the enemy's attack.
+                    float loss=priorSafety-g.reliefFollowerSafety;
+                    Check(gateClosed ? loss>=0f&&loss<1f : loss>10f,
+                        "Real escort strike causes significant safety damage only on the open lane; sealed cover still permits normal weather wear");
                     Check(g.save.version==2,
                         "Objective cover and warning synchronization change no old save fields");
                 }
