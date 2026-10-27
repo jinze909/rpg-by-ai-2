@@ -3129,6 +3129,7 @@ namespace Starfall
                     (Has("civic_waystation_stocked_"+region)?
                         "\n\nBoth original trail markers are stocked. Rest safely for "+CivicWaystationHealingRate.ToString("0.00")+" HP/sec, "+CivicWaystationEnergyRate.ToString("0.0")+" energy/sec and -"+CivicWaystationClimateRate.ToString("0.0")+" heat/cold per second.":""),
                 CivicWaystationMarkerChoices(o));
+            if(first)AdvanceAtlasSurvey(o);
             return true;
         }
 

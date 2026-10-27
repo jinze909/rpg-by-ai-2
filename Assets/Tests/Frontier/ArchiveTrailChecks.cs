@@ -4,6 +4,68 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void AtlasRouteAdvancesOnlyAfterActuallySurveyingBothOldRoads(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;g.Enter(1);g.enemies.Clear();
+            g.save.flags.Add("archive_started");
+            g.save.flags.Add("archive_fragment_1");
+            WorldObject page=Object(g,"archivefragment1");
+            WorldObject south=null,east=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.id=="waytrail1s")south=o;
+                if(o.id=="waytrail1e")east=o;
+            }
+            Check(south!=null&&east!=null,"The atlas survey uses both original physical road markers");
+            g.save.x=page.x;g.save.y=page.y;
+            g.Talk(page);
+            int route=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_routes_1");
+            Check(route>=0,"A recovered field chart opens the two-road selector");
+            g.Choose(route);
+            int southChoice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="archive_go_1_s");
+            Check(southChoice>=0,"The player can select the original southern road");
+            g.Choose(southChoice);
+            Point? originalPin=g.LocalWaymark;
+            Check(originalPin.HasValue&&
+                (originalPin.Value-new Point(south.x,south.y)).Length<1.81f,
+                "Choosing south creates a real physical-side survey pin");
+            g.save.x=south.x;g.save.y=south.y;
+            g.Tick(.05f,new Point());
+            Check(g.LocalWaymark.HasValue&&
+                (g.LocalWaymark.Value-originalPin.Value).Length<.001f,
+                "The atlas approach marker remains until the real road has been investigated");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.Talk(south);
+            Check(g.Has("waytrail_"+south.id)&&
+                g.save.coins==coins+8&&g.save.shards==shards+1,
+                "Only a real physical waytrail interaction yields its original first reward");
+            Point? next=g.LocalWaymark;
+            Check(next.HasValue&&
+                (next.Value-new Point(east.x,east.y)).Length<1.81f &&
+                (next.Value-originalPin.Value).Length>.1f,
+                "Actual first survey automatically routes to the other unvisited original road");
+            g.Close();
+            g.save.x=east.x;g.save.y=east.y;
+            g.Tick(.05f,new Point());
+            Check(g.LocalWaymark.HasValue,
+                "The second survey likewise requires physical interaction rather than proximity alone");
+            coins=g.save.coins;shards=g.save.shards;
+            g.Talk(east);
+            Check(g.Has("waytrail_"+east.id)&&
+                g.save.coins==coins+8&&g.save.shards==shards+1 &&
+                !g.LocalWaymark.HasValue,
+                "Completing both original road surveys grants only established rewards and retires the pin");
+            g.Close();
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.Has("waytrail_"+south.id)&&
+                loaded.Has("waytrail_"+east.id)&&
+                !loaded.LocalWaymark.HasValue,
+                "Existing v2 save retains only real road surveys, never a fabricated navigation task");
+        }
+
         public static void LostSurveyorAtlasHasRealSequenceAndOneTimeRewards(Campaign data)
         {
             var g = Fresh(data);

@@ -132,6 +132,68 @@ namespace Starfall
                 C("回到琳的委托", "Back to Lin's commission", "archive_return"),
                 C("合上记录", "Close the record", "close"));
         }
+        // Optional, truly walked atlas survey: completing a specific
+        // ORIGINAL waytrail may hand off to the other unvisited marker.
+        // This is runtime-only and owned by a deliberately selected personal
+        // pin. Manual pins, journal navigation and region transitions cancel.
+        private string atlasSurveyRoadId;
+        private int atlasSurveyRoom=-1;
+        private MapData atlasSurveyMap;
+        private bool atlasSurveyArrived;
+        private void ResetAtlasSurvey()
+        {
+            atlasSurveyRoadId=null;atlasSurveyRoom=-1;
+            atlasSurveyMap=null;atlasSurveyArrived=false;
+        }
+        private void OwnAtlasSurvey(WorldObject marker)
+        {
+            atlasSurveyRoadId=marker.id;atlasSurveyRoom=save.room;
+            atlasSurveyMap=Map;atlasSurveyArrived=false;
+        }
+        private bool AtlasSurveyAtDestination()
+        {
+            if(string.IsNullOrEmpty(atlasSurveyRoadId)||
+               atlasSurveyRoom!=save.room||
+               !Object.ReferenceEquals(atlasSurveyMap,Map)||
+               Has("waytrail_"+atlasSurveyRoadId))return false;
+            foreach(WorldObject marker in Map.objects)
+                if(marker!=null&&marker.kind=="waytrail"&&
+                   marker.id==atlasSurveyRoadId&&
+                   IsObjectPresent(marker))return true;
+            return false;
+        }
+        private void AdvanceAtlasSurvey(WorldObject surveyed)
+        {
+            if(surveyed==null||string.IsNullOrEmpty(atlasSurveyRoadId)||
+               atlasSurveyRoom!=save.room||
+               !Object.ReferenceEquals(atlasSurveyMap,Map)||
+               surveyed.id!=atlasSurveyRoadId||
+               !Has("waytrail_"+surveyed.id))return;
+            string otherSide=surveyed.id.EndsWith("s",StringComparison.Ordinal)?
+                "e":"s";
+            WorldObject next=AtlasRoadMarker(save.room,otherSide);
+            Point foot;
+            if(next!=null&&!Has("waytrail_"+next.id)&&
+               TryQuestApproachFoot(new Point(next.x,next.y),out foot))
+            {
+                CommitLocalWaymark(foot,null);
+                OwnAtlasSurvey(next);
+                Notify("旧路标已实地测绘！星图自动标出本地区另一处未调查的路标。",
+                    "Road surveyed! The atlas now points to the other unvisited marker.");
+            }
+            else
+            {
+                bool unfinished=next!=null&&!Has("waytrail_"+next.id);
+                ResetLocalWaymark();
+                revision++;
+                Notify(unfinished?
+                    "旧路标已实地测绘。另一条旧路目前封闭，先寻找通路。":
+                    "本地区两处旧路标都已实地测绘，星图路线完成。",
+                    unfinished?
+                    "Road surveyed. The other route is blocked; find an open crossing.":
+                    "Both local old roads surveyed. Atlas route complete.");
+            }
+        }
         private WorldObject AtlasFieldSource(int region)
         {
             WorldObject o=pendingDialogueSource;
@@ -212,6 +274,7 @@ namespace Starfall
                     return true;
                 }
                 CommitLocalWaymark(foot,null);
+                OwnAtlasSurvey(marker);
                 Notify(side=="s"?
                     "南侧旧路已标记。沿步行导航前进，到达后检查路标。":
                     "东侧旧路已标记。沿步行导航前进，到达后检查路标。",
@@ -272,6 +335,7 @@ namespace Starfall
                     // The waypoint is deliberately distinct from the NPC
                     // interaction point: it is real walkable ground in reach.
                     CommitLocalWaymark(approach,null);
+                    OwnAtlasSurvey(selected);
                     Notify("已按旧星图规划通往未测绘路标的步行路线。返回世界跟随导航，再与路标交互。",
                         "The old atlas charts a walking route to an unvisited marker. Follow your pin and inspect it.");
                 }

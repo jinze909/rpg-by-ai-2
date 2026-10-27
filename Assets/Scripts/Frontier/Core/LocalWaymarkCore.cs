@@ -140,6 +140,7 @@ namespace Starfall
         }
         private void ResetLocalWaymark()
         {
+            ResetAtlasSurvey();
             localWaymarkSet=false;
             localWaymarkRoom=-1;
             localWaymarkMap=null;
@@ -224,6 +225,10 @@ namespace Starfall
         // fresh physical-route check. This function never writes SaveData.
         private bool CommitLocalWaymark(Point requested,string questId)
         {
+            // Any fresh manual or quest pin revokes the atlas's previous
+            // on-site route. Atlas-origin callers take ownership explicitly
+            // only after a successful commit.
+            ResetAtlasSurvey();
             localWaymarkTravelQuestId=null;
             localWaymarkQuestId=questId;
             localWaymarkQuestTarget=string.IsNullOrEmpty(questId)?
@@ -393,6 +398,19 @@ namespace Starfall
             {
                 if(!fromQuest)
                 {
+                    if(AtlasSurveyAtDestination())
+                    {
+                        if(!atlasSurveyArrived)
+                        {
+                            atlasSurveyArrived=true;
+                            revision++;sound="quest";
+                            Notify("已抵达星图上的旧路标，请按 E 实地拓印，完成后可继续下一条路。",
+                                "At the atlas marker. Interact to survey it and follow the next road.");
+                        }
+                        // Do not erase the survey's source ownership simply
+                        // because the hero reached the feet BEFORE pressing E.
+                        return;
+                    }
                     ResetLocalWaymark();
                     revision++;sound="quest";
                     Notify("已到达个人标记位置。", "Personal map destination reached.");
