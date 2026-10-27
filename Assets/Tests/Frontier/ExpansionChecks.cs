@@ -920,6 +920,88 @@ namespace Starfall.Tests
             }
         }
 
+        public static void AuditedWitnessesUnlockOneRealCitadelSurgeCounter(Campaign data)
+        {
+            foreach(bool audited in new[]{false,true})
+            {
+                var g=Fresh(data);g.save.stage=3;g.save.level=20;
+                foreach(string flag in new[]{"gate_4","core_1","core_2","core_3",
+                    "last_directive_started","last_directive_clue_0",
+                    "last_directive_clue_1","last_directive_clue_2"})
+                    g.save.flags.Add(flag);
+                if(audited)for(int i=0;i<3;i++)
+                    g.save.flags.Add("last_directive_trace_"+i);
+                g.Enter(4);g.enemies.Clear();g.projectiles.Clear();
+                g.invulnerable=180;g.save.reducedMotion=true;
+                WorldObject console=Object(g,"lastdirectivecore");
+                g.save.x=console.x;g.save.y=console.y;
+                Action(g,console.kind,"last_directive_code_0");
+                Check(g.LastDirectiveWave==1&&g.LastDirectiveEnemies==2,
+                    "Main citadel defense begins with real individually owned first-wave enemies");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(hit!=null,"Real lethal contact handler needed for authored final wave");
+                foreach(Enemy enemy in g.enemies.FindAll(e=>e.id==90300||e.id==90301))
+                    hit.Invoke(g,new object[]{enemy,99999f,false,null,null});
+                for(int f=0;f<9&&g.LastDirectiveWave==1;f++)
+                    g.Tick(.05f,new Point());
+                Check(g.LastDirectiveWave==2,
+                    "Actual first-wave lethal contacts open the original second lock");
+                g.save.energy=100;g.save.x=console.x;g.save.y=console.y;
+                Action(g,console.kind,"last_directive_second");
+                Check(g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3&&g.save.energy==75,
+                    "Authentic final-wave unlock costs the original 25 energy and preserves three live guards");
+                g.Talk(console);
+                int ground=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_ground");
+                Check((ground>=0)==audited&&
+                    g.LastDirectiveEvidenceGroundAvailable==audited,
+                    "Only a player who physically audited all three witness records may use the real final-wave tactical breaker");
+                g.Close();
+                if(!audited)continue;
+                var owned=new Hazard{position=g.Position,radius=1.45f,
+                    timer=1.1f,kind="rift",lastDirectiveOwned=true};
+                var unrelated=new Hazard{position=g.Position+new Point(4f,0f),
+                    radius=1.15f,timer=2f,kind="rift",civicConduitOwned=true};
+                g.hazards.Add(owned);g.hazards.Add(unrelated);
+                var choose=typeof(GameCore).GetMethod("ChooseLastDirective",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                Check(choose!=null,"Original story dialogue dispatcher can reject forged remote order");
+                int before=g.save.energy;
+                choose.Invoke(g,new object[]{"last_directive_ground"});
+                Check(g.save.energy==before&&g.hazards.Contains(owned),
+                    "A fabricated no-source combat order cannot remove genuine warnings or spend player energy");
+                g.save.energy=19;
+                g.Talk(console);
+                ground=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_ground");
+                Check(ground>=0,"Emergency grounding remains readable even with insufficient energy");
+                g.Choose(ground);
+                Check(g.save.energy==19&&g.hazards.Contains(owned)&&
+                    g.LastDirectiveEvidenceGroundAvailable,
+                    "Insufficient stamina cannot eat a unique story-derived tactical charge");
+                g.save.energy=75;
+                g.Talk(console);ground=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_ground");
+                g.Choose(ground);
+                Check(g.save.energy==55&&
+                    !g.LastDirectiveEvidenceGroundAvailable&&
+                    !g.hazards.Contains(owned)&&g.hazards.Contains(unrelated)&&
+                    g.LastDirectiveWave==3&&g.LastDirectiveEnemies==3,
+                    "One paid in-person breaker clears only its own pulse while three authentic opponents and unrelated hazards survive");
+                g.Talk(console);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="last_directive_ground")<0,
+                    "Spent tactical order cannot be repeated in the same active defense");
+                g.Close();
+                g.PrepareSave();var reload=new GameCore(data,CloneSave(g.save));
+                Check(reload.save.version==2&&reload.LastDirectiveWave==0&&
+                    reload.LastDirectiveTraces==3&&
+                    !reload.LastDirectiveEvidenceGroundAvailable,
+                    "Old save slots retain earned physical evidence but no transient second-wave breaker or enemy resurrection");
+            }
+        }
+
         public static void PublishedDirectiveRemembersAllThreeAuditedWitnesses(Campaign data)
         {
             foreach(bool publicOversight in new[]{true,false})

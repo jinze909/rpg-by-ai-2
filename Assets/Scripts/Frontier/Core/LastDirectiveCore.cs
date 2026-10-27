@@ -8,6 +8,13 @@ public sealed partial class GameCore {
     // cleanup and visual effects.
     private readonly Enemy[] directiveActors=new Enemy[3];
     private float directiveSurgeLeft;
+    // When all three original witness records were physically audited, the
+    // hero can ground exactly one final-lock grid surge at the live console.
+    // The tactical order expires with the encounter and is never saved.
+    private bool directiveEvidenceGroundUsed;
+    public bool LastDirectiveEvidenceGroundAvailable
+    {get{return directiveRoom==4&&directivePhase==3&&
+        LastDirectiveTraces==3&&!directiveEvidenceGroundUsed;}}
     private static readonly Point[] directiveSpawns={new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(106.5f,73.5f)};
     public bool LastDirectiveStarted {get{return Has("last_directive_started");}}
     public bool LastDirectiveComplete {get{return Has("last_directive_complete");}}
@@ -33,7 +40,8 @@ public sealed partial class GameCore {
     }
     private void ResetLastDirective(){enemies.RemoveAll(IsLastDirectiveEnemy);projectiles.RemoveAll(p=>p.lastDirectiveOwned);effects.RemoveAll(e=>e.lastDirectiveOwned);hazards.RemoveAll(h=>h.lastDirectiveOwned);
         for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
-        directiveRoom=-1;directivePhase=directiveKills=0;directiveSurgeLeft=0;}
+        directiveRoom=-1;directivePhase=directiveKills=0;directiveSurgeLeft=0;
+        directiveEvidenceGroundUsed=false;}
     private void OnLastDirectiveEnemyDefeated(Enemy e){
         if(directiveRoom!=4||save.room!=4||(directivePhase!=1&&directivePhase!=3)||!IsLastDirectiveEnemy(e))return;
         int count=directivePhase==1?2:3;
@@ -134,6 +142,7 @@ public sealed partial class GameCore {
         if(!TryLastDirectiveGuardianFeet(first,count,out feet))return false;
         directiveRoom=4;directivePhase=wave==1?1:3;directiveKills=0;
         directiveSurgeLeft=wave==2?2.6f:0;
+        directiveEvidenceGroundUsed=false;
         for(int i=0;i<directiveActors.Length;i++)directiveActors[i]=null;
         for(int i=0;i<count;i++){
             Point p=feet[i];int kind=wave==1?i:i==2?2:i;
@@ -214,11 +223,29 @@ public sealed partial class GameCore {
                 Dialog(o.name,o.en,"终端要求三份实地取得的原始证词，不能凭猜测解除。","The terminal requires three original field records.",C("继续探索","Explore","close"));return true;
             }
             if(directivePhase==1||directivePhase==3){
-                Dialog(o.name,o.en,
-                    "守卫正在真实战斗。若需要撤退，在这个原始终端明确撤销本轮即可，已取得的证词仍保留。",
-                    "Authentic security units are attacking. Withdraw only here at the original terminal; earned evidence stays recorded.",
-                    C("返回战斗","Return to fight","close"),
-                    C("撤销本轮守卫战","Withdraw from defense","last_directive_abort"));return true;
+                if(LastDirectiveEvidenceGroundAvailable)
+                {
+                    Dialog(o.name,o.en,
+                        "终端正向守卫释放脉冲。三处证词的背页拼出了九年前的手动断路办法：靠近控制台，花20耐力接地一次，便能清除当前脉冲预警，延后下一次。仍必须亲自击败三名守卫。",
+                        "The old console drives pulses into this fight. Notes on all three original records reveal a manual breaker: spend 20 energy here once to clear the current grid warning and delay its next strike. You must still defeat all three guards.",
+                        C("接地一次 · 耐力20",
+                            "Ground one grid surge · 20 energy","last_directive_ground"),
+                        C("返回战斗","Return to fight","close"),
+                        C("撤销本轮守卫战","Withdraw from defense","last_directive_abort"));
+                }
+                else
+                {
+                    Dialog(o.name,o.en,
+                        directivePhase==3&&directiveEvidenceGroundUsed?
+                            "手动断路已经用过一次。脉冲仍会继续，先闪避预警，再击败守卫。需要撤退可以在控制台终止本轮。":
+                            "守卫仍在进攻。要查出旧终端的接地方法，必须在三处原始证词背面都留过调查笔记；否则只能躲开脉冲。也可以在这里撤退。",
+                        directivePhase==3&&directiveEvidenceGroundUsed?
+                            "The manual breaker has been spent. Dodge later warned pulses and defeat the remaining guardians, or withdraw here.":
+                            "The guardians are still fighting. The emergency breaker needs field notes from all three original testimonies; otherwise evade the pulses or withdraw.",
+                        C("返回战斗","Return to fight","close"),
+                        C("撤销本轮守卫战","Withdraw from defense","last_directive_abort"));
+                }
+                return true;
             }
             if(directivePhase==2){
                 Dialog(o.name,o.en,"第一道锁已破。投入25耐力释放最后一道封锁，随后迎战三名真正的敌人。","First lock disabled. Spend 25 energy to release the final three-guardian defense.",
@@ -299,6 +326,32 @@ public sealed partial class GameCore {
                 detailsZh[index]+(first?"\n\n调查笔记更新，经验 +8。":""),
                 detailsEn[index]+(first?"\n\nField notes updated. +8 XP.":""),
                 C("合上原稿","Close the record","close"));
+            return true;
+        }
+        if(action=="last_directive_ground")
+        {
+            WorldObject source=pendingDialogueSource;
+            if(!atCore||source==null||
+                !System.Object.ReferenceEquals(source,core)||
+                pendingDialogueSourceRoom!=4||
+                !SourceBelongsToActiveMap(source)||
+                !LastDirectiveEvidenceGroundAvailable)return true;
+            if(save.energy<20){
+                Notify("手动断路需要20耐力。可以继续闪避电弧。",
+                    "The manual breaker needs 20 energy. You can still dodge the grid.");
+                return true;
+            }
+            save.energy-=20;directiveEvidenceGroundUsed=true;
+            // Retire ONLY this terminal's committed warnings. No living
+            // guardian, foreign mission projectile or world hazard changes.
+            hazards.RemoveAll(h=>h.lastDirectiveOwned);
+            effects.RemoveAll(e=>e.lastDirectiveOwned);
+            directiveSurgeLeft=Math.Max(directiveSurgeLeft,4.8f);
+            effects.Add(new Effect("discover",Position,.6f)
+                {lastDirectiveOwned=true});
+            revision++;sound="guard";
+            Notify("依据证词接地成功！终端脉冲暂缓，守卫仍需击败。",
+                "Manual breaker grounded! The next surge is delayed; the guards still fight.");
             return true;
         }
         if(action=="last_directive_abort")
