@@ -1379,7 +1379,14 @@ namespace Starfall.Tests
             Check(g.CivicConduitForwardRemaining<.001f&&
                 g.CivicConduitProgressReady&&
                 (g.Position-new Point(valve.x,valve.y)).Length<2.2001f,
-                "Genuine additional eastward walking fulfills the remaining real span");
+                "Genuine additional eastward walking fulfills the remaining real span: active="+
+                    g.CivicConduitActive+" state="+g.mode+
+                    " x="+g.Position.x.ToString("0.00")+
+                    " y="+g.Position.y.ToString("0.00")+
+                    " forward="+g.CivicConduitForwardSpan.ToString("0.00")+
+                    " remain="+g.CivicConduitForwardRemaining.ToString("0.00")+
+                    " ready="+g.CivicConduitProgressReady+
+                    " count="+count);
             if(g.CivicConduitWindowOpen)
                 Check(g.Conditions().Contains("现在操作"),
                     "Production HUD advertises an actionable green phase only after true eastbound route completion");
