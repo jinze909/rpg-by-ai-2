@@ -7951,8 +7951,8 @@ public static class RuntimeCombatInputChecks
             (gamepadChoice==archivist||gamepadChoice==witness),
             "Real controller R3 can select the other resident without dropping props");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(x=>x.Contains("E  "+gamepadChoice.name)),
-            "After controller cycling, the world shows the actual gamepad-selected NPC");
+        Check(GUI.commands.Exists(x=>x.Contains("B  "+gamepadChoice.name)),
+            "Controller-mode prompt advertises B and the actual R3-selected NPC");
         Input.keys.Add(KeyCode.JoystickButton1);Update(app);
         Check(g.mode=="dialog"&&g.conversation!=null&&
               g.conversation.speaker==gamepadChoice.name&&
