@@ -496,7 +496,8 @@ namespace Starfall
                     if(rangedSpeed>0f)
                         lockedTarget=Game.PredictRangedTargetPoint(
                             controllerAimEnemy,rangedSpeed,
-                            Game.RangedAimWindupSeconds(technique));
+                            Game.RangedAimWindupSeconds(technique),
+                            technique);
                     Game.SetAimTarget(lockedTarget);
                     return (lockedTarget-Game.Position).Normalized;
                 }
@@ -518,7 +519,8 @@ namespace Starfall
             if(pointerAimEnemy!=null&&pointerSpeed>0f)
                 target=Game.PredictRangedTargetPoint(
                     pointerAimEnemy,pointerSpeed,
-                    Game.RangedAimWindupSeconds(technique));
+                    Game.RangedAimWindupSeconds(technique),
+                    technique);
             Point d=target-Game.Position;
             Game.SetAimTarget(target);
             return d.Length>.05f?d:Game.aim;

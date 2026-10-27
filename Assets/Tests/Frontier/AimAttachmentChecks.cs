@@ -330,6 +330,57 @@ namespace Starfall.Tests
                 "Actual attack release preview remains transient and save-compatible");
         }
 
+        public static void RangerTechniqueLeadUsesRealSkillAndEquippedMuzzle(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data,1);
+                g.save.weapon=0;
+                g.save.technique=0;
+                var target=new Enemy(1207,0,
+                    g.Position.x+6f,g.Position.y,80f);
+                target.moving=true;
+                target.moveVelocity=new Point(0f,1.5f);
+                g.enemies.Add(target);
+                Check(Math.Abs(g.RangedAimWindupSeconds(true)-.28f)<.00001f&&
+                    g.RangedAimProjectileSpeed(true)==13f&&
+                    g.RangedAimProjectileSpeed(false)==0f,
+                    "Sword-bearing Ranger has an authentic speed-13 bow-style Q but still no phantom ranged sword basic attack");
+                Point normal=g.PredictRangedTargetPoint(target,13f,.28f,true);
+                Check(normal.y>target.y+.5f&&
+                    (g.PredictRangedTargetPoint(target,13f,.28f,false)-
+                     target.Position).Length<.00001f,
+                    "Sword Q aims ahead of genuine moving enemies without changing basic sword aim");
+                Check(Object.ReferenceEquals(
+                    g.AcquireRangedStickTarget(new Point(1f,0f)),target),
+                    "Ranger Q target selection remains available with the true equipped sword hand");
+                g.save.technique=1;
+                Check(g.RangedAimProjectileSpeed(true)==17f,
+                    "Alternate Ranger Q uses the genuine faster 17-tile/s penetrating shot, not the five-arrow 13-tile/s profile");
+                Point charged=g.PredictRangedTargetPoint(target,
+                    g.RangedAimProjectileSpeed(true),
+                    g.RangedAimWindupSeconds(true),true);
+                Check(charged.y>target.y+.35f&&
+                    charged.y<normal.y-.04f,
+                    "Faster piercing arrow gets a shorter actual flight lead while keeping its real 280ms cast");
+                g.save.weapon=2;
+                Point withStaff=g.PredictRangedTargetPoint(target,
+                    g.RangedAimProjectileSpeed(true),.28f,true);
+                Check(withStaff.y>target.y+.35f&&
+                    withStaff.y<=target.y+1.451f,
+                    "Charged Q remains physically guided from equipped staff, without switching the actor to a bow");
+                g.save.profession=0;
+                Check(g.RangedAimProjectileSpeed(true)==0f&&
+                    g.RangedAimWindupSeconds(true)==0f,
+                    "Vanguard's grounded technique cannot inherit a Ranger projectile aim lock");
+                Check(g.save.version==2&&g.projectiles.Count==0&&
+                    target.hp==80f,
+                    "Both Ranger disciplines and all equipment use existing saved state and do not fabricate shots");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void CapturedTargetKeepsBodyAndMuzzleTogether(Campaign data)
         {
             var shotMethod=typeof(GameCore).GetMethod("WeaponShot",BindingFlags.Instance|BindingFlags.NonPublic);

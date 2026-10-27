@@ -32,7 +32,11 @@ namespace Starfall
                heading.Length<.28f||!CanStand(Position))
                 return null;
             Point look=heading.Normalized;
-            int weapon=save.weapon==0?1:save.weapon;
+            // A Ranger may use Q while holding a sword. Its actual five
+            // arrows or piercing shot launch at THAT equipped hand, not
+            // an imaginary bow muzzle. A target lock must pass the same
+            // physical attachment sweep as the genuine release.
+            int weapon=save.weapon;
             Enemy selected=null;
             float bestScore=float.MaxValue;
             foreach(Enemy enemy in enemies)
@@ -105,16 +109,23 @@ namespace Starfall
         // Vanguard/Arcanist Q is grounded AoE and gets no ballistic lead.
         public float RangedAimWindupSeconds(bool technique)
         {
-            if(save==null||save.weapon<=0)return 0f;
-            return technique ? save.profession==1?.28f:0f:
-                Profile(save.weapon,Style).interval*
+            if(save==null)return 0f;
+            if(technique)return save.profession==1?.28f:0f;
+            if(save.weapon<=0)return 0f;
+            return Profile(save.weapon,Style).interval*
                 (save.weapon==1?.55f:.45f);
         }
         public float RangedAimProjectileSpeed(bool technique)
         {
-            if(save==null||save.weapon<=0||
-               technique&&save.profession!=1)return 0f;
-            return technique?13f:save.weapon==1?12f:8f;
+            if(save==null)return 0f;
+            if(technique)
+                // Ranger Q launches real speed-13 fan arrows, or one
+                // speed-17 piercing shot after its alternate unlock.
+                // Both work while wielding sword, bow or staff.
+                return save.profession==1?
+                    (save.technique==1?17f:13f):0f;
+            if(save.weapon<=0)return 0f;
+            return save.weapon==1?12f:8f;
         }
 
         // Aim ahead of an actually MOVING enemy without widening its
@@ -126,13 +137,16 @@ namespace Starfall
         // revert to the enemy's visible current center, never fire through
         // world cover on the strength of an aim-assist estimate.
         public Point PredictRangedTargetPoint(Enemy target,
-            float speed,float windupSeconds)
+            float speed,float windupSeconds,bool technique=false)
         {
             if(target==null)return Position;
             Point current=target.Position;
             if(mode!="world"||Dying||save==null||
                !enemies.Contains(target)||target.hp<=0f||
-               save.weapon==0||!CanStand(Position)||
+               (save.weapon==0&&
+                   (!technique||save.profession!=1))||
+               (technique&&save.profession!=1)||
+               !CanStand(Position)||
                !Finite(speed)||speed<1f||
                !Finite(windupSeconds)||
                !target.moving||
