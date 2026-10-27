@@ -59,6 +59,12 @@ namespace Starfall
             // A meaningful sound-only investigation owns a distinct,
             // readable alert; actual visual acquisition supersedes it.
             public bool impactOnly;
+            // A live patrol first approaches the actual wall impact, then
+            // checks distinct near-side floor positions instead of freezing
+            // at one point and staring into the wall. Search is per Enemy
+            // instance, ephemeral, and never written into v2 saves.
+            public int searchStep=-1;
+            public Point searchGoal;
             public EnemyHitAlert(float time,Point foot,bool impactOnly=false)
             {remaining=time;lastKnown=foot;this.impactOnly=impactOnly;}
         }
@@ -241,6 +247,7 @@ namespace Starfall
                         continue;
                     alert.lastKnown=soundFoot;
                     alert.remaining=3.5f;
+                    alert.searchStep=-1;
                     effects.Add(new Effect("number",enemy.Position,.75f,
                         L("新的撞击声","NEW IMPACT")));
                     continue;
@@ -264,6 +271,55 @@ namespace Starfall
                 !ArrowSoundCannotOverrideObjective(e)&&
                 enemyHitAlert.TryGetValue(e,out alert)&&
                 alert.impactOnly&&alert.remaining>0f;
+        }
+        // Turn a sound investigation into a short, physically navigated
+        // near-side sweep. The same map collision and movement sampler used
+        // by real enemy pursuit handles each chosen foot. A wall, new sighting
+        // or higher-priority civilian duty cannot create a hidden teleporter.
+        private Point LiveSoundSearchGoal(Enemy enemy,Point fallback)
+        {
+            EnemyHitAlert alert;
+            if(enemy==null||!enemyHitAlert.TryGetValue(enemy,out alert)||
+               !alert.impactOnly)return fallback;
+            if(alert.searchStep<0)
+            {
+                if((enemy.Position-alert.lastKnown).Length>1.3f)
+                    return alert.lastKnown;
+                alert.searchStep=0;
+            }
+            else if((enemy.Position-alert.searchGoal).Length<.32f)
+                alert.searchStep++;
+            // Deliberately sweep the four quadrants, but reject any
+            // unreachable, solid or sealed corner in the CURRENT world.
+            // No static actor IDs, random teleport or old path cache.
+            for(;alert.searchStep<4;alert.searchStep++)
+            {
+                Point offset;
+                switch(alert.searchStep)
+                {
+                    case 0:offset=new Point(-1.35f,.95f);break;
+                    case 1:offset=new Point(-1.35f,-.95f);break;
+                    case 2:offset=new Point(1.35f,.95f);break;
+                    default:offset=new Point(1.35f,-.95f);break;
+                }
+                Point target=alert.lastKnown+offset;
+                if(!CanStand(target)||
+                   !ClearAttackPath(enemy.Position,target)||
+                   (target-alert.lastKnown).Length>2.1f)continue;
+                alert.searchGoal=target;
+                return target;
+            }
+            // The local area has been checked. Guard this exact spot until
+            // expiry or a truly different impact, rather than jittering into
+            // an unreachable wall or magically reacquiring the hidden hero.
+            return enemy.Position;
+        }
+        public bool IsEnemySweepingImpact(Enemy enemy)
+        {
+            EnemyHitAlert alert;
+            return IsEnemyInvestigatingImpact(enemy)&&
+                enemyHitAlert.TryGetValue(enemy,out alert)&&
+                alert.searchStep>=0;
         }
         private Point LastKnownEnemyHitOrigin(Enemy e,Point fallback)
         {

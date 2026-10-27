@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void StoneDecoyGuardsSweepPhysicalGroundNotJustPaintAQuestionMark() { CoreChecks.AudibleImpactPatrolSweepsActualReachableNearSideGround(Data()); }
         [Test] public void AuthenticArrowStoneContactHasDistinctAudio() { CoreChecks.RealArrowStoneImpactHasOwnAudiblePhysicalContact(Data()); }
         [Test] public void RealWallNoiseRedirectsGuardButNotRescueRaiders() { CoreChecks.DistinctArrowWallSoundsRedirectOnlySearchingGuards(Data()); }
         [Test] public void TravelerAmbushShowsOwnedGroundAndSoundWarningsBeforeActualDamage() { CoreChecks.WayfarerMeleeWarningAppearsBeforeRealDamageAndTracksMovingCover(Data()); }

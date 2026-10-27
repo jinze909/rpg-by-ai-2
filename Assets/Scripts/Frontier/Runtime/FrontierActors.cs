@@ -1206,7 +1206,9 @@ namespace Starfall
                 Color suspicion=PixelArt.C("#e6b46e");
                 Ring(e.Position,.57f,suspicion,16);
                 Text(p.x-74,p.y-125,148,19,
-                    Game.L("调查异响","INVESTIGATING"),
+                    Game.IsEnemySweepingImpact(e)?
+                        Game.L("搜索声源附近","SEARCHING"):
+                        Game.L("调查异响","INVESTIGATING"),
                     10,suspicion,TextAnchor.MiddleCenter);
             }
             // Only the living caller owns this painted warning over its

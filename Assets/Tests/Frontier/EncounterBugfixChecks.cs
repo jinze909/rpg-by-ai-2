@@ -5,6 +5,72 @@ namespace Starfall.Tests
     {
 
 
+
+        public static void AudibleImpactPatrolSweepsActualReachableNearSideGround(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // The fired arrow is already east of a wall, while the
+                // player has retreated west behind it. A real flight still
+                // hits the distant stone; the guard cannot see through x=8.
+                char[] wall=rows[10].ToCharArray();
+                wall[8]=wall[19]='#';rows[10]=new string(wall);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                g.enemies.Clear();g.mode="world";
+                g.invulnerable=300f;
+                g.save.x=6.5f;g.save.y=10.5f;
+                Enemy guard=new Enemy(79801,0,17.5f,11.5f,200f);
+                guard.timer=3f;g.enemies.Add(guard);
+                var ray=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(ray!=null&&
+                    !(bool)ray.Invoke(g,new object[]{guard.Position,g.Position}),
+                    "Actual opaque cover prevents the guard from identifying the hidden archer");
+                g.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(10.5f,10.5f),velocity=new Point(12f,0f),
+                    damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                bool swept=false;Point firstSearch=new Point();
+                for(int i=0;i<140;i++)
+                {
+                    g.Tick(.02f,new Point());
+                    if(g.IsEnemySweepingImpact(guard))
+                    {
+                        swept=true;firstSearch=guard.Position;break;
+                    }
+                }
+                Check(swept&&g.IsEnemyInvestigatingImpact(guard)&&
+                    !g.Dying&&g.CanStand(guard.Position),
+                    "A live ordinary guard enters physical local search after an authentic arrow collision");
+                Advance(g,.42f);
+                Check((guard.Position-firstSearch).Length>.1f&&
+                    g.CanStand(guard.Position)&&
+                    guard.hp==200f&&g.save.version==2&&
+                    g.IsEnemySweepingImpact(guard),
+                    "Search changes actual actor footsteps on reachable near-side ground; never damages or changes save");
+                Advance(g,4f);
+                Check(!g.IsEnemySweepingImpact(guard)&&
+                    !g.IsEnemyInvestigatingImpact(guard),
+                    "A bounded search retires instead of following an invisible hero forever");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
         public static void RealArrowStoneImpactHasOwnAudiblePhysicalContact(Campaign data)
         {
             MapData previous=data.maps[1];

@@ -1964,7 +1964,8 @@ namespace Starfall
                    !escortPatrol&&!stockRaider&&!patrolSaboteur&&
                    (e.Position-Position).Length>8f&&
                    !ClearAttackPath(e.Position,Position))
-                    pursuit=LastKnownEnemyHitOrigin(e,pursuit);
+                    pursuit=LiveSoundSearchGoal(e,
+                        LastKnownEnemyHitOrigin(e,pursuit));
                 Point delta = pursuit - e.Position; float distance = delta.Length;
                 if (e.state == 1)
                 {
@@ -2237,7 +2238,9 @@ namespace Starfall
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = wardBow ? 4.5f :
+                float desired = playerHitProvoked&&
+                    IsEnemyInvestigatingImpact(e) ? .22f :
+                    wardBow ? 4.5f :
                     (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
                     wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
