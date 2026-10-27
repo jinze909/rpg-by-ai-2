@@ -4,6 +4,22 @@ using System.Runtime.CompilerServices;
 
 namespace Starfall
 {
+    // An immutable record of ACTUALLY presented text/choices, not a re-run
+    // of their handlers. Previous NPC speech can be read without spending
+    // supplies, receiving rewards twice or impersonating another speaker.
+    public sealed class DialogueRecord
+    {
+        public readonly string speaker,en,text,textEn;
+        public readonly bool playerChoice;
+        public DialogueRecord(string speaker,string en,string text,
+            string textEn,bool playerChoice)
+        {
+            this.speaker=speaker;this.en=en;
+            this.text=text;this.textEn=textEn;
+            this.playerChoice=playerChoice;
+        }
+    }
+
     // All rules live outside MonoBehaviour so the complete campaign can be tested without an editor.
     public sealed partial class GameCore
     {
@@ -312,6 +328,9 @@ namespace Starfall
             // sound name. Neither old combat cues nor dialogue clicks may
             // play after loading a different character or starting fresh.
             sounds.Clear(); lastSound = "";
+            // Old dialogue belongs to the previous save/session. Never
+            // share story spoilers or a different character's NPC voice.
+            dialogueRecords.Clear();
             attackCooldown = dashCooldown = dashTime = skillCooldown = guardTime = 0;
             invulnerable = 1; conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
@@ -337,6 +356,23 @@ namespace Starfall
         }
         public void Start() { mode = "world"; if (!Has("intro")) Intro(); }
         private Choice C(string zh, string en, string action) { return new Choice(zh, en, action); }
+        private readonly List<DialogueRecord> dialogueRecords =
+            new List<DialogueRecord>();
+        private const int DialogueRecordLimit=18;
+        public int DialogueRecordCount { get { return dialogueRecords.Count; } }
+        public DialogueRecord DialogueRecordAt(int index)
+        {
+            return index>=0&&index<dialogueRecords.Count?
+                dialogueRecords[index]:null;
+        }
+        private void RememberDialogue(string speaker,string en,
+            string zh,string english,bool selected)
+        {
+            if(dialogueRecords.Count>=DialogueRecordLimit)
+                dialogueRecords.RemoveAt(0);
+            dialogueRecords.Add(new DialogueRecord(speaker??"",en??"",
+                zh??"",english??"",selected));
+        }
         private void Intro()
         {
             Flag("intro");
@@ -365,6 +401,7 @@ namespace Starfall
                 conversationSourceWasReachable = true;
             }
             conversation = new Conversation(speaker, en, text, textEn, choices); mode = "dialog";
+            RememberDialogue(speaker,en,text,textEn,false);
         }
         public void Close()
         {
@@ -4070,6 +4107,12 @@ namespace Starfall
                     "Move closer to the target before choosing this interaction.");
                 return;
             }
+            // Record only a legitimately selected LIVE choice. A stale
+            // source, rejected reach or invalid menu index must never enter
+            // the story transcript as something the player really said.
+            Choice accepted=conversation.choices[index];
+            RememberDialogue("你的选择","Your choice",accepted.label,
+                accepted.en,true);
             WorldObject selectedSource = conversationSource;
             int selectedSourceRoom = conversationSourceRoom;
             bool selectedSourceWasMapObject = conversationSourceWasMapObject;

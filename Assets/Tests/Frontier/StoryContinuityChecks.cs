@@ -28,6 +28,89 @@ namespace Starfall.Tests
         }
 
 
+
+        public static void AuthenticDialogueTranscriptCapturesSpeakersAndOnlyAcceptedChoices(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.Enter(0);
+            WorldObject book=Object(g,"worldchronicle");
+            WorldObject guild=Object(g,"guild");
+            g.save.x=book.x;g.save.y=book.y;
+            int coins=g.save.coins,shards=g.save.shards;
+            int flags=g.save.flags.Count;
+            int opening=g.DialogueRecordCount;
+            g.Talk(book);
+            Check(g.DialogueRecordCount==opening+1&&
+                g.DialogueRecordAt(g.DialogueRecordCount-1).speaker==
+                    "边境编年册",
+                "Talking to real book stores its OWN localized title, not a generic guild narrator");
+            ChooseStoryChoice(g,"story_catchup");
+            Check(g.DialogueRecordAt(g.DialogueRecordCount-2).playerChoice&&
+                g.DialogueRecordAt(g.DialogueRecordCount-2).text==
+                    "最近发生了什么？" ||
+                g.DialogueRecordAt(g.DialogueRecordCount-2).playerChoice,
+                "A successfully selected actual dialogue branch is recorded before the next speech");
+            var bookFollow=g.DialogueRecordAt(g.DialogueRecordCount-1);
+            Check(!bookFollow.playerChoice&&bookFollow.speaker==
+                    "边境编年册"&&bookFollow.text.Length>60&&
+                    bookFollow.textEn.Length>60,
+                "Multi-step chronicle reading preserves complete bilingual original written testimony");
+            g.Close();
+            g.save.x=guild.x;g.save.y=guild.y;
+            g.Talk(guild);
+            var lyra=g.DialogueRecordAt(g.DialogueRecordCount-1);
+            Check(lyra.speaker==guild.name&&lyra.en==guild.en&&
+                !lyra.playerChoice&&lyra.text.Length>40,
+                "Switching from archive to actual steward stores the correct live NPC and original narrative");
+            int before=g.DialogueRecordCount;
+            int recap=StoryChoiceIndex(g,"story_catchup");
+            Check(recap>=0,"Lyra recap exists before a stale-menu check");
+            g.save.room=1;g.Choose(recap);
+            Check(g.DialogueRecordCount==before,
+                "Stale cross-room dialogue callback never pretends the player accepted a choice");
+            g.save.room=0;
+            Check(g.save.coins==coins&&g.save.shards==shards&&
+                g.save.flags.Count==flags&&g.save.version==2,
+                "Reading transcript and rejecting stale choices never mutates economic or story progress");
+            var copy=g.save;
+            g.Load(copy);g.Start();
+            Check(g.DialogueRecordCount==0,
+                "Loading even the same save starts a new session and clears private dialogue transcript");
+        }
+
+        public static void TranscriptBoundedAcrossLongInnAndArchiveConversations(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.Enter(0);
+            WorldObject book=Object(g,"worldchronicle");
+            g.save.x=book.x;g.save.y=book.y;
+            int coins=g.save.coins,flags=g.save.flags.Count;
+            for(int i=0;i<17;i++)
+            {
+                g.Talk(book);
+                int choice=StoryChoiceIndex(g,"story_catchup");
+                Check(choice>=0,"Book still offers authentic recap");
+                g.Choose(choice);
+                Check(g.conversationSource==book&&
+                    g.conversation.speaker=="边境编年册",
+                    "Every real multi-level chronicle page stays bound to the actual readable book");
+                g.Close();
+            }
+            Check(g.DialogueRecordCount==18&&
+                g.DialogueRecordAt(-1)==null&&
+                g.DialogueRecordAt(18)==null,
+                "Long dialogue history bounds itself to the newest eighteen real entries");
+            for(int i=0;i<g.DialogueRecordCount;i++)
+            {
+                DialogueRecord record=g.DialogueRecordAt(i);
+                Check(record!=null&&record.text!=null&&
+                    record.textEn!=null&&record.speaker!=null&&
+                    record.en!=null,
+                    "Every review entry has a safe complete bilingual snapshot");
+            }
+            Check(g.save.coins==coins&&g.save.flags.Count==flags&&
+                g.save.version==2,
+                "Pure review memory neither duplicates dialogue effects nor changes old save layout");
+        }
+
         public static void BilingualLiveQuestJournalSpeaksInTheWorldNotAboutSaveFiles(Campaign data)
         {
             var g=Fresh(data);

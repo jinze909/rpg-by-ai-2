@@ -6,6 +6,8 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void OriginalNpcSpeechAndAcceptedChoicesBuildSafeStoryTranscript() { CoreChecks.AuthenticDialogueTranscriptCapturesSpeakersAndOnlyAcceptedChoices(Data()); }
+        [Test] public void LongArchiveReviewKeepsOnlyNewestEighteenEntries() { CoreChecks.TranscriptBoundedAcrossLongInnAndArchiveConversations(Data()); }
         [Test] public void PlayerCoverOrRealArrowHitCanInterruptSentryWhistle() { CoreChecks.SentryWhistleStopsIfHeroEscapesOrContactInterrupts(Data()); }
         [Test] public void GuardTracksLastWitnessedFootInsteadOfHeroThroughStone() { CoreChecks.AlertGuardFollowsLastVisibleFootAcrossCloseSolidCover(Data()); }
         [Test] public void SentryWhistleHasActualNativeRegisteredAudio() { CoreChecks.TrueSentryWhistleIsAudibleAndOriginal(Data()); }
