@@ -146,10 +146,27 @@ namespace Starfall
             int weapon=save.weapon;
             Point muzzle=WeaponOrigin(Position,weapon,
                 (current-Position).Normalized);
-            float flight=(current-muzzle).Length/speed;
-            if(!Finite(flight))return current;
-            float horizon=Clamp(windupSeconds,0,.45f)+
-                Clamp(flight,0,1.5f);
+            // Intercept the moving FOOT after the real animation windup:
+            // distance / speed alone assumes the enemy freezes when the
+            // arrow leaves the hand. Solve |relative + velocity*t| = speed*t
+            // for the first positive flight time instead. Bow, staff and
+            // Ranger's five-arrow Q already pass their authentic projectile
+            // speeds. No aim assist may outrun the target, change damage or
+            // extend the established maximum 1.5s flight-lookahead.
+            if(speed<=enemySpeed+.001f)return current;
+            float delay=Clamp(windupSeconds,0f,.45f);
+            Point relative=current+velocity*delay-muzzle;
+            double vx=velocity.x,vy=velocity.y;
+            double dx=relative.x,dy=relative.y;
+            double a=vx*vx+vy*vy-(double)speed*speed;
+            double b=2d*(dx*vx+dy*vy);
+            double c=dx*dx+dy*dy;
+            double determinant=b*b-4d*a*c;
+            if(a>=-.00001d||determinant<0d)return current;
+            double flight=(-b-Math.Sqrt(determinant))/(2d*a);
+            if(double.IsNaN(flight)||double.IsInfinity(flight)||
+                flight<0d)return current;
+            float horizon=delay+Clamp((float)flight,0f,1.5f);
             Point offset=velocity*horizon;
             float maxLead=weapon==1?1.7f:1.45f;
             if(offset.Length>maxLead)

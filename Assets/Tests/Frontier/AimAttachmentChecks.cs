@@ -209,6 +209,52 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void MovingRangedTargetsUseActualInterceptionTime(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                foreach(int weapon in new[]{1,2})
+                {
+                    var g=SprintTestWorld(data,1);
+                    g.save.weapon=weapon;
+                    var target=new Enemy(1204,0,
+                        g.Position.x+5f,g.Position.y,60f);
+                    target.moving=true;
+                    g.enemies.Add(target);
+                    float speed=weapon==1?12f:8f;
+                    float delay=.14f;
+                    target.moveVelocity=new Point(1f,0);
+                    Point receding=g.PredictRangedTargetPoint(
+                        target,speed,delay);
+                    target.moveVelocity=new Point(-1f,0);
+                    Point approaching=g.PredictRangedTargetPoint(
+                        target,speed,delay);
+                    float away=receding.x-target.x;
+                    float near=target.x-approaching.x;
+                    Check(away>near+.03f&&near>.2f,
+                        "Receding target needs more real flight time than one approaching the same muzzle; fixed distance/speed cannot satisfy both");
+                    target.moveVelocity=new Point(1f,0);
+                    Point muzzle=GameCore.WeaponOrigin(
+                        g.Position,weapon,(receding-g.Position).Normalized);
+                    float actualFlight=(receding-muzzle).Length/speed;
+                    Point arrival=target.Position+
+                        target.moveVelocity*(delay+actualFlight);
+                    Check((arrival-receding).Length<.05f,
+                        "Unclamped bow/staff prediction meets the moving target at the real launch-plus-flight moment");
+                    Check(g.projectiles.Count==0&&g.save.version==2&&
+                        target.hp==60f,
+                        "Intercept computation only guides actual combat input: no ghost shots, free damage or changed old-save fields");
+                    target.moveVelocity=new Point(4.4f,0);
+                    Point fast=g.PredictRangedTargetPoint(target,speed,.45f);
+                    Check((fast-target.Position).Length<=
+                        (weapon==1?1.7001f:1.4501f),
+                        "Original anti-homing lead budget survives fast real foot velocity");
+                }
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void BallisticAimUsesRealCurrentStyleReleaseClock(Campaign data)
         {
             var g=Fresh(data,1);
