@@ -71,7 +71,7 @@ namespace Starfall
         private Point lastPointer;
         private bool pointerSeen, pointerAimActive;
         // Live enemy reference only; never a serialized lock or reused spawn ID.
-        private Enemy controllerAimEnemy, controllerPinnedEnemy;
+        private Enemy controllerAimEnemy, controllerPinnedEnemy, pointerAimEnemy;
         private SaveData controllerPinSave;
         private int controllerPinRoom=-1, controllerPinFloor=-1;
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
@@ -401,13 +401,20 @@ namespace Starfall
         private Point AimTargetAtPointer(Point mouse)
         {
             Point target=WorldAtPointer(mouse);float best=float.MaxValue;
+            pointerAimEnemy=null;
             // The art is drawn above its ground-space hurtbox. Clicking its
             // torso must aim at that actor, not at empty ground behind its head.
+            // Preserve exact live reference so ranged hand attachments may
+            // predict its REAL motion, never nearby ground or a dead sprite.
             foreach(Enemy enemy in Game.enemies)
             {
-                if(!Contains(EnemyHudBounds(enemy),mouse))continue;
-                Point center=ScreenPoint(enemy.Position)+new Point(0,enemy.boss?-90:-35);float distance=(center-mouse).Length;
-                if(distance<best){best=distance;target=enemy.Position;}
+                if(enemy.hp<=0f||
+                   !Contains(EnemyHudBounds(enemy),mouse))continue;
+                Point center=ScreenPoint(enemy.Position)+
+                    new Point(0,enemy.boss?-90:-35);
+                float distance=(center-mouse).Length;
+                if(distance<best)
+                {best=distance;target=enemy.Position;pointerAimEnemy=enemy;}
             }
             return target;
         }
@@ -462,12 +469,14 @@ namespace Starfall
             if(Game.mode!="world")
             {
                 ClearControllerTargetLock();
+                pointerAimEnemy=null;
                 controllerAimEnemy=null;Game.SetAimTarget(null);return null;
             }
             if(controllerPinnedEnemy!=null&&!ControllerTargetLockValid())
                 ClearControllerTargetLock();
             if(controllerUsed)
             {
+                pointerAimEnemy=null;
                 // A voluntary R3 lock tracks an actual visible enemy even
                 // after the right stick returns to neutral. At invalidation
                 // instantly fall back to normal free-angle twin-stick aim.
@@ -504,7 +513,20 @@ namespace Starfall
             if(PointerOverInterface(mouse))
                 return pointerAimActive?(Point?)Game.aim:null;
             pointerAimActive=true;
-            Point target=AimTargetAtPointer(mouse),d=target-Game.Position;
+            Point target=AimTargetAtPointer(mouse);
+            // Mouse aim keeps free ground clicks pixel-precise. Only when
+            // the cursor is actually over a LIVE enemy does its bow/staff
+            // shot gain the same physically verified leading solution as
+            // controller aim. No new auto-target radius or virtual damage.
+            if(pointerAimEnemy!=null&&Game.save.weapon>0&&
+               (!technique||Game.save.profession==1))
+            {
+                float speed=technique?13f:
+                    Game.save.weapon==1?12f:8f;
+                target=Game.PredictRangedTargetPoint(
+                    pointerAimEnemy,speed,technique?.28f:.24f);
+            }
+            Point d=target-Game.Position;
             Game.SetAimTarget(target);
             return d.Length>.05f?d:Game.aim;
         }
@@ -777,6 +799,28 @@ namespace Starfall
                             Game.L("瞄准","FOCUS"),11,
                         pinned?new Color(1f,.91f,.57f):
                             new Color(.67f,1f,.87f),
+                        TextAnchor.MiddleCenter);
+                }
+            }
+            // Keyboard/mouse players receive the same truthful lead cue
+            // ONLY while pointing at the live actor and the real grounded
+            // projectile intercept is distinct from its current body.
+            if(Game.mode=="world"&&!controllerUsed&&
+               pointerAimEnemy!=null&&pointerAimEnemy.hp>0f&&
+               Game.enemies.Contains(pointerAimEnemy)&&
+               !PointerOverInterface(MouseVirtual())&&
+               Game.aimTarget.HasValue)
+            {
+                Point landing=Game.aimTarget.Value;
+                Point live=pointerAimEnemy.Position;
+                float drift=(landing-live).Length;
+                if(drift>.12f&&drift<=1.75f&&Game.CanStand(landing))
+                {
+                    Ring(landing,.18f,new Color(.95f,.85f,.48f,.82f),12);
+                    Point at=ScreenPoint(landing);
+                    Text(at.x-26,at.y-32,52,16,
+                        Game.L("提前量","LEAD"),10,
+                        new Color(.95f,.85f,.48f,.82f),
                         TextAnchor.MiddleCenter);
                 }
             }
