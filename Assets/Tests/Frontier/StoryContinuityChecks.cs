@@ -1323,7 +1323,11 @@ namespace Starfall.Tests
             g.save.flags.Add("last_directive_complete");
             g.save.flags.Add("last_directive_open");
             WorldObject master=Object(g,"civicconduitmaster");
-            WorldObject valve=Object(g,"civicConduitValve1");
+            WorldObject valve=null;
+            foreach(WorldObject candidate in g.Map.objects)
+                if(g.CivicConduitValveIndex(candidate)==0)valve=candidate;
+            Check(valve!=null&&g.CanStand(new Point(valve.x,valve.y)),
+                "First valve is a physical campaign object with stable slot identity");
             g.save.x=master.x;g.save.y=master.y;
             g.save.inventory[4]=1;g.save.energy=100;
             g.enemies.Clear();g.invulnerable=120f;
