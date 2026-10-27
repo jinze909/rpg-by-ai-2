@@ -805,7 +805,7 @@ namespace Starfall
         }
 
         public void Tick(float dt, Point movement, Point? explicitAim = null,
-            bool sprintHeld = false)
+            bool sprintHeld = false, bool quietHeld = false)
         {
             dt = Finite(dt) ? Clamp(dt, 0, .05f) : 0;
             if (dt <= 0) return;
@@ -923,7 +923,8 @@ namespace Starfall
                 (racing ? 8 : 0) - (save.cold > 70 ? 4 : 0)), 0, 100);
             if (movement.Length > 1) movement = movement.Normalized;
             ValidateActionProfile();
-            TickMovement(dt, movement, explicitAim, hitLockedDt, sprintHeld);
+            TickMovement(dt, movement, explicitAim, hitLockedDt,
+                sprintHeld,quietHeld);
             TickLocalWaymark(dt);
             // An UNRELEASED action is planted through hit recoil. Only
             // the unlocked remainder may advance its contact/damage clock;
@@ -2303,6 +2304,29 @@ namespace Starfall
                 }
                 // Defense attackers cannot abandon the beacon after knockback
                 // or while navigating around a distant obstruction.
+                // Quiet footing is a real stealth option, not an aggro reset.
+                // Only ordinary, NOT-YET-alerted patrols lose the far half
+                // of their eight-tile passive awareness. Bosses, civilian
+                // attackers, active windups, projectile-hit alerts, whistles
+                // and previously alerted guards keep their real intent.
+                bool ordinaryPatrol=!e.boss&&!wardAttacker&&
+                    !travelerAttacker&&!reliefAttacker&&!escortPatrol&&
+                    !stockRaider&&!patrolSaboteur;
+                if(ordinaryPatrol)
+                {
+                    if(!QuietStepping&&distance<=8f)
+                        patrolsThatSawHero.Add(e);
+                    // Only a genuinely lost, distant patrol can become
+                    // susceptible to a later quiet approach. Changing the
+                    // player's stance in place never erases known contact.
+                    if(distance>8.5f&&
+                       !ClearAttackPath(e.Position,Position))
+                        patrolsThatSawHero.Remove(e);
+                    if(QuietStepping&&e.state!=1&&!playerHitProvoked&&
+                       !patrolsThatSawHero.Contains(e)&&distance>4f)
+                        continue;
+                    if(distance<=4f)patrolsThatSawHero.Add(e);
+                }
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
                     !escortPatrol && !stockRaider && !patrolSaboteur &&
                     distance > (e.boss ? 18 : 8) &&

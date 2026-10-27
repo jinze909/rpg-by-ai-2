@@ -337,6 +337,13 @@ namespace Starfall
         // Hold Shift to move faster at an actual energy cost. Fatigue is a
         // transient latch: once exhausted, recovery to 35 energy is required
         // before another burst. No new field or migration in SaveData v2.
+        // Keyboard Ctrl: a deliberate slower, quieter traversal choice.
+        // Only a true planted, nonattacking foot may suppress an ordinary
+        // patrol's passive far-field detection. This is never serialized.
+        public bool QuietStepping { get; private set; }
+        public const float QuietSpeedFactor=.58f;
+        private readonly HashSet<Enemy> patrolsThatSawHero=
+            new HashSet<Enemy>();
         public bool Sprinting { get; private set; }
         public bool SprintFatigued { get; private set; }
         public const float SprintEnergyRate=22f;
@@ -347,6 +354,7 @@ namespace Starfall
             walkDistance = gateOpeningTime = 0; footContacts = 0;
             locomotionFacing = aim; aimTarget=null;
             Sprinting=false;SprintFatigued=false;
+            QuietStepping=false;patrolsThatSawHero.Clear();
         }
         // Live, unsaved player FOOT travel for fair archer prediction.
         // A dash, recoil or planted attack is not a walking trajectory.
@@ -462,10 +470,13 @@ namespace Starfall
             return candidate;
         }
         private void TickMovement(float dt, Point movement, Point? explicitAim,
-            float hitLockedDt,bool sprintHeld)
+            float hitLockedDt,bool sprintHeld,bool quietHeld)
         {
             Point start=Position;
             Sprinting=false;
+            QuietStepping=quietHeld&&!sprintHeld&&!practicing&&
+                !Dying&&playerAction==null&&playerHitTime<=0f&&
+                dashTime<=0f&&CanStand(Position);
             if(SprintFatigued&&save.energy>=SprintRestartEnergy)
                 SprintFatigued=false;
             bool wasDashing=dashTime>0;
@@ -514,7 +525,8 @@ namespace Starfall
                             save.energy>=10f&&CanStand(Position);
                         Point beforeWalk=Position;
                         float factor=sprint?SprintSpeedFactor:
-                            mobility==MobilityRule.Reduced?.7f:1f;
+                            mobility==MobilityRule.Reduced?.7f:
+                            QuietStepping?QuietSpeedFactor:1f;
                         Move(movement*freeDt*Speed*factor);
                         if(sprint)
                         {

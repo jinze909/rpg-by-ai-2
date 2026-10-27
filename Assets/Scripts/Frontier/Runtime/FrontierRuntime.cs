@@ -74,7 +74,7 @@ namespace Starfall
         private Enemy controllerAimEnemy, controllerPinnedEnemy, pointerAimEnemy;
         private SaveData controllerPinSave;
         private int controllerPinRoom=-1, controllerPinFloor=-1;
-        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
+        private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.LeftControl,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
 
@@ -161,11 +161,13 @@ namespace Starfall
                 (Input.GetKey(KeyCode.LeftShift)||
                  Input.GetKey(KeyCode.RightShift)||
                  Input.GetKey(KeyCode.JoystickButton8));
+            bool quietHeld=beganInWorld&&
+                Input.GetKey(KeyCode.LeftControl)&&!sprintHeld;
             float timeLeft = frameDelta;
             while (timeLeft > .00001f)
             {
                 float step = Math.Min(.05f, timeLeft);
-                Game.Tick(step, movement, frameAim, sprintHeld);
+                Game.Tick(step, movement, frameAim, sprintHeld, quietHeld);
                 timeLeft -= step;
             }
             // Spawn from actual GameCore foot contacts, never from IMGUI

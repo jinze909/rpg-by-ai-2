@@ -422,6 +422,8 @@ namespace Starfall
                 // inside the canonical hero's action-frame animation. The
                 // fatigue latch and current sprint share the real simulation.
                 Text(415,98,454,24,
+                    Game.QuietStepping ? Game.L("轻步潜行 ×0.58 · 未警觉巡逻兵侦测距离减半",
+                        "QUIET STEP ×0.58 · reduced unalerted patrol awareness") :
                     Game.Sprinting ? Game.L("疾跑 ×1.5 · 每秒消耗耐力",
                         "SPRINT ×1.5 · stamina drain") :
                     Game.SprintFatigued ? Game.L("疾跑疲劳 · 耐力恢复至35后可再次使用",
@@ -429,9 +431,10 @@ namespace Starfall
                         controllerUsed?
                             Game.L("按住左摇杆 L3 疾跑 · 松开恢复步行",
                                 "Hold L3 to sprint · release to walk"):
-                            Game.L("按住 Shift 疾跑 · 松开恢复步行",
-                                "Hold SHIFT to sprint · release to walk"),
-                    12,Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
+                            Game.L("按住 Shift 疾跑 / Ctrl 轻步潜行",
+                                "Hold SHIFT to sprint / CTRL for quiet steps"),
+                    12,Game.QuietStepping?gold:
+                        Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
                 if(Game.StewAttackBuffLeft>0)
                     Text(32,127,288,17,
                         Game.L("炖汤增伤 · 剩余 ","STEW ATTACK BOOST · ")+

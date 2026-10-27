@@ -700,6 +700,81 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+        public static void QuietFootPatrolStealthPreservesActualExposure(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData { id=1,
+                    spawnX=7.5f,spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var walker=Fresh(data);walker.save.stage=3;
+                walker.Enter(1);walker.enemies.Clear();
+                walker.mode="world";walker.save.x=7.5f;walker.save.y=10.5f;
+                var observer=new Enemy(61101,0,13.5f,10.5f,500f);
+                observer.timer=100f;walker.enemies.Add(observer);
+                Point post=observer.Position;
+                for(int i=0;i<15;i++)
+                    walker.Tick(.05f,new Point(0,1),null,false,true);
+                Check(walker.QuietStepping&&
+                    (observer.Position-post).Length<.001f&&
+                    walker.CanStand(walker.Position)&&
+                    walker.save.version==2,
+                    "Unalerted guard six tiles away ignores real quiet foot travel");
+                Point quietFoot=walker.Position;
+                var normal=Fresh(data);normal.save.stage=3;
+                normal.Enter(1);normal.enemies.Clear();
+                normal.mode="world";normal.save.x=7.5f;normal.save.y=10.5f;
+                normal.enemies.Add(new Enemy(61102,0,25.5f,20.5f,500f)
+                    {stun=100f});
+                for(int i=0;i<15;i++)
+                    normal.Tick(.05f,new Point(0,1),null,false,false);
+                Check((normal.Position-quietFoot).Length>.5f&&
+                    !normal.QuietStepping,
+                    "Quiet movement has a real speed cost compared with regular walking");
+                // A close actual sighting persists when Ctrl is pressed.
+                walker.save.x=10.7f;walker.save.y=10.5f;
+                Point nearBefore=observer.Position;
+                for(int i=0;i<10;i++)
+                    walker.Tick(.05f,new Point(),null,false,true);
+                Check((observer.Position-nearBefore).Length>.35f,
+                    "Ordinary guard reacquires a real hero within four tiles");
+                Point alertedBefore=observer.Position;
+                walker.save.x=7.5f;walker.save.y=10.5f;
+                for(int i=0;i<10;i++)
+                    walker.Tick(.05f,new Point(),null,false,true);
+                Check((observer.Position-alertedBefore).Length>.25f,
+                    "Holding Ctrl after an actual sighting cannot erase patrol pursuit");
+                // An ordinary walking run also teaches guards a sighting at
+                // six tiles; later Ctrl cannot clear that existing intent.
+                var witnessed=Fresh(data);witnessed.save.stage=3;
+                witnessed.Enter(1);witnessed.enemies.Clear();
+                witnessed.mode="world";witnessed.save.x=7.5f;
+                witnessed.save.y=10.5f;
+                var guard=new Enemy(61103,0,13.5f,10.5f,500f);
+                guard.timer=100f;witnessed.enemies.Add(guard);
+                witnessed.Tick(.05f,new Point());
+                Point acquired=guard.Position;
+                for(int i=0;i<8;i++)
+                    witnessed.Tick(.05f,new Point(),null,false,true);
+                Check((guard.Position-acquired).Length>.25f,
+                    "A truly noticed guard keeps tracking after switching into quiet mode");
+                var snapshot=CloneSave(witnessed.save);
+                witnessed.Load(snapshot);
+                Check(!witnessed.QuietStepping&&witnessed.save.version==2,
+                    "Reload clears transient stealth stance without changing SaveData v2");
+            }
+            finally {data.maps[1]=old;}
+        }
+
         public static void RemoteWorldDialogueCannotExecuteChoices(Campaign data)
         {
             var g = Fresh(data);
