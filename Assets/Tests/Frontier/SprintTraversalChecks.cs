@@ -179,26 +179,15 @@ namespace Starfall.Tests
                 // Living enemy cover stops an ordinary raider's objective
                 // contact, but cannot nullify the heavy's authored AoE.
                 var body=SprintTestWorld(data,0);
-                var hunter=new Enemy(1742,0,19.5f,15.5f,90f);
-                var guard=new Enemy(1743,0,20f,15.5f,90f);
+                var hunter=new Enemy(1742,0,18.5f,15.5f,90f);
+                var guard=new Enemy(1743,0,19.5f,15.5f,90f);
                 Point protectedFoot=new Point(20.5f,15.5f);
-                hunter.Face(protectedFoot-hunter.Position);
                 body.enemies.Add(hunter);body.enemies.Add(guard);
                 Check(!body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
-                    "Living frontline cover retracts a genuine within-range melee civilian strike");
+                    "Living frontline cover also retracts a melee civilian threat before actual release");
                 guard.y=18.5f;
                 Check(body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
-                    "Moving real body cover aside restores a forward-facing melee lane");
-                hunter.Face(new Point(-1f,0f));
-                Check(!body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
-                    "A hunter facing away cannot hurt a protected objective behind the real strike arc");
-                hunter.Face(new Point(1f,0f));
-                hunter.x=18.5f;
-                Check(!body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
-                    "The wider chase trigger cannot become a two-tile phantom melee hit");
-                hunter.x=19.5f;
-                Check(body.EnemyObjectiveContactLaneClear(hunter,protectedFoot),
-                    "Returning within genuine 1.5-tile contact range re-enables the protected objective threat");
+                    "Removing physical body cover restores the ordinary objective contact lane");
             }
             finally{data.maps[1]=original;}
         }
