@@ -651,6 +651,19 @@ namespace Starfall
             }
             return true;
         }
+        // A route or repair choice must belong to the SAME authored
+        // signal lamp whose dialogue the player opened. Nearby OTHER map
+        // objects cannot inherit this menu, even at matching coordinates.
+        // Choose() preserves the original live source across every page.
+        private bool IsSelectedOuterSignalSource()
+        {
+            WorldObject source=pendingDialogueSource;
+            return source!=null&&source.kind=="outerrelay"&&
+                pendingDialogueSourceRoom==save.room&&
+                !IsObjectFromAnotherMap(source)&&
+                SourceBelongsToActiveMap(source)&&
+                HasPhysicalInteractionReach(source);
+        }
         private bool ChooseOuterSignalRoads(string action)
         {
             bool main=action=="outer_signal_routes";
@@ -658,6 +671,15 @@ namespace Starfall
             bool east=action=="outer_signal_ring_1";
             bool going=action.StartsWith("outer_signal_to_");
             if(!main&&!west&&!east&&!going)return false;
+            // Never retarget a previous dialogue to whichever repaired
+            // light happens to be closest now. Its real source is carried
+            // through the nested menu pages and final travel choice.
+            if(!IsSelectedOuterSignalSource())
+            {
+                Notify("灯路菜单已失去原来的求援灯，请重新靠近并交谈。",
+                    "The original signal-lamp conversation ended. Talk to the real lamp again.");
+                return true;
+            }
             if(!CanUseOuterSignalRoads())
             {
                 Notify("只能在已修复的求援灯旁安全通行；敌人和现场任务会阻断道路。",
@@ -730,10 +752,7 @@ namespace Starfall
                 // resting or a free time skip after its source vanishes.
                 // Choose() has closed the menu but retains the exact source
                 // for this one transaction. Do not trust kind/id alone.
-                WorldObject source=pendingDialogueSource;
-                bool authentic=source!=null&&source.kind=="outerrelay"&&
-                    SourceBelongsToActiveMap(source)&&
-                    HasPhysicalInteractionReach(source)&&
+                bool authentic=IsSelectedOuterSignalSource()&&
                     CanUseOuterSignalRoads();
                 if(!authentic)
                 {
@@ -767,10 +786,10 @@ namespace Starfall
             if(action!="outer_repair")return false;
             if(save.room<0||save.room>=8||Dying||practicing||
                 !OuterLogFound(save.room)||OuterRelayRestored(save.room))return true;
-            WorldObject relay=null;
-            foreach(WorldObject o in Map.objects)
-                if(o.kind=="outerrelay"){relay=o;break;}
-            if(relay==null||!HasPhysicalInteractionReach(relay))return true;
+            // Repair is a real one-part transaction with a SPECIFIC relay,
+            // never the first lamp on the map after speaking to somebody
+            // else or replaying a stale choice.
+            if(!IsSelectedOuterSignalSource())return true;
             if(!SafeTravel)
             { Notify("敌人太近，无法安全修理信号灯。","Enemies are too close to safely repair the relay.");return true; }
             if(!Spend(0,0,0,0,1))return true;

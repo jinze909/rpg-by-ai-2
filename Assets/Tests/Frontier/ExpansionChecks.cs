@@ -5454,6 +5454,79 @@ namespace Starfall.Tests
             Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
                 "Reload clears only transient squad investigation data, preserving old saves");
         }
+        public static void SignalDialogueCannotRepairOrDepartFromUnrelatedWorldSource(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("outer_log_0");
+            g.save.flags.Add("outer_relay_5");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject relay=null,unrelated=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.kind=="outerrelay")relay=o;
+                if(o.kind=="outercache")unrelated=o;
+            }
+            Check(relay!=null&&unrelated!=null,
+                "The original shipped region has distinct authentic signal and chest sources");
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.save.inventory[4]=Math.Max(2,g.save.inventory[4]);
+            int gear=g.save.inventory[4],coins=g.save.coins;
+            var sourceField=typeof(GameCore).GetField(
+                "pendingDialogueSource",BindingFlags.Instance|BindingFlags.NonPublic);
+            var roomField=typeof(GameCore).GetField(
+                "pendingDialogueSourceRoom",BindingFlags.Instance|BindingFlags.NonPublic);
+            var dispatch=typeof(GameCore).GetMethod(
+                "ChooseOuterRescue",BindingFlags.Instance|BindingFlags.NonPublic);
+            Check(sourceField!=null&&roomField!=null&&dispatch!=null,
+                "The production dialogue pipeline carries exact live world source identity");
+            // A perfectly valid second map object cannot impersonate the
+            // lamp merely because the hero stands beside that lamp.
+            sourceField.SetValue(g,unrelated);
+            roomField.SetValue(g,g.save.room);
+            dispatch.Invoke(g,new object[]{"outer_repair"});
+            Check(!g.OuterRelayRestored(0)&&g.save.inventory[4]==gear,
+                "A chest-originated action cannot spend the lamp's repair component");
+            dispatch.Invoke(g,new object[]{"outer_signal_routes"});
+            Check(g.mode=="world"&&g.conversation==null&&
+                g.save.room==0&&g.save.coins==coins,
+                "Wrong source cannot open a lamp route menu or move to another region");
+            sourceField.SetValue(g,null);
+            dispatch.Invoke(g,new object[]{"outer_repair"});
+            Check(!g.OuterRelayRestored(0)&&g.save.inventory[4]==gear,
+                "An orphaned page cannot repair a signal or consume resources");
+            // The real world conversation still repairs the SAME light
+            // and charges exactly one original inventory part.
+            g.Talk(relay);
+            Check(g.mode=="dialog"&&g.conversationSource==relay,
+                "Original relay menu belongs to the actual authored lamp");
+            int repair=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_repair");
+            Check(repair>=0,"Live local lamp offers its authentic repair action");
+            g.Choose(repair);
+            Check(g.OuterRelayRestored(0)&&g.save.inventory[4]==gear-1,
+                "Correct local dialog still repairs the lamp for one part");
+            g.Talk(relay);
+            int routes=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_routes");
+            Check(routes>=0,"Restored original lamp offers a real signal road choice");
+            g.Choose(routes);
+            Check(g.mode=="dialog"&&g.conversationSource==relay&&
+                Array.Exists(g.conversation.choices,c=>c.action=="outer_signal_ring_1"),
+                "Native nested route menu retains the actual initial speaker");
+            int east=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_ring_1");
+            g.Choose(east);
+            Check(g.mode=="dialog"&&g.conversationSource==relay,
+                "Regional light list never switches to a different NPC");
+            int destination=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_signal_to_5");
+            Check(destination>=0,
+                "Previously repaired and unlocked real destination remains available");
+            g.Choose(destination);
+            Check(g.save.room==5&&g.save.version==2,
+                "Valid three-page genuine lamp route still transports player safely with old V2 save");
+        }
+
         public static void RidgeWatchRespondersInvestigateQuietHeroWithoutBlindAttack(Campaign data)
         {
             var g=Unlocked(data);
