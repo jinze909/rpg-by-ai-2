@@ -599,6 +599,12 @@ namespace Starfall
                     "Noll's live drill is active. Finish or abort at his forge before traveling.");
                 return true;
             }
+            if(WhiteoutActive)
+            {
+                Notify("失踪旅人仍在风雪中！请亲自护送到原有营地，或回搜救告示牌取消任务。",
+                    "A traveler remains in the blizzard! Escort them to the true camp or withdraw at the rescue notice.");
+                return true;
+            }
             if(FrostSignalActive)
             {
                 Notify("高原火种尚在运送。必须送往公共暖站，或回西部站主动归还。",

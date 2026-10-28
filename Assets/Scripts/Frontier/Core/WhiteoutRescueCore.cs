@@ -324,7 +324,10 @@ namespace Starfall
             {
                 // A follower walks through genuine collision, not through
                 // walls or instantly to the player's current coordinates.
-                Point toward=(Position-whiteoutFollowerFoot).Normalized;
+                // Reuse the genuine terrain-aware BFS chase solver instead
+                // of steering straight into snow cliff corners. It navigates
+                // existing authored passable roads and newly opened gates.
+                Point toward=DirectionTo(whiteoutFollowerFoot,Position);
                 float step=Math.Min(gap-1.0f,dt*2.65f);
                 Point[] dirs={toward,new Point(toward.x,0f),
                     new Point(0f,toward.y),

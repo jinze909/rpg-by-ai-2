@@ -81,7 +81,11 @@ namespace Starfall.Tests
             Check(WhiteoutChoice(g,"whiteout_pickup")&&g.WhiteoutStage==2&&
                 g.WhiteoutFollowerVisible&&g.WhiteoutHuntersAlive==2,
                 "Real traveler begins the physical escort and two independent hunters spawn");
-            g.Close();g.save.x=camp.x;g.save.y=camp.y;
+            g.Close();
+            g.Enter(0);
+            Check(g.save.room==7&&g.WhiteoutStage==2,
+                "Active physical escort prevents portal travel from silently discarding the civilian");
+            g.save.x=camp.x;g.save.y=camp.y;
             g.Tick(.05f,new Point());
             Check(g.WhiteoutStage==2&&g.WhiteoutFollowerGap>2f,
                 "Running straight to camp does not magically teleport the stranded traveler");
