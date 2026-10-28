@@ -62,9 +62,12 @@ namespace Starfall.Tests
 
         public static void FieldGuidePagesPreserveLongBilingualInstructions(Campaign data)
         {
-            string english=string.Concat(new string[24].Select(x=>
-                "Defend the receiver, return to the inn, and check the real route.\\n"));
-            string chinese=new string('路',550)+"。\\n"+new string('灯',500);
+            var guide=new System.Text.StringBuilder();
+            for(int i=0;i<24;i++)
+                guide.Append("Defend the receiver, return to the inn, and check the real route.")
+                    .Append('\n');
+            string english=guide.ToString();
+            string chinese=new string('路',550)+"。\n"+new string('灯',500);
             for(int mode=0;mode<2;mode++)
             {
                 var enPages=DialogueLayout.HelpPages(english,mode==1);
