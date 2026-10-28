@@ -161,6 +161,50 @@ namespace Starfall.Tests
                 next.Damage>=initialDamage+2.9f,
                 "Caravan branch remains effective through old v2 save round-trip");
         }
+        public static void PressureworksPermanentlyChangesOriginalLiveMinecartSteamAndSafeRoute(Campaign data)
+        {
+            float[] steamLoss=new float[2];
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=PressureworksReady(data);
+                if(branch==1)g.save.flags.Add("pressureworks_workers");
+                WorldObject dispatch=MineCartTestPost(g,1),
+                    relay=MineCartTestPost(g,2);
+                SetPressureworksFoot(g,dispatch);g.Talk(dispatch);
+                Check(MineCartTestChoice(g,"mineconvoy_start")&&
+                    g.MineConvoyTime==110&&g.MineConvoyStage==1,
+                    "Normal civilian cart still uses its honest 110-second route");
+                WalkBesideMinecart(g,new Point(relay.x,relay.y),1);
+                Check(g.MineConvoyStage==2,
+                    "Original physically escorted minecart reaches its live ambush");
+                DefeatMinecartRaiders(g,relay);
+                SetPressureworksFoot(g,relay);g.Talk(relay);
+                Check(MineCartTestChoice(g,"mineconvoy_go")&&
+                    g.MineConvoyStage==3,"Original cart resumes after two authentic kills");
+                g.save.x=dispatch.x;g.save.y=dispatch.y;
+                float hull=g.MineConvoyIntegrity;
+                for(int i=0;i<140;i++)g.Tick(.05f,new Point());
+                steamLoss[branch]=hull-g.MineConvoyIntegrity;
+                Check(g.MineConvoyStage==3&&steamLoss[branch]>0f,
+                    "Actual timed minecart steam harms the carriage while the hero stands away");
+            }
+            Check(Math.Abs(steamLoss[0]-12f)<.1f&&
+                Math.Abs(steamLoss[1]-8f)<.1f,
+                "Public worker-operated coolant cuts true cart steam hull damage 12 to 8 without erasing live risks");
+            var caravan=PressureworksReady(data);
+            caravan.save.flags.Add("pressureworks_caravan");
+            var west=MineCartTestPost(caravan,1);
+            SetPressureworksFoot(caravan,west);caravan.Talk(west);
+            Check(MineCartTestChoice(caravan,"mineconvoy_start")&&
+                caravan.MineConvoyTime==125f&&caravan.MineConvoyStage==1,
+                "Published civilian route drawings extend the authentic minecart deadline by 15 seconds");
+            caravan.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(caravan.save));
+            Check(loaded.save.version==2&&loaded.PressureworksCaravan&&
+                !loaded.MineConvoyActive,
+                "Regional outcome is durable in original v2 slots, while an in-flight cart is transient");
+        }
+
         public static void PressureworksRealPressureOverloadAndOriginalBossGate(Campaign data)
         {
             var g=PressureworksReady(data);

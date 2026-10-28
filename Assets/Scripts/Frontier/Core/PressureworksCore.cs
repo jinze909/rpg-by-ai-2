@@ -190,7 +190,7 @@ namespace Starfall
             if(action=="pressureworks_begin")
             {
                 if(source.id!="pressureworks_notice"||pressureworksStage!=0||
-                    PressureworksComplete||!Has("boss_3")||
+                    PressureworksComplete||MineConvoyActive||!Has("boss_3")||
                     FieldWorkPreventsRest||!SafeTravel)return true;
                 pressureworksStage=1;pressureworksTime=175f;
                 pressureworksPressure=42f;pressureworksPulse=4.0f;

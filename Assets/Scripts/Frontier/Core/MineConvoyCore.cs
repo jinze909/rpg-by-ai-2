@@ -269,7 +269,7 @@ namespace Starfall
             foreach(Hazard steam in hazards)
                 if(steam.mineConvoyOwned&&steam.timer>0&&steam.timer<=dt&&
                     (steam.position-MineCartPosition).Length<=steam.radius+.4f)
-                    MineConvoyIntegrity-=mineConvoyBraced?6:12;
+                    MineConvoyIntegrity-=mineConvoyBraced?6:PressureworksWorkers?8:12;
             if(MineConvoyIntegrity<=0)return;
             mineConvoySteam-=dt;
             if(MineConvoyStage==3&&mineConvoySteam<=0)
@@ -421,15 +421,24 @@ namespace Starfall
             if(action=="mineconvoy_start")
             {
                 WorldObject start=MineCartPost(1);
-                if(start==null||MineConvoyActive||MineConvoyComplete||
+                if(start==null||MineConvoyActive||PressureworksActive||MineConvoyComplete||
                     !Has("boss_3")||FieldWorkPreventsRest||!SafeTravel||
                     !CanReachMineCartPost(start))return true;
                 MineCartPosition=new Point(start.x,start.y);
-                mineConvoyBraced=false;MineConvoyStage=1;MineConvoyTime=110;MineConvoyIntegrity=80;
+                mineConvoyBraced=false;MineConvoyStage=1;
+                // The released civilian schematics give the existing
+                // evacuation route 15 genuine extra seconds, not a fake HUD
+                // timer or a second saved/duplicated cart.
+                MineConvoyTime=PressureworksCaravan?125:110;
+                MineConvoyIntegrity=80;
                 mineConvoySteam=5;
                 Flag("mineconvoy_started");revision++;sound="quest";
-                Notify("矿车出发！保持在矿车3格以内，靠近转轨台击退袭击者。",
-                    "Cart dispatched! Keep within three tiles and defeat raiders at the switchyard.");
+                Notify(PressureworksCaravan?
+                        "民用动力图已开放，矿车多获得15秒真实撤离时间。保持在车旁！":
+                        "矿车出发！保持在矿车3格以内，靠近转轨台击退袭击者。",
+                    PressureworksCaravan?
+                        "Civilian schematics grant 15 genuine extra evacuation seconds. Stay beside the cart!":
+                        "Cart dispatched! Keep within three tiles and defeat raiders at the switchyard.");
                 return true;
             }
             if(action=="mineconvoy_abort")
