@@ -61,6 +61,54 @@ namespace Starfall
                 return n;
             }
         }
+
+        // Community stewardship adds a distinct permanent service decision
+        // after physical delivery, without changing SaveData v1/v2.
+        public int UnlistedStewardCount
+        {
+            get
+            {
+                int count=0;
+                for(int i=0;i<3;i++)
+                    if(Has("unlisted_relief_clinic_"+i)||
+                       Has("unlisted_relief_trail_"+i))count++;
+                return count;
+            }
+        }
+        private bool UnlistedStewardReady(WorldObject o)
+        {
+            int region=UnlistedReliefRegion;
+            return region>=0&&o!=null&&o.kind=="annexcache"&&
+                o.id=="annex_cache_"+save.room+"_b"&&
+                UnlistedReliefEligible(region)&&
+                Has("unlisted_relief_delivered_"+region)&&
+                !Has("unlisted_relief_clinic_"+region)&&
+                !Has("unlisted_relief_trail_"+region);
+        }
+        public int UnlistedReliefHealing(int region)
+        { return region>=0&&region<3&&Has("unlisted_relief_clinic_"+region)?50:35; }
+        public int UnlistedReliefStamina(int region)
+        { return region>=0&&region<3&&Has("unlisted_relief_clinic_"+region)?35:25; }
+        private static readonly string[] stewardClinicZh={
+            "外渠志愿者把水桶搬入旧屋，给无名住户提供干净饮水。",
+            "矿场医护把伤药分给没有工牌的工人，诊室不再检查证件。",
+            "灯湾家属点亮失踪船员留下的灯，为遇险者开设不问姓名的诊室。"
+        };
+        private static readonly string[] stewardClinicEn={
+            "Canal volunteers make a clean-water clinic for erased households.",
+            "Mine medics share medicine with unbadged workers, no permits required.",
+            "Bay families light the missing sailors' lantern to open a confidential clinic."
+        };
+        private static readonly string[] stewardTrailZh={
+            "外渠工匠修复洪水冲毁的高地栈道，旅人不必走进淹水仓库。",
+            "矿工把废旧枕木架在高处裂隙上，自己画出安全撤离路线。",
+            "灯湾渔民把旧船索固定在海崖上，为夜归者留出不经收费港门的路。"
+        };
+        private static readonly string[] stewardTrailEn={
+            "Canal workers rebuild steps above the flooded warehouses.",
+            "Miners bridge a ridge gap with sleepers and chart their own evacuation route.",
+            "Bay fishers rig a cliff rope, opening a path beyond the harbor toll gate."
+        };
         private int UnlistedReliefRegion
         {
             get
@@ -90,6 +138,14 @@ namespace Starfall
                 return Has("unlisted_relief_delivered_"+act)?
                     "unlisted_relief_treat":"unlisted_relief_deliver";
             return "";
+        }
+        private bool UnlistedStewardReadyAtRegion(int act)
+        {
+            return act>=0&&act<3&&save.room==unlistedRegions[act]&&
+                UnlistedReliefEligible(act)&&
+                Has("unlisted_relief_delivered_"+act)&&
+                !Has("unlisted_relief_clinic_"+act)&&
+                !Has("unlisted_relief_trail_"+act);
         }
         private string UnlistedReliefCacheNote(bool english,int act,string action)
         {
@@ -122,8 +178,16 @@ namespace Starfall
                     "\n\n救助包已送达。把它交给现场志愿者。");
             if(action=="unlisted_relief_treat")
                 return "\n\n"+body+(english?
-                    "\n\nThe completed station can prepare field care for one Moonherb: +35 HP and +25 stamina.":
-                    "\n\n救助站已开通。用月光草×1可恢复35生命与25耐力。");
+                    "\n\nMoonherb-funded station care: +"+UnlistedReliefHealing(act)+
+                    " HP and +"+UnlistedReliefStamina(act)+" stamina.":
+                    "\n\n救助站的月光草治疗：生命 +"+UnlistedReliefHealing(act)+
+                    "，耐力 +"+UnlistedReliefStamina(act)+"。")+
+                    (UnlistedStewardReadyAtRegion(act)?
+                      (english?"\n\nThe volunteers ask you to fund either a clinic or a local ridge repair; the choice is permanent.":
+                          "\n\n志愿者希望扩建诊所或修复高地，只能选择其中一项，决定永久生效。"):
+                      Has("unlisted_relief_trail_"+act)?
+                      (english?"\n\nThe local ridge is now four energy cheaper per crossing.":
+                          "\n\n本地高地通路每次通行节省4点耐力。"):"");
             return "\n\n"+body+policy+(english?
                 "\n\nThis region's relief handoff is recorded.":
                 "\n\n本地区的救助交接已经记录在案。");
@@ -139,7 +203,8 @@ namespace Starfall
             if(act<0)return "\n\n未列名者：有一本没有登记号的旧名册等人调查。";
             if(UnlistedDone)return "\n\n《未列名者》已归档。三地救助接力 "+
                 UnlistedReliefCount+"/3：在外渠、赤铁矿场与雾港的第一处原始补给点打包木材与月光草，亲自送往第二处。"+
-                (UnlistedReliefCount==3?"\n\n三地救助站全部启用，今后可用月光草接受现场治疗。":"");
+                (UnlistedReliefCount==3?"\n\n三地救助站全部启用。":"")+
+                "\n\n地方治理 "+UnlistedStewardCount+"/3：已开通的救助站可扩建诊所（木材×1、月光草×2）或修复通路（木材×2、零件×1），每地只能选一次。";
             if(act==3)return "\n\n三卷证据已经现场核实。回来决定如何保存名单上的人。";
             return "\n\n《未列名者》 "+unlistedTitlesZh[act]+
                 " · 前往第 "+(unlistedRegions[act]+1)+" 地调查两份旧补给记录"+
@@ -150,7 +215,8 @@ namespace Starfall
             if(act<0)return "\n\nThe Unlisted: an uncatalogued register awaits an investigator.";
             if(UnlistedDone)return "\n\nThe Unlisted is filed. Civilian aid handoffs "+
                 UnlistedReliefCount+"/3: pack timber and Moonherb at the first original cache in Canal, Ironreach and Mistport; physically deliver each kit to the second cache."+
-                (UnlistedReliefCount==3?"\n\nAll three aid stations are operating; Moonherb-funded treatment is now available.":"");
+                (UnlistedReliefCount==3?"\n\nAll three aid stations are operating.":"")+
+                "\n\nLocal stewardship "+UnlistedStewardCount+"/3: a restored aid station can upgrade care (1 timber, 2 Moonherbs) or repair its ridge (2 timber, 1 gear). One choice per region.";
             if(act==3)return "\n\nAll three chapters were proven in the field. Decide how to preserve their names.";
             return "\n\nThe Unlisted: "+unlistedTitlesEn[act]+
                 ". Search both original caches in region "+(unlistedRegions[act]+1)+
@@ -253,9 +319,11 @@ namespace Starfall
                 privateEnd=action=="unlisted_protect",
                 reliefPrepare=action=="unlisted_relief_prepare",
                 reliefDeliver=action=="unlisted_relief_deliver",
-                reliefTreat=action=="unlisted_relief_treat";
+                reliefTreat=action=="unlisted_relief_treat",
+                clinic=action=="unlisted_steward_clinic",
+                trail=action=="unlisted_steward_trail";
             if(!accepted&&!clueA&&!clueB&&!reason&&!wrong&&!publicEnd&&!privateEnd&&
-                !reliefPrepare&&!reliefDeliver&&!reliefTreat)
+                !reliefPrepare&&!reliefDeliver&&!reliefTreat&&!clinic&&!trail)
                 return false;
             WorldObject source=pendingDialogueSource;
             if(mode!="world"||Dying||practicing||source==null||
@@ -263,6 +331,39 @@ namespace Starfall
                 !SourceBelongsToActiveMap(source)||
                 !HasPhysicalInteractionReach(source))return true;
             int act=UnlistedAct;
+            if(clinic||trail)
+            {
+                if(!UnlistedStewardReady(source))return true;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("还有敌人或进行中的现场任务，暂时不能建设救助站。",
+                        "Clear nearby hostiles and fieldwork before construction.");
+                    return true;
+                }
+                int region=UnlistedReliefRegion;
+                if(!(clinic?Spend(1,0,2,0,0):Spend(2,0,0,0,1)))
+                    return true;
+                Flag((clinic?"unlisted_relief_clinic_":"unlisted_relief_trail_")+region);
+                AddXp(30+region*5);
+                revision++;sound="reward";
+                RecordMoment(clinic?stewardClinicZh[region]:stewardTrailZh[region],
+                    clinic?stewardClinicEn[region]:stewardTrailEn[region]);
+                if(UnlistedStewardCount==3&&!Has("unlisted_relief_stewards_all"))
+                {
+                    Flag("unlisted_relief_stewards_all");
+                    CreditShards(1);
+                    RecordMoment(
+                        "三地居民各自决定把物资用在何处，公共回执由受助人而非官员签名。",
+                        "Three communities chose their own priorities. Recipients, not officials, signed the public receipt.");
+                }
+                Notify(clinic?
+                    "诊所建成：本地治疗现在恢复50生命和35耐力。":
+                    "高地修复完成：本地通行耐力永久减少4。",
+                    clinic?
+                    "Clinic opened: local treatment now restores 50 HP and 35 stamina.":
+                    "Ridge repaired: local crossing permanently costs four less energy.");
+                return true;
+            }
             if(reliefPrepare||reliefDeliver||reliefTreat)
             {
                 int region=UnlistedReliefRegion;
@@ -318,11 +419,15 @@ namespace Starfall
                     return true;
                 }
                 if(!Spend(0,0,1,0,0))return true;
-                save.health=Math.Min(save.maxHealth,save.health+35f);
-                save.energy=Math.Min(100f,save.energy+25f);
+                save.health=Math.Min(save.maxHealth,
+                    save.health+UnlistedReliefHealing(region));
+                save.energy=Math.Min(100f,
+                    save.energy+UnlistedReliefStamina(region));
                 revision++;sound="reward";
-                Notify("救助站治疗：生命 +35，耐力 +25。",
-                    "Relief station care: +35 HP, +25 stamina.");
+                Notify("救助站治疗：生命 +"+UnlistedReliefHealing(region)+
+                    "，耐力 +"+UnlistedReliefStamina(region)+"。",
+                    "Relief station care: +"+UnlistedReliefHealing(region)+
+                    " HP, +"+UnlistedReliefStamina(region)+" stamina.");
                 return true;
             }
             if(accepted)

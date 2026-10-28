@@ -497,6 +497,16 @@ namespace Starfall
                             C("救助站治疗 · 月光草×1",
                               "Relief care · 1 Moonherb",relief):
                         C("继续巡路","Continue","close"),
+                    UnlistedStewardReady(o)?
+                        C("扩建社区诊所 · 木材×1、月光草×2",
+                          "Build community clinic · 1 timber, 2 Moonherbs",
+                          "unlisted_steward_clinic"):
+                        C("继续巡路","Keep surveying","close"),
+                    UnlistedStewardReady(o)?
+                        C("修复本地高地 · 木材×2、零件×1",
+                          "Repair local ridge · 2 timber, 1 gear",
+                          "unlisted_steward_trail"):
+                        C("继续整理","Keep cataloguing","close"),
                     C("继续探索","Keep exploring","close"));
                 return true;
             }
