@@ -5413,6 +5413,36 @@ namespace Starfall.Tests
             if(g.CanStand(close))
                 Check(((Point)pursuit.Invoke(g,new object[]{source,close})-close).Length<.001f,
                     "Reacquiring a nearby visible hero restores ordinary live combat");
+            // An already sounded squad must NOT acquire a real quiet hero
+            // from behind merely because the ray is open. Use actual
+            // source feet, an actual forward facing, and a live world tick.
+            Point[] offsets={new Point(1.6f,0),new Point(-1.6f,0),
+                new Point(0,1.6f),new Point(0,-1.6f),
+                new Point(2.1f,0),new Point(-2.1f,0)};
+            Point quietFoot=new Point();bool foundQuietFoot=false;
+            foreach(Point offset in offsets)
+            {
+                Point candidate=source.Position+offset;
+                if(!g.CanStand(candidate))continue;
+                if(((Point)pursuit.Invoke(g,new object[]{source,candidate})-
+                    candidate).Length>.01f)continue;
+                quietFoot=candidate;foundQuietFoot=true;break;
+            }
+            Check(foundQuietFoot,
+                "Live ridge caller has actual nearby passable visual terrain for quiet-foot test");
+            g.save.x=quietFoot.x;g.save.y=quietFoot.y;
+            source.stun=100f;
+            g.Tick(.05f,new Point(1,0),null,false,true);
+            Check(g.QuietStepping&&g.RidgeWatchAlarmActive,
+                "Real world quiet movement occurs while original patrol alarm remains alive");
+            source.Face(source.Position-g.Position);
+            Check(((Point)pursuit.Invoke(g,new object[]{source,g.Position})-
+                    seen).Length<.01f,
+                "Real alerted ridge guard facing away searches the reported injury rather than tracking hidden rear hero");
+            source.Face(g.Position-source.Position);
+            Check(((Point)pursuit.Invoke(g,new object[]{source,g.Position})-
+                    g.Position).Length<.01f,
+                "Turning real guard toward close quiet hero restores authentic visual reacquisition");
             // A fresh REAL hit while the alarm is active records the new
             // player's foot; merely moving does not change the report.
             Point updated=g.Position;

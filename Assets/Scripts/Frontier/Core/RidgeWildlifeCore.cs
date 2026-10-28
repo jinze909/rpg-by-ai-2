@@ -94,8 +94,19 @@ namespace Starfall
             // Normal close/visible aggro resumes naturally. Otherwise the
             // responder searches the ACTUAL reported strike location,
             // never a live coordinate behind sealed terrain or across town.
-            if((enemy.Position-heroFoot).Length<=8f&&
-                ClearAttackPath(enemy.Position,heroFoot))return heroFoot;
+            // A squad whistle reports a real last witnessed *contact*
+            // foot, not automatic 360-degree vision of a quietly moving
+            // hero. Normal exposed sight still works at eight tiles.
+            // During quiet movement use the same forward-arc / touch
+            // detection as ordinary investigating sentries, and never
+            // resolve a synthetic caller coordinate as the live hero.
+            float heroRange=(enemy.Position-heroFoot).Length;
+            if(heroRange<=8f&&
+                ClearAttackPath(enemy.Position,heroFoot)&&
+                (!QuietStepping||
+                 ((heroFoot-Position).Length<.01f&&
+                  heroRange<=4f&&ImpactSearchGuardSeesHero(enemy))))
+                return heroFoot;
             return CanStand(ridgeWatchReportedContactFoot)?
                 ridgeWatchReportedContactFoot:enemy.Position;
         }
