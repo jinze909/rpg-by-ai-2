@@ -1229,13 +1229,16 @@ namespace Starfall
                 Game.IsEnemyTrackingLastSight(e)))
             {
                 bool returning=Game.IsEnemyReturningFromImpact(e);
+                bool returnBlocked=returning&&Game.IsEnemyReturnPostBlocked(e);
                 bool lastSight=Game.IsEnemyTrackingLastSight(e);
                 bool ambushReady=Game.CanSoundAmbushNow(e);
                 Color suspicion=PixelArt.C(ambushReady?"#7bf0b2":
+                    returnBlocked?"#e6b46e":
                     returning?"#7acabb":lastSight?"#eea68b":"#e6b46e");
                 Ring(e.Position,ambushReady?.68f:.57f,suspicion,16);
                 Text(p.x-84,p.y-125,168,19,
                     ambushReady?Game.L("背后奇袭 · 攻击","BACKSTAB · ATTACK"):
+                    returnBlocked?Game.L("哨位封闭 · 等待道路","POST BLOCKED · WAITING"):
                     returning?Game.L("返回原哨位","RETURNING"):
                     lastSight?Game.L("追查最后目击点","LAST SEEN"):
                     Game.IsEnemySweepingImpact(e)?

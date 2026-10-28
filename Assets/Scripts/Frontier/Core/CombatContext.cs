@@ -773,6 +773,16 @@ namespace Starfall
                 enemyHitAlert.TryGetValue(enemy,out alert)&&
                 alert.returning&&alert.remaining>0f;
         }
+        // True iff an authentic returning sentry's ORIGINAL posted tile
+        // is physically sealed right now. This is transient world behavior,
+        // never a saved HUD flag or an invented new patrol body.
+        public bool IsEnemyReturnPostBlocked(Enemy enemy)
+        {
+            EnemyHitAlert alert;
+            return IsEnemyReturningFromImpact(enemy)&&
+                enemyHitAlert.TryGetValue(enemy,out alert)&&
+                !CanStand(alert.homeFoot);
+        }
         // Read-only native actor cue: the sentry is following its actual
         // last witnessed foot rather than the hero's hidden live location.
         // A real combat sighting/hit alert owns this cue, not normal aggro

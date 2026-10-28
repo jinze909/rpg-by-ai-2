@@ -11333,6 +11333,12 @@ public static class RuntimeCombatInputChecks
             wall[ax]='#';rows[ay+1]=new string(wall);map.rows=rows;
             Check(!g.CanStand(home)&&g.CanStand(sentryFoot),
                 "Real dynamic stone closes the post without burying its guard");
+            Check(g.IsEnemyReturnPostBlocked(sentry),
+                "Live GameCore exposes the genuine temporarily sealed posted foot");
+            GUI.commands.Clear();Call(app,"DrawEnemyActor",sentry);
+            Check(GUI.commands.Exists(line=>line.Contains("POST BLOCKED")&&
+                line.Contains("WAITING")),
+                "Production monster-body overlay distinguishes blocked return from visible patrol search");
             Check((bool)CallCore(g,"TickEnemyHitAlert",sentry,.05f)&&
                 g.IsEnemyReturningFromImpact(sentry),
                 "A temporarily sealed home must not erase its living owner's return state");
@@ -11345,8 +11351,12 @@ public static class RuntimeCombatInputChecks
                 g.IsEnemyReturningFromImpact(sentry),
                 "World-time sentry truly holds a legal position rather than chasing hidden player");
             wall[ax]='.';rows[ay+1]=new string(wall);
-            Check(g.CanStand(home),
-                "Opening the same passage restores the actual posted foot");
+            Check(g.CanStand(home)&&!g.IsEnemyReturnPostBlocked(sentry),
+                "Opening the same passage restores the actual posted foot and retires false blocked cues");
+            GUI.commands.Clear();Call(app,"DrawEnemyActor",sentry);
+            Check(GUI.commands.Exists(line=>line.Contains("RETURNING"))&&
+                !GUI.commands.Exists(line=>line.Contains("POST BLOCKED")),
+                "Live enemy actor immediately returns to its true returning marker after terrain reopens");
             Point restored=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,sentry.Position);
             Check((restored-home).Length<.001f,
                 "Reopened post becomes live patrol return target without a new sound");
