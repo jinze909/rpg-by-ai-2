@@ -62,9 +62,11 @@ namespace Starfall
             pressureworksPurgeUsed=false;
             pressureworksA=pressureworksB=null;
         }
+        // Talk() runs before pendingDialogueSourceRoom is set. The initial
+        // physical encounter and the committed menu choice have distinct
+        // lifecycles; validate the selected room during Choose instead.
         private bool PressureworksSource(WorldObject o,string id)
         {return save.room==3&&o!=null&&o.id==id&&
-            pendingDialogueSourceRoom==3&&
             SourceBelongsToActiveMap(o)&&HasPhysicalInteractionReach(o);}
         private bool TryPressureworksFoot(Point center,Point other,out Point result)
         {
