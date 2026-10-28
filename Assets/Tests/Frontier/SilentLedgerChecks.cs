@@ -262,9 +262,20 @@ namespace Starfall.Tests
                 "Light manipulation is transient and leaves legacy SaveData v2 unchanged");
         }
 
+        private static void SilentLedgerVisitRealInnFromEmberfall(GameCore g)
+        {
+            g.Enter(0);
+            WorldObject door=Object(g,"portal9");
+            Check(PlaceWithinTalkReach(g,door),
+                "A traveler must approach the existing Hearth Inn door on actual walkable ground");
+            g.Talk(door);
+            Check(g.save.room==9,
+                "The genuine Emberfall innDoor portal physically enters the Hearth Inn map");
+        }
         public static void SilentLedgerOutcomesChangeRealInnTravelerMemoryAfterPhysicalEvidence(Campaign data)
         {
-            var untouched=Fresh(data);untouched.Enter(0);
+            var untouched=Fresh(data);
+            SilentLedgerVisitRealInnFromEmberfall(untouched);
             ReadInnNews(untouched,Object(untouched,"innGuest"));
             Check(!untouched.conversation.textEn.Contains("circled three times")&&
                 !untouched.conversation.textEn.Contains("Let the children go first"),
@@ -288,8 +299,7 @@ namespace Starfall.Tests
                     "Only a fully evidenced Citadel console selects the public or private civilian future");
                 Check(g.SilentLedgerComplete&&!g.SilentLedgerActive,
                     "Inn aftermath starts only after the actual original mission completes");
-                g.Enter(0);
-                Check(g.save.room==0,"Completed archive frees genuine return to Emberfall");
+                SilentLedgerVisitRealInnFromEmberfall(g);
                 ReadInnNews(g,Object(g,"innGuest"));
                 string en=g.conversation.textEn;
                 string zh=g.conversation.text;
@@ -305,7 +315,8 @@ namespace Starfall.Tests
                     "The real inn guest remembers only the player-earned branch and its actual world consequences");
                 g.Close();g.PrepareSave();
                 var loaded=new GameCore(data,CloneSave(g.save));
-                loaded.Start();loaded.Enter(0);
+                loaded.Start();
+                SilentLedgerVisitRealInnFromEmberfall(loaded);
                 ReadInnNews(loaded,Object(loaded,"innGuest"));
                 Check(loaded.save.version==2&&loaded.conversation.textEn.Contains(
                     branch==0?"circled three times":"Let the children go first"),
