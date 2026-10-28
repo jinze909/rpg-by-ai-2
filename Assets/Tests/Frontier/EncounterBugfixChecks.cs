@@ -1051,6 +1051,57 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+
+        public static void LivingCompanionPhysicallyStopsThrownPebble(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int scene=0;scene<3;scene++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.projectiles.Clear();g.mode="world";
+                    g.save.companion=1;g.save.x=6.5f;g.save.y=10.5f;
+                    g.companionPosition=scene==0?
+                        new Point(10.5f,10.5f):scene==1?
+                        new Point(10.5f,15.5f):
+                        new Point(6.5f,10.5f);
+                    g.save.energy=100f;
+                    g.ThrowPebble(new Point(1,0));
+                    Check(g.projectiles.Exists(p=>p.visual=="pebble"&&
+                        p.decoyLaunchFoot.HasValue&&
+                        (p.decoyLaunchFoot.Value-g.Position).Length<.001f)&&
+                        Math.Abs(g.save.energy-92f)<.001f,
+                        "One real stone captures its nonpersistent original release foot and charges once");
+                    g.sounds.Clear();
+                    for(int i=0;i<16;i++)g.Tick(.02f,new Point());
+                    bool flying=g.projectiles.Exists(p=>p.visual=="pebble");
+                    bool stopped=scene==0;
+                    Check(flying!=stopped&&g.save.version==2&&
+                        g.save.companion==1&&
+                        g.CanStand(g.companionPosition),
+                        "Forward moving companion really intercepts nonlethal world flight; off-axis and initially overlapping companion do not; case "+
+                        scene+" flying="+flying);
+                    bool audible=new System.Collections.Generic.List<string>(
+                        g.sounds).Contains("stoneImpact");
+                    Check(audible==stopped,
+                        "Only the physical companion intercept creates early impact audio; false contacts cannot claim sound or combat reward");
+                }
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void ThrownPebbleIsPhysicalNonlethalBoundedSoundLure(Campaign data)
         {
             MapData old=data.maps[1];

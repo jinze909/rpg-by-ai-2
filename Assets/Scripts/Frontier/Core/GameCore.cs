@@ -1065,7 +1065,7 @@ namespace Starfall
                 position=Position,velocity=heading*11f,
                 life=.65f,damage=0f,friendly=true,
                 source="quietDecoy",visual="pebble",
-                height=13f};
+                decoyLaunchFoot=Position,height=13f};
             // Dynamic terrain can seal the source tile while aiming.
             // Reject a stone spawned inside rock without spending energy.
             if(ShotBlocked(pebble,pebble.position))return;
@@ -1088,6 +1088,23 @@ namespace Starfall
         // not stop stone flight. This NEVER uses damaging arrow callbacks.
         private bool PebbleContactsLivingEnemy(Projectile pebble,Point foot)
         {
+            // The real ally's body also intercepts nonlethal flying stone.
+            // A companion overlapping the thrower at the moment of release
+            // must first be allowed to let the stone leave that shared tile.
+            if(save!=null&&save.companion>=0&&
+               Finite(companionPosition.x)&&
+               Finite(companionPosition.y)&&
+               CanStand(companionPosition))
+            {
+                Point origin=pebble.decoyLaunchFoot.HasValue?
+                    pebble.decoyLaunchFoot.Value:foot;
+                bool launchOverlap=(companionPosition-origin).Length<.7f&&
+                    (foot-origin).Length<.75f;
+                if(!launchOverlap&&
+                   (companionPosition-foot).Length<.50f+pebble.Radius&&
+                   ClearAttackPath(foot,companionPosition))
+                    return true;
+            }
             foreach(Enemy actor in enemies)
             {
                 if(actor==null||actor.hp<=0f||

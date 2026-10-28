@@ -175,6 +175,9 @@ namespace Starfall
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
         public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
         public string source, visual;
+        // A live pebble's real throw foot, exclusively for physical party
+        // overlap immunity at launch. Not a stored save or damage profile.
+        public Point? decoyLaunchFoot;
         // Live shooter identity, never a reusable numeric spawn ID. Hostile
         // arrows physically meet intervening non-Boss enemy bodies; only
         // genuinely released shots from Fire() participate. Not serialized.
