@@ -5454,6 +5454,93 @@ namespace Starfall.Tests
             Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
                 "Reload clears only transient squad investigation data, preserving old saves");
         }
+        public static void RidgeWatchRespondersInvestigateQuietHeroWithoutBlindAttack(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var ids=(Dictionary<int,int>)typeof(GameCore).GetField(
+                "ridgeWatchIds",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(g);
+            Enemy caller=null,listener=null;
+            foreach(Enemy actual in g.enemies)
+            {
+                int index;
+                if(!ids.TryGetValue(actual.id,out index))continue;
+                if(index==0)caller=actual;
+                if(index==1)listener=actual;
+            }
+            Check(caller!=null&&listener!=null&&
+                g.IsActiveRidgeWatchPatrol(caller)&&
+                g.IsActiveRidgeWatchPatrol(listener),
+                "Original on-map ridge enemies own the caller and responder");
+            var originalRows=g.Map.rows;
+            var originalDecor=g.Map.decor;
+            try
+            {
+                string[] rows=new string[100];
+                for(int y=0;y<100;y++)
+                {
+                    char[] cells=new string('#',100).ToCharArray();
+                    if(y>=2&&y<=97)
+                        for(int x=2;x<=97;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                g.Map.rows=rows;
+                g.Map.decor=new Decoration[0];
+                caller.x=35.5f;caller.y=35.5f;
+                listener.x=39.5f;listener.y=35.5f;
+                g.save.x=39.5f;g.save.y=35.5f;
+                int coins=g.save.coins,shards=g.save.shards;
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                hit.Invoke(g,new object[]{caller,1f,false,null,null});
+                Check(g.RidgeWatchCallPending,
+                    "Actual HP damage starts genuine interruptible warning");
+                g.save.x=80.5f;g.save.y=80.5f;
+                for(int t=0;t<19;t++)g.Tick(.05f,new Point());
+                Check(g.RidgeWatchAlarmActive&&
+                    g.IsRidgeWatchResponder(listener),
+                    "Live completed whistle actually recruits this original ally");
+                listener.x=39.5f;listener.y=35.5f;
+                listener.Face(new Point(1f,0f));
+                listener.state=0;listener.stun=0f;listener.timer=0f;
+                g.save.x=38f;g.save.y=35.5f;
+                g.Tick(.05f,new Point(-1f,0f),null,false,true);
+                Check(g.QuietStepping&&listener.state==0&&
+                    g.IsRidgeWatchResponder(listener)&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "Real quiet rear approach does not trigger a supernatural melee windup");
+                // The same issued report still produces real world travel,
+                // even when the closest player foot remains unseen.
+                listener.x=42.5f;listener.y=35.5f;
+                listener.Face(new Point(1f,0f));
+                listener.state=0;listener.timer=100f;
+                float before=listener.x;
+                g.Tick(.05f,new Point(-1f,0f),null,false,true);
+                Check(listener.x<before-.025f&&
+                    g.CanStand(listener.Position)&&
+                    g.IsRidgeWatchResponder(listener)&&
+                    listener.state==0,
+                    "Quiet hero cannot cancel valid whistle: actual guard walks toward reported source");
+                listener.x=39.5f;listener.y=35.5f;
+                listener.Face(new Point(1f,0f));
+                listener.state=0;listener.timer=0f;
+                g.Tick(.05f,new Point(),null,false,false);
+                Check(!g.QuietStepping&&listener.state==1&&
+                    (listener.target-g.Position).Length<.1f&&
+                    g.save.version==2,
+                    "Exposed nearby hero reactivates original warned attack without reward/save changes");
+            }
+            finally
+            {
+                g.Map.rows=originalRows;
+                g.Map.decor=originalDecor;
+            }
+        }
+
         public static void RidgeWatchWhistleCannotRecruitAcrossLongStoneMaze(Campaign data)
         {
             var g=Unlocked(data);

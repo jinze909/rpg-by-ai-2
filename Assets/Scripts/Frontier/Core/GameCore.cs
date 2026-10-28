@@ -2480,7 +2480,11 @@ namespace Starfall
                     // rear approach. An already alerted sentry may still
                     // investigate, and actual combat alerts are independent.
                     if(QuietStepping&&e.state!=1&&!playerHitProvoked&&
-                       !patrolsThatSawHero.Contains(e)&&!quietCanSee)
+                       !patrolsThatSawHero.Contains(e)&&!quietCanSee&&
+                       // A whistle legitimately gave this EXACT living
+                       // patrol an objective. Quiet movement can conceal the
+                       // hero, not erase the real ally's reported contact.
+                       !RidgeWatchRespondsToAlarm(e))
                         continue;
                 }
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
@@ -2586,6 +2590,12 @@ namespace Starfall
                     // unchanged windup/release contract above.
                     (!travelerAttacker||!IsWayfarerDecoyTarget(e)||
                      WayfarerDecoyCanSeeHero(e))&&
+                    // The whistle carries the old injury foot, not a
+                    // license to stab/shoot a close quiet hero from behind.
+                    // Actual visual reacquisition still enables normal
+                    // committed windups and original weapon release.
+                    (!RidgeWatchRespondsToAlarm(e)||
+                     RidgeWatchSeesLiveHero(e,Position))&&
                     distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&
                     (e.boss||e.kind!=1||
