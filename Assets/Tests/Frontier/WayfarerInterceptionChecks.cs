@@ -84,6 +84,97 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void TravelerShoutBendsOnlyAroundShortPhysicalCorner(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=12.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{new WorldObject{id="wayfarer1",
+                        kind="wayfarer1",name="旅人",en="Traveler",
+                        x=10.5f,y=10.5f}},decor=new Decoration[0]};
+                var game=Fresh(data);
+                game.save.stage=3;
+                game.save.flags.Add("scout_saved");
+                game.Enter(1);game.enemies.Clear();
+                game.save.x=12.5f;game.save.y=10.5f;
+                Action(game,"wayfarer1","wayfarer_defend_1");
+                Check(game.WayfarerEncounterRoom==1,
+                    "Shout routing starts in genuine traveler defense");
+                var raiders=game.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(raiders.Count==2,
+                    "Sound rules bind only the two real spawned enemies");
+                Enemy near=raiders[0],far=raiders[1];
+                near.x=15.5f;near.y=10.5f;near.stun=100;near.timer=100;
+                far.x=26.5f;far.y=26.5f;far.stun=100;far.timer=100;
+                // Stone between caller and listener, with a short walk
+                // around its north/south end. Neither foot is inside rock.
+                for(int y=9;y<=11;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    line[14]='#';rows[y]=new string(line);
+                }
+                Check(!game.ClearAttackPath(near.Position,game.Position)&&
+                    game.WayfarerDecoyAvailable,
+                    "Physical corner blocks sight but allows an eleven-tile audible detour");
+                // Extend the same stone to BOTH map borders. An incomplete
+                // closest-frontier compass route cannot fabricate hearing.
+                for(int y=2;y<=27;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    line[14]='#';rows[y]=new string(line);
+                }
+                Check(!game.WayfarerDecoyAvailable,
+                    "Sealed barrier blocks the shout and charges no energy");
+                // An open but long detour also attenuates the sound.
+                for(int y=21;y<=27;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    line[14]='.';rows[y]=new string(line);
+                }
+                Check(game.NavigationPathFrom(near.Position,
+                    game.Position,true).Count>0 &&
+                    !game.WayfarerDecoyAvailable,
+                    "Walkable long maze does not grant supernatural hearing");
+                // Restore the short route and exercise the actual E-independent
+                // world input command. Alert records only the original foot.
+                for(int y=12;y<=20;y++)
+                {
+                    char[] line=rows[y].ToCharArray();
+                    line[14]='.';rows[y]=new string(line);
+                }
+                int energy=(int)game.save.energy;
+                Check(game.QuickDrawWayfarerFire() &&
+                    game.save.energy==energy-15f &&
+                    game.IsWayfarerDecoyTarget(near) &&
+                    !game.IsWayfarerDecoyTarget(far) &&
+                    !game.WayfarerDecoyCanSeeHero(near),
+                    "One paid shout redirects only the truly reachable listener without revealing hidden hero");
+                var seek=typeof(GameCore).GetMethod("WayfarerDecoyPursuitFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Point soundFoot=(Point)seek.Invoke(game,new object[]{near});
+                Check((soundFoot-game.Position).Length<.01f,
+                    "Covered raider searches the original audible player foot");
+                game.save.x=11.5f;game.save.y=9.5f;
+                Check(!game.WayfarerDecoyCanSeeHero(near)&&
+                    ((Point)seek.Invoke(game,new object[]{near})-soundFoot).Length<.01f,
+                    "Movement while unseen does not feed the guard live concealed coordinates");
+                Check(game.save.version==2,
+                    "Acoustic route changes no existing save schema");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,

@@ -57,6 +57,36 @@ namespace Starfall
             }
             return last;
         }
+        // A shout can bend around a *short, traversable* corner, but a sealed
+        // room or a lengthy maze must not turn into supernatural hearing.
+        // Test straight sight first (the common case), then a STRICT route
+        // between the actual planted feet with a bounded acoustic budget.
+        // Distance is measured along the returned route, not across walls or
+        // by path.Count alone, so changing start/end fractional feet cannot
+        // silently extend the 11-unit sound budget.
+        private bool WayfarerShoutReaches(Enemy enemy)
+        {
+            if(enemy==null||enemy.hp<=0||
+               !CanStand(Position)||!CanStand(enemy.Position))return false;
+            float direct=(enemy.Position-Position).Length;
+            if(direct>7f)return false;
+            if(ClearAttackPath(enemy.Position,Position))return true;
+            List<Point> route=NavigationPathFrom(enemy.Position,Position,true);
+            if(route.Count==0)return false;
+            Point previous=enemy.Position;
+            float walked=0f;
+            foreach(Point foot in route)
+            {
+                walked+=(foot-previous).Length;
+                if(walked>11f)return false;
+                previous=foot;
+            }
+            // Strict routing finishes within physical contact distance,
+            // rather than at the exact fractional hero foot.
+            walked+=(Position-previous).Length;
+            return walked<=11f &&
+                ReliefActorLineWalkable(previous,Position);
+        }
         private List<Enemy> WayfarerAudibleRaiders()
         {
             var heard=new List<Enemy>();
@@ -64,9 +94,7 @@ namespace Starfall
                wayfarerEncounterRoom!=save.room||Dying||practicing||
                !CanStand(Position))return heard;
             foreach(Enemy enemy in enemies)
-                if(IsWayfarerEnemy(enemy)&&enemy.hp>0&&
-                   (enemy.Position-Position).Length<=7f&&
-                   ClearAttackPath(enemy.Position,Position))
+                if(IsWayfarerEnemy(enemy)&&WayfarerShoutReaches(enemy))
                     heard.Add(enemy);
             return heard;
         }
