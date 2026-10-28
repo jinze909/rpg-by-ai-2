@@ -48,6 +48,12 @@ namespace Starfall.Tests
                 g.MistlightTime==110f&&g.MistlightIntegrity==76f&&
                 Math.Abs(g.MistlightNextGust-9f)<.01f,
                 "Live rescue clock, damageable signal and first real objective actually start");
+            g.Enter(0);
+            Check(g.save.room==5&&g.MistlightActive,
+                "Active real storm rescue cannot silently fast travel and erase its stage");
+            g.ReturnToTown();
+            Check(g.save.room==5&&g.MistlightActive,
+                "Fast return to Emberfall cannot bypass active beacon storm or cancel paid progress");
             Check(g.save.trackedQuest=="mistport_lastlight"&&
                 g.GetQuest("mistport_lastlight").room==5&&
                 (g.GetQuest("mistport_lastlight").target-new Point(60.5f,37.5f)).Length<.01f,

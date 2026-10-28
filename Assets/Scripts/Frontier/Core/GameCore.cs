@@ -755,6 +755,12 @@ namespace Starfall
                         "Blackout evacuation is active. Bring your civilians to shelter or abort the mission before traveling.");
                 return true;
             }
+            if (MistlightActive)
+            {
+                Notify("雾港最后一盏灯仍在风暴中。先到南栈桥完成求援，或回告示牌明确撤销行动。",
+                    "Mistport's last light is still battling the storm. Finish at the pier or explicitly abort at the original notice before traveling.");
+                return true;
+            }
             // ReturnToTown historically checks this rescue before its death/room
             // early-outs; Enter and the Abyss use the complete gate below.
             if (earlyOnly)
