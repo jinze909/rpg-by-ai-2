@@ -3716,6 +3716,165 @@ namespace Starfall.Tests
                 "Eighth genuine regional watch makes the physical closing council available");
         }
 
+        public static void UnlistedThreeActInvestigationUsesPhysicalCachesAndRidgeDeduction(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.room=9;
+            WorldObject archive=Array.Find(g.Map.objects,
+                o=>o.kind=="annexinnarchive");
+            Check(archive!=null&&g.UnlistedAct==-1,
+                "The distinct Unlisted investigation begins unaccepted at the real inn archive");
+            g.save.x=archive.x;g.save.y=archive.y;
+            var action=typeof(GameCore).GetMethod("ChooseUnlisted",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(action!=null,"The investigation's physical choice handler exists");
+            action.Invoke(g,new object[]{"unlisted_accept"});
+            Check(g.UnlistedAct==-1,
+                "Synthetic acceptance outside real archive dialogue cannot start quest");
+            g.Talk(archive);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="unlisted_accept");
+            Check(start>=0,"The archive offers the investigation as a real quest");
+            g.Choose(start);
+            Check(g.UnlistedAct==0&&!g.UnlistedDone,
+                "Authentic source-bound acceptance begins chapter one");
+            int[] regions={0,3,5},ridgeSides={0,1,0};
+            for(int act=0;act<3;act++)
+            {
+                int room=regions[act];g.save.room=room;
+                g.save.x=18.5f;g.save.y=15.5f;g.enemies.Clear();
+                WorldObject a=Array.Find(g.Map.objects,
+                    o=>o.id=="annex_cache_"+room+"_a");
+                WorldObject b=Array.Find(g.Map.objects,
+                    o=>o.id=="annex_cache_"+room+"_b");
+                WorldObject ridge=Array.Find(g.Map.objects,
+                    o=>o.id=="ridge_route_"+room+"_"+ridgeSides[act]);
+                Check(a!=null&&b!=null&&ridge!=null&&
+                    g.CanStand(new Point(a.x,a.y))&&
+                    g.CanStand(new Point(b.x,b.y))&&
+                    g.CanStand(new Point(ridge.x,ridge.y)),
+                    "Each act has two separate existing cache locations and a distant walkable ridge marker");
+                // A direct, source-less field action can never forge evidence.
+                action.Invoke(g,new object[]{"unlisted_clue_a"});
+                Check(!g.Has("unlisted_a_"+act),
+                    "An unspoken fabricated clue cannot count as a real discovery");
+                g.save.x=a.x;g.save.y=a.y;g.Talk(a);
+                int inspect=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_clue_a");
+                Check(inspect>=0,"First original cache offers its authentic evidence");
+                g.Choose(inspect);
+                Check(g.Has("unlisted_a_"+act)&&!g.Has("unlisted_b_"+act),
+                    "A single cache cannot fabricate its physically distinct partner clue");
+                g.save.x=ridge.x;g.save.y=ridge.y;g.Talk(ridge);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_reason")<0,
+                    "Ridge deduction is locked until two separate cache documents have been read");
+                g.Close();g.save.x=b.x;g.save.y=b.y;g.Talk(b);
+                inspect=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_clue_b");
+                Check(inspect>=0,"The second original cache offers its independent clue");
+                g.Choose(inspect);
+                Check(g.Has("unlisted_b_"+act),
+                    "Second evidence persists in original v2 save flags");
+                g.save.x=ridge.x;g.save.y=ridge.y;g.Talk(ridge);
+                int wrong=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_wrong");
+                Check(wrong>=0,"Each episode offers a falsifiable wrong hypothesis");
+                float energy=g.save.energy;
+                g.Choose(wrong);
+                Check(g.UnlistedAct==act&&!g.Has("unlisted_solved_"+act)&&
+                    Math.Abs(g.save.energy-Math.Max(0f,energy-8f))<.01f,
+                    "Wrong deductions cost only bounded effort and do not advance story");
+                g.Talk(ridge);
+                int reason=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_reason");
+                Check(reason>=0,"Both verified clues unlock the episode's correct inference");
+                g.Choose(reason);
+                Check(g.Has("unlisted_solved_"+act)&&g.UnlistedAct==act+1,
+                    "Only the real matching ridge answer advances the three-act investigation");
+                // A stale previous-act clue must not grant the next chapter's evidence.
+                action.Invoke(g,new object[]{"unlisted_clue_b"});
+                Check(!g.Has("unlisted_b_"+(act+1)),
+                    "Old chapter source cannot impersonate a later episode");
+            }
+            Check(g.UnlistedAct==3&&!g.UnlistedDone,
+                "Three solved field episodes unlock, but do not auto-select, a moral ending");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.UnlistedAct==3&&
+                !restored.UnlistedDone,
+                "All three evidence deductions survive v2 save-slot reload before the final choice");
+        }
+
+        public static void UnlistedDistinctEndingsAreSourceBoundNonFarmableAndAlterGameplay(Campaign data)
+        {
+            for(int choice=0;choice<2;choice++)
+            {
+                var g=Fresh(data);g.save.room=9;g.enemies.Clear();
+                g.save.flags.Add("unlisted_started");
+                for(int a=0;a<3;a++)g.save.flags.Add("unlisted_solved_"+a);
+                WorldObject archive=Array.Find(g.Map.objects,
+                    o=>o.kind=="annexinnarchive");
+                g.save.x=archive.x;g.save.y=archive.y;
+                float healthMax=g.save.maxHealth;
+                int coins=g.save.coins,shards=g.save.shards;
+                string action=choice==0?"unlisted_public":"unlisted_protect";
+                var choiceHandler=typeof(GameCore).GetMethod("ChooseUnlisted",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                choiceHandler.Invoke(g,new object[]{action});
+                Check(!g.UnlistedDone&&g.save.coins==coins,
+                    "Synthetic ending with no physical archive cannot claim its reward");
+                g.Talk(archive);
+                int option=Array.FindIndex(g.conversation.choices,c=>c.action==action);
+                Check(option>=0,"Each ethically distinct ending is a genuine selectable archive choice");
+                g.Choose(option);
+                Check(g.UnlistedDone&&g.save.coins==coins+55&&
+                    g.save.shards==shards+2&&
+                    g.Has(choice==0?"unlisted_public":"unlisted_protected"),
+                    "In-person ending preserves the chosen ethical outcome and one-time resources");
+                g.Close();g.Talk(archive);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_public")<0&&
+                    Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="unlisted_protect")<0,
+                    "No completed ending offers a second payout or reversal");
+                g.Close();
+                choiceHandler.Invoke(g,new object[]{action});
+                Check(g.save.coins==coins+55,
+                    "Forged repeat calls cannot double-pay the ending");
+                g.PrepareSave();
+                var reload=new GameCore(data,CloneSave(g.save));
+                Check(reload.UnlistedDone&&reload.save.version==2,
+                    "Decision persists without changing existing SaveData v2 schema");
+                if(choice==1)
+                    Check(Math.Abs(g.save.maxHealth-healthMax-25f)<.1f&&
+                        Math.Abs(reload.save.maxHealth-healthMax-25f)<.1f,
+                        "Protected registry genuinely grants persistent +25 maximum health");
+                else
+                {
+                    Check(Math.Abs(g.save.maxHealth-healthMax)<.1f,
+                        "Published registry does not secretly give the privacy ending's extra HP");
+                    g.save.room=0;g.enemies.Clear();g.mode="world";
+                    g.save.flags.Add("ridge_seen_0_0");
+                    g.save.flags.Add("ridge_seen_0_1");
+                    WorldObject marker=Array.Find(g.Map.objects,
+                        o=>o.id=="ridge_route_0_0");
+                    Check(marker!=null&&g.RidgeLinked(0),
+                        "The real regional transport has physically linked ridge endpoints");
+                    g.save.x=marker.x;g.save.y=marker.y;g.save.energy=50f;
+                    g.Talk(marker);
+                    int route=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="ridge_travel");
+                    Check(route>=0&&g.conversation.choices[route].en.Contains("6 energy"),
+                        "Published documents offer a visible lower-price real ridge crossing");
+                    g.Choose(route);
+                    Check(Math.Abs(g.save.energy-44f)<.01f,
+                        "Publishing names actually reduces the paid ridge energy transaction from 12 to 6");
+                }
+            }
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
