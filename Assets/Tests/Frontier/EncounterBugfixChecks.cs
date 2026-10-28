@@ -607,20 +607,25 @@ namespace Starfall.Tests
                 Check((sentry.Position-game.Position).Length>8f&&
                     (bool)sight.Invoke(game,new object[]{sentry.Position,game.Position}),
                     "Returning guard sees a distant unobstructed hero outside eight-tile awareness");
-                float farDistance=(sentry.Position-post).Length;
+                // A physical detour around the x=19 sound wall may
+                // BEGIN by moving farther in straight-line distance
+                // from home. Verify the actual planned walking direction
+                // and live actor displacement instead of requiring an
+                // impossible monotonic Euclidean distance decrease.
+                Point beforeFoot=sentry.Position;
+                Point towardPost=game.DirectionTo(beforeFoot,post);
+                Check(towardPost.Length>.5f&&
+                    game.NavigationPathFrom(beforeFoot,post,true).Count>0,
+                    "Returning guard has a real footprint-aware route to the original post");
                 game.Tick(.04f,new Point());
+                Point moved=sentry.Position-beforeFoot;
+                float along=moved.x*towardPost.x+moved.y*towardPost.y;
                 Check(game.IsEnemyReturningFromImpact(sentry)&&
-                    (sentry.Position-post).Length<farDistance-.025f,
-                    "Visible but distant hero cannot steal a sound-decoy return or strand the guard"+
-                    " before="+farDistance.ToString("0.000")+
-                    " after="+(sentry.Position-post).Length.ToString("0.000")+
-                    " from="+sentry.Position.x.ToString("0.00")+","+
-                        sentry.Position.y.ToString("0.00")+
-                    " post="+post.x.ToString("0.00")+","+
-                        post.y.ToString("0.00")+
-                    " route="+game.NavigationPathFrom(sentry.Position,post,true).Count+
-                    " canStand="+game.CanStand(post)+
-                    " postBlocked="+game.IsEnemyReturnPostBlocked(sentry));
+                    moved.Length>.025f&&along>.02f&&
+                    game.CanStand(sentry.Position),
+                    "Distant visible hero cannot steal sound-decoy return; guard actually follows the physical post detour"+
+                    " moved="+moved.Length.ToString("0.000")+
+                    " routeDot="+along.ToString("0.000"));
                 // A CLOSE hero behind genuine intervening stone is still
                 // hidden; mere geometric proximity must not cancel return.
                 string[] nearRows=(string[])game.Map.rows.Clone();
@@ -716,15 +721,20 @@ namespace Starfall.Tests
                 // Force a ready melee clock to catch illicit attacks that
                 // ordinary long cooldown tests could never expose.
                 sentry.timer=-.01f;
-                float before=(sentry.Position-post).Length;
+                Point beforeFoot=sentry.Position;
+                Point returningToward=game.DirectionTo(beforeFoot,post);
                 float oldHealth=game.save.health;
                 game.Tick(.02f,new Point(),null,false,true);
+                Point resumed=sentry.Position-beforeFoot;
                 Check(game.QuietStepping&&
                     game.IsEnemyReturningFromImpact(sentry)&&
-                    (sentry.Position-post).Length<before&&
+                    resumed.Length>.01f&&
+                    resumed.x*returningToward.x+
+                        resumed.y*returningToward.y>.005f&&
+                    game.CanStand(sentry.Position)&&
                     sentry.state==0&&game.save.health==oldHealth&&
                     game.save.version==2,
-                    "A ready-to-strike sentry must continue its real return without an unseen rear-hero attack");
+                    "A ready-to-strike guard follows the real return corridor rather than turning to strike an unseen quiet rear hero");
                 // Switching to audible open movement at the same physical
                 // foot gives back the ordinary patrol's eight-tile notice.
                 // The quiet constraint must not make guards permanently blind.
