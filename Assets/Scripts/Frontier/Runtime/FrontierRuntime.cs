@@ -806,6 +806,10 @@ namespace Starfall
             // Terrain is already in place; all game actors/props/HUD now
             // occlude these subtle authored particles naturally.
             DrawAuthoredAtmosphericMotes();
+            // Shutter darkness belongs to TERRAIN and weather, not to the
+            // canonical gold-haired hero or any complete-body actor Sprite.
+            // Paint it BEFORE the sorted character pass.
+            DrawSilentLedgerWorldLighting();
             DrawArenaBoundary();
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);

@@ -482,16 +482,19 @@ namespace Starfall
             Texture2D source=npcSheet;
             return ActorAtlasGeometry.IsAcceptedNpcAtlas(source);
         }
+        // The terrain lighting pass runs before the sorted world actors.
+        // A post-actor fullscreen wash made the unique hero's gold hair and
+        // all NPC palettes look repainted whenever the lamps went out.
+        private void DrawSilentLedgerWorldLighting()
+        {
+            if(Game!=null&&Game.mode=="world"&&Game.SilentLedgerActive&&
+                Game.SilentLedgerDarkness>0f&&!drawingOutline)
+                Box(0,0,Width,Height,new Color(.025f,.035f,.08f,.16f));
+        }
         private void DrawExpansionWorld()
         {
             if(Game.mode=="world"&&Game.SilentLedgerActive&&!drawingOutline)
             {
-                // Patrol lamps genuinely go out in GameCore. A subtle
-                // cool wash makes the same world-time state immediately
-                // readable in GameView without altering terrain pixels,
-                // hero identity, colliders or original Sprite importers.
-                if(Game.SilentLedgerDarkness>0f)
-                    Box(0,0,Width,Height,new Color(.025f,.035f,.08f,.16f));
                 Color stealth=Game.SilentLedgerSuspicion>70f?
                     new Color(1f,.49f,.42f,1f):mint;
                 Point goal=Game.SilentLedgerTarget;
