@@ -1463,8 +1463,33 @@ namespace Starfall
             choices.Add(StoryChoice("收起记录", "Close record", "close"));
             Dialog(headingZh, headingEn, zh, en, choices.ToArray());
         }
+        // A chronicle action must still belong to the ORIGINAL book,
+        // steward or inn traveler who offered that very conversation.
+        // In particular, a stale book page cannot silently turn a local
+        // chest/merchant into Lyra or reveal a record from an orphan menu.
+        private bool StoryMenuSourceIsAuthentic()
+        {
+            WorldObject source=StoryDialogueSource;
+            if(source==null||
+                (source.kind!="worldchronicle"&&
+                 source.kind!="guild"&&source.kind!="innGuest")||
+                IsObjectFromAnotherMap(source)||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source))return false;
+            return pendingDialogueSource!=null?
+                pendingDialogueSourceRoom==save.room:
+                conversationSourceRoom==save.room;
+        }
         private bool ChooseWorldChronicle(string action)
         {
+            if(!action.StartsWith("story_",StringComparison.Ordinal))
+                return false;
+            if(!StoryMenuSourceIsAuthentic())
+            {
+                Notify("原来的记录来源已不在身边。请重新与那个人或编年册交谈。",
+                    "The original record source is no longer here. Talk to that person or the chronicle again.");
+                return true;
+            }
             if (action == "story_catchup") { WorldStoryCatchUp(); return true; }
             if (action == "story_people") { WorldStoryPeople(); return true; }
             if (action == "story_terms") { WorldStoryTerms(); return true; }

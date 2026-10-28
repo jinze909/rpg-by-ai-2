@@ -5454,6 +5454,70 @@ namespace Starfall.Tests
             Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
                 "Reload clears only transient squad investigation data, preserving old saves");
         }
+        public static void StoryPagesNeverSwitchNpcWithoutOriginalPhysicalSource(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.Enter(0);g.enemies.Clear();
+            WorldObject guild=null,other=null;
+            foreach(WorldObject o in g.Map.objects)
+            {
+                if(o.kind=="guild")guild=o;
+                if(o.kind=="outercache")other=o;
+            }
+            Check(guild!=null&&other!=null,
+                "Real guild steward and separate physical supply box both exist");
+            g.save.x=guild.x;g.save.y=guild.y;
+            int coins=g.save.coins,shards=g.save.shards,flags=g.save.flags.Count;
+            var route=typeof(GameCore).GetMethod("ChooseWorldChronicle",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var source=typeof(GameCore).GetField("pendingDialogueSource",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var room=typeof(GameCore).GetField("pendingDialogueSourceRoom",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(route!=null&&source!=null&&room!=null,
+                "Real story dispatch retains exact original dialogue owner");
+            source.SetValue(g,other);room.SetValue(g,g.save.room);
+            route.Invoke(g,new object[]{"story_menu"});
+            Check(g.mode=="world"&&g.conversation==null,
+                "A chest cannot open a chronicle page while standing beside the guild");
+            source.SetValue(g,null);
+            route.Invoke(g,new object[]{"story_read_origin"});
+            Check(g.mode=="world"&&g.conversation==null,
+                "Orphan story page does not appear as another NPC's speech");
+            g.Talk(guild);
+            Check(g.mode=="dialog"&&g.conversationSource==guild,
+                "Original guild talk opens only the original steward's dialogue");
+            int catchup=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="story_catchup");
+            Check(catchup>=0,
+                "Guild steward still offers its legitimate story recap");
+            g.Choose(catchup);
+            Check(g.mode=="dialog"&&g.conversationSource==guild&&
+                Array.Exists(g.conversation.choices,ch=>ch.action=="story_menu"),
+                "A real recap remains spoken by the actual guild steward");
+            int menu=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="story_menu");
+            g.Choose(menu);
+            Check(g.mode=="dialog"&&g.conversationSource==guild&&
+                Array.Exists(g.conversation.choices,
+                    ch=>ch.action=="story_section_origins"),
+                "Original guild identity is preserved through chronicle menu");
+            int origins=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="story_section_origins");
+            g.Choose(origins);
+            Check(g.mode=="dialog"&&g.conversationSource==guild&&
+                Array.Exists(g.conversation.choices,
+                    ch=>ch.action=="story_read_origin"),
+                "Legitimate nested chapter navigation survives its physical source checks");
+            int read=Array.FindIndex(g.conversation.choices,
+                ch=>ch.action=="story_read_origin");
+            g.Choose(read);
+            Check(g.mode=="dialog"&&g.conversationSource==guild&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                g.save.version==2,
+                "Original old-record reading never replaces live speaker or modifies V2 rewards");
+        }
+
         public static void SignalDialogueCannotRepairOrDepartFromUnrelatedWorldSource(Campaign data)
         {
             var g=Unlocked(data);
