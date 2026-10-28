@@ -4440,8 +4440,11 @@ namespace Starfall
         private static bool RequiresWorldSourceReach(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
-            if(action.StartsWith("story_",StringComparison.Ordinal)||
-               action.StartsWith("outer_signal_",StringComparison.Ordinal)||
+            // Archive pages are read-only and were already accessible
+            // through legitimate same-map references. Do NOT impose
+            // physical reach on reading; it belongs only to repair, travel,
+            // rest and any other world-changing operation.
+            if(action.StartsWith("outer_signal_",StringComparison.Ordinal)||
                action=="outer_repair")return true;
             if(action.StartsWith("inn_",StringComparison.Ordinal))return true;
             // Choices whose handlers do not independently validate their target.

@@ -1465,6 +1465,8 @@ namespace Starfall
         }
         // A chronicle action must still belong to the ORIGINAL book,
         // steward or inn traveler who offered that very conversation.
+        // Reading is deliberately read-only and may use a same-map remote
+        // reference; unlike repairs and travel it need not touch the book.
         // In particular, a stale book page cannot silently turn a local
         // chest/merchant into Lyra or reveal a record from an orphan menu.
         private bool StoryMenuSourceIsAuthentic()
@@ -1481,8 +1483,7 @@ namespace Starfall
             if((source.kind!="worldchronicle"&&
                  source.kind!="guild"&&source.kind!="innGuest")||
                 IsObjectFromAnotherMap(source)||
-                !SourceBelongsToActiveMap(source)||
-                !HasPhysicalInteractionReach(source))return false;
+                !SourceBelongsToActiveMap(source))return false;
             return pendingDialogueSource!=null?
                 pendingDialogueSourceRoom==save.room:
                 conversationSourceRoom==save.room;
