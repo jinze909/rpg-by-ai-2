@@ -1090,7 +1090,14 @@ namespace Starfall
                         L("隐蔽路线已生效：户外布置绊索不消耗零件",
                           "Hidden trails: outdoor snares cost no spare parts"):
                     LastLanternActive?LastLanternObjectiveText+" · "+
-                        LastLanternSeconds.ToString("0")+"s":
+                        LastLanternSeconds.ToString("0")+"s"+
+                        (LastLanternStage==3&&LastLanternPursuerThreatensWatch?
+                            L(" · 追兵已逼近守望岗，需击退或引开",
+                              " · PURSUER AT WATCH: defeat or lure away"):
+                            LastLanternStage==3&&LastLanternPursuerAlive?
+                            L(" · 追兵沿路追赶，可抢先送达",
+                              " · A live pursuer follows; outrun it"):
+                            ""):
                     L("前往堡垒外墙旧补给点（60.5,19.5），取出被删的求救信",
                       "Collect the erased letter from the Citadel outer cache (60.5,19.5)");
                 q.reward=L("首通硬币55、碎片2、经验95；永久公共投石或隐蔽绊索战术",

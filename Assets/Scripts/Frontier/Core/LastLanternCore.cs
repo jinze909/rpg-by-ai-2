@@ -8,13 +8,24 @@ namespace Starfall
     {
         private int lastLanternStage;
         private float lastLanternSeconds;
-        private Enemy lastLanternA,lastLanternB;
+        private Enemy lastLanternA,lastLanternB,lastLanternPursuer;
+        // The relay-to-watchpost leg has a REAL mobile pursuer. The
+        // player may defeat the raider or beat its approach through cover.
+        // No new flags, map objects or duplicated enemy spawns on reload.
         private int lastLanternKills;
         public bool LastLanternActive {get{return lastLanternStage>0;}}
         public int LastLanternStage {get{return lastLanternStage;}}
         public float LastLanternSeconds {get{return LastLanternActive?lastLanternSeconds:0f;}}
         public bool LastLanternComplete {get{return Has("lastlantern_public")||Has("lastlantern_silent");}}
         public bool LastLanternPublic {get{return Has("lastlantern_public");}}
+        public bool LastLanternPursuerAlive
+        {get{return lastLanternStage==3&&lastLanternPursuer!=null&&
+            lastLanternPursuer.hp>0&&enemies.Contains(lastLanternPursuer);}}
+        public bool LastLanternPursuerThreatensWatch
+        {get{return LastLanternPursuerAlive&&
+            (lastLanternPursuer.Position-new Point(90.5f,40.5f)).Length<6f&&
+            ClearAttackPath(lastLanternPursuer.Position,
+                new Point(90.5f,40.5f));}}
         public bool LastLanternSilent {get{return Has("lastlantern_silent");}}
         public float LastLanternPebbleCooldown
         {get{return LastLanternPublic&&save.room<8?3.5f:PebbleRecoverySeconds;}}
@@ -39,16 +50,24 @@ namespace Starfall
                 RemoveEnemyPendingWarning(lastLanternB);
                 enemies.Remove(lastLanternB);
             }
-            lastLanternA=lastLanternB=null;
+            if(lastLanternPursuer!=null)
+            {
+                RemoveEnemyPendingWarning(lastLanternPursuer);
+                enemies.Remove(lastLanternPursuer);
+            }
+            lastLanternA=lastLanternB=lastLanternPursuer=null;
             lastLanternStage=0;lastLanternSeconds=0;lastLanternKills=0;
         }
         public bool IsLastLanternEnemy(Enemy e)
-        {return lastLanternStage==2&&save.room==4&&e!=null&&
-            (Object.ReferenceEquals(e,lastLanternA)||
-             Object.ReferenceEquals(e,lastLanternB));}
+        {return save.room==4&&e!=null&&
+            (lastLanternStage==2&&
+                (Object.ReferenceEquals(e,lastLanternA)||
+                 Object.ReferenceEquals(e,lastLanternB))||
+             lastLanternStage==3&&
+                Object.ReferenceEquals(e,lastLanternPursuer));}
         private void OnLastLanternEnemyDefeated(Enemy e)
         {
-            if(!IsLastLanternEnemy(e))return;
+            if(!IsLastLanternEnemy(e)||lastLanternStage!=2)return;
             if(Object.ReferenceEquals(e,lastLanternA))lastLanternKills|=1;
             if(Object.ReferenceEquals(e,lastLanternB))lastLanternKills|=2;
         }
@@ -89,6 +108,16 @@ namespace Starfall
             lastLanternA.timer=.8f;lastLanternB.timer=1.2f;
             lastLanternKills=0;
             enemies.Add(lastLanternA);enemies.Add(lastLanternB);
+            return true;
+        }
+        private bool SpawnLastLanternPursuer(Point relay)
+        {
+            Point foot;
+            if(!TryLastLanternSpawnFoot(relay,new Point(-100,-100),
+                out foot))return false;
+            lastLanternPursuer=CreatePlacedEnemy(++enemyId,0,foot,85,false);
+            lastLanternPursuer.timer=1.2f;
+            enemies.Add(lastLanternPursuer);
             return true;
         }
         private void TickLastLantern(float dt)
@@ -146,8 +175,8 @@ namespace Starfall
                             C("将原始警报送往守望岗","Forward original distress call","lastlantern_forward"):
                             C("回到战斗","Return to combat","close"));
                 else Dialog(o.name,o.en,
-                    "旧灯已把讯号传到南侧守望岗；你还要亲自确认怎样让居民找到归路。",
-                    "The relay forwarded the message. Confirm its civic use at the watchpost in person.",
+                    "旧灯已把讯号传到南侧守望岗；一名最后的追兵正沿原始道路搜寻你。你可以击退他，或趁他未靠近守望岗先送达警报。",
+                    "The relay forwarded the message. A final pursuer is searching the road. Defeat him or outpace him before he reaches the watchpost.",
                     C("继续送信","Carry onward","close"));
                 return true;
             }
@@ -159,6 +188,11 @@ namespace Starfall
                         "守望员没有收到来自旧求援灯的真实回执。请先把讯号送过那处哨所。",
                         "The watchkeeper has no authentic relay receipt. Carry the warning through the lamp first.",
                         C("返回旧灯","Return to relay","close"));
+                else if(LastLanternPursuerThreatensWatch)
+                    Dialog(o.name,o.en,
+                        "追兵已经闯到守望岗前。守望员不能在敌人面前展开逃生名单；请击退他，或者引开他再回来。",
+                        "The pursuer has reached the watchpost. The keeper cannot reveal names under enemy eyes. Defeat or lure him away, then return.",
+                        C("引开追兵后再议","Return when the patrol is clear","close"));
                 else Dialog(o.name,o.en,
                     "守望员认出了信封上的手印。这些人当夜穿过城墙，并不是要袭击堡垒；他们只想找一条能安全带孩子回家的路。\n\n若公开警报，所有旅人会更快收到投石回应，路上的守卫也更容易听见集结信号。若保护路标细节，诺尔的绊索工匠将用更简易的木楔在户外悄悄建立撤离路障。两种方案永久互斥。",
                     "The watchkeeper recognizes the handprints: these families were trying to get their children home, not storm the citadel.\n\nPublish the distress call and travelers can deploy decoy pebbles more often. Protect the hidden paths and outdoor snares no longer need metal gears. These are permanent, mutually exclusive choices.",
@@ -218,15 +252,22 @@ namespace Starfall
                     lastLanternStage==2&&lastLanternKills==3&&
                     !enemies.Exists(IsLastLanternEnemy))
                 {
+                    if(!SpawnLastLanternPursuer(new Point(source.x,source.y)))
+                    {
+                        Notify("追兵接近旧灯，但附近没有安全出生点。请清理站台再转送警报。",
+                            "No safe pursuer approach near the relay. Clear the contested floor and retry.");
+                        return true;
+                    }
                     lastLanternStage=3;revision++;sound="quest";
                     Notify("讯号已通过旧灯。亲自前往南侧守望岗决定怎样保护居民。",
-                        "The relay sent the warning. Visit the southern watchpost to choose its civic use.");
+                        "The relay sent the warning. Outrun or defeat the pursuing raider and reach the southern watchpost.");
                 }
                 return true;
             }
             if(source.id=="outer_watch_4"&&lastLanternStage==3&&
                 (action=="lastlantern_public"||action=="lastlantern_silent")&&
-                !LastLanternComplete&&lastLanternSeconds>0f)
+                !LastLanternComplete&&lastLanternSeconds>0f&&
+                !LastLanternPursuerThreatensWatch)
             {
                 bool published=action=="lastlantern_public";
                 ResetLastLantern();

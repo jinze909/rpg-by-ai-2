@@ -162,5 +162,53 @@ namespace Starfall.Tests
                 !loaded.LastLanternActive&&!loaded.LastLanternComplete,
                 "An old v2 slot retains the tracked quest but resets unsaved encounter state");
         }
+        public static void LastLanternPursuerCanBeEvadedOrStoppedAtARealWatchpost(Campaign data)
+        {
+            var g=LanternReady(data);
+            WorldObject cache=LanternPost(g,"annex_cache_4_a"),
+                relay=LanternPost(g,"outer_4_1"),
+                watch=LanternPost(g,"outer_watch_4");
+            g.save.x=cache.x;g.save.y=cache.y;g.Talk(cache);
+            LanternChoice(g,"lastlantern_begin");
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            LanternChoice(g,"lastlantern_fight");
+            var strike=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            foreach(Enemy guard in g.enemies.FindAll(g.IsLastLanternEnemy))
+            {
+                guard.hp=8f;guard.stun=120f;
+                strike.Invoke(g,new object[]{guard,99999f,false,null,null});
+            }
+            g.Talk(relay);
+            Check(LanternChoice(g,"lastlantern_forward")&&
+                g.LastLanternStage==3&&g.LastLanternPursuerAlive,
+                "Forwarding a genuine cleared relay spawns one last real pursuing actor");
+            Enemy raider=g.enemies.Find(g.IsLastLanternEnemy);
+            Check(raider!=null&&
+                !g.IsLastLanternEnemy(new Enemy(raider.id,raider.kind,
+                    raider.x,raider.y,90)),
+                "Same-id enemy never steals the second-phase actor identity");
+            Check(!g.LastLanternPursuerThreatensWatch,
+                "A pursuer still at the distant relay cannot magically block the watchkeeper");
+            g.save.x=watch.x;g.save.y=watch.y;
+            raider.x=watch.x+1;raider.y=watch.y;
+            Check(g.LastLanternPursuerThreatensWatch,
+                "An actual nearby pursuing combat body threatens the final civilian handoff");
+            g.Talk(watch);
+            Check(!LanternChoice(g,"lastlantern_public")&&
+                !LanternChoice(g,"lastlantern_silent"),
+                "A threatened keeper exposes neither permanent ending");
+            g.Close();
+            int before=g.save.coins,kills=g.save.kills[4];
+            raider.hp=8f;raider.stun=120f;
+            strike.Invoke(g,new object[]{raider,99999f,false,null,null});
+            Check(!g.LastLanternPursuerAlive&&
+                g.save.coins==before&&g.save.kills[4]==kills,
+                "Authored pursuer defeat produces no farmable combat loot or bounty credit");
+            g.Talk(watch);
+            Check(LanternChoice(g,"lastlantern_public")&&
+                g.LastLanternComplete,
+                "Real interception removes the watchpost blockade and restores the ethical choice");
+        }
     }
 }
