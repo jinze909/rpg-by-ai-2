@@ -425,9 +425,15 @@ namespace Starfall
                         NotifyPatrolOfRealSighting(e);
                 }
             }
-            // Only a witnessed hero position may refresh the alert.
-            // Sound-only patrols never learn a concealed live player foot.
-            if(!alert.impactOnly&&ClearAttackPath(e.Position,Position))
+            // A teammate's whistle reports ONE actual witnessed location.
+            // Unobstructed terrain beyond ordinary eight-tile awareness
+            // cannot turn that report into remote live-hero tracking.
+            // A quiet rear approach additionally requires true forward
+            // vision unless this exact guard previously saw the hero.
+            if(!alert.impactOnly&&range<=8f&&CanStand(Position)&&
+               (!QuietStepping||patrolsThatSawHero.Contains(e)||
+                ImpactSearchGuardSeesHero(e))&&
+               ClearAttackPath(e.Position,Position))
                 alert.lastKnown=Position;
             return true;
         }

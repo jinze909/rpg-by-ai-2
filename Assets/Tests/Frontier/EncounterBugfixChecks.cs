@@ -320,6 +320,21 @@ namespace Starfall.Tests
                 Check((remembered-game.Position).Length<.01f&&
                     impossible.x<0f,
                     "Only in-range physically unobstructed listener hears last actually witnessed player foot");
+                // The listener was recruited by a REAL completed whistle.
+                // Relocating a distant player must not silently overwrite
+                // its last reported foot across open terrain.
+                Point movedHero=new Point(10.5f,4.5f);
+                Check(game.CanStand(movedHero)&&
+                    (hear.Position-movedHero).Length>8f&&
+                    (movedHero-remembered).Length>3f,
+                    "A genuine distant relocation separates reported witness foot from live hero");
+                game.save.x=movedHero.x;game.save.y=movedHero.y;
+                game.Tick(.02f,new Point());
+                Point stillReported=(Point)found.Invoke(game,new object[]{
+                    hear,new Point(-99f,-99f)});
+                Check((stillReported-remembered).Length<.01f&&
+                    game.save.version==2,
+                    "A merely alerted guard cannot track the player's new position beyond true visual awareness");
                 Advance(game,.6f);
                 Check((hear.Position-before).Length>.1f&&
                     game.CanStand(hear.Position)&&
