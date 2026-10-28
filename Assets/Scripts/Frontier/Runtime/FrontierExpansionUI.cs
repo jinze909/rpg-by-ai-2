@@ -533,8 +533,17 @@ namespace Starfall
                     Game.SilentLedgerSuspicion.ToString("0")+"/100",
                     12,stealth);
                 Bar(35,371,275,Game.SilentLedgerSuspicion/100f,stealth,6);
+                if(Game.SilentLedgerDarkness>0f)
+                {
+                    // The physically operated shutter affects the actual
+                    // sentry sight check, never the hero's Sprite assets.
+                    Text(35,390,465,19,
+                        Game.L("巡灯压低 · 注意脚步声 ","PATROL LAMPS DIM · FOOTSTEPS AUDIBLE ")+
+                        Game.SilentLedgerDarkness.ToString("0.0")+"s",
+                        11,new Color(.61f,.83f,.91f,1f));
+                }
                 if(Game.SilentLedgerDiversion>0f)
-                    Text(35,390,400,19,
+                    Text(35,Game.SilentLedgerDarkness>0f?410:390,400,19,
                         Game.L("旧警铃引导巡逻 ","BELL DIVERSION ")+
                         Game.SilentLedgerDiversion.ToString("0.0")+"s",
                         11,gold);
@@ -1288,13 +1297,26 @@ namespace Starfall
             // cannot redeclare an outer local after same-named branch locals.
             string kind=o.kind;Point p=ScreenPoint(new Point(o.x,o.y));
             if(o.kind=="silentledgernotice"||o.kind=="silentledgerrecord"||
-               o.kind=="silentledgerconsole"||o.kind=="silentledgerbell")
+               o.kind=="silentledgerconsole"||o.kind=="silentledgerbell"||
+               o.kind=="silentledgershutter")
             {
+                bool shutter=o.kind=="silentledgershutter";
+                bool dim=shutter&&Game.SilentLedgerDarkness>0f;
                 Color ink=Game.SilentLedgerComplete?mint:
+                    dim?new Color(.61f,.83f,.91f,1f):
                     Game.SilentLedgerActive?gold:muted;
                 Point foot=new Point(o.x,o.y);
+                // The shutter is an authored, tangible Citadel prop in
+                // exactly the same production world draw path as the ledger.
                 PropImage("post",0,p.x-27,p.y-69,54,69,ink);
                 Ring(foot,o.kind=="silentledgerconsole"?.66f:.4f,ink,22);
+                if(shutter&&Game.SilentLedgerActive)
+                    Text(p.x-94,p.y-91,188,19,
+                        dim?Game.L("巡灯已暗","LAMPS DIM"):
+                            Game.SilentLedgerShutterUsed?
+                            Game.L("照明恢复","LIGHT RESTORED"):
+                            Game.L("可切断巡灯","DIM PATROL LIGHTS"),
+                        10,ink,TextAnchor.MiddleCenter);
                 if(Game.SilentLedgerComplete&&o.kind=="silentledgerconsole")
                     Text(p.x-73,p.y-91,146,18,
                         Game.L("真实姓名已归档","CIVIC ACCOUNT RESTORED"),
