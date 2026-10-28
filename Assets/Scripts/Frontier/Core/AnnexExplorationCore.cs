@@ -112,13 +112,15 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,noteZh+
-                    "\n\n只有没有敌人追击时才能安全生火。消耗木材 ×1，恢复生命 40 和全部耐力。"+
+                    "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 40 和全部耐力。"+
                     (first?"\n\n首次发现营地，硬币 +5。":"")+
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
-                    noteEn+"\n\nRest safely away from enemies. 1 timber restores 40 HP and full energy."+
+                    noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores 40 HP and full energy."+
                     (first?"\n\nFirst discovery: +5 coins.":"")+
                     (Has("annex_camps_complete")?"\n\nAll eight camps mapped: +1 talent point.":""),
-                    C("添柴休息 · 木材 ×1","Rest · 1 timber","annex_rest"),
+                    !FieldWorkPreventsRest&&SafeTravel?
+                        C("添柴休息 · 木材 ×1","Rest · 1 timber","annex_rest"):
+                        C("先完成现场行动","Finish fieldwork / clear threats","close"),
                     C("继续探索","Keep exploring","close"));
             return true;
         }
@@ -153,10 +155,26 @@ namespace Starfall
             }
             if(action!="annex_rest")return false;
             if(save.room<0||save.room>7||mode!="world"||Dying||practicing)return true;
-            WorldObject camp=null;
-            foreach(WorldObject o in Map.objects)if(o.kind=="annexcamp"){camp=o;break;}
-            if(camp==null||!HasPhysicalInteractionReach(camp))return true;
-            if(!SafeTravel){Notify("战斗中不能休息。","Cannot rest while enemies are nearby.");return true;}
+            // Only the exact camp the player spoke to can spend supplies.
+            // A stale/foreign dialogue must not silently consume timber at
+            // whichever camp happens to be first in the room's object list.
+            WorldObject camp=pendingDialogueSource;
+            if(camp==null||camp.kind!="annexcamp"||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(camp)||
+                !HasPhysicalInteractionReach(camp))return true;
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("现场行动或敌人的攻击尚未结束，不能安全休息。",
+                    "Finish fieldwork and clear nearby attacks before resting.");
+                return true;
+            }
+            if(save.health>=save.maxHealth&&save.energy>=100f)
+            {
+                Notify("生命和耐力已满，保留木材下次使用。",
+                    "Health and energy are full; save your timber for later.");
+                return true;
+            }
             if(!Spend(1,0,0,0,0))return true;
             save.health=Clamp(save.health+40,0,save.maxHealth);save.energy=100;
             revision++;sound="reward";

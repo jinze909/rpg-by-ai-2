@@ -3009,6 +3009,41 @@ namespace Starfall.Tests
             game.Choose(choice);
             Check(game.save.inventory[0]==wood-1&&game.save.health==70&&game.save.energy==100,
                 "Camp consumes actual timber, restores HP and energy");
+            // A stale action with no genuine camp dialogue cannot burn wood
+            // even when the hero is physically standing beside this camp.
+            game.save.health=20;game.save.energy=15;
+            wood=game.save.inventory[0];
+            var annexHandler=typeof(GameCore).GetMethod("ChooseAnnexExploration",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(annexHandler!=null,"Live annex choice handler is callable for a safety regression");
+            annexHandler.Invoke(game,new object[]{"annex_rest"});
+            Check(game.save.health==20&&game.save.energy==15&&
+                game.save.inventory[0]==wood,
+                "A forged camp choice without its exact spoken source cannot spend timber");
+            // A legitimate dialogue still cannot waste scarce wood when no
+            // benefit exists. That condition must be rechecked at commit.
+            game.save.health=game.save.maxHealth;game.save.energy=100;
+            game.Talk(camp);
+            choice=Array.FindIndex(game.conversation.choices,c=>c.action=="annex_rest");
+            Check(choice>=0,"Safe physical camp still offers its own rest action");
+            game.Choose(choice);
+            Check(game.save.inventory[0]==wood&&
+                game.save.health==game.save.maxHealth&&game.save.energy==100,
+                "Full health and energy do not consume timber for a wasted rest");
+            // Genuine fieldwork state used by the other rest services must
+            // prevent this camp from offering a shortcut into recovery.
+            var drillSetter=typeof(GameCore).GetProperty("SwordLessonActive")
+                .GetSetMethod(true);
+            Check(drillSetter!=null,"GameCore owns the living drill state");
+            drillSetter.Invoke(game,new object[]{true});
+            game.save.health=game.save.maxHealth-10;game.save.energy=20;
+            game.Talk(camp);
+            Check(game.conversation!=null&&
+                Array.FindIndex(game.conversation.choices,c=>c.action=="annex_rest")<0&&
+                game.save.inventory[0]==wood,
+                "A live field drill cannot reveal a camp rest that bypasses mission rules");
+            game.Close();drillSetter.Invoke(game,new object[]{false});
             GameCore reload=new GameCore(data,game.save);
             Check(reload.save.version==2&&reload.Has("annex_camp_"+camp.id)&&reload.Has("annex_cache_"+cache.id)&&reload.Has("annex_vista_"+vista.id),
                 "All exploration progress remains in v2 save");
