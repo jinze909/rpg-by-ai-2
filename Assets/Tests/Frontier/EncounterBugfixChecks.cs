@@ -621,7 +621,7 @@ namespace Starfall.Tests
                 Point moved=sentry.Position-beforeFoot;
                 float along=moved.x*towardPost.x+moved.y*towardPost.y;
                 Check(game.IsEnemyReturningFromImpact(sentry)&&
-                    moved.Length>.025f&&along>.02f&&
+                    moved.Length>.025f&&along>moved.Length*.25f&&
                     game.CanStand(sentry.Position),
                     "Distant visible hero cannot steal sound-decoy return; guard actually follows the physical post detour"+
                     " moved="+moved.Length.ToString("0.000")+
