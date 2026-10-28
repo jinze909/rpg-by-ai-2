@@ -137,8 +137,15 @@ namespace Starfall
             if(!ridgeWatchSweepSteps.TryGetValue(enemy,out step))
             {
                 if((enemy.Position-report).Length>1.12f)return report;
-                step=0;
+                // First CONFIRM the exact new reported injury foot on the
+                // arrival frame. A brand-new hit beside the caller must
+                // retain that precise combat information before a later
+                // AI frame starts local investigation. Preserve existing
+                // Hit attribution and companion-source contracts.
+                ridgeWatchSweepSteps[enemy]=-1;
+                return report;
             }
+            if(step<0)step=0;
             else
             {
                 Point previous;

@@ -11949,6 +11949,9 @@ public static class RuntimeCombatInputChecks
             caller.x=29.5f;caller.y=35.5f;
             listener.x=34.5f;listener.y=35.5f;
             listener.stun=0f;listener.timer=100f;
+            // An authentic newly reported hit first confirms its source
+            // foot; the next world tick starts nearby investigation.
+            g.Tick(.05f,new Point());
             g.Tick(.05f,new Point());
             Check(g.IsRidgeWatchSweepingReport(listener)&&
                 g.CanStand(listener.Position),

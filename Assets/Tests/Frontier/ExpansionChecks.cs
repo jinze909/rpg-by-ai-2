@@ -5505,10 +5505,13 @@ namespace Starfall.Tests
                     g.IsRidgeWatchResponder(listener),
                     "Live completed whistle actually recruits this original ally");
                 listener.x=39.5f;listener.y=35.5f;
-                listener.Face(new Point(1f,0f));
+                listener.Face(new Point(-1f,0f));
                 listener.state=0;listener.stun=0f;listener.timer=0f;
-                g.save.x=38f;g.save.y=35.5f;
-                g.Tick(.05f,new Point(-1f,0f),null,false,true);
+                // The search really turns WEST on its first sweep leg.
+                // Put the quiet hero EAST behind that NEW real facing:
+                // sneaking west would actually enter its field of vision.
+                g.save.x=40.5f;g.save.y=35.5f;
+                g.Tick(.05f,new Point(1f,0f),null,false,true);
                 Check(g.QuietStepping&&listener.state==0&&
                     g.IsRidgeWatchResponder(listener)&&
                     g.save.coins==coins&&g.save.shards==shards,
@@ -5519,7 +5522,7 @@ namespace Starfall.Tests
                 listener.Face(new Point(1f,0f));
                 listener.state=0;listener.timer=100f;
                 float before=listener.x;
-                g.Tick(.05f,new Point(-1f,0f),null,false,true);
+                g.Tick(.05f,new Point(1f,0f),null,false,true);
                 Check(listener.x<before-.025f&&
                     g.CanStand(listener.Position)&&
                     g.IsRidgeWatchResponder(listener)&&
@@ -5593,6 +5596,9 @@ namespace Starfall.Tests
                 // concealed hero's current remote position.
                 listener.x=39.5f;listener.y=35.5f;
                 listener.stun=0f;listener.timer=100f;
+                // The contact foot must be confirmed on its first AI
+                // frame; only the subsequent tick initiates the sweep.
+                g.Tick(.05f,new Point());
                 g.Tick(.05f,new Point());
                 Check(g.IsRidgeWatchSweepingReport(listener)&&
                     g.CanStand(listener.Position)&&
