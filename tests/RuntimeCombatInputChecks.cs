@@ -307,6 +307,35 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(x=>x.Contains("引敌 "))&&
             GUI.commands.Exists(x=>x.Contains("追击玩家")),
             "Actual world rendering paints both the live civilian timer and pursued enemy state");
+        // A flood/gate can seal the remembered SOUND tile after the
+        // shout. This physically changes pursuit and must visibly change
+        // the original raider's cue without changing its identity.
+        int originY=(int)Math.Floor(g.save.y);
+        int originX=(int)Math.Floor(g.save.x);
+        string oldRow=g.Map.rows[originY];
+        char[] closed=oldRow.ToCharArray();
+        closed[originX]='#';
+        g.Map.rows[originY]=new string(closed);
+        try
+        {
+            Check(g.WayfarerDecoyRouteSealed(raiders[0]),
+                "Dynamic solid tile blocks the authentic remembered call route");
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(x=>x.Contains("声源封闭"))&&
+                !GUI.commands.Exists(x=>x.Contains("追击玩家")),
+                "Real world enemy renderer reports a sealed acoustic route");
+            g.save.english=true;
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(x=>x.Contains("ROUTE SEALED")),
+                "Production English renderer has the same true sealed-route cue");
+        }
+        finally
+        {
+            g.Map.rows[originY]=oldRow;
+            g.save.english=false;
+        }
+        Check(!g.WayfarerDecoyRouteSealed(raiders[0]),
+            "Reopening the real terrain removes only the blocked presentation state");
         float energyAfterFirstCall=g.save.energy;
         float remainingBeforeRepeat=g.WayfarerDecoyTime;
         Input.keys.Add(KeyCode.L);Update(app);

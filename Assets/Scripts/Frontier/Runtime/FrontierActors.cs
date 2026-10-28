@@ -1198,9 +1198,15 @@ namespace Starfall
             }
             if(!drawingOutline&&Game.IsWayfarerDecoyTarget(e))
             {
-                Color lure=PixelArt.C("#efbd69");
+                // A newly sealed tide gate changes actual guard behavior.
+                // Show the same physical route state beside the real enemy,
+                // rather than implying the listener is still moving through
+                // solid stone toward an inaccessible remembered shout.
+                bool sealedRoute=Game.WayfarerDecoyRouteSealed(e);
+                Color lure=PixelArt.C(sealedRoute?"#d68b77":"#efbd69");
                 Ring(e.Position,.66f,lure,18);
                 Text(p.x-72,p.y-132,144,20,
+                    sealedRoute?Game.L("声源封闭","ROUTE SEALED"):
                     Game.WayfarerDecoyCanSeeHero(e)?
                         Game.L("追击玩家","DRAWN TO HERO"):
                         Game.L("追查呼喊处","LAST SHOUT"),

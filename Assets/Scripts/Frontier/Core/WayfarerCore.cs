@@ -40,6 +40,18 @@ namespace Starfall
                 CanStand(Position)&&CanStand(enemy.Position)&&
                 ClearAttackPath(enemy.Position,Position);
         }
+        // True only for an exact alerted living raider whose ORIGINAL
+        // remembered shout foot cannot currently be reached. This is
+        // read-only presentation state: no new mission flags, save fields,
+        // player tracking, actor substitution or fabricated warnings.
+        public bool WayfarerDecoyRouteSealed(Enemy enemy)
+        {
+            if(!IsWayfarerDecoyTarget(enemy)||
+                WayfarerDecoyCanSeeHero(enemy))return false;
+            Point heard;
+            return wayfarerDecoyLastSeen.TryGetValue(enemy,out heard)&&
+                !SoundSweepFootReachable(enemy.Position,heard);
+        }
         // A successful player shout teaches the raider where the actual
         // sound came from. Subsequent pursuit can update ONLY on real
         // clear sight; going behind a pillar preserves that last-known foot,
