@@ -172,11 +172,18 @@ namespace Starfall
                 }
                 if(whiteoutStage==2)
                 {
-                    Dialog(o.name,o.en,
-                        "风雪仍在扑打旧货路。给她一株月光草能恢复35点体温并抵御接下来12秒阵风；本次只能一次。也可以节省药草，靠近她挡风。",
-                        "Gusts lash the old freight trail. One Moonherb restores 35 warmth and shelters her for 12 seconds; only once this attempt. Or stay near and protect her without spending supplies.",
-                        C("月光草1 · 保温12秒","Moonherb · 12s shelter","whiteout_herb"),
-                        C("继续护送","Continue escort","close"));return true;
+                    if(whiteoutHerbUsed)
+                        Dialog(o.name,o.en,
+                            "她把最后一片月光草压在衣襟内。“我会紧跟你。别把我留在风口。”本次药草援护已经用过。",
+                            "She tucks the last Moonherb under her coat. 'I'll follow you. Don't leave me in the wind.' This attempt's field triage is already spent.",
+                            C("继续护送","Continue escort","close"));
+                    else
+                        Dialog(o.name,o.en,
+                            "风雪仍在扑打旧货路。给她一株月光草能恢复35点体温并抵御接下来12秒阵风；本次只能一次。也可以节省药草，靠近她挡风。",
+                            "Gusts lash the old freight trail. One Moonherb restores 35 warmth and shelters her for 12 seconds; only once this attempt. Or stay near and protect her without spending supplies.",
+                            C("月光草1 · 保温12秒","Moonherb · 12s shelter","whiteout_herb"),
+                            C("继续护送","Continue escort","close"));
+                    return true;
                 }
                 Dialog(o.name,o.en,"山崖下只剩旧营火的灰。","Only ashes of the old campfire remain.",
                     C("离开","Leave","close"));return true;
