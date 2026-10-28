@@ -5917,11 +5917,27 @@ namespace Starfall.Tests
                 g.save.energy=36;g.Choose(choice);
                 Check(Math.Abs(g.save.x-east.x)<.01f&&Math.Abs(g.save.y-east.y)<.01f&&
                     Math.Abs(g.save.energy-24)<.01f,"Crossing moves the actual player and costs real energy");
+                // The old implementation chose any nearby ridge marker and
+                // would travel even without the original marker's dialogue.
+                // Its source-free code path must not spend stamina or move.
+                var ridgeAction=typeof(GameCore).GetMethod("ChooseRidge",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(ridgeAction!=null,"Live ridge choice handler exists");
+                ridgeAction.Invoke(g,new object[]{"ridge_travel"});
+                Check(Math.Abs(g.save.x-east.x)<.01f&&Math.Abs(g.save.y-east.y)<.01f&&
+                    Math.Abs(g.save.energy-24)<.01f,
+                    "A forged source-free ridge action cannot teleport the hero or spend energy");
                 g.Talk(east);choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
                 g.save.energy=3;g.Choose(choice);
                 Check(Math.Abs(g.save.x-east.x)<.01f,
                     "Insufficient energy cannot cross the ridge");
-                g.Talk(east);g.Close();
+                g.Talk(east);choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ridge_travel");
+                g.save.energy=24;g.Choose(choice);
+                Check(Math.Abs(g.save.x-south.x)<.01f&&Math.Abs(g.save.y-south.y)<.01f&&
+                    Math.Abs(g.save.energy-12)<.01f,
+                    "A genuine east-marker dialogue travels toward the opposite surveyed marker");
+                g.Talk(south);g.Close();
                 Check(g.save.coins==coins+20,
                     "Revisiting completed markers never duplicates quest rewards");
                 GameCore saved=new GameCore(data,g.save);

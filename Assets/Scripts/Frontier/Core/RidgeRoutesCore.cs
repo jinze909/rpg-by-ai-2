@@ -153,13 +153,16 @@ namespace Starfall
                 return true;
             }
             if(room<0||room>7||!RidgeLinked(room)||Dying||practicing)return true;
-            WorldObject start=null,end=null;
-            foreach(WorldObject o in Map.objects)
-            {
-                if(o.kind!="ridgemarker")continue;
-                if(HasPhysicalInteractionReach(o))start=o;
-            }
-            if(start==null)return true;
+            // Depart from the exact marker whose dialogue the player
+            // accepted. Searching for any reachable marker could pick a
+            // different source (or activate a route with no dialog at all).
+            WorldObject start=pendingDialogueSource,end=null;
+            if(start==null||start.kind!="ridgemarker"||
+                pendingDialogueSourceRoom!=room||
+                !SourceBelongsToActiveMap(start)||
+                !HasPhysicalInteractionReach(start)||
+                (start.id!="ridge_route_"+room+"_0"&&
+                 start.id!="ridge_route_"+room+"_1"))return true;
             string targetId=start.id=="ridge_route_"+room+"_0"?
                 "ridge_route_"+room+"_1":"ridge_route_"+room+"_0";
             foreach(WorldObject o in Map.objects)if(o.id==targetId){end=o;break;}
