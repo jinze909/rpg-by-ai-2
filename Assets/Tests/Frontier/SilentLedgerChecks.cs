@@ -133,6 +133,43 @@ namespace Starfall.Tests
             Check(!loaded.SilentLedgerActive&&loaded.save.version==2,
                 "Transient sentries and alarm correctly reset on old v2 save reload");
         }
+        public static void SilentLedgerRestorationImprovesRealChapterFourCivilianEvacuation(Campaign data)
+        {
+            float[] followDistance=new float[3];
+            for(int branch=0;branch<3;branch++)
+            {
+                var g=SilentLedgerReady(data);
+                g.save.flags.Add("triad_complete");
+                if(branch==1)g.save.flags.Add("silentledger_public");
+                if(branch==2)g.save.flags.Add("silentledger_routes");
+                WorldObject refuge=Object(g,"blackoutshelter");
+                g.save.x=refuge.x;g.save.y=refuge.y;
+                Action(g,refuge.kind,"blackout_start");
+                Check(g.BlackoutActive&&
+                    Math.Abs(g.BlackoutTime-(branch==1?195f:180f))<.01f,
+                    "Publicly restored missing-person names extend the actual original Blackout countdown by 15 seconds; legacy slots remain 180");
+                WorldObject mother=Object(g,"blackoutcivilian1");
+                g.save.x=mother.x;g.save.y=mother.y;
+                Action(g,mother.kind,"blackout_pick_1");
+                Check(g.BlackoutFollowing==1&&g.BlackoutFollowerHealth==48,
+                    "Original endangered mother must be picked up physically; new ledger never auto-rescues her");
+                Point walkTo=new Point(mother.x+2.5f,mother.y);
+                Check(g.CanStand(walkTo),
+                    "Actual chapter-four on-foot evacuation step is physically standable");
+                g.save.x=walkTo.x;g.save.y=walkTo.y;
+                Point before=g.BlackoutFollowerPosition;
+                g.Tick(.05f,new Point());
+                followDistance[branch]=(g.BlackoutFollowerPosition-before).Length;
+                Check(g.BlackoutActive&&g.BlackoutFollowing==1&&
+                    g.CanStand(g.BlackoutFollowerPosition),
+                    "Original live follower still obeys map collisions with a durable ledger outcome");
+            }
+            Check(followDistance[0]>.26f&&followDistance[0]<.31f&&
+                Math.Abs(followDistance[1]-followDistance[0])<.015f&&
+                followDistance[2]>followDistance[0]+.025f,
+                "Civilian route chart genuinely increases one 50ms walking step from 5.8 to 6.5 while public names change only the live clock");
+        }
+
         public static void SilentLedgerPatrolAlarmFailsRealRunWithoutRewardAndRoutesPersist(Campaign data)
         {
             var g=SilentLedgerReady(data);

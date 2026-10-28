@@ -231,11 +231,11 @@ namespace Starfall
                     "You published seventeen missing families' names in the sealed citadel archive.":
                     "You returned the hidden civilian homeward routes to the roadwardens.");
                 Notify(publicRecord?
-                    "失踪者名册公开！硬币+65、碎片+2、经验+105；安全档案台附近可恢复生命与耐力。":
-                    "归乡路线获救！硬币+65、碎片+2、经验+105；堡垒移动速度永久+0.35。",
+                    "失踪者名册公开！硬币+65、碎片+2、经验+105；安全档案台附近可恢复生命与耐力，长夜救援真实延长15秒。":
+                    "归乡路线获救！硬币+65、碎片+2、经验+105；堡垒移动速度永久+0.35，长夜救援的居民步速由5.8提高到6.5。",
                     publicRecord?
-                    "Missing-person register published! +65 coins, +2 shards, +105 XP; safe archive console grants local recovery.":
-                    "Safe homeward routes restored! +65 coins, +2 shards, +105 XP; permanent +0.35 Citadel speed.");
+                    "Missing-person register published! +65 coins, +2 shards, +105 XP; safe archive console grants local recovery and 15 real extra seconds in the Blackout evacuation.":
+                    "Safe homeward routes restored! +65 coins, +2 shards, +105 XP; permanent +0.35 Citadel speed and faster on-foot Blackout civilian escorts (5.8 to 6.5).");
                 return true;
             }
             return true;

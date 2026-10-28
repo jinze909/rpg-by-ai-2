@@ -1028,8 +1028,8 @@ namespace Starfall
                 q.category=L("巡逻视线 · 实际潜行","PATROL SIGHTLINES · LIVE STEALTH");
                 q.room=4;q.locked=!Has("boss_3");q.complete=SilentLedgerComplete;
                 q.description=L(
-                    "从星陨堡垒外环独立档案告示牌（54.5,38.5）潜入，取得北侧原始名册（60.5,36.5）与南侧证词（63.5,43.5），最终回到封存台（66.5,38.5）。两名移动夜巡依据真实距离、朝向和墙壁遮挡发现玩家，冲刺脚步更响，悄步能减少警戒增长；离开视线可恢复。155秒内警戒达到100会触发封锁重试。可在西南旧岗哨（54.5,42.5）消耗1备件引开巡逻12秒。结局可选择公开被抹除的平民姓名并建立安全恢复档案台，或将安全归乡路线交给居民，增加堡垒移动速度。",
-                    "Enter from the actual Citadel archive notice (54.5,38.5), secure the north register (60.5,36.5), then the southern witness statement (63.5,43.5), and finally reach the sealed console (66.5,38.5). Two walking sentries genuinely detect by distance, forward-facing line of sight and physical walls. Quiet movement slows suspicion, sprint noise attracts them, and leaving sight recovers. Suspicion 100 or 155s timeout forces a retry. Once per run spend a part at the old bell (54.5,42.5) to redirect both sentries for 12s. Publish the missing names to open local safe recovery, or restore civilian paths for +0.35 Citadel speed.");
+                    "从星陨堡垒外环独立档案告示牌（54.5,38.5）潜入，取得北侧原始名册（60.5,36.5）与南侧证词（63.5,43.5），最终回到封存台（66.5,38.5）。两名移动夜巡依据真实距离、朝向和墙壁遮挡发现玩家，冲刺脚步更响，悄步能减少警戒增长；离开视线可恢复。155秒内警戒达到100会触发封锁重试。可在西南旧岗哨（54.5,42.5）消耗1备件引开巡逻12秒。结局可选择公开被抹除的平民姓名并建立安全恢复档案台、延长长夜救援15秒，或将安全归乡路线交给居民，增加堡垒移动速度并提高长夜救援的真实护送步速。",
+                    "Enter from the actual Citadel archive notice (54.5,38.5), secure the north register (60.5,36.5), then the southern witness statement (63.5,43.5), and finally reach the sealed console (66.5,38.5). Two walking sentries genuinely detect by distance, forward-facing line of sight and physical walls. Quiet movement slows suspicion, sprint noise attracts them, and leaving sight recovers. Suspicion 100 or 155s timeout forces a retry. Once per run spend a part at the old bell (54.5,42.5) to redirect both sentries for 12s. Publish missing names to open local safe recovery and grant 15 extra seconds to the real Blackout evacuation, or restore civilian paths for +0.35 Citadel speed and faster walking evacuees.");
                 q.steps.Add(new QuestStep(L("取得北侧原始名册","Recover northern missing-person register"),
                     SilentLedgerStage>=2||q.complete));
                 q.steps.Add(new QuestStep(L("取得南侧目击者供词","Recover southern eyewitness account"),
@@ -1039,10 +1039,10 @@ namespace Starfall
                 q.next=q.locked?L("先击败铁炉堡原守护者并抵达堡垒",
                     "Defeat the Ironreach guardian and reach the Citadel"):
                     q.complete?SilentLedgerPublic?
-                        L("失踪者名册公开 · 安全档案台可恢复生命与耐力",
-                            "Public register · safe archive console restores health and stamina"):
-                        L("巡路队取回归乡线 · 堡垒移动速度+0.35",
-                            "Safe routes returned · +0.35 Citadel movement speed"):
+                        L("失踪者名册公开 · 安全档案台恢复与长夜救援+15秒",
+                            "Public register · safe archive recovery and +15s Blackout evacuation"):
+                        L("巡路队取回归乡线 · 堡垒移速+0.35与撤离居民步速+0.7",
+                            "Safe routes returned · +0.35 Citadel speed and +0.7 evacuee walking"):
                     SilentLedgerActive?SilentLedgerObjective+" · "+
                         SilentLedgerTime.ToString("0")+"s"+
                         L(" · 警戒 "," · SUSPICION ")+SilentLedgerSuspicion.ToString("0"):

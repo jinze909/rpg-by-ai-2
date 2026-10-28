@@ -20,6 +20,10 @@ namespace Starfall
         public int BlackoutRescued { get { return blackoutRescued; } }
         public Point BlackoutFollowerPosition { get { return blackoutFollowerPosition; } }
         public float BlackoutFollowerHealth { get { return blackoutFollowerHealth; } }
+        // Only the public citizen route chart lets a physically walking
+        // evacuee move faster; original 5.8f speed remains on older saves.
+        public float BlackoutFollowerTravelSpeed
+        {get{return SilentLedgerRoutes?6.5f:5.8f;}}
         public bool LocalCeasefireEligible
         {
             get { return save.room==4 && Has("blackout_complete") &&
@@ -88,8 +92,8 @@ namespace Starfall
                         return true;
                     }
                     Dialog(o.name,o.en,
-                        "堡垒警报：三座星核被同一屏障占用，备用灯闪烁，平民被困在三条街。厄洛坚持屏障一旦关掉就会有人死。你可以亲自证明不用牺牲他们。\n\n在180秒内逐一找到三人，按E带上一个人，带回这座避难所按E交接。护送对象会沿真实路线跟随，跟不上时需要回头；延迟电弧会伤害你和身边的居民。失败可以免费重试，原有城堡决战不会因此锁死。",
-                        "Citadel alarm: three cores have been diverted into one shield. Emergency lamps are failing, and three civilians are trapped on different streets. Orrin insists that shutting down the shield means somebody must die.\n\nWithin 180 seconds, find each citizen, press E to escort, and physically return them one by one to this shelter. They really follow you, can fall behind, and delayed arcs can hurt both of you. Retries are free. The original finale route stays available.",
+                        "堡垒警报：三座星核被同一屏障占用，备用灯闪烁，平民被困在三条街。厄洛坚持屏障一旦关掉就会有人死。你可以亲自证明不用牺牲他们。\n\n在"+(SilentLedgerPublic?"195":"180")+"秒内逐一找到三人，按E带上一个人，带回这座避难所按E交接。护送对象会沿真实路线跟随，跟不上时需要回头；延迟电弧会伤害你和身边的居民。失败可以免费重试，原有城堡决战不会因此锁死。",
+                        "Citadel alarm: three cores have been diverted into one shield. Emergency lamps are failing, and three civilians are trapped on different streets. Orrin insists that shutting down the shield means somebody must die.\n\nWithin "+(SilentLedgerPublic?"195":"180")+" seconds, find each citizen, press E to escort, and physically return them one by one to this shelter. They really follow you, can fall behind, and delayed arcs can hurt both of you. Retries are free. The original finale route stays available.",
                         C("启动第四章关键事件 · 长夜救援","Begin Chapter Four event · Blackout Evacuation","blackout_start"),
                         C("先准备一下","Prepare","close"));return true;
                 }
@@ -168,7 +172,7 @@ namespace Starfall
                 if(!BlackoutEligible || Has("blackout_complete") || blackoutActive ||
                     practicing || Dying || !SafeTravel || FieldWorkPreventsRest ||
                     !PhysicalRefugeReach(BlackoutPoint("blackoutshelter"),2.2001f))return true;
-                blackoutActive=true;blackoutTime=180;blackoutPulse=3.5f;
+                blackoutActive=true;blackoutTime=SilentLedgerPublic?195f:180f;blackoutPulse=3.5f;
                 blackoutSurgeTime=0;blackoutPulseIndex=0;
                 blackoutFollowing=blackoutRescued=0;
                 blackoutFollowerHealth=0;
@@ -270,7 +274,7 @@ namespace Starfall
                 float gap=to.Length;
                 if(gap>1.35f)
                 {
-                    Point step=to.Normalized*Math.Min((gap-1.1f),dt*5.8f);
+                    Point step=to.Normalized*Math.Min((gap-1.1f),dt*BlackoutFollowerTravelSpeed);
                     Point next=blackoutFollowerPosition+step;
                     if(CanStand(next) && ClearAttackPath(blackoutFollowerPosition,next))
                         blackoutFollowerPosition=next;
@@ -284,7 +288,7 @@ namespace Starfall
                         if(around.Length>.01f)
                         {
                             Point detour=blackoutFollowerPosition+
-                                around*Math.Min(gap-1.1f,dt*5.8f);
+                                around*Math.Min(gap-1.1f,dt*BlackoutFollowerTravelSpeed);
                             if(CanStand(detour)&&
                                 ClearAttackPath(blackoutFollowerPosition,detour))
                                 blackoutFollowerPosition=detour;
