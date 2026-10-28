@@ -184,6 +184,62 @@ namespace Starfall.Tests
                 "Distant sword attack cannot summon sentries or trigger a map-wide stealth alarm");
         }
 
+        public static void SilentLedgerPhysicalShutterTradesAudibleRiskForRealTemporaryCover(Campaign data)
+        {
+            var baseline=SilentLedgerStart(data);
+            Point first=baseline.SilentLedgerSentryPosition(0);
+            Point exposed=first+baseline.SilentLedgerSentryFacing(0)*4f;
+            Check(baseline.CanStand(exposed),"Sentry forward four-tile test is actual Citadel ground");
+            baseline.save.x=exposed.x;baseline.save.y=exposed.y;
+            baseline.Tick(.05f,new Point());
+            Check(baseline.SilentLedgerSuspicion>0f,
+                "A lit patrol visually detects a hero four cells ahead");
+
+            var g=SilentLedgerStart(data);
+            var shutter=SilentLedgerPost(g,"silentledger_shutter");
+            Check(g.CanStand(new Point(shutter.x,shutter.y)),
+                "New physical light control must sit on passable original Citadel ground");
+            SilentLedgerMoveTo(g,shutter);g.Talk(shutter);
+            int option=Array.FindIndex(g.conversation.choices,c=>c.action=="silentledger_shutter");
+            Check(option>=0,"Light control offers an actual live environmental stealth choice");
+            Point far=new Point(44.5f,50.5f);
+            Check(g.CanStand(far),"Stale shutter test uses reachable Citadel ground");
+            g.save.x=far.x;g.save.y=far.y;g.Choose(option);
+            Check(g.SilentLedgerDarkness==0f&&!g.SilentLedgerShutterUsed,
+                "Old distant shutter dialogue cannot remotely darken real guard lights");
+            SilentLedgerMoveTo(g,shutter);g.Talk(shutter);
+            Check(SilentLedgerChoice(g,"silentledger_shutter")&&
+                g.SilentLedgerShutterUsed&&g.SilentLedgerDarkness==22f,
+                "One physically reached shutter grants exactly 22 seconds of temporary concealment");
+            Check(g.SilentLedgerSentrySearchSeconds(0)>4f&&
+                g.SilentLedgerSentrySearchingSound(0)&&
+                (g.SilentLedgerSentrySearchTarget(0)-new Point(shutter.x,shutter.y)).Length<.01f,
+                "Audible copper latch actually dispatches the nearby patrolling sentry to its source");
+            Check(g.SilentLedgerSuspicion>0f,
+                "Opening the shutter incurs meaningful nearby guard alert instead of free invisibility");
+            float during=g.SilentLedgerSuspicion;
+            Point sentry=g.SilentLedgerSentryPosition(0);
+            Point facing=g.SilentLedgerSentryFacing(0);
+            Point cover=sentry+facing*4f;
+            Check(g.CanStand(cover),"Darkness vision test has real standable forward patrol ground");
+            g.save.x=cover.x;g.save.y=cover.y;
+            g.Tick(.05f,new Point(),null,false,true);
+            Check(g.SilentLedgerDarkness>21f&&g.SilentLedgerSuspicion<during,
+                "Four-tile quiet hero is no longer SEEN when the actual lamps are dimmed");
+            SilentLedgerMoveTo(g,shutter);g.Talk(shutter);
+            Check(!SilentLedgerChoice(g,"silentledger_shutter")&&
+                g.SilentLedgerShutterUsed,
+                "Metal shutter cannot be repeatedly spammed to refresh infinite darkness");
+            g.save.x=far.x;g.save.y=far.y;
+            for(int i=0;i<460;i++)g.Tick(.05f,new Point());
+            Check(g.SilentLedgerStage==1&&g.SilentLedgerDarkness==0f,
+                "Real world seconds restore light before mission timer expires");
+            g.PrepareSave();var reload=new GameCore(data,CloneSave(g.save));
+            Check(!reload.SilentLedgerActive&&reload.SilentLedgerDarkness==0f&&
+                reload.save.version==2,
+                "Light manipulation is transient and leaves legacy SaveData v2 unchanged");
+        }
+
         public static void SilentLedgerRestorationImprovesRealChapterFourCivilianEvacuation(Campaign data)
         {
             float[] followDistance=new float[3];

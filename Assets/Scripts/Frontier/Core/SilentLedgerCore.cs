@@ -7,7 +7,8 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int silentLedgerStage,silentLedgerSweep;
-        private float silentLedgerTime,silentLedgerSuspicion,silentLedgerDiversion;
+        private float silentLedgerTime,silentLedgerSuspicion,silentLedgerDiversion,silentLedgerDarkness;
+        private bool silentLedgerShutterUsed;
         private bool silentLedgerDecoyUsed;
         private Point silentLedgerLastHero;
         private Point[] silentLedgerSentries=new Point[2];
@@ -28,6 +29,8 @@ namespace Starfall
         public float SilentLedgerTime {get{return SilentLedgerActive?silentLedgerTime:0;}}
         public float SilentLedgerSuspicion {get{return SilentLedgerActive?silentLedgerSuspicion:0;}}
         public float SilentLedgerDiversion {get{return SilentLedgerActive?silentLedgerDiversion:0;}}
+        public float SilentLedgerDarkness {get{return SilentLedgerActive?silentLedgerDarkness:0;}}
+        public bool SilentLedgerShutterUsed {get{return SilentLedgerActive&&silentLedgerShutterUsed;}}
         public bool SilentLedgerCanDivert
         {get{return SilentLedgerActive&&!silentLedgerDecoyUsed&&save.inventory[4]>0;}}
         public Point SilentLedgerSentryPosition(int index)
@@ -56,8 +59,8 @@ namespace Starfall
         private void ResetSilentLedger()
         {
             silentLedgerStage=silentLedgerSweep=0;
-            silentLedgerTime=silentLedgerSuspicion=silentLedgerDiversion=0f;
-            silentLedgerDecoyUsed=false;
+            silentLedgerTime=silentLedgerSuspicion=silentLedgerDiversion=silentLedgerDarkness=0f;
+            silentLedgerDecoyUsed=silentLedgerShutterUsed=false;
             silentLedgerSentries[0]=silentLedgerA[0];
             silentLedgerSentries[1]=silentLedgerB[0];
             silentLedgerFacing[0]=new Point(1,0);
@@ -99,8 +102,8 @@ namespace Starfall
                 if(silentLedgerStage==0)
                 {
                     Dialog(o.name,o.en,
-                        "旧堡垒的名册刻意漏记了撤离的家庭。两名夜巡守卫在外墙来回走动，视线会被真实墙壁遮住。悄步移动能减轻被发现的速度；冲刺声会吸引他们。到北边取走被涂改的登记，再去南侧找目击者口供，最后潜入封存台公开真相。若被发现或倒计时结束，行动会撤回，可以免费重试。",
-                        "The old citadel erased evacuated families from the register. Two night sentries patrol the outer wall and see only through actual unblocked sightlines. Quiet walking reduces exposure; sprinting attracts them. Take the tampered north register, recover the southern eyewitness testimony, then reach the sealed console. Detection or timeout cancels this attempt; retries are free.",
+                        "旧堡垒的名册刻意漏记了撤离的家庭。两名夜巡守卫在外墙来回走动，视线会被真实墙壁遮住。悄步移动能减轻被发现的速度；冲刺声会吸引他们。东墙照明闸能暂时压低夜巡灯光，却会发出引来近处守卫的金属声。到北边取走被涂改的登记，再去南侧找目击者口供，最后潜入封存台公开真相。若被发现或倒计时结束，行动会撤回，可以免费重试。",
+                        "The old citadel erased evacuated families from the register. Two night sentries patrol the outer wall and see only through actual unblocked sightlines. Quiet walking reduces exposure; sprinting attracts them. The east-wall lighting shutter briefly dims patrol lanterns, but its metal latch can be heard by nearby sentries. Take the tampered north register, recover the southern eyewitness testimony, then reach the sealed console. Detection or timeout cancels this attempt; retries are free.",
                         C("潜入夺回名册","Infiltrate the sealed register","silentledger_start"),
                         C("稍后再说","Not yet","close"));return true;
                 }
@@ -144,6 +147,21 @@ namespace Starfall
                     "封存台的两枚证物槽还未全部亮起。必须亲自拿到名册与供词才能解锁。",
                     "Both physical evidence slots are not yet filled. Recover the register and testimony in person.",
                     C("检查封存状态","Inspect seal","close"));return true;
+            }
+            if(o.id=="silentledger_shutter")
+            {
+                if(SilentLedgerActive&&!silentLedgerShutterUsed)
+                {
+                    Dialog(o.name,o.en,
+                        "旧铜闸控制外墙巡灯。扳下后照明会暗22秒，夜巡看不远，却仍能听见脚步；金属闩声会让附近守卫赶来。每次行动只能操作一次。",
+                        "An old copper shutter powers the outer patrol lamps. Pulling it dims the lamps for 22 seconds; sentries lose distant sight but still hear footsteps. The loud latch draws any guard close enough to hear it. One use per infiltration.",
+                        C("扳下照明闸","Cut the patrol lamps","silentledger_shutter"),
+                        C("保留照明","Leave the lamps","close"));return true;
+                }
+                Dialog(o.name,o.en,
+                    "铜闸已落下，黑暗终究会过去。档案和巡路仍在等着人。",
+                    "The shutter is already down. The darkness will pass, and the records still need recovering.",
+                    C("离开","Leave","close"));return true;
             }
             if(o.id=="silentledger_decoy")
             {
@@ -206,6 +224,35 @@ namespace Starfall
                 silentLedgerStage=3;revision++;sound="quest";
                 Notify("两份证据已经吻合。潜入东侧控制台公开记录。",
                     "The two accounts agree. Reach the east console before the sentries detect you.");
+                return true;
+            }
+            if(action=="silentledger_shutter")
+            {
+                if(source.id!="silentledger_shutter"||!SilentLedgerActive||
+                    silentLedgerShutterUsed)return true;
+                silentLedgerShutterUsed=true;silentLedgerDarkness=22f;
+                // A loud physical latch: only sentries within sound range
+                // and a real unobstructed line can investigate its foot.
+                // Do not give the guards knowledge through distant walls.
+                bool latchHeard=false;
+                Point latch=new Point(source.x,source.y);
+                for(int i=0;i<2;i++)
+                    if((silentLedgerSentries[i]-latch).Length<7f&&
+                        ClearAttackPath(silentLedgerSentries[i],latch))
+                    {
+                        latchHeard=true;
+                        if(silentLedgerDiversion<=0f)
+                        {
+                            silentLedgerSearchTarget[i]=latch;
+                            silentLedgerSearchSeconds[i]=4.6f;
+                            silentLedgerSoundSearch[i]=true;
+                        }
+                    }
+                if(latchHeard)
+                    silentLedgerSuspicion=Math.Min(100f,silentLedgerSuspicion+8f);
+                revision++;sound="quest";
+                Notify("巡灯熄暗22秒！附近守卫听到闸声正在搜查；黑暗不会遮掩脚步声。",
+                    "Patrol lights dim for 22 seconds! Nearby guards heard the latch; darkness cannot hide footsteps.");
                 return true;
             }
             if(action=="silentledger_decoy")
@@ -280,7 +327,9 @@ namespace Starfall
             Point offset=Position-sentry;
             float distance=offset.Length;
             if(distance<.001f)return true;
-            if(distance>(QuietStepping?3.45f:6.2f)||
+            float sightRange=silentLedgerDarkness>0f?
+                (QuietStepping?2f:2.8f):(QuietStepping?3.45f:6.2f);
+            if(distance>sightRange||
                 !CanStand(sentry)||!CanStand(Position)||
                 !ClearAttackPath(sentry,Position))return false;
             Point facing=silentLedgerFacing[index];
@@ -314,6 +363,8 @@ namespace Starfall
             silentLedgerLastHero=Position;
             if(silentLedgerDiversion>0f)
                 silentLedgerDiversion=Math.Max(0f,silentLedgerDiversion-dt);
+            if(silentLedgerDarkness>0f)
+                silentLedgerDarkness=Math.Max(0f,silentLedgerDarkness-dt);
             for(int i=0;i<2;i++)
             {
                 silentLedgerSearchSeconds[i]=Math.Max(0f,
