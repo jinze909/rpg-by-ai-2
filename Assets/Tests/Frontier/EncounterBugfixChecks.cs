@@ -790,17 +790,24 @@ namespace Starfall.Tests
                 guard.stun=100f;guard.timer=100f;
                 g.enemies.Add(guard);
                 float health=guard.hp;
+                g.sounds.Clear();
                 g.ThrowPebble(new Point(1,0));
                 Check(g.projectiles.Exists(p=>p.visual=="pebble"&&
                     p.source=="quietDecoy"&&p.damage==0)&&
                     g.save.energy==100f-GameCore.PebbleEnergyCost&&
-                    g.pebbleCooldown>0f,
-                    "World button releases a real non-damaging, stamina-paid projectile with its own cooldown");
+                    g.pebbleCooldown>0f&&
+                    new System.Collections.Generic.List<string>(g.sounds)
+                        .Contains("stoneThrow")&&
+                    !new System.Collections.Generic.List<string>(g.sounds)
+                        .Contains("stoneImpact"),
+                    "Actual launch queues a unique player sound without alerting the world before landing");
+                g.sounds.Clear();
                 g.ThrowPebble(new Point(1,0));
                 Check(g.projectiles.Count==1&&
                     g.save.energy==100f-GameCore.PebbleEnergyCost&&
-                    g.toast!=null&&g.toast.Contains("Pebble ready in"),
-                    "Cooldown refusal explains the real wait without extra projectiles or energy cost");
+                    g.toast!=null&&g.toast.Contains("Pebble ready in")&&
+                    g.sounds.Count==0,
+                    "Rejected cooldown cannot create a new launch cue, projectile or charge");
                 Advance(g,.72f);
                 Check(!g.projectiles.Exists(p=>p.visual=="pebble")&&
                     g.IsEnemyInvestigatingImpact(guard)&&
@@ -816,9 +823,11 @@ namespace Starfall.Tests
                 Check(g.save.version==2&&g.pebbleCooldown==0f,
                     "Transient decoy cooldown and alerts do not enter SaveData v2");
                 g.save.energy=3f;
+                g.sounds.Clear();
                 g.ThrowPebble(new Point(1,0));
                 Check(g.projectiles.Count==0&&g.save.energy==3f&&
-                    g.toast!=null&&g.toast.Contains("pebble needs 8"),
+                    g.toast!=null&&g.toast.Contains("pebble needs 8")&&
+                    g.sounds.Count==0,
                     "Insufficient energy refuses the actual throw with an actionable explanation");
                 g.enemies.Clear();
                 var blocked=new Enemy(99132,0,14.5f,12.5f,300f);

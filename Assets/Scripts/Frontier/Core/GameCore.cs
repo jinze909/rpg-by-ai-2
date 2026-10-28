@@ -1075,6 +1075,8 @@ namespace Starfall
             // foot, but only the later, physical LANDING lures guards.
             QuietStepping=false;
             projectiles.Add(pebble);
+            // Immediate player feedback, never a false guard-heard impact.
+            sound="stoneThrow";
             revision++;
         }
         public void Attack(Point direction)

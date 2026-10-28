@@ -283,6 +283,27 @@ public static class RuntimePolishChecks
             app.Game.mode = "world"; app.Game.save.music = true; app.Game.save.musicVolume = .2f; app.Game.save.effectsVolume = .6f; app.Game.save.ambienceVolume = .8f; app.Game.sounds.Clear(); effects.heard.Clear(); app.Game.sound = "hit"; app.Game.sound = "hit"; app.Game.sound = "quest"; audio.Update(app.Game, false, 2);
             var ambience = (AudioSource)typeof(FrontierAudio).GetField("ambience", Private).GetValue(audio);
             Check(effects.heard.Count == 2 && effects.heard.Contains("hit") && effects.heard.Contains("quest") && Math.Abs(effects.volume - .18f) < .001f && Math.Abs(ambience.volume - .48f) < .001f && music[0].volume + music[1].volume > 0, "Distinct cues survive together while repeated same-frame hits are bounded and channel volumes stay independent");
+            // Successful world release and later physical landing use two
+            // independent registered AudioSource clips (not generic UI audio).
+            app.Game.sounds.Clear();effects.heard.Clear();
+            app.Game.sound="stoneThrow";app.Game.sound="stoneImpact";
+            audio.Update(app.Game,false,.1f);
+            float[] throwSamples=AudioSynthesis.Event("stoneThrow");
+            float[] impactSamples=AudioSynthesis.Event("stoneImpact");
+            float throwPeak=0f;
+            foreach(float value in throwSamples)
+            {
+                Check(!float.IsNaN(value)&&!float.IsInfinity(value),
+                    "Original throwing sound has only valid PCM samples");
+                throwPeak=Math.Max(throwPeak,Math.Abs(value));
+            }
+            Check(effects.heard.Contains("stoneThrow")&&
+                effects.heard.Contains("stoneImpact")&&
+                effects.heard.Count==2&&
+                throwPeak>.025f&&throwPeak<1f&&
+                throwSamples.Length>AudioSynthesis.Rate/10&&
+                throwSamples.Length<impactSamples.Length,
+                "Production AudioSource plays a distinct audible throw then stone-contact sound");
             app.Game.save.music = false; audio.Update(app.Game, false, 2); Check(effects.volume == 0 && ambience.volume == 0 && !ambience.isPlaying && !music[0].isPlaying && !music[1].isPlaying, "Sound switch mutes and stops all looping channels");
             Console.WriteLine("PASS Runtime sound channel volumes, mute and multiple-event delivery (offline sources)");
 

@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneImpact", "ambush", "sentryAlarm", "wayfarerShout" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneThrow", "stoneImpact", "ambush", "sentryAlarm", "wayfarerShout" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -83,6 +83,7 @@ namespace Starfall
         {
             if (name == "step") return Footstep("grass", 0);
             if (name == "fishBite") return FishBite();
+            if (name == "stoneThrow") return StoneThrow();
             if (name == "stoneImpact") return StoneImpact();
             if (name == "ambush") return AmbushContact();
             if (name == "sentryAlarm") return SentryAlarm();
@@ -151,6 +152,25 @@ namespace Starfall
                 double envelope = Math.Min(1, seconds * 90) *
                     Math.Exp(-seconds * 17) * Math.Min(1, (.24 - seconds) * 90);
                 wave[i] = (float)((Math.Sin(bubblePhase) * .34 + filteredWater * .22) * envelope);
+            }
+            return wave;
+        }
+        // Original wrist-release swish, deliberately distinct from the
+        // later brittle impact. Only a valid throw emits this player cue;
+        // guards investigate the actual landing, not an input event.
+        // Deterministic PCM; no imported recording or Unity asset GUID.
+        private static float[] StoneThrow()
+        {
+            var wave=new float[(int)(Rate*.18f)];
+            var random=new Random(64109);
+            double filtered=0,phase=0;
+            for(int i=0;i<wave.Length;i++)
+            {
+                double t=i/(double)(wave.Length-1);
+                filtered+=((random.NextDouble()*2-1)-filtered)*.19;
+                phase+=2*Math.PI*(320+680*t)/Rate;
+                double envelope=Math.Sin(Math.PI*t)*Math.Min(1,t*40);
+                wave[i]=(float)((filtered*.20+Math.Sin(phase)*.095)*envelope);
             }
             return wave;
         }
