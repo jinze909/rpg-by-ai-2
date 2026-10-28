@@ -142,7 +142,7 @@ namespace Starfall
             }
             if(o.id=="silentledger_decoy")
             {
-                if(silentLedgerActive&&!silentLedgerDecoyUsed)
+                if(SilentLedgerActive&&!silentLedgerDecoyUsed)
                 {
                     Dialog(o.name,o.en,
                         "废弃岗哨还连着旧警铃。用一份备用零件能把声音引向这里12秒。守卫会真正改变巡路方向，但不会凭空消失，也不能借此跳过取证。",
