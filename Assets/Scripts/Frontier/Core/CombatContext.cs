@@ -467,10 +467,18 @@ namespace Starfall
         {
             if(!Finite(source.x)||!Finite(source.y)||
                !Finite(listener.x)||!Finite(listener.y)||
-               !CanStand(source)||!CanStand(listener))return false;
+               !CanStand(listener))return false;
             float straight=(listener-source).Length;
             if(!Finite(straight)||straight>radius)return false;
+            // Released arrows stop at the last LEGAL projectile point
+            // immediately beside stone, where an actor-sized footprint
+            // may not fit. The original clear physical sound ray still
+            // applies there: do not discard a genuine wall clang.
             if(ClearAttackPath(source,listener))return true;
+            // Only DETOURS need the actor-scale walkable source tile.
+            // A sealed wall cannot be bypassed through a sound location
+            // from which no footprint-aware route can legally start.
+            if(!CanStand(source))return false;
             List<Point> steps=NavigationPathFrom(source,listener,true);
             if(steps.Count==0)return false;
             Point last=source;
