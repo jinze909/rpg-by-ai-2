@@ -59,6 +59,9 @@ namespace Starfall
             // A meaningful sound-only investigation owns a distinct,
             // readable alert; actual visual acquisition supersedes it.
             public bool impactOnly;
+            // A real sprint footstep is distinct from a thrown pebble or
+            // physical projectile impact. Identity-owned, transient only.
+            public bool runningFootsteps;
             // A live patrol first approaches the actual wall impact, then
             // checks distinct near-side floor positions instead of freezing
             // at one point and staring into the wall. Search is per Enemy
@@ -82,6 +85,8 @@ namespace Starfall
         private SaveData enemyHitAlertSave;
         private MapData enemyHitAlertMap;
         private const float EnemyHitAlertSeconds=6f;
+        private const float SprintNoiseRadius=5.5f;
+        private float nextSprintNoise=.2f;
         private void EnsureEnemyHitAlertSession()
         {
             if(!System.Object.ReferenceEquals(enemyHitAlertSave,save)||
@@ -97,6 +102,7 @@ namespace Starfall
             enemyHitAlert.Clear();
             enemyHitAlertSave=null;
             enemyHitAlertMap=null;
+            nextSprintNoise=.2f;
         }
         private void NotifyEnemyOfActualDistantPlayerHit(Enemy e,ImpactProfile impact)
         {
@@ -383,6 +389,7 @@ namespace Starfall
             {
                 alert.lastKnown=Position;
                 alert.impactOnly=false;
+                alert.runningFootsteps=false;
                 alert.remaining=Math.Max(alert.remaining,EnemyHitAlertSeconds);
                 if(e.stun<=0f&&e.hitTime<=0f&&
                    e.releaseTime<=0f&&e.state!=1)
@@ -503,6 +510,76 @@ namespace Starfall
                 distance+(listener-last).Length<=radius;
         }
 
+        // Sprinting is a real noisy tactical tradeoff, not just a speed
+        // buff. Only a genuinely translated full-body sprint gait emits
+        // footsteps, after a short sustained run, and at most once per
+        // 550ms. Use the same limited, strict acoustic path as a stone.
+        // Collision-stalled Shift, dash, recoil, quiet walking, menus and
+        // combat windup do not fabricate footsteps. No SaveData field.
+        private void TickSprintFootstepNoise(float dt)
+        {
+            if(!Sprinting||mode!="world"||practicing||Dying||
+               !CanStand(Position))
+            {
+                nextSprintNoise=.2f;
+                return;
+            }
+            nextSprintNoise-=Math.Max(0f,dt);
+            if(nextSprintNoise>0f)return;
+            nextSprintNoise=.55f;
+            EnsureEnemyHitAlertSession();
+            foreach(Enemy guard in enemies)
+            {
+                if(!PatrolCanHearSprintFootstep(guard,Position))
+                    continue;
+                EnemyHitAlert alert;
+                if(enemyHitAlert.TryGetValue(guard,out alert))
+                {
+                    // Genuine weapon/sight alarms and existing committed
+                    // attacks always outrank a running player's footsteps.
+                    if(!alert.impactOnly&&!alert.returning)continue;
+                    // A footstep at the same spot cannot endlessly refresh
+                    // an old investigation while the runner is stuck.
+                    if(!alert.returning&&
+                       (alert.lastKnown-Position).Length<1.25f)continue;
+                    alert.returning=false;
+                    alert.impactOnly=true;
+                    alert.runningFootsteps=true;
+                    alert.lastKnown=Position;
+                    alert.remaining=2.6f;
+                    alert.searchStep=-1;
+                    alert.whistleRemaining=0f;
+                }
+                else
+                {
+                    alert=new EnemyHitAlert(2.6f,Position,true,
+                        guard.Position);
+                    alert.runningFootsteps=true;
+                    enemyHitAlert[guard]=alert;
+                }
+                effects.Add(new Effect("number",guard.Position,.75f,
+                    L("听到奔跑脚步","HEARD RUNNING")));
+            }
+        }
+        private bool PatrolCanHearSprintFootstep(Enemy guard,Point foot)
+        {
+            return guard!=null&&guard.hp>0f&&!guard.boss&&
+                guard.state!=1&&
+                !ArrowSoundCannotOverrideObjective(guard)&&
+                !patrolsThatSawHero.Contains(guard)&&
+                CanStand(guard.Position)&&CanStand(foot)&&
+                (guard.Position-foot).Length<=SprintNoiseRadius&&
+                AudibleAlongWorld(foot,guard.Position,SprintNoiseRadius)&&
+                !ImpactSearchGuardSeesHero(guard);
+        }
+        public bool IsEnemyInvestigatingFootsteps(Enemy guard)
+        {
+            EnemyHitAlert alert;
+            return IsEnemyInvestigatingImpact(guard)&&
+                enemyHitAlert.TryGetValue(guard,out alert)&&
+                alert.runningFootsteps;
+        }
+
         private void InvestigateRealArrowWallImpact(Projectile shot)
         {
             if(shot==null||!shot.friendly||shot.explosive||
@@ -548,6 +625,7 @@ namespace Starfall
                     {
                         alert.returning=false;
                         alert.impactOnly=true;
+                        alert.runningFootsteps=false;
                         alert.lastKnown=soundFoot;
                         alert.remaining=3.5f;
                         alert.searchStep=-1;
@@ -563,6 +641,7 @@ namespace Starfall
                         (alert.lastKnown-soundFoot).Length<1.25f)
                         continue;
                     alert.lastKnown=soundFoot;
+                    alert.runningFootsteps=false;
                     alert.remaining=3.5f;
                     alert.searchStep=-1;
                     effects.Add(new Effect("number",enemy.Position,.75f,
@@ -627,6 +706,7 @@ namespace Starfall
                        (alert.lastKnown-launchFoot).Length<1.25f)continue;
                     alert.returning=false;
                     alert.impactOnly=true;
+                    alert.runningFootsteps=false;
                     alert.lastKnown=launchFoot;
                     alert.remaining=2f;
                     alert.searchStep=-1;
@@ -674,6 +754,7 @@ namespace Starfall
                        (alert.lastKnown-soundFoot).Length<1.25f)
                         continue;
                     alert.returning=false;alert.impactOnly=true;
+                    alert.runningFootsteps=false;
                     alert.lastKnown=soundFoot;alert.remaining=3.5f;
                     alert.searchStep=-1;alert.whistleRemaining=0f;
                 }

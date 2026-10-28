@@ -423,6 +423,59 @@ namespace Starfall.Tests
             }
             finally{data.maps[1]=original;}
         }
+        public static void ActualSprintFootstepsTriggerOnlyPhysicalSoundInvestigations(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var g=SprintTestWorld(data);
+                g.save.x=8.5f;g.save.y=15.5f;
+                // Actual opaque stone hides a runner from direct sight,
+                // while the open rows above/below permit audible detours.
+                char[] wall=g.Map.rows[15].ToCharArray();
+                wall[11]='#';g.Map.rows[15]=new string(wall);
+                var guard=new Enemy(998081,0,13.5f,15.5f,100f);
+                guard.timer=100f;
+                g.enemies.Add(guard);
+                for(int i=0;i<4;i++)g.Tick(.05f,new Point(1,0),null,true);
+                Check(g.Sprinting&&g.CanStand(g.Position)&&
+                    g.IsEnemyInvestigatingFootsteps(guard),
+                    "Genuine 200ms sprint behind opaque but navigable cover alerts the actual living listener");
+                Check(g.IsEnemyInvestigatingImpact(guard)&&
+                    !g.QuietStepping&&g.save.version==2,
+                    "Footsteps reuse transient physical sound-search rather than new persistent aggro");
+                // A completely sealed long wall does not carry running
+                // noise, despite deceptively short Euclidean proximity.
+                var sealed=SprintTestWorld(data);
+                sealed.save.x=8.5f;sealed.save.y=15.5f;
+                for(int y=2;y<36;y++)
+                {
+                    char[] barrier=sealed.Map.rows[y].ToCharArray();
+                    barrier[11]='#';sealed.Map.rows[y]=new string(barrier);
+                }
+                var unheard=new Enemy(998082,0,13.5f,15.5f,100f);
+                unheard.timer=100f;sealed.enemies.Add(unheard);
+                for(int i=0;i<4;i++)
+                    sealed.Tick(.05f,new Point(1,0),null,true);
+                Check(sealed.Sprinting&&!sealed.IsEnemyInvestigatingFootsteps(unheard),
+                    "A closed, island-separating wall does not leak real footstep noise");
+                // The same blocked runner cannot keep manufacturing
+                // footsteps through an ordinary sealed actor footprint.
+                for(int i=0;i<15;i++)
+                    sealed.Tick(.05f,new Point(1,0),null,true);
+                Check(!sealed.Sprinting&&!sealed.IsEnemyInvestigatingFootsteps(unheard),
+                    "A stationary runner pushing into a wall emits no fictional patrol sounds");
+                var quiet=SprintTestWorld(data);
+                quiet.enemies.Add(new Enemy(998083,0,13.5f,15.5f,100f));
+                for(int i=0;i<6;i++)
+                    quiet.Tick(.05f,new Point(1,0),null,false,true);
+                Check(quiet.QuietStepping&&!quiet.IsEnemyInvestigatingFootsteps(
+                    quiet.enemies[0]),
+                    "Authentic Ctrl-slow steps never trigger the sprint-only sound investigation");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void StationaryOrWalledSprintCannotConsumeEnergy(Campaign data)
         {
             MapData original=data.maps[1];

@@ -927,6 +927,9 @@ namespace Starfall
             ValidateActionProfile();
             TickMovement(dt, movement, explicitAim, hitLockedDt,
                 sprintHeld,quietHeld);
+            // Only paid, physically translated sprint steps can make
+            // an ordinary guard hear the hero around short open corners.
+            TickSprintFootstepNoise(dt);
             TickLocalWaymark(dt);
             // An UNRELEASED action is planted through hit recoil. Only
             // the unlocked remainder may advance its contact/damage clock;
