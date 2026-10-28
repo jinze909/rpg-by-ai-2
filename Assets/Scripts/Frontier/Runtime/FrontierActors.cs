@@ -1241,6 +1241,8 @@ namespace Starfall
                     returnBlocked?Game.L("哨位封闭 · 等待道路","POST BLOCKED · WAITING"):
                     returning?Game.L("返回原哨位","RETURNING"):
                     lastSight?Game.L("追查最后目击点","LAST SEEN"):
+                    Game.IsEnemyInvestigatingFootsteps(e)?
+                        Game.L("追查奔跑脚步","RUNNING HEARD"):
                     Game.IsEnemySweepingImpact(e)?
                         Game.L("搜索声源附近","SEARCHING"):
                         Game.L("调查异响","INVESTIGATING"),
