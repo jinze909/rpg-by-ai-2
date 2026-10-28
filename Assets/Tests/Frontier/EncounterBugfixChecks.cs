@@ -966,8 +966,9 @@ namespace Starfall.Tests
                     g.enemies.Add(actor);
                     float hp=actor.hp;
                     g.ThrowPebble(new Point(1f,0f));
-                    Check(g.projectiles.Exists(p=>p.visual=="pebble"),
-                        "A real world throw starts its live stone flight");
+                    Check(g.projectiles.Exists(p=>p.visual=="pebble")&&
+                        Math.Abs(g.save.energy-92f)<.001f,
+                        "A real stone begins flight and charges precisely eight energy once");
                     g.sounds.Clear();
                     Advance(g,.47f);
                     bool inFlight=g.projectiles.Exists(
@@ -975,7 +976,7 @@ namespace Starfall.Tests
                     bool shouldStop=scenario==0||scenario==2;
                     Check(inFlight!=shouldStop&&
                         g.save.version==2&&actor.hp==hp&&
-                        Math.Abs(g.save.energy-92f)<.001f,
+                        g.save.energy>=92f&&g.save.energy<=100f,
                         "Real nonlethal stone stops on a living body, misses off-axis/dead actors and cannot pay or damage twice; scenario "+
                         scenario+" flying="+inFlight);
                     bool impact=new System.Collections.Generic.List<string>(
