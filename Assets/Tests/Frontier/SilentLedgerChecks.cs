@@ -190,6 +190,27 @@ namespace Starfall.Tests
                 "Distant sword attack cannot summon sentries or trigger a map-wide stealth alarm");
         }
 
+        public static void SilentLedgerGenuineVisualContactOutranksSimultaneousWeaponNoise(Campaign data)
+        {
+            var g=SilentLedgerStart(data);
+            Point guard=g.SilentLedgerSentryPosition(0);
+            Point face=g.SilentLedgerSentryFacing(0);
+            Point hero=guard+face*1.5f;
+            Check(g.CanStand(hero),
+                "Visible combat-noise case uses real, unobstructed forward Citadel ground");
+            g.save.x=hero.x;g.save.y=hero.y;
+            g.Attack(new Point(1f,0f));
+            Check(g.playerAction!=null&&!g.playerAction.released,
+                "A real sword windup must overlap the guard's physical sight");
+            g.Tick(.05f,new Point());
+            Check(g.SilentLedgerSuspicion>0f&&
+                g.SilentLedgerSentrySearchSeconds(0)>0f&&
+                !g.SilentLedgerSentrySearchingSound(0)&&
+                (g.SilentLedgerSentrySearchTarget(0)-
+                    new Point(g.save.x,g.save.y)).Length<.01f,
+                "A genuine live visual sighting keeps LAST SEEN authority even during the same-frame weapon noise");
+        }
+
         public static void SilentLedgerOrdinaryPebbleReallyLuresSentriesAtItsPhysicalImpact(Campaign data)
         {
             var g=SilentLedgerStart(data);

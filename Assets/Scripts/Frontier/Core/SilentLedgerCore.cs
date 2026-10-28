@@ -487,8 +487,12 @@ namespace Starfall
                         ClearAttackPath(silentLedgerSentries[i],Position))
                     {
                         attackHeard=true;
-                        if(silentLedgerDiversion<=0f)
+                        if(silentLedgerDiversion<=0f&&!seenBy[i])
                         {
+                            // Actual eyewitness evidence outranks the
+                            // simultaneous clang of the hero's attack.
+                            // A seen attacker is chased as LAST SEEN,
+                            // never mislabeled as an anonymous noise.
                             silentLedgerSearchTarget[i]=Position;
                             silentLedgerSearchSeconds[i]=Math.Max(
                                 silentLedgerSearchSeconds[i],4.2f);
