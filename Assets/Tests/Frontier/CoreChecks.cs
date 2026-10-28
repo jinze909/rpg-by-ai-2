@@ -3336,6 +3336,61 @@ namespace Starfall.Tests
                 "Final chapter milestone survives SaveData v2 serialization");
         }
 
+
+        public static void SignalRelayPublicChronicleEpilogueChangesRealOutdoorRecovery(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.room=9;
+            WorldObject archive=Array.Find(g.Map.objects,
+                o=>o.kind=="annexinnarchive");
+            Check(archive!=null,"The public signal epilogue is staged at the existing Hearth Inn");
+            g.save.x=archive.x;g.save.y=archive.y;
+            for(int room=0;room<7;room++)
+                g.save.flags.Add("annex_relay_done_"+room);
+            g.save.flags.Add("annex_relay_all");
+            int oldCoins=g.save.coins,oldShards=g.save.shards;
+            var invoke=typeof(GameCore).GetMethod("ChooseAnnexExploration",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(invoke!=null,"Actual civic chronicle action handler exists");
+            invoke.Invoke(g,new object[]{"annex_relay_archive"});
+            Check(!g.Has("annex_relay_archived")&&g.save.coins==oldCoins,
+                "Neither fabricated archive action nor seven-of-eight relays produce an ending");
+            g.Talk(archive);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_archive")<0,
+                "Seven field replies do not display a completed epilogue");
+            g.Close();g.save.flags.Add("annex_relay_done_7");
+            g.Talk(archive);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_archive");
+            Check(option>=0,"Eight verified return replies open a real final inn scene");
+            g.Choose(option);
+            Check(g.Has("annex_relay_archived")&&
+                g.save.coins==oldCoins+80&&g.save.shards==oldShards+3&&
+                g.conversation!=null&&g.conversation.textEn.Contains("Rain taps"),
+                "In-person final act presents authored bilingual story and pays once");
+            g.Close();invoke.Invoke(g,new object[]{"annex_relay_archive"});
+            Check(g.save.coins==oldCoins+80&&g.save.shards==oldShards+3,
+                "Replayed synthetic calls cannot claim a second epilogue reward");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.Has("annex_relay_archived")&&loaded.save.version==2,
+                "The concluding civic story persists through the original v2 save schema");
+            loaded.save.room=0;loaded.enemies.Clear();
+            loaded.save.x=18f;loaded.save.y=15f;
+            loaded.mode="world";loaded.save.energy=20f;
+            loaded.save.flags.Remove("annex_relay_archived");
+            loaded.Tick(.05f,new Point());
+            float original=loaded.save.energy-20f;
+            loaded.save.energy=20f;
+            loaded.save.flags.Add("annex_relay_archived");
+            loaded.Tick(.05f,new Point());
+            float improved=loaded.save.energy-20f;
+            Check(Math.Abs((improved-original)-.1f)<.011f,
+                "Epilogue awards an actual +2 stamina-per-second outdoor gameplay benefit");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)

@@ -349,8 +349,10 @@ namespace Starfall
                     "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+"/8。"+
-                    (Has("annex_relay_all")?
-                        "\n\n八地烽火都收到回讯：技能点 +1。":
+                    (Has("annex_relay_archived")?
+                        "\n\n《归途回声》已经存入旅店的公共史册。户外耐力恢复永久 +2/秒。":
+                        Has("annex_relay_all")?
+                        "\n\n八地烽火都收到回讯：技能点 +1。带着这些回执回旅店完成最后的记录。":
                         CampSignalNetworkPublished?
                         "\n\n信号网已公开。现在可在各地营地接取限时往返传讯，带回远处高地的真实回执。":"")+
                     (CampSignalNetworkPublished?
@@ -364,8 +366,10 @@ namespace Starfall
                     "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+"/8."+
-                    (Has("annex_relay_all")?
-                        "\n\nAll eight dispatches confirmed: +1 talent point.":
+                    (Has("annex_relay_archived")?
+                        "\n\nHomeward Echoes is now part of the public chronicle. Outdoor stamina recovery is permanently +2/s.":
+                        Has("annex_relay_all")?
+                        "\n\nAll eight dispatches confirmed: +1 talent point. Return the replies to the Inn for a final public account.":
                         CampSignalNetworkPublished?
                         "\n\nThe public network now offers timed two-way dispatches at the eight real outdoor camps.":"")+
                     (CampSignalNetworkPublished?
@@ -381,6 +385,9 @@ namespace Starfall
                     signals==8&&!CampSignalNetworkPublished?
                         C("公开八地守火信号","Publish eight signal fires","annex_signal_publish"):
                         C("继续核对守火","Keep tracing signals","close"),
+                    Has("annex_relay_all")&&!Has("annex_relay_archived")?
+                        C("提交八地回执 · 归途回声","File eight replies · Homeward Echoes","annex_relay_archive"):
+                        C("查看公开回执","Read public replies","close"),
                     C("继续旅程","Keep exploring","close"));
                 return true;
             }
@@ -483,6 +490,32 @@ namespace Starfall
         }
         private bool ChooseAnnexExploration(string action)
         {
+            if(action=="annex_relay_archive")
+            {
+                WorldObject archive=pendingDialogueSource;
+                if(save.room!=9||mode!="world"||Dying||practicing||
+                    !Has("annex_relay_all")||SignalRelayDoneCount!=8||
+                    Has("annex_relay_archived")||
+                    archive==null||archive.kind!="annexinnarchive"||
+                    pendingDialogueSourceRoom!=9||
+                    !SourceBelongsToActiveMap(archive)||
+                    !HasPhysicalInteractionReach(archive))return true;
+                Flag("annex_relay_archived");
+                CreditCoins(80);CreditShards(3);
+                RecordMoment(
+                    "炉火旅店里，值夜的记录员把八张浸湿的回执压平。有人问：那些还在路上的人都回家了吗？她没有敷衍，只把一盏小灯移到未写完的那一栏，说：还没有，但现在我们知道该往哪里去接他们。",
+                    "At the Hearth Inn the night recorder smooths eight rain-soaked replies. Someone asks if every traveler is home. She moves a lamp beside the unfinished names: Not yet. But now we know where to meet them.");
+                revision++;sound="reward";
+                Dialog("归途回声 · 公共史册","Homeward Echoes · Public Chronicle",
+                    "窗外的雨落在旧路牌上。有人轻轻擦净上面的名字，谁也没有喊口号。八地的水尺、风铃、矿铃和灯火，终于指向同一件事：还没回来的人，不该从地图上消失。"+
+                    "\n\n记录员在最后一页盖上公共印记，又把纸递给门边的旅人，让他也抄一份。"+
+                    "\n\n终章奖励：硬币 +80、碎片 +3。往后在八个户外地区，耐力恢复永久 +2/秒。",
+                    "Rain taps on the old wayfinding signs. Someone carefully wipes a name clean. Nobody makes a speech. Eight gauges, chimes, mine bells and fires now serve one promise: people still on the road must not disappear from a map."+
+                    "\n\nThe recorder stamps the public copy, then hands the page to a traveler by the door so he can copy it too."+
+                    "\n\nFinal reward: +80 coins, +3 shards. Stamina now regenerates +2/s throughout the eight outdoor regions.",
+                    C("收起公共史册","Close the public chronicle","close"));
+                return true;
+            }
             if(action=="annex_signal_publish")
             {
                 // Publication is a real in-person conversation with the

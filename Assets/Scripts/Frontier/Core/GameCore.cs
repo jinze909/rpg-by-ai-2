@@ -929,6 +929,9 @@ namespace Starfall
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
+                // Real completion of eight two-way civilian dispatches
+                // improves long-distance outdoor stamina recovery only.
+                (save.room<8&&Has("annex_relay_archived") ? 2 : 0) +
                 (save.room<8 && (save.x>=36 || save.y>=24) &&
                     TrailCircuitComplete(save.room) ? 2 : 0) +
                 // Cleared outer watches grant a real, permanent local
