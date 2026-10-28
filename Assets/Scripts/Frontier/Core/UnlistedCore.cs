@@ -73,6 +73,31 @@ namespace Starfall
                 " (A "+(Has("unlisted_a_"+act)?"found":"missing")+
                 ", B "+(Has("unlisted_b_"+act)?"found":"missing")+
                 "), then reason at the distant original ridge marker.";}}
+        public bool UnlistedFieldObjectiveActive
+        {get{int act=UnlistedAct;return act>=0&&act<3&&
+            save.room==unlistedRegions[act]&&!UnlistedDone;}}
+        public string UnlistedFieldObjective
+        {get{if(!UnlistedFieldObjectiveActive)return "";
+            int act=UnlistedAct;
+            if(!Has("unlisted_a_"+act))
+                return L("核验第一份补给记录","VERIFY FIRST CACHE");
+            if(!Has("unlisted_b_"+act))
+                return L("核验第二份补给记录","VERIFY SECOND CACHE");
+            return L("前往高地路标推理","DEDUCE AT RIDGE MARKER");}}
+        public Point UnlistedFieldTarget
+        {get{
+            int act=UnlistedAct;
+            if(!UnlistedFieldObjectiveActive)return new Point();
+            string id=!Has("unlisted_a_"+act)?
+                "annex_cache_"+save.room+"_a":
+                !Has("unlisted_b_"+act)?
+                "annex_cache_"+save.room+"_b":
+                "ridge_route_"+save.room+"_"+unlistedRidgeSides[act];
+            foreach(WorldObject site in Map.objects)
+                if(site!=null&&site.id==id)
+                    return new Point(site.x,site.y);
+            return new Point();
+        }}
         private int UnlistedCachePart(WorldObject o)
         {
             int act=UnlistedAct;

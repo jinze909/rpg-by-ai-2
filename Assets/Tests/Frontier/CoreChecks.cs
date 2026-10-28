@@ -3743,6 +3743,9 @@ namespace Starfall.Tests
             {
                 int room=regions[act];g.save.room=room;
                 g.save.x=18.5f;g.save.y=15.5f;g.enemies.Clear();
+                Check(g.UnlistedFieldObjectiveActive&&
+                    g.UnlistedFieldObjective.Length>0,
+                    "Each active region provides a live investigation objective");
                 WorldObject a=Array.Find(g.Map.objects,
                     o=>o.id=="annex_cache_"+room+"_a");
                 WorldObject b=Array.Find(g.Map.objects,
@@ -3750,6 +3753,7 @@ namespace Starfall.Tests
                 WorldObject ridge=Array.Find(g.Map.objects,
                     o=>o.id=="ridge_route_"+room+"_"+ridgeSides[act]);
                 Check(a!=null&&b!=null&&ridge!=null&&
+                    (g.UnlistedFieldTarget-new Point(a.x,a.y)).Length<.001f&&
                     g.CanStand(new Point(a.x,a.y))&&
                     g.CanStand(new Point(b.x,b.y))&&
                     g.CanStand(new Point(ridge.x,ridge.y)),
@@ -3763,8 +3767,9 @@ namespace Starfall.Tests
                     c=>c.action=="unlisted_clue_a");
                 Check(inspect>=0,"First original cache offers its authentic evidence");
                 g.Choose(inspect);
-                Check(g.Has("unlisted_a_"+act)&&!g.Has("unlisted_b_"+act),
-                    "A single cache cannot fabricate its physically distinct partner clue");
+                Check(g.Has("unlisted_a_"+act)&&!g.Has("unlisted_b_"+act)&&
+                    (g.UnlistedFieldTarget-new Point(b.x,b.y)).Length<.001f,
+                    "A real first clue points to the distinct second cache");
                 g.save.x=ridge.x;g.save.y=ridge.y;g.Talk(ridge);
                 Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="unlisted_reason")<0,
@@ -3774,8 +3779,9 @@ namespace Starfall.Tests
                     c=>c.action=="unlisted_clue_b");
                 Check(inspect>=0,"The second original cache offers its independent clue");
                 g.Choose(inspect);
-                Check(g.Has("unlisted_b_"+act),
-                    "Second evidence persists in original v2 save flags");
+                Check(g.Has("unlisted_b_"+act)&&
+                    (g.UnlistedFieldTarget-new Point(ridge.x,ridge.y)).Length<.001f,
+                    "Both genuine clues redirect the world objective to the distant ridge");
                 g.save.x=ridge.x;g.save.y=ridge.y;g.Talk(ridge);
                 int wrong=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="unlisted_wrong");

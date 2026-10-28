@@ -499,6 +499,35 @@ namespace Starfall
                     " · "+Game.AfterglowTime.ToString("0")+"s"),
                     13,ink);
             }
+            // The Unlisted chapter tracks existing source-bound clues, not
+            // guessed routes through walls or invented task landmarks.
+            if(Game.mode=="world"&&Game.UnlistedFieldObjectiveActive&&
+                !drawingOutline)
+            {
+                Point objective=Game.UnlistedFieldTarget;
+                if(WorldDrawable(objective.x,objective.y,170f,170f))
+                {
+                    Ring(objective,.65f,mint,30);
+                    Point screen=ScreenPoint(objective);
+                    Text(screen.x-114f,screen.y-85f,228f,19f,
+                        Game.UnlistedFieldObjective,11,mint,
+                        TextAnchor.MiddleCenter);
+                }
+                Point bearing=objective-Game.Position;
+                string east=Game.L(bearing.x>=0f?"东":"西",
+                    bearing.x>=0f?"E":"W");
+                string south=Game.L(bearing.y>=0f?"南":"北",
+                    bearing.y>=0f?"S":"N");
+                Text(35,177,480,23,
+                    Game.L("未列名者 · ","THE UNLISTED · ")+
+                    Game.UnlistedFieldObjective,13,mint);
+                Text(35,201,480,20,
+                    Game.L("直线方位 ","BEARING ONLY ")+
+                    east+Math.Abs(bearing.x).ToString("0")+" · "+
+                    south+Math.Abs(bearing.y).ToString("0")+
+                    " · "+bearing.Length.ToString("0")+
+                    Game.L(" 格"," tiles"),11,mint);
+            }
             // Scene-connected visual of the live paid field defense. These
             // tiny edge sparks describe real wall-clipped projectile reach;
             // they never impersonate a newly accepted painted Sprite.
