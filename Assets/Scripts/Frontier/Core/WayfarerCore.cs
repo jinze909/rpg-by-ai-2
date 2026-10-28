@@ -36,9 +36,20 @@ namespace Starfall
         }
         public bool WayfarerDecoyCanSeeHero(Enemy enemy)
         {
-            return IsWayfarerDecoyTarget(enemy)&&
-                CanStand(Position)&&CanStand(enemy.Position)&&
-                ClearAttackPath(enemy.Position,Position);
+            if(!IsWayfarerDecoyTarget(enemy)||
+                !CanStand(Position)||!CanStand(enemy.Position))
+                return false;
+            // The shout grants a remembered *sound* foot, not an infinite
+            // vision beacon. Once the caller leaves ordinary patrol range,
+            // the raider searches its last actually witnessed foot.
+            float range=(Position-enemy.Position).Length;
+            if(!Finite(range)||range>8f)return false;
+            // Quiet movement uses the shipped sentry's physical facing/FOV
+            // and tighter acquisition range. A rear sneak must not instantly
+            // overwrite the remembered sound foot through 360-degree sight.
+            if(QuietStepping)
+                return range<=4f&&ImpactSearchGuardSeesHero(enemy);
+            return ClearAttackPath(enemy.Position,Position);
         }
         // True only for an exact alerted living raider whose ORIGINAL
         // remembered shout foot cannot currently be reached. This is

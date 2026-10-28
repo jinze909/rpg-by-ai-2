@@ -199,6 +199,74 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void TravelerShoutReacquiresOnlyRealRangeAndQuietFacing(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                string[] rows=new string[30];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,
+                    spawnX=12.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{
+                        new WorldObject{kind="wayfarer1",id="wayfarer1",
+                            x=10.5f,y=10.5f,name="旅人",en="Traveler"}},
+                    decor=new Decoration[0]};
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.Enter(1);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=10.5f;
+                Action(g,"wayfarer1","wayfarer_defend_1");
+                Check(g.WayfarerEncounterRoom==1,
+                    "Actual civilian starts the authentic rescue, not a stand-in sentry");
+                var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(raiders.Count==2,
+                    "Both original encounter enemy identities exist");
+                Enemy listener=raiders[0];
+                listener.x=15.5f;listener.y=10.5f;
+                listener.stun=100f;listener.timer=100f;
+                raiders[1].x=26.5f;raiders[1].y=26.5f;
+                raiders[1].stun=100f;
+                Check(g.QuickDrawWayfarerFire()&&
+                    g.IsWayfarerDecoyTarget(listener),
+                    "Player pays one real shout to alert the original nearby raider");
+                Point heard=g.Position;
+                var seek=typeof(GameCore).GetMethod("WayfarerDecoyPursuitFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(seek!=null,"Combat search retains its actual remembered-foot method");
+                // Open sky does not imply infinite sight. A guard that heard
+                // the hero cannot magically track them sixteen tiles away.
+                g.save.x=26.5f;g.save.y=10.5f;
+                Check(!g.WayfarerDecoyCanSeeHero(listener)&&
+                    ((Point)seek.Invoke(g,new object[]{listener})-heard).Length<.01f,
+                    "Far-away hero stays unknown despite uninterrupted sightline");
+                // Return to real nearby range, but approach quietly from
+                // behind the listening guard while it faces away.
+                g.save.x=12.5f;g.save.y=10.5f;
+                listener.Face(new Point(1,0));
+                g.Tick(.05f,new Point(-1f,0),null,false,true);
+                Check(g.QuietStepping&&
+                    !g.WayfarerDecoyCanSeeHero(listener)&&
+                    ((Point)seek.Invoke(g,new object[]{listener})-heard).Length<.01f,
+                    "Quiet rear approach cannot update the guard's remembered foot");
+                listener.Face(new Point(-1,0));
+                Check(g.WayfarerDecoyCanSeeHero(listener),
+                    "Quiet hero in authentic forward field of view is reacquired");
+                Point noticed=(Point)seek.Invoke(g,new object[]{listener});
+                Check((noticed-g.Position).Length<.01f&&
+                    g.save.version==2&&g.WayfarerDecoyTime>0f,
+                    "A real visual reacquisition updates pursuit without new saves or free shouts");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,
