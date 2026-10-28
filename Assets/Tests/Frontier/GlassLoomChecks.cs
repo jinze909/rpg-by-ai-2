@@ -247,5 +247,41 @@ namespace Starfall.Tests
             Check(LensChoice(g,"glassloom_capture")&&g.GlassLoomStage==3,
                 "Player can safely finish the actual night receiver contact after evading the sunbeam");
         }
+        public static void GlasswellPhysicalSolarBeamBlindsOrdinaryPursuersWithoutLootOrBossSpoof(Campaign data)
+        {
+            GameCore g=GlasswellReady(data);
+            GlasswellTuneAndFocus(g);
+            Check(g.GlassLoomBeamActive,
+                "The combat-useful real beam only exists after an authentic daylight circuit");
+            g.save.x=60.5f;g.save.y=50.5f;
+            var raider=new Enemy(88221,0,66.5f,50.5f,120f)
+                {timer=200f};
+            var guardian=new Enemy(88222,3,69.5f,50.5f,230f,true)
+                {timer=200f};
+            g.enemies.Add(raider);g.enemies.Add(guardian);
+            int kills=g.save.kills[6],coins=g.save.coins;
+            g.Tick(.05f,new Point());
+            Check(raider.hp==120f&&raider.stun>.75f&&
+                raider.armorOpenTime>.4f,
+                "A true ordinary patrol body inside the charged center ray is briefly blinded with an attack opening");
+            Check(guardian.hp==230f&&guardian.stun==0f,
+                "An existing regional Boss cannot be stunned or given fictional defeat credit by the civilian beam");
+            Check(g.save.kills[6]==kills&&g.save.coins==coins,
+                "Bright reflection creates a nonlethal defensive tactic, never a farmable kill/coin reward");
+            raider.stun=0f;raider.armorOpenTime=0f;
+            raider.x=66.5f;raider.y=50.5f;
+            g.Tick(.05f,new Point());
+            Check(raider.stun==0f,
+                "One body crossing a steady beam cannot be repeatedly stunned every rendered frame");
+            g.save.totalTime+=4.25f;
+            raider.x=66.5f;raider.y=50.5f;
+            g.Tick(.05f,new Point());
+            Check(raider.stun>.7f,
+                "After a genuine four-second recovery, an ordinary pursuer can be lured into a second real beam contact");
+            raider.stun=0f;g.save.totalTime=160f;
+            g.Tick(.05f,new Point());
+            Check(!g.GlassLoomBeamActive&&raider.stun==0f,
+                "Actual nightfall disables the beam's enemy-blinding physics as well as its player hazard");
+        }
     }
 }

@@ -19,6 +19,18 @@ namespace Starfall
         { get { return Has("glassloom_public")||Has("glassloom_private"); } }
         public bool GlassLoomPublic { get { return Has("glassloom_public"); } }
         public bool GlassLoomPrivate { get { return Has("glassloom_private"); } }
+        // The civilian inn chronicle reacts to the player's earned desert
+        // policy, not to a generic "quest completed" line.
+        private string GlassLoomInnNews(bool english)
+        {
+            if(!GlassLoomComplete)return "";
+            if(GlassLoomPublic)return english?
+                "\n\nTravelers from the Glasswind plateau brought a public sun chart: three real lenses and an old copper bell now point out the safe daylight road. The inn has pinned copies where any caravan can read them.":
+                "\n\n沙海商队带来了公开的日光路谱。三面实物透镜与一只旧铜铃找回真正的回家方向，旅店把副本张贴在人人可读的路牌上。";
+            return english?
+                "\n\nThe Glasswind families kept the private moon-lane diagram, instead of handing the military another list of places to search. The inn records the rescue without copying the hidden route.":
+                "\n\n沙海居民保留了隐蔽的月夜归路，不必再向军方交出可供追踪的路标。旅店记下救援经过，却不复制夜路坐标。";
+        }
         public int GlassLoomStage { get { return glassLoomStage; } }
         public float GlassLoomTime { get { return GlassLoomActive?glassLoomTime:0f; } }
         public Point GlassLoomTarget

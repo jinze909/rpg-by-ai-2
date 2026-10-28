@@ -971,7 +971,11 @@ namespace Starfall
                         if(o.id=="glassloom_mirror_"+(k+1))lens=k;
                 bool aligned=lens>=0&&Game.GlassLoomAligned(lens);
                 bool charged=Game.GlassLoomStage>=2||Game.GlassLoomComplete;
-                Color tint=charged?new Color(.60f,.90f,1f,1f):
+                Color tint=Game.GlassLoomPrivate&&Game.Night?
+                    new Color(.72f,.66f,1f,1f):
+                    Game.GlassLoomPublic&&!Game.Night?
+                    new Color(1f,.9f,.55f,1f):
+                    charged?new Color(.60f,.90f,1f,1f):
                     aligned?mint:Game.GlassLoomActive?gold:
                     new Color(.8f,.77f,.7f,1f);
                 PropImage(kind=="glassloommirror"?"crystal":
