@@ -6700,14 +6700,24 @@ namespace Starfall.Tests
                 "Original linked ridge uses two distinct real map marker objects");
             g.save.x=west.x;g.save.y=west.y;g.save.energy=95;
             float energy=g.save.energy;
-            var choose=typeof(GameCore).GetMethod("ChooseRidge",
-                System.Reflection.BindingFlags.Instance|
-                System.Reflection.BindingFlags.NonPublic);
-            Check(choose!=null,"Original world crossing has an authoritative action handler");
+            // Issue real marker dialogue/choice dispatch, including the
+            // authoritative source identity required by the travel action.
+            // Reflection-only calls bypass that contract and are not a
+            // playable crossing, even if the far end is safe.
+            Action<GameCore> choose = candidate =>
+            {
+                candidate.Talk(west);
+                Check(candidate.mode=="dialog"&&candidate.conversation!=null,
+                    "Reachable ridge marker opens a real dialogue");
+                int option=Array.FindIndex(candidate.conversation.choices,
+                    c=>c.action=="ridge_travel");
+                Check(option>=0,"The linked marker offers its live travel choice");
+                candidate.Choose(option);
+            };
             var shot=new Projectile{position=new Point(east.x,east.y),
                 velocity=new Point(1,0),damage=8,life=12,friendly=false,source="shot"};
             g.projectiles.Add(shot);
-            choose.Invoke(g,new object[]{"ridge_travel"});
+            choose(g);
             Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
                 g.save.energy==energy,
                 "Incoming live enemy projectile at the destination forbids unsafe remote travel");
@@ -6715,19 +6725,19 @@ namespace Starfall.Tests
             var warning=new Hazard{position=new Point(east.x,east.y),
                 radius=1.2f,timer=4f,damage=15,kind="rift"};
             g.hazards.Add(warning);
-            choose.Invoke(g,new object[]{"ridge_travel"});
+            choose(g);
             Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
                 g.save.energy==energy,
                 "A still-armed delayed blast at the landing also blocks ridge travel");
             g.hazards.Remove(warning);
             var enemy=new Enemy(92921,0,east.x+1,east.y,70){timer=90};
             g.enemies.Add(enemy);
-            choose.Invoke(g,new object[]{"ridge_travel"});
+            choose(g);
             Check((g.Position-new Point(west.x,west.y)).Length<.01f&&
                 g.save.energy==energy,
                 "An actual hostile defender at destination blocks shortcut traversal");
             g.enemies.Clear();
-            choose.Invoke(g,new object[]{"ridge_travel"});
+            choose(g);
             Check((g.Position-new Point(east.x,east.y)).Length<.01f&&
                 g.save.energy==energy-12,
                 "Once the far end is truly safe, the original paid crossing still works");
@@ -6745,7 +6755,7 @@ namespace Starfall.Tests
                 "The actual blacksmith opens a timed class-only projectile lesson");
             training.save.x=west.x;training.save.y=west.y;
             energy=training.save.energy;
-            choose.Invoke(training,new object[]{"ridge_travel"});
+            choose(training);
             Check(training.SwordLessonActive&&
                 (training.Position-new Point(west.x,west.y)).Length<.01f&&
                 training.save.energy==energy,
