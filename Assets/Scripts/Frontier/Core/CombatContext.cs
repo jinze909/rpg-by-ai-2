@@ -85,7 +85,10 @@ namespace Starfall
         private SaveData enemyHitAlertSave;
         private MapData enemyHitAlertMap;
         private const float EnemyHitAlertSeconds=6f;
-        private const float SprintNoiseRadius=5.5f;
+        // A hard sprint carries farther than a pebble throw, but only
+        // along the same genuine, footprint-reachable acoustic corridor.
+        // Seven-and-a-half tiles still cannot reach a sealed island.
+        private const float SprintNoiseRadius=7.5f;
         private float nextSprintNoise=.2f;
         private int recentSprintFootstepHearers;
         // Count only actual newly acquired listeners at the last live

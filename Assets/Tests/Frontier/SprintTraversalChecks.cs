@@ -438,11 +438,16 @@ namespace Starfall.Tests
                 guard.timer=100f;
                 g.enemies.Add(guard);
                 for(int i=0;i<4;i++)g.Tick(.05f,new Point(1,0),null,true);
-                Check(g.Sprinting&&g.CanStand(g.Position)&&
+                var hearing=typeof(GameCore).GetMethod("AudibleAlongWorld",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                bool acoustic=(bool)hearing.Invoke(g,new object[]{
+                    g.Position,guard.Position,7.5f});
+                Check(acoustic&&g.Sprinting&&g.CanStand(g.Position)&&
                     g.RecentSprintFootstepHearers==1&&
                     g.IsEnemyInvestigatingFootsteps(guard),
                     "Genuine 200ms sprint behind opaque but navigable cover alerts the actual living listener;"+
-                    " sprint="+g.Sprinting+" heard="+g.RecentSprintFootstepHearers+
+                    " acoustic="+acoustic+" sprint="+g.Sprinting+" heard="+g.RecentSprintFootstepHearers+
                     " foot="+g.Position.x.ToString("0.00")+","+
                     g.Position.y.ToString("0.00")+
                     " guard="+guard.Position.x.ToString("0.00")+","+
@@ -465,7 +470,9 @@ namespace Starfall.Tests
                 for(int i=0;i<4;i++)
                     isolated.Tick(.05f,new Point(1,0),null,true);
                 Check(isolated.Sprinting&&isolated.RecentSprintFootstepHearers==0&&
-                    !isolated.IsEnemyInvestigatingFootsteps(unheard),
+                    !isolated.IsEnemyInvestigatingFootsteps(unheard)&&
+                    !(bool)hearing.Invoke(isolated,new object[]{
+                        isolated.Position,unheard.Position,7.5f}),
                     "A closed, island-separating wall does not leak real footstep noise");
                 // The same blocked runner cannot keep manufacturing
                 // footsteps through an ordinary isolated actor footprint.
