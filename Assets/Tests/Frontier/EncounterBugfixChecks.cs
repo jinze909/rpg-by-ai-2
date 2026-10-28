@@ -597,23 +597,6 @@ namespace Starfall.Tests
                 Check(game.IsEnemyReturningFromImpact(sentry)&&
                     (sentry.Position-post).Length<farDistance-.025f,
                     "Visible but distant hero cannot steal a sound-decoy return or strand the guard");
-                // A crouching hero directly BEHIND a returning guard is
-                // also unseen, even with a totally open physical corridor.
-                // This runs the real stealth Tick and would fail if return
-                // logic still treated all 360-degree clear rays as sight.
-                Point quietRear=sentry.Position+new Point(-1.55f,0);
-                Check(game.CanStand(quietRear)&&
-                    (sentry.Position-quietRear).Length<4f&&
-                    (bool)sight.Invoke(game,new object[]{sentry.Position,quietRear}),
-                    "Real open ground supports a close rear stealth position");
-                game.save.x=quietRear.x;game.save.y=quietRear.y;
-                sentry.Face(new Point(1,0));
-                float quietReturnDistance=(sentry.Position-post).Length;
-                game.Tick(.02f,new Point(),null,false,true);
-                Check(game.QuietStepping&&
-                    game.IsEnemyReturningFromImpact(sentry)&&
-                    (sentry.Position-post).Length<quietReturnDistance,
-                    "Quiet unseen hero behind a real returning patrol cannot cancel its world-space return");
                 // A CLOSE hero behind genuine intervening stone is still
                 // hidden; mere geometric proximity must not cancel return.
                 string[] nearRows=(string[])game.Map.rows.Clone();
@@ -651,6 +634,75 @@ namespace Starfall.Tests
                     (sentry.Position-post).Length<.75f&&
                     game.save.version==2,
                     "A completed or expired return stops its transient marker and restores local patrol coverage without persistent v2 fields");
+            }
+            finally{data.maps[1]=previous;}
+        }
+
+        public static void QuietReturningSentryNeedsRealForwardSighting(Campaign data)
+        {
+            MapData previous=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] wall=rows[10].ToCharArray();
+                wall[8]=wall[19]='#';rows[10]=new string(wall);
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var game=Fresh(data);game.save.stage=3;
+                game.Enter(1);game.enemies.Clear();
+                game.mode="world";game.invulnerable=300f;
+                game.save.x=6.5f;game.save.y=10.5f;
+                var sentry=new Enemy(79825,0,16.5f,12.5f,200f);
+                sentry.timer=3f;game.enemies.Add(sentry);
+                Point post=sentry.Position;
+                // The original player arrow collides with stone. Its
+                // physical sound moves this same living patrol off-post.
+                game.projectiles.Add(new Projectile{
+                    friendly=true,visual="arrow",source="arrow",
+                    position=new Point(10.5f,10.5f),
+                    velocity=new Point(12f,0f),damage=5f,life=2f,
+                    impact=new ImpactProfile(1,0,1,0,0f,true,1,
+                        new Point(10.5f,10.5f))});
+                bool returning=false;
+                for(int i=0;i<280;i++)
+                {
+                    game.Tick(.02f,new Point());
+                    if(game.IsEnemyReturningFromImpact(sentry))
+                    {returning=true;break;}
+                }
+                Check(returning&&(sentry.Position-post).Length>.6f,
+                    "The real arrow lure must move this sentry before its world-space return");
+                Point rear=sentry.Position+new Point(-1.55f,0);
+                var ray=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(ray!=null&&game.CanStand(rear)&&
+                    (bool)ray.Invoke(game,new object[]{sentry.Position,rear}),
+                    "A crouched rear approach uses an actual unobstructed walking corridor");
+                game.save.x=rear.x;game.save.y=rear.y;
+                sentry.Face(new Point(1,0));
+                float before=(sentry.Position-post).Length;
+                game.Tick(.02f,new Point(),null,false,true);
+                Check(game.QuietStepping&&
+                    game.IsEnemyReturningFromImpact(sentry)&&
+                    (sentry.Position-post).Length<before&&
+                    game.save.version==2,
+                    "An unseen crouched hero directly behind a returning sentry cannot steal the guard's return intent");
+                // Switching to audible open movement at the same physical
+                // foot gives back the ordinary patrol's eight-tile notice.
+                // The quiet constraint must not make guards permanently blind.
+                game.Tick(.02f,new Point(),null,false,false);
+                Check(!game.IsEnemyReturningFromImpact(sentry)&&
+                    game.save.version==2,
+                    "The same nearby open hero properly interrupts a returning guard without changing save data");
             }
             finally{data.maps[1]=previous;}
         }
