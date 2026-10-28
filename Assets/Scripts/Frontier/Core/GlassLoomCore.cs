@@ -9,7 +9,9 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int glassLoomStage;
-        private float glassLoomTime;
+        private float glassLoomTime,glassLoomHeatClock;
+        public bool GlassLoomBeamActive
+        {get{return glassLoomStage==2&&!Night&&GlassLoomPathClear;}}
         private readonly int[] glassLoomRotations=new int[3];
         private static readonly int[] glassLoomCode={2,0,1};
         public bool GlassLoomActive { get { return glassLoomStage>0; } }
@@ -57,7 +59,8 @@ namespace Starfall
         }
         private void ResetGlassLoom()
         {
-            glassLoomStage=0;glassLoomTime=0;
+            glassLoomStage=0;glassLoomTime=glassLoomHeatClock=0;
+            hazards.RemoveAll(h=>h.glassLoomOwned);
             for(int i=0;i<3;i++)glassLoomRotations[i]=0;
         }
         private int GlassLoomMirrorIndex(WorldObject o)
@@ -255,7 +258,8 @@ namespace Starfall
                         "The three real lenses must read BLUE-CLEAR-COPPER under true daylight on an unobstructed beam path.");
                     return true;
                 }
-                glassLoomStage=2;revision++;sound="quest";
+                glassLoomStage=2;glassLoomHeatClock=.9f;
+                revision++;sound="quest";
                 RecordMoment("三面透镜在真实白昼接住光井的光，东侧铜杯开始等待夜归人的信号。",
                     "Three real lenses gathered Glasswell's sunlight; the eastern copper cup began waiting for a homing call after dark.");
                 Notify("白昼聚光完成！请亲自到东侧接收台等待真正的夜间。",
@@ -266,7 +270,8 @@ namespace Starfall
             {
                 if(source.id!="glassloom_receiver"||glassLoomStage!=2||
                     !Night||!GlassLoomPathClear)return true;
-                glassLoomStage=3;revision++;sound="reward";
+                glassLoomStage=3;hazards.RemoveAll(h=>h.glassLoomOwned);
+                revision++;sound="reward";
                 Notify("归光已从真实夜空收回！返回西侧光井决定居民共享的路线。",
                     "Homeward light captured at true night! Return to Glasswell to choose a civilian route.");
                 return true;
@@ -302,6 +307,35 @@ namespace Starfall
             if(save.room!=6||Dying||practicing)
             {
                 ResetGlassLoom();revision++;return;
+            }
+            // A successful daytime alignment creates a REAL exposed light
+            // corridor across the plateau until nightfall. The player can
+            // avoid it using the two walkable side lanes rather than
+            // suffering arbitrary map-wide damage. Each contact is a
+            // delayed, dodgeable glass-warning, never an instant hit.
+            if(glassLoomStage==2)
+            {
+                if(Night)
+                    hazards.RemoveAll(h=>h.glassLoomOwned);
+                else if(GlassLoomBeamActive)
+                {
+                    glassLoomHeatClock=Math.Max(0f,glassLoomHeatClock-dt);
+                    Point foot=Position;
+                    if(glassLoomHeatClock<=0f&&
+                        foot.x>=61.2f&&foot.x<=75.8f&&
+                        Math.Abs(foot.y-50.5f)<.48f&&CanStand(foot))
+                    {
+                        glassLoomHeatClock=3.35f;
+                        hazards.Add(new Hazard{
+                            position=foot,radius=.8f,timer=1.35f,
+                            damage=12f,kind="glass",glassLoomOwned=true});
+                        effects.Add(new Effect("number",foot,.7f,
+                            L("强光！离开中轴","SUNBEAM · MOVE OFF AXIS")));
+                        Notify("归光束正照亮平台中轴！侧边安全地面可以绕行，夜间光束会自然消散。",
+                            "The focused beam exposes the center lane. Use real side ground to pass; it fades at true nightfall.");
+                        revision++;
+                    }
+                }
             }
             glassLoomTime-=dt;
             if(glassLoomTime<=0f)

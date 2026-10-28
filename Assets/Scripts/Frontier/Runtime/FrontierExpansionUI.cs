@@ -501,6 +501,22 @@ namespace Starfall
                         Game.GlassLoomOrientation(2)+
                         Game.L(" · 目标 2—0—1"," · TARGET 2—0—1"),
                         12,ink);
+                if(Game.GlassLoomBeamActive)
+                {
+                    // Actual daytime center-line light, with walkable
+                    // adjacent sidesteps; never imply a map-wide aura.
+                    Color beam=new Color(.97f,.82f,.44f,.82f);
+                    for(int x=61;x<=75;x++)
+                    {
+                        Point glint=new Point(x+.5f,50.5f);
+                        if(WorldDrawable(glint.x,glint.y,70f,70f))
+                            Ring(glint,.18f,beam,12);
+                    }
+                    Text(35,465,530,23,
+                        Game.L("正午强光照射中轴 · 从旁边道路绕行",
+                            "SUNBEAM ON CENTER LANE · USE THE SIDE PATH"),
+                        11,beam);
+                }
                 if(Game.GlassLoomStage>=2)
                 {
                     Point[] ray={

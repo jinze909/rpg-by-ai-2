@@ -70,6 +70,7 @@ namespace Starfall.Tests
             {
                 GameCore g=GlasswellReady(data);
                 float baseDayDamage=g.Damage;
+                int startingLevel=g.save.level;
                 g.save.totalTime=160f;float baseNightSpeed=g.Speed;
                 g.save.totalTime=30f;
                 GlasswellTuneAndFocus(g);
@@ -95,8 +96,14 @@ namespace Starfall.Tests
                     g.save.coins==money+70&&g.GetQuest("glass_loom").complete,
                     "First-clear transaction grants precisely one of two permanent earned outcomes");
                 g.save.totalTime=30f;
-                Check(Math.Abs(g.Damage-(baseDayDamage+(publicRoad?3f:0f)))<.001f,
-                    "Public solar routing modifies the ACTUAL daytime desert damage formula");
+                // The award also grants 110 XP. Existing RPG level-ups
+                // add two base damage per level independently of the new
+                // +3 light-route boon; never confuse earned XP with the
+                // policy's direct combat modifier.
+                float earnedLevelDamage=(g.save.level-startingLevel)*2f;
+                Check(Math.Abs(g.Damage-(baseDayDamage+earnedLevelDamage+
+                    (publicRoad?3f:0f)))<.001f,
+                    "Public solar route modifies REAL daytime damage by +3 on top of normal XP-driven leveling");
                 g.save.totalTime=160f;
                 Check(Math.Abs(g.Speed-(baseNightSpeed+(publicRoad?0f:.5f)))<.001f,
                     "Private moon routing modifies the ACTUAL nighttime desert locomotion");
@@ -205,6 +212,40 @@ namespace Starfall.Tests
             Check(reload.save.trackedQuest=="glass_loom"&&reload.save.version==2&&
                 !reload.GlassLoomComplete&&!reload.GlassLoomActive,
                 "The genuine journal remains trackable after old-slot reload; no ghost light persists");
+        }
+        public static void GlasswellFocusedSunbeamMakesARealDodgeableCorridor(Campaign data)
+        {
+            GameCore g=GlasswellReady(data);
+            GlasswellTuneAndFocus(g);
+            Check(g.GlassLoomStage==2&&g.GlassLoomBeamActive,
+                "An aligned sunwell makes a genuine daylight beam, not an invisible scripted flag");
+            g.save.x=66.5f;g.save.y=50.5f;
+            Check(g.CanStand(g.Position),
+                "The exposed central beam crosses actual player-walkable desert tiles");
+            bool saw=false;
+            for(int i=0;i<90;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.hazards.Exists(h=>h.glassLoomOwned&&h.kind=="glass"&&
+                    h.damage==12f&&h.timer>0f))saw=true;
+            }
+            Check(saw,"Standing in the true sunbeam creates a delayed contact hazard with real damage and dodge time");
+            g.hazards.RemoveAll(h=>h.glassLoomOwned);
+            g.save.x=66.5f;g.save.y=49.5f;
+            Check(g.CanStand(g.Position),
+                "The lower-pressure side lane is physically traversable beside the lens line");
+            for(int i=0;i<110;i++)g.Tick(.05f,new Point());
+            Check(!g.hazards.Exists(h=>h.glassLoomOwned),
+                "Player stepping onto a genuine side lane avoids all solar beam contacts");
+            g.save.totalTime=160f;g.save.x=66.5f;g.save.y=50.5f;
+            g.Tick(.05f,new Point());
+            Check(g.Night&&!g.GlassLoomBeamActive&&
+                !g.hazards.Exists(h=>h.glassLoomOwned),
+                "Real nightfall extinguishes the beam and retires owned daylight hazards");
+            WorldObject receiver=LensSite(g,"glassloom_receiver");
+            g.save.x=receiver.x;g.save.y=receiver.y;g.Talk(receiver);
+            Check(LensChoice(g,"glassloom_capture")&&g.GlassLoomStage==3,
+                "Player can safely finish the actual night receiver contact after evading the sunbeam");
         }
     }
 }

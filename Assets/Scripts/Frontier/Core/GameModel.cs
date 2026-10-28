@@ -264,7 +264,7 @@ namespace Starfall
         // This is combat-only identity, never part of SaveData v2.
         public Enemy bossOwner;
         // Transient ownership prevents encounter hazards surviving retirement.
-        public bool atlasEchoOwned, thornwatchOwned, countertideOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
+        public bool atlasEchoOwned, thornwatchOwned, countertideOwned, glassLoomOwned, rootHarmonyOwned, commonsRelayOwned, skywatchOwned, glasswindOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, lastDirectiveOwned, civicConduitOwned;
     }
     public struct LightRay
     {
