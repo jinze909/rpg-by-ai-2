@@ -29,6 +29,18 @@ namespace Starfall
             L("在阵风间隙校准海镜","ALIGN THE SEA MIRROR BETWEEN GUSTS"):
             mistlightStage==3?L("抵达栈桥，决定求援信号","REACH THE PIER · CHOOSE WHO SEES THE LIGHT"):
             L("调查雾港旧灯塔告示","READ THE LAST-LIGHT NOTICE");}}
+        private string MistlightInnNews(bool english)
+        {
+            if(MistlightPublic)
+                return english?
+                    "\n\nThe night traveler has laid a wet chart beside the stew pot. A woman in a patched fishing coat taps the empty place for her brother's boat. 'He wasn't on the list, so nobody lit a lamp.' Outside, bells answer one another: the harbor is welcoming every returning vessel now, named or not.":
+                    "\n\n守夜旅人把湿透的海图压在汤锅旁。穿补丁渔衣的女人指着港籍上的空白：‘我弟弟的船没有登记，所以没人肯替他亮灯。’窗外忽然响起一串船铃——如今雾港不再只为名册里的人点灯。";
+            if(MistlightPrivate)
+                return english?
+                    "\n\nThe night traveler lowers his voice while folding a tide chart. 'The patrol asked why the southern light never rose. I told them the glass was broken.' A pilot at the far table smiles without looking up. Beyond the window, a low lantern glints once through the fog. Another boat has found the hidden way home.":
+                    "\n\n守夜旅人收起潮汐图，压低声音说：‘巡兵问南边的灯为什么没亮，我说镜子坏了。’远桌的引航员埋头喝汤，嘴角却微微翘起。窗外浓雾中，一盏低矮的灯闪了一下。又有一条船从隐蔽航道平安回家。";
+            return "";
+        }
         private void ResetMistlight()
         {
             mistlightStage=0;mistlightTime=mistlightIntegrity=mistlightGust=mistlightShield=0f;

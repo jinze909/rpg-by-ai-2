@@ -148,6 +148,16 @@ namespace Starfall.Tests
                     Check(Math.Abs(speed-control.Speed-.25f)<.01f,
                         "Private rescue route grants exactly +0.25 speed to original Mistport movement");
                 }
+                SilentLedgerVisitRealInnFromEmberfall(g);
+                ReadInnNews(g,Object(g,"innGuest"));
+                Check(g.conversation!=null&&
+                    g.conversation.textEn.Contains(publicSignal?
+                        "the harbor is welcoming every returning vessel":
+                        "the hidden way home")&&
+                    !g.conversation.textEn.Contains(publicSignal?
+                        "the hidden way home":"the harbor is welcoming every returning vessel"),
+                    "Real Hearth Inn guest tells only the player-earned public or secret maritime aftermath");
+                g.Close();
                 g.PrepareSave();
                 var loaded=new GameCore(data,CloneSave(g.save));
                 Check(loaded.save.version==2&&loaded.MistlightComplete&&

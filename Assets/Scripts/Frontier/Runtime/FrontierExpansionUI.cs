@@ -585,6 +585,31 @@ namespace Starfall
             {
                 Color live=Game.MistlightIntegrity<31f?
                     new Color(1f,.48f,.38f,1f):new Color(.68f,.91f,.96f,1f);
+                // A beam appears ONLY after the actual lamp ignition,
+                // and reaches the pier ONLY after the real wind-window
+                // mirror interaction. Keep these low ground-world cues
+                // distinct from the canonical character Sprite colors.
+                if(Game.MistlightStage>=2)
+                {
+                    Point lamp=new Point(60.5f,37.5f);
+                    Point mirror=new Point(65.5f,38.5f);
+                    for(int light=1;light<=9;light++)
+                    {
+                        Point at=lamp+(mirror-lamp)*(light/10f);
+                        if(WorldDrawable(at.x,at.y,40f,40f))
+                            Ring(at,.12f,live,10);
+                    }
+                    if(Game.MistlightStage>=3)
+                    {
+                        Point pier=new Point(65.5f,43.5f);
+                        for(int light=1;light<=9;light++)
+                        {
+                            Point at=mirror+(pier-mirror)*(light/10f);
+                            if(WorldDrawable(at.x,at.y,40f,40f))
+                                Ring(at,.12f,live,10);
+                        }
+                    }
+                }
                 Point site=Game.MistlightTarget;
                 if(WorldDrawable(site.x,site.y,165f,165f))
                 {
