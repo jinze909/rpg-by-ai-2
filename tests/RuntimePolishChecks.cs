@@ -159,6 +159,40 @@ public static class RuntimePolishChecks
                     "Room " + room + " has an audible, continuous atmosphere at the PCM wrap without a half-second artificial fade-to-silence");
             }
             Console.WriteLine("PASS Procedural forest/coast/weather atmosphere: deterministic seamless PCM loop and stable edge loudness");
+
+            // Actual production AudioSource volume must follow the live
+            // Ctrl-quiet world tick, rather than an invented UI toggle.
+            // The sound generator and normal settings remain unchanged.
+            var quietGame=new GameCore(CampaignFixture.Create());
+            quietGame.NewGame(0);quietGame.Close();
+            quietGame.mode="world";quietGame.enemies.Clear();
+            quietGame.save.music=true;quietGame.save.effectsVolume=1f;
+            atmosphere.Update(quietGame,false,.02f);
+            var footSource=(AudioSource)typeof(FrontierAudio).GetField(
+                "footsteps",Private).GetValue(atmosphere);
+            float openFootGain=footSource.volume;
+            quietGame.Tick(.02f,new Point(),null,false,true);
+            atmosphere.Update(quietGame,false,.02f);
+            float quietFootGain=footSource.volume;
+            Check(quietGame.QuietStepping&&openFootGain>.06f&&
+                quietFootGain>0f&&quietFootGain<openFootGain*.45f,
+                "Ctrl-quiet real player stance lowers only production footstep gain without silencing ground contacts");
+            quietGame.Tick(.02f,new Point(),null,false,false);
+            atmosphere.Update(quietGame,false,.02f);
+            Check(!quietGame.QuietStepping&&
+                Math.Abs(footSource.volume-openFootGain)<.0001f,
+                "Releasing quiet immediately restores the original authored walking loudness");
+            quietGame.save.music=false;
+            atmosphere.Update(quietGame,false,.02f);
+            Check(footSource.volume==0f,
+                "Music/audio disable still mutes footsteps independently of stealth state");
+            quietGame.save.music=true;
+            quietGame.mode="dialog";
+            atmosphere.Update(quietGame,false,.02f);
+            Check(footSource.volume==0f&&quietGame.save.version==2,
+                "Dialogue world pause cannot produce stealth footstep audio or write new save data");
+            Console.WriteLine("PASS Real audio: soft Ctrl-quiet footstep gain, immediate normal release, mute and dialogue suppression");
+
             }
             finally { atmosphere.Dispose(); }
             VerifyWayfarerLethalOwnership();

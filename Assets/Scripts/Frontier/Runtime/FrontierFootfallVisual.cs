@@ -179,7 +179,7 @@ namespace Starfall
             {
                 EmitFootfall(Game.Position,room,
                     FrontierAudio.FootSurface(Game),
-                    (planted&1)!=0,1f);
+                    (planted&1)!=0,Game.QuietStepping?.46f:1f);
             }
             paintedHeroOwner=Game;
             paintedHeroSave=Game.save;
@@ -248,7 +248,7 @@ namespace Starfall
                contact<0 || prior<0 || contact<=prior ||
                contact-prior>2)return;
             EmitFootfall(now,room,FrontierAudio.FootSurface(Game,now),
-                (contact&1)!=0,.84f);
+                (contact&1)!=0,Game.QuietStepping?.43f:.84f);
         }
 
         private void AdvanceEnemyFootfalls(int room)

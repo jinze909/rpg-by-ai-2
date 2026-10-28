@@ -165,7 +165,12 @@ namespace Starfall
             if (ambienceIncoming.volume == 0 && ambienceIncoming.isPlaying)
                 ambienceIncoming.Stop();
             effects.volume = save.music ? save.effectsVolume * .3f : 0;
-            footsteps.volume = save.music && game.mode == "world" ? save.effectsVolume * .07f : 0;
+            // A real quiet footfall is an audibly softer contact, not a
+            // different synthetic gait or a muted entire combat mix.
+            // Only footsteps duck; enemy alarms, spells and music retain
+            // their true gameplay cues and the user's chosen master gain.
+            footsteps.volume = save.music && game.mode == "world" ?
+                save.effectsVolume * .07f * (game.QuietStepping?.36f:1f) : 0;
             if (contactRoom != save.room || game.footContacts < lastContact) { contactRoom = save.room; lastContact = game.footContacts; }
             if (game.footContacts > lastContact && footsteps.volume > 0 && game.ActuallyMoving && game.dashTime <= 0 && !game.Dying)
             {
