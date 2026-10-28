@@ -148,5 +148,49 @@ namespace Starfall.Tests
                 g.ThornwatchStage==0&&g.GetQuest("thornwatch").locked,
                 "Original Thornwood boss remains mandatory; optional challenge never spoofs its clearance");
         }
+        public static void ThornwatchMoonherbGroundingIsPhysicalPaidAndSuppressesPulses(Campaign data)
+        {
+            var g=ThornReady(data);
+            var vista=ThornPost(g,"annex_vista_1"),
+                camp=ThornPost(g,"annex_camp_1");
+            g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);
+            ThornAction(g,"thornwatch_start");KillThornWave(g);
+            g.save.x=camp.x;g.save.y=camp.y;g.Talk(camp);
+            Check(ThornAction(g,"thornwatch_tune")&&
+                g.ThornwatchStage==3&&g.ThornwatchSurvivors==2,
+                "Second wave is live before field grounding is allowed");
+            foreach(Enemy guard in g.enemies.FindAll(g.IsThornwatchEnemy))
+            {guard.stun=200f;guard.timer=200f;}
+            g.save.inventory[2]=3;
+            g.Talk(camp);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="thornwatch_ground");
+            Check(action>=0,"Original camp offers a physical paid combat counter");
+            g.save.x=camp.x+8f;g.Choose(action);
+            Check(g.ThornwatchGroundedSeconds==0f&&g.save.inventory[2]==3,
+                "Stale camp conversation cannot spend Moonherb remotely");
+            g.save.x=camp.x;g.save.y=camp.y;g.Talk(camp);
+            Check(ThornAction(g,"thornwatch_ground")&&
+                g.save.inventory[2]==2&&g.ThornwatchGroundedSeconds>11f,
+                "Actual nearby camp exchanges exactly one herb for timed root-pulse silence");
+            for(int i=0;i<45;i++)g.Tick(.05f,new Point());
+            Check(g.ThornwatchStage==3&&
+                !g.hazards.Exists(h=>h.thornwatchOwned)&&
+                g.ThornwatchGroundedSeconds>0f,
+                "During paid silence genuine root-pulse hazards do not spawn");
+            g.Talk(camp);
+            Check(!ThornAction(g,"thornwatch_ground")&&
+                g.save.inventory[2]==2,
+                "One trial cannot replay the grounding purchase for repeated safety");
+            g.Close();
+            bool resumed=false;
+            for(int i=0;i<360;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.hazards.Exists(h=>h.thornwatchOwned))resumed=true;
+            }
+            Check(resumed&&g.ThornwatchGroundedSeconds==0f,
+                "After timed quiet ends, the still-live elite resumes real ground warnings");
+        }
     }
 }

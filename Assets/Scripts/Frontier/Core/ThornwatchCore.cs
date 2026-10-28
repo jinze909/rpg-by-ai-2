@@ -7,7 +7,13 @@ namespace Starfall
     {
         private int thornwatchStage,thornwatchKills,thornwatchCycle;
         private float thornwatchTime,thornwatchPulse;
-        private bool thornwatchTuned;
+        private bool thornwatchTuned,thornwatchGroundingUsed;
+        private float thornwatchGrounded;
+        public float ThornwatchGroundedSeconds
+        {get{return thornwatchStage==3?thornwatchGrounded:0f;}}
+        public bool ThornwatchGroundingAvailable
+        {get{return thornwatchStage==3&&!thornwatchGroundingUsed&&
+            save.inventory[2]>=1;}}
         private Enemy thornwatchA,thornwatchB;
         public int ThornwatchStage {get{return thornwatchStage;}}
         public bool ThornwatchActive {get{return thornwatchStage>0;}}
@@ -15,6 +21,12 @@ namespace Starfall
         public bool ThornwatchComplete {get{return Has("thornwatch_complete");}}
         public bool ThornwatchTuned {get{return Has("thornwatch_tuned");}}
         public bool ThornwatchSevered {get{return Has("thornwatch_severed");}}
+        public float ThornwatchEliteHealth
+        {get{return thornwatchStage==3&&thornwatchA!=null?
+            Math.Max(0f,thornwatchA.hp):0f;}}
+        public float ThornwatchEliteMaxHealth
+        {get{return thornwatchStage==3&&thornwatchA!=null?
+            Math.Max(1f,thornwatchA.maxHp):1f;}}
         public int ThornwatchSurvivors
         { get {int n=0;if(thornwatchA!=null&&enemies.Contains(thornwatchA)&&thornwatchA.hp>0)n++;
             if(thornwatchB!=null&&enemies.Contains(thornwatchB)&&thornwatchB.hp>0)n++;return n;} }
@@ -48,7 +60,8 @@ namespace Starfall
         {
             ClearThornwatchRoster();
             thornwatchStage=thornwatchKills=thornwatchCycle=0;
-            thornwatchTime=thornwatchPulse=0;thornwatchTuned=false;
+            thornwatchTime=thornwatchPulse=thornwatchGrounded=0;
+            thornwatchTuned=thornwatchGroundingUsed=false;
         }
         private bool TryThornwatchFoot(Point center,Point occupied,
             out Point result)
@@ -102,6 +115,20 @@ namespace Starfall
             if(!ThornwatchSource(o,o.id))return true;
             if(o.id=="annex_camp_1")
             {
+                if(thornwatchStage==3)
+                {
+                    Dialog(o.name,o.en,
+                        "古树下还剩一只盛有清水的铜碗。放入一枝月光草可暂时让根钟沉静12秒，立即驱散本场地脉预警；每次守望只能使用一次。你需要真正回到营地，不能通过背包远程发动。",
+                        "A copper water bowl remains beneath the trees. Spend one Moonherb to quiet the root bell for 12 seconds, dismissing existing root tremors immediately. Once per trial, only by physically returning to this camp.",
+                        ThornwatchGroundingAvailable?
+                        C("月光草×1 · 平息根震12秒",
+                          "Moonherb ×1 · silence ground pulses for 12s",
+                          "thornwatch_ground"):
+                        C("本次已使用或缺少月光草",
+                          "Already used or missing Moonherb","close"),
+                        C("返回精英战斗","Return to elite fight","close"));
+                    return true;
+                }
                 if(thornwatchStage!=2)return false;
                 Dialog(o.name,o.en,
                     "第一波劫掠者已经退去。守林人留下的根钟正在失声：古树把孩子回家的铃声误认为旧军队的战鼓。\n\n可以调和残存的根音，使第二轮地脉攻击慢一些；也可以斩断紧缚的根，直接对抗更密集的震荡。两条路最后会给你不同的长期能力。",
@@ -196,6 +223,21 @@ namespace Starfall
                     "Trail watch withdrawn. Restart at the overlook.");}
                 return true;
             }
+            if(action=="thornwatch_ground")
+            {
+                if(source.id!="annex_camp_1"||
+                    !ThornwatchGroundingAvailable)return true;
+                if(!Spend(0,0,1,0,0))return true;
+                thornwatchGroundingUsed=true;thornwatchGrounded=12f;
+                thornwatchPulse=Math.Max(thornwatchPulse,1.35f);
+                hazards.RemoveAll(h=>h.thornwatchOwned);
+                effects.Add(new Effect("number",new Point(source.x,source.y),
+                    .9f,L("归途根钟平息","BELL GROUNDED")));
+                revision++;sound="reward";
+                Notify("月光草已投入铜碗：根震暂停12秒，这次守望不能重复使用。",
+                    "Moonherb offered: root tremors are quiet for 12 seconds. One use per watch.");
+                return true;
+            }
             if(action=="thornwatch_tune"||action=="thornwatch_sever")
             {
                 if(source.id!="annex_camp_1"||thornwatchStage!=2||
@@ -271,6 +313,11 @@ namespace Starfall
                 }
             }
             if(thornwatchStage!=3)return;
+            if(thornwatchGrounded>0f)
+            {
+                thornwatchGrounded=Math.Max(0f,thornwatchGrounded-dt);
+                if(thornwatchGrounded>0f)return;
+            }
             thornwatchPulse-=dt;
             if(thornwatchPulse>0f)return;
             Point[] cardinal={new Point(1,0),new Point(0,1),

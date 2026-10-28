@@ -489,6 +489,27 @@ namespace Starfall
                         Game.ThornwatchStepText,12,ink,
                         TextAnchor.MiddleCenter);
                 }
+                if(Game.ThornwatchGroundedSeconds>0f)
+                {
+                    Point camp=new Point(61.5f,36.5f);
+                    if(WorldDrawable(camp.x,camp.y,150f,150f))
+                        Ring(camp,1.1f,new Color(.46f,.86f,.91f,.78f),30);
+                    Text(35,256,490,20,
+                        Game.L("归途根钟已平息 · ","BELL GROUNDED · ")+
+                        Game.ThornwatchGroundedSeconds.ToString("0.0")+"s",
+                        12,mint);
+                }
+                if(Game.ThornwatchStage==3)
+                {
+                    Text(35,279,295,19,
+                        Game.L("根缚精英 · ","ROOTBOUND ELITE · ")+
+                        Game.ThornwatchEliteHealth.ToString("0")+"/"+
+                        Game.ThornwatchEliteMaxHealth.ToString("0"),
+                        12,ink);
+                    Bar(35,302,270,
+                        Game.ThornwatchEliteHealth/Game.ThornwatchEliteMaxHealth,
+                        new Color(.73f,.48f,.86f,1f),5);
+                }
                 Text(35,231,485,23,Game.L("归途根钟 · ","ROOT BELL · ")+
                     Game.ThornwatchStage+"/4 · "+
                     Game.L("剩余 ","LEFT ")+Game.ThornwatchTime.ToString("0")+"s"+
