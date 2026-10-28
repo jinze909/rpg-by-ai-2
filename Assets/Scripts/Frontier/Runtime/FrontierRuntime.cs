@@ -586,6 +586,28 @@ namespace Starfall
             for (int i = 0; i < segments; i++)
             { double a = i * Math.PI * 2 / segments; Box(s.x + (float)Math.Cos(a) * radius * Tile - 2, s.y + (float)Math.Sin(a) * radius * Tile - 2, 4, 4, color); }
         }
+        private void DrawDroppedCourierMedicine()
+        {
+            if(!Game.OuterDeliveryParcelDropped)return;
+            Point foot=Game.OuterDeliveryParcelFoot;
+            Point p=ScreenPoint(foot);
+            // Draw near the camera only. The existing quest navigation
+            // already guides distant players to this exact lost foot.
+            if(p.x< -85f||p.y< -95f||
+               p.x>Width+85f||p.y>Height+45f)return;
+            bool reachable=Game.OuterDeliveryCanRecoverParcel;
+            Color color=reachable?mint:gold;
+            Ring(foot,.45f,new Color(color.r,color.g,color.b,.85f),18);
+            // Reuse actual installed medical-herb Icon art. This is an
+            // in-world objective marker, not an extra actor/OnGUI hero.
+            Icon("herb",p.x-17f,p.y-38f,34f,Color.white);
+            Text(p.x-103f,p.y-76f,206f,21f,
+                reachable?
+                    Game.L("E · 捡回药布","E · RECOVER DRESSINGS"):
+                    Game.L("遗失药布 · 返回落点","LOST DRESSINGS · RETURN"),
+                11,color,TextAnchor.MiddleCenter);
+        }
+
         // The visible window is surrounded by precomputed terrain, not a
         // timestamp-only pretend load. Movement sees the next chunks while
         // they are still at least ten tiles beyond the edge of the screen.
@@ -769,6 +791,10 @@ namespace Starfall
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Persistent real-foot recovery cue for an authentic hit-spilled
+            // 90-second medical parcel. The original E, collision and
+            // delivery reward code remains the only transaction authority.
+            DrawDroppedCourierMedicine();
             // Make the new tactical hold legible in the actual world pass:
             // a ground ring marks the saved-in-memory anchor, not a fake actor.
             if(Game.CompanionHoldingPosition)
