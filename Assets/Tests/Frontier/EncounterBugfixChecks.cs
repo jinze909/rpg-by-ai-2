@@ -704,20 +704,25 @@ namespace Starfall.Tests
                     "A crouched rear approach uses an actual unobstructed walking corridor");
                 game.save.x=rear.x;game.save.y=rear.y;
                 sentry.Face(new Point(1,0));
+                // Force a ready melee clock to catch illicit attacks that
+                // ordinary long cooldown tests could never expose.
+                sentry.timer=-.01f;
                 float before=(sentry.Position-post).Length;
+                int oldHealth=game.save.health;
                 game.Tick(.02f,new Point(),null,false,true);
                 Check(game.QuietStepping&&
                     game.IsEnemyReturningFromImpact(sentry)&&
                     (sentry.Position-post).Length<before&&
+                    sentry.state==0&&game.save.health==oldHealth&&
                     game.save.version==2,
-                    "An unseen crouched hero directly behind a returning sentry cannot steal the guard's return intent");
+                    "A ready-to-strike sentry must continue its real return without an unseen rear-hero attack");
                 // Switching to audible open movement at the same physical
                 // foot gives back the ordinary patrol's eight-tile notice.
                 // The quiet constraint must not make guards permanently blind.
                 game.Tick(.02f,new Point(),null,false,false);
                 Check(!game.IsEnemyReturningFromImpact(sentry)&&
-                    game.save.version==2,
-                    "The same nearby open hero properly interrupts a returning guard without changing save data");
+                    sentry.state==1&&game.save.version==2,
+                    "The same nearby openly moving hero is genuinely reacquired and can trigger an actual telegraphed melee windup");
             }
             finally{data.maps[1]=previous;}
         }

@@ -2530,7 +2530,14 @@ namespace Starfall
                     e.Face(e.backpedaling?Position-e.Position:travelled);
                 }
                 delta = Position - e.Position; distance = delta.Length;
+                // Returning sound-search patrols are still following their
+                // original posted foot, NOT a detected hero. Physical
+                // proximity alone cannot make them initiate an invisible
+                // melee/bow windup from behind. TickEnemyHitAlert already
+                // retires the return state when a legitimate sighting (or
+                // ordinary audible approach) actually reacquires the hero.
                 bool heroInRange = !IsEnemyInvestigatingImpact(e)&&
+                    !IsEnemyReturningFromImpact(e)&&
                     distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&
                     (e.boss||e.kind!=1||
