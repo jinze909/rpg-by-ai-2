@@ -11288,6 +11288,14 @@ public static class RuntimeCombatInputChecks
         g.enemies.Clear();g.projectiles.Clear();
         MapData map=g.Map;string[] original=map.rows;
         Point originalHero=g.Position;
+        // Each scenario independently sets the actual client language
+        // and outline state. A prior test may leave the save in Chinese;
+        // that cannot make the English HUD assertion silently inaccurate.
+        bool previousEnglish=g.save.english;
+        bool previousOutline=(bool)typeof(FrontierRuntime).GetField(
+            "drawingOutline",Private).GetValue(app);
+        g.save.english=true;
+        Set(app,"drawingOutline",false);
         int ax=-1,ay=-1;
         for(int y=4;y<original.Length-5&&ax<0;y++)
         for(int x=4;x<original[0].Length-6&&ax<0;x++)
@@ -11338,7 +11346,15 @@ public static class RuntimeCombatInputChecks
             GUI.commands.Clear();Call(app,"DrawEnemyActor",sentry);
             Check(GUI.commands.Exists(line=>line.Contains("POST BLOCKED")&&
                 line.Contains("WAITING")),
-                "Production monster-body overlay distinguishes blocked return from visible patrol search");
+                "Production monster-body overlay distinguishes blocked return from visible patrol search; captured text: "+
+                string.Join("|",GUI.commands.FindAll(line=>line.Contains("POST")||
+                    line.Contains("RETURN")||line.Contains("BACKSTAB")).ToArray()));
+            g.save.english=false;
+            GUI.commands.Clear();Call(app,"DrawEnemyActor",sentry);
+            Check(GUI.commands.Exists(line=>line.Contains("哨位封闭")&&
+                line.Contains("等待道路")),
+                "The same monster shows the actual blocked-post cue in Chinese");
+            g.save.english=true;
             Check((bool)CallCore(g,"TickEnemyHitAlert",sentry,.05f)&&
                 g.IsEnemyReturningFromImpact(sentry),
                 "A temporarily sealed home must not erase its living owner's return state");
@@ -11370,7 +11386,9 @@ public static class RuntimeCombatInputChecks
         finally
         {
             map.rows=original;g.save.x=originalHero.x;
-            g.save.y=originalHero.y;g.enemies.Clear();
+            g.save.y=originalHero.y;g.save.english=previousEnglish;
+            Set(app,"drawingOutline",previousOutline);
+            g.enemies.Clear();
         }
         Console.WriteLine("PASS Sentry waits at sealed post, retains sound-return ownership and physically resumes when it opens");
     }
