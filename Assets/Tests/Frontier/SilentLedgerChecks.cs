@@ -530,6 +530,23 @@ namespace Starfall.Tests
                     "Authentic three-map civilian relief consumes only the chosen branch's two actual materials and awards once");
                 Check(g.GetQuest("family_dispatch").complete,
                     "The connected task journal marks every household delivery stage complete");
+                g.save.health=30f;g.save.energy=25f;
+                var notFunded=CloneSave(g.save);
+                notFunded.flags.Remove("silentledger_family_done");
+                var comparison=new GameCore(data,notFunded);
+                Check(g.CanStand(new Point(g.save.x,g.save.y))&&
+                    comparison.CanStand(new Point(comparison.save.x,comparison.save.y)),
+                    "Funded relief gameplay is evaluated on original safe Emberfall ground");
+                for(int frame=0;frame<12;frame++)
+                {g.Tick(.05f,new Point());comparison.Tick(.05f,new Point());}
+                Check(publicNames?
+                    g.save.health>comparison.save.health+.8f:
+                    g.save.energy>comparison.save.energy+1.8f,
+                    "Completing the real relief branch funds distinct safe physical recovery rather than only a decorative dialogue flag");
+                Check(publicNames?
+                    Math.Abs(g.save.energy-comparison.save.energy)<.03f:
+                    Math.Abs(g.save.health-comparison.save.health)<.03f,
+                    "One civic service branch cannot secretly grant the opposite policy benefit");
                 g.Talk(aid);
                 Check(!SilentLedgerChoice(g,"silentledger_family_finish")&&
                     g.save.coins==coins+45,

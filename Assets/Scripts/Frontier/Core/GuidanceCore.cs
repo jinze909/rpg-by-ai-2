@@ -1041,8 +1041,11 @@ namespace Starfall
                 q.next=q.locked?L("先完成星陨堡垒无声名册","First recover the original Silent Ledger"):
                     !started?L("回堡垒封存台领取十七户家庭联络包","Take packet from Citadel archive console"):
                     !signed?L("前往炉火旅店找到守夜旅人签收","Bring packet to the night traveler at Hearth Inn"):
-                    q.complete?L("归乡援助已送达 · 十七户家庭有了接应",
-                        "Homeward assistance delivered to all seventeen households"):
+                    q.complete?SilentLedgerPublic?
+                        L("归乡伤员获医治 · 余烬镇援助台提供安全伤口恢复",
+                            "Families treated · safe Emberfall aid desk heals nearby wounds"):
+                        L("涵洞路线立好引路标 · 余烬镇援助台恢复安全耐力",
+                            "Safe culvert waymarks installed · nearby Emberfall aid desk restores stamina"):
                     SilentLedgerPublic?L("去余烬镇援助台交付2份月光草","Deliver 2 Moonherbs at Emberfall aid desk"):
                         L("去余烬镇援助台交付2份木材","Deliver 2 Timber at Emberfall aid desk");
                 q.reward=L("首次交付：45硬币、1碎片、70经验；完成归乡救助记录",

@@ -125,8 +125,12 @@ namespace Starfall
                 if(SilentLedgerFamilyDone)
                 {
                     Dialog(o.name,o.en,
-                        "十七户归乡援助已经交接完毕。缺席的名字不会再被悄悄抹去。",
-                        "The homeward relief for seventeen families is complete. Their names will not quietly disappear again.",
+                        SilentLedgerPublic?
+                            "十七户返乡接应已建立。安全的援助台会为靠近的人持续处理伤口。":
+                            "十七户的秘密引路桩已立好。安全的援助台可以让路人缓一缓，重新积蓄体力。",
+                        SilentLedgerPublic?
+                            "The seventeen-household relief has opened. The safe aid desk now helps nearby travelers recover wounds.":
+                            "The discreet waymarks are installed. At the safe aid desk, nearby travelers can regain stamina for the road.",
                         C("继续赶路","Continue","close"));return true;
                 }
                 if(!SilentLedgerFamilySigned)
@@ -329,8 +333,12 @@ namespace Starfall
                         "You funded medical relief for all seventeen restored family entries with two Moonherbs.":
                         "You supplied two Timber for discreet waymarks along the protected culvert route.");
                     revision++;sound="reward";
-                    Notify("十七户归乡援助完成！硬币+45、碎片+1、经验+70。",
-                        "Seventeen-family homeward relief complete! +45 coins, +1 shard, +70 XP.");
+                    Notify(SilentLedgerPublic?
+                        "十七户归乡援助完成！硬币+45、碎片+1、经验+70；余烬镇援助台提供安全伤口恢复。":
+                        "秘密归乡引路桩已建立！硬币+45、碎片+1、经验+70；余烬镇援助台提供安全耐力恢复。",
+                        SilentLedgerPublic?
+                        "Seventeen-family relief complete! +45 coins, +1 shard, +70 XP; safe Emberfall aid desk now heals wounds.":
+                        "Protected homeward waymarks installed! +45 coins, +1 shard, +70 XP; safe Emberfall aid desk now restores stamina.");
                     return true;
                 }
                 return true;
@@ -547,6 +555,19 @@ namespace Starfall
                 {
                     save.health=Math.Min(save.maxHealth,save.health+2.3f*dt);
                     save.energy=Math.Min(100f,save.energy+3.2f*dt);
+                }
+                // The funded AFTERMATH is an actual, localized persistent
+                // service, not a repeated reward. Recovery only happens at
+                // the original civilian desk on safe walkable ground,
+                // outside any active timed field mission or threat.
+                if(SilentLedgerFamilyDone&&save.room==0&&!Dying&&
+                    !practicing&&SafeTravel&&!FieldWorkPreventsRest&&
+                    PhysicalRefugeReach(new Point(15.5f,16.5f),2.5f))
+                {
+                    if(SilentLedgerPublic)
+                        save.health=Math.Min(save.maxHealth,save.health+2f*dt);
+                    else if(SilentLedgerRoutes)
+                        save.energy=Math.Min(100f,save.energy+4f*dt);
                 }
                 return;
             }

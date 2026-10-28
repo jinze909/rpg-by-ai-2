@@ -1355,6 +1355,12 @@ namespace Starfall
                     Text(p.x-73,p.y-91,146,18,
                         Game.L("真实姓名已归档","CIVIC ACCOUNT RESTORED"),
                         10,mint,TextAnchor.MiddleCenter);
+                if(o.kind=="silentledgeraid"&&Game.SilentLedgerFamilyDone)
+                    Text(p.x-93,p.y-91,186,18,
+                        Game.SilentLedgerPublic?
+                            Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
+                            Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
+                        10,mint,TextAnchor.MiddleCenter);
                 return true;
             }
             if(o.kind=="pressureworksnotice"||o.kind=="pressureworksvalve"||
