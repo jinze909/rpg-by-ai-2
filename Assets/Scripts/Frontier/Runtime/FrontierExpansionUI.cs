@@ -474,6 +474,14 @@ namespace Starfall
             }
             finally {GUI.matrix=original;}
         }
+        // The existing rescued-civilian atlas gate is a source-locked QA
+        // contract. This distinct new actor uses the SAME geometry proof
+        // without changing either original gate or bypassing its acceptance.
+        private bool WhiteoutNpcAtlasReady()
+        {
+            Texture2D source=npcSheet;
+            return ActorAtlasGeometry.IsAcceptedNpcAtlas(source);
+        }
         private void DrawExpansionWorld()
         {
             if(Game.mode=="world"&&Game.WhiteoutActive&&!drawingOutline)
@@ -492,7 +500,7 @@ namespace Starfall
                 {
                     Point p=Game.WhiteoutFollowerFoot;
                     if(WorldDrawable(p.x,p.y,150f,165f)&&
-                        ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet))
+                        WhiteoutNpcAtlasReady())
                     {
                         Point foot=ScreenPoint(p);
                         DrawActorContactShadow(foot,34,13,7,.78f);
@@ -1212,7 +1220,7 @@ namespace Starfall
                 bool picked=Game.WhiteoutStage>=2||Game.WhiteoutComplete;
                 if(!picked)
                 {
-                    if(ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet))
+                    if(WhiteoutNpcAtlasReady())
                     {
                         DrawActorContactShadow(p,34,13,7,.78f);
                         DrawRootedCivilianBody(p,0f,new Color(.89f,.96f,1f,1f),false);
