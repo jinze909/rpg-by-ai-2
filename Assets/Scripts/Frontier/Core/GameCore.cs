@@ -3801,7 +3801,9 @@ namespace Starfall
             int insert=existing.Length;
             if(insert>0&&existing[insert-1].action=="close")insert--;
             bool hasClose=insert<existing.Length;
-            Choice[] choices=new Choice[existing.Length+4+(hasClose?0:1)];
+            bool familyReady=SilentLedgerFamilyStarted&&!SilentLedgerFamilySigned;
+            int extra=familyReady?1:0;
+            Choice[] choices=new Choice[existing.Length+4+extra+(hasClose?0:1)];
             Array.Copy(existing,0,choices,0,insert);
             choices[insert]=C("接下来该走哪条路？",
                 "Which road should I take next?","inn_routelead");
@@ -3811,7 +3813,10 @@ namespace Starfall
                 "Any other jobs need doing?","inn_jobboard");
             choices[insert+3]=C("我去看看任务手帐",
                 "I'll check my journal","inn_openjournal");
-            Array.Copy(existing,insert,choices,insert+4,existing.Length-insert);
+            if(familyReady)
+                choices[insert+4]=C("交付十七户家庭联络包",
+                    "Deliver seventeen-family packet","silentledger_family_handoff");
+            Array.Copy(existing,insert,choices,insert+4+extra,existing.Length-insert);
             if(!hasClose)choices[choices.Length-1]=C("先告辞","Leave","close");
             return choices;
         }

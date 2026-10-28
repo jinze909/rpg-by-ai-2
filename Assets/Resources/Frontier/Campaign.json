@@ -97,6 +97,14 @@
       "objects": [
         {"id":"lastDirectiveBoard","kind":"lastdirectiveboard","name":"居民议事 · 最后指令","en":"Public Council · Last Directive","x":19.5,"y":15.5},
         {
+          "id": "silentledger_aid",
+          "kind": "silentledgeraid",
+          "name": "十七户归乡 · 民间援助台",
+          "en": "Seventeen Families · Civilian Aid Desk",
+          "x": 15.5,
+          "y": 16.5
+        },
+        {
           "id": "guild",
           "name": "莉雅 · 公会接待员",
           "en": "Lyra · Guild Steward",

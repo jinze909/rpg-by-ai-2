@@ -1331,7 +1331,8 @@ namespace Starfall
             string kind=o.kind;Point p=ScreenPoint(new Point(o.x,o.y));
             if(o.kind=="silentledgernotice"||o.kind=="silentledgerrecord"||
                o.kind=="silentledgerconsole"||o.kind=="silentledgerbell"||
-               o.kind=="silentledgershutter")
+               o.kind=="silentledgershutter"||
+               o.kind=="silentledgeraid")
             {
                 bool shutter=o.kind=="silentledgershutter";
                 bool dim=shutter&&Game.SilentLedgerDarkness>0f;

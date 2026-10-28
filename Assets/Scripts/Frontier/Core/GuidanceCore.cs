@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,33 @@ namespace Starfall
 
 
 
+            if(id=="family_dispatch")
+            {
+                bool started=SilentLedgerFamilyStarted;
+                bool signed=SilentLedgerFamilySigned;
+                q.title=L("十七户的归乡联络","Seventeen Families · Homeward Dispatch");
+                q.category=L("跨地区送达 · 民间援助","CROSS-REGION DELIVERY · CIVILIAN RELIEF");
+                q.locked=!SilentLedgerComplete;q.complete=SilentLedgerFamilyDone;
+                q.room=!started?4:!signed?9:0;
+                q.target=!started?new Point(66.5f,38.5f):
+                    !signed?new Point(20f,12f):new Point(15.5f,16.5f);
+                q.description=L(
+                    "完成堡垒无声名册后，从真正的封存台领取十七户家庭联络包；亲自经余烬镇旅店大门去炉火旅店让守夜旅人核对，再到余烬镇公会旁的民间援助台交付材料。公开名册路线需要2份月光草，隐蔽归乡路线需要2份木材。原有存档标记记录每一段交接，不能跳步或重复领取。",
+                    "After recovering the Citadel Silent Ledger, collect the sealed family packet at its original console, bring it through Emberfall's real inn entrance to the night traveler at Hearth Inn, and fund the civilian aid desk beside the Emberfall guild. A published register needs 2 Moonherbs; protected secret routes need 2 Timber. Each physical handoff persists with existing v2 flags, without duplicated rewards.");
+                q.steps.Add(new QuestStep(L("从堡垒封存台领取联络包","Collect household packet at Citadel console"),started));
+                q.steps.Add(new QuestStep(L("送到炉火旅店守夜旅人签收","Get night traveler verification at Hearth Inn"),signed));
+                q.steps.Add(new QuestStep(L("向余烬镇援助台交付所需材料","Fund Emberfall civilian aid supplies"),q.complete));
+                q.next=q.locked?L("先完成星陨堡垒无声名册","First recover the original Silent Ledger"):
+                    !started?L("回堡垒封存台领取十七户家庭联络包","Take packet from Citadel archive console"):
+                    !signed?L("前往炉火旅店找到守夜旅人签收","Bring packet to the night traveler at Hearth Inn"):
+                    q.complete?L("归乡援助已送达 · 十七户家庭有了接应",
+                        "Homeward assistance delivered to all seventeen households"):
+                    SilentLedgerPublic?L("去余烬镇援助台交付2份月光草","Deliver 2 Moonherbs at Emberfall aid desk"):
+                        L("去余烬镇援助台交付2份木材","Deliver 2 Timber at Emberfall aid desk");
+                q.reward=L("首次交付：45硬币、1碎片、70经验；完成归乡救助记录",
+                    "First delivery: 45 coins, 1 shard, 70 XP; resolved civilian return");
+                return q;
+            }
             if(id=="silent_ledger")
             {
                 q.title=L("星陨堡垒 · 无声名册","Starfall Citadel · Silent Ledger");

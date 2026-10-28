@@ -86,6 +86,12 @@ namespace Starfall
                     "\n\n旅人把恢复的归乡路线图压在餐盘底下，不让隔桌巡兵看见。旧涵洞旁有一道细线，旁边写着：‘让孩子先过。’现在守护这条路的是巡路队。离开堡垒的人走得更快了，跟在后面的家人也不必一路追赶。";
             return "";
         }
+        public bool SilentLedgerFamilyStarted { get { return Has("silentledger_family_started"); } }
+        public bool SilentLedgerFamilySigned { get { return Has("silentledger_family_signed"); } }
+        public bool SilentLedgerFamilyDone { get { return Has("silentledger_family_done"); } }
+        private bool SilentLedgerFamilySource(WorldObject o,string id,int room)
+        {return o!=null&&o.id==id&&save.room==room&&
+            SourceBelongsToActiveMap(o)&&HasPhysicalInteractionReach(o);}
         private void ResetSilentLedger()
         {
             silentLedgerStage=silentLedgerSweep=0;
@@ -111,8 +117,38 @@ namespace Starfall
             SourceBelongsToActiveMap(o)&&HasPhysicalInteractionReach(o);}
         private bool TalkSilentLedger(WorldObject o)
         {
-            if(o==null||save.room!=4||!o.kind.StartsWith("silentledger",
+            if(o==null||!o.kind.StartsWith("silentledger",
                 StringComparison.Ordinal))return false;
+            if(save.room==0&&o.id=="silentledger_aid")
+            {
+                if(!SilentLedgerFamilySource(o,"silentledger_aid",0))return true;
+                if(SilentLedgerFamilyDone)
+                {
+                    Dialog(o.name,o.en,
+                        "十七户归乡援助已经交接完毕。缺席的名字不会再被悄悄抹去。",
+                        "The homeward relief for seventeen families is complete. Their names will not quietly disappear again.",
+                        C("继续赶路","Continue","close"));return true;
+                }
+                if(!SilentLedgerFamilySigned)
+                {
+                    Dialog(o.name,o.en,
+                        "公会旁的民间援助台还没有收到夜旅人确认的家庭名单。先从堡垒封存台领取封件，送到炉火旅店交给守夜旅人签收。",
+                        "The community aid desk still awaits a household packet signed by the night traveler. Collect it from the Citadel console and take it to Hearth Inn first.",
+                        C("离开","Leave","close"));return true;
+                }
+                Dialog(o.name,o.en,
+                    SilentLedgerPublic?
+                        "旅人已核对十七户公开名册。公会现在需要两份月光草给返乡的伤者配药；补给到位后才能兑现援助。":
+                        "旅人已签收不公开的归乡路线。公会需要两份木材标记安全涵洞，不能让巡兵发现通路。",
+                    SilentLedgerPublic?
+                        "The traveler matched the seventeen public family entries. The guild needs two Moonherbs for returning wounded relatives before the relief can be funded.":
+                        "The traveler signed for the confidential homeward route. The guild needs two Timber to mark the safe culvert without alerting the patrol.",
+                    C(SilentLedgerPublic?"月光草2 · 交付药材":"木材2 · 标记涵洞",
+                        SilentLedgerPublic?"Deliver 2 Moonherbs":"Deliver 2 Timber",
+                        "silentledger_family_finish"),
+                    C("先去收集材料","Gather supplies first","close"));return true;
+            }
+            if(save.room!=4)return false;
             if(!SilentLedgerSource(o,o.id))return true;
             if(o.id=="silentledger_notice")
             {
@@ -169,6 +205,25 @@ namespace Starfall
             }
             if(o.id=="silentledger_console")
             {
+                if(SilentLedgerComplete)
+                {
+                    if(!SilentLedgerFamilyStarted)
+                        Dialog(o.name,o.en,
+                            "两份证据已在这里归档。十七户人家的归乡联络还缺最后一趟路：将封存台的家庭联络包亲自送到炉火旅店，请守夜旅人核验，再把援助需求交给余烬镇公会旁的援助台。",
+                            "Both proofs are archived here, but seventeen households still need someone to carry their homeward packet. Take it to the night traveler at Hearth Inn for verification, then fund the civilian aid desk beside Emberfall's guild.",
+                            C("领取家庭联络包","Carry the family dispatch","silentledger_family_start"),
+                            C("稍后再来","Return later","close"));
+                    else
+                        Dialog(o.name,o.en,
+                            SilentLedgerFamilyDone?
+                                "家人们的联络包已经送达，最后的补给也有了着落。":
+                                "家庭联络包已经领走。炉火旅店的守夜旅人会辨认归乡路径，再由余烬镇援助台接手。",
+                            SilentLedgerFamilyDone?
+                                "The household dispatch and its final relief supplies have reached their destination.":
+                                "The family packet is in transit. Speak with Hearth Inn's night traveler, then fund the Emberfall aid desk.",
+                            C("离开","Leave","close"));
+                    return true;
+                }
                 if(silentLedgerStage==3)
                 {
                     Dialog(o.name,o.en,
@@ -219,6 +274,67 @@ namespace Starfall
             if(action==null||!action.StartsWith("silentledger_",StringComparison.Ordinal))
                 return false;
             WorldObject source=pendingDialogueSource;
+            if(action.StartsWith("silentledger_family_",StringComparison.Ordinal))
+            {
+                if(source==null||mode!="world"||Dying||practicing||
+                    pendingDialogueSourceRoom!=save.room||
+                    !SourceBelongsToActiveMap(source)||
+                    !HasPhysicalInteractionReach(source))return true;
+                if(action=="silentledger_family_start")
+                {
+                    if(!SilentLedgerFamilySource(source,"silentledger_console",4)||
+                        !SilentLedgerComplete||SilentLedgerFamilyStarted)return true;
+                    Flag("silentledger_family_started");
+                    TrackQuest("family_dispatch");revision++;sound="quest";
+                    Notify("十七户家庭联络包已领取。送到炉火旅店给守夜旅人签收。",
+                        "Family dispatch collected. Take it to the night traveler at Hearth Inn.");
+                    return true;
+                }
+                if(action=="silentledger_family_handoff")
+                {
+                    if(!SilentLedgerFamilySource(source,"innTraveler",9)||
+                        !SilentLedgerFamilyStarted||SilentLedgerFamilySigned)return true;
+                    Flag("silentledger_family_signed");revision++;sound="quest";
+                    Dialog(source.name,source.en,
+                        SilentLedgerPublic?
+                            "旅人逐一念过名单，指尖停在最后一行。‘这些人不是统计数字。请让莉雅拿到药材，别让他们到家时还在流血。’他签下十七户的核验单。":
+                            "旅人只扫了一眼背面的涵洞标记，就把信封压回你手里。‘这条路别写在公告上。给莉雅送两份木材，她知道该把木桩立在哪里。’他在封口处签了名。",
+                        SilentLedgerPublic?
+                            "The traveler reads each name. His finger stops at the last line. 'These are people, not figures. Bring Lyra the herbs before anyone bleeds on the way home.' He signs for all seventeen households.":
+                            "The traveler glimpses the culvert mark and presses the envelope back into your palm. 'Keep this road off the public board. Bring Lyra two timber; she knows where the markers belong.' He signs the seal.",
+                        C("去公会旁的援助台","Visit Emberfall aid desk","close"));
+                    return true;
+                }
+                if(action=="silentledger_family_finish")
+                {
+                    if(!SilentLedgerFamilySource(source,"silentledger_aid",0)||
+                        !SilentLedgerFamilySigned||SilentLedgerFamilyDone)return true;
+                    int item=SilentLedgerPublic?2:0;
+                    if(save.inventory[item]<2)
+                    {
+                        Notify(SilentLedgerPublic?
+                            "返乡药材不足：需月光草2。":"标路木材不足：需木材2。",
+                            SilentLedgerPublic?
+                            "Need 2 Moonherbs to treat the returning families.":
+                            "Need 2 Timber to mark the protected homeward crossing.");
+                        return true;
+                    }
+                    save.inventory[item]-=2;
+                    Flag("silentledger_family_done");
+                    CreditCoins(45);CreditShards(1);AddXp(70);
+                    RecordMoment(SilentLedgerPublic?
+                        "你将两份月光草送到余烬镇民间援助台，十七户失踪家庭的归乡医疗接应终于落实。":
+                        "你为十七户家庭的隐蔽涵洞送去了两份木材，巡路队沿着不公开的路线立起了夜间引路标。",
+                        SilentLedgerPublic?
+                        "You funded medical relief for all seventeen restored family entries with two Moonherbs.":
+                        "You supplied two Timber for discreet waymarks along the protected culvert route.");
+                    revision++;sound="reward";
+                    Notify("十七户归乡援助完成！硬币+45、碎片+1、经验+70。",
+                        "Seventeen-family homeward relief complete! +45 coins, +1 shard, +70 XP.");
+                    return true;
+                }
+                return true;
+            }
             if(save.room!=4||mode!="world"||Dying||practicing||
                 source==null||pendingDialogueSourceRoom!=4||
                 !SilentLedgerSource(source,source.id))return true;
