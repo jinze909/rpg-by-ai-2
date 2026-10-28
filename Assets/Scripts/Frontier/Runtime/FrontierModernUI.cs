@@ -515,8 +515,11 @@ namespace Starfall
                 // unavailable on its actual, clickable world HUD control.
                 // This uses the same GameCore clock/energy as keyboard and pad.
                 if(Button(24,661,304,26,
-                    Game.L("SHIFT+U 绊索 · 木材1 零件1  ", 
-                           "SHIFT+U SNARE · 1 timber + 1 part  ")+
+                    (controllerUsed?
+                        Game.L("L3+R3+Y 绊索 · 木1 零件1  ",
+                               "L3+R3+Y SNARE · wood1 gear1  "):
+                        Game.L("SHIFT+U 绊索 · 木材1 零件1  ",
+                               "SHIFT+U SNARE · wood1 gear1  "))+
                     Game.FieldSnares.Count+"/"+Game.FieldSnareLimit,
                     false,Game.CanLayFieldSnare))
                     Game.LayFieldSnare(Game.aim);

@@ -190,14 +190,21 @@ namespace Starfall
                 // selects only a visible, attackable live enemy reference;
                 // no serialization, target IDs, damage or aim-through-walls.
                 // Process it before a same-frame Q / attack captures aim.
-                if(PadDown(9))
+                bool pressedR3=PadDown(9);
+                bool padSnareChord=pressedR3&&
+                    Input.GetKey(KeyCode.JoystickButton8)&&
+                    Input.GetKey(KeyCode.JoystickButton3);
+                if(pressedR3)
                 {
                     // L3+R3 is an intentional controller throw chord.
                     // Consume R3 here so it cannot also select another
                     // speaker or toggle combat target lock in this frame.
                     // R3 alone retains every existing original behavior.
                     if(Input.GetKey(KeyCode.JoystickButton8))
-                        Game.ThrowPebble(Game.aim);
+                    {
+                        if(padSnareChord)Game.LayFieldSnare(Game.aim);
+                        else Game.ThrowPebble(Game.aim);
+                    }
                     else
                     {
                     // R3 keeps enemy lock during combat. In a peaceful,
@@ -235,7 +242,8 @@ namespace Starfall
                 // Discrete actions take priority over continuously held attacks.
                 // A fresh Q after a dodge is queued; a dodge clears older intent.
                 if ((Input.GetKeyDown(KeyCode.Space) || PadDown(0))) Game.Dash(movement);
-                if ((Input.GetKeyDown(KeyCode.Q) || PadDown(3))) Game.Skill(InputAim(true));
+                if ((Input.GetKeyDown(KeyCode.Q) || PadDown(3))&&!padSnareChord)
+                    Game.Skill(InputAim(true));
                 if (Input.GetMouseButton(0) && !PointerOverInterface(mouse))
                     Game.Attack(InputAim() ?? Game.aim);
                 if ((Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.JoystickButton2))) Game.Attack(InputAim() ?? Game.aim);
