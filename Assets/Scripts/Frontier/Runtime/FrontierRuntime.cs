@@ -971,6 +971,7 @@ namespace Starfall
                         if(o.id=="glassloom_mirror_"+(k+1))lens=k;
                 bool aligned=lens>=0&&Game.GlassLoomAligned(lens);
                 bool charged=Game.GlassLoomStage>=2||Game.GlassLoomComplete;
+                bool shuttered=lens==1&&Game.GlassLoomStage==2&&Game.GlassLoomShutterClosed;
                 Color tint=Game.GlassLoomPrivate&&Game.Night?
                     new Color(.72f,.66f,1f,1f):
                     Game.GlassLoomPublic&&!Game.Night?
@@ -978,14 +979,18 @@ namespace Starfall
                     charged?new Color(.60f,.90f,1f,1f):
                     aligned?mint:Game.GlassLoomActive?gold:
                     new Color(.8f,.77f,.7f,1f);
+                if(shuttered)tint=new Color(.58f,.64f,.72f,1f);
                 PropImage(kind=="glassloommirror"?"crystal":
                     kind=="glassloomsource"?"obelisk":"post",0,
                     p.x-33f,p.y-80f,66f,83f,tint);
                 Ring(new Point(o.x,o.y),charged?.72f:.43f,tint,22);
                 if(lens>=0)
                     Text(p.x-37,p.y-91,74,21,
-                        Game.GlassLoomOrientation(lens).ToString()+
-                        (aligned?" ✓":""),14,tint,TextAnchor.MiddleCenter);
+                        lens==1&&Game.GlassLoomStage==2?
+                            Game.L(shuttered?"遮光":"开光",shuttered?"SHUT":"OPEN"):
+                            Game.GlassLoomOrientation(lens).ToString()+
+                            (aligned?" ✓":""),
+                        14,tint,TextAnchor.MiddleCenter);
                 else if(Game.GlassLoomActive||Game.GlassLoomComplete)
                     Text(p.x-65,p.y-101,130,20,
                         kind=="glassloomsource"?

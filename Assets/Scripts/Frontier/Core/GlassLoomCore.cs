@@ -17,8 +17,12 @@ namespace Starfall
             new Dictionary<Enemy,float>();
         private readonly Dictionary<Enemy,Point> glassLoomPreviousFeet=
             new Dictionary<Enemy,Point>();
+        // The center lens operates a physical shutter after the authentic
+        // daylight alignment. It is session-only, not a new SaveData field.
+        private bool glassLoomShutterClosed;
+        public bool GlassLoomShutterClosed { get { return glassLoomShutterClosed; } }
         public bool GlassLoomBeamActive
-        {get{return glassLoomStage==2&&!Night&&GlassLoomPathClear;}}
+        {get{return glassLoomStage==2&&!Night&&!glassLoomShutterClosed&&GlassLoomPathClear;}}
         private readonly int[] glassLoomRotations=new int[3];
         private static readonly int[] glassLoomCode={2,0,1};
         public bool GlassLoomActive { get { return glassLoomStage>0; } }
@@ -82,6 +86,7 @@ namespace Starfall
             hazards.RemoveAll(h=>h.glassLoomOwned);
             glassLoomRecentContacts.Clear();
             glassLoomPreviousFeet.Clear();
+            glassLoomShutterClosed=false;
             for(int i=0;i<3;i++)glassLoomRotations[i]=0;
         }
         private int GlassLoomMirrorIndex(WorldObject o)
@@ -113,6 +118,28 @@ namespace Starfall
             {
                 int index=GlassLoomMirrorIndex(o);
                 if(index<0)return true;
+                if(glassLoomStage==2)
+                {
+                    if(index==1)
+                    {
+                        Dialog(o.name,o.en,
+                            glassLoomShutterClosed?
+                            "中央透镜的遮光片已经关闭。脚下的日光中轴暂时安全，但巡逻敌人也不再受到镜光眩晕。白天可再次开启；东侧铜杯仍保存着已聚集的归光。":
+                            "中央透镜正在照亮真实的沙海中轴。光束能短暂眩晕普通追兵，却也会灼伤停留在中轴的旅人。可关闭遮光片安全通行，再开启以引诱追兵；四秒内重复照射同一敌人不会再次眩晕。",
+                            glassLoomShutterClosed?
+                            "The center-lens shutter is closed. The lane is safe from this ray, but patrols no longer stagger in its light. Reopen it in daylight; the eastern receiver retains the charged signal.":
+                            "The center lens lights the real desert lane: it staggers ordinary pursuers but burns travelers who linger on axis. Close the shutter to cross, or reopen it to lure pursuers. Cycling it never resets an enemy's four-second recovery.",
+                            !Night?C(glassLoomShutterClosed?"开启中镜遮光片":"关闭中镜遮光片",
+                                glassLoomShutterClosed?"Open tactical shutter":"Close tactical shutter",
+                                "glassloom_shutter"):C("夜色已至，前往接收台","Night has fallen · reach receiver","close"),
+                            C("继续前往接收台","Continue to receiver","close"));
+                    }
+                    else Dialog(o.name,o.en,
+                        "这面透镜已锁定昼光角度。第二面中央透镜有可手动操作的遮光片，能决定中央光束是否继续照射。",
+                        "This lens holds its daylight angle. The second, central lens has a manual shutter controlling the exposed beam.",
+                        C("返回光路","Return to light path","close"));
+                    return true;
+                }
                 if(glassLoomStage!=1)
                 {
                     Dialog(o.name,o.en,
@@ -254,6 +281,29 @@ namespace Starfall
                     Notify("归光阵已关闭，可在白昼重新启动。",
                         "Glasswell circuit withdrawn. Retry in daylight.");
                 }
+                return true;
+            }
+            if(action=="glassloom_shutter")
+            {
+                if(glassLoomStage!=2||Night||GlassLoomMirrorIndex(source)!=1)
+                    return true;
+                glassLoomShutterClosed=!glassLoomShutterClosed;
+                if(glassLoomShutterClosed)
+                {
+                    // Dismiss only this installation's pending burns.
+                    // Do NOT clear identity-keyed enemy cooldowns: rapid
+                    // shutter cycling must not farm repeated stuns.
+                    hazards.RemoveAll(h=>h.glassLoomOwned);
+                    glassLoomPreviousFeet.Clear();
+                }
+                else glassLoomHeatClock=.9f; // warning grace after reopening
+                sound="quest";revision++;
+                Notify(glassLoomShutterClosed?
+                    "遮光片已关闭：可安全穿越中轴，但镜光不再牵制敌人。":
+                    "遮光片重新开启：强光恢复，留意中轴灼伤并诱敌进入光路。",
+                    glassLoomShutterClosed?
+                    "Shutter closed: cross the center safely; pursuers no longer stagger.":
+                    "Shutter open: the beam returns. Avoid the burning lane or lure pursuers through it.");
                 return true;
             }
             if(action=="glassloom_turn")

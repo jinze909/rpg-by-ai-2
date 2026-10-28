@@ -501,6 +501,14 @@ namespace Starfall
                         Game.GlassLoomOrientation(2)+
                         Game.L(" · 目标 2—0—1"," · TARGET 2—0—1"),
                         12,ink);
+                if(Game.GlassLoomStage==2)
+                    Text(35,440,535,24,
+                        Game.GlassLoomShutterClosed?
+                        Game.L("中镜遮光已关闭 · 光路安全但无法眩晕追兵",
+                            "CENTER SHUTTER CLOSED · SAFE LANE, NO ENEMY STAGGER"):
+                        Game.L("中镜遮光已开启 · 可手动关闭以安全通行",
+                            "CENTER SHUTTER OPEN · CLOSE AT LENS TO CROSS"),
+                        12,ink);
                 if(Game.GlassLoomBeamActive)
                 {
                     // Actual daytime center-line light, with walkable

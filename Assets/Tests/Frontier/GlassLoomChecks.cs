@@ -303,6 +303,74 @@ namespace Starfall.Tests
                 raider.armorOpenTime==0f,
                 "Nightfall disables the optical mechanic's enemy contacts without relying on independent Boss AI");
         }
+        public static void GlasswellManualCenterShutterChangesRealCombatLaneWithoutResettingEnemyRecovery(Campaign data)
+        {
+            GameCore g=GlasswellReady(data);
+            GlasswellTuneAndFocus(g);
+            WorldObject center=LensSite(g,"glassloom_mirror_2");
+            WorldObject side=LensSite(g,"glassloom_mirror_1");
+            g.save.x=side.x;g.save.y=side.y;g.Talk(side);
+            Check(!LensChoice(g,"glassloom_shutter"),
+                "A side mirror never impersonates the real central tactical shutter");
+            g.save.x=center.x;g.save.y=center.y;g.Talk(center);
+            int stale=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="glassloom_shutter");
+            Check(stale>=0&&g.GlassLoomBeamActive,
+                "Focused sunlight exposes a genuine playable central-lens shutter action");
+            g.save.x=center.x+8f;g.Choose(stale);
+            Check(!g.GlassLoomShutterClosed&&g.GlassLoomBeamActive,
+                "Cached distant mirror dialogue cannot remotely disable the real beam");
+            g.save.x=center.x;g.save.y=center.y;g.Talk(center);
+            g.hazards.Add(new Hazard {
+                position=new Point(66.5f,50.5f),radius=.8f,timer=1.35f,
+                damage=12f,kind="glass",glassLoomOwned=true
+            });
+            Check(LensChoice(g,"glassloom_shutter")&&g.GlassLoomShutterClosed&&
+                !g.GlassLoomBeamActive&&!g.hazards.Exists(h=>h.glassLoomOwned),
+                "Physically shutting the center lens immediately removes its pending burns");
+            Enemy raider=new Enemy(88999,0,66.5f,50.5f,100f)
+                {timer=100f};
+            g.enemies.Add(raider);
+            var tick=typeof(GameCore).GetMethod("TickGlassLoom",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(tick!=null,"Tests invoke the actual production optics update");
+            tick.Invoke(g,new object[]{.05f});
+            Check(raider.stun==0f&&raider.armorOpenTime==0f,
+                "A closed physical shutter cannot silently stagger an exposed patrol");
+            g.save.x=center.x;g.save.y=center.y;g.Talk(center);
+            Check(LensChoice(g,"glassloom_shutter")&&!g.GlassLoomShutterClosed&&
+                g.GlassLoomBeamActive,
+                "The player can restore real sunlight without restarting or retuning the three-lens puzzle");
+            tick.Invoke(g,new object[]{.05f});
+            Check(raider.stun>.7f&&raider.armorOpenTime>.4f,
+                "Reopening the ray genuinely controls a living patrol in the official combat simulation");
+            raider.stun=0f;raider.armorOpenTime=0f;
+            g.Talk(center);LensChoice(g,"glassloom_shutter");
+            g.Talk(center);LensChoice(g,"glassloom_shutter");
+            tick.Invoke(g,new object[]{.05f});
+            Check(raider.stun==0f&&raider.armorOpenTime==0f,
+                "Rapid shutter cycling cannot bypass the same actor's four-second contact recovery");
+            g.Talk(center);LensChoice(g,"glassloom_shutter");
+            Check(g.GlassLoomShutterClosed,
+                "A player may leave the charged ray safely shuttered until nightfall");
+            g.save.totalTime=160f;
+            WorldObject receiver=LensSite(g,"glassloom_receiver");
+            g.save.x=receiver.x;g.save.y=receiver.y;g.Talk(receiver);
+            Check(LensChoice(g,"glassloom_capture")&&g.GlassLoomStage==3,
+                "The existing real nighttime receiver still captures previously focused light");
+            WorldObject source=LensSite(g,"glassloom_source");
+            g.save.x=source.x;g.save.y=source.y;g.Talk(source);
+            Check(LensChoice(g,"glassloom_private")&&g.GlassLoomPrivate&&
+                g.GlassLoomComplete&&!g.GlassLoomShutterClosed,
+                "Original exclusive story outcome and reset still work after tactical shutter use");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.GlassLoomPrivate&&!restored.GlassLoomShutterClosed&&
+                restored.save.version==2,
+                "The new shutter is session-only; the previous SaveData v2 contract remains intact");
+        }
+
         public static void GlasswellSolarBeamSweepsFastCrossingsAndKeepsActorIdentity(Campaign data)
         {
             GameCore g=GlasswellReady(data);
