@@ -526,6 +526,49 @@ namespace Starfall
                     L("听见异响","HEARD IMPACT")));
             }
         }
+        // Throwing is itself a real physical action. A guard at the
+        // thrower's shoulder can hear the launch before the pebble travels,
+        // while a distant patrol only hears the later, genuine landing.
+        // Sound does not cross closed stone, override civilian objectives
+        // or magically reveal a distant concealed live hero coordinate.
+        private void NotifyNearbyPatrolOfPebbleLaunch(Point launchFoot)
+        {
+            if(mode!="world"||practicing||Dying||
+               !Finite(launchFoot.x)||!Finite(launchFoot.y))return;
+            EnsureEnemyHitAlertSession();
+            foreach(Enemy guard in enemies)
+            {
+                if(guard==null||guard.hp<=0f||guard.boss||
+                   ArrowSoundCannotOverrideObjective(guard)||
+                   !CanStand(guard.Position)||
+                   (guard.Position-launchFoot).Length>2.5f||
+                   !ClearAttackPath(launchFoot,guard.Position)||
+                   patrolsThatSawHero.Contains(guard)||
+                   ImpactSearchGuardSeesHero(guard))continue;
+                EnemyHitAlert alert;
+                if(enemyHitAlert.TryGetValue(guard,out alert))
+                {
+                    // A real combat witness has stronger evidence than
+                    // a thrown stone. A second audible launch may redirect
+                    // a search only when it has a distinct physical origin.
+                    if(!alert.impactOnly&&!alert.returning)continue;
+                    if(!alert.returning&&
+                       (alert.lastKnown-launchFoot).Length<1.25f)continue;
+                    alert.returning=false;
+                    alert.impactOnly=true;
+                    alert.lastKnown=launchFoot;
+                    alert.remaining=2f;
+                    alert.searchStep=-1;
+                    alert.whistleRemaining=0f;
+                }
+                else
+                    enemyHitAlert[guard]=new EnemyHitAlert(
+                        2f,launchFoot,true,guard.Position);
+                effects.Add(new Effect("number",guard.Position,.75f,
+                    L("听见投石动作","HEARD THROW")));
+            }
+        }
+
         // A deliberate pebble can distract without a bow, but only after
         // the REAL non-damaging projectile lands on a reachable floor/cover.
         // Hearing is local and terrain-filtered. An active fight, physical

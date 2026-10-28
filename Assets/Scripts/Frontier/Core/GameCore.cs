@@ -1075,6 +1075,10 @@ namespace Starfall
             // foot, but only the later, physical LANDING lures guards.
             QuietStepping=false;
             projectiles.Add(pebble);
+            // A very near, unobstructed sentry can hear the actual arm
+            // throw at its source. The later landing is a distinct, still
+            // necessary sound event with its own physical collision foot.
+            NotifyNearbyPatrolOfPebbleLaunch(pebble.position);
             // Immediate player feedback, never a false guard-heard impact.
             sound="stoneThrow";
             revision++;

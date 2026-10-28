@@ -28,6 +28,7 @@ namespace Starfall.Tests
         [Test] public void RealDecoyStonesHitLivingBodiesButNeverDamageThem() { CoreChecks.PebbleContactsOnlyRealLivingBodyWithoutDamage(Data()); }
         [Test] public void QuietSquadHoldsAutofireUntilRealThreat() { CoreChecks.QuietCompanionHoldsFireUntilGenuineThreat(Data()); }
         [Test] public void QuietSquadMatchesRealSlowFootsteps() { CoreChecks.QuietCompanionFollowsAtActualControlledFootstepSpeed(Data()); }
+        [Test] public void AuthenticPebbleLaunchAlertsOnlyCloseVisibleSideSentries() { CoreChecks.PebbleThrowIsLocallyAudibleBeforeActualLanding(Data()); }
         [Test] public void StoneDecoyGuardsSweepPhysicalGroundNotJustPaintAQuestionMark() { CoreChecks.AudibleImpactPatrolSweepsActualReachableNearSideGround(Data()); }
         [Test] public void AuthenticArrowStoneContactHasDistinctAudio() { CoreChecks.RealArrowStoneImpactHasOwnAudiblePhysicalContact(Data()); }
         [Test] public void RealWallNoiseRedirectsGuardButNotRescueRaiders() { CoreChecks.DistinctArrowWallSoundsRedirectOnlySearchingGuards(Data()); }

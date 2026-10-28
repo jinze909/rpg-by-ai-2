@@ -989,6 +989,68 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+
+        public static void PebbleThrowIsLocallyAudibleBeforeActualLanding(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                for(int scenario=0;scenario<4;scenario++)
+                {
+                    string[] live=(string[])rows.Clone();
+                    if(scenario==2)
+                    {
+                        char[] wall=live[10].ToCharArray();
+                        wall[7]='#';live[10]=new string(wall);
+                    }
+                    data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                        spawnY=10.5f,rows=live,
+                        objects=new WorldObject[0],decor=new Decoration[0]};
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.projectiles.Clear();
+                    g.mode="world";g.save.x=6.5f;g.save.y=10.5f;
+                    g.save.energy=scenario==3?3f:100f;
+                    var guard=new Enemy(99700+scenario,0,
+                        scenario==1?10.5f:8.5f,10.5f,200f);
+                    guard.Face(new Point(1f,0f));
+                    guard.stun=100f;guard.timer=100f;
+                    g.enemies.Add(guard);
+                    // Throw north, so the nearby guard cannot confuse
+                    // landing on its body with the earlier arm movement.
+                    g.sounds.Clear();
+                    g.ThrowPebble(new Point(0f,1f));
+                    bool valid=scenario!=3;
+                    bool heardAtLaunch=scenario==0;
+                    Check(g.IsEnemyInvestigatingImpact(guard)==heardAtLaunch,
+                        "Only a living, close and physically unoccluded sentry hears an actual throw before landing; case "+scenario);
+                    Check(g.projectiles.Exists(p=>p.source=="quietDecoy")==
+                            valid&&guard.hp==200f&&g.save.version==2,
+                        "Only an accepted real throw launches a harmless stone, without patrol damage or schema mutation");
+                    if(valid)
+                    {
+                        Check(g.save.energy==92f&&
+                            new System.Collections.Generic.List<string>(g.sounds)
+                                .Contains("stoneThrow")&&
+                            !new System.Collections.Generic.List<string>(g.sounds)
+                                .Contains("stoneImpact"),
+                            "A successful throw charges exactly once and has a distinct launch, never a fake landing sound");
+                    }
+                    else
+                        Check(g.save.energy==3f&&g.sounds.Count==0,
+                            "Energy-rejected throw is entirely inaudible to nearby patrols");
+                }
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void ThrownPebbleIsPhysicalNonlethalBoundedSoundLure(Campaign data)
         {
             MapData old=data.maps[1];
