@@ -299,7 +299,10 @@ namespace Starfall
                 float source=(witness.Position-seen).Length;
                 if(!Finite(voice)||voice>5.5f||
                    !Finite(source)||source<=8f||source>18f||
-                   !ClearAttackPath(caller.Position,witness.Position))
+                   // A REAL whistle follows short walkable air/road
+                   // corridors around opaque corners, just like stone
+                   // noise. A sealed wall or longer detour still blocks it.
+                   !AudibleAlongWorld(caller.Position,witness.Position,5.5f))
                     continue;
                 EnemyHitAlert existing;
                 if(enemyHitAlert.TryGetValue(witness,out existing))
