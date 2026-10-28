@@ -55,7 +55,7 @@ namespace Starfall
         private float fishTidalBraceUntil,fishTidalBraceTarget;
         public bool FishTidalBraced {get{return FishTidalCast&&FishLineReady&&fishTime<fishTidalBraceUntil;}}
         public bool CanBraceTidalLine {get{return FishTidalCast&&FishLineReady&&
-            !fishTidalBraceUsed&&FishBiteTimeRemaining>.65f;}}
+            !save.reducedMotion&&!fishTidalBraceUsed&&FishBiteTimeRemaining>.65f;}}
         public float FishBiteWindowSeconds {get{return FishTidalCast?2.05f:FishBiteWindow;}}
         public int FishCatchReward {get{return FishTidalCast?3:FishExpertCast?2:1;}}
         // The public fish kitchen uses an existing v2 string flag so old

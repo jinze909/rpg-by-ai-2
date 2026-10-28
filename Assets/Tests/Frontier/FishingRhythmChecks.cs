@@ -115,8 +115,11 @@ namespace Starfall.Tests
         public static void MistportTidalFishingHasPhysicalEbbGateLiveBraceAndRealThreeFishHaul(Campaign data)
         {
             GameCore g=Fresh(data);
-            g.save.stage=3;
+            g.save.stage=3;g.save.flags.Add("exp_intro");
+            // Use the real post-introduction unlock. Enter() correctly
+            // rejects locked Mistport and would leave this test in town.
             g.Enter(5);g.enemies.Clear();g.save.totalTime=36f;
+            Check(g.save.room==5,"True chapter progression opened the real harbor");
             WorldObject pier=Object(g,"tidefishery");
             g.save.x=pier.x;g.save.y=pier.y;
             Check(g.CanStand(g.Position)&&g.LowTide,
@@ -187,6 +190,42 @@ namespace Starfall.Tests
             Check(restored.save.version==2&&restored.Has("mistport_tidal_first")&&
                 !restored.FishTidalCast&&restored.save.inventory[3]==fish+3,
                 "Original v2 save retains the first dock landing but not temporary line-control state");
+        }
+
+        public static void MistportTidalFishingReducedMotionKeepsRealBitesAndNeverDuplicatesFirstReward(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("exp_intro");g.save.flags.Add("harbor_report");
+            g.Enter(5);g.enemies.Clear();g.save.totalTime=36f;
+            WorldObject pier=Object(g,"tidefishery");
+            g.save.x=pier.x;g.save.y=pier.y;
+            g.save.reducedMotion=true;g.save.inventory[3]=0;
+            g.save.inventory[4]=2;
+            g.Talk(pier);
+            int action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(g.mode=="fish"&&g.FishTidalCast&&g.FishTarget==.5f,
+                "Accessible tide challenge has a steady zone but retains the original physical cast");
+            for(int n=0;n<18;n++)g.Tick(.02f,new Point());
+            float time=g.FishBiteTimeRemaining;
+            Check(g.FishLineReady&&!g.CanBraceTidalLine&&!g.BraceTidalLine()&&
+                Math.Abs(g.FishBiteTimeRemaining-time)<.0001f,
+                "Reduced motion never offers a deceptive time-wasting brace");
+            int coins=g.save.coins,shards=g.save.shards;
+            for(int i=0;i<3;i++){ReachFishingBite(g,true);g.FishHit();}
+            Check(g.mode=="world"&&g.save.inventory[3]==3&&
+                g.save.coins==coins+12&&g.save.shards==shards+1,
+                "Steady accessible mode still requires and rewards three actual hooked bites");
+            int momentCount=g.save.moments.Count;
+            g.Talk(pier);
+            action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(g.mode=="fish"&&g.save.inventory[4]==0,
+                "A new low-tide cast costs a second real gear component");
+            for(int i=0;i<3;i++){ReachFishingBite(g,true);g.FishHit();}
+            Check(g.save.inventory[3]==6&&g.save.coins==coins+24&&
+                g.save.shards==shards+1&&g.save.moments.Count==momentCount,
+                "Repeat catches remain useful but cannot duplicate the unique shard or civic chronicle");
         }
 
         public static void PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Campaign data)

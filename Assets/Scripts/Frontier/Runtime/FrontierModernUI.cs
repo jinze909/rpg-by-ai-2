@@ -1789,8 +1789,11 @@ namespace Starfall
                     Game.L("湖畔 · 精准垂钓", "Precision fishing by the lake"):
                     Game.L("湖畔垂钓", "Fishing by the lake"),
                 Game.FishTidalCast?
-                    Game.L("退潮短咬钩 · E 收线，F 稳线一次可短暂固定漂移目标，但损失时间",
-                        "Short ebb bites · E reel, F brace a drifting target once per bite at a time cost"):
+                    (Game.save.reducedMotion?
+                        Game.L("低动态退潮：鱼口固定，E 收线；无需稳线，三次真实咬钩照常判定",
+                            "Reduced-motion ebb: steady target, E reel; no brace needed, three real bites required"):
+                        Game.L("退潮短咬钩 · E 收线，F/手柄 X 稳线一次，短暂固定漂移目标但损失时间",
+                            "Short ebb bites · E reel, F/pad X brace the drift once at a time cost")):
                 Game.FishExpertCast?
                     Game.save.reducedMotion?
                         Game.L("窄鱼口固定 · 三次精准收线，赢得两条银鳍鱼 · E / 空格",
@@ -1845,12 +1848,13 @@ namespace Starfall
                     Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",
                         "Three good pulls catch a Silverfin. A bad or missed bite counts; three misses end the cast."),
                 15, muted, TextAnchor.MiddleCenter);
-            if(Game.FishTidalCast&&
+            if(Game.FishTidalCast&&!Game.save.reducedMotion&&
                 Button(335,601,320,56,
                     Game.FishTidalBraced?Game.L("鱼线已稳住","LINE BRACED"):
                     Game.L("稳线 F / 手柄 X","Brace F / pad X"),
                     true,Game.CanBraceTidalLine))Game.BraceTidalLine();
-            if(Button(Game.FishTidalCast?677:473,601,Game.FishTidalCast?484:543,56,
+            if(Button(Game.FishTidalCast&&!Game.save.reducedMotion?677:473,
+                601,Game.FishTidalCast&&!Game.save.reducedMotion?484:543,56,
                 Game.FishLineReady?Game.L("收线 E","Reel E"):
                     Game.L("等待咬钩","Wait for bite"),
                 true,Game.FishLineReady))Game.FishHit();

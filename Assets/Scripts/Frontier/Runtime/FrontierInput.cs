@@ -78,6 +78,14 @@ namespace Starfall
         {
             pressedTime = Math.Max(0, pressedTime - dt); navigationRepeat = Math.Max(0, navigationRepeat - dt); confirmControl = null;
             navigation.Scope(InputScope());
+            // The same physically earned single-use line brace is accessible
+            // on gamepad X, not just by keyboard F or the on-screen button.
+            if(Game.mode=="fish"&&PadDown(2))
+            {
+                controllerUsed=true;
+                Game.BraceTidalLine();
+                return;
+            }
             // Gamepad and pure keyboard players can place the SAME validated
             // personal map pin as mouse users. While a tile is being selected,
             // d-pad/stick movement MUST NOT move menu focus or fire another
