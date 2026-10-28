@@ -853,6 +853,86 @@ namespace Starfall.Tests
             finally{data.maps[1]=previous;}
         }
 
+
+        public static void QuietCompanionHoldsFireUntilGenuineThreat(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=8.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                var flags=System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic;
+                var cooldown=typeof(GameCore).GetField("companionAttack",flags);
+                var selected=typeof(GameCore).GetField("companionAutoTarget",flags);
+                var nearest=typeof(GameCore).GetMethod("NearestCompanionThreat",flags);
+                var flank=typeof(GameCore).GetMethod("CompanionTacticalFollowTarget",flags);
+                Check(cooldown!=null&&selected!=null&&nearest!=null&&flank!=null,
+                    "Real autonomous party controls and physical flank solver are available");
+                for(int scenario=0;scenario<3;scenario++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.projectiles.Clear();
+                    g.mode="world";g.save.companion=1;
+                    g.save.x=8.5f;g.save.y=10.5f;
+                    g.companionPosition=new Point(9.5f,10.5f);
+                    var sentry=new Enemy(99501+scenario,0,
+                        13.5f,10.5f,240f);
+                    sentry.Face(new Point(1,0));
+                    sentry.timer=100f;g.enemies.Add(sentry);
+                    cooldown.SetValue(g,0f);
+                    if(scenario==1)
+                    {
+                        // The auto-draw began before the quiet player
+                        // changed posture. It must recheck at hand-release.
+                        g.companionAction=new ActorAction{
+                            kind="attack",weapon=1,duration=.42f,
+                            contact=.16f,damage=12f,
+                            direction=new Point(1,0),target=sentry.Position};
+                        selected.SetValue(g,sentry);
+                        cooldown.SetValue(g,2.8f);
+                    }
+                    g.Tick(.02f,new Point(),null,false,scenario!=2);
+                    if(scenario<2)
+                    {
+                        Point follow=(Point)flank.Invoke(g,
+                            new object[]{g.companionPosition});
+                        Check(g.QuietStepping&&
+                            (Enemy)nearest.Invoke(g,null)==null&&
+                            (follow-g.companionPosition).Length<.001f,
+                            "Quiet player keeps the original ally from hunting a rear-unaware sentry or flanking for free fire");
+                        for(int i=0;i<16;i++)
+                            g.Tick(.02f,new Point(),null,false,true);
+                        Check(g.projectiles.Count==0&&sentry.hp==240f&&
+                            (scenario==1?
+                                g.companionAction!=null&&g.companionAction.released:
+                                g.companionAction==null),
+                            "The physical quiet squad never launches an opportunistic or already-winding arrow");
+                    }
+                    else
+                    {
+                        Check(!g.QuietStepping&&g.companionAction!=null&&
+                            g.companionAction.kind=="attack",
+                            "Ordinary audible movement preserves the original auto-defense");
+                        for(int i=0;i<8;i++)g.Tick(.02f,new Point());
+                        Check(g.projectiles.Count>0||sentry.hp<240f,
+                            "Genuine open combat releases the companion's real ranged projectile");
+                    }
+                    Check(g.save.version==2,"Stealth squad posture never changes the old save schema");
+                }
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void ThrownPebbleIsPhysicalNonlethalBoundedSoundLure(Campaign data)
         {
             MapData old=data.maps[1];

@@ -1354,6 +1354,24 @@ namespace Starfall
                 CompanionAutoFlightLaneClear(foot,
                     save.companion==1?1:2,foe.Position);
         }
+        // A Ctrl-quiet squad should never expose an unnoticed sentry
+        // through its own opportunistic auto-fire. Retain real defense
+        // against already spotted guards, authored rescue threats, Bosses,
+        // player-marked targets and genuinely committed hero strikes.
+        private bool CompanionQuietTargetHidden(Enemy foe)
+        {
+            if(!QuietStepping||mode!="world"||foe==null||foe.hp<=0f||
+               foe.boss||IsCompanionFocusTarget(foe)||
+               ArrowSoundCannotOverrideObjective(foe)||
+               CompanionCommittedHeroStrike(foe)||
+               CompanionCommittedRescueStrike(foe)||
+               patrolsThatSawHero.Contains(foe))return false;
+            EnemyHitAlert alert;
+            if(enemyHitAlert.TryGetValue(foe,out alert)&&
+               !alert.impactOnly&&!alert.returning)
+                return false;
+            return true;
+        }
         private Point CompanionTacticalFollowTarget(Point normal)
         {
             // Never leave an assigned cache-guard post, abandon a wounded
@@ -1368,6 +1386,7 @@ namespace Starfall
             }
             Enemy old=companionCornerTarget;
             bool samePlan=old!=null&&
+                !CompanionQuietTargetHidden(old)&&
                 System.Object.ReferenceEquals(companionCornerSave,save)&&
                 companionCornerRoom==save.room&&
                 companionCornerGeneration==companionPresentationGeneration&&
@@ -1409,7 +1428,8 @@ namespace Starfall
             float best=float.PositiveInfinity;
             foreach(Enemy foe in enemies)
             {
-                if(foe==null||foe.hp<=0)continue;
+                if(foe==null||foe.hp<=0||
+                   CompanionQuietTargetHidden(foe))continue;
                 Point line=foe.Position-companionPosition;
                 // A short opaque pillar may hide even the centerline
                 // from the CURRENT foot while one reachable sideways
@@ -1551,7 +1571,8 @@ namespace Starfall
             float bestProtectedStrikeSeconds=float.PositiveInfinity;
             foreach(Enemy foe in enemies)
             {
-                if(foe==null || foe.hp<=0)continue;
+                if(foe==null || foe.hp<=0||
+                   CompanionQuietTargetHidden(foe))continue;
                 Point delta=foe.Position-companionPosition;
                 float squared=delta.x*delta.x+delta.y*delta.y;
                 // Most foes cannot be selected by this companion. Reject
@@ -1952,6 +1973,7 @@ namespace Starfall
                             Point oldAim=locked==null?new Point():
                                 locked.Position-companionPosition;
                             bool oldValid=locked!=null&&locked.hp>0&&
+                                !CompanionQuietTargetHidden(locked)&&
                                 enemies.Contains(locked)&&oldAim.Length<7f&&
                                 ClearAttackPath(companionPosition,locked.Position)&&
                                 CompanionAutoFlightLaneClear(companionPosition,
@@ -2018,6 +2040,7 @@ namespace Starfall
                             (!CanStand(companionPosition) ||
                              locked == null || !enemies.Contains(locked) ||
                              locked.hp <= 0 ||
+                             CompanionQuietTargetHidden(locked) ||
                              (locked.Position-companionPosition).Length >= 7f ||
                              (!ClearAttackPath(companionPosition,locked.Position)||
                               !CompanionAutoFlightLaneClear(companionPosition,
