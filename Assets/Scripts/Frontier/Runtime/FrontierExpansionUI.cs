@@ -497,7 +497,7 @@ namespace Starfall
                         Point foot=ScreenPoint(p);
                         DrawActorContactShadow(foot,34,13,7,.78f);
                         DrawRootedCivilianBody(foot,0f,
-                            Game.WhiteoutWarmth<30f?
+                            Game.WhiteoutStage==2&&Game.WhiteoutWarmth<30f?
                             new Color(1f,.84f,.77f,1f):Color.white,
                             Game.WhiteoutFollowerFacingLeft);
                         if(Game.WhiteoutGustWarning>0f)
@@ -1192,6 +1192,19 @@ namespace Starfall
         }
         private bool DrawExpansionObject(WorldObject o)
         {
+            if(o.kind=="whiteoutnotice")
+            {
+                Point p=ScreenPoint(new Point(o.x,o.y));
+                PropImage("post",0,p.x-32,p.y-77,64,80,
+                    Game.WhiteoutComplete?new Color(.65f,.9f,.8f,.88f):Color.white);
+                Ring(new Point(o.x,o.y),.42f,
+                    Game.WhiteoutComplete?mint:gold,18);
+                if(Game.WhiteoutComplete)
+                    Text(p.x-65,p.y-91,130,18,Game.L("已归家","SAFE RETURN"),
+                        11,mint,TextAnchor.MiddleCenter);
+                else Diamond(p.x,p.y-68,5,gold);
+                return true;
+            }
             if(o.kind=="whiteouttraveler")
             {
                 Point p=ScreenPoint(new Point(o.x,o.y));

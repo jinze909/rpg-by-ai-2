@@ -9539,6 +9539,14 @@
           "y": 42.5
         },
         {
+          "id": "whiteout_notice",
+          "name": "霜钟搜救告示 · 未寄的家书",
+          "en": "Frostchime Search Notice · Unsent Letter",
+          "kind": "whiteoutnotice",
+          "x": 64.5,
+          "y": 44.5
+        },
+        {
           "id": "annex_vista_7",
           "name": "霜钟背风崖观景台",
           "en": "Frostchime Cliffs · Charting overlook",

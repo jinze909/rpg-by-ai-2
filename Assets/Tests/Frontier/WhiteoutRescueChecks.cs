@@ -61,7 +61,7 @@ namespace Starfall.Tests
         public static void WhiteoutRescueMovesRealSurvivorPastTwoHuntersAndBanksPublicShelter(Campaign data)
         {
             var g=WhiteoutReady(data);
-            var lookout=WhiteoutObject(g,"annex_vista_7");
+            var lookout=WhiteoutObject(g,"whiteout_notice");
             var lost=WhiteoutObject(g,"whiteout_lost");
             var camp=WhiteoutObject(g,"annex_camp_7");
             Check(g.CanStand(new Point(lost.x,lost.y))&&
@@ -113,7 +113,7 @@ namespace Starfall.Tests
         public static void WhiteoutRescueGustsMoonherbAndAlternativeTrailAreReal(Campaign data)
         {
             var g=WhiteoutReady(data);
-            WorldObject lookout=WhiteoutObject(g,"annex_vista_7"),
+            WorldObject lookout=WhiteoutObject(g,"whiteout_notice"),
                 lost=WhiteoutObject(g,"whiteout_lost"),
                 camp=WhiteoutObject(g,"annex_camp_7");
             g.save.x=lookout.x;g.save.y=lookout.y;g.Talk(lookout);
@@ -160,7 +160,7 @@ namespace Starfall.Tests
         public static void WhiteoutRescueRejectsFakeEnemyOrUnfinishedBoss(Campaign data)
         {
             var g=WhiteoutReady(data);
-            WorldObject lookout=WhiteoutObject(g,"annex_vista_7"),
+            WorldObject lookout=WhiteoutObject(g,"whiteout_notice"),
                 lost=WhiteoutObject(g,"whiteout_lost");
             g.save.flags.Remove("boss_7");
             g.save.x=lookout.x;g.save.y=lookout.y;g.Talk(lookout);

@@ -41,13 +41,13 @@ namespace Starfall
         public Point WhiteoutTarget
         {get{return whiteoutStage==1?new Point(58.5f,42.5f):
             whiteoutStage>=2?new Point(61.5f,36.5f):
-            new Point(65.5f,40.5f);}}
+            new Point(64.5f,44.5f);}}
         public string WhiteoutObjective
         {get{return whiteoutStage==1?L("寻找失踪的北境旅人","FIND THE LOST TRAVELER"):
             whiteoutStage==2?L("护送旅人返回旧营地","ESCORT TO THE OLD CAMP"):
             whiteoutStage==3?L("在营地决定开放避险站或巡路图","CHOOSE SHELTER OR TRAIL MAP"):
             L("从真实远眺台接下寻人委托","READ THE LOOKOUT NOTICE");}}
-        private bool IsWhiteoutHunter(Enemy e)
+        public bool IsWhiteoutHunter(Enemy e)
         {return e!=null&&(Object.ReferenceEquals(e,whiteoutHunterA)||
             Object.ReferenceEquals(e,whiteoutHunterB));}
         private void OnWhiteoutEnemyDefeated(Enemy e)
@@ -122,7 +122,7 @@ namespace Starfall
         private bool TalkWhiteout(WorldObject o)
         {
             if(o==null||save.room!=7)return false;
-            bool overlook=o.id=="annex_vista_7",lost=o.id=="whiteout_lost",
+            bool overlook=o.id=="whiteout_notice",lost=o.id=="whiteout_lost",
                 camp=o.id=="annex_camp_7";
             if(!overlook&&!lost&&!(camp&&whiteoutStage>=2))return false;
             if(overlook&&!Has("boss_7")&&!WhiteoutActive&&!WhiteoutComplete)
@@ -211,7 +211,7 @@ namespace Starfall
                 !WhiteoutSource(source,source.id))return true;
             if(action=="whiteout_start")
             {
-                if(source.id!="annex_vista_7"||whiteoutStage!=0||
+                if(source.id!="whiteout_notice"||whiteoutStage!=0||
                     WhiteoutComplete||!Has("boss_7")||FrostSignalActive||
                     FieldWorkPreventsRest||!SafeTravel)return true;
                 whiteoutStage=1;whiteoutSeconds=205f;
@@ -223,7 +223,7 @@ namespace Starfall
             }
             if(action=="whiteout_abort")
             {
-                if(source.id=="annex_vista_7"&&WhiteoutActive)
+                if(source.id=="whiteout_notice"&&WhiteoutActive)
                 {ResetWhiteout();revision++;Notify("搜救撤回。以后可重新搜寻。",
                     "Rescue withdrawn. You can try again later.");}
                 return true;
