@@ -3291,7 +3291,10 @@ namespace Starfall.Tests
                 System.Reflection.BindingFlags.NonPublic);
             Check(seconds!=null,"Five-minute dispatch uses a live, nonpersisted world-time clock");
             seconds.SetValue(g,.02f);
-            g.Tick(.05f,new Point());
+            // The preceding physical injury leaves 45ms of hit-stop.
+            // Frozen time is not falsely counted as mission simulation;
+            // advance enough authentic world frames to cover that pause.
+            for(int tick=0;tick<4;tick++)g.Tick(.05f,new Point());
             Check(!g.SignalRelayActive&&!g.Has("annex_relay_done_0"),
                 "Real world time can expire an unfinished relay without minting rewards");
             // A complete network is awarded only when the actual final
