@@ -104,10 +104,16 @@ namespace Starfall.Tests
             float seen=g.SilentLedgerSuspicion;
             // The target is now outside sight and audible range, so the
             // same suspicion must dissipate rather than accumulating forever.
-            g.save.x=bell.x;g.save.y=bell.y;
-            for(int i=0;i<15;i++)g.Tick(.05f,new Point());
+            Point outOfSight=new Point(44.5f,50.5f);
+            Check(g.CanStand(outOfSight)&&
+                (outOfSight-g.SilentLedgerSentryPosition(0)).Length>10f&&
+                (outOfSight-g.SilentLedgerSentryPosition(1)).Length>10f,
+                "Hiding test uses real reachable-world ground beyond BOTH actual moving patrols");
+            g.save.x=outOfSight.x;g.save.y=outOfSight.y;
+            for(int i=0;i<25;i++)g.Tick(.05f,new Point());
             Check(g.SilentLedgerStage==1&&g.SilentLedgerSuspicion<seen,
-                "Real loss of line of sight decays alert while patrol keeps moving");
+                "After genuinely leaving BOTH patrol sightlines, alarm recovers: initial="+
+                seen+" remaining="+g.SilentLedgerSuspicion);
             g.save.inventory[4]=2;
             SilentLedgerMoveTo(g,bell);g.Talk(bell);
             int bellChoiceIndex=Array.FindIndex(g.conversation.choices,c=>c.action=="silentledger_decoy");
