@@ -230,6 +230,15 @@ namespace Starfall.Tests
             Check(!SilentLedgerChoice(g,"silentledger_shutter")&&
                 g.SilentLedgerShutterUsed,
                 "Metal shutter cannot be repeatedly spammed to refresh infinite darkness");
+            float pausedLight=g.SilentLedgerDarkness;
+            Check(g.mode=="dialog",
+                "After inspecting an exhausted shutter the real dialogue remains open");
+            g.Tick(.05f,new Point());
+            Check(g.SilentLedgerDarkness==pausedLight,
+                "Opening a world dialogue pauses live shutter time rather than silently expiring it");
+            g.Close();
+            Check(g.mode=="world",
+                "Explicitly finish the real conversation before advancing world-time expiry");
             g.save.x=far.x;g.save.y=far.y;
             for(int i=0;i<460;i++)g.Tick(.05f,new Point());
             Check(g.SilentLedgerStage==1&&g.SilentLedgerDarkness==0f,
