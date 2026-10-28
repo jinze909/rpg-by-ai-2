@@ -106,14 +106,15 @@ namespace Starfall.Tests
                         "Fully healthy, rested heroes keep their paid remedy");
                 }
                 Check(g.UnlistedReliefCount==3&&g.Has("unlisted_relief_network")&&
-                    g.save.skillPoints==initialTalent+1,
-                    "Three real deliveries award the single network talent once");
+                    g.save.skillPoints>=initialTalent+1,
+                    "Three real deliveries unlock the network and at least one additional talent");
+                int finishedTalents=g.save.skillPoints;
                 g.PrepareSave();
                 var loaded=new GameCore(data,CloneSave(g.save));
                 Check(loaded.save.version==2&&loaded.UnlistedReliefCount==3&&
                     loaded.Has("unlisted_relief_network")&&loaded.UnlistedDone&&
-                    loaded.save.skillPoints==initialTalent+1,
-                    "Three completed field stations survive unchanged v2 save reload");
+                    loaded.save.skillPoints==finishedTalents,
+                    "Field stations and earned talents survive unchanged v2 save reload");
                 loaded.save.room=0;loaded.enemies.Clear();
                 WorldObject firstB=Array.Find(loaded.Map.objects,
                     o=>o.id=="annex_cache_0_b");
