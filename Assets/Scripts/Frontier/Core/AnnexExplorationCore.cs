@@ -21,6 +21,17 @@ namespace Starfall
             SourceBelongsToActiveMap(campWardCamp); } }
         public float CampWardSeconds { get { return CampWardActive?campWardSeconds:0f; } }
         public int CampWardCharges { get { return CampWardActive?campWardCharges:0; } }
+        // Each of the eight physical outdoor camps must be reached and its
+        // real fire funded before the Hearth Inn can publish the civilian
+        // network. String flags preserve all v1/v2 save payloads.
+        public int CampSignalCount
+        {
+            get { int n=0;for(int room=0;room<8;room++)
+                if(Has("annex_signal_fire_"+room))n++;
+                return n; }
+        }
+        public bool CampSignalNetworkPublished
+        { get { return Has("annex_signal_network_published"); } }
         public Point CampWardFoot
         { get { return CampWardActive?
             new Point(campWardCamp.x,campWardCamp.y):new Point(); } }
@@ -103,13 +114,18 @@ namespace Starfall
             if(!Spend(2,0,1,0,0))return true;
             campWardCamp=camp;campWardRoom=save.room;
             campWardMap=Map;campWardSave=save;
-            campWardSeconds=90f;campWardCharges=3;
+            campWardSeconds=CampSignalNetworkPublished?120f:90f;
+            campWardCharges=CampSignalNetworkPublished?4:3;
             campWardFlareClock=0f;
+            Flag("annex_signal_fire_"+save.room);
             effects.Add(new Effect("burst",CampWardFoot,.45f)
                 {radius=1f,variant=1});
             revision++;sound="reward";
-            Notify("守火已点燃：90秒内可拦截营地周围3枚无遮挡的敌方飞弹。靠近营火防御。",
-                "Signal fire lit: stops 3 unblocked hostile projectiles near this camp for 90 seconds. Hold the perimeter.");
+            Notify("守火已点燃："+(int)campWardSeconds+"秒内拦截营地周围"+
+                campWardCharges+"枚敌方飞弹。信号站已记录 "+CampSignalCount+"/8。",
+                "Signal fire lit: "+(int)campWardSeconds+"s, "+
+                campWardCharges+" hostile shots blocked. Network sites "+
+                CampSignalCount+"/8.");
             return true;
         }
         private bool TalkAnnexExploration(WorldObject o)
@@ -130,7 +146,7 @@ namespace Starfall
                         C("留下这封信","Keep the letter","close"));
                     return true;
                 }
-                int camps=0,cache=0,vistas=0;
+                int camps=0,cache=0,vistas=0,signals=CampSignalCount;
                 for(int region=0;region<8;region++)
                 {
                     if(Has("annex_camp_annex_camp_"+region))camps++;
@@ -143,16 +159,31 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
+                    "\n\n守火信号 "+signals+"/8。"+
+                    (CampSignalNetworkPublished?
+                        " 灯网公开后，守火持续120秒并可抵挡4枚来袭飞弹。":
+                        signals==8?
+                        " 八地守火已经实地点亮，可以把信号标准公布给所有旅人。":
+                        " 在每个地区营地实际付出木材与药草点亮信号后，回来公开共用灯网。")+
                     (complete?"\n\n这份公开地图已经交给所有旅人。":
                         ready?"\n\n每一处地点都被亲自验证。可以公开最后的归乡图。":
                         "\n\n继续探索全部八个户外区域，回来归档旧路。"),
                     "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
+                    "\n\nSignal fires "+signals+"/8."+
+                    (CampSignalNetworkPublished?
+                        " The public watch now protects 4 shots for 120 seconds per fire.":
+                        signals==8?
+                        " All eight paid field signals are verified. Publish a shared civilian fire code.":
+                        " Prepare a paid signal fire at each region's real camp to make a public safety network.")+
                     (complete?"\n\nYour route chart is now public.":ready?
                         "\n\nAll positions verified. The final homeward chart can be published.":
                         "\n\nExplore all eight outdoor regions and return to publish their chart."),
                     C(complete?"重读归乡图":"完成归档 · 公共星图",
                         complete?"Reread the chart":"Publish the public chart","annex_archive_file"),
+                    signals==8&&!CampSignalNetworkPublished?
+                        C("公开八地守火信号","Publish eight signal fires","annex_signal_publish"):
+                        C("继续核对守火","Keep tracing signals","close"),
                     C("继续旅程","Keep exploring","close"));
                 return true;
             }
@@ -238,6 +269,31 @@ namespace Starfall
         }
         private bool ChooseAnnexExploration(string action)
         {
+            if(action=="annex_signal_publish")
+            {
+                // Publication is a real in-person conversation with the
+                // surviving archive, not an action replayed from another NPC.
+                WorldObject archive=pendingDialogueSource;
+                if(save.room!=9||Dying||practicing||CampSignalNetworkPublished||
+                    archive==null||archive.kind!="annexinnarchive"||
+                    pendingDialogueSourceRoom!=9||
+                    !SourceBelongsToActiveMap(archive)||
+                    !HasPhysicalInteractionReach(archive))return true;
+                if(CampSignalCount!=8)
+                {
+                    Notify("仍有没点亮守火的地区。公共信号网不能只在地图上凭空画出来。",
+                        "The network needs eight real field signals, not imagined map marks.");
+                    return true;
+                }
+                Flag("annex_signal_network_published");
+                CreditCoins(40);CreditShards(2);AddXp(90);
+                RecordMoment("炉火旅店收到了八地信号的原始记录。守路人把火光如何避开断墙、保护晚归的行人，写成任何人都能使用的公用守火准则。火光不再只照亮有通行证的道路。",
+                    "The Hearth Inn publishes the eight proven fire signals as a civilian ward code. Their lights protect anyone returning at night, not merely travelers carrying a citadel permit.");
+                revision++;sound="reward";
+                Notify("八地守火信号网已公开！奖励硬币40、碎片2、经验90；今后守火可持续120秒、拦截4枚飞弹。",
+                    "The eight-signal network is public! +40 coins, +2 shards, +90 XP. Fires now last 120 seconds and block 4 shots.");
+                return true;
+            }
             if(action=="annex_archive_file")
             {
                 if(save.room!=9||Dying||practicing||Has("annex_archive_complete"))
