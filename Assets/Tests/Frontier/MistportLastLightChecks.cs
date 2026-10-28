@@ -8,6 +8,9 @@ namespace Starfall.Tests
         private static GameCore MistlightReady(Campaign data)
         {
             var g=Fresh(data);g.save.stage=3;g.save.level=9;
+            // Existing expansion-region route unlock needs the first core
+            // AND Lune's actual introduction flag; stage alone is not enough.
+            g.save.flags.Add("exp_intro");
             g.save.flags.Add("harbor_report");
             g.save.flags.Add("boss_5");
             g.Enter(5);
