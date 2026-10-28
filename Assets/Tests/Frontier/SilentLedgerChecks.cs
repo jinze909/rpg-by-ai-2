@@ -148,12 +148,21 @@ namespace Starfall.Tests
             Check((hero-sentry).Length<8f&&hero.x<sentry.x,
                 "Original Citadel notice is behind a real close patrolling sentry");
             nearby.Attack(new Point(-1f,0f));
+            Check(nearby.playerAction!=null&&!nearby.playerAction.released,
+                "An actual sword windup must be accepted before testing guard hearing");
             nearby.Tick(.05f,new Point());
+            Point heardFoot=new Point(nearby.save.x,nearby.save.y);
             Check(nearby.SilentLedgerSuspicion>0f&&
                 nearby.SilentLedgerSentrySearchSeconds(0)>3.5f&&
                 nearby.SilentLedgerSentrySearchingSound(0)&&
-                (nearby.SilentLedgerSentrySearchTarget(0)-hero).Length<.01f,
-                "Real close weapon swing raises suspicion and sends a guard to its actual sound source");
+                (nearby.SilentLedgerSentrySearchTarget(0)-heardFoot).Length<.01f,
+                "Real close sword noise must send the guard to the moving actual sound source: suspicion="+
+                nearby.SilentLedgerSuspicion+" search="+
+                nearby.SilentLedgerSentrySearchSeconds(0)+" noise="+
+                nearby.SilentLedgerSentrySearchingSound(0)+" actual="+
+                heardFoot.x+","+heardFoot.y+" target="+
+                nearby.SilentLedgerSentrySearchTarget(0).x+","+
+                nearby.SilentLedgerSentrySearchTarget(0).y);
 
             var distant=SilentLedgerStart(data);
             Point isolated=new Point(44.5f,50.5f);
