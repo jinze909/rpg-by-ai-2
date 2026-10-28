@@ -6,6 +6,12 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int countertideStage,countertideMistakes;
+        private bool countertideStabilized;
+        public bool CountertideStabilized {get{return CountertideActive&&countertideStabilized;}}
+        public bool CountertideStabilizerAvailable
+        {get{return countertideStage>=2&&countertideStage<=3&&
+            !countertideStabilized&&countertideRemaining<=215f&&
+            save.inventory[1]>=1;}}
         private float countertideRemaining;
         public int CountertideStage { get { return countertideStage; } }
         public bool CountertideActive { get { return countertideStage>0; } }
@@ -38,7 +44,7 @@ namespace Starfall
         private void ResetCountertide()
         {
             countertideStage=countertideMistakes=0;
-            countertideRemaining=0f;
+            countertideRemaining=0f;countertideStabilized=false;
         }
         private bool CountertideSource(WorldObject o,string id)
         {
@@ -65,6 +71,20 @@ namespace Starfall
                     C("接过航标谱 · 启动逆潮信号",
                         "Take call sheet · begin countertide","countertide_begin"),
                     C("暂缓出发","Not yet","close"));
+                return true;
+            }
+            if(o.id=="annex_camp_5"&&countertideStage>=2&&
+               countertideStage<=3)
+            {
+                Dialog(o.name,o.en,
+                    "守火人还保留着旧航标的独立星晶校准片。信号已经离开营地，若倒计时将尽，可亲手将1份星晶压入调谐架，延长45秒，并让之后每次错误钟声的惩罚从12秒减为6秒。每次现场行动只能做一次，且只有剩余215秒以下才需要加固。",
+                    "The firekeeper has one separate crystal regulator. Once the signal has left camp, you may return in person and pay one crystal to gain 45 seconds and reduce future wrong-note penalties from 12 to 6 seconds. Once per attempt, available only when 215 seconds or less remain.",
+                    CountertideStabilizerAvailable?
+                    C("星晶×1 · 加固航标，时间+45秒",
+                      "1 crystal · reinforce beacon, +45s","countertide_stabilize"):
+                    C("本次无法或无需加固",
+                      "Regulator unavailable or unnecessary","close"),
+                    C("继续送出潮声","Keep carrying tide calls","close"));
                 return true;
             }
             if(o.id=="annex_vista_5")
@@ -160,6 +180,18 @@ namespace Starfall
                 }
                 return true;
             }
+            if(action=="countertide_stabilize")
+            {
+                if(source.id!="annex_camp_5"||
+                   !CountertideStabilizerAvailable)return true;
+                if(!Spend(0,1,0,0,0))return true;
+                countertideStabilized=true;
+                countertideRemaining=Math.Min(260f,countertideRemaining+45f);
+                revision++;sound="reward";
+                Notify("航标已物理加固：时间+45秒，以后错音只扣6秒，本次不能重复加固。",
+                    "Beacon reinforced: +45s and future wrong notes cost only 6s. One purchase per attempt.");
+                return true;
+            }
             if(action.StartsWith("countertide_note_",StringComparison.Ordinal))
             {
                 int expected=countertideStage==1?2:countertideStage==2?3:
@@ -182,10 +214,14 @@ namespace Starfall
                 if(selected!=expected)
                 {
                     countertideMistakes++;countertideRemaining=Math.Max(
-                        0f,countertideRemaining-12f);
+                        0f,countertideRemaining-(countertideStabilized?6f:12f));
                     revision++;
-                    Notify("钟声与民用航标谱不符！时间-12秒。记住：退潮双声、满潮三声、归港单声。",
-                        "Wrong civilian frequency! -12 seconds. Remember: two at ebb, three at flood, one home.");
+                    Notify(countertideStabilized?
+                        "钟声不符！加固片吸收回音，时间-6秒。":
+                        "钟声不符！时间-12秒。记住：退潮双声、满潮三声、归港单声。",
+                        countertideStabilized?
+                        "Wrong note! The regulator dampened it: -6 seconds.":
+                        "Wrong note! -12 seconds. Remember: two at ebb, three at flood, one home.");
                     return true;
                 }
                 countertideStage++;

@@ -23,6 +23,7 @@ namespace Starfall.Tests
             var g=Fresh(data);g.save.stage=3;
             g.save.flags.Add("boss_5");
             g.save.flags.Add("harbor_report");
+            g.save.flags.Add("exp_intro");g.save.flags.Add("gate_5");
             g.Enter(5);g.enemies.Clear();g.projectiles.Clear();
             g.save.tideHeldUntil=0f;
             return g;
@@ -150,7 +151,9 @@ namespace Starfall.Tests
         }
         public static void CountertideRejectsLockedStartAndResetsExpiredV2Runs(Campaign data)
         {
-            GameCore g=Fresh(data);g.save.stage=3;g.Enter(5);
+            GameCore g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("exp_intro");g.save.flags.Add("gate_5");
+            g.Enter(5);
             g.enemies.Clear();
             WorldObject vista=CountertidePost(g,"annex_vista_5");
             g.save.x=vista.x;g.save.y=vista.y;
@@ -181,6 +184,61 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(!g.CountertideActive&&!g.CountertideComplete,
                 "A truly expired signal cannot create a permanent policy");
+        }
+        public static void CountertidePhysicalCrystalReinforcementTradesSuppliesForRealTime(Campaign data)
+        {
+            GameCore g=CountertideReady(data);
+            WorldObject vista=CountertidePost(g,"annex_vista_5");
+            WorldObject camp=CountertidePost(g,"annex_camp_5");
+            g.save.totalTime=2f;g.save.x=vista.x;g.save.y=vista.y;
+            g.Talk(vista);CountertideChoice(g,"countertide_begin");
+            g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);CountertideChoice(g,"countertide_note_2");
+            Check(g.CountertideStage==2,
+                "A real first low-tide camp call is required before reinforcement");
+            var timer=typeof(GameCore).GetField("countertideRemaining",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            timer.SetValue(g,150f);
+            int crystal=g.save.inventory[1];
+            g.Talk(camp);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="countertide_stabilize");
+            if(crystal<1)
+            {
+                g.Close();g.save.inventory[1]=2;crystal=2;
+                g.Talk(camp);
+                option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="countertide_stabilize");
+            }
+            Check(option>=0,"Physical camp offers a bounded material-paid extension");
+            g.save.x=camp.x+9f;g.Choose(option);
+            Check(!g.CountertideStabilized&&
+                Math.Abs(g.CountertideRemaining-150f)<.01f&&
+                g.save.inventory[1]==crystal,
+                "Cached camp dialogue may not buy a remote signal extension");
+            g.save.x=camp.x;g.save.y=camp.y;g.Talk(camp);
+            Check(CountertideChoice(g,"countertide_stabilize")&&
+                g.CountertideStabilized&&
+                Math.Abs(g.CountertideRemaining-195f)<.01f&&
+                g.save.inventory[1]==crystal-1,
+                "One physically grounded crystal purchase extends the authentic timer exactly 45s");
+            g.Talk(camp);
+            Check(!CountertideChoice(g,"countertide_stabilize"),
+                "A regulator cannot be bought twice in one live run");
+            WorldObject cache=CountertidePost(g,"annex_cache_5_b");
+            g.save.x=cache.x;g.save.y=cache.y;
+            g.save.totalTime=30f;g.Talk(cache);
+            float remaining=g.CountertideRemaining;
+            CountertideChoice(g,"countertide_note_2");
+            Check(g.CountertideMistakes==1&&
+                Math.Abs(g.CountertideRemaining-(remaining-6f))<.01f,
+                "Paid crystal protection halves future wrong-note time penalties");
+            g.Close();g.PrepareSave();
+            GameCore reload=new GameCore(data,CloneSave(g.save));
+            Check(reload.save.version==2&&
+                !reload.CountertideActive&&!reload.CountertideStabilized,
+                "Temporary paid regulator is not serialized into old save slots");
         }
     }
 }
