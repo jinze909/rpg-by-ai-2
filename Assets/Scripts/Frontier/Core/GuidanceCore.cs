@@ -1028,8 +1028,8 @@ namespace Starfall
                 q.category=L("潮雾求援 · 真实风暴机关","TIDE RESCUE · LIVE STORM DEVICES");
                 q.room=5;q.locked=!CanEnter(5);q.complete=MistlightComplete;
                 q.description=L(
-                    "从雾港旧灯湾告示（54.5,38.5）展开110秒抢修。到北岸旧信标（60.5,37.5）用12耐力点灯；再到东墙海镜（65.5,38.5）趁阵风间歇校准；最终在南栈桥（65.5,43.5）决定公开求援灯还是秘密归航线。每9秒风暴降低信标完整度22，可从灯座耗费1零件进行一次性+30完整度及12秒挡风。失败可重试，不会跳过实地交互。公开航标让安全栈桥可治疗，秘密航线提供雾港永久+0.25移速。",
-                    "Start the 110-second rescue at Mistport's old Lantern Bay notice (54.5,38.5). Spend 12 energy igniting the real north beacon (60.5,37.5), align the east sea mirror (65.5,38.5) between gusts, then choose public rescue or a hidden homeward channel at the southern pier (65.5,43.5). Every 9s the storm deals 22 damage to lamp integrity; once per attempt, spend 1 machine part at the beacon for +30 integrity and 12s shelter. Failure allows retries. Public signaling provides safe pier healing; hidden routes grant +0.25 permanent Mistport speed.");
+                    "从雾港旧灯湾告示（54.5,38.5）展开110秒抢修。到北岸旧信标（60.5,37.5）用12耐力点灯；再到东墙海镜（65.5,38.5）趁阵风间歇校准；最终在南栈桥（66.5,43.5）决定公开求援灯还是秘密归航线。每9秒风暴降低信标完整度22，可从灯座耗费1零件进行一次性+30完整度及12秒挡风。失败可重试，不会跳过实地交互。公开航标让安全栈桥可治疗，秘密航线提供雾港永久+0.25移速。",
+                    "Start the 110-second rescue at Mistport's old Lantern Bay notice (54.5,38.5). Spend 12 energy igniting the real north beacon (60.5,37.5), align the east sea mirror (65.5,38.5) between gusts, then choose public rescue or a hidden homeward channel at the southern pier (66.5,43.5). Every 9s the storm deals 22 damage to lamp integrity; once per attempt, spend 1 machine part at the beacon for +30 integrity and 12s shelter. Failure allows retries. Public signaling provides safe pier healing; hidden routes grant +0.25 permanent Mistport speed.");
                 q.steps.Add(new QuestStep(L("点亮北岸旧信标","Ignite the north shore beacon"),
                     MistlightStage>=2||q.complete));
                 q.steps.Add(new QuestStep(L("在风隙校准东墙海镜","Align east mirror between gusts"),

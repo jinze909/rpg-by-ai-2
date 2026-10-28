@@ -23,7 +23,7 @@ namespace Starfall
         public Point MistlightTarget {get{return mistlightStage==1?
             new Point(60.5f,37.5f):mistlightStage==2?
             new Point(65.5f,38.5f):mistlightStage==3?
-            new Point(65.5f,43.5f):new Point(54.5f,38.5f);}}
+            new Point(66.5f,43.5f):new Point(54.5f,38.5f);}}
         public string MistlightObjective {get{return mistlightStage==1?
             L("点燃上岸的旧信标","IGNITE THE OLD SHORE BEACON"):mistlightStage==2?
             L("在阵风间隙校准海镜","ALIGN THE SEA MIRROR BETWEEN GUSTS"):
@@ -225,7 +225,7 @@ namespace Starfall
             {
                 if(MistlightPublic&&save.room==5&&!Dying&&!practicing&&
                     SafeTravel&&!FieldWorkPreventsRest&&
-                    PhysicalRefugeReach(new Point(65.5f,43.5f),2.7f))
+                    PhysicalRefugeReach(new Point(66.5f,43.5f),2.7f))
                     save.health=Math.Min(save.maxHealth,save.health+2.2f*dt);
                 return;
             }

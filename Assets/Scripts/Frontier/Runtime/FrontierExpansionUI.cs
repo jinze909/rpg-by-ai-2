@@ -601,7 +601,7 @@ namespace Starfall
                     }
                     if(Game.MistlightStage>=3)
                     {
-                        Point pier=new Point(65.5f,43.5f);
+                        Point pier=new Point(66.5f,43.5f);
                         for(int light=1;light<=9;light++)
                         {
                             Point at=mirror+(pier-mirror)*(light/10f);
