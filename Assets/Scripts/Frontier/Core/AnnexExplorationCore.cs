@@ -149,7 +149,7 @@ namespace Starfall
         private float signalRelaySeconds;
         private MapData signalRelayMap;
         private SaveData signalRelaySave;
-        private WorldObject signalRelayCamp,signalRelayVista;
+        private WorldObject signalRelayCamp,signalRelayMarker;
         private static readonly string[] relayMessageZh={
             "外渠水闸的操作员终于接到了被遗漏的低洼住户名单。警戒钟先通知人，再通知货。",
             "荆棘林的回讯来自树林深处的孩子。他们把回家的路线画在树皮上，守路人把它换成所有人都看得懂的路标。",
@@ -175,25 +175,28 @@ namespace Starfall
             signalRelayIntegrity>0&&signalRelayRoom==save.room&&
             Object.ReferenceEquals(signalRelayMap,Map)&&
             Object.ReferenceEquals(signalRelaySave,save)&&
-            signalRelayCamp!=null&&signalRelayVista!=null&&
+            signalRelayCamp!=null&&signalRelayMarker!=null&&
             SourceBelongsToActiveMap(signalRelayCamp)&&
-            SourceBelongsToActiveMap(signalRelayVista); } }
+            SourceBelongsToActiveMap(signalRelayMarker); } }
         public int SignalRelayStage {get{return SignalRelayActive?signalRelayStage:0;}}
         public int SignalRelayIntegrity {get{return SignalRelayActive?signalRelayIntegrity:0;}}
         public float SignalRelaySeconds {get{return SignalRelayActive?signalRelaySeconds:0f;}}
         public Point SignalRelayTarget
         {get{WorldObject o=SignalRelayActive?
-            (signalRelayStage==1?signalRelayVista:signalRelayCamp):null;
+            (signalRelayStage==1?signalRelayMarker:signalRelayCamp):null;
             return o==null?new Point():new Point(o.x,o.y);}}
         public int SignalRelayDoneCount
         {get{int count=0;for(int room=0;room<8;room++)
             if(Has("annex_relay_done_"+room))count++;
             return count;}}
+        private bool IsSignalRelayDestination(WorldObject marker)
+        {return SignalRelayStage==1&&marker!=null&&
+            Object.ReferenceEquals(marker,signalRelayMarker);}
         private void ResetSignalRelay()
         {
             signalRelayRoom=-1;signalRelayStage=signalRelayIntegrity=0;
             signalRelaySeconds=0f;signalRelayMap=null;signalRelaySave=null;
-            signalRelayCamp=signalRelayVista=null;
+            signalRelayCamp=signalRelayMarker=null;
         }
         private void TickSignalRelay(float dt)
         {
@@ -252,21 +255,24 @@ namespace Starfall
                         "Finish fieldwork and clear nearby attacks before dispatch.");
                     return true;
                 }
-                WorldObject vista=null;
+                WorldObject marker=null;
+                string targetId="ridge_route_"+region+"_"+(region%2);
                 foreach(WorldObject o in Map.objects)
-                    if(o.kind=="annexvista"&&
-                        o.id=="annex_vista_"+region){vista=o;break;}
-                if(vista==null||!CanStand(new Point(vista.x,vista.y)))
+                    if(o.kind=="ridgemarker"&&o.id==targetId)
+                    {marker=o;break;}
+                if(marker==null||!CanStand(new Point(marker.x,marker.y))||
+                    (new Point(marker.x,marker.y)-
+                     new Point(source.x,source.y)).Length<24f)
                     return true;
                 signalRelayRoom=region;signalRelayMap=Map;signalRelaySave=save;
-                signalRelayCamp=source;signalRelayVista=vista;
+                signalRelayCamp=source;signalRelayMarker=marker;
                 signalRelayStage=1;signalRelayIntegrity=3;
                 signalRelaySeconds=300f;
                 effects.Add(new Effect("release",new Point(source.x,source.y),
                     .55f){variant=1,height=16f});
                 revision++;sound="quest";
-                Notify("已接取烽火传讯：5分钟内走到真实观景点交接火种，再回营地复命。三次受伤会烧毁火种。",
-                    "Signal dispatch started: reach the real lookout, then return to this camp within 5 minutes. Three damaging hits destroy the packet.");
+                Notify("已接取烽火传讯：5分钟内走到远处真实高地路标交接火种，再回营地复命。三次受伤会烧毁火种。",
+                    "Signal dispatch started: reach the distant real ridge marker, then return to this camp within 5 minutes. Three damaging hits destroy the packet.");
                 return true;
             }
             if(!SignalRelayActive)return true;
@@ -281,12 +287,12 @@ namespace Starfall
             }
             if(action=="annex_relay_deliver")
             {
-                if(signalRelayStage!=1||source.kind!="annexvista"||
-                    !Object.ReferenceEquals(source,signalRelayVista))return true;
+                if(signalRelayStage!=1||source.kind!="ridgemarker"||
+                    !Object.ReferenceEquals(source,signalRelayMarker))return true;
                 signalRelayStage=2;revision++;sound="quest";
                 effects.Add(new Effect("discover",new Point(source.x,source.y),.7f));
-                Notify("观景点已确认信号。带着回执沿真实道路返回出发营地。",
-                    "Lookout acknowledged. Carry its reply back to your departure camp.");
+                Notify("高地路标已确认信号。带着回执沿真实道路返回出发营地。",
+                    "Ridge marker acknowledged. Carry its reply back to your departure camp.");
                 return true;
             }
             if(signalRelayStage!=2||source.kind!="annexcamp"||
@@ -346,7 +352,7 @@ namespace Starfall
                     (Has("annex_relay_all")?
                         "\n\n八地烽火都收到回讯：技能点 +1。":
                         CampSignalNetworkPublished?
-                        "\n\n信号网已公开。现在可在各地营地接取限时往返传讯，带回观景点的真实回执。":"")+
+                        "\n\n信号网已公开。现在可在各地营地接取限时往返传讯，带回远处高地的真实回执。":"")+
                     (CampSignalNetworkPublished?
                         " 灯网公开后，守火持续120秒并可抵挡4枚来袭飞弹。":
                         signals==8?
@@ -436,22 +442,15 @@ namespace Starfall
             }
             if(kind=="annexvista")
             {
-                bool arrival=SignalRelayStage==1&&
-                    Object.ReferenceEquals(signalRelayVista,o);
-                Dialog(o.name,o.en,noteZh+(first?"\n\n附近九块测绘区已记入星图。经验 +12。":"\n\n附近路线已在星图上。")+
-                    (arrival?"\n\n守火传讯已抵达！请亲手向观景哨交接，接下来还要将回执带回原营地。":""),
-                    noteEn+(first?"\n\nCharted nearby terrain sectors. +12 XP.":"\n\nNearby bearings already charted.")+
-                    (arrival?"\n\nThe dispatch reached the lookout. Confirm delivery, then carry the reply back to its original camp.":""),
-                    arrival?C("交接信号火种","Hand over the signal","annex_relay_deliver"):
-                        C("收起星图","Fold chart","close"),
-                    arrival?C("稍后交接","Not yet","close"):
-                        C("继续巡路","Continue","close"));
+                Dialog(o.name,o.en,noteZh+(first?"\n\n附近九块测绘区已记入星图。经验 +12。":"\n\n附近路线已在星图上。"),
+                    noteEn+(first?"\n\nCharted nearby terrain sectors. +12 XP.":"\n\nNearby bearings already charted."),
+                    C("收起星图","Fold chart","close"));
                 return true;
             }
             Choice dispatch=SignalRelayActive&&
                 Object.ReferenceEquals(signalRelayCamp,o)?
                     (SignalRelayStage==2?
-                        C("交回观景点回执","Return the lookout reply","annex_relay_report"):
+                        C("交回高地回执","Return the ridge reply","annex_relay_report"):
                         C("放弃本次传讯","Withdraw dispatch","annex_relay_abort")):
                 CampSignalNetworkPublished&&!Has("annex_relay_done_"+save.room)?
                     C("出发烽火传讯 · 往返挑战","Carry the signal · round trip","annex_relay_begin"):

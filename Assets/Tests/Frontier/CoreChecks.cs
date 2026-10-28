@@ -3170,12 +3170,15 @@ namespace Starfall.Tests
             g.save.flags.Add("annex_signal_fire_0");
             WorldObject camp=Array.Find(g.Map.objects,
                 o=>o.kind=="annexcamp"&&o.id=="annex_camp_0");
-            WorldObject vista=Array.Find(g.Map.objects,
-                o=>o.kind=="annexvista"&&o.id=="annex_vista_0");
-            Check(camp!=null&&vista!=null&&
+            WorldObject marker=Array.Find(g.Map.objects,
+                o=>o.kind=="ridgemarker"&&o.id=="ridge_route_0_0");
+            Check(camp!=null&&marker!=null&&
                 g.CanStand(new Point(camp.x,camp.y))&&
-                g.CanStand(new Point(vista.x,vista.y)),
+                g.CanStand(new Point(marker.x,marker.y)),
                 "Production relay uses two original, standable physical world landmarks");
+            Check((new Point(marker.x,marker.y)-
+                new Point(camp.x,camp.y)).Length>24f,
+                "Real relay target is far across the seventh-ring wilderness, not the nearby lookout");
             g.save.x=camp.x;g.save.y=camp.y;
             var action=typeof(GameCore).GetMethod("ChooseSignalRelay",
                 System.Reflection.BindingFlags.Instance|
@@ -3204,12 +3207,12 @@ namespace Starfall.Tests
             g.ReturnToTown();
             Check(g.SignalRelayStage==1,
                 "Quick return cannot skip courier route even from the home region");
-            g.save.x=vista.x;g.save.y=vista.y;
-            g.Talk(vista);
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.Talk(marker);
             Check(g.conversation!=null&&
                 Array.FindIndex(g.conversation.choices,
                     c=>c.action=="annex_relay_deliver")>=0,
-                "The original lookout offers the physically reached handoff");
+                "The original distant ridge marker offers the physically reached handoff");
             action.Invoke(g,new object[]{"annex_relay_report"});
             Check(g.SignalRelayStage==1&&g.SignalRelayDoneCount==0,
                 "A remote lookout cannot counterfeit the camp's return receipt");
@@ -3218,7 +3221,7 @@ namespace Starfall.Tests
             g.Choose(handoff);
             Check(g.SignalRelayStage==2&&g.SignalRelayDoneCount==0,
                 "One-way delivery alone cannot mint rewards or persistent progress");
-            g.Talk(vista);
+            g.Talk(marker);
             Check(Array.FindIndex(g.conversation.choices,
                 c=>c.action=="annex_relay_deliver")<0,
                 "The lookout will not generate duplicate delivery states");
@@ -3301,7 +3304,7 @@ namespace Starfall.Tests
             WorldObject origin=Array.Find(last.Map.objects,
                 o=>o.id=="annex_camp_7");
             WorldObject destination=Array.Find(last.Map.objects,
-                o=>o.id=="annex_vista_7");
+                o=>o.id=="ridge_route_7_1");
             Check(origin!=null&&destination!=null&&last.SignalRelayDoneCount==7,
                 "Final two-way dispatch uses the eighth original camp and lookout");
             last.save.x=origin.x;last.save.y=origin.y;last.Talk(origin);

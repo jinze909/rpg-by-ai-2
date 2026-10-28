@@ -515,13 +515,13 @@ namespace Starfall
                     Point screen=ScreenPoint(target);
                     Text(screen.x-103f,screen.y-75f,206f,19f,
                         Game.SignalRelayStage==1?
-                            Game.L("传讯交接 · 按 E","SIGNAL HANDOFF · E"):
+                            Game.L("高地交接 · 按 E","RIDGE HANDOFF · E"):
                             Game.L("交还回执 · 按 E","RETURN REPLY · E"),
                         11,gold,TextAnchor.MiddleCenter);
                 }
                 Text(35,123,430,24,
-                    Game.L(Game.SignalRelayStage==1?"前往观景点":"返回原营地",
-                        Game.SignalRelayStage==1?"TO LOOKOUT":"RETURN TO CAMP")+
+                    Game.L(Game.SignalRelayStage==1?"前往高地路标":"返回原营地",
+                        Game.SignalRelayStage==1?"TO RIDGE MARKER":"RETURN TO CAMP")+
                     " · "+Game.SignalRelayIntegrity+"/3 · "+
                     Game.SignalRelaySeconds.ToString("0")+"s",
                     13,gold);

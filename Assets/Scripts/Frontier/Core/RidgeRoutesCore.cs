@@ -67,6 +67,18 @@ namespace Starfall
                 "Two previously unregistered wells now share one public path.",
                 "A high chime guides travelers toward warmth instead of another alarm."
             };
+            if(IsSignalRelayDestination(o))
+            {
+                // Keep the ordinary one-time ridge discovery above. The
+                // active packet's real distant marker temporarily owns a
+                // distinct handoff choice, never a near-camp fake lookout.
+                Dialog(o.name,o.en,
+                    zh[room]+"\n\n来自营地的守火信号必须在这里现场交接。返回原营地交回回执后，这条传讯线才能算完成。",
+                    en[room]+"\n\nHand over the camp's carried flame at this distant ridge marker. Its acknowledgement must still be carried back to the starting camp.",
+                    C("交接烽火信号","Deliver carried signal","annex_relay_deliver"),
+                    C("继续沿路巡查","Keep surveying","close"));
+                return true;
+            }
             if(RidgeLinked(room))
             {
                 // Keep ordinary crossing first. An unlocked, uncleared
@@ -105,6 +117,12 @@ namespace Starfall
             if(action!="ridge_travel"&&action!="ridge_watch_track"&&
                 action!="ridge_field_aid")return false;
             int room=save.room;
+            if(action=="ridge_travel"&&SignalRelayActive)
+            {
+                Notify("烽火传讯必须亲自走完整条路，不能利用高地通道跳过距离。",
+                    "Carry the signal overland; ridge transfers cannot skip a live dispatch.");
+                return true;
+            }
             if(action=="ridge_watch_track"||action=="ridge_field_aid")
             {
                 // Never let an unrelated NPC, remote/stale page or a
