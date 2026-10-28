@@ -111,6 +111,18 @@ namespace Starfall.Tests
             Check(!BoatChoice(g,"mistconvoy_hidden")&&
                 g.save.coins==coins+75,
                 "The other branch can never be claimed after accepting a real rescue outcome");
+            g.Close();
+            BoatAt(g,horn);g.save.health=35f;
+            var notFunded=CloneSave(g.save);
+            notFunded.flags.Remove("mistconvoy_public");
+            var control=new GameCore(data,notFunded);control.Start();
+            Check(g.mode=="world"&&control.mode=="world"&&
+                g.CanStand(g.Position)&&control.CanStand(control.Position),
+                "Public survivor recovery and its unfunded control both run on the genuine safe harbor");
+            for(int frame=0;frame<12;frame++)
+            {g.Tick(.05f,new Point());control.Tick(.05f,new Point());}
+            Check(g.save.health>control.save.health+1.2f,
+                "Public safe dock rescue actually funds locally reachable wound healing rather than only changing story flags");
             SilentLedgerVisitRealInnFromEmberfall(g);
             ReadInnNews(g,Object(g,"innGuest"));
             Check(g.conversation!=null&&
