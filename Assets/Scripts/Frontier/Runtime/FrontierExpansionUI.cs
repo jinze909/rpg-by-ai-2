@@ -519,12 +519,29 @@ namespace Starfall
                             Game.L("交还回执 · 按 E","RETURN REPLY · E"),
                         11,gold,TextAnchor.MiddleCenter);
                 }
+                Color packetInk=Game.SignalRelayIntegrity==1?
+                    new Color(1f,.48f,.39f,1f):gold;
                 Text(35,123,430,24,
                     Game.L(Game.SignalRelayStage==1?"前往高地路标":"返回原营地",
                         Game.SignalRelayStage==1?"TO RIDGE MARKER":"RETURN TO CAMP")+
                     " · "+Game.SignalRelayIntegrity+"/3 · "+
                     Game.SignalRelaySeconds.ToString("0")+"s",
-                    13,gold);
+                    13,packetInk);
+                // A distant target can be entirely off camera. Display
+                // honest straight-line bearings rather than inventing a
+                // route segment through locked gates or stone walls.
+                Point bearing=target-Game.Position;
+                string east=Game.L(bearing.x>=0f?"东":"西",
+                    bearing.x>=0f?"E":"W");
+                string south=Game.L(bearing.y>=0f?"南":"北",
+                    bearing.y>=0f?"S":"N");
+                Text(35,150,430,20,
+                    Game.L("直线方位 ","BEARING ONLY ")+
+                    east+Math.Abs(bearing.x).ToString("0")+" · "+
+                    south+Math.Abs(bearing.y).ToString("0")+
+                    " · "+bearing.Length.ToString("0")+
+                    Game.L(" 格"," tiles"),
+                    11,mint);
             }
             // The wounded courier's parcel stays exactly where the real
             // post-armor combat blow dislodged it. No quest prop teleport,
