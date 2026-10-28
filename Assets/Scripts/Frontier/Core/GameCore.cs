@@ -49,7 +49,15 @@ namespace Starfall
         // Optional expert tackle is a risk/reward choice for the CURRENT
         // cast only, never a SaveData v2 field or permanent unlock.
         public bool FishExpertCast { get; private set; }
-        public int FishCatchReward { get { return FishExpertCast ? 2 : 1; } }
+        // Distinct physically rigged low-tide cast, with no save-schema fields.
+        public bool FishTidalCast { get; private set; }
+        private bool fishTidalBraceUsed;
+        private float fishTidalBraceUntil,fishTidalBraceTarget;
+        public bool FishTidalBraced {get{return FishTidalCast&&FishLineReady&&fishTime<fishTidalBraceUntil;}}
+        public bool CanBraceTidalLine {get{return FishTidalCast&&FishLineReady&&
+            !fishTidalBraceUsed&&FishBiteTimeRemaining>.65f;}}
+        public float FishBiteWindowSeconds {get{return FishTidalCast?2.05f:FishBiteWindow;}}
+        public int FishCatchReward {get{return FishTidalCast?3:FishExpertCast?2:1;}}
         // The public fish kitchen uses an existing v2 string flag so old
         // saves receive baseline stew unchanged until the player stocks it.
         public bool PublicFishKitchenStocked
@@ -115,11 +123,36 @@ namespace Starfall
         // only for the current mini-game; no quest/save changes.
         public string FishFeedbackZh { get; private set; } = "";
         public string FishFeedbackEn { get; private set; } = "";
-        public float FishTarget { get { return save != null && save.reducedMotion ? .5f :
-            .5f + .16f * (float)Math.Sin(fishTime * .67f +
-                fishHits * 2.1f - fishMisses * .8f); } }
-        public float FishWindowRadius { get { return FishExpertCast ?
-            .10f - fishHits*.012f : .18f - fishHits*.022f; } }
+        public float FishTarget
+        {
+            get
+            {
+                if(save!=null&&save.reducedMotion)return .5f;
+                if(FishTidalBraced)return fishTidalBraceTarget;
+                if(FishTidalCast)
+                    return .5f+.23f*(float)Math.Sin(fishTime*1.75f+
+                        fishHits*1.31f)+.09f*(float)Math.Sin(
+                        fishTime*4.4f+fishMisses*.7f);
+                return .5f+.16f*(float)Math.Sin(fishTime*.67f+
+                    fishHits*2.1f-fishMisses*.8f);
+            }
+        }
+        public float FishWindowRadius { get { return FishTidalCast?
+            .09f-fishHits*.012f:FishExpertCast?
+            .10f-fishHits*.012f:.18f-fishHits*.022f; } }
+        public bool BraceTidalLine()
+        {
+            if(!CanBraceTidalLine)return false;
+            fishTidalBraceTarget=FishTarget;
+            fishTidalBraceUntil=fishTime+.65f;
+            fishTidalBraceUsed=true;
+            // Holding a real current consumes the remaining bite window.
+            fishBiteExpiresAt-=.35f;
+            sound="quest";revision++;
+            FishFeedbackZh="稳住鱼线：鱼口暂时停住，但咬钩更快结束。";
+            FishFeedbackEn="Line braced: the target holds briefly, but this bite ends sooner.";
+            return true;
+        }
         public bool FishLineReady { get { return mode == "fish" &&
             fishTime >= fishNextBiteAt && fishTime < fishBiteExpiresAt; } }
         private string currentMode = "title";
@@ -336,7 +369,8 @@ namespace Starfall
             aimTarget = null;
             walkingVelocity=new Point();
             fishTime = fishCursor = fishNextBiteAt = fishBiteExpiresAt = 0;
-            fishHits = fishMisses = 0;FishExpertCast=false;
+            fishHits = fishMisses = 0;FishExpertCast=FishTidalCast=false;
+            fishTidalBraceUsed=false;fishTidalBraceUntil=fishTidalBraceTarget=0f;
             FishFeedbackZh=FishFeedbackEn="";
             stewCooldown=teaCooldown=0;
             toast = ""; toastTime = 0;
@@ -428,7 +462,11 @@ namespace Starfall
         }
         public void Close()
         {
-            if(mode=="fish")FishExpertCast=false;
+            if(mode=="fish")
+            {
+                FishExpertCast=FishTidalCast=false;
+                fishTidalBraceUntil=0f;fishTidalBraceUsed=false;
+            }
             journalFocusRequest=null;
             conversation = null; conversationSource = null;
             conversationSourceWasReachable = false;
@@ -4105,6 +4143,23 @@ namespace Starfall
                 }
                 Dialog(o.name,o.en,gardenZh,gardenEn,list.ToArray()); return;
             }
+            if(kind=="tidefishery")
+            {
+                bool restoredHarbor=Has("harbor_report");
+                string zh=restoredHarbor?
+                    "米拉在码头留下的旧浮标仍记着救援船的潮位。这里的银鳍鱼会沿两股水流变换位置。退潮时用一枚零件修好临时鱼线，三次准确收线可得三尾鱼；每次咬钩可按 F 稳线一次，但会缩短剩余时间。":
+                    "旧渔网还拴着封港时的铁锁。先帮助米拉完成港口报告，码头才能重新交给居民。";
+                string en=restoredHarbor?
+                    "Mira's rescue buoy still marks the current. Silverfin dart between opposing tidal streams. At low tide spend a spare part to rig a line: three hooks land three fish. Press F once per bite to brace the current at the cost of shorter time.":
+                    "The old net remains chained under harbor orders. Finish Mira's harbor rescue report to return this pier to local families.";
+                Dialog(o.name,o.en,zh+"\n\n"+(LowTide?
+                    "水位：退潮。":"水位：涨潮，等水退再来。"),
+                    en+"\n\n"+(LowTide?"Current: low tide.":"Current: high tide. Wait for the ebb."),
+                    C("退潮竞钓 · 零件1，银鳍鱼×3",
+                        "Tidal cast · 1 part for 3 Silverfin","fish_tide"),
+                    C("离开码头","Leave the pier","close"));
+                return;
+            }
             if (kind == "fish")
             {
                 bool roomForFish=HasInventoryRoom(3,1);
@@ -4531,7 +4586,7 @@ namespace Starfall
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
-                (action == "fish" || action == "fish_expert" || action == "fish_kitchen" ||
+                (action == "fish" || action == "fish_expert" || action == "fish_tide" || action == "fish_kitchen" ||
                  action=="soup_route_track" || action=="soup_route_deliver") || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
@@ -4812,21 +4867,43 @@ namespace Starfall
                     "Supplied two Silverfin for one Tide stew. The public kitchen keeps feeding the town.");
                 return;
             }
-            if (action == "fish" || action == "fish_expert")
+            if (action == "fish" || action == "fish_expert" || action == "fish_tide")
             {
-                bool expert=action=="fish_expert";
-                int required=expert?2:1;
+                bool expert=action=="fish_expert",tidal=action=="fish_tide";
+                WorldObject fishSource=pendingDialogueSource;
+                int room=tidal?5:0;
+                if(fishSource==null||fishSource.kind!=(tidal?"tidefishery":"fish")||
+                    save.room!=room||pendingDialogueSourceRoom!=room||
+                    !SourceBelongsToActiveMap(fishSource)||
+                    !HasPhysicalInteractionReach(fishSource)||Dying||practicing)return;
+                if(tidal&&(!Has("harbor_report")||!LowTide||
+                    FieldWorkPreventsRest||!SafeTravel))
+                {
+                    Notify("码头尚未开放、涨潮或附近仍有危险；只有安全退潮时才能布线。",
+                        "The dock is sealed, flooded or unsafe. Cast only after the harbor report in a safe ebb.");
+                    return;
+                }
+                int required=tidal?3:expert?2:1;
                 if(!HasInventoryRoom(3,required))
                 {
-                    Notify(expert?"精准垂钓需要两个鱼袋空位。":"鱼袋已满。先腾出一格，才有地方装上钩的鱼。",
-                        expert?"Precision fishing needs two free fish slots.":
+                    Notify(tidal?"退潮竞钓需要三个鱼袋空位。":expert?"精准垂钓需要两个鱼袋空位。":"鱼袋已满。先腾出一格，才有地方装上钩的鱼。",
+                        tidal?"Tidal fishing needs three free fish slots.":expert?"Precision fishing needs two free fish slots.":
                                "Your fish bag is full. Make room before casting.");
                     return;
                 }
-                FishExpertCast=expert;
+                if(tidal&&save.inventory[4]<1)
+                {
+                    Notify("修复码头鱼线需要一枚零件。",
+                        "One spare part is needed to rig the tidal line.");
+                    return;
+                }
+                if(tidal&&!Spend(0,0,0,0,1))return;
+                FishExpertCast=expert;FishTidalCast=tidal;
                 fishTime = fishCursor = 0; fishHits = fishMisses = 0;
+                fishTidalBraceUntil=fishTidalBraceTarget=0f;
+                fishTidalBraceUsed=false;
                 fishNextBiteAt = .3f;
-                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindowSeconds;
                 FishFeedbackZh = FishFeedbackEn = "";
                 mode = "fish";
             }
@@ -4945,7 +5022,8 @@ namespace Starfall
             fishMisses++;
             sound = "hurt";
             fishNextBiteAt = fishTime + .34f;
-            fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+            fishBiteExpiresAt = fishNextBiteAt + FishBiteWindowSeconds;
+            fishTidalBraceUntil=0f;fishTidalBraceUsed=false;
         }
         public void FishHit()
         {
@@ -4960,7 +5038,8 @@ namespace Starfall
                 FishFeedbackEn = "Good hook! Hold steady for the next bite.";
                 fishHits++; sound = "reward";
                 fishNextBiteAt = fishTime + .34f;
-                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindow;
+                fishBiteExpiresAt = fishNextBiteAt + FishBiteWindowSeconds;
+                fishTidalBraceUntil=0f;fishTidalBraceUsed=false;
             }
             else
             {
@@ -4974,7 +5053,7 @@ namespace Starfall
                 // Normal play enters this minigame only when a fish slot was
                 // available. Keep the final reward safe if a developer or
                 // future UI changes the inventory during the reel sequence.
-                bool expert=FishExpertCast;
+                bool expert=FishExpertCast,tidal=FishTidalCast;
                 int caught=Math.Max(0,Math.Min(FishCatchReward,
                     9999-save.inventory[3]));
                 if(caught>0)
@@ -4982,13 +5061,20 @@ namespace Starfall
                     save.inventory[3]+=caught;
                     save.coins=Math.Min(999999,save.coins+caught*4);
                     BountyEvent(2,caught);
+                    if(tidal&&!Has("mistport_tidal_first"))
+                    {
+                        Flag("mistport_tidal_first");
+                        CreditShards(1);
+                        RecordMoment("雾港退潮时，你从旧码头收回三尾银鳍鱼。米拉将这份潮流记录交给居民，让渔民自己决定下网的时刻。",
+                            "At Mistport's ebb you landed three Silverfin at the reclaimed pier. Mira shared the current readings with local fishers instead of keeping them under harbor orders.");
+                    }
                 }
                 Close();revision++;
                 Notify(caught==0?"鱼袋已满，这次钓获未能收下。":
-                        "钓到银鳍鱼 ×"+caught+(expert?"！精准垂钓成功。":"！"),
+                        "钓到银鳍鱼 ×"+caught+(tidal?"！退潮丰收。":expert?"！精准垂钓成功。":"！"),
                        caught==0?"Your fish bag is full; no catch was stored.":
-                        "Caught "+caught+" Silverfin"+(caught==1?"":"")+"!"+
-                        (expert?" Precision cast complete.":""));
+                        "Caught "+caught+" Silverfin!"+
+                        (tidal?" Mistport tidal haul secured.":expert?" Precision cast complete.":""));
             }
             else if (fishMisses >= 3) { Close(); Notify("鱼游走了。没有损失，再试一次吧。", "The fish slipped away. Nothing lost; try again."); }
         }

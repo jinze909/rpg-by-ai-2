@@ -6993,6 +6993,14 @@
           "y": 14.5
         },
         {
+          "id": "mistport_tidal_fishery",
+          "name": "米拉的退潮鱼台",
+          "en": "Mira's Tidal Fishing Pier",
+          "kind": "tidefishery",
+          "x": 22.5,
+          "y": 14.5
+        },
+        {
           "id": "tidecargo1",
           "name": "西侧药箱残片",
           "en": "Western Medicine Crate",

@@ -1783,9 +1783,14 @@ namespace Starfall
         private int SpeakerPortrait(string name) { if (name == "获救居民" || name == "Rescued civilian") return 8; if (name == "你" || name == "主角" || name == "Player" || name == "Hero") return Game.AppearanceWeapon; return name.Contains("米拉") ? 3 : name.Contains("伊沃") ? 4 : name.Contains("森") || name.Contains("老潮") ? 5 : name.Contains("厄洛") ? 7 : name.Contains("莉雅") || name.Contains("露恩") ? 6 : -1; }
         private void DrawFishing()
         {
-            Window(Game.FishExpertCast?
+            Window(Game.FishTidalCast?
+                    Game.L("雾港 · 双流退潮竞钓","Mistport · Two-current tidal cast"):
+                    Game.FishExpertCast?
                     Game.L("湖畔 · 精准垂钓", "Precision fishing by the lake"):
                     Game.L("湖畔垂钓", "Fishing by the lake"),
+                Game.FishTidalCast?
+                    Game.L("退潮短咬钩 · E 收线，F 稳线一次可短暂固定漂移目标，但损失时间",
+                        "Short ebb bites · E reel, F brace a drifting target once per bite at a time cost"):
                 Game.FishExpertCast?
                     Game.save.reducedMotion?
                         Game.L("窄鱼口固定 · 三次精准收线，赢得两条银鳍鱼 · E / 空格",
@@ -1815,7 +1820,7 @@ namespace Starfall
             {
                 float remaining=Game.FishBiteTimeRemaining;
                 Box(335,488,826*Math.Max(0f,
-                    Math.Min(1f,remaining/GameCore.FishBiteWindow)),7,
+                    Math.Min(1f,remaining/Game.FishBiteWindowSeconds)),7,
                     remaining<.7f?gold:mint);
             }
             Text(321, 510, 849, 30,
@@ -1831,16 +1836,24 @@ namespace Starfall
                         Game.L("等待鱼再次咬钩……", "Waiting for the next bite...")),
                 16, Game.FishLineReady ? paper : muted, TextAnchor.MiddleCenter);
             Text(321, 548, 849, 44,
+                Game.FishTidalCast?
+                    Game.L("双流退潮：三次实收银鳍鱼×3；首次成功记录潮谱并得星晶×1。稳线会牺牲0.35秒咬钩时间。",
+                        "TIDAL CAST: three hooks yield 3 Silverfin; first haul records the current and earns 1 shard. Bracing costs 0.35s."):
                 Game.FishExpertCast?
                     Game.L("急水挑战：成功三次收获银鳍鱼 ×2；鱼口更窄。累计失误三次便空手而归。",
                         "PRECISION CAST: three tight hooks yield two Silverfin; three misses lose the haul."):
                     Game.L("三次成功钓到银鳍鱼；失误或错过咬钩共三次，鱼儿会游走。无需鱼饵。",
                         "Three good pulls catch a Silverfin. A bad or missed bite counts; three misses end the cast."),
                 15, muted, TextAnchor.MiddleCenter);
-            if (Button(473, 601, 543, 56,
-                Game.FishLineReady ? Game.L("收线  E", "Reel  E") :
-                    Game.L("等待咬钩", "Wait for bite"),
-                true, Game.FishLineReady)) Game.FishHit();
+            if(Game.FishTidalCast&&
+                Button(335,601,320,56,
+                    Game.FishTidalBraced?Game.L("鱼线已稳住","LINE BRACED"):
+                    Game.L("稳线 F / 手柄 X","Brace F / pad X"),
+                    true,Game.CanBraceTidalLine))Game.BraceTidalLine();
+            if(Button(Game.FishTidalCast?677:473,601,Game.FishTidalCast?484:543,56,
+                Game.FishLineReady?Game.L("收线 E","Reel E"):
+                    Game.L("等待咬钩","Wait for bite"),
+                true,Game.FishLineReady))Game.FishHit();
         }
         private void DrawPause()
         {

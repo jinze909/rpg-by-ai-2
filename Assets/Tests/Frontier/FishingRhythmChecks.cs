@@ -112,6 +112,83 @@ namespace Starfall.Tests
                 Math.Abs(g.save.foodUntil-g.save.totalTime-90f)<.001f,
                 "Unupgraded legacy stew retains original 55 HP and 90-second boost");
         }
+        public static void MistportTidalFishingHasPhysicalEbbGateLiveBraceAndRealThreeFishHaul(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.stage=3;
+            g.Enter(5);g.enemies.Clear();g.save.totalTime=36f;
+            WorldObject pier=Object(g,"tidefishery");
+            g.save.x=pier.x;g.save.y=pier.y;
+            Check(g.CanStand(g.Position)&&g.LowTide,
+                "The new fishing pier is real standable ground on the actual low-tide harbor map");
+            g.Talk(pier);
+            int action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            Check(action>=0,"The actual new dock exposes its original player-facing tidal cast");
+            int parts=g.save.inventory[4],fish=g.save.inventory[3],coins=g.save.coins;
+            g.Choose(action);
+            Check(g.mode=="world"&&!g.FishTidalCast&&g.save.inventory[4]==parts,
+                "Sealed harbor cannot begin a fake tide cast or charge parts");
+            g.save.flags.Add("harbor_report");
+            g.save.totalTime=33f;g.Talk(pier);
+            action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(!g.FishTidalCast&&g.save.inventory[4]==parts&&!g.LowTide,
+                "A rising tide blocks rigging without consuming the original item");
+            g.save.totalTime=36f;g.Talk(pier);
+            action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.save.x=pier.x+8f;g.Choose(action);
+            Check(g.mode=="world"&&g.save.inventory[4]==parts,
+                "Cached dock choice cannot spend items across the physically reachable channel");
+            g.save.x=pier.x;g.save.y=pier.y;
+            g.save.inventory[3]=9997;
+            g.Talk(pier);action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(g.mode=="world"&&g.save.inventory[4]==parts,
+                "Three-fish tidal catches cannot be launched into a two-slot inventory");
+            g.save.inventory[3]=fish;
+            g.Talk(pier);action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(g.mode=="fish"&&g.FishTidalCast&&!g.FishExpertCast&&
+                g.FishCatchReward==3&&g.save.inventory[4]==parts-1&&
+                Math.Abs(g.FishBiteWindowSeconds-2.05f)<.0001f&&
+                Math.Abs(g.FishWindowRadius-.09f)<.0001f,
+                "New physical low-tide challenge spends exactly one real spare part");
+            Check(!g.BraceTidalLine(),"Line cannot be braced before a genuine bite");
+            for(int i=0;i<20&&!g.FishLineReady;i++)g.Tick(.02f,new Point());
+            Check(g.FishLineReady&&g.CanBraceTidalLine,"Bracing requires a live bite with time remaining");
+            float originalRemaining=g.FishBiteTimeRemaining;
+            Check(g.BraceTidalLine()&&g.FishTidalBraced&&!g.CanBraceTidalLine&&
+                Math.Abs(g.FishBiteTimeRemaining-originalRemaining+.35f)<.02f,
+                "A single brace freezes this bite but actually consumes 0.35 seconds of opportunity");
+            float lockedTarget=g.FishTarget;
+            g.Tick(.1f,new Point());
+            Check(Math.Abs(g.FishTarget-lockedTarget)<.0001f&&!g.BraceTidalLine(),
+                "Target truly holds through simulation; no duplicated brace per bite");
+            g.Close();Check(!g.FishTidalCast&&g.mode=="world",
+                "Canceling a cast releases its temporary double-current state");
+            g.Talk(pier);action=Array.FindIndex(g.conversation.choices,c=>c.action=="fish_tide");
+            g.Choose(action);
+            Check(g.mode=="fish"&&g.save.inventory[4]==parts-2,
+                "A fresh cast starts a new challenge with a real additional rigging cost");
+            int initialMoments=g.save.moments.Count;
+            for(int i=0;i<3;i++)
+            {
+                ReachFishingBite(g,true);g.FishHit();
+                if(i<2)Check(g.mode=="fish"&&g.fishHits==i+1&&!g.FishLineReady,
+                    "One real wave contact cannot advance two hooks at once");
+            }
+            Check(g.mode=="world"&&!g.FishTidalCast&&
+                g.save.inventory[3]==fish+3&&g.save.coins==coins+12&&
+                g.Has("mistport_tidal_first")&&
+                g.save.moments.Count==Math.Min(8,initialMoments+1),
+                "Three distinct changing current contacts pay actual three fish, twelve coins and one chronicle");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("mistport_tidal_first")&&
+                !restored.FishTidalCast&&restored.save.inventory[3]==fish+3,
+                "Original v2 save retains the first dock landing but not temporary line-control state");
+        }
+
         public static void PrecisionLakeFishingPaysTwoOnlyForThreeGenuineTightHooks(Campaign data)
         {
             var g=Fresh(data);

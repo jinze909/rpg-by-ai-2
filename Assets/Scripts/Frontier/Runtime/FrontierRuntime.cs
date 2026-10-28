@@ -284,7 +284,11 @@ namespace Starfall
                     Game.ToggleCompanionHold();
                 if (PadDown(6)) OpenMenu("journal"); if (PadDown(7)) { OpenMenu("pause"); Save(); }
             }
-            else if (Game.mode == "fish" && (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))) Game.FishHit();
+            else if(Game.mode=="fish")
+            {
+                if(Input.GetKeyDown(KeyCode.F))Game.BraceTidalLine();
+                if(Input.GetKeyDown(KeyCode.E)||Input.GetKeyDown(KeyCode.Space))Game.FishHit();
+            }
             else if (Game.mode == "dialog" && !dialogueHistoryOpen)
             {
                 int count = Game.conversation == null || !DialogueChoicesVisible() ? 0 : Game.conversation.choices.Length;
@@ -962,6 +966,18 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if(kind=="tidefishery")
+            {
+                Color tint=Game.Has("harbor_report")?
+                    (Game.LowTide?mint:muted):new Color(.5f,.56f,.61f,1f);
+                PropImage("post",0,p.x-31,p.y-76,62,78,tint);
+                Ring(new Point(o.x,o.y),.48f,tint,20);
+                if(Game.Has("mistport_tidal_first"))
+                    Text(p.x-66,p.y-91,132,19,Game.L("退潮渔路 ✓","TIDAL ROUTE ✓"),
+                        11,mint,TextAnchor.MiddleCenter);
+                else Diamond(p.x,p.y-68,5,tint);
+                return;
+            }
             if(kind=="glassloomsource"||kind=="glassloommirror"||
                kind=="glassloomreceiver")
             {
