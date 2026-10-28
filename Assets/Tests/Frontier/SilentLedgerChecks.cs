@@ -449,6 +449,100 @@ namespace Starfall.Tests
             }
         }
 
+        public static void SilentLedgerFamilyDispatchRequiresThreeRealContactsAndBranchSupplies(Campaign data)
+        {
+            for(int branch=0;branch<2;branch++)
+            {
+                bool publicNames=branch==0;
+                var g=SilentLedgerStart(data);
+                WorldObject north=SilentLedgerPost(g,"silentledger_record");
+                WorldObject south=SilentLedgerPost(g,"silentledger_witness");
+                WorldObject seal=SilentLedgerPost(g,"silentledger_console");
+                Check(g.GetQuest("family_dispatch").locked,
+                    "New family delivery cannot be started without completing the genuine earlier stealth proof");
+                SilentLedgerMoveTo(g,north);g.Talk(north);
+                Check(SilentLedgerChoice(g,"silentledger_record")&&g.SilentLedgerStage==2,
+                    "Actual northern register is required for either household delivery branch");
+                SilentLedgerMoveTo(g,south);g.Talk(south);
+                Check(SilentLedgerChoice(g,"silentledger_witness")&&g.SilentLedgerStage==3,
+                    "Actual witness testimony is required before returning family names");
+                SilentLedgerMoveTo(g,seal);g.Talk(seal);
+                Check(SilentLedgerChoice(g,publicNames?
+                    "silentledger_public":"silentledger_routes")&&
+                    g.SilentLedgerComplete&&!g.SilentLedgerFamilyStarted,
+                    "Only a completed real archive evidence decision unlocks the family dispatch");
+
+                g.Talk(seal);
+                Check(g.conversation!=null&&
+                    Array.Exists(g.conversation.choices,c=>c.action=="silentledger_family_start"),
+                    "Original physical Citadel console offers a genuinely new household packet");
+                int distantIndex=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="silentledger_family_start");
+                g.save.x=seal.x-9f;g.Choose(distantIndex);
+                Check(!g.SilentLedgerFamilyStarted,
+                    "Leaving the live console prevents remotely forging a sealed family packet");
+                SilentLedgerMoveTo(g,seal);g.Talk(seal);
+                Check(SilentLedgerChoice(g,"silentledger_family_start")&&
+                    g.SilentLedgerFamilyStarted&&!g.SilentLedgerFamilySigned&&
+                    g.GetQuest("family_dispatch").room==9&&
+                    g.save.trackedQuest=="family_dispatch",
+                    "One authentic Citadel packet advances the existing journal to Hearth Inn");
+                g.Talk(seal);
+                Check(!SilentLedgerChoice(g,"silentledger_family_start"),
+                    "Cannot collect the same sealed packet repeatedly");
+
+                SilentLedgerVisitRealInnFromEmberfall(g);
+                WorldObject traveler=Object(g,"innGuest");
+                Check(PlaceWithinTalkReach(g,traveler),
+                    "Night traveler is physically reachable in the actual Hearth Inn");
+                g.Talk(traveler);
+                Check(g.conversation!=null&&
+                    Array.Exists(g.conversation.choices,c=>c.action=="silentledger_family_handoff"),
+                    "Real original traveler offers the packet topic alongside established inn menus");
+                Check(SilentLedgerChoice(g,"silentledger_family_handoff")&&
+                    g.SilentLedgerFamilySigned&&
+                    g.GetQuest("family_dispatch").room==0&&
+                    g.conversation!=null&&
+                    g.conversation.textEn.Contains(publicNames?
+                        "seventeen households":"two timber"),
+                    "Correct branch-specific traveler signs packet in an authentic interactive dialogue");
+                g.Close();
+                g.Enter(0);
+                WorldObject aid=Object(g,"silentledgeraid");
+                Check(g.CanStand(new Point(aid.x,aid.y))&&
+                    PlaceWithinTalkReach(g,aid),
+                    "New authored civilian aid desk is accessible on true Emberfall ground");
+                int item=publicNames?2:0;
+                int other=publicNames?0:2;
+                int otherBefore=g.save.inventory[other];
+                g.save.inventory[item]=1;
+                g.Talk(aid);
+                Check(SilentLedgerChoice(g,"silentledger_family_finish")&&
+                    !g.SilentLedgerFamilyDone&&g.save.inventory[item]==1,
+                    "One missing Moonherb or Timber blocks the real one-time aid reward");
+                g.save.inventory[item]=2;
+                int coins=g.save.coins,shards=g.save.shards;
+                g.Talk(aid);
+                Check(SilentLedgerChoice(g,"silentledger_family_finish")&&
+                    g.SilentLedgerFamilyDone&&g.save.inventory[item]==0&&
+                    g.save.inventory[other]==otherBefore&&
+                    g.save.coins==coins+45&&g.save.shards==shards+1,
+                    "Authentic three-map civilian relief consumes only the chosen branch's two actual materials and awards once");
+                Check(g.GetQuest("family_dispatch").complete,
+                    "The connected task journal marks every household delivery stage complete");
+                g.Talk(aid);
+                Check(!SilentLedgerChoice(g,"silentledger_family_finish")&&
+                    g.save.coins==coins+45,
+                    "Completed humanitarian desk can never farm a second payment");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.SilentLedgerFamilyDone&&
+                    restored.SilentLedgerFamilySigned&&
+                    restored.GetQuest("family_dispatch").complete,
+                    "Every fully earned cross-region household milestone survives an original v2 save roundtrip");
+            }
+        }
+
         public static void SilentLedgerRestorationImprovesRealChapterFourCivilianEvacuation(Campaign data)
         {
             float[] followDistance=new float[3];
