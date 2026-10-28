@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,47 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="glass_loom")
+            {
+                q.title=L("沙海归光阵 · 光井归途","Glasswell · The Homeward Lens");
+                q.category=L("新章节 · 真实透镜与昼夜解谜",
+                    "NEW CHAPTER · PHYSICAL LENSES & DAY/NIGHT PUZZLE");
+                q.locked=!Has("boss_6")||!Has("desert_report");
+                q.complete=GlassLoomComplete;
+                q.room=6;
+                q.description=L(
+                    "在玻璃沙海东侧的真实长平台找到新光井（60.5,50.5）。白天启动阵列，按蓝风—透明正午—铜色暮星将三面实体透镜（64.5、68.5、72.5；均在y50.5）依次转为蓝(2)、透明(0)、铜(1)，再返回光井聚焦。夜幕降临后必须在真实东侧接收器（76.5,50.5）捕获归光，回光井永久决定公开日间商路或保护夜路。全程300秒，真实无遮挡光路，错过可重试，透镜每次转动耗3耐力。",
+                    "Find the new authentic Glasswell on Glasswind's long plateau (60.5,50.5). Begin in real daylight. Rotate three physical lenses (64.5, 68.5, 72.5; y50.5) to Blue (2), Clear (0), Copper (1), then return to focus actual sunlight. At true nightfall capture the light at the real eastern receiver (76.5,50.5), and return to choose public daytime routes or private night paths. 300 seconds, unobstructed optics, retryable; each physical rotation consumes 3 energy.");
+                q.steps.Add(new QuestStep(L("白天在真实光井启动并将三镜调为蓝—透明—铜",
+                    "Start at the real daylight well and orient BLUE-CLEAR-COPPER"),
+                    GlassLoomStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("回光井沿无遮挡光路聚焦白昼",
+                    "Focus sunlight through the real unobstructed beam"),
+                    GlassLoomStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("入夜在东侧接收器亲自收光",
+                    "Capture night-light at the eastern physical receiver"),
+                    GlassLoomStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("回光井决定商队日路或居民夜路",
+                    "Choose public day routes or protected family night trails"),q.complete));
+                q.target=GlassLoomActive?GlassLoomTarget:new Point(60.5f,50.5f);
+                q.next=q.locked?
+                    L("先击败玻璃沙海原守护者并提交供水报告",
+                      "Defeat original Glasswind guardian and file the desert report"):
+                    q.complete?GlassLoomPublic?
+                        L("日光路公开：沙海白昼攻击基础伤害+3",
+                          "Public daylight path: +3 desert daytime base damage"):
+                        L("夜路受保护：沙海真实夜间移速+0.5",
+                          "Protected night path: +0.5 desert nighttime movement"):
+                    GlassLoomActive?GlassLoomObjective+" · "+GlassLoomTime.ToString("0")+"s"+
+                        (Night?L(" · 真正夜间"," · TRUE NIGHT"):
+                               L(" · 真正白天"," · TRUE DAYLIGHT")):
+                    L("在沙海东侧平台光井（60.5,50.5）读出民用归光谱",
+                      "Read the civilian optical score at the eastern desert plateau well (60.5,50.5)");
+                q.reward=L("首胜：70硬币、3碎片、110经验，永久日间伤害或夜间移动能力",
+                    "First clear: 70 coins, 3 shards, 110 XP; permanent daylight damage or night movement");
+                return q;
+            }
 
             if(id=="countertide")
             {

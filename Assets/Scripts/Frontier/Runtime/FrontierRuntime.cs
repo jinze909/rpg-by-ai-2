@@ -962,6 +962,36 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
+            if(kind=="glassloomsource"||kind=="glassloommirror"||
+               kind=="glassloomreceiver")
+            {
+                int lens=-1;
+                if(kind=="glassloommirror")
+                    for(int k=0;k<3;k++)
+                        if(o.id=="glassloom_mirror_"+(k+1))lens=k;
+                bool aligned=lens>=0&&Game.GlassLoomAligned(lens);
+                bool charged=Game.GlassLoomStage>=2||Game.GlassLoomComplete;
+                Color tint=charged?new Color(.60f,.90f,1f,1f):
+                    aligned?mint:Game.GlassLoomActive?gold:
+                    new Color(.8f,.77f,.7f,1f);
+                PropImage(kind=="glassloommirror"?"crystal":
+                    kind=="glassloomsource"?"obelisk":"post",0,
+                    p.x-33f,p.y-80f,66f,83f,tint);
+                Ring(new Point(o.x,o.y),charged?.72f:.43f,tint,22);
+                if(lens>=0)
+                    Text(p.x-37,p.y-91,74,21,
+                        Game.GlassLoomOrientation(lens).ToString()+
+                        (aligned?" ✓":""),14,tint,TextAnchor.MiddleCenter);
+                else if(Game.GlassLoomActive||Game.GlassLoomComplete)
+                    Text(p.x-65,p.y-101,130,20,
+                        kind=="glassloomsource"?
+                        Game.L("归光井","GLASSWELL"):
+                        Game.L("接收器","RECEIVER"),11,tint,
+                        TextAnchor.MiddleCenter);
+                if(kind=="glassloomsource"&&Game.GlassLoomActive)
+                    Diamond(p.x,p.y-89,6,gold);
+                return;
+            }
             if(kind=="abyssFarSurvey"||kind=="abyssFarCache"||kind=="abyssFarEcho")
             {
                 bool survey=kind=="abyssFarSurvey";

@@ -8296,6 +8296,46 @@
           "y": 36.5
         },
         {
+          "id": "glassloom_source",
+          "name": "光井·被抹去的日晷",
+          "en": "Glasswell · Erased sundial",
+          "kind": "glassloomsource",
+          "x": 60.5,
+          "y": 50.5
+        },
+        {
+          "id": "glassloom_mirror_1",
+          "name": "第一镜·晨风",
+          "en": "First Mirror · Morning Wind",
+          "kind": "glassloommirror",
+          "x": 64.5,
+          "y": 50.5
+        },
+        {
+          "id": "glassloom_mirror_2",
+          "name": "第二镜·正午",
+          "en": "Second Mirror · Noon",
+          "kind": "glassloommirror",
+          "x": 68.5,
+          "y": 50.5
+        },
+        {
+          "id": "glassloom_mirror_3",
+          "name": "第三镜·暮星",
+          "en": "Third Mirror · Evening Star",
+          "kind": "glassloommirror",
+          "x": 72.5,
+          "y": 50.5
+        },
+        {
+          "id": "glassloom_receiver",
+          "name": "归光接收台",
+          "en": "Homeward Light Receiver",
+          "kind": "glassloomreceiver",
+          "x": 76.5,
+          "y": 50.5
+        },
+        {
           "id": "trailcircuit_6_1",
           "kind": "trailcircuit",
           "name": "镜砂旧井",

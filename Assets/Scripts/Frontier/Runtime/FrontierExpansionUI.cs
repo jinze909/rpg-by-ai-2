@@ -476,6 +476,43 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.GlassLoomActive&&!drawingOutline)
+            {
+                Point target=Game.GlassLoomTarget;
+                Color ink=Game.GlassLoomStage==3?mint:
+                    Game.Night?new Color(.55f,.76f,1f,1f):gold;
+                if(WorldDrawable(target.x,target.y,160f,160f))
+                {
+                    Ring(target,.94f,ink,30);
+                    Point screen=ScreenPoint(target);
+                    Text(screen.x-132,screen.y-90,264,21,
+                        Game.GlassLoomObjective,11,ink,TextAnchor.MiddleCenter);
+                }
+                Text(35,416,520,24,Game.L("归光阵 · ","GLASSWELL · ")+
+                    Game.GlassLoomStage+"/3 · "+
+                    Game.GlassLoomTime.ToString("0")+"s · "+
+                    (Game.Night?Game.L("真实夜间","NIGHT"):
+                        Game.L("真实白昼","DAYLIGHT")),12,ink);
+                if(Game.GlassLoomStage==1)
+                    Text(35,440,535,24,
+                        Game.L("三镜 ","LENSES ")+
+                        Game.GlassLoomOrientation(0)+"—"+
+                        Game.GlassLoomOrientation(1)+"—"+
+                        Game.GlassLoomOrientation(2)+
+                        Game.L(" · 目标 2—0—1"," · TARGET 2—0—1"),
+                        12,ink);
+                if(Game.GlassLoomStage>=2)
+                {
+                    Point[] ray={
+                        new Point(60.5f,50.5f),new Point(64.5f,50.5f),
+                        new Point(68.5f,50.5f),new Point(72.5f,50.5f),
+                        new Point(76.5f,50.5f)};
+                    foreach(Point lens in ray)
+                        if(WorldDrawable(lens.x,lens.y,120f,120f))
+                            Ring(lens,.29f,ink,14);
+                }
+            }
+
             // The civilian countertide beacon follows the actual original
             // Mistport sites and genuine live sea level, not a static HUD quest.
             if(Game.mode=="world"&&Game.CountertideActive&&!drawingOutline)
