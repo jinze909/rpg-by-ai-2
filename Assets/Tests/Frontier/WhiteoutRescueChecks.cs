@@ -127,10 +127,19 @@ namespace Starfall.Tests
             foreach(Enemy hunter in g.enemies.FindAll(g.IsWhiteoutHunter))
             {hunter.stun=180f;hunter.timer=180f;}
             float before=g.WhiteoutWarmth;
-            g.save.x=lost.x+8f;g.save.y=lost.y;
+            // A follower within eleven tiles correctly closes the gap.
+            // To test exposure, walk the hero beyond that REAL leash onto
+            // authored walkable road rather than standing eight tiles away.
+            Point distant=new Point(78.5f,48.5f);
+            Check(g.CanStand(distant)&&
+                (distant-g.WhiteoutFollowerFoot).Length>11f,
+                "Unsheltered storm setup uses physically open ground beyond follower leash");
+            g.save.x=distant.x;g.save.y=distant.y;
             for(int i=0;i<151;i++)g.Tick(.05f,new Point());
             Check(g.WhiteoutStage==2&&g.WhiteoutWarmth<before-13f,
-                "An exposed, distant survivor suffers real storm chill and an unsheltered gust");
+                "Exposed companion genuinely chills: stage="+g.WhiteoutStage+
+                ", initial="+before+", remaining="+g.WhiteoutWarmth+
+                ", gap="+g.WhiteoutFollowerGap);
             g.save.x=lost.x;g.save.y=lost.y;
             g.save.inventory[2]=2;
             g.Talk(lost);
