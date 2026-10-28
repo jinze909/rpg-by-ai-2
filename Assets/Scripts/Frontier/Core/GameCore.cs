@@ -361,7 +361,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();
+            ResetCampWard();ResetSignalRelay();
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
@@ -587,6 +587,14 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            // The two-way dispatch requires walking to a lookout and returning.
+            // No map crossing or fast-return may award a free remote receipt.
+            if(SignalRelayActive)
+            {
+                Notify("守火传讯尚未完成。走到观景点并带回回执，或回出发营地明确取消。",
+                    "The signal dispatch is in transit. Deliver at the lookout and return to camp, or withdraw at the source.");
+                return true;
+            }
             // A real parcel contract requires physically reaching the other
             // waytrail on foot. Any region switch or quick-return while the
             // existing V2 flag carries cargo would make the reward free.
@@ -915,6 +923,7 @@ namespace Starfall
             invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
             TickCampWard(dt);
+            TickSignalRelay(dt);
             TickSwordLesson(dt);
             TickSpecialistDrill(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
@@ -1700,6 +1709,7 @@ namespace Starfall
             if (reaction.Length < .001f) reaction = VisualFacing * -1;
             float actualDamage=Math.Max(0,damage*multiplier*armor);
             save.health -= actualDamage;
+            DamageSignalRelayCargo(actualDamage,source);
             DamageFarCourierCargo(actualDamage,source);
             DamageOuterDeliveryDressings(actualDamage,source);
             DamageCivicResponseMedicine(actualDamage,source);
@@ -4407,7 +4417,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||

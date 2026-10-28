@@ -504,6 +504,28 @@ namespace Starfall
                         11,gold,TextAnchor.MiddleCenter);
                 }
             }
+            if(Game.mode=="world"&&Game.SignalRelayActive&&!drawingOutline)
+            {
+                Point target=Game.SignalRelayTarget;
+                // One quest-owned target points to the original physical
+                // lookout/camp; no straight-line fake path through terrain.
+                if(WorldDrawable(target.x,target.y,140f,140f))
+                {
+                    Ring(target,.67f,new Color(.98f,.75f,.39f,.83f),28);
+                    Point screen=ScreenPoint(target);
+                    Text(screen.x-103f,screen.y-75f,206f,19f,
+                        Game.SignalRelayStage==1?
+                            Game.L("传讯交接 · 按 E","SIGNAL HANDOFF · E"):
+                            Game.L("交还回执 · 按 E","RETURN REPLY · E"),
+                        11,gold,TextAnchor.MiddleCenter);
+                }
+                Text(35,123,430,24,
+                    Game.L(Game.SignalRelayStage==1?"前往观景点":"返回原营地",
+                        Game.SignalRelayStage==1?"TO LOOKOUT":"RETURN TO CAMP")+
+                    " · "+Game.SignalRelayIntegrity+"/3 · "+
+                    Game.SignalRelaySeconds.ToString("0")+"s",
+                    13,gold);
+            }
             // The wounded courier's parcel stays exactly where the real
             // post-armor combat blow dislodged it. No quest prop teleport,
             // imported sprite mutation, or saved secondary position.

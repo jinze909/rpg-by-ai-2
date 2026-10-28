@@ -139,6 +139,178 @@ namespace Starfall
                 CampSignalCount+"/8.");
             return true;
         }
+
+        // The public network creates eight genuine two-way field dispatches.
+        // A flame packet must be carried from its real camp to the region's
+        // actual lookout AND back, before world time or three real hits end
+        // the run. A new SaveData field would invalidate existing v1/v2 saves,
+        // so only *completed* dispatches persist as existing string flags.
+        private int signalRelayRoom=-1, signalRelayStage, signalRelayIntegrity;
+        private float signalRelaySeconds;
+        private MapData signalRelayMap;
+        private SaveData signalRelaySave;
+        private WorldObject signalRelayCamp,signalRelayVista;
+        private static readonly string[] relayMessageZh={
+            "外渠水闸的操作员终于接到了被遗漏的低洼住户名单。警戒钟先通知人，再通知货。",
+            "荆棘林的回讯来自树林深处的孩子。他们把回家的路线画在树皮上，守路人把它换成所有人都看得懂的路标。",
+            "沉没遗迹的渡工确认了新的涨潮时刻。没有行会通行证的渡船，也能看到岸上的安全灯。",
+            "铁脊矿工从高台传回三次急停铃的顺序，废弃铁轨从此优先为撤离者留路。",
+            "堡垒旧岗的收信人不是军官，而是替夜归者留灯的居民。最后一道门终于向普通旅人打开。",
+            "雾港的夜航讯号带回一艘失联救援艇的航向。岸上的火不再只照顾缴了泊位费的船。",
+            "玻璃风沙脊传来的井位，标上了真实的水量；后来者不必再为虚假的商队水图绕远。",
+            "霜钟崖的回声确认暖棚仍有人守夜。冻土上的火光是一封不会被封锁的求援信。"
+        };
+        private static readonly string[] relayMessageEn={
+            "The canal-keeper receives the overlooked lowland household list. The flood bell will warn people before cargo.",
+            "A message returns from children deep in Thornwood. Their bark-drawn path becomes a public sign anyone can follow home.",
+            "The ruins' ferrymen confirm the next high tide. Unregistered boats can now see the same safety lights as guild craft.",
+            "Ironreach workers send back the three-bell shutdown order. Empty rails will serve evacuating families first.",
+            "The citadel lookout's recipient is a resident who keeps lamps for late travelers, not an officer. The final gate opens to the public.",
+            "Mistport's night signal brings the heading of a missing rescue skiff. Shore fires no longer serve only fee-paying vessels.",
+            "Glasswind's reply marks the real water level of an unregistered well. No traveler must trust a false merchant chart.",
+            "Frostchime's echo confirms the warming shelter still has a night watch. A fire on the frozen ridge is a rescue letter no checkpoint can stop."
+        };
+        public bool SignalRelayActive
+        { get { return signalRelayStage!=0&&signalRelaySeconds>0f&&
+            signalRelayIntegrity>0&&signalRelayRoom==save.room&&
+            Object.ReferenceEquals(signalRelayMap,Map)&&
+            Object.ReferenceEquals(signalRelaySave,save)&&
+            signalRelayCamp!=null&&signalRelayVista!=null&&
+            SourceBelongsToActiveMap(signalRelayCamp)&&
+            SourceBelongsToActiveMap(signalRelayVista); } }
+        public int SignalRelayStage {get{return SignalRelayActive?signalRelayStage:0;}}
+        public int SignalRelayIntegrity {get{return SignalRelayActive?signalRelayIntegrity:0;}}
+        public float SignalRelaySeconds {get{return SignalRelayActive?signalRelaySeconds:0f;}}
+        public Point SignalRelayTarget
+        {get{WorldObject o=SignalRelayActive?
+            (signalRelayStage==1?signalRelayVista:signalRelayCamp):null;
+            return o==null?new Point():new Point(o.x,o.y);}}
+        public int SignalRelayDoneCount
+        {get{int count=0;for(int room=0;room<8;room++)
+            if(Has("annex_relay_done_"+room))count++;
+            return count;}}
+        private void ResetSignalRelay()
+        {
+            signalRelayRoom=-1;signalRelayStage=signalRelayIntegrity=0;
+            signalRelaySeconds=0f;signalRelayMap=null;signalRelaySave=null;
+            signalRelayCamp=signalRelayVista=null;
+        }
+        private void TickSignalRelay(float dt)
+        {
+            if(signalRelayStage==0)return;
+            if(!SignalRelayActive){ResetSignalRelay();return;}
+            signalRelaySeconds=Math.Max(0f,signalRelaySeconds-dt);
+            if(signalRelaySeconds<=0f)
+            {
+                ResetSignalRelay();revision++;
+                Notify("信号火种熄灭，传讯超时。回到营地可以重新出发。",
+                    "The signal flame went out. Return to camp to retry the relay.");
+            }
+        }
+        private void DamageSignalRelayCargo(float actualDamage,string source)
+        {
+            // Only the authoritative post-armor HP hit may harm a packet.
+            // Dodged, parried, blocked and zero-damage contacts cannot do so.
+            if(!SignalRelayActive||!Finite(actualDamage)||
+                actualDamage<=0f)return;
+            signalRelayIntegrity--;
+            if(signalRelayIntegrity<=0)
+            {
+                ResetSignalRelay();revision++;
+                Notify("信号火种在实战中损毁。请回营地重新接取任务。",
+                    "The dispatch flame was destroyed by real damage. Restart at camp.");
+            }
+            else
+            {
+                effects.Add(new Effect("number",Position,.85f,
+                    L("传讯火种受损 · 剩 "+signalRelayIntegrity,
+                      "FLAME HIT · "+signalRelayIntegrity+" LEFT")));
+                revision++;
+            }
+        }
+        private bool ChooseSignalRelay(string action)
+        {
+            if(action!="annex_relay_begin"&&action!="annex_relay_deliver"&&
+                action!="annex_relay_report"&&action!="annex_relay_abort")
+                return false;
+            WorldObject source=pendingDialogueSource;
+            if(source==null||mode!="world"||Dying||practicing||
+                save.room<0||save.room>7||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source))return true;
+            int region=save.room;
+            if(action=="annex_relay_begin")
+            {
+                if(source.kind!="annexcamp"||SignalRelayActive||
+                    !CampSignalNetworkPublished||
+                    !Has("annex_signal_fire_"+region)||
+                    Has("annex_relay_done_"+region))return true;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("现场行动或附近攻击尚未解除，不能出发送讯。",
+                        "Finish fieldwork and clear nearby attacks before dispatch.");
+                    return true;
+                }
+                WorldObject vista=null;
+                foreach(WorldObject o in Map.objects)
+                    if(o.kind=="annexvista"&&
+                        o.id=="annex_vista_"+region){vista=o;break;}
+                if(vista==null||!CanStand(new Point(vista.x,vista.y)))
+                    return true;
+                signalRelayRoom=region;signalRelayMap=Map;signalRelaySave=save;
+                signalRelayCamp=source;signalRelayVista=vista;
+                signalRelayStage=1;signalRelayIntegrity=3;
+                signalRelaySeconds=300f;
+                effects.Add(new Effect("release",new Point(source.x,source.y),
+                    .55f){variant=1,height=16f});
+                revision++;sound="quest";
+                Notify("已接取烽火传讯：5分钟内走到真实观景点交接火种，再回营地复命。三次受伤会烧毁火种。",
+                    "Signal dispatch started: reach the real lookout, then return to this camp within 5 minutes. Three damaging hits destroy the packet.");
+                return true;
+            }
+            if(!SignalRelayActive)return true;
+            if(action=="annex_relay_abort")
+            {
+                if(source.kind!="annexcamp"||
+                    !Object.ReferenceEquals(source,signalRelayCamp))return true;
+                ResetSignalRelay();revision++;sound="ui";
+                Notify("已取消传讯，没有提交回执。可以再次接取。",
+                    "Dispatch withdrawn without credit. You may retry.");
+                return true;
+            }
+            if(action=="annex_relay_deliver")
+            {
+                if(signalRelayStage!=1||source.kind!="annexvista"||
+                    !Object.ReferenceEquals(source,signalRelayVista))return true;
+                signalRelayStage=2;revision++;sound="quest";
+                effects.Add(new Effect("discover",new Point(source.x,source.y),.7f));
+                Notify("观景点已确认信号。带着回执沿真实道路返回出发营地。",
+                    "Lookout acknowledged. Carry its reply back to your departure camp.");
+                return true;
+            }
+            if(signalRelayStage!=2||source.kind!="annexcamp"||
+                !Object.ReferenceEquals(source,signalRelayCamp))return true;
+            int completedRoom=signalRelayRoom;
+            ResetSignalRelay();
+            if(Has("annex_relay_done_"+completedRoom))return true;
+            Flag("annex_relay_done_"+completedRoom);
+            CreditCoins(20);CreditShards(1);AddXp(40);
+            RecordMoment(relayMessageZh[completedRoom],relayMessageEn[completedRoom]);
+            if(SignalRelayDoneCount==8&&!Has("annex_relay_all"))
+            {
+                Flag("annex_relay_all");CreditSkillPoints(1);
+                RecordMoment("八地烽火都已收到来回确认。从此没有城门、军令或关卡能独占这些普通旅人互相寻找的路线。",
+                    "All eight civilian dispatches return with acknowledgements. No gate or officer can monopolize a road made of ordinary travelers finding each other.");
+            }
+            revision++;sound="reward";
+            Notify("烽火传讯完成：硬币 +20、碎片 +1、经验 +40。已完成 "+
+                SignalRelayDoneCount+"/8。",
+                "Signal dispatch complete: +20 coins, +1 shard, +40 XP. "+
+                SignalRelayDoneCount+"/8 verified.");
+            return true;
+        }
+
         private bool TalkAnnexExploration(WorldObject o)
         {
             string kind=o.kind;
@@ -157,7 +329,7 @@ namespace Starfall
                         C("留下这封信","Keep the letter","close"));
                     return true;
                 }
-                int camps=0,cache=0,vistas=0,signals=CampSignalCount;
+                int camps=0,cache=0,vistas=0,signals=CampSignalCount,dispatches=SignalRelayDoneCount;
                 for(int region=0;region<8;region++)
                 {
                     if(Has("annex_camp_annex_camp_"+region))camps++;
@@ -170,7 +342,11 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
-                    "\n\n守火信号 "+signals+"/8。"+
+                    "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+"/8。"+
+                    (Has("annex_relay_all")?
+                        "\n\n八地烽火都收到回讯：技能点 +1。":
+                        CampSignalNetworkPublished?
+                        "\n\n信号网已公开。现在可在各地营地接取限时往返传讯，带回观景点的真实回执。":"")+
                     (CampSignalNetworkPublished?
                         " 灯网公开后，守火持续120秒并可抵挡4枚来袭飞弹。":
                         signals==8?
@@ -181,7 +357,11 @@ namespace Starfall
                         "\n\n继续探索全部八个户外区域，回来归档旧路。"),
                     "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
-                    "\n\nSignal fires "+signals+"/8."+
+                    "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+"/8."+
+                    (Has("annex_relay_all")?
+                        "\n\nAll eight dispatches confirmed: +1 talent point.":
+                        CampSignalNetworkPublished?
+                        "\n\nThe public network now offers timed two-way dispatches at the eight real outdoor camps.":"")+
                     (CampSignalNetworkPublished?
                         " The public watch now protects 4 shots for 120 seconds per fire.":
                         signals==8?
@@ -256,16 +436,39 @@ namespace Starfall
             }
             if(kind=="annexvista")
             {
-                Dialog(o.name,o.en,noteZh+(first?"\n\n附近九块测绘区已记入星图。经验 +12。":"\n\n附近路线已在星图上。"),
-                    noteEn+(first?"\n\nCharted nearby terrain sectors. +12 XP.":"\n\nNearby bearings already charted."),
-                    C("收起星图","Fold chart","close"));
+                bool arrival=SignalRelayStage==1&&
+                    Object.ReferenceEquals(signalRelayVista,o);
+                Dialog(o.name,o.en,noteZh+(first?"\n\n附近九块测绘区已记入星图。经验 +12。":"\n\n附近路线已在星图上。")+
+                    (arrival?"\n\n守火传讯已抵达！请亲手向观景哨交接，接下来还要将回执带回原营地。":""),
+                    noteEn+(first?"\n\nCharted nearby terrain sectors. +12 XP.":"\n\nNearby bearings already charted.")+
+                    (arrival?"\n\nThe dispatch reached the lookout. Confirm delivery, then carry the reply back to its original camp.":""),
+                    arrival?C("交接信号火种","Hand over the signal","annex_relay_deliver"):
+                        C("收起星图","Fold chart","close"),
+                    arrival?C("稍后交接","Not yet","close"):
+                        C("继续巡路","Continue","close"));
                 return true;
             }
+            Choice dispatch=SignalRelayActive&&
+                Object.ReferenceEquals(signalRelayCamp,o)?
+                    (SignalRelayStage==2?
+                        C("交回观景点回执","Return the lookout reply","annex_relay_report"):
+                        C("放弃本次传讯","Withdraw dispatch","annex_relay_abort")):
+                CampSignalNetworkPublished&&!Has("annex_relay_done_"+save.room)?
+                    C("出发烽火传讯 · 往返挑战","Carry the signal · round trip","annex_relay_begin"):
+                    C("查看传讯记录","Review dispatch record","close");
             Dialog(o.name,o.en,noteZh+
                     "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 40 和全部耐力。"+
+                    (SignalRelayActive?"\n\n当前传讯："+SignalRelayStage+"/2段，火种完整度 "+
+                        SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
+                        Has("annex_relay_done_"+save.room)?
+                        "\n\n本地区的来回传讯已完成，回执已公开。":"")+
                     (first?"\n\n首次发现营地，硬币 +5。":"")+
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
                     noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores 40 HP and full energy."+
+                    (SignalRelayActive?"\n\nDispatch stage "+SignalRelayStage+"/2 · flame "+
+                        SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
+                        Has("annex_relay_done_"+save.room)?
+                        "\n\nThis region's return dispatch is already in the public archive.":"")+
                     (first?"\n\nFirst discovery: +5 coins.":"")+
                     (Has("annex_camps_complete")?"\n\nAll eight camps mapped: +1 talent point.":""),
                     !FieldWorkPreventsRest&&SafeTravel?
@@ -275,6 +478,7 @@ namespace Starfall
                         C("熄灭守火","Douse signal fire","annex_ward_douse"):
                         C("布设守火 · 木材×2、月光草×1",
                           "Signal fire · 2 timber, 1 Moonherb","annex_ward_light"),
+                    dispatch,
                     C("继续探索","Keep exploring","close"));
             return true;
         }
@@ -332,6 +536,7 @@ namespace Starfall
                     "Public chart complete: +60 coins, +3 shards, +1 talent point.");
                 return true;
             }
+            if(ChooseSignalRelay(action))return true;
             if(ChooseCampWard(action))return true;
             if(action!="annex_rest")return false;
             if(save.room<0||save.room>7||mode!="world"||Dying||practicing)return true;
