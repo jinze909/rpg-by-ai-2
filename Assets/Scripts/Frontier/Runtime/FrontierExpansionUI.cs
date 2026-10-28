@@ -505,6 +505,8 @@ namespace Starfall
                 Text(35,394,510,20,
                     (Game.LowTide?Game.L("当前低潮","CURRENT EBB"):
                         Game.L("当前高潮","CURRENT FLOOD"))+
+                    Game.L(" · 下次转潮 "," · NEXT SHIFT ")+
+                    Game.CountertideTideTurnSeconds.ToString("0.0")+"s"+
                     Game.L(" · 错音 "," · MISNOTES ")+
                     Game.CountertideMistakes+
                     Game.L(" · 潮谱 2-3-1"," · CODE 2-3-1"),

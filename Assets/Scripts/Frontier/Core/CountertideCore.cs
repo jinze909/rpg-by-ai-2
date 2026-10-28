@@ -6,7 +6,7 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private int countertideStage,countertideMistakes;
-        private bool countertideStabilized;
+        private bool countertideStabilized,countertidePreviousEbb;
         public bool CountertideStabilized {get{return CountertideActive&&countertideStabilized;}}
         public bool CountertideStabilizerAvailable
         {get{return countertideStage>=2&&countertideStage<=3&&
@@ -17,6 +17,17 @@ namespace Starfall
         public bool CountertideActive { get { return countertideStage>0; } }
         public float CountertideRemaining { get { return CountertideActive?countertideRemaining:0f; } }
         public int CountertideMistakes { get { return countertideMistakes; } }
+        public float CountertideTideTurnSeconds
+        {
+            get
+            {
+                float t=save.totalTime%36f;
+                float cutoff=save.room==5?CountertideHarborEbbSeconds:22f;
+                if(save.totalTime<save.tideHeldUntil)
+                    return Math.Max(0f,save.tideHeldUntil-save.totalTime);
+                return t<cutoff?cutoff-t:36f-t;
+            }
+        }
         public bool CountertideComplete { get { return Has("countertide_channels")||Has("countertide_refuge"); } }
         public bool CountertideChannels { get { return Has("countertide_channels"); } }
         public bool CountertideRefuge { get { return Has("countertide_refuge"); } }
@@ -45,6 +56,8 @@ namespace Starfall
         {
             countertideStage=countertideMistakes=0;
             countertideRemaining=0f;countertideStabilized=false;
+            countertidePreviousEbb=false;
+            hazards.RemoveAll(h=>h.countertideOwned);
         }
         private bool CountertideSource(WorldObject o,string id)
         {
@@ -165,6 +178,7 @@ namespace Starfall
                    !SafeTravel)return true;
                 countertideStage=1;countertideRemaining=260f;
                 countertideMistakes=0;
+                countertidePreviousEbb=LowTide;
                 TrackQuest("countertide");revision++;sound="quest";
                 Notify("逆潮航标已开始。前往营地在真实低潮时敲响两声。",
                     "Countertide started. Reach camp and ring twice at the real ebb.");
@@ -187,6 +201,7 @@ namespace Starfall
                 if(!Spend(0,1,0,0,0))return true;
                 countertideStabilized=true;
                 countertideRemaining=Math.Min(260f,countertideRemaining+45f);
+                hazards.RemoveAll(h=>h.countertideOwned);
                 revision++;sound="reward";
                 Notify("航标已物理加固：时间+45秒，以后错音只扣6秒，本次不能重复加固。",
                     "Beacon reinforced: +45s and future wrong notes cost only 6s. One purchase per attempt.");
@@ -264,6 +279,26 @@ namespace Starfall
             if(countertideStage==0||countertideStage==4)return;
             if(save.room!=5||Dying||practicing)
             {ResetCountertide();revision++;return;}
+            // The physical civilian coil shocks the very tile on which
+            // its bearer stood when the genuine ebb/flood state reversed.
+            // The warning is delayed, dodgeable, and leaves no v2 state.
+            bool ebb=LowTide;
+            if(ebb!=countertidePreviousEbb)
+            {
+                countertidePreviousEbb=ebb;
+                if(!countertideStabilized&&CanStand(Position)&&
+                   !hazards.Exists(h=>h.countertideOwned))
+                {
+                    hazards.Add(new Hazard{
+                        position=Position,radius=.9f,timer=1.65f,
+                        damage=10f,kind="tide",countertideOwned=true});
+                    effects.Add(new Effect("number",Position,.7f,
+                        L("潮涌冲击预警！离开落点","TIDE SURGE! MOVE FROM MARK")));
+                    Notify("航标线圈遇到真实潮位翻转！离开标记的危险地面，或回营地加固线路。",
+                        "The carried coil caught a real tide change! Leave the marked tile or reinforce the line at camp.");
+                    revision++;sound="quest";
+                }
+            }
             countertideRemaining-=dt;
             if(countertideRemaining<=0f)
             {

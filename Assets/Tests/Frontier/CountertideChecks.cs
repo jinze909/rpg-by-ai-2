@@ -240,5 +240,53 @@ namespace Starfall.Tests
                 !reload.CountertideActive&&!reload.CountertideStabilized,
                 "Temporary paid regulator is not serialized into old save slots");
         }
+        public static void CountertideActualTideTurnTelegraphsAvoidableSurgeAndCrystalGroundsIt(Campaign data)
+        {
+            GameCore g=CountertideReady(data);
+            WorldObject vista=CountertidePost(g,"annex_vista_5");
+            WorldObject camp=CountertidePost(g,"annex_camp_5");
+            g.save.totalTime=21.90f;g.save.x=vista.x;g.save.y=vista.y;
+            Check(g.LowTide&&g.CanStand(g.Position),
+                "Authentic lookout is a walkable low-tide source");
+            g.Talk(vista);
+            Check(CountertideChoice(g,"countertide_begin"),
+                "Physical beacon starts before real flood change");
+            Check(!g.hazards.Exists(h=>h.countertideOwned),
+                "Starting an instrument cannot fake a tide-contact hazard");
+            g.save.totalTime=21.99f;
+            g.Tick(.05f,new Point());
+            var surge=g.hazards.Find(h=>h.countertideOwned);
+            Check(!g.LowTide&&surge!=null&&
+                surge.kind=="tide"&&surge.timer>1.2f&&
+                surge.damage==10f&&
+                (surge.position-g.Position).Length<.01f,
+                "The actual low-to-high transition leaves a delayed physical warning at hero feet");
+            // The tide warning has room to expire and should not corrupt
+            // the chapter or kill another encounter's independent hazards.
+            g.save.totalTime=37f;g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);
+            Check(CountertideChoice(g,"countertide_note_2")&&
+                g.CountertideStage==2,
+                "Moving to first authentic ebb camp can still advance the multi-stage puzzle");
+            var timer=typeof(GameCore).GetField("countertideRemaining",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            timer.SetValue(g,150f);
+            g.save.inventory[1]=2;
+            g.Talk(camp);
+            Check(CountertideChoice(g,"countertide_stabilize")&&
+                g.CountertideStabilized&&g.save.inventory[1]==1&&
+                !g.hazards.Exists(h=>h.countertideOwned),
+                "Only an authentic paid camp intervention clears a dangerous tide warning");
+            g.Tick(.05f,new Point());
+            g.save.totalTime=57.99f;
+            g.Tick(.05f,new Point());
+            Check(!g.LowTide&&!g.hazards.Exists(h=>h.countertideOwned),
+                "Paid crystal dampens a later REAL tide transition instead of spawning remote hazards");
+            g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);
+            Check(CountertideChoice(g,"countertide_abort")&&
+                !g.CountertideActive&&!g.hazards.Exists(h=>h.countertideOwned),
+                "Physically withdrawing from the original lookout retires only owned transient surges");
+        }
     }
 }
