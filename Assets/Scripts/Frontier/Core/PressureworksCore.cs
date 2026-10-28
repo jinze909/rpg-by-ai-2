@@ -156,8 +156,8 @@ namespace Starfall
             if(o.id=="pressureworks_valve2")
             {
                 Dialog(o.name,o.en,
-                    "二号阀需要压力恢复到26—75。启动后总机的两名旧守卫会真正投入战斗，蒸汽喷发越来越频繁。不能让压力达到100。",
-                    "Second wheel needs pressure 26–75. Activating it releases two physical guards at the engine and accelerates live steam jets. Do not let pressure reach 100.",
+                    "二号阀需要压力恢复到40—75。启动后总机的两名旧守卫会真正投入战斗，蒸汽喷发越来越频繁。不能让压力达到100。",
+                    "Second wheel needs pressure 40–75. Activating it releases two physical guards at the engine and accelerates live steam jets. Do not let pressure reach 100.",
                     C("开启二号阀","Turn valve two","pressureworks_valve2"),
                     C("暂时等待","Wait","close"));return true;
             }
@@ -215,16 +215,16 @@ namespace Starfall
                 {Notify("一号阀压力不在35—80安全区间。","Valve one needs pressure 35–80.");return true;}
                 pressureworksPressure=Math.Max(0,pressureworksPressure-16f);
                 pressureworksStage=2;revision++;sound="quest";
-                Notify("一号阀已开启！等压力恢复到26—75，再到东侧开启二号阀。",
-                    "Valve one open! Wait for pressure 26–75, then physically turn valve two.");
+                Notify("一号阀已开启！等压力恢复到40—75，再到东侧开启二号阀。",
+                    "Valve one open! Wait for pressure 40–75, then physically turn valve two.");
                 return true;
             }
             if(action=="pressureworks_valve2")
             {
                 if(source.id!="pressureworks_valve2"||pressureworksStage!=2)
                     return true;
-                if(pressureworksPressure<26f||pressureworksPressure>75f)
-                {Notify("二号阀必须等压力进入26—75才能转动。","Valve two needs pressure 26–75.");return true;}
+                if(pressureworksPressure<40f||pressureworksPressure>75f)
+                {Notify("二号阀必须等压力进入40—75才能转动。","Valve two needs pressure 40–75.");return true;}
                 if(!StartPressureworksGuards())
                 {Notify("总机守卫没有安全可达的战斗落脚点，先让开通路。",
                     "No legal engine arena for both guards. Clear the route.");return true;}

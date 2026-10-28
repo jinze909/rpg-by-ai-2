@@ -67,6 +67,20 @@ namespace Starfall.Tests
                 "First physically reached coolant wheel vents exactly 16 pressure");
             SetPressureworksFoot(g,second);g.Talk(second);
             Check(PressureworksChoice(g,"pressureworks_valve2")&&
+                g.PressureworksStage==2,
+                "The second wheel refuses a premature no-wait calibration at pressure 26");
+            bool sawLiveSteam=false;
+            for(int i=0;i<700&&g.PressureworksPressure<40f;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.hazards.Exists(h=>h.pressureworksOwned&&h.damage>0f))
+                    sawLiveSteam=true;
+            }
+            Check(g.PressureworksStage==2&&g.PressureworksPressure>=40f&&
+                sawLiveSteam&&g.PressureworksTime>0f,
+                "Actual world time and damaging steam must precede synchronized second-valve window");
+            g.Talk(second);
+            Check(PressureworksChoice(g,"pressureworks_valve2")&&
                 g.PressureworksStage==3&&g.PressureworksGuardsAlive==2,
                 "Second real valve authorizes two actual hostile enemy bodies");
             Check((g.GetQuest("pressureworks").target-

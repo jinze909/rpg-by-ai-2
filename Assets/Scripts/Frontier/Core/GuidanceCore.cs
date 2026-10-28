@@ -1028,8 +1028,8 @@ namespace Starfall
                 q.category=L("工业调压 · 真实蒸汽战斗","INDUSTRIAL PRESSURE · REAL STEAM COMBAT");
                 q.room=3;q.locked=!Has("boss_3");q.complete=PressureworksComplete;
                 q.description=L(
-                    "在铁炉堡旧工区告示牌（54.5,38.5）发起抢修，依次到一号冷却阀（60.5,37.5）及二号冷却阀（67.5,36.5）调整压力。工区会在真实时间里升压，必须在35—80、26—75两个安全区间操作。之后前往总机（67.5,44.5）击败两名真实守卫，并避开倒计时蒸汽。一次可消耗1备件排气降压22并清除当前蒸汽。最后把厂区交给工人，或公开商队动力图纸。",
-                    "Start at Ironreach's old work notice (54.5,38.5). Physically operate the first coolant wheel (60.5,37.5) at pressure 35–80, then the second (67.5,36.5) at 26–75. Real time increases pressure. Reach the engine (67.5,44.5), defeat two genuine guards, and dodge timed hot steam. Once per run, a real spare part can purge 22 pressure and owned warnings. Choose worker control or public carrier schematics.");
+                    "在铁炉堡旧工区告示牌（54.5,38.5）发起抢修，依次到一号冷却阀（60.5,37.5）及二号冷却阀（67.5,36.5）调整压力。工区会在真实时间里升压，必须在35—80、40—75两个安全区间操作。之后前往总机（67.5,44.5）击败两名真实守卫，并避开倒计时蒸汽。一次可消耗1备件排气降压22并清除当前蒸汽。最后把厂区交给工人，或公开商队动力图纸。",
+                    "Start at Ironreach's old work notice (54.5,38.5). Physically operate the first coolant wheel (60.5,37.5) at pressure 35–80, then the second (67.5,36.5) at 40–75. Real time increases pressure. Reach the engine (67.5,44.5), defeat two genuine guards, and dodge timed hot steam. Once per run, a real spare part can purge 22 pressure and owned warnings. Choose worker control or public carrier schematics.");
                 q.steps.Add(new QuestStep(L("一号阀 · 实地冷却","Turn real first coolant valve"),
                     PressureworksStage>=2||q.complete));
                 q.steps.Add(new QuestStep(L("二号阀 · 压力同步","Synchronize the second pressure wheel"),
