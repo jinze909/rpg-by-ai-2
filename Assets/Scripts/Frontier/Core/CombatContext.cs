@@ -526,6 +526,32 @@ namespace Starfall
                     L("听见异响","HEARD IMPACT")));
             }
         }
+        // Read-only preview and true alert share precisely the same
+        // physical listener predicate. HUD must never advertise a hidden
+        // listener through a solid wall or from a closed scripted objective.
+        private bool PatrolCanHearPebbleLaunch(Enemy guard,Point origin)
+        {
+            return guard!=null&&guard.hp>0f&&!guard.boss&&
+                Finite(origin.x)&&Finite(origin.y)&&
+                !ArrowSoundCannotOverrideObjective(guard)&&
+                CanStand(guard.Position)&&
+                (guard.Position-origin).Length<=2.5f&&
+                ClearAttackPath(origin,guard.Position)&&
+                !patrolsThatSawHero.Contains(guard)&&
+                !ImpactSearchGuardSeesHero(guard);
+        }
+        public int NearbyPebbleLaunchListeners()
+        {
+            if(save==null||mode!="world"||Dying||practicing||
+               playerAction!=null||dashTime>0f||playerHitTime>0f||
+               !CanStand(Position)||pebbleCooldown>.00001f||
+               save.energy<PebbleEnergyCost)return 0;
+            int heard=0;
+            foreach(Enemy guard in enemies)
+                if(PatrolCanHearPebbleLaunch(guard,Position))heard++;
+            return heard;
+        }
+
         // Throwing is itself a real physical action. A guard at the
         // thrower's shoulder can hear the launch before the pebble travels,
         // while a distant patrol only hears the later, genuine landing.
@@ -538,13 +564,7 @@ namespace Starfall
             EnsureEnemyHitAlertSession();
             foreach(Enemy guard in enemies)
             {
-                if(guard==null||guard.hp<=0f||guard.boss||
-                   ArrowSoundCannotOverrideObjective(guard)||
-                   !CanStand(guard.Position)||
-                   (guard.Position-launchFoot).Length>2.5f||
-                   !ClearAttackPath(launchFoot,guard.Position)||
-                   patrolsThatSawHero.Contains(guard)||
-                   ImpactSearchGuardSeesHero(guard))continue;
+                if(!PatrolCanHearPebbleLaunch(guard,launchFoot))continue;
                 EnemyHitAlert alert;
                 if(enemyHitAlert.TryGetValue(guard,out alert))
                 {

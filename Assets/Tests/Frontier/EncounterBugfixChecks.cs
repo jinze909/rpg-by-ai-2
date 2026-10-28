@@ -1026,6 +1026,9 @@ namespace Starfall.Tests
                     // Throw north, so the nearby guard cannot confuse
                     // landing on its body with the earlier arm movement.
                     g.sounds.Clear();
+                    int listenerPreview=g.NearbyPebbleLaunchListeners();
+                    Check(listenerPreview==(scenario==0?1:0),
+                        "Read-only HUD count must match actual cover, distance and readiness before a stone launches; case "+scenario);
                     g.ThrowPebble(new Point(0f,1f));
                     bool valid=scenario!=3;
                     bool heardAtLaunch=scenario==0;

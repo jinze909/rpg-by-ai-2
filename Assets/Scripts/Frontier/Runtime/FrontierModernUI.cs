@@ -471,12 +471,22 @@ namespace Starfall
                            " · CD "+(int)Math.Ceiling(Game.pebbleCooldown)+"s"):
                     Game.save.energy<GameCore.PebbleEnergyCost?
                         Game.L(" · 耐力不足"," · LOW EN"):"";
-                if(Button(24,691,304,27,
+                int throwListeners=Game.NearbyPebbleLaunchListeners();
+                // Risk preview is computed from the EXACT guard-hearing
+                // predicate used at release; never promise sound through
+                // terrain or show listeners for an unavailable throw.
+                string throwLabel=throwListeners>0?
+                    (controllerUsed?
+                        Game.L("L3+R3 · 投石 · "+throwListeners+"名守卫能听见",
+                               "L3+R3 · PEBBLE · "+throwListeners+" HEAR"):
+                        Game.L("U · 投石 · "+throwListeners+"名守卫能听见",
+                               "U · PEBBLE · "+throwListeners+" HEAR")):
                     (controllerUsed?
                         Game.L("L3+R3 · 投石 · 8耐力",
                                "L3+R3 · PEBBLE · 8 EN"):
                         Game.L("U · 投石诱敌 · 8耐力",
-                               "U · THROW PEBBLE · 8 EN"))+pebbleHint,
+                               "U · THROW PEBBLE · 8 EN"));
+                if(Button(24,691,304,27,throwLabel+pebbleHint,
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
                     !Game.practicing))
