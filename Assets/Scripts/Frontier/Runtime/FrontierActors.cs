@@ -1192,9 +1192,16 @@ namespace Starfall
                 // Green: an ordinary quest patrol. Amber: this exact
                 // surviving actor has heard a real whistle and is moving
                 // to investigate. No new whole-body frames or fake NPC.
-                Color patrolTint=Game.IsRidgeWatchResponder(e)?
+                bool routeSealed=Game.IsRidgeWatchReportRouteSealed(e);
+                Color patrolTint=routeSealed?
+                    PixelArt.C("#d68b77"):
+                    Game.IsRidgeWatchResponder(e)?
                     PixelArt.C("#e6b46e"):PixelArt.C("#7acabb");
                 Ring(e.Position,.63f,patrolTint,16);
+                if(routeSealed)
+                    Text(p.x-78,p.y-132,156,20,
+                        Game.L("呼援路线封闭","REPORT ROUTE SEALED"),
+                        10,patrolTint,TextAnchor.MiddleCenter);
             }
             if(!drawingOutline&&Game.IsWayfarerDecoyTarget(e))
             {

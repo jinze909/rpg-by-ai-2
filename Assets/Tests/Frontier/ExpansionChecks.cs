@@ -5521,13 +5521,49 @@ namespace Starfall.Tests
                 Check(g.IsRidgeWatchResponder(listener)&&
                     g.RidgeWatchRespondingCount>=2&&g.save.version==2,
                     "The SAME real ally answers the next audible call without save migration");
+                // A genuine player contact reports the planted source foot.
+                // Move the player out of sight so the squad cannot use fresh
+                // visual contact as an accidental escape from the memory.
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                g.save.x=34.5f;g.save.y=35.5f;
+                Point originalReport=g.Position;
+                hit.Invoke(g,new object[]{caller,1f,false,null,null});
+                g.save.x=80.5f;g.save.y=80.5f;
+                var pursue=typeof(GameCore).GetMethod("RidgeWatchPursuitFoot",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(pursue!=null&&
+                    ((Point)pursue.Invoke(g,new object[]{listener,g.Position})-
+                        originalReport).Length<.01f,
+                    "Actual recruited patrol follows genuine old damage source while reachable");
+                // Shut ALL ends of the separating wall after the whistle:
+                // the original report remains standable but disconnected.
+                for(int y=2;y<=97;y++)
+                {
+                    char[] wall=rows[y].ToCharArray();
+                    wall[37]='#';rows[y]=new string(wall);
+                }
+                Check(g.IsRidgeWatchResponder(listener)&&
+                    g.IsRidgeWatchReportRouteSealed(listener)&&
+                    ((Point)pursue.Invoke(g,new object[]{listener,g.Position})-
+                        listener.Position).Length<.01f,
+                    "A freshly sealed post-whistle corridor holds real recruited actor at actual foot");
+                // One genuine reopened doorway resumes the exact original
+                // reported foot without resounding or spending resources.
+                char[] returned=rows[35].ToCharArray();
+                returned[37]='.';rows[35]=new string(returned);
+                Check(!g.IsRidgeWatchReportRouteSealed(listener)&&
+                    ((Point)pursue.Invoke(g,new object[]{listener,g.Position})-
+                        originalReport).Length<.01f,
+                    "Reopening the route resumes original truthful reported location");
                 // A fresh sealed door must defeat a later separate whistle,
                 // not leave a permanently recruited immutable enemy ID.
                 char[] shut=rows[35].ToCharArray();
                 shut[37]='#';rows[35]=new string(shut);
                 release.Invoke(g,new object[]{caller});
-                Check(!g.IsRidgeWatchResponder(listener),
-                    "A physically closed doorway removes ally from subsequent call");
+                Check(!g.IsRidgeWatchResponder(listener)&&
+                    !g.IsRidgeWatchReportRouteSealed(listener),
+                    "Closed corridor removes ally from later whistle and its old HUD cue");
             }
             finally
             {

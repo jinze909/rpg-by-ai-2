@@ -88,6 +88,15 @@ namespace Starfall
         // presented as a teammate answering the ridge watch whistle.
         public bool IsRidgeWatchResponder(Enemy e)
         { return e!=null&&RidgeWatchRespondsToAlarm(e); }
+        // Only an exact surviving, actually recruited actor can show this
+        // tactical cue. The contact memory is unchanged by sealed terrain,
+        // so reopening a tide gate resumes the original real investigation.
+        public bool IsRidgeWatchReportRouteSealed(Enemy enemy)
+        {
+            return enemy!=null&&RidgeWatchRespondsToAlarm(enemy)&&
+                !SoundSweepFootReachable(enemy.Position,
+                    ridgeWatchReportedContactFoot);
+        }
         private Point RidgeWatchPursuitFoot(Enemy enemy,Point heroFoot)
         {
             if(!RidgeWatchRespondsToAlarm(enemy))return heroFoot;
@@ -107,7 +116,12 @@ namespace Starfall
                  ((heroFoot-Position).Length<.01f&&
                   heroRange<=4f&&ImpactSearchGuardSeesHero(enemy))))
                 return heroFoot;
-            return CanStand(ridgeWatchReportedContactFoot)?
+            // A gate can shut AFTER a real whistle recruited teammates.
+            // Never drive toward a disconnected report island or snap the
+            // target to the concealed live hero. Recheck current actor-scale
+            // physical connectivity; keep the ORIGINAL report for reopening.
+            return SoundSweepFootReachable(enemy.Position,
+                ridgeWatchReportedContactFoot)?
                 ridgeWatchReportedContactFoot:enemy.Position;
         }
         private void AlertRidgeWatchOnRealHit(Enemy struck,Point sourceFoot)
