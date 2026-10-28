@@ -506,7 +506,7 @@ namespace Starfall
                 if (!Game.practicing && Button(1015, 448, 234, 33, Game.save.showGuidance ? Game.L("路线指引 ON", "Route guide ON") : Game.L("路线指引 OFF", "Route guide OFF"))) { Game.save.showGuidance = !Game.save.showGuidance; Game.revision++; }
                 if (Game.save.room >= 5 || Game.CivicCourierActive || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.MineConvoyActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
-                ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= Game.ClassSkillEnergyCost, () => Game.Skill(InputAim(true)), 3.5f, Game.L("耐力不足", "Low energy"));
+                ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= Game.ClassSkillEnergyCost, () => Game.Skill(InputAim(true)), Game.ForgeSkillCooldown, Game.L("耐力不足", "Low energy"));
                 ActionSlot(470, ControlKey("F", "LB"), Game.L("炖汤", "Stew") + " " + Game.save.inventory[6], "stew", Game.StewCooldownLeft, Game.CanEatStew || Game.StewCooldownLeft>0 && Game.save.inventory[6]>0, () => Game.Eat(), 3f, Game.L("效果仍在","Buff active"));
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", Game.TeaCooldownLeft, Game.CanDrinkTea || Game.TeaCooldownLeft>0 && Game.save.tea>0 && !Game.practicing, () => Game.DrinkTea(), GameCore.TeaCooldownSeconds, Game.L("保护仍在","Protected"));
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
@@ -984,6 +984,18 @@ namespace Starfall
             if (Button(279, 704, 938, 25, respecLabel, false, Game.CanResetTalents)) Game.ResetTalents();
             Card(279, 540, 938, 150); Text(302, 560, 885, 35, Game.L("战技专精", "Combat technique"), 22, gold); Text(302, 603, 883, 28, Game.L("当前 Q：", "Current Q: ") + SkillName() + "  /  " + Game.L("熟练度等级 ", "Mastery rank ") + Game.MasteryRank(Game.save.weapon), 16, paper);
             bool learned = Game.Has("technique_" + Game.save.profession); if (Button(302, 646, 891, 31, learned ? Game.L("切换为另一种职业战技", "Switch to the other class technique") : Game.L("学习第二战技：等级5、技能点1", "Learn alternate technique: level 5, 1 talent point"), Game.save.technique == 1, learned || Game.save.level >= 5 && Game.save.skillPoints > 0)) Game.LearnTechnique();
+            // Same production class-skill values as the Q action and HUD cooldown.
+            // No placeholder upgrades, guessed percentages or separate UI buff state.
+            if(Game.ForgeMasterworkUnlocked)
+                Text(302,678,883,18,Game.ForgeMasterwork==1?
+                    Game.L("诺尔 · 迅捷调谐：Q 冷却 2.65 秒",
+                        "Noll · Quickwork: Q cooldown 2.65s"):
+                    Game.ForgeMasterwork==2?
+                    Game.L("诺尔 · 重击校准：Q 伤害 +30%，冷却 4.2 秒",
+                        "Noll · Heavy impact: Q damage +30%, cooldown 4.2s"):
+                    Game.L("诺尔处可选择一项战技校准（不可重复选择）",
+                        "Noll can forge one permanent class-skill calibration"),
+                    12,muted);
         }
         private void DrawCompanions()
         {
