@@ -98,8 +98,9 @@ namespace Starfall.Tests
                 "Actual starting night patrol and line-of-sight position occupy passable Citadel cells");
             g.save.x=visible.x;g.save.y=visible.y;
             for(int i=0;i<10;i++)g.Tick(.05f,new Point());
-            Check(g.SilentLedgerSuspicion>0f,
-                "Real moving sentry's forward physical sight raises suspicion");
+            Check(g.SilentLedgerSuspicion>0f&&
+                g.SilentLedgerSentrySearchSeconds(0)>0f,
+                "Real moving sentry's forward physical sight raises suspicion and starts an actual search");
             float seen=g.SilentLedgerSuspicion;
             // The target is now outside sight and audible range, so the
             // same suspicion must dissipate rather than accumulating forever.
@@ -116,8 +117,9 @@ namespace Starfall.Tests
                 "Stale remote menu cannot spend gear or teleport guards");
             SilentLedgerMoveTo(g,bell);g.Talk(bell);
             Check(SilentLedgerChoice(g,"silentledger_decoy")&&
-                g.save.inventory[4]==1&&g.SilentLedgerDiversion==12f,
-                "One real spare part creates a temporary audible diversion");
+                g.save.inventory[4]==1&&g.SilentLedgerDiversion==12f&&
+                g.SilentLedgerSentrySearchSeconds(0)==0f,
+                "One real spare part overrides sight searches with a temporary patrol diversion");
             Point before=g.SilentLedgerSentryPosition(0);
             g.Tick(.05f,new Point());
             Point after=g.SilentLedgerSentryPosition(0);

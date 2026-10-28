@@ -13,6 +13,8 @@ namespace Starfall
         private Point[] silentLedgerSentries=new Point[2];
         private Point[] silentLedgerFacing=new Point[2];
         private bool[] silentLedgerOutbound=new bool[2];
+        private Point[] silentLedgerSearchTarget=new Point[2];
+        private float[] silentLedgerSearchSeconds=new float[2];
         private static readonly Point[] silentLedgerA={
             new Point(57.5f,39.5f),new Point(64.5f,39.5f)};
         private static readonly Point[] silentLedgerB={
@@ -31,6 +33,12 @@ namespace Starfall
         {return index>=0&&index<2?silentLedgerSentries[index]:new Point();}
         public Point SilentLedgerSentryFacing(int index)
         {return index>=0&&index<2?silentLedgerFacing[index]:new Point();}
+        public float SilentLedgerSentrySearchSeconds(int index)
+        {return SilentLedgerActive&&index>=0&&index<2?
+            silentLedgerSearchSeconds[index]:0f;}
+        public Point SilentLedgerSentrySearchTarget(int index)
+        {return SilentLedgerActive&&index>=0&&index<2?
+            silentLedgerSearchTarget[index]:new Point();}
         public Point SilentLedgerTarget
         {get{return silentLedgerStage==1?new Point(60.5f,36.5f):
             silentLedgerStage==2?new Point(63.5f,43.5f):
@@ -51,6 +59,9 @@ namespace Starfall
             silentLedgerFacing[0]=new Point(1,0);
             silentLedgerFacing[1]=new Point(0,1);
             silentLedgerOutbound[0]=silentLedgerOutbound[1]=true;
+            silentLedgerSearchSeconds[0]=silentLedgerSearchSeconds[1]=0f;
+            silentLedgerSearchTarget[0]=silentLedgerA[0];
+            silentLedgerSearchTarget[1]=silentLedgerB[0];
             silentLedgerLastHero=new Point();
         }
         private bool SilentLedgerSource(WorldObject o,string id)
@@ -198,6 +209,7 @@ namespace Starfall
                     silentLedgerDecoyUsed||save.inventory[4]<1)return true;
                 save.inventory[4]--;silentLedgerDecoyUsed=true;
                 silentLedgerDiversion=12f;
+                silentLedgerSearchSeconds[0]=silentLedgerSearchSeconds[1]=0f;
                 silentLedgerSuspicion=Math.Max(0f,silentLedgerSuspicion-22f);
                 revision++;sound="quest";
                 Notify("岗哨铃声响起！守卫正转向声音，12秒内可以借机移动。",
@@ -234,10 +246,19 @@ namespace Starfall
             Point destination=ends[silentLedgerOutbound[index]?1:0];
             if(silentLedgerDiversion>0f)
                 destination=new Point(54.5f,38.5f);
+            else if(silentLedgerSearchSeconds[index]>0f)
+                destination=silentLedgerSearchTarget[index];
             Point current=silentLedgerSentries[index];
             Point direction=DirectionTo(current,destination);
             if((destination-current).Length<.42f)
-            {silentLedgerOutbound[index]=!silentLedgerOutbound[index];return;}
+            {
+                // A sentry waits at the genuinely reached last-seen foot.
+                // It cannot continue chasing a target through a sealed wall.
+                if(silentLedgerDiversion<=0f&&silentLedgerSearchSeconds[index]>0f)
+                    return;
+                silentLedgerOutbound[index]=!silentLedgerOutbound[index];
+                return;
+            }
             if(direction.Length<.001f)return;
             float step=Math.Min(dt*(silentLedgerDiversion>0f?2.2f:1.65f),
                 (destination-current).Length);
@@ -288,10 +309,27 @@ namespace Starfall
             silentLedgerLastHero=Position;
             if(silentLedgerDiversion>0f)
                 silentLedgerDiversion=Math.Max(0f,silentLedgerDiversion-dt);
-            for(int i=0;i<2;i++)StepSilentLedgerSentry(i,dt);
-            bool seen=false;
             for(int i=0;i<2;i++)
-                if(SilentLedgerSeesHero(i))seen=true;
+            {
+                silentLedgerSearchSeconds[i]=Math.Max(0f,
+                    silentLedgerSearchSeconds[i]-dt);
+                StepSilentLedgerSentry(i,dt);
+            }
+            bool seen=false;
+            bool[] seenBy=new bool[2];
+            for(int i=0;i<2;i++)
+            {
+                seenBy[i]=SilentLedgerSeesHero(i);
+                if(seenBy[i])
+                {
+                    seen=true;
+                    if(silentLedgerDiversion<=0f)
+                    {
+                        silentLedgerSearchTarget[i]=Position;
+                        silentLedgerSearchSeconds[i]=3.1f;
+                    }
+                }
+            }
             // Actual translated feet, not a held key, produce sound.
             // Attacking makes more noise; crouch reduces visible range and
             // the rate of a real alarm without granting invisibility.
@@ -305,7 +343,14 @@ namespace Starfall
                 for(int i=0;i<2;i++)
                     if((silentLedgerSentries[i]-Position).Length<5f&&
                        ClearAttackPath(silentLedgerSentries[i],Position))
+                    {
                         heard=true;
+                        if(silentLedgerDiversion<=0f)
+                        {
+                            silentLedgerSearchTarget[i]=Position;
+                            silentLedgerSearchSeconds[i]=4.2f;
+                        }
+                    }
                 silentLedgerSuspicion+=dt*(heard?19f:0f);
             }
             else silentLedgerSuspicion-=dt*9f;

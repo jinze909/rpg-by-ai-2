@@ -513,6 +513,15 @@ namespace Starfall
                         new Color(.94f,.67f,.55f,1f));
                     Point ahead=foot+face*1.3f;
                     Ring(ahead,.53f,stealth,18);
+                    if(Game.SilentLedgerSentrySearchSeconds(guard)>0f)
+                    {
+                        Point last=Game.SilentLedgerSentrySearchTarget(guard);
+                        if(WorldDrawable(last.x,last.y,140f,140f))
+                            Ring(last,.48f,gold,20);
+                        Text(screen.x-51,screen.y-91,102,17,
+                            Game.L("搜索脚步","SEARCHING"),10,gold,
+                            TextAnchor.MiddleCenter);
+                    }
                 }
                 Text(35,345,530,22,Game.L("无声名册 · ","SILENT LEDGER · ")+
                     Game.SilentLedgerStage+"/3 · "+
