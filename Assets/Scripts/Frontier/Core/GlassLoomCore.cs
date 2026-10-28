@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Starfall
 {
@@ -10,6 +11,12 @@ namespace Starfall
     {
         private int glassLoomStage;
         private float glassLoomTime,glassLoomHeatClock;
+        // Each actual enemy has its own beam recontact timer. Actor
+        // references, not recyclable numeric IDs, own the transient hit.
+        private readonly Dictionary<Enemy,float> glassLoomRecentContacts=
+            new Dictionary<Enemy,float>();
+        private readonly Dictionary<Enemy,Point> glassLoomPreviousFeet=
+            new Dictionary<Enemy,Point>();
         public bool GlassLoomBeamActive
         {get{return glassLoomStage==2&&!Night&&GlassLoomPathClear;}}
         private readonly int[] glassLoomRotations=new int[3];
@@ -73,6 +80,8 @@ namespace Starfall
         {
             glassLoomStage=0;glassLoomTime=glassLoomHeatClock=0;
             hazards.RemoveAll(h=>h.glassLoomOwned);
+            glassLoomRecentContacts.Clear();
+            glassLoomPreviousFeet.Clear();
             for(int i=0;i<3;i++)glassLoomRotations[i]=0;
         }
         private int GlassLoomMirrorIndex(WorldObject o)
@@ -313,6 +322,37 @@ namespace Starfall
             }
             return true;
         }
+        // Authentic enemy motion is recorded BEFORE their world AI step.
+        // The short, narrow optical lane must catch an enemy striding
+        // across it, not merely actors that finish inside its footprint.
+        private void CaptureGlassLoomEnemyFeet()
+        {
+            glassLoomPreviousFeet.Clear();
+            if(!GlassLoomBeamActive)return;
+            foreach(Enemy e in enemies)
+                if(e!=null&&e.hp>0f)glassLoomPreviousFeet[e]=e.Position;
+        }
+        private bool GlassLoomEnemyCrossesBeam(Enemy e)
+        {
+            if(e==null||e.hp<=0f||!enemies.Contains(e)||
+               e.boss||ArrowSoundCannotOverrideObjective(e))return false;
+            Point end=e.Position,start;
+            if(!glassLoomPreviousFeet.TryGetValue(e,out start))start=end;
+            if(!Finite(start.x)||!Finite(start.y)||
+               !Finite(end.x)||!Finite(end.y))return false;
+            if(!CanStand(start)&&!CanStand(end))return false;
+            if(start.x>=61.2f&&start.x<=75.8f&&
+               Math.Abs(start.y-50.5f)<=.52f)return true;
+            if(end.x>=61.2f&&end.x<=75.8f&&
+               Math.Abs(end.y-50.5f)<=.52f)return true;
+            Point delta=end-start;
+            if(Math.Abs(delta.y)<.00001f)return false;
+            float fraction=(50.5f-start.y)/delta.y;
+            if(fraction<0f||fraction>1f)return false;
+            float crossingX=start.x+fraction*delta.x;
+            return crossingX>=61.2f&&crossingX<=75.8f&&
+                ClearAttackPath(start,end);
+        }
         private void TickGlassLoom(float dt)
         {
             if(glassLoomStage==0||glassLoomStage==3)return;
@@ -328,10 +368,32 @@ namespace Starfall
             if(glassLoomStage==2)
             {
                 if(Night)
+                {
                     hazards.RemoveAll(h=>h.glassLoomOwned);
+                    glassLoomRecentContacts.Clear();
+                    glassLoomPreviousFeet.Clear();
+                }
                 else if(GlassLoomBeamActive)
                 {
                     glassLoomHeatClock=Math.Max(0f,glassLoomHeatClock-dt);
+                    // Same focused ray is a real nonlethal tactical tool:
+                    // lure ordinary patrols onto the lit lane to stagger
+                    // them. Scripted quest enemies and main bosses remain
+                    // immune. No damage, loot, bounty or kill is awarded.
+                    foreach(Enemy e in enemies)
+                    {
+                        if(!GlassLoomEnemyCrossesBeam(e))continue;
+                        float readyAt;
+                        if(glassLoomRecentContacts.TryGetValue(e,out readyAt)&&
+                           save.totalTime<readyAt)continue;
+                        glassLoomRecentContacts[e]=save.totalTime+4f;
+                        e.stun=Math.Max(e.stun,.95f);
+                        e.armorOpenTime=Math.Max(e.armorOpenTime,.55f);
+                        e.state=0;
+                        effects.Add(new Effect("number",e.Position,.7f,
+                            L("镜光眩晕","BLINDED BY LIGHT")));
+                        revision++;
+                    }
                     Point foot=Position;
                     if(glassLoomHeatClock<=0f&&
                         foot.x>=61.2f&&foot.x<=75.8f&&

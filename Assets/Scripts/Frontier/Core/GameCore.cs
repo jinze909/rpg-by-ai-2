@@ -997,6 +997,7 @@ namespace Starfall
             TickBufferedSkill(dt, skillReadyDelay);
             TickBufferedAttack(dt, attackReadyDelay);
             CaptureFieldSnareEnemyFooting();
+            CaptureGlassLoomEnemyFeet();
             UpdateEnemies(dt); if (Dying) return;
             TickFieldSnares(dt);
             TickRidgeWatchPatrols(dt);

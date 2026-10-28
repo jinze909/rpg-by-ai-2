@@ -263,7 +263,9 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(raider.hp==120f&&raider.stun>.75f&&
                 raider.armorOpenTime>.4f,
-                "A true ordinary patrol body inside the charged center ray is briefly blinded with an attack opening");
+                "A true patrol crossing the live beam gains a real stun and armor opening; hp="+
+                raider.hp+" stun="+raider.stun+" armor="+raider.armorOpenTime+
+                " foot="+raider.Position.x+","+raider.Position.y);
             Check(guardian.hp==230f&&guardian.stun==0f,
                 "An existing regional Boss cannot be stunned or given fictional defeat credit by the civilian beam");
             Check(g.save.kills[6]==kills&&g.save.coins==coins,
@@ -282,6 +284,35 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(!g.GlassLoomBeamActive&&raider.stun==0f,
                 "Actual nightfall disables the beam's enemy-blinding physics as well as its player hazard");
+        }
+        public static void GlasswellSolarBeamSweepsFastCrossingsAndKeepsActorIdentity(Campaign data)
+        {
+            GameCore g=GlasswellReady(data);
+            GlasswellTuneAndFocus(g);
+            Enemy runner=new Enemy(89902,0,66.5f,49.5f,90f)
+                {timer=150f};
+            g.enemies.Add(runner);
+            var capture=typeof(GameCore).GetMethod("CaptureGlassLoomEnemyFeet",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var crossing=typeof(GameCore).GetMethod("GlassLoomEnemyCrossesBeam",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(capture!=null&&crossing!=null,
+                "Normal enemy AI has a real pre-update capture and swept beam-foot collision");
+            capture.Invoke(g,null);
+            runner.x=66.5f;runner.y=51.5f;
+            Check((bool)crossing.Invoke(g,new object[]{runner}),
+                "A living patrol crossing from one real side lane to the other cannot tunnel through the narrow sunbeam");
+            var boss=new Enemy(89903,3,66.5f,50.5f,180f,true);
+            g.enemies.Add(boss);
+            capture.Invoke(g,null);
+            Check(!(bool)crossing.Invoke(g,new object[]{boss}),
+                "No swept contact may stun a real Boss even while its feet intersect sunlight");
+            g.enemies.Remove(boss);
+            g.enemies.Remove(runner);
+            Check(!(bool)crossing.Invoke(g,new object[]{runner}),
+                "Removed enemies are not eligible for phantom contact after leaving the actual combat roster");
         }
     }
 }
