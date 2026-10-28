@@ -5768,6 +5768,46 @@
           "y": 42.5
         },
         {
+          "id": "silentledger_notice",
+          "name": "堡垒档案 · 被抹去的名册",
+          "en": "Citadel Archives · Erased Register",
+          "kind": "silentledgernotice",
+          "x": 54.5,
+          "y": 38.5
+        },
+        {
+          "id": "silentledger_record",
+          "name": "北侧旧名册 · 无名之人",
+          "en": "Northern Register · The Unnamed",
+          "kind": "silentledgerrecord",
+          "x": 60.5,
+          "y": 36.5
+        },
+        {
+          "id": "silentledger_witness",
+          "name": "南侧排水口 · 目击人供词",
+          "en": "South Drain · Eyewitness Statement",
+          "kind": "silentledgerrecord",
+          "x": 63.5,
+          "y": 43.5
+        },
+        {
+          "id": "silentledger_console",
+          "name": "堡垒封存台 · 平民真实名录",
+          "en": "Citadel Seal Console · Civilian Records",
+          "kind": "silentledgerconsole",
+          "x": 66.5,
+          "y": 38.5
+        },
+        {
+          "id": "silentledger_decoy",
+          "name": "废弃岗哨 · 旧警铃",
+          "en": "Abandoned Post · Old Watch Bell",
+          "kind": "silentledgerbell",
+          "x": 54.5,
+          "y": 42.5
+        },
+        {
           "id": "annex_vista_4",
           "name": "堡垒外环观景台",
           "en": "Citadel Outer Ring · Charting overlook",

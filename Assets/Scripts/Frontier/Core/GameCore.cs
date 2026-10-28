@@ -265,7 +265,7 @@ namespace Starfall
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
         public float Damage { get { return (19 + (GlassLoomPublic&&save.room==6&&!Night?3:0) + (ThornwatchSevered&&save.room<8?3:0) + (PressureworksCaravan&&save.room==3?3:0) + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
-        public float Speed { get { return 4.5f + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (Has("roadcharter_public") ? .25f : 0) + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
+        public float Speed { get { return 4.5f + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (SilentLedgerRoutes&&save.room==4?.35f:0f) + (Has("roadcharter_public") ? .25f : 0) + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
             get { return save.room == 0 || save.room == 4 || save.room == 8 || save.room == 9 || (save.room == 1 && Has("scout_saved")) || Has("gate_" + save.room); }
@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -597,6 +597,12 @@ namespace Starfall
             {
                 Notify("诺尔的实弹练习正在进行，完成或在铁匠铺安全中止后才能旅行。",
                     "Noll's live drill is active. Finish or abort at his forge before traveling.");
+                return true;
+            }
+            if(SilentLedgerActive)
+            {
+                Notify("平民名册仍在秘密调查中。先完成潜入或回旧档案告示牌取消。",
+                    "The missing-person register is being recovered. Finish or withdraw at the original archive notice.");
                 return true;
             }
             if(PressureworksActive)
@@ -1066,6 +1072,7 @@ namespace Starfall
             TickFrostSignal(dt);
             TickWhiteout(dt);
             TickPressureworks(dt);
+            TickSilentLedger(dt);
             TickFloodRelief(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
@@ -4038,6 +4045,7 @@ namespace Starfall
             if (TalkGlassLoom(o)) return;
             if (TalkWhiteout(o)) return;
             if (TalkPressureworks(o)) return;
+            if (TalkSilentLedger(o)) return;
             if (TalkCountertide(o)) return;
             if (TalkThornwatch(o)) return;
             if (TalkLastLantern(o)) return;
@@ -4550,7 +4558,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4796,6 +4804,7 @@ namespace Starfall
             if (ChooseCountertide(action)) return;
             if (ChooseWhiteout(action)) return;
             if (ChoosePressureworks(action)) return;
+            if (ChooseSilentLedger(action)) return;
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;

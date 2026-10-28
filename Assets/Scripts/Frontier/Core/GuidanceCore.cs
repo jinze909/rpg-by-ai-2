@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,36 @@ namespace Starfall
 
 
 
+            if(id=="silent_ledger")
+            {
+                q.title=L("星陨堡垒 · 无声名册","Starfall Citadel · Silent Ledger");
+                q.category=L("巡逻视线 · 实际潜行","PATROL SIGHTLINES · LIVE STEALTH");
+                q.room=4;q.locked=!Has("boss_3");q.complete=SilentLedgerComplete;
+                q.description=L(
+                    "从星陨堡垒外环独立档案告示牌（54.5,38.5）潜入，取得北侧原始名册（60.5,36.5）与南侧证词（63.5,43.5），最终回到封存台（66.5,38.5）。两名移动夜巡依据真实距离、朝向和墙壁遮挡发现玩家，冲刺脚步更响，悄步能减少警戒增长；离开视线可恢复。155秒内警戒达到100会触发封锁重试。可在西南旧岗哨（54.5,42.5）消耗1备件引开巡逻12秒。结局可选择公开被抹除的平民姓名并建立安全恢复档案台，或将安全归乡路线交给居民，增加堡垒移动速度。",
+                    "Enter from the actual Citadel archive notice (54.5,38.5), secure the north register (60.5,36.5), then the southern witness statement (63.5,43.5), and finally reach the sealed console (66.5,38.5). Two walking sentries genuinely detect by distance, forward-facing line of sight and physical walls. Quiet movement slows suspicion, sprint noise attracts them, and leaving sight recovers. Suspicion 100 or 155s timeout forces a retry. Once per run spend a part at the old bell (54.5,42.5) to redirect both sentries for 12s. Publish the missing names to open local safe recovery, or restore civilian paths for +0.35 Citadel speed.");
+                q.steps.Add(new QuestStep(L("取得北侧原始名册","Recover northern missing-person register"),
+                    SilentLedgerStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("取得南侧目击者供词","Recover southern eyewitness account"),
+                    SilentLedgerStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("在封存台重归平民记录","Restore the civilian archive at the console"),q.complete));
+                q.target=SilentLedgerActive?SilentLedgerTarget:new Point(54.5f,38.5f);
+                q.next=q.locked?L("先击败铁炉堡原守护者并抵达堡垒",
+                    "Defeat the Ironreach guardian and reach the Citadel"):
+                    q.complete?SilentLedgerPublic?
+                        L("失踪者名册公开 · 安全档案台可恢复生命与耐力",
+                            "Public register · safe archive console restores health and stamina"):
+                        L("巡路队取回归乡线 · 堡垒移动速度+0.35",
+                            "Safe routes returned · +0.35 Citadel movement speed"):
+                    SilentLedgerActive?SilentLedgerObjective+" · "+
+                        SilentLedgerTime.ToString("0")+"s"+
+                        L(" · 警戒 "," · SUSPICION ")+SilentLedgerSuspicion.ToString("0"):
+                    L("到堡垒外环档案告示牌（54.5,38.5）开始秘密调查",
+                        "Read the Citadel outer-ring archive notice (54.5,38.5)");
+                q.reward=L("首胜：65硬币、2碎片、105经验；永久民用恢复或通路",
+                    "First infiltration: 65 coins, 2 shards, 105 XP; permanent civilian recovery or safe routes");
+                return q;
+            }
             if(id=="pressureworks")
             {
                 q.title=L("铁炉堡 · 最后的换班","Ironreach · The Last Shift");

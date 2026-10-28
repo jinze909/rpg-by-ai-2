@@ -484,6 +484,49 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.SilentLedgerActive&&!drawingOutline)
+            {
+                Color stealth=Game.SilentLedgerSuspicion>70f?
+                    new Color(1f,.49f,.42f,1f):mint;
+                Point goal=Game.SilentLedgerTarget;
+                if(WorldDrawable(goal.x,goal.y,150f,150f))
+                {
+                    Ring(goal,.8f,stealth,25);
+                    Point screen=ScreenPoint(goal);
+                    Text(screen.x-135,screen.y-81,270,19,
+                        Game.SilentLedgerObjective,12,stealth,
+                        TextAnchor.MiddleCenter);
+                }
+                for(int guard=0;guard<2;guard++)
+                {
+                    Point foot=Game.SilentLedgerSentryPosition(guard);
+                    Point face=Game.SilentLedgerSentryFacing(guard);
+                    if(!WorldDrawable(foot.x,foot.y,165f,175f))continue;
+                    Point screen=ScreenPoint(foot);
+                    if(WhiteoutNpcAtlasReady())
+                    {
+                        DrawActorContactShadow(screen,32,12,6,.83f);
+                        DrawRootedCivilianBody(screen,0f,
+                            new Color(.92f,.66f,.52f,1f),face.x<0f);
+                    }
+                    else PropImage("post",0,screen.x-25,screen.y-69,50,67,
+                        new Color(.94f,.67f,.55f,1f));
+                    Point ahead=foot+face*1.3f;
+                    Ring(ahead,.53f,stealth,18);
+                }
+                Text(35,345,530,22,Game.L("无声名册 · ","SILENT LEDGER · ")+
+                    Game.SilentLedgerStage+"/3 · "+
+                    Game.SilentLedgerTime.ToString("0")+"s · "+
+                    Game.L("警戒 ","SUSPICION ")+
+                    Game.SilentLedgerSuspicion.ToString("0")+"/100",
+                    12,stealth);
+                Bar(35,371,275,Game.SilentLedgerSuspicion/100f,stealth,6);
+                if(Game.SilentLedgerDiversion>0f)
+                    Text(35,390,400,19,
+                        Game.L("旧警铃引导巡逻 ","BELL DIVERSION ")+
+                        Game.SilentLedgerDiversion.ToString("0.0")+"s",
+                        11,gold);
+            }
             if(Game.mode=="world"&&Game.PressureworksActive&&!drawingOutline)
             {
                 Color pressure=Game.PressureworksPressure>75?
@@ -1232,6 +1275,20 @@ namespace Starfall
             // One shared screen-foot throughout this method. Older Mono/C#
             // cannot redeclare an outer local after same-named branch locals.
             string kind=o.kind;Point p=ScreenPoint(new Point(o.x,o.y));
+            if(o.kind=="silentledgernotice"||o.kind=="silentledgerrecord"||
+               o.kind=="silentledgerconsole"||o.kind=="silentledgerbell")
+            {
+                Color ink=Game.SilentLedgerComplete?mint:
+                    Game.SilentLedgerActive?gold:muted;
+                Point foot=new Point(o.x,o.y);
+                PropImage("post",0,p.x-27,p.y-69,54,69,ink);
+                Ring(foot,o.kind=="silentledgerconsole"?.66f:.4f,ink,22);
+                if(Game.SilentLedgerComplete&&o.kind=="silentledgerconsole")
+                    Text(p.x-73,p.y-91,146,18,
+                        Game.L("真实姓名已归档","CIVIC ACCOUNT RESTORED"),
+                        10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
             if(o.kind=="pressureworksnotice"||o.kind=="pressureworksvalve"||
                o.kind=="pressureworksengine")
             {
