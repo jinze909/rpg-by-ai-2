@@ -326,6 +326,36 @@ namespace Starfall
             }
             return true;
         }
+        // The game's ordinary U-key pebble is real world physics. Listen
+        // to the genuine launch and the later contact foot; never to an
+        // intended mouse target, a UI click, or a fabricated projectile.
+        // A confirmed last sighting outranks a distraction. The old patrol
+        // bell retains priority while it is active.
+        private void SilentLedgerHearPebble(Point foot,float range,
+            float searchSeconds,bool launch)
+        {
+            if(!SilentLedgerActive||Dying||practicing||
+                silentLedgerDiversion>0f||!CanStand(foot))return;
+            bool heard=false;
+            for(int i=0;i<2;i++)
+            {
+                Point patrol=silentLedgerSentries[i];
+                if((patrol-foot).Length>range||!CanStand(patrol)||
+                    !ClearAttackPath(patrol,foot)||SilentLedgerSeesHero(i)||
+                    (silentLedgerSearchSeconds[i]>0f&&!silentLedgerSoundSearch[i]))
+                    continue;
+                silentLedgerSearchTarget[i]=foot;
+                silentLedgerSearchSeconds[i]=Math.Max(
+                    silentLedgerSearchSeconds[i],searchSeconds);
+                silentLedgerSoundSearch[i]=true;
+                heard=true;
+            }
+            // A stone hitting the floor is a possible environmental noise,
+            // not proof that the hero is there. A very nearby audible arm
+            // throw, in contrast, gives away the true launch foot.
+            if(heard&&launch)
+                silentLedgerSuspicion=Math.Min(100f,silentLedgerSuspicion+5f);
+        }
         private void StepSilentLedgerSentry(int index,float dt)
         {
             silentLedgerFootStride[index]=0f;

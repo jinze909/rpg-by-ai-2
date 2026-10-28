@@ -750,6 +750,9 @@ namespace Starfall
                practicing||Dying||mode!="world")return;
             sound="stoneImpact";
             Point soundFoot=pebble.position;
+            // The same actual swept impact must reach Citadel's non-Enemy
+            // stealth sentries; do not turn the UI aim target into a sound.
+            SilentLedgerHearPebble(soundFoot,5.5f,3.5f,false);
             EnsureEnemyHitAlertSession();
             foreach(Enemy guard in enemies)
             {

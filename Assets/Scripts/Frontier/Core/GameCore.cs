@@ -1203,6 +1203,7 @@ namespace Starfall
             // throw at its source. The later landing is a distinct, still
             // necessary sound event with its own physical collision foot.
             NotifyNearbyPatrolOfPebbleLaunch(pebble.position);
+            SilentLedgerHearPebble(pebble.position,2.5f,2f,true);
             // Immediate player feedback, never a false guard-heard impact.
             sound="stoneThrow";
             revision++;

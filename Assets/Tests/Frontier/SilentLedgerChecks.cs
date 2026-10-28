@@ -186,6 +186,65 @@ namespace Starfall.Tests
                 "Distant sword attack cannot summon sentries or trigger a map-wide stealth alarm");
         }
 
+        public static void SilentLedgerOrdinaryPebbleReallyLuresSentriesAtItsPhysicalImpact(Campaign data)
+        {
+            var g=SilentLedgerStart(data);
+            WorldObject notice=SilentLedgerPost(g,"silentledger_notice");
+            SilentLedgerMoveTo(g,notice);
+            Point origin=new Point(g.save.x,g.save.y);
+            Point guard=g.SilentLedgerSentryPosition(0);
+            Check((guard-origin).Length>2.5f,
+                "Real starting guard cannot hear pebble release from the old archive notice");
+            float energy=g.save.energy;
+            g.ThrowPebble(new Point(1f,0f));
+            Check(g.projectiles.Count==1&&
+                g.projectiles[0].source=="quietDecoy"&&
+                g.save.energy==energy-GameCore.PebbleEnergyCost&&
+                g.SilentLedgerSentrySearchSeconds(0)==0f,
+                "Original U-key throw spends stamina, spawns a REAL non-damaging stone and makes no distant release alarm");
+            for(int i=0;i<16;i++)g.Tick(.05f,new Point());
+            Point heard=g.SilentLedgerSentrySearchTarget(0);
+            Check(g.projectiles.Count==0&&
+                g.SilentLedgerSentrySearchSeconds(0)>0f&&
+                g.SilentLedgerSentrySearchingSound(0)&&
+                heard.x>origin.x+4f&&
+                heard.x<origin.x+7.3f&&
+                Math.Abs(heard.y-origin.y)<.15f,
+                "Only the real swept pebble landing, NOT its original launch or aimed cursor, redirects the genuine sentry");
+            Check(g.SilentLedgerSuspicion<50f,
+                "Stone landing alone is not falsely counted as direct player detection");
+
+            var close=SilentLedgerStart(data);
+            Point launch=new Point(55.5f,39.5f);
+            Check(close.CanStand(launch)&&
+                (launch-close.SilentLedgerSentryPosition(0)).Length<2.5f,
+                "Close arm-throw test uses real clear standable ground beside the original sentry");
+            close.save.x=launch.x;close.save.y=launch.y;
+            close.ThrowPebble(new Point(-1f,0f));
+            Check(close.projectiles.Count==1&&
+                close.SilentLedgerSentrySearchSeconds(0)>=2f&&
+                close.SilentLedgerSentrySearchingSound(0)&&
+                (close.SilentLedgerSentrySearchTarget(0)-launch).Length<.01f&&
+                close.SilentLedgerSuspicion>=5f,
+                "A nearby REAL throw is heard immediately at the launch foot even before its later landing");
+
+            var distant=SilentLedgerStart(data);
+            Point safe=new Point(44.5f,50.5f);
+            Check(distant.CanStand(safe),
+                "Distant no-alert stone starts on the actual west Citadel safe trail");
+            distant.save.x=safe.x;distant.save.y=safe.y;
+            distant.ThrowPebble(new Point(1f,0f));
+            for(int i=0;i<16;i++)distant.Tick(.05f,new Point());
+            Check(distant.SilentLedgerSuspicion==0f&&
+                distant.SilentLedgerSentrySearchSeconds(0)==0f&&
+                distant.SilentLedgerSentrySearchSeconds(1)==0f,
+                "Neither the distant release nor a far physical stone collision gives guards omniscient hearing");
+            distant.PrepareSave();
+            var reload=new GameCore(data,CloneSave(distant.save));
+            Check(reload.save.version==2&&!reload.SilentLedgerActive,
+                "Ordinary stone patrol listeners add no fields to existing v2 saves");
+        }
+
         public static void SilentLedgerSentriesSweepActualLastHeardGroundBeforeResumingPatrol(Campaign data)
         {
             var g=SilentLedgerStart(data);
