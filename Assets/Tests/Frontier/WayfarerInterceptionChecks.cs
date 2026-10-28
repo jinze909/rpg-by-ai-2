@@ -310,8 +310,13 @@ namespace Starfall.Tests
                 listening.stun=0f;listening.timer=0f;
                 listening.state=0;
                 g.save.x=9.0f;g.save.y=10.5f;
-                Check(!g.WayfarerDecoyCanSeeHero(listening),
-                    "The real near raider does not see a hero approaching from its back");
+                Check(g.IsWayfarerDecoyTarget(listening)&&
+                    (g.Position-listening.Position).Length<2.5f,
+                    "The actual hero enters melee distance behind the still-lured raider");
+                // Before Ctrl quiet is held, normal exposed travel is
+                // genuinely visible: do not assume a stationary/teleported
+                // test hero was already sneaking. The NEXT real held-quiet
+                // world frame must suppress rear acquisition and windup.
                 g.Tick(.05f,new Point(-1f,0),null,false,true);
                 Check(g.QuietStepping&&
                     !g.WayfarerDecoyCanSeeHero(listening)&&
