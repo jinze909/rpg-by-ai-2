@@ -4,6 +4,114 @@ namespace Starfall
     // Physical field landmarks, additive to the existing campaign and SaveData v2.
     public sealed partial class GameCore
     {
+        // A prepared signal fire creates a real, localized protective perimeter
+        // around an EXISTING, visited outdoor camp. It cannot be carried
+        // across regions or save slots and is not a free global shield.
+        private float campWardSeconds, campWardFlareClock;
+        private int campWardCharges, campWardRoom=-1;
+        private MapData campWardMap;
+        private SaveData campWardSave;
+        private WorldObject campWardCamp;
+        public bool CampWardActive
+        { get { return campWardSeconds>0&&campWardCharges>0&&!Dying&&
+            save.room==campWardRoom&&
+            Object.ReferenceEquals(Map,campWardMap)&&
+            Object.ReferenceEquals(save,campWardSave)&&
+            campWardCamp!=null&&
+            SourceBelongsToActiveMap(campWardCamp); } }
+        public float CampWardSeconds { get { return CampWardActive?campWardSeconds:0f; } }
+        public int CampWardCharges { get { return CampWardActive?campWardCharges:0; } }
+        public Point CampWardFoot
+        { get { return CampWardActive?
+            new Point(campWardCamp.x,campWardCamp.y):new Point(); } }
+        private void ResetCampWard()
+        {
+            campWardSeconds=campWardFlareClock=0;
+            campWardCharges=0;campWardRoom=-1;
+            campWardMap=null;campWardSave=null;campWardCamp=null;
+        }
+        private void TickCampWard(float dt)
+        {
+            if(campWardSeconds<=0)return;
+            if(!CampWardActive){ResetCampWard();return;}
+            campWardSeconds=Math.Max(0f,campWardSeconds-dt);
+            if(campWardSeconds<=0){ResetCampWard();return;}
+            campWardFlareClock-=dt;
+            if(campWardFlareClock<=0)
+            {
+                campWardFlareClock=1.25f;
+                effects.Add(new Effect("release",CampWardFoot,.40f)
+                    {variant=1,height=12f});
+            }
+        }
+        // Invoked at the actual unblocked .1-tile projectile sweep sample,
+        // BEFORE either hero or civilian body contact. Nothing outside the
+        // ward or behind solid cover may be erased.
+        private bool TryCampWardIntercept(Projectile shot)
+        {
+            if(!CampWardActive||shot==null||shot.friendly||
+                shot.blockedAtSpawn||shot.visual=="pebble"||
+                !Finite(shot.damage)||shot.damage<=0f||
+                !Finite(shot.position.x)||!Finite(shot.position.y)||
+                (shot.position-CampWardFoot).Length>3.25f||
+                !ClearAttackPath(CampWardFoot,shot.position))
+                return false;
+            Point hit=shot.position;
+            campWardCharges--;
+            effects.Add(new Effect("projectileImpact",hit,.30f)
+                {variant=4,direction=shot.velocity.Normalized,height=16f});
+            effects.Add(new Effect("number",CampWardFoot+
+                new Point(0f,-.8f),.8f,
+                L("守火拦截 · 剩 "+campWardCharges,
+                  "FIREWARD · "+campWardCharges+" LEFT")));
+            sound="counter";revision++;
+            if(campWardCharges==0)ResetCampWard();
+            return true;
+        }
+        private bool ChooseCampWard(string action)
+        {
+            if(action!="annex_ward_light"&&action!="annex_ward_douse")
+                return false;
+            WorldObject camp=pendingDialogueSource;
+            if(save.room<0||save.room>7||mode!="world"||
+                Dying||practicing||camp==null||camp.kind!="annexcamp"||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(camp)||
+                !HasPhysicalInteractionReach(camp))return true;
+            if(action=="annex_ward_douse")
+            {
+                if(CampWardActive&&Object.ReferenceEquals(campWardCamp,camp))
+                {
+                    ResetCampWard();revision++;sound="ui";
+                    Notify("守火已熄灭。剩余材料不返还。",
+                        "Signal fire extinguished. Spent supplies are not refunded.");
+                }
+                return true;
+            }
+            if(CampWardActive)
+            {
+                Notify("当前区域的守火仍在燃烧，不能叠加次数。",
+                    "Your current signal fire is still burning; charges cannot stack.");
+                return true;
+            }
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("正在进行现场任务或仍有危险，无法布置守火。",
+                    "Finish fieldwork and clear nearby danger before preparing the fire.");
+                return true;
+            }
+            if(!Spend(2,0,1,0,0))return true;
+            campWardCamp=camp;campWardRoom=save.room;
+            campWardMap=Map;campWardSave=save;
+            campWardSeconds=90f;campWardCharges=3;
+            campWardFlareClock=0f;
+            effects.Add(new Effect("burst",CampWardFoot,.45f)
+                {radius=1f,variant=1});
+            revision++;sound="reward";
+            Notify("守火已点燃：90秒内可拦截营地周围3枚无遮挡的敌方飞弹。靠近营火防御。",
+                "Signal fire lit: stops 3 unblocked hostile projectiles near this camp for 90 seconds. Hold the perimeter.");
+            return true;
+        }
         private bool TalkAnnexExploration(WorldObject o)
         {
             string kind=o.kind;
@@ -121,6 +229,10 @@ namespace Starfall
                     !FieldWorkPreventsRest&&SafeTravel?
                         C("添柴休息 · 木材 ×1","Rest · 1 timber","annex_rest"):
                         C("先完成现场行动","Finish fieldwork / clear threats","close"),
+                    CampWardActive&&Object.ReferenceEquals(campWardCamp,o)?
+                        C("熄灭守火","Douse signal fire","annex_ward_douse"):
+                        C("布设守火 · 木材×2、月光草×1",
+                          "Signal fire · 2 timber, 1 Moonherb","annex_ward_light"),
                     C("继续探索","Keep exploring","close"));
             return true;
         }
@@ -153,6 +265,7 @@ namespace Starfall
                     "Public chart complete: +60 coins, +3 shards, +1 talent point.");
                 return true;
             }
+            if(ChooseCampWard(action))return true;
             if(action!="annex_rest")return false;
             if(save.room<0||save.room>7||mode!="world"||Dying||practicing)return true;
             // Only the exact camp the player spoke to can spend supplies.

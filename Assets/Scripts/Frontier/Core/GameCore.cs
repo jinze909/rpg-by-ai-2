@@ -361,6 +361,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
+            ResetCampWard();
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
@@ -913,6 +914,7 @@ namespace Starfall
             if(skillCooldown<=.00001f)skillCooldown=0f;
             invulnerable -= dt; guardTime -= dt;
             TickSwordGuard(dt);
+            TickCampWard(dt);
             TickSwordLesson(dt);
             TickSpecialistDrill(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
@@ -3002,6 +3004,7 @@ namespace Starfall
                 bool startedBlocked = p.blockedAtSpawn ||
                     ShotBlocked(p,p.position);
                 bool dead = startedBlocked, civilianImpactProduced = false;
+                bool wardIntercepted=false;
                 bool genuineWallContact=false;
                 float impactRadius = 0;
                 // Capture collision candidates once per flying projectile,
@@ -3110,6 +3113,10 @@ namespace Starfall
                         break;
                     }
                     p.position = next;
+                    // A prepared camp is a genuine defensive space: test
+                    // this swept contact before hero/civilian HP collision.
+                    if(TryCampWardIntercept(p))
+                    { wardIntercepted=true;dead=true;break; }
                     if (p.friendly)
                     {
                         // When enemy hit-circles overlap within one 0.1-tile
@@ -3200,7 +3207,8 @@ namespace Starfall
                     // near-side CONTACT spark even if a projectile is born
                     // obstructed. That is not a full mage-area explosion.
                     // A civilian hit already emitted its rooted contact.
-                    if (!civilianImpactProduced || reliefMissionRoom==0)
+                    if (!wardIntercepted &&
+                        (!civilianImpactProduced || reliefMissionRoom==0))
                         effects.Add(new Effect(!startedBlocked && p.explosive ?
                             "magicImpact" : "projectileImpact",
                         p.position, .28f) { direction = p.velocity.Normalized,
