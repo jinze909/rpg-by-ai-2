@@ -171,6 +171,11 @@ namespace Starfall.Tests
             g.Talk(horn);
             Check(!BoatChoice(g,"mistconvoy_brace")&&g.save.inventory[4]==0,
                 "One-use machine-part reinforcement cannot be duplicated");
+            // No brace choice means the original dialogue remains open.
+            // Close it exactly like a player before advancing WORLD time.
+            g.Close();
+            Check(g.mode=="world",
+                "Actual live hull and storm clocks only advance outside a paused dialogue");
             BoatAt(g,mid);
             for(int i=0;i<160;i++)g.Tick(.05f,new Point());
             Check(Math.Abs(g.MistConvoyHull-100f)<.01f,
