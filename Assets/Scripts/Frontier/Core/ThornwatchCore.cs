@@ -7,7 +7,7 @@ namespace Starfall
     {
         private int thornwatchStage,thornwatchKills,thornwatchCycle;
         private float thornwatchTime,thornwatchPulse;
-        private bool thornwatchTuned,thornwatchGroundingUsed;
+        private bool thornwatchTuned,thornwatchGroundingUsed,thornwatchEnrageAnnounced;
         private float thornwatchGrounded;
         public float ThornwatchGroundedSeconds
         {get{return thornwatchStage==3?thornwatchGrounded:0f;}}
@@ -21,6 +21,9 @@ namespace Starfall
         public bool ThornwatchComplete {get{return Has("thornwatch_complete");}}
         public bool ThornwatchTuned {get{return Has("thornwatch_tuned");}}
         public bool ThornwatchSevered {get{return Has("thornwatch_severed");}}
+        public bool ThornwatchEliteEnraged
+        {get{return thornwatchStage==3&&thornwatchA!=null&&
+            thornwatchA.hp>0&&thornwatchA.hp<=thornwatchA.maxHp*.45f;}}
         public float ThornwatchEliteHealth
         {get{return thornwatchStage==3&&thornwatchA!=null?
             Math.Max(0f,thornwatchA.hp):0f;}}
@@ -61,7 +64,7 @@ namespace Starfall
             ClearThornwatchRoster();
             thornwatchStage=thornwatchKills=thornwatchCycle=0;
             thornwatchTime=thornwatchPulse=thornwatchGrounded=0;
-            thornwatchTuned=thornwatchGroundingUsed=false;
+            thornwatchTuned=thornwatchGroundingUsed=thornwatchEnrageAnnounced=false;
         }
         private bool TryThornwatchFoot(Point center,Point occupied,
             out Point result)
@@ -248,6 +251,7 @@ namespace Starfall
                     "No safe second-wave arena. Free the paths before ringing the bell.");return true;}
                 thornwatchTuned=tuned;thornwatchStage=3;
                 thornwatchCycle=0;thornwatchPulse=1.8f;
+                thornwatchEnrageAnnounced=false;
                 revision++;sound="quest";
                 Notify(tuned?"根钟已调和：第二轮精英出场，避开根震预警。":
                     "根缚已斩断：第二轮精英出场，地脉震荡更猛烈。",
@@ -334,7 +338,7 @@ namespace Starfall
             float finalPhase=thornwatchA==null?1f:
                 thornwatchA.hp/Math.Max(1,thornwatchA.maxHp);
             float frequency=thornwatchTuned?4.2f:3.0f;
-            if(finalPhase<.5f)frequency-=.55f;
+            if(finalPhase<=.45f)frequency-=.55f;
             thornwatchPulse=frequency;
             for(int i=0;i<4;i++)
             {
@@ -345,7 +349,25 @@ namespace Starfall
                     timer=1.45f,damage=thornwatchTuned?12f:18f,
                     kind="bell",thornwatchOwned=true});
             }
+            // Phase two is not merely a faster timer: the imprisoned
+            // bell's heart follows the original three spokes with a
+            // LONGER-delayed central detonation. The authored open exit
+            // stays clear and walkable before any contact.
+            if(finalPhase<=.45f&&CanStand(Position))
+            {
+                hazards.Add(new Hazard {position=Position,radius=.87f,
+                    timer=2.25f,damage=thornwatchTuned?15f:23f,
+                    kind="rift",thornwatchOwned=true});
+                if(!thornwatchEnrageAnnounced)
+                {
+                    thornwatchEnrageAnnounced=true;
+                    Notify("根缚精英进入末段！三向根震之后，当前位置还会延迟爆发；向空白出口移动。",
+                        "Rootbound elite enters final phase! A delayed center blast follows three spokes. Move to the open exit.");
+                }
+            }
             effects.Add(new Effect("number",Position,.65f,
+                finalPhase<=.45f?
+                L("根心爆发 · 中心延迟","ROOT HEART · CENTER DELAY"):
                 L("根震！朝空白方位闪避","ROOT PULSE · OPEN EXIT")));
         }
     }

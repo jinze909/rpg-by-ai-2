@@ -501,6 +501,11 @@ namespace Starfall
                 }
                 if(Game.ThornwatchStage==3)
                 {
+                    if(Game.ThornwatchEliteEnraged)
+                        Text(35,316,450,18,
+                            Game.L("末段 · 避开三向根震后延迟爆发的中心！",
+                                   "FINAL · SPOKES THEN DELAYED CENTER BLAST!"),
+                            11,new Color(1f,.67f,.48f,1f));
                     Text(35,279,295,19,
                         Game.L("根缚精英 · ","ROOTBOUND ELITE · ")+
                         Game.ThornwatchEliteHealth.ToString("0")+"/"+

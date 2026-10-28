@@ -151,7 +151,7 @@ namespace Starfall.Tests
         public static void ThornwatchMoonherbGroundingIsPhysicalPaidAndSuppressesPulses(Campaign data)
         {
             var g=ThornReady(data);
-            var vista=ThornPost(g,"annex_vista_1"),
+            WorldObject vista=ThornPost(g,"annex_vista_1"),
                 camp=ThornPost(g,"annex_camp_1");
             g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);
             ThornAction(g,"thornwatch_start");KillThornWave(g);
@@ -191,6 +191,47 @@ namespace Starfall.Tests
             }
             Check(resumed&&g.ThornwatchGroundedSeconds==0f,
                 "After timed quiet ends, the still-live elite resumes real ground warnings");
+        }
+        public static void ThornwatchEliteLowHealthAddsRealDelayedCenterBlast(Campaign data)
+        {
+            var g=ThornReady(data);
+            WorldObject vista=ThornPost(g,"annex_vista_1");
+            WorldObject camp=ThornPost(g,"annex_camp_1");
+            g.save.x=vista.x;g.save.y=vista.y;g.Talk(vista);
+            ThornAction(g,"thornwatch_start");KillThornWave(g);
+            g.save.x=camp.x;g.save.y=camp.y;g.Talk(camp);
+            ThornAction(g,"thornwatch_sever");
+            var elite=g.enemies.Find(e=>g.IsThornwatchEnemy(e)&&e.kind==2);
+            Check(elite!=null&&elite.maxHp>=240f,
+                "Second phase uses the actual high-health armoured elite");
+            foreach(Enemy e in g.enemies.FindAll(g.IsThornwatchEnemy))
+            {e.stun=200f;e.timer=200f;}
+            elite.hp=elite.maxHp*.39f;
+            Check(g.ThornwatchEliteEnraged,
+                "An actual live wounded elite enters its distinct final phase");
+            g.save.x=camp.x;g.save.y=camp.y;
+            Check(g.CanStand(g.Position),
+                "The real camp is walkable ground for the warning sequence");
+            bool sawSpokes=false,sawDelayedHeart=false;
+            for(int i=0;i<58;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.hazards.Exists(h=>h.thornwatchOwned&&h.kind=="bell"))
+                    sawSpokes=true;
+                if(g.hazards.Exists(h=>h.thornwatchOwned&&h.kind=="rift"&&
+                    h.timer>1.5f))sawDelayedHeart=true;
+            }
+            Check(sawSpokes&&sawDelayedHeart,
+                "Low-health elite emits both real cardinal telegraphs and a later center explosion");
+            g.save.inventory[2]=2;
+            g.Talk(camp);
+            Check(ThornAction(g,"thornwatch_ground")&&
+                !g.hazards.Exists(h=>h.thornwatchOwned),
+                "Paying a physical camp grounding clears both the early spokes and delayed root-heart threat");
+            for(int i=0;i<45;i++)g.Tick(.05f,new Point());
+            Check(!g.hazards.Exists(h=>h.thornwatchOwned)&&
+                g.ThornwatchGroundedSeconds>0f,
+                "The existing counterplay really interrupts the new dangerous final-phase pattern");
         }
     }
 }
