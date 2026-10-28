@@ -501,16 +501,21 @@ namespace Starfall
             }
             // The Unlisted chapter tracks existing source-bound clues, not
             // guessed routes through walls or invented task landmarks.
-            if(Game.mode=="world"&&Game.UnlistedFieldObjectiveActive&&
-                !drawingOutline)
+            if(Game.mode=="world"&&
+                (Game.UnlistedFieldObjectiveActive||
+                 Game.UnlistedStewardObjectiveActive)&&!drawingOutline)
             {
-                Point objective=Game.UnlistedFieldTarget;
+                bool investigating=Game.UnlistedFieldObjectiveActive;
+                Point objective=investigating?
+                    Game.UnlistedFieldTarget:Game.UnlistedStewardFieldTarget;
+                string objectiveText=investigating?
+                    Game.UnlistedFieldObjective:Game.UnlistedStewardFieldObjective;
                 if(WorldDrawable(objective.x,objective.y,170f,170f))
                 {
                     Ring(objective,.65f,mint,30);
                     Point screen=ScreenPoint(objective);
                     Text(screen.x-114f,screen.y-85f,228f,19f,
-                        Game.UnlistedFieldObjective,11,mint,
+                        objectiveText,11,mint,
                         TextAnchor.MiddleCenter);
                 }
                 Point bearing=objective-Game.Position;
@@ -520,7 +525,7 @@ namespace Starfall
                     bearing.y>=0f?"S":"N");
                 Text(35,177,480,23,
                     Game.L("未列名者 · ","THE UNLISTED · ")+
-                    Game.UnlistedFieldObjective,13,mint);
+                    objectiveText,13,mint);
                 Text(35,201,480,20,
                     Game.L("直线方位 ","BEARING ONLY ")+
                     east+Math.Abs(bearing.x).ToString("0")+" · "+

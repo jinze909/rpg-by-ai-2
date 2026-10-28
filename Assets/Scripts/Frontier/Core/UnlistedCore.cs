@@ -271,6 +271,41 @@ namespace Starfall
                     return new Point(site.x,site.y);
             return new Point();
         }}
+        // The original in-world objective closes on delivery. A separate,
+        // optional civic prompt points back to that same PHYSICAL station
+        // until the player funds one of two permanent neighborhood plans.
+        public bool UnlistedStewardObjectiveActive
+        {
+            get
+            {
+                int act=UnlistedReliefRegion;
+                return act>=0&&UnlistedReliefEligible(act)&&
+                    Has("unlisted_relief_delivered_"+act)&&
+                    !Has("unlisted_relief_clinic_"+act)&&
+                    !Has("unlisted_relief_trail_"+act);
+            }
+        }
+        public Point UnlistedStewardFieldTarget
+        {
+            get
+            {
+                if(!UnlistedStewardObjectiveActive)return new Point();
+                string id="annex_cache_"+save.room+"_b";
+                foreach(WorldObject site in Map.objects)
+                    if(site!=null&&site.id==id)
+                        return new Point(site.x,site.y);
+                return new Point();
+            }
+        }
+        public string UnlistedStewardFieldObjective
+        {
+            get
+            {
+                return UnlistedStewardObjectiveActive?
+                    L("救助站决定 · 诊所或高地",
+                      "AID STATION · CLINIC OR RIDGE"):"";
+            }
+        }
         private int UnlistedCachePart(WorldObject o)
         {
             int act=UnlistedAct;

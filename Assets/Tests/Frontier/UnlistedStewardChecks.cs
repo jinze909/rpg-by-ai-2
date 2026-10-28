@@ -28,7 +28,11 @@ namespace Starfall.Tests
                 var g=StewardCase(data,act,ending==0);
                 var station=Array.Find(g.Map.objects,o=>o.id=="annex_cache_"+room+"_b");
                 string command=clinic?"unlisted_steward_clinic":"unlisted_steward_trail";
-                Check(station!=null&&g.UnlistedStewardCount==0,"A real restored station starts undecided");
+                Check(station!=null&&g.UnlistedStewardCount==0&&
+                    g.UnlistedStewardObjectiveActive&&
+                    (g.UnlistedStewardFieldTarget-new Point(station.x,station.y)).Length<.01f&&
+                    g.UnlistedStewardFieldObjective.Length>0,
+                    "Restored station offers a real, reachable post-delivery world objective");
                 int baseline=ending==0?6:12;
                 Check(g.RidgePassageEnergyCost(room)==baseline&&
                     g.UnlistedReliefHealing(act)==35,"Old care and travel rules remain intact");
@@ -45,6 +49,8 @@ namespace Starfall.Tests
                 int wood=g.save.inventory[0],herb=g.save.inventory[2],gear=g.save.inventory[4];
                 g.Choose(StewardChoice(g,command));
                 Check(g.UnlistedStewardCount==1&&
+                    !g.UnlistedStewardObjectiveActive&&
+                    g.UnlistedStewardFieldObjective==""&&
                     g.save.inventory[0]==wood-(clinic?1:2)&&
                     g.save.inventory[2]==herb-(clinic?2:0)&&
                     g.save.inventory[4]==gear-(clinic?0:1),
@@ -117,6 +123,9 @@ namespace Starfall.Tests
             g.save.room=5;
             station=Array.Find(g.Map.objects,o=>o.id=="annex_cache_5_b");
             g.save.x=station.x;g.save.y=station.y;
+            // Each policy consumes actual materials. This test-local supply
+            // represents gathering herbs between the separate regions.
+            g.save.inventory[2]=6;
             Check(g.UnlistedStewardCount==2,"Two region choices are already recorded");
             int shards=g.save.shards,moments=g.save.moments.Count;
             g.Talk(station);g.Choose(StewardChoice(g,"unlisted_steward_clinic"));
