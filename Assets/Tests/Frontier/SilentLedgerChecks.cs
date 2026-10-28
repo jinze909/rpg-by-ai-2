@@ -192,10 +192,16 @@ namespace Starfall.Tests
             Point first=baseline.SilentLedgerSentryPosition(0);
             Point exposed=first+baseline.SilentLedgerSentryFacing(0)*4f;
             Check(baseline.CanStand(exposed),"Sentry forward four-tile test is actual Citadel ground");
+            var sight=typeof(GameCore).GetMethod("SilentLedgerSeesHero",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(sight!=null,"Original authoritative physical sight method exists");
             baseline.save.x=exposed.x;baseline.save.y=exposed.y;
+            Check((bool)sight.Invoke(baseline,new object[]{0}),
+                "Fully lit original guard really SEES an unhidden four-cell forward target");
             baseline.Tick(.05f,new Point());
             Check(baseline.SilentLedgerSuspicion>0f,
-                "A lit patrol visually detects a hero four cells ahead");
+                "A lit patrol's actual sight creates alert in the live world loop");
 
             var g=SilentLedgerStart(data);
             var shutter=SilentLedgerPost(g,"silentledger_shutter");
@@ -225,9 +231,14 @@ namespace Starfall.Tests
             Point cover=sentry+facing*4f;
             Check(g.CanStand(cover),"Darkness vision test has real standable forward patrol ground");
             g.save.x=cover.x;g.save.y=cover.y;
+            // Query the SAME private production sight function without
+            // quiet-step: otherwise a four-cell target is already outside
+            // normal 3.45f crouched sight and the test proves nothing.
+            Check(!(bool)sight.Invoke(g,new object[]{0}),
+                "Real darkness alone blocks ordinary four-cell forward sight without relying on quiet mode");
             g.Tick(.05f,new Point(),null,false,true);
             Check(g.SilentLedgerDarkness>21f&&g.SilentLedgerSuspicion<during,
-                "Four-tile quiet hero is no longer SEEN when the actual lamps are dimmed");
+                "World-frame darkness safely reduces alert after a fully physical shutter activation");
             SilentLedgerMoveTo(g,shutter);g.Talk(shutter);
             Check(!SilentLedgerChoice(g,"silentledger_shutter")&&
                 g.SilentLedgerShutterUsed,
