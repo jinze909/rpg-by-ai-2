@@ -109,9 +109,9 @@ namespace Starfall.Tests
                 "Real loss of line of sight decays alert while patrol keeps moving");
             g.save.inventory[4]=2;
             SilentLedgerMoveTo(g,bell);g.Talk(bell);
-            int i=Array.FindIndex(g.conversation.choices,c=>c.action=="silentledger_decoy");
-            Check(i>=0,"Authored physical watch-bell provides a true gear diversion");
-            g.save.x=bell.x-8f;g.Choose(i);
+            int bellChoiceIndex=Array.FindIndex(g.conversation.choices,c=>c.action=="silentledger_decoy");
+            Check(bellChoiceIndex>=0,"Authored physical watch-bell provides a true gear diversion");
+            g.save.x=bell.x-8f;g.Choose(bellChoiceIndex);
             Check(g.save.inventory[4]==2&&g.SilentLedgerDiversion==0,
                 "Stale remote menu cannot spend gear or teleport guards");
             SilentLedgerMoveTo(g,bell);g.Talk(bell);
