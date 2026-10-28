@@ -35,6 +35,15 @@ namespace Starfall
         public Point CampWardFoot
         { get { return CampWardActive?
             new Point(campWardCamp.x,campWardCamp.y):new Point(); } }
+        // The world overlay uses the EXACT same terrain-visible footprint
+        // as the real shot interception. Never show a glowing safety ring
+        // through an intact cliff when that arc cannot stop projectiles.
+        public bool CampWardVisualSample(Point sample)
+        {
+            return CampWardActive&&Finite(sample.x)&&Finite(sample.y)&&
+                (sample-CampWardFoot).Length<=3.251f&&
+                ClearAttackPath(CampWardFoot,sample);
+        }
         private void ResetCampWard()
         {
             campWardSeconds=campWardFlareClock=0;

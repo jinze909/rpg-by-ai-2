@@ -476,6 +476,34 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Scene-connected visual of the live paid field defense. These
+            // tiny edge sparks describe real wall-clipped projectile reach;
+            // they never impersonate a newly accepted painted Sprite.
+            if(Game.mode=="world"&&Game.CampWardActive&&!drawingOutline)
+            {
+                Point fire=Game.CampWardFoot;
+                if(WorldDrawable(fire.x,fire.y,300f,300f))
+                {
+                    Color flame=new Color(.98f,.76f,.39f,.74f);
+                    for(int sector=0;sector<36;sector++)
+                    {
+                        double angle=sector*Math.PI*2/36;
+                        Point edge=fire+new Point(
+                            (float)Math.Cos(angle),
+                            (float)Math.Sin(angle))*3.25f;
+                        if(!Game.CampWardVisualSample(edge))continue;
+                        Point screenEdge=ScreenPoint(edge);
+                        Box(screenEdge.x-2f,screenEdge.y-2f,4f,4f,flame);
+                    }
+                    Point screen=ScreenPoint(fire);
+                    Text(screen.x-95f,screen.y-84f,190f,19f,
+                        Game.L("守火 ","FIREWARD ")+
+                        Game.CampWardCharges+
+                        Game.L(" 次 · "," HITS · ")+
+                        Game.CampWardSeconds.ToString("0")+"s",
+                        11,gold,TextAnchor.MiddleCenter);
+                }
+            }
             // The wounded courier's parcel stays exactly where the real
             // post-armor combat blow dislodged it. No quest prop teleport,
             // imported sprite mutation, or saved secondary position.
