@@ -1192,9 +1192,11 @@ namespace Starfall
         }
         private bool DrawExpansionObject(WorldObject o)
         {
+            // One shared screen-foot throughout this method. Older Mono/C#
+            // cannot redeclare an outer local after same-named branch locals.
+            string kind=o.kind;Point p=ScreenPoint(new Point(o.x,o.y));
             if(o.kind=="whiteoutnotice")
             {
-                Point p=ScreenPoint(new Point(o.x,o.y));
                 PropImage("post",0,p.x-32,p.y-77,64,80,
                     Game.WhiteoutComplete?new Color(.65f,.9f,.8f,.88f):Color.white);
                 Ring(new Point(o.x,o.y),.42f,
@@ -1207,7 +1209,6 @@ namespace Starfall
             }
             if(o.kind=="whiteouttraveler")
             {
-                Point p=ScreenPoint(new Point(o.x,o.y));
                 bool picked=Game.WhiteoutStage>=2||Game.WhiteoutComplete;
                 if(!picked)
                 {
@@ -1229,7 +1230,6 @@ namespace Starfall
                 }
                 return true;
             }
-            string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
             // Overlay proof state onto the EXISTING source artwork without
             // replacing any sprites, pivots or the world base renderer.
             // The permanent six-floor archive reveals all available notes,
