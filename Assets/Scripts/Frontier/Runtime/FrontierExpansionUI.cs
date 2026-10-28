@@ -486,6 +486,12 @@ namespace Starfall
         {
             if(Game.mode=="world"&&Game.SilentLedgerActive&&!drawingOutline)
             {
+                // Patrol lamps genuinely go out in GameCore. A subtle
+                // cool wash makes the same world-time state immediately
+                // readable in GameView without altering terrain pixels,
+                // hero identity, colliders or original Sprite importers.
+                if(Game.SilentLedgerDarkness>0f)
+                    Box(0,0,Width,Height,new Color(.025f,.035f,.08f,.16f));
                 Color stealth=Game.SilentLedgerSuspicion>70f?
                     new Color(1f,.49f,.42f,1f):mint;
                 Point goal=Game.SilentLedgerTarget;
@@ -503,7 +509,9 @@ namespace Starfall
                     Point face=Game.SilentLedgerSentryFacing(guard);
                     if(!WorldDrawable(foot.x,foot.y,165f,175f))continue;
                     Point screen=ScreenPoint(foot);
-                    Color guardTint=new Color(.96f,.87f,.76f,1f);
+                    Color guardTint=Game.SilentLedgerDarkness>0f?
+                        new Color(.70f,.79f,.91f,1f):
+                        new Color(.96f,.87f,.76f,1f);
                     bool walking=Game.SilentLedgerSentryMoving(guard);
                     if(walking&&ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(monsterWalkSheet))
                     {
