@@ -824,7 +824,7 @@ namespace Starfall
                 // impossible tile or silently promote it to player pursuit.
                 // On the first reopened frame the ORIGINAL home becomes
                 // the real navigation target again, within the old timeout.
-                return CanStand(alert.homeFoot)?
+                return SoundSweepFootReachable(enemy.Position,alert.homeFoot)?
                     alert.homeFoot:enemy.Position;
             }
             if(!alert.impactOnly)return fallback;
@@ -884,7 +884,7 @@ namespace Starfall
             EnemyHitAlert alert;
             return IsEnemyReturningFromImpact(enemy)&&
                 enemyHitAlert.TryGetValue(enemy,out alert)&&
-                !CanStand(alert.homeFoot);
+                !SoundSweepFootReachable(enemy.Position,alert.homeFoot);
         }
         // Read-only native actor cue: the sentry is following its actual
         // last witnessed foot rather than the hero's hidden live location.

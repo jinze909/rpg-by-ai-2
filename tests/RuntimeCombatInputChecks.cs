@@ -11380,6 +11380,48 @@ public static class RuntimeCombatInputChecks
             Check((sentry.Position-home).Length<
                 (before-home).Length-.25f,
                 "World enemy physically walks back toward the saved sentry post");
+            // The same checkpoint may STILL BE OPEN while a new gate
+            // divides it from the living guard. A CanStand(home)-only
+            // check used to advertise RETURNING while walking forever
+            // against the surrounding wall. Seal all eight neighboring
+            // tiles but preserve the actual home foot itself.
+            string[] sealedRows=(string[])original.Clone();
+            for(int dy=-1;dy<=1;dy++)
+            for(int dx=-1;dx<=1;dx++)
+            {
+                if(dx==0&&dy==0)continue;
+                int ry=ay+1+dy,rx=ax+dx;
+                char[] cells=sealedRows[ry].ToCharArray();
+                cells[rx]='#';sealedRows[ry]=new string(cells);
+            }
+            map.rows=sealedRows;
+            Point sealedFrom=sentry.Position;
+            Check(g.CanStand(home)&&g.CanStand(sealedFrom)&&
+                !(bool)CallCore(g,"SoundSweepFootReachable",sealedFrom,home),
+                "Original post stays physically clear but all routes to it are sealed by a new gate");
+            Check(g.IsEnemyReturnPostBlocked(sentry)&&
+                g.IsEnemyReturningFromImpact(sentry),
+                "Same living guard owns a blocked return even though the destination tile itself remains open");
+            GUI.commands.Clear();Call(app,"DrawEnemyActor",sentry);
+            Check(GUI.commands.Exists(line=>line.Contains("POST BLOCKED")),
+                "Actual world actor advertises disconnected home rather than a false walkable route");
+            Point isolatedWait=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,home);
+            Check((isolatedWait-sealedFrom).Length<.001f,
+                "Live patrol waits safely instead of pursuing a same-room but isolated home");
+            g.Tick(.05f,new Point());
+            Check((sentry.Position-sealedFrom).Length<.01f&&
+                g.IsEnemyReturningFromImpact(sentry),
+                "Original world enemy truly holds its physical foot during the inaccessible-post interval");
+            map.rows=(string[])original.Clone();
+            Check(g.CanStand(home)&&!g.IsEnemyReturnPostBlocked(sentry),
+                "Opening the connected corridor immediately makes the real return available");
+            Point resumed=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,sentry.Position);
+            Check((resumed-home).Length<.001f,
+                "World AI reacquires its original posted foot without recreating the alert");
+            for(int i=0;i<8;i++)g.Tick(.05f,new Point());
+            Check((sentry.Position-home).Length<
+                (sealedFrom-home).Length-.1f,
+                "World locomotion physically resumes after the island-separating walls disappear");
             Check(g.save.version==2,
                 "Sentry return does not introduce new persistent save data");
         }
