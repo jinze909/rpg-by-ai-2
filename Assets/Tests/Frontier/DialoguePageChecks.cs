@@ -60,6 +60,29 @@ namespace Starfall.Tests
             }
         }
 
+        public static void FieldGuidePagesPreserveLongBilingualInstructions(Campaign data)
+        {
+            string english=string.Concat(new string[24].Select(x=>
+                "Defend the receiver, return to the inn, and check the real route.\\n"));
+            string chinese=new string('路',550)+"。\\n"+new string('灯',500);
+            for(int mode=0;mode<2;mode++)
+            {
+                var enPages=DialogueLayout.HelpPages(english,mode==1);
+                var cnPages=DialogueLayout.HelpPages(chinese,mode==1);
+                Check(enPages.Count>1&&cnPages.Count>1 &&
+                    string.Concat(enPages.ToArray())==english &&
+                    string.Concat(cnPages.ToArray())==chinese,
+                    "Every long guide instruction remains readable over real help pages");
+                foreach(string page in enPages)
+                    Check(page.Length>0,"Help pagination cannot introduce blank phantom cards");
+                foreach(string page in cnPages)
+                    Check(page.Length>0,"Chinese help pagination cannot create blank cards");
+            }
+            Check(DialogueLayout.HelpPages(null).Count==1 &&
+                DialogueLayout.HelpPages(null)[0]=="",
+                "Empty help topics render as one safe reader card");
+        }
+
         public static void DialoguePagesRespectParagraphLinesAndCompleteEllipses(Campaign data)
         {
             // The shipped 228px card cannot show a ninth blank line caused

@@ -240,6 +240,12 @@ namespace Starfall
                 if (Input.GetKeyDown(KeyCode.End))
                 { MoveDialogueChoicePage(DialogueChoicePageCount); return; }
             }
+            // The help panel has its own real reading pages, independent
+            // from LB/RB menu-tab switching and dialogue choice focus.
+            if(Game.mode=="help" && Input.GetKeyDown(KeyCode.PageUp))
+            { MoveHelpPage(-1); return; }
+            if(Game.mode=="help" && Input.GetKeyDown(KeyCode.PageDown))
+            { MoveHelpPage(1); return; }
             bool menu = Array.IndexOf(menuModes, Game.mode) >= 0;
             if (menu && (PadDown(4) || PadDown(5))) { int index = Array.IndexOf(menuModes, Game.mode); OpenMenu(menuModes[(index + (PadDown(5) ? 1 : -1) + menuModes.Length) % menuModes.Length]); return; }
             Point direction = new Point();

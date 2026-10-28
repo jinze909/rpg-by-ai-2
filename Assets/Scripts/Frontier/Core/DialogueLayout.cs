@@ -94,11 +94,19 @@ namespace Starfall
         public static string VisiblePageText(string page)
         { return (page ?? "").TrimEnd('\r','\n'); }
         public static List<string> Pages(string text, bool largeText = false)
+        { return PagesWithBudget(text,largeText?73f:78f,largeText?7:8); }
+
+        // The shipped field guide card is narrower than a dialogue card and
+        // reserves its bottom rows for visible reading controls. Reuse the
+        // same lossless paragraph, punctuation and grapheme boundaries with
+        // its own conservative line and width budget.
+        public static List<string> HelpPages(string text, bool largeText = false)
+        { return PagesWithBudget(text,largeText?49f:53f,largeText?11:12); }
+
+        private static List<string> PagesWithBudget(string text,float width,int maxLines)
         {
             var pages=new List<string>();
             if(string.IsNullOrEmpty(text)){pages.Add("");return pages;}
-            float width=largeText?73f:78f;
-            int maxLines=largeText?7:8;
             int start=0;
             while(start<text.Length)
             {

@@ -8,6 +8,32 @@ namespace Starfall
         private List<Point> route = new List<Point>(); private Point? routeGoal;
         private float routeTimer, arrivalTime, shakeTime, shakeX, shakeY;
         private int previousRoom = -1, previousFloor = -1, previousTutorial = -1;
+        private int helpPage, helpPagesTopic = -1;
+        private bool helpPagesLarge;
+        private string helpPagesText;
+        private List<string> helpPages;
+        private List<string> CurrentHelpPages(string body)
+        {
+            bool large=Game.save.largeText;
+            if(helpPages==null || helpPagesTopic!=helpTopic ||
+                helpPagesLarge!=large ||
+                !String.Equals(helpPagesText,body,StringComparison.Ordinal))
+            {
+                helpPagesTopic=helpTopic;
+                helpPagesText=body;
+                helpPagesLarge=large;
+                helpPages=DialogueLayout.HelpPages(body,large);
+                helpPage=0;
+            }
+            return helpPages;
+        }
+        private void MoveHelpPage(int delta)
+        {
+            if(Game==null||Game.mode!="help"||
+                helpPages==null||helpPagesTopic!=helpTopic)return;
+            helpPage=Math.Max(0,Math.Min(helpPages.Count-1,helpPage+delta));
+            confirmControl=null;
+        }
         private readonly string[] tutorialTitlesZh = { "走进余烬镇", "与世界互动", "追踪第一份委托", "命中第一击", "躲过一次攻击", "释放职业战技", "整理你的背包", "出发去密林" };
         private readonly string[] tutorialTitlesEn = { "Walk into Emberfall", "Interact with the world", "Track your first quest", "Your first attack", "Learn to dodge", "Use your technique", "Inspect your inventory", "Leave for Thornwood" };
         private readonly string[] tutorialTextZh = { "使用 WASD 或方向键移动。实际走过三格后完成。", "靠近居民或发光物，按 E。试着和南侧公会的莉雅交谈。", "按 Tab 打开手帐。选择一条任务，点击追踪；金色标记会指向下一步。", "去镇内教官处练习，或命中真实敌人。J / 左键攻击；空挥不会完成。", "在教官处练习。红圈出现后按空格避开攻击，成功躲过才完成。", "按 Q 命中目标。通常耗费40耐力，需要等待冷却；可以在训练场练习。", "按 I 查看背包。点击物品看用途与来源，也可以切换已拥有的武器。", "向北走到密林出口，或按 M 选择荆棘密林。找到侦察员开始第一章。" };
@@ -45,10 +71,22 @@ namespace Starfall
         private void DrawHelp()
         {
             Window(Game.L("冒险指南", "Field guide"), Game.L("按玩法查阅 · 随时重读 · 操作教学可在设置中重新开始", "Browse by topic · reread anytime · restart onboarding in Settings"));
-            for (int i = 0; i < helpZh.Length; i++) if (Button(279 + i % 2 * 174, 177 + i / 2 * 79, 160, 66, Game.L(helpTitlesZh[i], helpTitlesEn[i]), helpTopic == i)) helpTopic = i;
+            for (int i = 0; i < helpZh.Length; i++) if (Button(279 + i % 2 * 174, 177 + i / 2 * 79, 160, 66, Game.L(helpTitlesZh[i], helpTitlesEn[i]), helpTopic == i)) { helpTopic = i; helpPage=0; }
             Card(647, 177, 570, 512); Text(673, 200, 518, 48, Game.L(helpTitlesZh[helpTopic], helpTitlesEn[helpTopic]), 28, gold);
             string body = controllerUsed && helpTopic == 0 ? Game.L("左摇杆：移动 · 右摇杆：瞄准可见敌人 · R3：锁定/解锁\nX：攻击 · A：闪避 · Y：战技\nB：交谈、采集与机关\nLB：炖汤 · RB：同伴指令\nVIEW：手帐 · START：暂停\n同伴界面的驻守/跟随按钮也可用手柄操作。\n\n菜单内用摇杆或方向键移动焦点，A确认、B返回，LB/RB切换菜单。\n\n炖汤与凉茶也可在背包使用。靠近封印按B开启旧路。长对话用A翻页，再确认选项。", "Left stick: move · Right stick: aim · R3: lock/unlock foe\nX: attack · A: dodge · Y: technique\nB: talk, gather and operate\nLB: stew · RB: companion command\nVIEW: journal · START: pause\nThe Hold/Follow button in the Companions menu also works with controller navigation.\n\nIn menus: stick / D-pad moves focus, A selects, B returns, LB/RB switches menus.\n\nUse stew and tea in Inventory. Press B at a sealed route. A turns dialogue pages, then selects a choice.") : Game.L(helpZh[helpTopic], helpEn[helpTopic]);
-            Text(673, 269, 518, 392, body, 18, paper);
+            List<string> pages=CurrentHelpPages(body);
+            helpPage=Math.Max(0,Math.Min(helpPage,pages.Count-1));
+            Text(673,269,518,310,
+                DialogueLayout.VisiblePageText(pages[helpPage]),
+                Game.save.largeText?20:18,paper);
+            Text(673,598,518,25,
+                Game.L("指南第 ","Guide page ")+(helpPage+1)+"/"+
+                pages.Count+Game.L(" · PgUp/PgDn 翻页"," · PgUp/PgDn"),
+                12,muted);
+            if(Button(673,636,246,37,Game.L("上一页","Previous"),
+                false,helpPage>0))MoveHelpPage(-1);
+            if(Button(933,636,258,37,Game.L("下一页","Next"),
+                false,helpPage<pages.Count-1))MoveHelpPage(1);
         }
         private void DrawTutorialPrompt()
         {
