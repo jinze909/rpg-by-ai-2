@@ -5548,6 +5548,16 @@ namespace Starfall.Tests
                     ((Point)pursue.Invoke(g,new object[]{listener,g.Position})-
                         listener.Position).Length<.01f,
                     "A freshly sealed post-whistle corridor holds real recruited actor at actual foot");
+                // New ACTUAL line of sight outranks the earlier sealed
+                // memory: the player can still draw this sentinel's attack.
+                g.save.x=40.5f;g.save.y=35.5f;
+                Check(!g.IsRidgeWatchReportRouteSealed(listener)&&
+                    ((Point)pursue.Invoke(g,new object[]{listener,g.Position})-
+                        g.Position).Length<.01f,
+                    "A genuinely visible close hero takes precedence over a blocked old contact");
+                g.save.x=80.5f;g.save.y=80.5f;
+                Check(g.IsRidgeWatchReportRouteSealed(listener),
+                    "With visual contact truly lost, the same sealed memory returns");
                 // One genuine reopened doorway resumes the exact original
                 // reported foot without resounding or spending resources.
                 char[] returned=rows[35].ToCharArray();

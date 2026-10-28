@@ -11923,6 +11923,16 @@ public static class RuntimeCombatInputChecks
             GUI.commands.Clear();Call(app,"OnGUI");
             Check(GUI.commands.Exists(s=>s.Contains("REPORT ROUTE SEALED")),
                 "Production world renderer labels the SAME actor in English");
+            // A physically visible hero on the patrol's CURRENT side
+            // supersedes the sealed OLD report without reopening a gate.
+            g.save.x=40.5f;g.save.y=35.5f;
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!g.IsRidgeWatchReportRouteSealed(listener)&&
+                !GUI.commands.Exists(s=>s.Contains("REPORT ROUTE SEALED")),
+                "True visual reacquisition hides the obsolete sealed-report cue");
+            g.save.x=80.5f;g.save.y=80.5f;
+            Check(g.IsRidgeWatchReportRouteSealed(listener),
+                "Returning to remote hidden ground restores blocked contact memory");
             char[] reopened=rows[35].ToCharArray();
             reopened[37]='.';rows[35]=new string(reopened);
             Check(!g.IsRidgeWatchReportRouteSealed(listener),

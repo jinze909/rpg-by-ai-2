@@ -88,12 +88,27 @@ namespace Starfall
         // presented as a teammate answering the ridge watch whistle.
         public bool IsRidgeWatchResponder(Enemy e)
         { return e!=null&&RidgeWatchRespondsToAlarm(e); }
+        // Report pursuit and world presentation must make the same real
+        // visual-sighting decision. A newly SEEN hero outranks an older
+        // blocked contact, but quiet rear travel does not reveal itself.
+        private bool RidgeWatchSeesLiveHero(Enemy enemy,Point heroFoot)
+        {
+            if(enemy==null||!CanStand(enemy.Position)||
+                !CanStand(heroFoot))return false;
+            float heroRange=(enemy.Position-heroFoot).Length;
+            if(!Finite(heroRange)||heroRange>8f||
+                !ClearAttackPath(enemy.Position,heroFoot))return false;
+            return !QuietStepping||
+                ((heroFoot-Position).Length<.01f&&
+                 heroRange<=4f&&ImpactSearchGuardSeesHero(enemy));
+        }
         // Only an exact surviving, actually recruited actor can show this
-        // tactical cue. The contact memory is unchanged by sealed terrain,
-        // so reopening a tide gate resumes the original real investigation.
+        // tactical cue. Live visible contact overrides a sealed old source,
+        // and reopening a gate resumes the remembered investigation.
         public bool IsRidgeWatchReportRouteSealed(Enemy enemy)
         {
             return enemy!=null&&RidgeWatchRespondsToAlarm(enemy)&&
+                !RidgeWatchSeesLiveHero(enemy,Position)&&
                 !SoundSweepFootReachable(enemy.Position,
                     ridgeWatchReportedContactFoot);
         }
@@ -109,12 +124,7 @@ namespace Starfall
             // During quiet movement use the same forward-arc / touch
             // detection as ordinary investigating sentries, and never
             // resolve a synthetic caller coordinate as the live hero.
-            float heroRange=(enemy.Position-heroFoot).Length;
-            if(heroRange<=8f&&
-                ClearAttackPath(enemy.Position,heroFoot)&&
-                (!QuietStepping||
-                 ((heroFoot-Position).Length<.01f&&
-                  heroRange<=4f&&ImpactSearchGuardSeesHero(enemy))))
+            if(RidgeWatchSeesLiveHero(enemy,heroFoot))
                 return heroFoot;
             // A gate can shut AFTER a real whistle recruited teammates.
             // Never drive toward a disconnected report island or snap the
