@@ -213,6 +213,8 @@ namespace Starfall
             else
             {
                 Flag("unlisted_protected");
+                // The persistent bonus is recomputed from the existing
+                // saved flag on every Load(), not an extra SaveData field.
                 save.maxHealth=Math.Min(99999f,save.maxHealth+25f);
                 save.health=Math.Min(save.maxHealth,save.health+25f);
                 RecordMoment("旅店的记录员把姓名封进私人信封，只向家属交付副本。那些被追赶的人不必为获得援助，再向所有人解释自己是谁。",

@@ -292,7 +292,12 @@ namespace Starfall
             save.xp = save.level == 30 ? 0 : (int)Clamp(save.xp, 0, save.level * 40 - 1);
             save.coins = (int)Clamp(save.coins, 0, 999999); save.weapon = (int)Clamp(save.weapon, 0, 2);
             save.skillPoints = (int)Clamp(save.skillPoints, 0, 99); save.ending = (int)Clamp(save.ending, 0, 3);
-            save.maxHealth = 100 + save.upgrades * 20 + save.talents[1] * 12 + (save.profession == 0 ? 20 : 0);
+            // Recompute all permanent health from canonical equipment,
+            // talents and earned story flags. Saving a raw maxHealth bonus
+            // alone would be discarded at every Load() and slot switch.
+            save.maxHealth = 100 + save.upgrades * 20 +
+                save.talents[1] * 12 + (save.profession == 0 ? 20 : 0) +
+                (Has("unlisted_protected") ? 25 : 0);
             save.health = Finite(save.health) ? Clamp(save.health, 1, save.maxHealth) : save.maxHealth;
             save.energy = Finite(save.energy) ? Clamp(save.energy, 0, 100) : 100;
             save.totalTime = Finite(save.totalTime) ? Clamp(save.totalTime, 0, 10000000) : 0;
