@@ -361,7 +361,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();
             ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
@@ -963,6 +963,7 @@ namespace Starfall
             UpdateEnemies(dt); if (Dying) return;
             TickRidgeWatchPatrols(dt);
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
+            TickAfterglow(dt);
             TickOuterPatrol(dt);
             TickOuterDelivery(dt);
             TickAfterlightWatch(dt);
@@ -1496,6 +1497,7 @@ namespace Starfall
             // not keep warning players about an attack that can no longer land.
             RemoveEnemyPendingWarning(e);
             // Patrol progress records a combat death, never list disappearance.
+            OnAfterglowEnemyDefeated(e);
             OnOuterPatrolEnemyDefeated(e);
             OnAfterlightWatchEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
@@ -1518,7 +1520,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -1759,6 +1761,7 @@ namespace Starfall
             effect.lastDirectiveOwned = IsLastDirectiveEnemy(attacker);
             effect.afterlightWatchOwned = IsAfterlightWatchEnemy(attacker);
             effect.outerPatrolOwned = IsOuterPatrolEnemy(attacker);
+            effect.afterglowOwned = IsAfterglowEnemy(attacker);
         }
         // Use the precise SAME 0.1-tile swept-radius shot samples that
         // UpdateProjectiles uses, not the center-only actor sight ray. A bow
@@ -2739,7 +2742,7 @@ namespace Starfall
             tickingEnemies.Clear();
         }
         private void Fire(Enemy e, Point dir, float speed)
-        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e); shot.outerPatrolOwned = IsOuterPatrolEnemy(e);
+        { Projectile shot=e.boss?new Projectile{position=e.Position,velocity=dir.Normalized*speed,damage=14}:WeaponShot(e.Position,1,dir,speed,10,e.target); shot.source="shot";shot.roadTrialOwned = IsRoadwardenTrialEnemy(e); shot.outerPatrolOwned = IsOuterPatrolEnemy(e);shot.afterglowOwned=IsAfterglowEnemy(e);
             shot.skywatchOwned = IsSkywatchEnemy(e);
             shot.atlasEchoOwned = IsAtlasEchoEnemy(e);
             shot.wayfarerOwned = IsWayfarerEnemy(e);
@@ -4420,7 +4423,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||

@@ -173,7 +173,7 @@ namespace Starfall
         public bool friendly, explosive, piercing;
         public bool slowing, technique, blockedAtSpawn;
         // Transient ownership tag: prevent shots from outliving a stopped beacon defense.
-        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
+        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned, afterglowOwned;
         public string source, visual;
         // A live pebble's real throw foot, exclusively for physical party
         // overlap immunity at launch. Not a stored save or damage profile.
@@ -247,7 +247,7 @@ namespace Starfall
         public Enemy bossSummonCueOwner;
         // Only encounter-owned warnings retire when an optional rescue ends.
         // Ordinary combat effects are preserved.
-        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned;
+        public bool roadTrialOwned, skywatchOwned, atlasEchoOwned, wayfarerOwned, reliefMissionOwned, rootHarmonyOwned, commonsRelayOwned, glasswindOwned, tideSalvageOwned, temperOwned, mineConvoyOwned, frostSignalOwned, swordLessonOwned, triadOwned, witnessOwned, blackoutOwned, stormOwned, courierOwned, civicResponseOwned, lastDirectiveOwned, civicConduitOwned, floodReliefOwned, afterlightWatchOwned, outerPatrolOwned, afterglowOwned;
         public Effect(string kind, Point position, float life, string text = "")
         { this.kind = kind; this.position = position; this.life = maxLife = life; this.text = text; }
     }

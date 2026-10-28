@@ -335,7 +335,7 @@ namespace Starfall
                         C("留下这封信","Keep the letter","close"));
                     return true;
                 }
-                int camps=0,cache=0,vistas=0,signals=CampSignalCount,dispatches=SignalRelayDoneCount;
+                int camps=0,cache=0,vistas=0,signals=CampSignalCount,dispatches=SignalRelayDoneCount,watches=AfterglowWins;
                 for(int region=0;region<8;region++)
                 {
                     if(Has("annex_camp_annex_camp_"+region))camps++;
@@ -348,7 +348,8 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
-                    "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+"/8。"+
+                    "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
+                    "/8 · 余烬守望 "+watches+"/8。"+
                     (Has("annex_relay_archived")?
                         "\n\n《归途回声》已经存入旅店的公共史册。户外耐力恢复永久 +2/秒。":
                         Has("annex_relay_all")?
@@ -365,7 +366,8 @@ namespace Starfall
                         "\n\n继续探索全部八个户外区域，回来归档旧路。"),
                     "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
-                    "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+"/8."+
+                    "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+
+                    "/8 · Afterglow watches "+watches+"/8."+
                     (Has("annex_relay_archived")?
                         "\n\nHomeward Echoes is now part of the public chronicle. Outdoor stamina recovery is permanently +2/s.":
                         Has("annex_relay_all")?
@@ -455,6 +457,19 @@ namespace Starfall
                     C("收起星图","Fold chart","close"));
                 return true;
             }
+            Choice watch=AfterglowActive&&
+                Object.ReferenceEquals(afterglowCamp,o)?
+                (AfterglowPhase==2?
+                    C("掩护避难者 · 常规二人阵","Screen shelters · two raiders","afterglow_screen"):
+                    C("中止余烬守望","Abort afterglow watch","afterglow_abort")):
+                Has("annex_relay_archived")&&Has("annex_relay_done_"+save.room)&&
+                !Has("afterglow_done_"+save.room)?
+                    C("余烬守望 · 双波夜袭","Afterglow watch · two-wave raid","afterglow_begin"):
+                    C("查看守望记录","Read firewatch record","close");
+            Choice watchCut=AfterglowActive&&AfterglowPhase==2&&
+                Object.ReferenceEquals(afterglowCamp,o)?
+                    C("主动截击 · 重甲三人阵","Intercept · armored trio","afterglow_cut"):
+                    C("继续巡路","Keep walking","close");
             Choice dispatch=SignalRelayActive&&
                 Object.ReferenceEquals(signalRelayCamp,o)?
                     (SignalRelayStage==2?
@@ -469,6 +484,9 @@ namespace Starfall
                         SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
                         Has("annex_relay_done_"+save.room)?
                         "\n\n本地区的来回传讯已完成，回执已公开。":"")+
+                    (AfterglowActive?"\n\n余烬守望 "+AfterglowPhase+"/3，敌人 "+
+                        AfterglowRemaining+"，剩 "+(int)AfterglowTime+" 秒。":
+                        Has("afterglow_done_"+save.room)?"\n\n本地余烬守望已胜利。":"")+
                     (first?"\n\n首次发现营地，硬币 +5。":"")+
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
                     noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores 40 HP and full energy."+
@@ -476,6 +494,10 @@ namespace Starfall
                         SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
                         Has("annex_relay_done_"+save.room)?
                         "\n\nThis region's return dispatch is already in the public archive.":"")+
+                    (AfterglowActive?"\n\nAfterglow "+
+                        AfterglowPhase+"/3 · foes "+AfterglowRemaining+
+                        " · "+(int)AfterglowTime+"s.":
+                        Has("afterglow_done_"+save.room)?"\n\nThis afterglow watch is cleared.":"")+
                     (first?"\n\nFirst discovery: +5 coins.":"")+
                     (Has("annex_camps_complete")?"\n\nAll eight camps mapped: +1 talent point.":""),
                     !FieldWorkPreventsRest&&SafeTravel?
@@ -485,7 +507,7 @@ namespace Starfall
                         C("熄灭守火","Douse signal fire","annex_ward_douse"):
                         C("布设守火 · 木材×2、月光草×1",
                           "Signal fire · 2 timber, 1 Moonherb","annex_ward_light"),
-                    dispatch,
+                    dispatch,watch,watchCut,
                     C("继续探索","Keep exploring","close"));
             return true;
         }
@@ -569,6 +591,7 @@ namespace Starfall
                     "Public chart complete: +60 coins, +3 shards, +1 talent point.");
                 return true;
             }
+            if(ChooseAfterglow(action))return true;
             if(ChooseSignalRelay(action))return true;
             if(ChooseCampWard(action))return true;
             if(action!="annex_rest")return false;
