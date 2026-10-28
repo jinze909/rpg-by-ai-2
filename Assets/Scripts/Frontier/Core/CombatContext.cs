@@ -809,7 +809,18 @@ namespace Starfall
         private bool SoundSweepFootReachable(Point origin,Point target)
         {
             if(!CanStand(origin)||!CanStand(target))return false;
-            if(ClearAttackPath(origin,target))return true;
+            // An actor needs its full 0.44x0.36 foot footprint, not
+            // merely the point-sized arrow ray. A legal direct walking
+            // corridor needs no BFS; otherwise use the strict current
+            // world's physical-finish route rather than a compass pin.
+            Point delta=target-origin;
+            if(!Finite(delta.x)||!Finite(delta.y))return false;
+            int samples=Math.Max(1,(int)Math.Ceiling(delta.Length/.11f));
+            bool direct=true;
+            for(int i=1;i<=samples;i++)
+                if(!CanStand(origin+delta*(i/(float)samples)))
+                {direct=false;break;}
+            if(direct)return true;
             return NavigationPathFrom(origin,target,true).Count>0;
         }
         private Point LiveSoundSearchGoal(Enemy enemy,Point fallback)

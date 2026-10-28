@@ -611,7 +611,16 @@ namespace Starfall.Tests
                 game.Tick(.04f,new Point());
                 Check(game.IsEnemyReturningFromImpact(sentry)&&
                     (sentry.Position-post).Length<farDistance-.025f,
-                    "Visible but distant hero cannot steal a sound-decoy return or strand the guard");
+                    "Visible but distant hero cannot steal a sound-decoy return or strand the guard"+
+                    " before="+farDistance.ToString("0.000")+
+                    " after="+(sentry.Position-post).Length.ToString("0.000")+
+                    " from="+sentry.Position.x.ToString("0.00")+","+
+                        sentry.Position.y.ToString("0.00")+
+                    " post="+post.x.ToString("0.00")+","+
+                        post.y.ToString("0.00")+
+                    " route="+game.NavigationPathFrom(sentry.Position,post,true).Count+
+                    " canStand="+game.CanStand(post)+
+                    " postBlocked="+game.IsEnemyReturnPostBlocked(sentry));
                 // A CLOSE hero behind genuine intervening stone is still
                 // hidden; mere geometric proximity must not cancel return.
                 string[] nearRows=(string[])game.Map.rows.Clone();
