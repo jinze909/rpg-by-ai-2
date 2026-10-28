@@ -4409,9 +4409,31 @@ namespace Starfall
                 SkywatchRoom != 0 || AtlasEchoRoom != 0; }
         }
 
+        // These multi-page actions carry the initial physical speaker
+        // throughout Choose(). A synthetic or stale choice from a different
+        // map object is rejected BEFORE the game claims the player selected
+        // it and adds a false entry to the conversation transcript.
+        private bool WorldChoiceSourceMatches(string action)
+        {
+            if(string.IsNullOrEmpty(action))return true;
+            bool story=action.StartsWith("story_",StringComparison.Ordinal);
+            bool signal=action.StartsWith("outer_signal_",StringComparison.Ordinal)||
+                action=="outer_repair";
+            if(!story&&!signal)return true;
+            WorldObject speaker=conversationSource;
+            if(speaker==null)return false;
+            return story?
+                (speaker.kind=="worldchronicle"||
+                 speaker.kind=="guild"||
+                 speaker.kind=="innGuest"):
+                speaker.kind=="outerrelay";
+        }
         private static bool RequiresWorldSourceReach(string action)
         {
             if (string.IsNullOrEmpty(action)) return false;
+            if(action.StartsWith("story_",StringComparison.Ordinal)||
+               action.StartsWith("outer_signal_",StringComparison.Ordinal)||
+               action=="outer_repair")return true;
             if(action.StartsWith("inn_",StringComparison.Ordinal))return true;
             // Choices whose handlers do not independently validate their target.
             if (action.StartsWith("goto") || action == "routes" ||
@@ -4456,6 +4478,13 @@ namespace Starfall
             if (mode != "dialog" || conversation == null || index < 0 || index >= conversation.choices.Length) return;
             if(Dying){Close();return;}
             string action = conversation.choices[index].action;
+            if(!WorldChoiceSourceMatches(action))
+            {
+                Close();
+                Notify("对话来源已经改变。请重新与原来的目标交谈。",
+                    "The dialogue source has changed. Speak to the original target again.");
+                return;
+            }
             // A stale menu opened from a reachable source cannot survive leaving it.
             // For a menu first opened remotely, gate only choices without their own
             // live target validation. Re-check current reach so approaching a source

@@ -5454,6 +5454,39 @@ namespace Starfall.Tests
             Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
                 "Reload clears only transient squad investigation data, preserving old saves");
         }
+        public static void FalseStoryAndSignalChoicesCannotEnterTranscriptFromAnotherNpc(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("outer_log_0");
+            g.Enter(0);g.enemies.Clear();
+            WorldObject chest=null;
+            foreach(WorldObject o in g.Map.objects)
+                if(o.kind=="outercache"){chest=o;break;}
+            Check(chest!=null,"Original region contains a different physical chest speaker");
+            g.save.x=chest.x;g.save.y=chest.y;
+            int coins=g.save.coins,gear=g.save.inventory[4],flags=g.save.flags.Count;
+            string[] borrowed={"story_menu","outer_signal_routes","outer_repair"};
+            foreach(string action in borrowed)
+            {
+                g.Talk(chest);
+                Check(g.mode=="dialog"&&g.conversationSource==chest,
+                    "A real local supply chest owns the original conversation");
+                // Model a stale NPC-choice page incorrectly attached to
+                // another actor: picking it must never be recorded as a
+                // legitimate player statement before rejection.
+                g.conversation.choices=new Choice[]{
+                    new Choice("旧选项","Stale option",action)};
+                int before=g.DialogueRecordCount;
+                g.Choose(0);
+                Check(g.mode=="world"&&g.DialogueRecordCount==before&&
+                    g.save.room==0&&g.save.coins==coins&&
+                    g.save.inventory[4]==gear&&g.save.flags.Count==flags,
+                    "Mismatched "+action+" neither impersonates a speaker nor invents a chosen transcript/reward");
+            }
+            Check(g.save.version==2,
+                "Source-bound dialogue rejection makes no serialized save migration");
+        }
+
         public static void StoryPagesNeverSwitchNpcWithoutOriginalPhysicalSource(Campaign data)
         {
             var g=Unlocked(data);
