@@ -264,7 +264,7 @@ namespace Starfall
             { gateOpeningTime = .55f; sound = "quest"; effects.Add(new Effect("gateOpen", new Point(26.5f, 13.5f), .65f)); }
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
-        public float Damage { get { return (19 + (GlassLoomPublic&&save.room==6&&!Night?3:0) + (ThornwatchSevered&&save.room<8?3:0) + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
+        public float Damage { get { return (19 + (GlassLoomPublic&&save.room==6&&!Night?3:0) + (ThornwatchSevered&&save.room<8?3:0) + (PressureworksCaravan&&save.room==3?3:0) + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
         public float Speed { get { return 4.5f + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (Has("roadcharter_public") ? .25f : 0) + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -597,6 +597,12 @@ namespace Starfall
             {
                 Notify("诺尔的实弹练习正在进行，完成或在铁匠铺安全中止后才能旅行。",
                     "Noll's live drill is active. Finish or abort at his forge before traveling.");
+                return true;
+            }
+            if(PressureworksActive)
+            {
+                Notify("铁炉堡锅炉仍在运行，完成调压或回事故告示牌放弃，不能中途传送。",
+                    "The Ironreach boiler is active. Finish the pressure run or abort at the real notice before traveling.");
                 return true;
             }
             if(WhiteoutActive)
@@ -1008,7 +1014,7 @@ namespace Starfall
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) +
-                (ThornwatchTuned&&save.room<8?2:0) + (Has("roadcharter_reserve") ? 3 : 0) +
+                (ThornwatchTuned&&save.room<8?2:0) + (PressureworksWorkers&&save.room==3?2:0) + (Has("roadcharter_reserve") ? 3 : 0) +
                 // Real completion of eight two-way civilian dispatches
                 // improves long-distance outdoor stamina recovery only.
                 (save.room<8&&Has("annex_relay_archived") ? 2 : 0) +
@@ -1059,6 +1065,7 @@ namespace Starfall
             TickGlassLoom(dt);
             TickFrostSignal(dt);
             TickWhiteout(dt);
+            TickPressureworks(dt);
             TickFloodRelief(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
@@ -1576,6 +1583,7 @@ namespace Starfall
             OnLastLanternEnemyDefeated(e);
             OnThornwatchEnemyDefeated(e);
             OnWhiteoutEnemyDefeated(e);
+            OnPressureworksEnemyDefeated(e);
             OnGlasswindEnemyDefeated(e);
             OnTriadSecurityEnemyDefeated(e);
             OnTideSalvageEnemyDefeated(e);
@@ -4029,6 +4037,7 @@ namespace Starfall
         {
             if (TalkGlassLoom(o)) return;
             if (TalkWhiteout(o)) return;
+            if (TalkPressureworks(o)) return;
             if (TalkCountertide(o)) return;
             if (TalkThornwatch(o)) return;
             if (TalkLastLantern(o)) return;
@@ -4786,6 +4795,7 @@ namespace Starfall
             if (ChooseThornwatch(action)) return;
             if (ChooseCountertide(action)) return;
             if (ChooseWhiteout(action)) return;
+            if (ChoosePressureworks(action)) return;
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;

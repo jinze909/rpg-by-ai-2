@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,37 @@ namespace Starfall
 
 
 
+            if(id=="pressureworks")
+            {
+                q.title=L("铁炉堡 · 最后的换班","Ironreach · The Last Shift");
+                q.category=L("工业调压 · 真实蒸汽战斗","INDUSTRIAL PRESSURE · REAL STEAM COMBAT");
+                q.room=3;q.locked=!Has("boss_3");q.complete=PressureworksComplete;
+                q.description=L(
+                    "在铁炉堡旧工区告示牌（54.5,38.5）发起抢修，依次到一号冷却阀（60.5,37.5）及二号冷却阀（67.5,36.5）调整压力。工区会在真实时间里升压，必须在35—80、26—75两个安全区间操作。之后前往总机（67.5,44.5）击败两名真实守卫，并避开倒计时蒸汽。一次可消耗1备件排气降压22并清除当前蒸汽。最后把厂区交给工人，或公开商队动力图纸。",
+                    "Start at Ironreach's old work notice (54.5,38.5). Physically operate the first coolant wheel (60.5,37.5) at pressure 35–80, then the second (67.5,36.5) at 26–75. Real time increases pressure. Reach the engine (67.5,44.5), defeat two genuine guards, and dodge timed hot steam. Once per run, a real spare part can purge 22 pressure and owned warnings. Choose worker control or public carrier schematics.");
+                q.steps.Add(new QuestStep(L("一号阀 · 实地冷却","Turn real first coolant valve"),
+                    PressureworksStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("二号阀 · 压力同步","Synchronize the second pressure wheel"),
+                    PressureworksStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("击败守卫，停止蒸汽喷发","Defeat both guards and stop live steam"),
+                    PressureworksStage>=4||q.complete));
+                q.steps.Add(new QuestStep(L("决定公共工区动力归属","Choose civilian ownership"),q.complete));
+                q.target=PressureworksActive?PressureworksTarget:new Point(54.5f,38.5f);
+                q.next=q.locked?L("先击败铁炉堡原守护者","Defeat the original Ironreach guardian"):
+                    q.complete?PressureworksWorkers?
+                        L("工人自治：铁炉堡耐力自然恢复每秒+2",
+                            "Workers restored: +2 energy regeneration each second in Ironreach"):
+                        L("动力图公开：铁炉堡基础攻击+3",
+                            "Public power map: +3 Ironreach base attack"):
+                    PressureworksActive?PressureworksObjective+
+                        " · "+PressureworksTime.ToString("0")+"s"+
+                        L(" · 压力 "," · PRESSURE ")+PressureworksPressure.ToString("0"):
+                    L("到旧工区独立事故告示牌（54.5,38.5）调查换班失踪事件",
+                        "Read the distinct work-shift notice in Ironreach (54.5,38.5)");
+                q.reward=L("首胜：70硬币、3碎片、110经验；永久本地耐力恢复或伤害",
+                    "First clear: 70 coins, 3 shards, 110 XP; permanent regional endurance or damage");
+                return q;
+            }
             if(id=="whiteout_rescue")
             {
                 q.title=L("霜钟高原 · 风雪中的家书","Frostchime · A Letter in the Whiteout");

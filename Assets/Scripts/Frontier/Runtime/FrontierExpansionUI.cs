@@ -484,6 +484,35 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.PressureworksActive&&!drawingOutline)
+            {
+                Color pressure=Game.PressureworksPressure>75?
+                    new Color(1f,.52f,.42f,1f):gold;
+                Point target=Game.PressureworksTarget;
+                if(WorldDrawable(target.x,target.y,180f,160f))
+                {
+                    Ring(target,.88f,pressure,28);
+                    Point at=ScreenPoint(target);
+                    Text(at.x-137,at.y-81,274,19,
+                        Game.PressureworksObjective,12,pressure,
+                        TextAnchor.MiddleCenter);
+                }
+                Text(35,414,560,21,
+                    Game.L("最后的换班 · ","LAST SHIFT · ")+
+                    Game.PressureworksStage+"/4 · "+
+                    Game.PressureworksTime.ToString("0")+"s · "+
+                    Game.L("压力 ","PRESSURE ")+
+                    Game.PressureworksPressure.ToString("0")+"/100",
+                    12,pressure);
+                Bar(35,440,275,Game.PressureworksPressure/100f,
+                    pressure,7);
+                if(Game.PressureworksStage==3)
+                    Text(35,456,460,22,
+                        Game.L("锅炉守卫剩余 ","LIVE FACTORY GUARDS ")+
+                        Game.PressureworksGuardsAlive+
+                        Game.L(" · 躲开蒸汽喷口"," · EVADE STEAM JETS"),
+                        12,pressure);
+            }
             if(Game.mode=="world"&&Game.WhiteoutActive&&!drawingOutline)
             {
                 Point target=Game.WhiteoutTarget;
@@ -1203,6 +1232,35 @@ namespace Starfall
             // One shared screen-foot throughout this method. Older Mono/C#
             // cannot redeclare an outer local after same-named branch locals.
             string kind=o.kind;Point p=ScreenPoint(new Point(o.x,o.y));
+            if(o.kind=="pressureworksnotice"||o.kind=="pressureworksvalve"||
+               o.kind=="pressureworksengine")
+            {
+                Point site=new Point(o.x,o.y);
+                Color metal=Game.PressureworksComplete?
+                    mint:Game.PressureworksActive?gold:muted;
+                if(o.kind=="pressureworksnotice")
+                {
+                    PropImage("post",0,p.x-31,p.y-73,62,76,metal);
+                    Diamond(p.x,p.y-64,5,metal);
+                }
+                else if(o.kind=="pressureworksvalve")
+                {
+                    Ring(site,.53f,metal,26);
+                    Box(p.x-17,p.y-42,34,26,new Color(.38f,.48f,.56f,1f));
+                    Box(p.x-3,p.y-51,6,32,metal);
+                    Diamond(p.x,p.y-46,5,metal);
+                }
+                else
+                {
+                    PropImage("post",0,p.x-37,p.y-83,74,85,metal);
+                    Ring(site,.79f,metal,30);
+                    if(Game.PressureworksComplete)
+                        Text(p.x-70,p.y-91,140,18,
+                            Game.L("重启完毕","POWER RESTORED"),
+                            10,mint,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
             if(o.kind=="whiteoutnotice")
             {
                 PropImage("post",0,p.x-32,p.y-77,64,80,
