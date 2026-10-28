@@ -477,12 +477,25 @@ namespace Starfall
                 int part=UnlistedCachePart(o),act=UnlistedAct;
                 bool evidence=part>=0&&act>=0&&act<3&&
                     !Has((part==0?"unlisted_a_":"unlisted_b_")+act);
+                string relief=UnlistedReliefChoice(o);
+                int reliefRegion=save.room==0?0:save.room==3?1:save.room==5?2:-1;
                 Dialog(o.name,o.en,noteZh+(first?"\n\n遗失补给：硬币 +7、材料 +2。":"\n\n物资已被取走，记录仍在。")+
-                    (evidence?"\n\n这处旧补给点保留着《未列名者》的原始记录。请亲手核验。":""),
+                    (evidence?"\n\n这处旧补给点保留着《未列名者》的原始记录。请亲手核验。":"")+
+                    UnlistedReliefCacheNote(false,reliefRegion,relief),
                     noteEn+(first?"\n\nRecovered supplies: +7 coins, +2 materials.":"\n\nSupplies already recovered.")+
-                    (evidence?"\n\nThis original cache holds a missing registry clue. Verify it here.":""),
+                    (evidence?"\n\nThis original cache holds a missing registry clue. Verify it here.":"")+
+                    UnlistedReliefCacheNote(true,reliefRegion,relief),
                     evidence?C("核验未列名者原始证据","Verify Unlisted evidence",
                         part==0?"unlisted_clue_a":"unlisted_clue_b"):
+                        relief=="unlisted_relief_prepare"?
+                            C("打包民用救助物资 · 木材×1、月光草×1",
+                              "Pack civilian relief · 1 timber, 1 Moonherb",relief):
+                        relief=="unlisted_relief_deliver"?
+                            C("交付救助包 · 开通服务",
+                              "Deliver aid kit · open station",relief):
+                        relief=="unlisted_relief_treat"?
+                            C("救助站治疗 · 月光草×1",
+                              "Relief care · 1 Moonherb",relief):
                         C("继续巡路","Continue","close"),
                     C("继续探索","Keep exploring","close"));
                 return true;

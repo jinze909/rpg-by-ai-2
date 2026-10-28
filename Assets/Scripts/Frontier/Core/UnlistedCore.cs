@@ -48,6 +48,86 @@ namespace Starfall
             "Why did the mine bell ring with no official losses? A false alarm, or invisible unbadged workers?",
             "Why does the harbor claim a return while the lighthouse saw distress? Weather, or an erased rescue boat?"
         };
+
+        // A playable, post-ending civilian relief circuit. It reuses the
+        // actual two caches of every investigated region; nothing can be
+        // completed from the inn menu, a synthetic command or another map.
+        public int UnlistedReliefCount
+        {
+            get
+            {
+                int n=0;
+                for(int i=0;i<3;i++)if(Has("unlisted_relief_delivered_"+i))n++;
+                return n;
+            }
+        }
+        private int UnlistedReliefRegion
+        {
+            get
+            {
+                for(int i=0;i<3;i++)if(save.room==unlistedRegions[i])return i;
+                return -1;
+            }
+        }
+        private bool UnlistedReliefEligible(int act)
+        {
+            return UnlistedDone && act>=0 && act<3 &&
+                Has("unlisted_solved_"+act) &&
+                Has("unlisted_a_"+act) && Has("unlisted_b_"+act);
+        }
+        // Called only for a real annex cache. Returning an empty action
+        // deliberately does not expose actions on unrelated objects.
+        private string UnlistedReliefChoice(WorldObject o)
+        {
+            int act=UnlistedReliefRegion;
+            if(o==null||o.kind!="annexcache"||
+                !UnlistedReliefEligible(act))return "";
+            string a="annex_cache_"+save.room+"_a";
+            string b="annex_cache_"+save.room+"_b";
+            if(o.id==a&&!Has("unlisted_relief_prepared_"+act))
+                return "unlisted_relief_prepare";
+            if(o.id==b&&Has("unlisted_relief_prepared_"+act))
+                return Has("unlisted_relief_delivered_"+act)?
+                    "unlisted_relief_treat":"unlisted_relief_deliver";
+            return "";
+        }
+        private string UnlistedReliefCacheNote(bool english,int act,string action)
+        {
+            if(act<0||act>=3||!UnlistedDone)return "";
+            string[] zh={
+                "被漏报的住户仍在等桥头净水与绷带。",
+                "矿场伤员需要有人把药箱送到旧轨道避难点。",
+                "失联小艇家属在灯湾搭起临时救助棚。"
+            };
+            string[] en={
+                "The uncounted households still need water and bandages at the bridge.",
+                "Injured miners wait for a medicine chest beside the old rails.",
+                "Families of the missing skiff have opened a shelter by the bay."
+            };
+            string body=english?en[act]:zh[act];
+            string policy=english?
+                (Has("unlisted_public")?
+                    " The public chart carries safe bearings, not a replacement for supplies.":
+                    " The sealed register shares aid locations without revealing family names."):
+                (Has("unlisted_public")?
+                    "公开地图指明安全方位，却不能代替实际送达的物资。":
+                    "密封名册只提供救助地点，不泄露家属姓名。");
+            if(action=="unlisted_relief_prepare")
+                return "\n\n"+body+policy+(english?
+                    "\n\nPack one timber and one Moonherb here, then hand-carry the kit to the second cache.":
+                    "\n\n在此用木材×1与月光草×1打包，亲自送到第二处补给点。");
+            if(action=="unlisted_relief_deliver")
+                return "\n\n"+body+policy+(english?
+                    "\n\nThe aid kit has arrived. Hand it to the field volunteers.":
+                    "\n\n救助包已送达。把它交给现场志愿者。");
+            if(action=="unlisted_relief_treat")
+                return "\n\n"+body+(english?
+                    "\n\nThe completed station can prepare field care for one Moonherb: +35 HP and +25 stamina.":
+                    "\n\n救助站已开通。用月光草×1可恢复35生命与25耐力。");
+            return "\n\n"+body+policy+(english?
+                "\n\nThis region's relief handoff is recorded.":
+                "\n\n本地区的救助交接已经记录在案。");
+        }
         public int UnlistedAct
         {get{if(!Has("unlisted_started"))return -1;
             for(int a=0;a<3;a++)if(!Has("unlisted_solved_"+a))return a;
@@ -57,7 +137,9 @@ namespace Starfall
         public string UnlistedArchiveZh
         {get{int act=UnlistedAct;
             if(act<0)return "\n\n未列名者：有一本没有登记号的旧名册等人调查。";
-            if(UnlistedDone)return "\n\n《未列名者》已归档，你的选择将继续影响边境的公共道路。";
+            if(UnlistedDone)return "\n\n《未列名者》已归档。三地救助接力 "+
+                UnlistedReliefCount+"/3：在外渠、赤铁矿场与雾港的第一处原始补给点打包木材与月光草，亲自送往第二处。"+
+                (UnlistedReliefCount==3?"\n\n三地救助站全部启用，今后可用月光草接受现场治疗。":"");
             if(act==3)return "\n\n三卷证据已经现场核实。回来决定如何保存名单上的人。";
             return "\n\n《未列名者》 "+unlistedTitlesZh[act]+
                 " · 前往第 "+(unlistedRegions[act]+1)+" 地调查两份旧补给记录"+
@@ -66,7 +148,9 @@ namespace Starfall
         public string UnlistedArchiveEn
         {get{int act=UnlistedAct;
             if(act<0)return "\n\nThe Unlisted: an uncatalogued register awaits an investigator.";
-            if(UnlistedDone)return "\n\nThe Unlisted has been filed. Your decision now shapes the roads.";
+            if(UnlistedDone)return "\n\nThe Unlisted is filed. Civilian aid handoffs "+
+                UnlistedReliefCount+"/3: pack timber and Moonherb at the first original cache in Canal, Ironreach and Mistport; physically deliver each kit to the second cache."+
+                (UnlistedReliefCount==3?"\n\nAll three aid stations are operating; Moonherb-funded treatment is now available.":"");
             if(act==3)return "\n\nAll three chapters were proven in the field. Decide how to preserve their names.";
             return "\n\nThe Unlisted: "+unlistedTitlesEn[act]+
                 ". Search both original caches in region "+(unlistedRegions[act]+1)+
@@ -74,10 +158,23 @@ namespace Starfall
                 ", B "+(Has("unlisted_b_"+act)?"found":"missing")+
                 "), then reason at the distant original ridge marker.";}}
         public bool UnlistedFieldObjectiveActive
-        {get{int act=UnlistedAct;return act>=0&&act<3&&
-            save.room==unlistedRegions[act]&&!UnlistedDone;}}
+        {get{
+            if(UnlistedDone)
+            {
+                int relief=UnlistedReliefRegion;
+                return UnlistedReliefEligible(relief)&&
+                    !Has("unlisted_relief_delivered_"+relief);
+            }
+            int act=UnlistedAct;
+            return act>=0&&act<3&&save.room==unlistedRegions[act];
+        }}
         public string UnlistedFieldObjective
         {get{if(!UnlistedFieldObjectiveActive)return "";
+            int relief=UnlistedReliefRegion;
+            if(UnlistedDone&&relief>=0)
+                return Has("unlisted_relief_prepared_"+relief)?
+                    L("送达民用救助包","DELIVER CIVILIAN AID"):
+                    L("打包民用救助物资","PACK CIVILIAN AID");
             int act=UnlistedAct;
             if(!Has("unlisted_a_"+act))
                 return L("核验第一份补给记录","VERIFY FIRST CACHE");
@@ -88,6 +185,16 @@ namespace Starfall
         {get{
             int act=UnlistedAct;
             if(!UnlistedFieldObjectiveActive)return new Point();
+            int relief=UnlistedReliefRegion;
+            if(UnlistedDone&&relief>=0)
+            {
+                string siteId="annex_cache_"+save.room+"_"+
+                    (Has("unlisted_relief_prepared_"+relief)?"b":"a");
+                foreach(WorldObject site in Map.objects)
+                    if(site!=null&&site.id==siteId)
+                        return new Point(site.x,site.y);
+                return new Point();
+            }
             string id=!Has("unlisted_a_"+act)?
                 "annex_cache_"+save.room+"_a":
                 !Has("unlisted_b_"+act)?
@@ -143,8 +250,12 @@ namespace Starfall
             bool accepted=action=="unlisted_accept",clueA=action=="unlisted_clue_a",
                 clueB=action=="unlisted_clue_b",reason=action=="unlisted_reason",
                 wrong=action=="unlisted_wrong",publicEnd=action=="unlisted_public",
-                privateEnd=action=="unlisted_protect";
-            if(!accepted&&!clueA&&!clueB&&!reason&&!wrong&&!publicEnd&&!privateEnd)
+                privateEnd=action=="unlisted_protect",
+                reliefPrepare=action=="unlisted_relief_prepare",
+                reliefDeliver=action=="unlisted_relief_deliver",
+                reliefTreat=action=="unlisted_relief_treat";
+            if(!accepted&&!clueA&&!clueB&&!reason&&!wrong&&!publicEnd&&!privateEnd&&
+                !reliefPrepare&&!reliefDeliver&&!reliefTreat)
                 return false;
             WorldObject source=pendingDialogueSource;
             if(mode!="world"||Dying||practicing||source==null||
@@ -152,6 +263,68 @@ namespace Starfall
                 !SourceBelongsToActiveMap(source)||
                 !HasPhysicalInteractionReach(source))return true;
             int act=UnlistedAct;
+            if(reliefPrepare||reliefDeliver||reliefTreat)
+            {
+                int region=UnlistedReliefRegion;
+                if(!UnlistedReliefEligible(region)||
+                    action!=UnlistedReliefChoice(source))return true;
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("附近仍有敌人或现场行动，无法安全交接救助物资。",
+                        "Nearby threats or live fieldwork prevent a safe relief handoff.");
+                    return true;
+                }
+                if(reliefPrepare)
+                {
+                    if(!Spend(1,0,1,0,0))return true;
+                    Flag("unlisted_relief_prepared_"+region);
+                    revision++;sound="quest";
+                    RecordMoment(
+                        "一包木材与草药已经封好。下一步不是在地图上画出箭头，而是亲自送到另一个补给点。",
+                        "Timber and medicine are packed. A drawn arrow cannot carry them: the kit must reach the other cache in person.");
+                    Notify("救助包已打包。前往本地区第二处原始补给点。",
+                        "Aid kit packed. Carry it to the second original cache in this region.");
+                    return true;
+                }
+                if(reliefDeliver)
+                {
+                    Flag("unlisted_relief_delivered_"+region);
+                    CreditCoins(18+region*4);AddXp(45+region*5);
+                    if(UnlistedReliefCount==3&&!Has("unlisted_relief_network"))
+                    {
+                        Flag("unlisted_relief_network");
+                        CreditSkillPoints(1);
+                    }
+                    revision++;sound="reward";
+                    RecordMoment(
+                        region==0?"桥边的住户接过药材，终于有人用他们自己的名字登记净水与伤口。":
+                        region==1?"旧轨边的矿工分到绷带，没有人再询问他们有没有工牌。":
+                        "灯湾的家属接过急救药箱，救助棚没有要求任何人公开失踪者姓名。",
+                        region==0?"Canal families receive medicine and clean-water supplies under their own names.":
+                        region==1?"The miners receive bandages by the old rails without a badge check.":
+                        "The bay shelter receives its kit without demanding the missing crew's identities.");
+                    Notify(UnlistedReliefCount==3?
+                        "三地救助站全部开通！技能点 +1；今后可在现场用月光草接受治疗。":
+                        "本地救助站已开通，可用月光草恢复生命与耐力。",
+                        UnlistedReliefCount==3?
+                        "All three relief stations opened! +1 talent; Moonherb care now available in the field.":
+                        "Relief station opened; spend Moonherb here to recover health and stamina.");
+                    return true;
+                }
+                if(save.health>=save.maxHealth&&save.energy>=100f)
+                {
+                    Notify("生命与耐力已满，先保留这株月光草。",
+                        "Health and stamina are full. Save the Moonherb for later.");
+                    return true;
+                }
+                if(!Spend(0,0,1,0,0))return true;
+                save.health=Math.Min(save.maxHealth,save.health+35f);
+                save.energy=Math.Min(100f,save.energy+25f);
+                revision++;sound="reward";
+                Notify("救助站治疗：生命 +35，耐力 +25。",
+                    "Relief station care: +35 HP, +25 stamina.");
+                return true;
+            }
             if(accepted)
             {
                 if(source.kind!="annexinnarchive"||save.room!=9||act!=-1)return true;
