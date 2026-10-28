@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1021,6 +1021,42 @@ namespace Starfall
 
 
 
+
+            if(id=="whiteout_rescue")
+            {
+                q.title=L("霜钟高原 · 风雪中的家书","Frostchime · A Letter in the Whiteout");
+                q.category=L("真实旅人护送 · 暴风雪与追兵",
+                    "LIVE ESCORT · GUSTS AND HUNTERS");
+                q.room=7;q.locked=!Has("boss_7");
+                q.complete=WhiteoutComplete;
+                q.description=L(
+                    "从霜钟背风崖远眺台（65.5,40.5）领取家书搜寻委托，穿过山道找到（58.5,42.5）受困旅人。击退两名真实追兵，让她亲自跟着你走到旧营地（61.5,36.5）。不准远程传送人质。她会因寒风、落后及追兵失温；每次阵风前可靠近她挡风。原地可用一株月光草恢复35体温并防风12秒。最后选择免费居民暖站或永久+0.35的霜钟安全路速。",
+                    "Accept a lost-letter search at Frostchime's real lookout (65.5,40.5). Find the stranded traveler at (58.5,42.5), defeat two authentic hunters and guide her on foot to camp (61.5,36.5). Her warmth falls in wind, near hunters or when left behind; stay close when gusts arrive, or spend a Moonherb at the original site for +35 warmth and 12s cover. Return the camp to civilians as a safe healing refuge, or reopen an alpine map for permanent +0.35 Frostchime speed.");
+                q.steps.Add(new QuestStep(L("从远眺台找到雪崖下的旅人",
+                    "Find the lost traveler on the ridge"),WhiteoutStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("击退两名真实追兵并让旅人步行回营",
+                    "Defeat two real hunters and escort her physically to camp"),
+                    WhiteoutStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("在旧营地决定公开暖站还是民用雪路",
+                    "Decide public refuge or civilian trail map"),q.complete));
+                q.target=WhiteoutActive?WhiteoutTarget:new Point(65.5f,40.5f);
+                q.next=q.locked?L("先击败霜钟高原原有守护者",
+                        "Defeat the original Frostchime guardian"):
+                    q.complete?(WhiteoutPublic?
+                        L("暖站开放：营地安全区域持续恢复生命、耐力",
+                            "Refuge open: safe camp restores health and energy"):
+                        L("民用雪路开放：霜钟高原实际移动速度+0.35",
+                            "Civilian trail open: actual Frostchime speed +0.35")):
+                    WhiteoutActive?WhiteoutObjective+" · "+
+                        WhiteoutSeconds.ToString("0")+"s"+
+                        (WhiteoutStage==2?L(" · 体温 "," · WARMTH ")+
+                            WhiteoutWarmth.ToString("0")+"%":""):
+                    L("在霜钟背风崖真正的远眺台（65.5,40.5）接取寻人任务",
+                        "Accept the lost-letter rescue at the true Frostchime lookout (65.5,40.5)");
+                q.reward=L("首胜：70硬币、3碎片、105经验，永久公共暖站或安全雪路",
+                    "First rescue: 70 coins, 3 shards, 105 XP; permanent public refuge or safe trail");
+                return q;
+            }
 
             if(id=="soup_route")
             {

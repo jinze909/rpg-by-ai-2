@@ -9531,6 +9531,14 @@
           "y": 42.5
         },
         {
+          "id": "whiteout_lost",
+          "name": "失踪旅人 · 归家的家书",
+          "en": "Lost Traveler · Unsent Letter",
+          "kind": "whiteouttraveler",
+          "x": 58.5,
+          "y": 42.5
+        },
+        {
           "id": "annex_vista_7",
           "name": "霜钟背风崖观景台",
           "en": "Frostchime Cliffs · Charting overlook",

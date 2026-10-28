@@ -476,6 +476,60 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.WhiteoutActive&&!drawingOutline)
+            {
+                Point target=Game.WhiteoutTarget;
+                Color chill=Game.WhiteoutWarmth<30f?
+                    new Color(1f,.56f,.45f,1f):mint;
+                if(WorldDrawable(target.x,target.y,180f,180f))
+                {
+                    Ring(target,.68f,chill,25);
+                    Point s=ScreenPoint(target);
+                    Text(s.x-137,s.y-83,274,21,Game.WhiteoutObjective,
+                        12,chill,TextAnchor.MiddleCenter);
+                }
+                if(Game.WhiteoutFollowerVisible)
+                {
+                    Point p=Game.WhiteoutFollowerFoot;
+                    if(WorldDrawable(p.x,p.y,150f,165f)&&
+                        ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet))
+                    {
+                        Point foot=ScreenPoint(p);
+                        DrawActorContactShadow(foot,34,13,7,.78f);
+                        DrawRootedCivilianBody(foot,0f,
+                            Game.WhiteoutWarmth<30f?
+                            new Color(1f,.84f,.77f,1f):Color.white,
+                            Game.WhiteoutFollowerFacingLeft);
+                        if(Game.WhiteoutGustWarning>0f)
+                            Ring(p,1.8f,new Color(1f,.76f,.58f,.88f),28);
+                    }
+                }
+                Text(35,465,510,23,
+                    Game.L("风雪家书 · ","WHITEOUT LETTER · ")+
+                    Game.WhiteoutStage+"/3 · "+
+                    Game.L("剩余 ","LEFT ")+Game.WhiteoutSeconds.ToString("0")+"s",
+                    12,chill);
+                if(Game.WhiteoutStage==2)
+                {
+                    Text(35,488,550,22,
+                        Game.L("旅人体温 ","TRAVELER WARMTH ")+
+                        Game.WhiteoutWarmth.ToString("0")+"%"+
+                        Game.L(" · 相距 "," · GAP ")+
+                        Game.WhiteoutFollowerGap.ToString("0.0")+
+                        Game.L(" · 追兵 "," · HUNTERS ")+Game.WhiteoutHuntersAlive,
+                        12,chill);
+                    Bar(35,516,270,Game.WhiteoutWarmth/100f,chill,5);
+                    if(Game.WhiteoutGustWarning>0f)
+                        Text(35,527,540,19,Game.L("阵风将至！靠近旅人挡风！",
+                            "GUST IMMINENT! STAY CLOSE TO SHIELD!"),
+                            12,new Color(1f,.68f,.42f,1f));
+                    if(Game.WhiteoutShieldSeconds>0f)
+                        Text(35,551,540,18,
+                            Game.L("药草防风 ","HERB SHIELD ")+
+                            Game.WhiteoutShieldSeconds.ToString("0.0")+"s",
+                            11,mint);
+                }
+            }
             if(Game.mode=="world"&&Game.GlassLoomActive&&!drawingOutline)
             {
                 Point target=Game.GlassLoomTarget;
@@ -1138,6 +1192,30 @@ namespace Starfall
         }
         private bool DrawExpansionObject(WorldObject o)
         {
+            if(o.kind=="whiteouttraveler")
+            {
+                Point p=ScreenPoint(new Point(o.x,o.y));
+                bool picked=Game.WhiteoutStage>=2||Game.WhiteoutComplete;
+                if(!picked)
+                {
+                    if(ActorAtlasGeometry.IsAcceptedNpcAtlas(npcSheet))
+                    {
+                        DrawActorContactShadow(p,34,13,7,.78f);
+                        DrawRootedCivilianBody(p,0f,new Color(.89f,.96f,1f,1f),false);
+                    }
+                    else PropImage("post",0,p.x-27,p.y-76,54,68);
+                    if(Game.WhiteoutStage==1)Ring(new Point(o.x,o.y),.6f,gold,22);
+                }
+                else
+                {
+                    PropImage("post",0,p.x-24,p.y-59,48,57,
+                        new Color(.64f,.75f,.8f,.8f));
+                    if(Game.WhiteoutComplete)
+                        Text(p.x-68,p.y-72,136,18,Game.L("已获救","RESCUED"),
+                            11,mint,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
             string kind = o.kind; Point p = ScreenPoint(new Point(o.x, o.y));
             // Overlay proof state onto the EXISTING source artwork without
             // replacing any sprites, pivots or the world base renderer.
