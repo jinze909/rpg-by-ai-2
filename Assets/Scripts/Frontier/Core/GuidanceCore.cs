@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,41 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="last_lantern")
+            {
+                q.title=L("最后的灯讯 · 被抹去的求救","The Last Lantern · Erased Distress Call");
+                q.category=L("堡垒终章 · 实地传讯与双人拦截","CITADEL CHAPTER · SIGNAL & LIVE INTERCEPT");
+                q.locked=!Has("boss_4");
+                q.complete=LastLanternComplete;
+                q.room=4;
+                q.description=L(
+                    "堡垒外墙的一封求救信曾被当成军情涂去。击败旧守护者后，在外墙的真实旧补给点（60.5,19.5）取信，走到东侧旧求援灯（89.5,32.5）迎战两名独立拦截者，再亲手到守望岗（90.5,40.5）选择公开报警还是保留隐蔽撤离路。全程170秒，失败可重试。不同结局将永久改变户外投石冷却或绊索零件消耗。",
+                    "An outer-wall distress call was suppressed as a military breach. After defeating the original Citadel guardian, collect it from the real cache (60.5,19.5), fight two independent interceptors at the old relay (89.5,32.5), then bring the signal to the watchkeeper (90.5,40.5). This is a 170-second physical run; retries are free. Your permanent choice changes outdoor pebble cooldown or snare part costs.");
+                q.steps.Add(new QuestStep(L("在真实旧补给点领取民用警报",
+                    "Collect the civilian warning at the old cache"),LastLanternActive||q.complete));
+                q.steps.Add(new QuestStep(L("到旧求援灯真实击退两名拦截者",
+                    "Defeat two live interceptors at the old relay"),lastLanternStage==3||q.complete));
+                q.steps.Add(new QuestStep(L("到南侧守望岗决定救援方式",
+                    "Choose the rescue policy at the southern watchpost"),q.complete));
+                q.target=LastLanternActive?LastLanternObjective:
+                    LastLanternComplete?ObjectPoint(4,"outerwatch",new Point(90.5f,40.5f)):
+                    new Point(60.5f,19.5f);
+                q.next=q.locked?L("先完成星陨堡垒原主线的守护者战斗",
+                    "Defeat the original Citadel guardian first"):
+                    q.complete?LastLanternPublic?
+                        L("公开灯讯已生效：户外投石冷却3.5秒",
+                          "Signal published: outdoor pebble cooldown 3.5s"):
+                        L("隐蔽路线已生效：户外布置绊索不消耗零件",
+                          "Hidden trails: outdoor snares cost no spare parts"):
+                    LastLanternActive?LastLanternObjectiveText+" · "+
+                        LastLanternSeconds.ToString("0")+"s":
+                    L("前往堡垒外墙旧补给点（60.5,19.5），取出被删的求救信",
+                      "Collect the erased letter from the Citadel outer cache (60.5,19.5)");
+                q.reward=L("首通硬币55、碎片2、经验95；永久公共投石或隐蔽绊索战术",
+                    "First clear: 55 coins, 2 shards, 95 XP and a permanent stealth/fieldcraft policy");
+                return q;
+            }
 
             if(id=="field_snare")
             {

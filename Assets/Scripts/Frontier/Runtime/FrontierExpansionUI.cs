@@ -476,6 +476,32 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Live three-site Last Lantern signal. The map marker follows
+            // authentic objective position, not a fabricated static waypoint.
+            if(Game.mode=="world"&&Game.LastLanternActive&&!drawingOutline)
+            {
+                Point target=Game.LastLanternObjective;
+                Color signal=Game.LastLanternSeconds<25f?
+                    new Color(1f,.53f,.4f,1f):gold;
+                if(WorldDrawable(target.x,target.y,175f,175f))
+                {
+                    Ring(target,.70f,signal,30);
+                    Point marker=ScreenPoint(target);
+                    Text(marker.x-117f,marker.y-76f,234f,21f,
+                        Game.LastLanternObjectiveText,11,signal,
+                        TextAnchor.MiddleCenter);
+                }
+                Point delta=target-Game.Position;
+                Text(35,114,500,24,
+                    Game.L("最后的灯讯 · ","THE LAST LANTERN · ")+
+                    Game.LastLanternStage+"/3 · "+
+                    Game.LastLanternSeconds.ToString("0")+"s",14,signal);
+                Text(35,138,500,23,
+                    Game.LastLanternObjectiveText+" · "+
+                    Game.L("直线距离 ","BEARING ONLY ")+
+                    delta.Length.ToString("0")+
+                    Game.L(" 格"," tiles"),12,signal);
+            }
             // Real, paid field traps occupy the same terrain coordinates
             // that the original enemy AI uses for ground contacts.
             // Markers are screen projections, not a duplicated hero/actor.

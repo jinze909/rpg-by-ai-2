@@ -367,7 +367,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -565,6 +565,12 @@ namespace Starfall
             {
                 Notify("高原火种尚在运送。必须送往公共暖站，或回西部站主动归还。",
                     "A highland ember is in transit. Deliver it or return it to the western signal.");
+                return true;
+            }
+            if(LastLanternActive)
+            {
+                Notify("最后的灯讯仍在传递。完成三处实地交接，或回堡垒旧补给点主动撤销。",
+                    "The Last Lantern is in transit. Finish the three physical contacts or withdraw at its old cache.");
                 return true;
             }
             if(MineConvoyActive)
@@ -983,6 +989,7 @@ namespace Starfall
             TickFarCourier(dt);
             TickCivicResponse(dt);
             TickMineConvoy(dt);
+            TickLastLantern(dt);
             TickFrostSignal(dt);
             TickFloodRelief(dt);
             TickLastDirective(dt);
@@ -1105,7 +1112,7 @@ namespace Starfall
             // Reject a stone spawned inside rock without spending energy.
             if(ShotBlocked(pebble,pebble.position))return;
             save.energy-=PebbleEnergyCost;
-            pebbleCooldown=PebbleRecoverySeconds;
+            pebbleCooldown=LastLanternPebbleCooldown;
             // A release is a genuine audible action at the hero's own
             // foot, but only the later, physical LANDING lures guards.
             QuietStepping=false;
@@ -1498,6 +1505,7 @@ namespace Starfall
             OnTemperEnemyDefeated(e);
             OnFrostSignalEnemyDefeated(e);
             OnMineConvoyEnemyDefeated(e);
+            OnLastLanternEnemyDefeated(e);
             OnGlasswindEnemyDefeated(e);
             OnTriadSecurityEnemyDefeated(e);
             OnTideSalvageEnemyDefeated(e);
@@ -1533,7 +1541,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -3949,6 +3957,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkLastLantern(o)) return;
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
             if (TryTalkWaytrail(o)) return;
@@ -4441,7 +4450,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || LastLanternActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4682,6 +4691,7 @@ namespace Starfall
             if (ChooseSpecialistDrill(action)) return;
             if (ChooseFrostSignal(action)) return;
             if (ChooseMineConvoy(action)) return;
+            if (ChooseLastLantern(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
             if (ChoosePolish(action)) return;

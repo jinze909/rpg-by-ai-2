@@ -93,7 +93,8 @@ namespace Starfall
                 return mode=="world"&&!Dying&&!practicing&&!racing&&
                     !ActionTransitionBlocked&&CanStand(Position)&&
                     fieldSnares.Count<FieldSnareLimit&&
-                    save.inventory[0]>=1&&save.inventory[4]>=1;
+                    save.inventory[0]>=1&&
+                    save.inventory[4]>=LastLanternSnareGearCost;
             }
         }
         private void ResetFieldSnares()
@@ -144,7 +145,7 @@ namespace Starfall
                     (foe.Position-foot).Length<.65f)return false;
             if(save.companion>=0&&
                 (companionPosition-foot).Length<.65f)return false;
-            if(!Spend(1,0,0,0,1))return false;
+            if(!Spend(1,0,0,0,LastLanternSnareGearCost))return false;
             var snare=new FieldSnare(foot);
             if(Has("field_snare_mastered"))snare.arming=.25f;
             fieldSnares.Add(snare);

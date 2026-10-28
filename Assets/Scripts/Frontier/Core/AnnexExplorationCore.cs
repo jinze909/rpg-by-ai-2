@@ -481,10 +481,16 @@ namespace Starfall
                 int reliefRegion=save.room==0?0:save.room==3?1:save.room==5?2:-1;
                 Dialog(o.name,o.en,noteZh+(first?"\n\n遗失补给：硬币 +7、材料 +2。":"\n\n物资已被取走，记录仍在。")+
                     (evidence?"\n\n这处旧补给点保留着《未列名者》的原始记录。请亲手核验。":"")+
-                    UnlistedReliefCacheNote(false,reliefRegion,relief),
+                    UnlistedReliefCacheNote(false,reliefRegion,relief)+
+                    (save.room==4&&Has("boss_4")&&!LastLanternComplete?
+                     "\n\n外墙旧补给箱底夹着一封未发的民用求救信。去东侧旧灯，再到南侧守望岗，找到传递这封信的理由。":
+                     ""),
                     noteEn+(first?"\n\nRecovered supplies: +7 coins, +2 materials.":"\n\nSupplies already recovered.")+
                     (evidence?"\n\nThis original cache holds a missing registry clue. Verify it here.":"")+
-                    UnlistedReliefCacheNote(true,reliefRegion,relief),
+                    UnlistedReliefCacheNote(true,reliefRegion,relief)+
+                    (save.room==4&&Has("boss_4")&&!LastLanternComplete?
+                     "\n\n外墙旧补给箱底夹着一封未发的民用求救信。真实的传递路线要先经过东侧旧求援灯，再到南侧守望岗。":
+                     ""),
                     evidence?C("核验未列名者原始证据","Verify Unlisted evidence",
                         part==0?"unlisted_clue_a":"unlisted_clue_b"):
                         relief=="unlisted_relief_prepare"?
@@ -507,7 +513,15 @@ namespace Starfall
                           "Repair local ridge · 2 timber, 1 gear",
                           "unlisted_steward_trail"):
                         C("继续整理","Keep cataloguing","close"),
-                    C("继续探索","Keep exploring","close"));
+                    // A new chapter branches from the real outer Citadel
+                    // cache, without replacing the existing cache contents.
+                    save.room==4&&Has("boss_4")&&!LastLanternComplete?
+                        C(LastLanternActive?
+                          "最后的灯讯 · 中止传送":"最后的灯讯 · 接受民用警报",
+                          LastLanternActive?
+                          "Last Lantern · withdraw":"Last Lantern · carry distress call",
+                          LastLanternActive?"lastlantern_abort":"lastlantern_begin"):
+                        C("继续探索","Keep exploring","close"));
                 return true;
             }
             if(kind=="annexvista")
