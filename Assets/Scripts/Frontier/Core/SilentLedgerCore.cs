@@ -15,6 +15,8 @@ namespace Starfall
         private Point[] silentLedgerFacing=new Point[2];
         private float[] silentLedgerFootDistance=new float[2];
         private float[] silentLedgerFootStride=new float[2];
+        private float[] silentLedgerScanClock=new float[2];
+        private int[] silentLedgerScanTurns=new int[2];
         private bool[] silentLedgerOutbound=new bool[2];
         private Point[] silentLedgerSearchTarget=new Point[2];
         private float[] silentLedgerSearchSeconds=new float[2];
@@ -46,6 +48,13 @@ namespace Starfall
         public float SilentLedgerSentrySearchSeconds(int index)
         {return SilentLedgerActive&&index>=0&&index<2?
             silentLedgerSearchSeconds[index]:0f;}
+        public int SilentLedgerSentryScanTurns(int index)
+        {return SilentLedgerActive&&index>=0&&index<2?
+            silentLedgerScanTurns[index]:0;}
+        public bool SilentLedgerSentrySweeping(int index)
+        {return SilentLedgerActive&&index>=0&&index<2&&
+            silentLedgerDiversion<=0f&&silentLedgerSearchSeconds[index]>0f&&
+            (silentLedgerSentries[index]-silentLedgerSearchTarget[index]).Length<.42f;}
         public Point SilentLedgerSentrySearchTarget(int index)
         {return SilentLedgerActive&&index>=0&&index<2?
             silentLedgerSearchTarget[index]:new Point();}
@@ -88,6 +97,8 @@ namespace Starfall
             silentLedgerFacing[1]=new Point(0,1);
             silentLedgerFootDistance[0]=silentLedgerFootDistance[1]=0f;
             silentLedgerFootStride[0]=silentLedgerFootStride[1]=0f;
+            silentLedgerScanClock[0]=silentLedgerScanClock[1]=0f;
+            silentLedgerScanTurns[0]=silentLedgerScanTurns[1]=0;
             silentLedgerOutbound[0]=silentLedgerOutbound[1]=true;
             silentLedgerSearchSeconds[0]=silentLedgerSearchSeconds[1]=0f;
             silentLedgerSoundSearch[0]=silentLedgerSoundSearch[1]=false;
@@ -331,7 +342,22 @@ namespace Starfall
                 // A sentry waits at the genuinely reached last-seen foot.
                 // It cannot continue chasing a target through a sealed wall.
                 if(silentLedgerDiversion<=0f&&silentLedgerSearchSeconds[index]>0f)
+                {
+                    // When the guard actually reaches the last heard/seen
+                    // foot, search the surrounding arcs instead of staring
+                    // forever at a single bearing. The REAL sightline and
+                    // wall collision test still decide whether it sees you.
+                    silentLedgerScanClock[index]+=dt;
+                    if(silentLedgerScanClock[index]>=.55f)
+                    {
+                        silentLedgerScanClock[index]-=.55f;
+                        Point face=silentLedgerFacing[index];
+                        silentLedgerFacing[index]=new Point(-face.y,face.x);
+                        silentLedgerScanTurns[index]++;
+                    }
                     return;
+                }
+                silentLedgerScanClock[index]=0f;
                 silentLedgerOutbound[index]=!silentLedgerOutbound[index];
                 return;
             }
@@ -343,6 +369,7 @@ namespace Starfall
             {
                 silentLedgerSentries[index]=candidate;
                 silentLedgerFacing[index]=direction;
+                silentLedgerScanClock[index]=0f;
                 // Only real, collision-cleared physical translations advance
                 // guard Sprite gait. Standing at a sound target is not walking.
                 silentLedgerFootStride[index]=(candidate-current).Length;

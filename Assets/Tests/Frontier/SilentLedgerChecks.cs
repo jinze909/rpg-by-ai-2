@@ -186,6 +186,47 @@ namespace Starfall.Tests
                 "Distant sword attack cannot summon sentries or trigger a map-wide stealth alarm");
         }
 
+        public static void SilentLedgerSentriesSweepActualLastHeardGroundBeforeResumingPatrol(Campaign data)
+        {
+            var g=SilentLedgerStart(data);
+            WorldObject shutter=SilentLedgerPost(g,"silentledger_shutter");
+            SilentLedgerMoveTo(g,shutter);g.Talk(shutter);
+            Check(SilentLedgerChoice(g,"silentledger_shutter")&&
+                g.SilentLedgerSentrySearchSeconds(0)>4.5f,
+                "Authentic copper latch sends the original western sentry to investigate");
+            Point lastSound=new Point(shutter.x,shutter.y);
+            Point safe=new Point(44.5f,50.5f);
+            Check(g.CanStand(safe),"Evading an audible patrol uses real Citadel ground");
+            g.save.x=safe.x;g.save.y=safe.y;
+            bool reached=false;
+            for(int i=0;i<82;i++)
+            {
+                g.Tick(.05f,new Point());
+                if(g.SilentLedgerSentrySweeping(0))reached=true;
+            }
+            Check(reached&&g.SilentLedgerSentryScanTurns(0)>0&&
+                (g.SilentLedgerSentryPosition(0)-lastSound).Length<.42f,
+                "Sentry REALLY reaches the original copper latch and searches surrounding sight arcs");
+            float walked=g.SilentLedgerSentryFootDistance(0);
+            Point planted=g.SilentLedgerSentryPosition(0);
+            Point looking=g.SilentLedgerSentryFacing(0);
+            Check(g.SilentLedgerSentrySearchSeconds(0)>0f,
+                "The four-second real investigation has time for meaningful on-site scanning");
+            for(int k=0;k<8;k++)g.Tick(.05f,new Point());
+            Check((g.SilentLedgerSentryPosition(0)-planted).Length<.01f&&
+                Math.Abs(g.SilentLedgerSentryFootDistance(0)-walked)<.001f&&
+                (g.SilentLedgerSentryFacing(0)-looking).Length>.5f,
+                "Stationary scanner changes real vision direction WITHOUT faking walking or footfall animation");
+            for(int i=0;i<35;i++)g.Tick(.05f,new Point());
+            Check(g.SilentLedgerSentrySearchSeconds(0)==0f&&
+                !g.SilentLedgerSentrySweeping(0),
+                "Timed search ends and resumes the original active patrol rather than looping forever");
+            g.PrepareSave();
+            var copy=new GameCore(data,CloneSave(g.save));
+            Check(!copy.SilentLedgerActive&&copy.SilentLedgerSentryScanTurns(0)==0&&
+                copy.save.version==2,"Transient search sectors never alter original v2 save records");
+        }
+
         public static void SilentLedgerPhysicalShutterTradesAudibleRiskForRealTemporaryCover(Campaign data)
         {
             var baseline=SilentLedgerStart(data);

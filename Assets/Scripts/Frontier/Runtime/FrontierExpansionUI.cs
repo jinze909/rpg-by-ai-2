@@ -543,8 +543,10 @@ namespace Starfall
                         Point last=Game.SilentLedgerSentrySearchTarget(guard);
                         if(WorldDrawable(last.x,last.y,140f,140f))
                             Ring(last,.48f,cue,20);
-                        Text(screen.x-51,screen.y-91,102,17,
-                            heard?Game.L("循声搜查","NOISE SEARCH"):
+                        Text(screen.x-62,screen.y-91,124,17,
+                            Game.SilentLedgerSentrySweeping(guard)?
+                                Game.L("扇区搜索","SWEEPING"):
+                                heard?Game.L("循声搜查","NOISE SEARCH"):
                                 Game.L("追踪目击","LAST SEEN"),10,cue,
                             TextAnchor.MiddleCenter);
                     }
