@@ -515,11 +515,14 @@ namespace Starfall
                     Ring(ahead,.53f,stealth,18);
                     if(Game.SilentLedgerSentrySearchSeconds(guard)>0f)
                     {
+                        bool heard=Game.SilentLedgerSentrySearchingSound(guard);
+                        Color cue=heard?new Color(1f,.74f,.42f,1f):gold;
                         Point last=Game.SilentLedgerSentrySearchTarget(guard);
                         if(WorldDrawable(last.x,last.y,140f,140f))
-                            Ring(last,.48f,gold,20);
+                            Ring(last,.48f,cue,20);
                         Text(screen.x-51,screen.y-91,102,17,
-                            Game.L("搜索脚步","SEARCHING"),10,gold,
+                            heard?Game.L("循声搜查","NOISE SEARCH"):
+                                Game.L("追踪目击","LAST SEEN"),10,cue,
                             TextAnchor.MiddleCenter);
                     }
                 }

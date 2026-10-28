@@ -99,8 +99,9 @@ namespace Starfall.Tests
             g.save.x=visible.x;g.save.y=visible.y;
             for(int i=0;i<10;i++)g.Tick(.05f,new Point());
             Check(g.SilentLedgerSuspicion>0f&&
-                g.SilentLedgerSentrySearchSeconds(0)>0f,
-                "Real moving sentry's forward physical sight raises suspicion and starts an actual search");
+                g.SilentLedgerSentrySearchSeconds(0)>0f&&
+                !g.SilentLedgerSentrySearchingSound(0),
+                "A real forward sighting is tracked as visual pursuit, never mislabeled as noise");
             float seen=g.SilentLedgerSuspicion;
             // The target is now outside sight and audible range, so the
             // same suspicion must dissipate rather than accumulating forever.
@@ -150,6 +151,7 @@ namespace Starfall.Tests
             nearby.Tick(.05f,new Point());
             Check(nearby.SilentLedgerSuspicion>0f&&
                 nearby.SilentLedgerSentrySearchSeconds(0)>3.5f&&
+                nearby.SilentLedgerSentrySearchingSound(0)&&
                 (nearby.SilentLedgerSentrySearchTarget(0)-hero).Length<.01f,
                 "Real close weapon swing raises suspicion and sends a guard to its actual sound source");
 

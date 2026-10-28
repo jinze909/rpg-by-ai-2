@@ -15,6 +15,7 @@ namespace Starfall
         private bool[] silentLedgerOutbound=new bool[2];
         private Point[] silentLedgerSearchTarget=new Point[2];
         private float[] silentLedgerSearchSeconds=new float[2];
+        private bool[] silentLedgerSoundSearch=new bool[2];
         private static readonly Point[] silentLedgerA={
             new Point(57.5f,39.5f),new Point(64.5f,39.5f)};
         private static readonly Point[] silentLedgerB={
@@ -39,6 +40,9 @@ namespace Starfall
         public Point SilentLedgerSentrySearchTarget(int index)
         {return SilentLedgerActive&&index>=0&&index<2?
             silentLedgerSearchTarget[index]:new Point();}
+        public bool SilentLedgerSentrySearchingSound(int index)
+        {return SilentLedgerActive&&index>=0&&index<2&&
+            silentLedgerSearchSeconds[index]>0f&&silentLedgerSoundSearch[index];}
         public Point SilentLedgerTarget
         {get{return silentLedgerStage==1?new Point(60.5f,36.5f):
             silentLedgerStage==2?new Point(63.5f,43.5f):
@@ -60,6 +64,7 @@ namespace Starfall
             silentLedgerFacing[1]=new Point(0,1);
             silentLedgerOutbound[0]=silentLedgerOutbound[1]=true;
             silentLedgerSearchSeconds[0]=silentLedgerSearchSeconds[1]=0f;
+            silentLedgerSoundSearch[0]=silentLedgerSoundSearch[1]=false;
             silentLedgerSearchTarget[0]=silentLedgerA[0];
             silentLedgerSearchTarget[1]=silentLedgerB[0];
             silentLedgerLastHero=new Point();
@@ -327,6 +332,7 @@ namespace Starfall
                     {
                         silentLedgerSearchTarget[i]=Position;
                         silentLedgerSearchSeconds[i]=3.1f;
+                        silentLedgerSoundSearch[i]=false;
                     }
                 }
             }
@@ -350,6 +356,7 @@ namespace Starfall
                             silentLedgerSearchTarget[i]=Position;
                             silentLedgerSearchSeconds[i]=Math.Max(
                                 silentLedgerSearchSeconds[i],4.2f);
+                            silentLedgerSoundSearch[i]=true;
                         }
                     }
             if(seen)
@@ -368,6 +375,7 @@ namespace Starfall
                                 silentLedgerSearchTarget[i]=Position;
                                 silentLedgerSearchSeconds[i]=Math.Max(
                                     silentLedgerSearchSeconds[i],4.2f);
+                                silentLedgerSoundSearch[i]=true;
                             }
                         }
                 if(heardStep)silentLedgerSuspicion+=dt*19f;
