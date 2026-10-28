@@ -96,7 +96,7 @@ namespace Starfall
             if(o.id=="mistlight_mirror")
             {
                 Dialog(o.name,o.en,mistlightStage==2?
-                    "破裂的镜框只能在风停的一瞬间转动。望见浪尖变白时，先等阵风过去。",
+                    "破裂的镜框只能在风停的一瞬间转动。望见浪尖变白时，先等阵风过去。":
                     "海镜朝着栈桥，反光在潮雾里划出了一条路。",
                     mistlightStage==2?
                     "The fractured frame can turn only between gusts. When the wave tips turn white, wait for the wind to pass.":
