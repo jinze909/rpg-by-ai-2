@@ -377,6 +377,21 @@ namespace Starfall
             patrolsThatSawHero.Remove(e);
             ordinarySights.Remove(e);
         }
+        // Short last-sight searches must obey the same live actor-size
+        // walking collision as actual pursuit. A direct attack sight ray is
+        // not sufficient (thin corners can block the whole body), while a
+        // physical detour can reach a hidden corner. Reject long walks and
+        // sealed islands instead of following stale or compass-frontier feet.
+        private bool OrdinaryPatrolSweepFootReachable(Point from,Point goal)
+        {
+            if(!CanStand(from)||!CanStand(goal)||
+               (goal-from).Length>6f)return false;
+            if(ArcherWalkCorridorClear(from,goal))return true;
+            List<Point> route=NavigationPathFrom(from,goal,true);
+            return route.Count>0&&route.Count<=8&&
+                ReliefActorLineWalkable(route[route.Count-1],goal);
+        }
+
         // Only the known, finite last-seen position can guide a lost
         // sentry. It searches for at most five seconds; a new true sight
         // refreshes this, but a wall, reload or a reused ID cannot.
@@ -409,8 +424,16 @@ namespace Starfall
             }
             else if((e.Position-sight.searchFoot).Length>.36f)
             {
-                foot=sight.searchFoot;
-                return true;
+                // A gate or tide may close AFTER a genuine search foot
+                // was chosen. Replan a fresh quadrant rather than spend
+                // the remaining five seconds walking into the new wall.
+                if(OrdinaryPatrolSweepFootReachable(
+                    e.Position,sight.searchFoot))
+                {
+                    foot=sight.searchFoot;
+                    return true;
+                }
+                sight.searchStep++;
             }
             else sight.searchStep++;
             for(;sight.searchStep<4;sight.searchStep++)
@@ -424,10 +447,8 @@ namespace Starfall
                     default:offset=new Point(-1.15f,-.9f);break;
                 }
                 Point target=sight.lastSeen+offset;
-                if(!CanStand(target)||
-                   !ClearAttackPath(sight.lastSeen,target)||
-                   !ClearAttackPath(e.Position,target))
-                    continue;
+                if(!OrdinaryPatrolSweepFootReachable(
+                    e.Position,target))continue;
                 sight.searchFoot=target;
                 foot=target;
                 return true;
