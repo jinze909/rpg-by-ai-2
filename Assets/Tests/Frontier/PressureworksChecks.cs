@@ -121,7 +121,9 @@ namespace Starfall.Tests
                 g.save.shards==shards+3,
                 "Physical engine awards exactly one permanent worker-owned civic ending");
             g.save.energy=30f;
-            g.Tick(1f,new Point());
+            // One Tick(1s) is intentionally capped at 50ms by the live
+            // simulation. Advance 20 genuine frames to measure one second.
+            for(int i=0;i<20;i++)g.Tick(.05f,new Point());
             Check(g.save.energy>44f&&g.save.energy<=100f,
                 "Worker-owned pressureworks permanently improves actual local stamina recovery");
             g.PrepareSave();
