@@ -340,6 +340,78 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+        public static void ShoutedTravelerRaiderActuallySweepsPhysicalSoundFeet(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] tiles=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=12.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new[]{new WorldObject{kind="wayfarer1",
+                        id="wayfarer1",name="旅人",en="Traveler",
+                        x=10.5f,y=10.5f}},decor=new Decoration[0]};
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.Enter(1);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=10.5f;
+                Action(g,"wayfarer1","wayfarer_defend_1");
+                var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(g.WayfarerEncounterRoom==1&&raiders.Count==2,
+                    "Authentic active civilian defense owns two real raider bodies");
+                Enemy searching=raiders[0];
+                searching.x=15.5f;searching.y=10.5f;
+                searching.stun=0f;searching.timer=100f;
+                raiders[1].x=25.5f;raiders[1].y=25.5f;
+                raiders[1].stun=100f;raiders[1].timer=100f;
+                Check(g.QuickDrawWayfarerFire()&&
+                    g.IsWayfarerDecoyTarget(searching),
+                    "A real paid shout diverts the one genuinely hearing raider");
+                Point heard=g.Position;
+                g.save.x=25.5f;g.save.y=20.5f;
+                Check(!g.WayfarerDecoyCanSeeHero(searching)&&
+                    !g.WayfarerDecoySearching(searching),
+                    "Remote hidden hero is not revealed and sweep waits for real arrival");
+                bool enteredSearch=false;
+                for(int i=0;i<75&&g.WayfarerDecoyTime>0f;i++)
+                {
+                    g.Tick(.05f,new Point());
+                    if(g.WayfarerDecoySearching(searching))
+                    {enteredSearch=true;break;}
+                }
+                Check(enteredSearch&&g.CanStand(searching.Position)&&
+                    (searching.Position-heard).Length<2f,
+                    "Actual unstunned raider walks to original sound then enters local investigation");
+                var seek=typeof(GameCore).GetMethod("WayfarerDecoyPursuitFoot",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(seek!=null,"Production game owns the real pursuit decision");
+                Point goal=(Point)seek.Invoke(g,new object[]{searching});
+                Check((goal-heard).Length>.8f&&
+                    (goal-heard).Length<2.3f&&g.CanStand(goal)&&
+                    !g.WayfarerDecoyCanSeeHero(searching),
+                    "Real sweep chooses nearby physical foot, never hidden hero");
+                Point prior=searching.Position;
+                for(int i=0;i<6;i++)g.Tick(.05f,new Point());
+                Check((searching.Position-prior).Length>.05f&&
+                    g.CanStand(searching.Position)&&g.save.version==2,
+                    "Actual raider moves through gameplay world without teleport/save migration");
+                for(int i=0;i<110;i++)g.Tick(.05f,new Point());
+                Check(g.WayfarerDecoyTime==0f&&
+                    !g.WayfarerDecoySearching(searching)&&
+                    !g.IsWayfarerDecoyTarget(searching),
+                    "Finite five-second shout ends search without lasting false aggro");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,

@@ -23,6 +23,12 @@ namespace Starfall
             new HashSet<Enemy>();
         private readonly Dictionary<Enemy,Point> wayfarerDecoyLastSeen=
             new Dictionary<Enemy,Point>();
+        // Each original living raider performs a finite physical search
+        // after reaching the exact heard foot. Never serialize these actors.
+        private readonly Dictionary<Enemy,int> wayfarerDecoySweepSteps=
+            new Dictionary<Enemy,int>();
+        private readonly Dictionary<Enemy,Point> wayfarerDecoySweepGoals=
+            new Dictionary<Enemy,Point>();
         private bool wayfarerDecoyUsed;
         private float wayfarerDecoyTime;
         public float WayfarerDecoyTime
@@ -63,6 +69,50 @@ namespace Starfall
             return wayfarerDecoyLastSeen.TryGetValue(enemy,out heard)&&
                 !SoundSweepFootReachable(enemy.Position,heard);
         }
+        public bool WayfarerDecoySearching(Enemy enemy)
+        {
+            int step;
+            return IsWayfarerDecoyTarget(enemy)&&
+                !WayfarerDecoyCanSeeHero(enemy)&&
+                !WayfarerDecoyRouteSealed(enemy)&&
+                wayfarerDecoySweepSteps.TryGetValue(enemy,out step)&&
+                step>=0&&step<4;
+        }
+        private Point WayfarerSoundSweepGoal(Enemy enemy,Point heard)
+        {
+            int step;
+            if(!wayfarerDecoySweepSteps.TryGetValue(enemy,out step))
+            {
+                // Real enemy pursuit deliberately stops 1.05 units short.
+                // Start searching only after arriving within that footprint.
+                if((enemy.Position-heard).Length>1.12f)return heard;
+                step=0;
+            }
+            else
+            {
+                Point old;
+                if(wayfarerDecoySweepGoals.TryGetValue(enemy,out old)&&
+                    (enemy.Position-old).Length<=1.12f)step++;
+            }
+            // Four original nearby investigation feet, never a fabricated
+            // hidden-player position. Check current terrain on every frame.
+            for(;step<4;step++)
+            {
+                Point offset=step==0?new Point(-1.45f,.95f):
+                    step==1?new Point(-1.45f,-.95f):
+                    step==2?new Point(1.45f,.95f):
+                    new Point(1.45f,-.95f);
+                Point goal=heard+offset;
+                if(!CanStand(goal)||
+                    !SoundSweepFootReachable(enemy.Position,goal))continue;
+                wayfarerDecoySweepSteps[enemy]=step;
+                wayfarerDecoySweepGoals[enemy]=goal;
+                return goal;
+            }
+            wayfarerDecoySweepSteps[enemy]=4;
+            wayfarerDecoySweepGoals.Remove(enemy);
+            return enemy.Position;
+        }
         // A successful player shout teaches the raider where the actual
         // sound came from. Subsequent pursuit can update ONLY on real
         // clear sight; going behind a pillar preserves that last-known foot,
@@ -77,14 +127,15 @@ namespace Starfall
             {
                 last=Position;
                 wayfarerDecoyLastSeen[enemy]=last;
+                wayfarerDecoySweepSteps.Remove(enemy);
+                wayfarerDecoySweepGoals.Remove(enemy);
+                return last;
             }
-            // A raised flood gate can bury or isolate the ORIGINAL heard
-            // foot *after* the shout. Preserve the private memory, but hold
-            // the raider safely at its real foot until a connected route
-            // reopens. Do not fall back to the hero's new, hidden position
-            // or let a partial compass route fabricate pursuit.
-            return SoundSweepFootReachable(enemy.Position,last)?
-                last:enemy.Position;
+            // Never sweep through a newly sealed source; retain the same
+            // remembered foot and resume only after real ground reopens.
+            if(!SoundSweepFootReachable(enemy.Position,last))
+                return enemy.Position;
+            return WayfarerSoundSweepGoal(enemy,last);
         }
         // A shout can bend around a *short, traversable* corner, but a sealed
         // room or a lengthy maze must not turn into supernatural hearing.
@@ -179,6 +230,8 @@ namespace Starfall
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
             wayfarerDecoyLastSeen.Clear();
+                wayfarerDecoySweepSteps.Clear();
+                wayfarerDecoySweepGoals.Clear();
             wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
@@ -437,6 +490,8 @@ namespace Starfall
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
             wayfarerDecoyLastSeen.Clear();
+                wayfarerDecoySweepSteps.Clear();
+                wayfarerDecoySweepGoals.Clear();
             wayfarerRaiders[0]=wayfarerRaiders[1]=null;
             wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
@@ -556,6 +611,8 @@ namespace Starfall
             {
                 wayfarerDecoyTargets.Clear();
                 wayfarerDecoyLastSeen.Clear();
+                wayfarerDecoySweepSteps.Clear();
+                wayfarerDecoySweepGoals.Clear();
             }
             bool anyStillAlive=false;
             // Validate BOTH authored identities before waiting for either.
