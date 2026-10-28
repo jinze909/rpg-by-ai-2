@@ -476,6 +476,28 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Real, paid field traps occupy the same terrain coordinates
+            // that the original enemy AI uses for ground contacts.
+            // Markers are screen projections, not a duplicated hero/actor.
+            if(Game.mode=="world"&&!drawingOutline)
+                foreach(FieldSnare snare in Game.FieldSnares)
+                {
+                    Point foot=snare.foot;
+                    if(!WorldDrawable(foot.x,foot.y,100f,100f))continue;
+                    Color tint=snare.arming>0f?gold:mint;
+                    Ring(foot,.50f,tint,18);
+                    Point p=ScreenPoint(foot);
+                    Box(p.x-12,p.y-2,24,3,tint);
+                    Box(p.x-11,p.y-7,3,12,tint);
+                    Box(p.x+8,p.y-7,3,12,tint);
+                    if((foot-Game.Position).Length<4.5f)
+                        Text(p.x-70,p.y-48,140,18,
+                            snare.arming>0f?
+                            Game.L("安装中","ARMING"):
+                            Game.L("绊索 · "+Math.Ceiling(snare.seconds)+"秒",
+                                   "SNARE · "+Math.Ceiling(snare.seconds)+"s"),
+                            10,tint,TextAnchor.MiddleCenter);
+                }
             if(Game.mode=="world"&&Game.AfterglowActive&&!drawingOutline)
             {
                 Point fire=Game.AfterglowCampFoot;

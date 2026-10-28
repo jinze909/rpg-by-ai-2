@@ -367,7 +367,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill();
+            ResetMineConvoy(); ResetFrostSignal(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -971,7 +971,9 @@ namespace Starfall
             TickBufferedDodge(dt, dodgeReadyDelay);
             TickBufferedSkill(dt, skillReadyDelay);
             TickBufferedAttack(dt, attackReadyDelay);
+            CaptureFieldSnareEnemyFooting();
             UpdateEnemies(dt); if (Dying) return;
+            TickFieldSnares(dt);
             TickRidgeWatchPatrols(dt);
             UpdateProjectiles(dt); if (Dying || beganInPractice && !practicing) return;
             TickAfterglow(dt);

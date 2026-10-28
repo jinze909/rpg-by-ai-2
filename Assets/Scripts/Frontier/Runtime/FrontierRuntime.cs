@@ -250,7 +250,14 @@ namespace Starfall
                 // budget and cooldown; its only alert comes at physical
                 // impact, never from a menu or cosmetic button press.
                 if (Input.GetKeyDown(KeyCode.U))
-                    Game.ThrowPebble(InputAim()??Game.aim);
+                {
+                    // Shift+U is a deliberate, paid physical floor trap.
+                    // An ordinary U still throws the original audible stone.
+                    if(Input.GetKey(KeyCode.LeftShift)||
+                       Input.GetKey(KeyCode.RightShift))
+                        Game.LayFieldSnare(InputAim()??Game.aim);
+                    else Game.ThrowPebble(InputAim()??Game.aim);
+                }
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();

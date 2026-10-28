@@ -514,6 +514,12 @@ namespace Starfall
                 // Show the true reason the physical stealth throw is
                 // unavailable on its actual, clickable world HUD control.
                 // This uses the same GameCore clock/energy as keyboard and pad.
+                if(Button(24,661,304,26,
+                    Game.L("SHIFT+U 绊索 · 木材1 零件1  ", 
+                           "SHIFT+U SNARE · 1 timber + 1 part  ")+
+                    Game.FieldSnares.Count+"/"+Game.FieldSnareLimit,
+                    false,Game.CanLayFieldSnare))
+                    Game.LayFieldSnare(Game.aim);
                 if(Button(24,691,304,27,LivePebbleHudLabel(),
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
