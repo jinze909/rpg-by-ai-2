@@ -97,8 +97,25 @@ namespace Starfall
         public bool QuestApproachNavigationActive
         { get { return LocalWaymark.HasValue &&
             !string.IsNullOrEmpty(localWaymarkQuestId); } }
+        // Current quest identity and live contact geometry are part of an
+        // arrival, not merely the old marker's cached proximity. Dynamic
+        // gates, objective relocation and new stages can change between the
+        // 1.25s full-BFS rechecks; never advertise a stale interaction.
+        private bool CurrentQuestApproachContactValid()
+        {
+            if(!QuestApproachNavigationActive||
+               localWaymarkQuestStageRoutePending||!CanStand(Position))
+                return false;
+            QuestGuide current=GetQuest(localWaymarkQuestId);
+            return !current.locked&&!current.complete&&
+                current.room==save.room&&
+                (current.target-localWaymarkQuestTarget).Length<.001f&&
+                (Position-current.target).Length<=1.8f&&
+                ReliefActorLineWalkable(Position,current.target);
+        }
         public bool QuestApproachAwaitingInteraction
-        { get { return QuestApproachNavigationActive && localWaymarkQuestArrived; } }
+        { get { return localWaymarkQuestArrived&&
+            CurrentQuestApproachContactValid(); } }
         // Cheap read-only interaction-side probe for the actual map UI.
         // Full distant-route BFS remains cached in FrontierMapPreview;
         // a quest already in interaction reach should not be disabled
@@ -134,6 +151,17 @@ namespace Starfall
             {
                 Point? mark=LocalWaymark;
                 Point? target=mark.HasValue?NavigationTarget():null;
+                if(mark.HasValue&&!string.IsNullOrEmpty(localWaymarkQuestId))
+                {
+                    QuestGuide current=GetQuest(localWaymarkQuestId);
+                    // The next authored objective already changed, but
+                    // the bounded BFS has not updated its old marker yet.
+                    // Do not paint an obsolete route as active guidance.
+                    if(current.locked||current.complete||
+                       current.room!=save.room||
+                       (current.target-localWaymarkQuestTarget).Length>.001f)
+                        return false;
+                }
                 return mark.HasValue&&target.HasValue&&
                     (target.Value-mark.Value).Length<.001f;
             }
@@ -399,7 +427,8 @@ namespace Starfall
             bool fromQuest=!string.IsNullOrEmpty(localWaymarkQuestId);
             if(!localWaymarkQuestStageRoutePending &&
                 (Position-mark.Value).Length<=.85f &&
-               ReliefActorLineWalkable(Position,mark.Value))
+               ReliefActorLineWalkable(Position,mark.Value)&&
+               (!fromQuest||CurrentQuestApproachContactValid()))
             {
                 if(!fromQuest)
                 {
