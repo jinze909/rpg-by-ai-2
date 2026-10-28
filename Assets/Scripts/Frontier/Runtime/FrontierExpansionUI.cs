@@ -503,11 +503,23 @@ namespace Starfall
                     Point face=Game.SilentLedgerSentryFacing(guard);
                     if(!WorldDrawable(foot.x,foot.y,165f,175f))continue;
                     Point screen=ScreenPoint(foot);
-                    if(WhiteoutNpcAtlasReady())
+                    Color guardTint=new Color(.96f,.87f,.76f,1f);
+                    bool walking=Game.SilentLedgerSentryMoving(guard);
+                    if(walking&&ActorAtlasGeometry.IsAcceptedWalkMonstersAtlas(monsterWalkSheet))
                     {
-                        DrawActorContactShadow(screen,32,12,6,.83f);
-                        DrawRootedCivilianBody(screen,0f,
-                            new Color(.92f,.66f,.52f,1f),face.x<0f);
+                        // Use the APPROVED original armored-guard moving row,
+                        // tied to live sentry feet and the native SpriteRenderer
+                        // bridge, not a rescued civilian or fabricated rig.
+                        DrawActorContactShadow(screen,58,16,6,.84f);
+                        int strideFrame=GameCore.GaitFrame(
+                            Game.SilentLedgerSentryFootDistance(guard),1.8f);
+                        Actor(monsterWalkSheet,4,3,8+strideFrame,
+                            screen,106,guardTint,face.x<0f);
+                    }
+                    else if(ActorAtlasGeometry.IsAcceptedMonstersAtlas(monsterSheet))
+                    {
+                        DrawActorContactShadow(screen,58,16,6,.84f);
+                        Actor(monsterSheet,6,3,12,screen,106,guardTint,face.x<0f);
                     }
                     else PropImage("post",0,screen.x-25,screen.y-69,50,67,
                         new Color(.94f,.67f,.55f,1f));

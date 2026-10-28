@@ -13,6 +13,8 @@ namespace Starfall
         private Point silentLedgerLastHero;
         private Point[] silentLedgerSentries=new Point[2];
         private Point[] silentLedgerFacing=new Point[2];
+        private float[] silentLedgerFootDistance=new float[2];
+        private float[] silentLedgerFootStride=new float[2];
         private bool[] silentLedgerOutbound=new bool[2];
         private Point[] silentLedgerSearchTarget=new Point[2];
         private float[] silentLedgerSearchSeconds=new float[2];
@@ -37,6 +39,10 @@ namespace Starfall
         {return index>=0&&index<2?silentLedgerSentries[index]:new Point();}
         public Point SilentLedgerSentryFacing(int index)
         {return index>=0&&index<2?silentLedgerFacing[index]:new Point();}
+        public float SilentLedgerSentryFootDistance(int index)
+        {return SilentLedgerActive&&index>=0&&index<2?silentLedgerFootDistance[index]:0f;}
+        public bool SilentLedgerSentryMoving(int index)
+        {return SilentLedgerActive&&index>=0&&index<2&&silentLedgerFootStride[index]>.001f;}
         public float SilentLedgerSentrySearchSeconds(int index)
         {return SilentLedgerActive&&index>=0&&index<2?
             silentLedgerSearchSeconds[index]:0f;}
@@ -65,6 +71,8 @@ namespace Starfall
             silentLedgerSentries[1]=silentLedgerB[0];
             silentLedgerFacing[0]=new Point(1,0);
             silentLedgerFacing[1]=new Point(0,1);
+            silentLedgerFootDistance[0]=silentLedgerFootDistance[1]=0f;
+            silentLedgerFootStride[0]=silentLedgerFootStride[1]=0f;
             silentLedgerOutbound[0]=silentLedgerOutbound[1]=true;
             silentLedgerSearchSeconds[0]=silentLedgerSearchSeconds[1]=0f;
             silentLedgerSoundSearch[0]=silentLedgerSoundSearch[1]=false;
@@ -294,6 +302,7 @@ namespace Starfall
         }
         private void StepSilentLedgerSentry(int index,float dt)
         {
+            silentLedgerFootStride[index]=0f;
             Point[] ends=index==0?silentLedgerA:silentLedgerB;
             Point destination=ends[silentLedgerOutbound[index]?1:0];
             if(silentLedgerDiversion>0f)
@@ -319,6 +328,10 @@ namespace Starfall
             {
                 silentLedgerSentries[index]=candidate;
                 silentLedgerFacing[index]=direction;
+                // Only real, collision-cleared physical translations advance
+                // guard Sprite gait. Standing at a sound target is not walking.
+                silentLedgerFootStride[index]=(candidate-current).Length;
+                silentLedgerFootDistance[index]+=silentLedgerFootStride[index];
             }
         }
         private bool SilentLedgerSeesHero(int index)

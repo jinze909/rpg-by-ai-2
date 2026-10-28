@@ -130,8 +130,10 @@ namespace Starfall.Tests
             Point before=g.SilentLedgerSentryPosition(0);
             g.Tick(.05f,new Point());
             Point after=g.SilentLedgerSentryPosition(0);
-            Check((after-before).Length>.005f&&after.x<before.x,
-                "Sentry actually changes patrol motion toward the sounded western bell");
+            Check((after-before).Length>.005f&&after.x<before.x&&
+                g.SilentLedgerSentryMoving(0)&&
+                g.SilentLedgerSentryFootDistance(0)>.005f,
+                "Sentry changes patrol motion and advances actual full-body Sprite gait only on physical footsteps");
             g.Talk(bell);
             Check(!SilentLedgerChoice(g,"silentledger_decoy")&&
                 g.save.inventory[4]==1,
