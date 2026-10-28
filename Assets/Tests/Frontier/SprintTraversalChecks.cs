@@ -441,7 +441,13 @@ namespace Starfall.Tests
                 Check(g.Sprinting&&g.CanStand(g.Position)&&
                     g.RecentSprintFootstepHearers==1&&
                     g.IsEnemyInvestigatingFootsteps(guard),
-                    "Genuine 200ms sprint behind opaque but navigable cover alerts the actual living listener");
+                    "Genuine 200ms sprint behind opaque but navigable cover alerts the actual living listener;"+
+                    " sprint="+g.Sprinting+" heard="+g.RecentSprintFootstepHearers+
+                    " foot="+g.Position.x.ToString("0.00")+","+
+                    g.Position.y.ToString("0.00")+
+                    " guard="+guard.Position.x.ToString("0.00")+","+
+                    guard.Position.y.ToString("0.00")+
+                    " strictRoute="+g.NavigationPathFrom(g.Position,guard.Position,true).Count);
                 Check(g.IsEnemyInvestigatingImpact(guard)&&
                     !g.QuietStepping&&g.save.version==2,
                     "Footsteps reuse transient physical sound-search rather than new persistent aggro");

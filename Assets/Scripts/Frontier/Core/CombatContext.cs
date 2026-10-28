@@ -534,7 +534,10 @@ namespace Starfall
                 return;
             }
             nextSprintNoise-=Math.Max(0f,dt);
-            if(nextSprintNoise>0f)return;
+            // The exact 200ms threshold often retains a few float ULPs
+            // after four 50ms simulation slices. Never add a phantom
+            // fifth frame of sprint exposure at an already earned step.
+            if(nextSprintNoise>.00001f)return;
             nextSprintNoise=.55f;
             recentSprintFootstepHearers=0;
             EnsureEnemyHitAlertSession();
