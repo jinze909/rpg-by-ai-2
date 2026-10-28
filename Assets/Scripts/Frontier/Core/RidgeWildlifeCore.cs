@@ -135,6 +135,20 @@ namespace Starfall
                 L("巡敌正在呼援！","PATROL CALLING!")));
             revision++;
         }
+        // Two ridge sentries can appear three tiles apart across a huge
+        // stone maze. A whistle is heard through a real short acoustic
+        // corridor, not simply any eventually connected walking island.
+        // This checks the exact live actor instances, not reused IDs.
+        private bool RidgeWatchWhistleReaches(Enemy caller,Enemy listener)
+        {
+            if(caller==null||listener==null||
+                Object.ReferenceEquals(caller,listener)||
+                !IsActiveRidgeWatchPatrol(caller)||
+                !IsActiveRidgeWatchPatrol(listener)||
+                !CanStand(caller.Position)||!CanStand(listener.Position))
+                return false;
+            return AudibleAlongWorld(caller.Position,listener.Position,17f);
+        }
         private void ReleaseRidgeWatchAlarm(Enemy struck)
         {
             if(!IsActiveRidgeWatchPatrol(struck))return;
@@ -145,13 +159,10 @@ namespace Starfall
                 if(!IsActiveRidgeWatchPatrol(ally))continue;
                 if(System.Object.ReferenceEquals(ally,struck))
                 {ridgeWatchResponders.Add(ally);continue;}
-                if((ally.Position-struck.Position).Length>17f||
-                    !CanStand(ally.Position)||!CanStand(struck.Position))
-                    continue;
-                // A wall, flood seal or raised gate must defeat an alarm.
-                // This same genuine walking BFS guides combat pursuit.
-                if(ClearAttackPath(ally.Position,struck.Position)||
-                    NavigationPathFrom(ally.Position,struck.Position,true).Count>0)
+                // Reuse the real corridor-distance hearing rule: a long
+                // winding maze cannot carry the short squad whistle even
+                // when the two sprites appear close across a thin wall.
+                if(RidgeWatchWhistleReaches(struck,ally))
                     ridgeWatchResponders.Add(ally);
             }
             if(ridgeWatchResponders.Count>1)

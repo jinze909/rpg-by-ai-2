@@ -5454,6 +5454,88 @@ namespace Starfall.Tests
             Check(!loaded.RidgeWatchAlarmActive&&loaded.save.version==2,
                 "Reload clears only transient squad investigation data, preserving old saves");
         }
+        public static void RidgeWatchWhistleCannotRecruitAcrossLongStoneMaze(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var field=typeof(GameCore).GetField("ridgeWatchIds",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            var ids=(Dictionary<int,int>)field.GetValue(g);
+            Enemy caller=null,listener=null;
+            foreach(Enemy actor in g.enemies)
+            {
+                int index;
+                if(!ids.TryGetValue(actor.id,out index))continue;
+                if(index==0)caller=actor;
+                if(index==1)listener=actor;
+            }
+            Check(caller!=null&&listener!=null&&
+                g.IsActiveRidgeWatchPatrol(caller)&&
+                g.IsActiveRidgeWatchPatrol(listener),
+                "Only the original two living ridge patrol actors are tested");
+            var hear=typeof(GameCore).GetMethod("RidgeWatchWhistleReaches",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            var release=typeof(GameCore).GetMethod("ReleaseRidgeWatchAlarm",
+                BindingFlags.Instance|BindingFlags.NonPublic);
+            Check(hear!=null&&release!=null,
+                "The exact live squad alarm uses an acoustic corridor check");
+            var originalRows=g.Map.rows;
+            var originalDecor=g.Map.decor;
+            try
+            {
+                var rows=new string[100];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] line=new string('#',100).ToCharArray();
+                    if(y>=2&&y<=97)
+                        for(int x=2;x<=97;x++)line[x]='.';
+                    if(y>=2&&y<=90)line[37]='#';
+                    rows[y]=new string(line);
+                }
+                g.Map.rows=rows;
+                g.Map.decor=new Decoration[0];
+                caller.x=35.5f;caller.y=35.5f;
+                listener.x=39.5f;listener.y=35.5f;
+                Check(g.CanStand(caller.Position)&&
+                    g.CanStand(listener.Position)&&
+                    (caller.Position-listener.Position).Length<5f&&
+                    g.NavigationPathFrom(caller.Position,
+                        listener.Position,true).Count>0,
+                    "A real walkable yet very long detour connects both close-looking patrols");
+                Check(!(bool)hear.Invoke(g,new object[]{caller,listener}),
+                    "Whistle cannot propagate around ninety tiles of walkable stone");
+                release.Invoke(g,new object[]{caller});
+                Check(g.IsRidgeWatchResponder(caller)&&
+                    !g.IsRidgeWatchResponder(listener),
+                    "Real alarm includes its living caller but excludes unheard ally");
+                // A newly opened local doorway turns the same pair into
+                // audible reinforcement. No actor respawns or fake IDs.
+                char[] opened=rows[35].ToCharArray();
+                opened[37]='.';rows[35]=new string(opened);
+                Check((bool)hear.Invoke(g,new object[]{caller,listener}),
+                    "A three-step near-side doorway restores legitimate hearing");
+                release.Invoke(g,new object[]{caller});
+                Check(g.IsRidgeWatchResponder(listener)&&
+                    g.RidgeWatchRespondingCount>=2&&g.save.version==2,
+                    "The SAME real ally answers the next audible call without save migration");
+                // A fresh sealed door must defeat a later separate whistle,
+                // not leave a permanently recruited immutable enemy ID.
+                char[] shut=rows[35].ToCharArray();
+                shut[37]='#';rows[35]=new string(shut);
+                release.Invoke(g,new object[]{caller});
+                Check(!g.IsRidgeWatchResponder(listener),
+                    "A physically closed doorway removes ally from subsequent call");
+            }
+            finally
+            {
+                g.Map.rows=originalRows;
+                g.Map.decor=originalDecor;
+            }
+        }
+
         public static void RidgeWatchWhistleCanBeSilencedBeforeBackupArrives(Campaign data)
         {
             var g=Unlocked(data);
