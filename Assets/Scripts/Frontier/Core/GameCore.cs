@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -755,6 +755,12 @@ namespace Starfall
                         "Blackout evacuation is active. Bring your civilians to shelter or abort the mission before traveling.");
                 return true;
             }
+            if (MistConvoyActive)
+            {
+                Notify("雾港最后一船仍在浪中。沿岸完成接应，或回守灯人第二页明确撤销护航。",
+                    "Mistport's last boat is still in the surf. Complete its real escort or abort at the keeper's ledger before traveling.");
+                return true;
+            }
             if (MistlightActive)
             {
                 Notify("雾港最后一盏灯仍在风暴中。先到南栈桥完成求援，或回告示牌明确撤销行动。",
@@ -1026,6 +1032,7 @@ namespace Starfall
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) +
+                (MistConvoyHidden&&save.room==5&&SafeTravel?3:0) +
                 (ThornwatchTuned&&save.room<8?2:0) + (PressureworksWorkers&&save.room==3?2:0) + (Has("roadcharter_reserve") ? 3 : 0) +
                 // Real completion of eight two-way civilian dispatches
                 // improves long-distance outdoor stamina recovery only.
@@ -1080,6 +1087,7 @@ namespace Starfall
             TickPressureworks(dt);
             TickSilentLedger(dt);
             TickMistlight(dt);
+            TickMistConvoy(dt);
             TickFloodRelief(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
@@ -4060,6 +4068,7 @@ namespace Starfall
             if (TalkPressureworks(o)) return;
             if (TalkSilentLedger(o)) return;
             if (TalkMistlight(o)) return;
+            if (TalkMistConvoy(o)) return;
             if (TalkCountertide(o)) return;
             if (TalkThornwatch(o)) return;
             if (TalkLastLantern(o)) return;
@@ -4572,7 +4581,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4820,6 +4829,7 @@ namespace Starfall
             if (ChoosePressureworks(action)) return;
             if (ChooseSilentLedger(action)) return;
             if (ChooseMistlight(action)) return;
+            if (ChooseMistConvoy(action)) return;
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;

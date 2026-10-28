@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,32 @@ namespace Starfall
 
 
 
+            if(id=="mistport_lastboat")
+            {
+                q.title=L("雾港 · 最后一船","Mistport · The Last Boat Home");
+                q.category=L("实际移动车船 · 居民护送","MOVING CIVILIAN BOAT · SHORELINE ESCORT");
+                q.room=5;q.locked=!MistlightComplete||!CanEnter(5);
+                q.complete=MistConvoyComplete;
+                q.description=L(
+                    "完成最后一盏灯后，在雾港东岸守灯人第二页（66.5,37.5）开始86秒真实护航。消耗8耐力从北岸号角（68.5,38.5）唤醒载人船，沿岸保持6.5距离内引导水道中真实移动的船身，到中继台（69.5,40.5）确认其确实通过，再到南码头（69.5,44.5）亲自交接。浪头每8秒击伤船体；离开船太远会停航并持续受损。可在号角处消耗1备件一次性补充25船体耐久并防浪10秒。选择公开避风站可在北岸安全恢复生命，秘密守夜引航线则在雾港安全地区提升耐力恢复每秒+3。船沉或超时可重新出发。",
+                    "After the Last Light, start the 86-second real escort at the keeper's second log (66.5,37.5). Spend 8 energy sounding the north horn (68.5,38.5), remain within 6.5 units of the genuinely moving boat in its original water channel, confirm its physical passage at the midway relay (69.5,40.5), then personally receive survivors at the south dock (69.5,44.5). Swells damage the hull every 8s; leaving it too far away stalls and damages the boat. Spend one spare part at the horn once for +25 hull and 10s storm cover. Choose a public refuge for local safe healing, or protect night pilots for +3 safe Mistport energy regeneration. Failure can be retried.");
+                q.steps.Add(new QuestStep(L("北岸号角引导船员起航","Sound genuine north-bank boat horn"),
+                    MistConvoyStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("沿岸护船，确认中途船身位置","Escort boat and verify real midway passage"),
+                    MistConvoyStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("将幸存船员接上南码头","Receive survivors on the south dock"),q.complete));
+                q.target=MistConvoyActive?MistConvoyTarget:new Point(66.5f,37.5f);
+                q.next=q.locked?L("先完成雾港最后一盏灯","First restore Mistport's Last Light"):
+                    q.complete?MistConvoyPublic?
+                        L("载人船抵港 · 公共避风站开放安全治疗","Survivors landed · public refuge grants safe healing"):
+                        L("暗航道已保密 · 雾港安全地区耐力恢复+3","Hidden boat protected · +3 safe Mistport energy regeneration"):
+                    MistConvoyActive?MistConvoyObjective+" · "+MistConvoySeconds.ToString("0")+"s"+
+                        L(" · 船体 "," · HULL ")+MistConvoyHull.ToString("0"):
+                    L("去雾港东岸查看守灯人第二页","Read the keeper's second ledger on Mistport east bank");
+                q.reward=L("第一次接应：75硬币、2碎片、125经验；长效民间救助",
+                    "First rescue: 75 coins, 2 shards, 125 XP; lasting civilian refuge");
+                return q;
+            }
             if(id=="mistport_lastlight")
             {
                 q.title=L("雾港 · 最后一盏灯","Mistport · The Last Light");

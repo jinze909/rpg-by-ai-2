@@ -7161,6 +7161,38 @@
           "y": 42.5
         },
         {
+          "id": "mistconvoy_notice",
+          "kind": "mistconvoynotice",
+          "name": "守灯人第二页 · 最后一船",
+          "en": "Keeper's Second Page · The Last Boat",
+          "x": 66.5,
+          "y": 37.5
+        },
+        {
+          "id": "mistconvoy_horn",
+          "kind": "mistconvoyhorn",
+          "name": "北岸引航号角",
+          "en": "North Bank Rescue Horn",
+          "x": 68.5,
+          "y": 38.5
+        },
+        {
+          "id": "mistconvoy_mid",
+          "kind": "mistconvoymid",
+          "name": "暗水道中继台",
+          "en": "Darkwater Channel Relay",
+          "x": 69.5,
+          "y": 40.5
+        },
+        {
+          "id": "mistconvoy_dock",
+          "kind": "mistconvoydock",
+          "name": "南码头 · 幸存者接应",
+          "en": "South Dock · Survivor Reception",
+          "x": 69.5,
+          "y": 44.5
+        },
+        {
           "id": "mistlight_notice",
           "kind": "mistlightnotice",
           "name": "雾港旧灯湾 · 最后的求援",

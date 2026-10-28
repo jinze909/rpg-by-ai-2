@@ -581,6 +581,47 @@ namespace Starfall
                         Game.L("可投掷","READY")),
                     11,new Color(.76f,.89f,.97f,1f));
             }
+            if(Game.mode=="world"&&Game.MistConvoyActive&&!drawingOutline)
+            {
+                Color hull=Game.MistConvoyHull<30f?
+                    new Color(1f,.45f,.38f,1f):new Color(.68f,.91f,.96f,1f);
+                // Draw the true water-channel hull, not a dialogue marker.
+                // It translates only while a physically nearby hero walks
+                // beside it; original authored "boat" prop retains its art.
+                Point afloat=Game.MistConvoyBoatFoot;
+                if(WorldDrawable(afloat.x,afloat.y,170f,130f))
+                {
+                    Point at=ScreenPoint(afloat);
+                    PropImage("boat",0,at.x-52,at.y-65,104,67,hull);
+                    Ring(afloat,.75f,hull,22);
+                    Text(at.x-81,at.y-95,162,18,
+                        Game.MistConvoyBoatFollowing?
+                            Game.L("跟随岸灯航行","FOLLOWING SHORE LIGHT"):
+                            Game.L("失去岸上引导","NO SHORE GUIDANCE"),
+                        10,hull,TextAnchor.MiddleCenter);
+                }
+                Point target=Game.MistConvoyTarget;
+                if(WorldDrawable(target.x,target.y,180f,160f))
+                {
+                    Ring(target,.76f,hull,26);
+                    Point mark=ScreenPoint(target);
+                    Text(mark.x-139,mark.y-82,278,18,
+                        Game.MistConvoyObjective,11,hull,TextAnchor.MiddleCenter);
+                }
+                Text(35,345,545,23,
+                    Game.L("雾港 · 最后一船 ","MISTPORT · LAST BOAT ")+
+                    Game.MistConvoyStage+"/3 · "+
+                    Game.MistConvoySeconds.ToString("0")+"s",12,hull);
+                Text(35,368,550,18,
+                    Game.L("船体 ","HULL ")+Game.MistConvoyHull.ToString("0")+
+                    "/100 · "+Game.L("下一阵浪 ","NEXT SWELL ")+
+                    Game.MistConvoySwell.ToString("0.0")+"s",11,hull);
+                Bar(35,390,280,Game.MistConvoyHull/100f,hull,7);
+                if(Game.MistConvoyBraceSeconds>0f)
+                    Text(35,408,500,18,
+                        Game.L("加固船板 · 防浪 ","HULL BRACED · SHELTER ")+
+                        Game.MistConvoyBraceSeconds.ToString("0.0")+"s",11,gold);
+            }
             if(Game.mode=="world"&&Game.MistlightActive&&!drawingOutline)
             {
                 Color live=Game.MistlightIntegrity<31f?
@@ -1412,6 +1453,26 @@ namespace Starfall
                         Game.SilentLedgerPublic?
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
+                        10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(o.kind=="mistconvoynotice"||o.kind=="mistconvoyhorn"||
+               o.kind=="mistconvoymid"||o.kind=="mistconvoydock")
+            {
+                Color ink=Game.MistConvoyComplete?mint:
+                    Game.MistConvoyActive?gold:muted;
+                Point foot=new Point(o.x,o.y);
+                PropImage("post",0,p.x-24,p.y-64,48,64,ink);
+                Ring(foot,o.kind=="mistconvoydock"?.7f:.43f,ink,20);
+                if(o.kind=="mistconvoymid"&&Game.MistConvoyStage==2)
+                    Text(p.x-83,p.y-83,166,18,
+                        Game.L("等待实际船身","WAIT FOR REAL BOAT"),10,ink,
+                        TextAnchor.MiddleCenter);
+                if(o.kind=="mistconvoydock"&&Game.MistConvoyComplete)
+                    Text(p.x-103,p.y-84,206,19,
+                        Game.MistConvoyPublic?
+                            Game.L("船员公开避风站","CIVILIAN BOAT REFUGE"):
+                            Game.L("秘密引航员接应","NIGHT PILOTS PROTECT"),
                         10,mint,TextAnchor.MiddleCenter);
                 return true;
             }
