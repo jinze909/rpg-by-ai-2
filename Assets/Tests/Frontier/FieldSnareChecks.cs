@@ -71,7 +71,9 @@ namespace Starfall.Tests
             var h=Fresh(data);h.enemies.Clear();
             h.save.inventory[0]=5;h.save.inventory[4]=5;
             PutRealSnare(h);
-            for(int i=0;i<53;i++)h.Tick(.5f,new Point());
+            // Tick caps each simulation slice; advance the genuine frame
+            // clock rather than pretending a 500ms parameter all elapsed.
+            for(int i=0;i<540;i++)h.Tick(.05f,new Point());
             Check(h.FieldSnares.Count==0,
                 "Untriggered snare expires in genuine world seconds");
         }
@@ -97,6 +99,67 @@ namespace Starfall.Tests
             g.Tick(.05f,new Point());
             Check(g.FieldSnares.Count==0&&real.stun>1f,
                 "A live non-boss can still trigger an armed trap after a Boss passes it");
+        }
+        public static void FieldSnareCaptureMasteryRequiresThreeTrueContactsAndNoll(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("ally_3");
+            g.save.inventory[0]=12;g.save.inventory[1]=12;
+            g.save.inventory[4]=12;
+            var smith=Object(g,"forge");
+            Check(g.GetQuest("field_snare").steps.Count==4&&
+                !g.GetQuest("field_snare").complete,
+                "The new physical snare task starts before contact milestones");
+            for(int n=1;n<=3;n++)
+            {
+                Point foot=PutRealSnare(g);
+                var target=new Enemy(99000+n,0,foot.x,foot.y,80);
+                target.hitTime=4f;g.enemies.Add(target);
+                int remaining=g.FieldSnares.Count;
+                for(int f=0;f<11;f++)g.Tick(.05f,new Point());
+                Check(g.FieldSnares.Count==remaining-1&&
+                    g.FieldSnareCaptures==n&&
+                    g.Has("field_snare_capture_"+n)&&target.hp==80,
+                    "A distinct grounded nonlethal contact earns exactly one real mastery mark");
+                g.enemies.Remove(target);
+            }
+            var quest=g.GetQuest("field_snare");
+            Check(quest.steps[2].done&&!quest.complete&&
+                quest.room==0&&
+                (quest.target-new Point(smith.x,smith.y)).Length<.01f,
+                "After three real catches the original quest guides back to the town forge");
+            g.save.x=smith.x;g.save.y=smith.y;
+            g.Talk(smith);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_snare_masterwork");
+            Check(option>=0,"A physically reachable Noll offers the earned reinforced line");
+            int crystal=g.save.inventory[1],gear=g.save.inventory[4];
+            g.save.x=smith.x+8f;g.Choose(option);
+            Check(!g.Has("field_snare_mastered")&&
+                g.save.inventory[1]==crystal&&g.save.inventory[4]==gear,
+                "A walked-away forge conversation cannot buy remote mastery");
+            g.save.x=smith.x;g.save.y=smith.y;
+            g.Talk(smith);
+            option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_snare_masterwork");
+            g.Choose(option);
+            Check(g.Has("field_snare_mastered")&&g.FieldSnareLimit==3&&
+                g.save.inventory[1]==crystal-2&&g.save.inventory[4]==gear-2&&
+                g.GetQuest("field_snare").complete,
+                "One earned, source-bound payment unlocks third trap and closes the genuine journal");
+            g.Talk(smith);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_snare_masterwork")<0,
+                "Noll cannot farm a second mastery fee or reward");
+            g.Close();
+            var newFoot=PutRealSnare(g);
+            Check(g.FieldSnares.Count==1&&g.FieldSnares[0].arming<=.25f+.0001f,
+                "Newly constructed post-mastery equipment arms faster in the real world");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FieldSnareLimit==3&&
+                restored.GetQuest("field_snare").complete&&
+                restored.FieldSnares.Count==0,
+                "Permanent mastery and its tracked quest survive unchanged v2 while live traps reset");
         }
     }
 }

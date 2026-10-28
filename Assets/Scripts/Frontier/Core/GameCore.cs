@@ -4136,6 +4136,7 @@ namespace Starfall
                 List<Choice> list = new List<Choice> { C("强化装备 · 木"+TemperUpgradeTimber+" 晶"+TemperUpgradeCrystal+" 零件"+TemperUpgradeParts, "Upgrade · "+TemperUpgradeTimber+" timber / "+TemperUpgradeCrystal+" crystal / "+TemperUpgradeParts+" parts", "upgrade"), C("制作猎弓 · 木4 零件2", "Craft bow · 4 timber / 2 parts", "bow"), C("制作星火杖 · 晶4 零件3", "Craft staff · 4 crystal / 3 parts", "staff") };
                 if (!Has("ally_3")) list.Add(C("支线：交付零件 ×5", "Commission: deliver 5 parts", "ally3")); 
                 AppendForgeMasterworkChoices(list);
+                AppendFieldSnareTrainingChoice(list);
                 if(save.profession==0&&save.weapon==0)
                 {
                     if(SwordLessonActive)
@@ -4182,7 +4183,8 @@ namespace Starfall
                     forgeZh+="\n\n他抬起木盾比了个正面格挡的姿势。“按Q迎箭，要留"+SwordGuardArrowEnergy+"点耐力；挡近身扑击得留"+SwordGuardMeleeEnergy+"点。看准正面出手，背后挨打可弹不开。”";
                     forgeEn+="\n\nHe raises a practice shield. “Face the arrow and press Q; keep "+SwordGuardArrowEnergy+" energy for the deflection. A close lunge costs "+SwordGuardMeleeEnergy+". Your back can't parry for you.”";
                 }
-                Dialog(o.name,o.en,forgeZh+ForgeMasterworkDescription(false),forgeEn+ForgeMasterworkDescription(true),list.ToArray()); return;
+                Dialog(o.name,o.en,forgeZh+ForgeMasterworkDescription(false)+FieldSnareTrainingNote(false),
+                    forgeEn+ForgeMasterworkDescription(true)+FieldSnareTrainingNote(true),list.ToArray()); return;
             }
             if (kind == "cook") { Dialog(o.name, o.en, "暖潮炖汤：鱼1、药草2。回复"+StewHealing+"生命与耐力，增加攻击"+(int)StewBuffSeconds+"秒。F喝汤。"+(PublicFishKitchenStocked?"\n\n湖畔公共厨房已经恢复供应，所有炖汤都比过去更耐用。":"")+"\n\n星薄荷凉茶：药草2、星晶1。T喝茶，抗暑抗寒并增加耐力回复180秒。", "Stew: 1 fish, 2 herbs. Heals "+StewHealing+", refills energy and boosts damage for "+(int)StewBuffSeconds+" seconds. F drinks it."+(PublicFishKitchenStocked?"\n\nOld Tide's public kitchen is supplied again; all Tide stew goes further now.":"")+"\n\nTea: 2 herbs, 1 crystal. T drinks it for climate protection and faster energy recovery, 180 seconds.", C("制作炖汤", "Cook stew", "cook"), C("买炖汤 · " + ShopStewCost + " 硬币", "Buy stew · " + ShopStewCost + " coins", "buymeal"), C("买木材 ×4 · " + ShopTimberCost + " 硬币", "Buy timber ×4 · " + ShopTimberCost + " coins", "buywood"), C("制作凉茶", "Brew tea", "tea"), C("再见", "Goodbye", "close")); return; }
             if (kind == "scout")
@@ -4674,6 +4676,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseFieldSnareTraining(action)) return;
             if (ChooseForgeMasterwork(action)) return;
             if (ChooseSwordLesson(action)) return;
             if (ChooseSpecialistDrill(action)) return;

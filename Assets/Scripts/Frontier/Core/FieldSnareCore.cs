@@ -29,7 +29,63 @@ namespace Starfall
                 return fieldSnares.AsReadOnly();
             }
         }
-        public int FieldSnareLimit {get{return 2;}}
+        public int FieldSnareLimit {get{return Has("field_snare_mastered")?3:2;}}
+        public int FieldSnareCaptures
+        {
+            get
+            {
+                int n=0;for(int i=1;i<=3;i++)
+                    if(Has("field_snare_capture_"+i))n++;
+                return n;
+            }
+        }
+        public bool FieldSnareTrainingAvailable
+        { get { return FieldSnareCaptures==3&&Has("ally_3")&&
+            !Has("field_snare_mastered"); } }
+        private string FieldSnareTrainingNote(bool english)
+        {
+            if(!Has("ally_3"))return "";
+            if(Has("field_snare_mastered"))return english?
+                "\n\nNoll's reinforced line is now your own: three active snares, faster arming and longer nonlethal holds.":
+                "\n\n诺尔的强化绊索已经装好：可同时布置三道，安装更快，牵制更久。";
+            return english?
+                "\n\nNoll is collecting proof from your field snares ("+
+                    FieldSnareCaptures+"/3 real captures). Three contacts unlock a paid reinforced line.":
+                "\n\n诺尔在收集真实绊索记录（"+FieldSnareCaptures+
+                    "/3 次实际束缚）。完成三次后可出资强化。";
+        }
+        private void AppendFieldSnareTrainingChoice(List<Choice> list)
+        {
+            if(FieldSnareTrainingAvailable)
+                list.Add(C("强化实战绊索 · 星晶2、零件2",
+                    "Reinforce field snares · 2 crystals, 2 parts",
+                    "field_snare_masterwork"));
+        }
+        private bool ChooseFieldSnareTraining(string action)
+        {
+            if(action!="field_snare_masterwork")return false;
+            WorldObject smith=pendingDialogueSource;
+            if(!FieldSnareTrainingAvailable||mode!="world"||Dying||
+                practicing||save.room!=0||smith==null||
+                smith.kind!="forge"||pendingDialogueSourceRoom!=0||
+                !SourceBelongsToActiveMap(smith)||
+                !HasPhysicalInteractionReach(smith))return true;
+            if(FieldWorkPreventsRest||!SafeTravel)
+            {
+                Notify("还有敌情或现场行动，暂时无法重制绊索。",
+                    "Clear nearby threats and fieldwork before reinforcing snares.");
+                return true;
+            }
+            if(!Spend(0,2,0,0,2))return true;
+            Flag("field_snare_mastered");
+            AddXp(45);revision++;sound="reward";
+            RecordMoment(
+                "诺尔用废弃车轮的齿片加强木桩。第三根绊索不再容易松脱，工匠写下每一处伤者都能撤离的路口。",
+                "Noll braces a third line with salvaged gear teeth, and marks escape crossings where captured foes cannot reach the wounded.");
+            Notify("绊索专精：最多三道、布设0.25秒、束缚2.1秒。",
+                "Snare mastery: three traps, .25s arming, 2.1s holds.");
+            return true;
+        }
         public bool CanLayFieldSnare
         {
             get
@@ -89,7 +145,9 @@ namespace Starfall
             if(save.companion>=0&&
                 (companionPosition-foot).Length<.65f)return false;
             if(!Spend(1,0,0,0,1))return false;
-            fieldSnares.Add(new FieldSnare(foot));
+            var snare=new FieldSnare(foot);
+            if(Has("field_snare_mastered"))snare.arming=.25f;
+            fieldSnares.Add(snare);
             effects.Add(new Effect("number",foot,.75f,
                 L("绊索已布置","SNARE SET")));
             sound="quest";revision++;
@@ -140,7 +198,8 @@ namespace Starfall
                 fieldSnares.RemoveAt(i);
                 // A grounded, non-lethal contact interrupts an actual
                 // enemy. It creates NO boss credit, damage, loot, or kill.
-                triggered.stun=Math.Max(triggered.stun,1.5f);
+                triggered.stun=Math.Max(triggered.stun,
+                    Has("field_snare_mastered")?2.1f:1.5f);
                 triggered.armorOpenTime=Math.Max(triggered.armorOpenTime,.7f);
                 triggered.state=0;triggered.timer=Math.Max(triggered.timer,.35f);
                 effects.Add(new Effect("burst",snare.foot,.36f)
@@ -148,6 +207,20 @@ namespace Starfall
                 effects.Add(new Effect("number",triggered.Position,.8f,
                     L("绊索束缚！","SNARED!")));
                 sound="counter";revision++;
+                int next=FieldSnareCaptures+1;
+                if(next<=3&&!Has("field_snare_capture_"+next))
+                {
+                    Flag("field_snare_capture_"+next);
+                    AddXp(12);
+                    if(next==3)
+                    {
+                        RecordMoment(
+                            "三名沿路巡敌先后被绊索生擒。诺尔愿意把失修的防线改成能反复保护伤者的工具。",
+                            "Three separate live patrol contacts proved a safe capture line. Noll offers to reinforce the rig for future travelers.");
+                        Notify("绊索实战 3/3：返回诺尔铁匠铺可强化。",
+                            "Three real snare captures: visit Noll to reinforce your rig.");
+                    }
+                }
             }
         }
     }

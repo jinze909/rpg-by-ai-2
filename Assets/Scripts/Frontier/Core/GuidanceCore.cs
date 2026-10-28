@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,43 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="field_snare")
+            {
+                q.title=L("实战绊索 · 诺尔的安全防线",
+                    "Field Snares · Noll's Rescue Line");
+                q.category=L("地面战术 · 非致命控制",
+                    "FIELDCRAFT · NONLETHAL CONTROL");
+                q.locked=false;
+                q.complete=Has("field_snare_mastered");
+                int contacts=FieldSnareCaptures;
+                q.description=L(
+                    "Shift+U（或实战 HUD 按钮）在脚前真实可站立地面布置绊索，每道花木材1和零件1。最多两道，安装后可暂时困住走上去的普通敌人；不能束缚Boss。三次真实触发后找诺尔付费强化，不可用空挥或远程菜单代替。",
+                    "Shift+U or the world HUD sets a real-ground snare for one timber and one part. At most two can be armed; live ordinary foes stepping into the trip line are briefly restrained, but Bosses are immune. Earn three physical contacts and pay Noll for the permanent reinforced rig.");
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L("真实束缚 ", "Actual snare contact ")+i+"/3",
+                        Has("field_snare_capture_"+i)));
+                q.steps.Add(new QuestStep(L("返回诺尔进行永久强化",
+                    "Reinforce the line at Noll's real forge"),q.complete));
+                q.room=q.complete||contacts>=3?0:save.room;
+                q.target=contacts>=3?ObjectPoint(0,"forge",new Point(18,14)):
+                    Position;
+                q.next=q.complete?
+                    L("绊索专精已生效：最多三道、布设0.25秒、束缚2.1秒",
+                        "Reinforced: three snares, .25s arming, 2.1s control"):
+                    contacts<3?
+                    L("Shift+U 布置绊索，引诱普通敌人实际踩中（",
+                      "Shift+U: lay snares and catch real ordinary enemies (")+
+                      contacts+"/3"+L("）",")"):
+                    !Has("ally_3")?
+                    L("先完成诺尔的水泵委托以解锁强化",
+                        "Finish Noll's pump commission to reinforce your line"):
+                    L("到余烬镇诺尔铁匠铺，交付星晶2和零件2",
+                        "Return to Noll and pay 2 crystals and 2 parts");
+                q.reward=L("每次实战束缚经验12；三次后付费强化：第三道绊索、布设更快、束缚更久",
+                    "12 XP per genuine catch; paid mastery gives a third snare, faster arming and a longer hold");
+                return q;
+            }
 
             if(id=="forge_masterwork")
             {
