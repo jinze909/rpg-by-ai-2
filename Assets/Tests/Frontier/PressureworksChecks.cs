@@ -100,7 +100,8 @@ namespace Starfall.Tests
                 "Cached engine choice cannot remotely purge or spend a part");
             SetPressureworksFoot(g,engine);g.Talk(engine);
             Check(PressureworksChoice(g,"pressureworks_purge")&&
-                g.save.inventory[4]==1&&g.PressureworksPressure<=pre-21.9f&&
+                g.save.inventory[4]==1&&
+                Math.Abs(g.PressureworksPressure-Math.Max(0f,pre-22f))<.01f&&
                 !g.hazards.Exists(h=>h.pressureworksOwned),
                 "One real spare part lowers pressure and clears ONLY owned steam");
             g.Talk(engine);PressureworksChoice(g,"pressureworks_purge");
@@ -224,7 +225,10 @@ namespace Starfall.Tests
             SetPressureworksFoot(g,notice);g.Talk(notice);
             PressureworksChoice(g,"pressureworks_begin");
             Check(g.PressureworksStage==1,"Real notice starts the pressure clock");
-            for(int i=0;i<200&&g.PressureworksActive;i++)g.Tick(1f,new Point());
+            // Core Tick correctly clamps frame length. Simulate enough
+            // genuine .05-second world frames to approach real rupture.
+            for(int i=0;i<3550&&g.PressureworksActive;i++)
+                g.Tick(.05f,new Point());
             Check(!g.PressureworksActive&&!g.PressureworksComplete,
                 "Unfinished timed pressure run really fails and never pays permanent rewards");
         }
