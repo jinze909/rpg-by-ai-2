@@ -3556,6 +3556,60 @@ namespace Starfall.Tests
                 "Upgraded ward capability persists as legacy flags, not a leaked active fight or new save field");
         }
 
+        public static void EightAfterglowRegionsSpawnRealWalkableTacticalCombat(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"The original lethal contact pathway is available");
+            for(int region=0;region<8;region++)
+            {
+                var g=Fresh(data);g.enemies.Clear();
+                g.save.room=region;g.save.flags.Add("annex_relay_archived");
+                g.save.flags.Add("annex_relay_done_"+region);
+                WorldObject camp=Array.Find(g.Map.objects,
+                    o=>o.id=="annex_camp_"+region);
+                Check(camp!=null&&g.CanStand(new Point(camp.x,camp.y)),
+                    "Each real regional watch camp is on walkable terrain: "+region);
+                g.save.x=camp.x;g.save.y=camp.y;
+                g.Talk(camp);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="afterglow_begin");
+                Check(begin>=0,"Regional camp offers the unlocked nightwatch: "+region);
+                g.Choose(begin);
+                Check(g.AfterglowActive&&g.AfterglowPhase==1&&
+                    g.AfterglowRemaining==2&&g.enemies.Count==2,
+                    "Two genuine approach lanes exist in region "+region);
+                var first=new System.Collections.Generic.List<Enemy>(g.enemies);
+                foreach(Enemy enemy in first)
+                    hit.Invoke(g,new object[]{enemy,10000f,false,null,null});
+                // At most a 50ms hitstop; never skip frozen simulation.
+                for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+                Check(g.AfterglowPhase==2,
+                    "Real first-wave kills unlock tactics in region "+region);
+                g.Talk(camp);
+                int cut=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="afterglow_cut");
+                Check(cut>=0,"A real second-wave tactical choice exists in region "+region);
+                g.Choose(cut);
+                Check(g.AfterglowPhase==3&&g.AfterglowRemaining==3&&
+                    g.enemies.Count==3,
+                    "Three separate heavy-wave approach lanes exist in region "+region);
+                foreach(Enemy enemy in g.enemies)
+                    Check(g.CanStand(enemy.Position)&&
+                        (enemy.Position-g.AfterglowCampFoot).Length<=8f,
+                        "Every raid participant occupies real nearby terrain in region "+region);
+                g.Talk(camp);
+                int abort=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="afterglow_abort");
+                Check(abort>=0,"The original camp can withdraw its second wave");
+                g.Choose(abort);
+                Check(!g.AfterglowActive&&g.enemies.Count==0&&
+                    !g.Has("afterglow_done_"+region),
+                    "Every regional field retry clears exact attackers without a free win");
+            }
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
