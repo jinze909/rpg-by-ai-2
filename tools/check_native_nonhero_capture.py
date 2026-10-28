@@ -189,8 +189,29 @@ def main():
     assert "conversationSource = o;" in core
     assert "conversation = null; conversationSource = null;" in core
     assert "interlocutor.kind == kind" in actor
-    assert "Math.Abs(interlocutor.x - position.x) < .05f" in actor
-    assert "Math.Abs(interlocutor.y - position.y) < .05f" in actor
+    # Live world painting has the actual object identity. Same-kind NPCs
+    # can overlap at one coordinate; a proximity-only speech guard is no
+    # longer sufficient. Preserve physical-coordinate matching ONLY for
+    # direct standalone frame-review calls that have no world object.
+    assert "private WorldObject npcRenderSource;" in actor, (
+        "NPC_WORLD_DRAW_IDENTITY_CONTEXT_MISSING")
+    assert "npcRenderSource != null ?" in actor, (
+        "NPC_WORLD_CONTEXT_BRANCH_MISSING")
+    assert "System.Object.ReferenceEquals(npcRenderSource,interlocutor)" in actor, (
+        "NPC_EXACT_SPEAKER_REFERENCE_CHECK_MISSING")
+    assert "Math.Abs(interlocutor.x-position.x)<.05f" in actor
+    assert "Math.Abs(interlocutor.y-position.y)<.05f" in actor
+    # Verify the production DrawObject (not an unused QA helper) binds and
+    # releases the exact WorldObject around the live DrawNpc call. The
+    # resident-only executed test below rejects coordinate-matched
+    # impostors while confirming the genuine interlocutor still speaks.
+    assert "WorldObject priorNpc=npcRenderSource;" in scene, (
+        "NPC_RENDER_SCOPE_SAVE_MISSING")
+    assert "npcRenderSource=o;" in scene, "NPC_WORLD_OBJECT_BINDING_MISSING"
+    assert "try { DrawNpc(kind,new Point(o.x,o.y)); }" in scene, (
+        "NPC_PRODUCTION_DRAW_BINDING_MISSING")
+    assert "finally { npcRenderSource=priorNpc; }" in scene, (
+        "NPC_RENDER_SCOPE_RESTORE_MISSING")
     assert "ReleaseActorCapture();" in scene
     assert native.count("actorCaptureCamera.Render();") == 1
     assert "actorCapturedFrames" in native
