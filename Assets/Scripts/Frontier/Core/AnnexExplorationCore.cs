@@ -385,7 +385,8 @@ namespace Starfall
                     signals==8&&!CampSignalNetworkPublished?
                         C("公开八地守火信号","Publish eight signal fires","annex_signal_publish"):
                         C("继续核对守火","Keep tracing signals","close"),
-                    Has("annex_relay_all")&&!Has("annex_relay_archived")?
+                    Has("annex_relay_all")&&SignalRelayDoneCount==8&&
+                        !Has("annex_relay_archived")?
                         C("提交八地回执 · 归途回声","File eight replies · Homeward Echoes","annex_relay_archive"):
                         C("查看公开回执","Read public replies","close"),
                     C("继续旅程","Keep exploring","close"));
