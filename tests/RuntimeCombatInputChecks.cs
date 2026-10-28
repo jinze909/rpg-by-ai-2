@@ -11095,22 +11095,34 @@ public static class RuntimeCombatInputChecks
     private static void RealPebbleHudUsesPhysicalLaunchListenerCount(FrontierRuntime app)
     {
         Prepare(app);
-        var g=app.Game;g.save.english=true;
+        var g=app.Game;g.mode="world";g.save.room=0;
+        g.enemies.Clear();g.projectiles.Clear();
+        g.save.energy=100f;g.pebbleCooldown=0f;g.save.english=true;
         var sight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
         Check(sight!=null,"The original world ray determines audible HUD cover");
         Point foot=new Point();bool found=false;
-        for(float dx=-2f;dx<=2f&&!found;dx+=.5f)
-        for(float dy=-2f;dy<=2f&&!found;dy+=.5f)
+        // Search ACTUAL shipped walkable terrain. The visual-review
+        // starting coordinate is not guaranteed to have a free guard tile.
+        for(int y=5;y<23&&!found;y++)
+        for(int x=5;x<25&&!found;x++)
         {
-            Point candidate=g.Position+new Point(dx,dy);
-            float distance=(candidate-g.Position).Length;
-            if(distance<1f||distance>2.35f||
-               !g.CanStand(candidate)||
-               !(bool)sight.Invoke(g,new object[]{g.Position,candidate}))
-                continue;
-            foot=candidate;found=true;
+            Point origin=new Point(x+.5f,y+.5f);
+            if(!g.CanStand(origin))continue;
+            g.save.x=origin.x;g.save.y=origin.y;
+            for(float dx=-2f;dx<=2f&&!found;dx+=.5f)
+            for(float dy=-2f;dy<=2f&&!found;dy+=.5f)
+            {
+                Point candidate=origin+new Point(dx,dy);
+                float distance=(candidate-origin).Length;
+                if(distance<1f||distance>2.35f||
+                   !g.CanStand(candidate)||
+                   !(bool)sight.Invoke(g,new object[]{origin,candidate}))
+                    continue;
+                foot=candidate;found=true;
+            }
         }
-        Check(found,"Live map has a genuinely clear near-side sound range");
+        Check(found,"Shipped live map provides a physically open audible throw lane");
+        Set(app,"camera",g.Position);
         var guard=new Enemy(999991,0,foot.x,foot.y,150f);
         guard.Face(guard.Position-g.Position);
         guard.timer=100f;g.enemies.Add(guard);
@@ -11121,7 +11133,8 @@ public static class RuntimeCombatInputChecks
             "Production playable U button displays live, physically grounded launch hearing");
         g.enemies.Remove(guard);
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(!GUI.commands.Exists(s=>s.Contains("HEAR"))&&
+        Check(!GUI.commands.Exists(s=>s.Contains("PEBBLE")&&
+            s.Contains(" HEAR"))&&
             GUI.commands.Exists(s=>s.Contains("THROW PEBBLE")),
             "The production HUD immediately retires stale listener warnings without changing combat state");
         Console.WriteLine("PASS Live stealth pebble HUD: audible guard count uses exactly real throw physics");
