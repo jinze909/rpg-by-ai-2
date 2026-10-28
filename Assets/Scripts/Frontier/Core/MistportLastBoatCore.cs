@@ -161,8 +161,8 @@ namespace Starfall
                 if(mistConvoyStage==3)
                 {
                     Dialog(o.name,o.en,
-                        "南码头的绳索已备好。船上的人仍在紧抓船沿。你要把他们送往公开避风站，让每位失去船籍的人都有地方休息，还是安排守夜引航员接走，保护那些不能在巡防名单上出现的乘客？",
-                        "The south dock's lines are ready. People still cling to the rails. Bring them to the public refuge so every unregistered sailor can rest, or hand them to the night pilots who protect passengers unable to appear on patrol lists?",
+                        (mistConvoyDrifterRescued?"中继台下救起的女子靠着船桨喘息。":"")+"南码头的绳索已备好。船上的人仍在紧抓船沿。你要把他们送往公开避风站，让每位失去船籍的人都有地方休息，还是安排守夜引航员接走，保护那些不能在巡防名单上出现的乘客？",
+                        (mistConvoyDrifterRescued?"The woman hauled from the relay clings to an oar, breathing hard. ":"")+"The south dock's lines are ready. People still cling to the rails. Bring them to the public refuge so every unregistered sailor can rest, or hand them to the night pilots who protect passengers unable to appear on patrol lists?",
                         C("安置在公共避风站","Open the civilian refuge","mistconvoy_public"),
                         C("交给秘密守夜引航员","Protect the night-pilot route","mistconvoy_hidden"));return true;
                 }
@@ -277,12 +277,14 @@ namespace Starfall
                     "You personally escorted the final survivor boat into port and opened the night refuge to unlisted sailors.":
                     "You personally brought the last boat ashore and entrusted undocumented passengers to trusted night pilots.");
                 revision++;sound="reward";
+                string rewardCoins=drifterAboard?"110":"75",
+                    rewardXp=drifterAboard?"185":"125";
                 Notify(publicShelter?
-                    "最后一船获救！硬币+75、碎片+2、经验+125；安全北岸引航台可恢复生命。":
-                    "无名乘客安全上岸！硬币+75、碎片+2、经验+125；雾港安全区域耐力恢复额外+3。",
+                    "最后一船获救！硬币+"+rewardCoins+"、碎片+2、经验+"+rewardXp+"；安全北岸引航台可恢复生命。":
+                    "无名乘客安全上岸！硬币+"+rewardCoins+"、碎片+2、经验+"+rewardXp+"；雾港安全区域耐力恢复额外+3。",
                     publicShelter?
-                    "Last boat saved! +75 coins, +2 shards, +125 XP; safe north bank horn grants healing.":
-                    "Undocumented passengers safely landed! +75 coins, +2 shards, +125 XP; +3 energy recovery in safe Mistport.");
+                    "Last boat saved! +"+rewardCoins+" coins, +2 shards, +"+rewardXp+" XP; safe north bank horn grants healing.":
+                    "Undocumented passengers safely landed! +"+rewardCoins+" coins, +2 shards, +"+rewardXp+" XP; +3 energy recovery in safe Mistport.");
                 return true;
             }
             return true;
