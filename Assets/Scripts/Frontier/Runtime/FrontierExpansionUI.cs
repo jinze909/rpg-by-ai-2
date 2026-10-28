@@ -476,6 +476,41 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // The civilian countertide beacon follows the actual original
+            // Mistport sites and genuine live sea level, not a static HUD quest.
+            if(Game.mode=="world"&&Game.CountertideActive&&!drawingOutline)
+            {
+                Point foot=Game.CountertideTarget;
+                Color ink=Game.CountertideRemaining<30f?
+                    new Color(1f,.57f,.37f,1f):
+                    Game.LowTide?mint:gold;
+                if(WorldDrawable(foot.x,foot.y,185f,185f))
+                {
+                    Ring(foot,.72f,ink,32);
+                    Point p=ScreenPoint(foot);
+                    Text(p.x-138,p.y-81,276,22,
+                        Game.CountertideObjective,12,ink,
+                        TextAnchor.MiddleCenter);
+                }
+                Point delta=foot-Game.Position;
+                Text(35,346,510,23,
+                    Game.L("逆潮航标 · ","COUNTERTIDE · ")+
+                    Game.CountertideStage+"/4 · "+
+                    Game.CountertideRemaining.ToString("0")+"s",
+                    13,ink);
+                Text(35,370,510,23,
+                    Game.CountertideObjective+" · "+
+                    Game.L("直线距离 ","BEARING ONLY ")+
+                    delta.Length.ToString("0"),12,ink);
+                Text(35,394,510,20,
+                    (Game.LowTide?Game.L("当前低潮","CURRENT EBB"):
+                        Game.L("当前高潮","CURRENT FLOOD"))+
+                    Game.L(" · 错音 "," · MISNOTES ")+
+                    Game.CountertideMistakes+
+                    Game.L(" · 潮谱 2-3-1"," · CODE 2-3-1"),
+                    11,ink);
+            }
+
             if(Game.mode=="world"&&Game.ThornwatchActive&&!drawingOutline)
             {
                 Point target=Game.ThornwatchTarget;

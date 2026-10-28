@@ -253,7 +253,9 @@ namespace Starfall
         public bool InAbyss { get { return save.room == 8 && save.abyssFloor > 0; } }
         public int Day { get { return 1 + (int)(save.totalTime / 240); } }
         public bool Night { get { return save.totalTime % 240 >= 150; } }
-        public bool LowTide { get { return save.totalTime < save.tideHeldUntil || save.totalTime % 36 < 22; } }
+        public bool LowTide { get { return save.totalTime < save.tideHeldUntil ||
+            save.totalTime % 36 < (save.room==5?
+                CountertideHarborEbbSeconds:22); } }
         public int Proofs { get { return (Has("harbor_report") ? 1 : 0) + (Has("desert_report") ? 1 : 0) + (Has("mountain_report") ? 1 : 0); } }
         public int ProjectTiers { get { return save.projects[0] + save.projects[1] + save.projects[2]; } }
         public int CompanionCount { get { int n = 0; for (int i = 0; i < 3; i++) if (Has("companion_" + i)) n++; return n; } }

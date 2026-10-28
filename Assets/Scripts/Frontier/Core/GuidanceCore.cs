@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,44 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="countertide")
+            {
+                q.title=L("逆潮航标 · 归港三声","Countertide Beacon · Three Calls Home");
+                q.category=L("潮汐解码 · 实地航路","TIDE-LOCKED PUZZLE · PHYSICAL SIGNAL ROUTE");
+                q.locked=!Has("boss_5")||!Has("harbor_report");
+                q.complete=CountertideComplete;
+                q.room=5;
+                q.description=L(
+                    "在雾港原始远眺台（65.5,40.5）找到民用航标谱：退潮双声、满潮三声、归港单声。启程后260秒内真正走到营地（61.5,36.5）在低潮敲两次，到旧补给箱（43.5,42.5）在高潮敲三次，再在低潮返回远眺台敲一次。错音耗时12秒，不可用菜单跳过实际海水。完成后永久选择延长本地低潮6秒，或提高本地移动速度0.55。",
+                    "At the original Mistport lookout (65.5,40.5), find a civilian tide score: two bells at ebb, three at flood, one home. During a 260s physical run, ring twice at camp (61.5,36.5) in low tide, three times at the old cache (43.5,42.5) in high tide, then one at the lookout in low tide. A wrong note loses 12s. Menu actions cannot fake water. Choose +6s real Mistport ebb or +0.55 Mistport speed permanently.");
+                q.steps.Add(new QuestStep(L("低潮时到营地敲两声","At ebb, ring twice at camp"),
+                    CountertideStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("高潮时到旧补给箱敲三声","At flood, ring three times at old cache"),
+                    CountertideStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("低潮时返回远眺台敲一声","At ebb, ring once at overlook"),
+                    CountertideStage>=4||q.complete));
+                q.steps.Add(new QuestStep(L("决定雾港民用潮路的归属","Choose the civilian tide route"),
+                    q.complete));
+                q.target=CountertideActive?CountertideTarget:
+                    new Point(65.5f,40.5f);
+                q.next=q.locked?
+                    L("先击败雾港守护者并提交水位报告",
+                      "Defeat the Mistport guardian and file the harbor tide report"):
+                    q.complete?CountertideChannels?
+                    L("公开航道生效：雾港真实低潮从22秒延长至28秒",
+                      "Public channel active: real Mistport ebb lasts 28 instead of 22 seconds"):
+                    L("避难路线生效：雾港实际移动速度增加0.55",
+                      "Private rescue route active: +0.55 genuine Mistport movement speed"):
+                    CountertideActive?CountertideObjective+" · "+
+                    CountertideRemaining.ToString("0")+"s"+
+                    L(" · 当前"," · NOW ")+(LowTide?L("低潮","LOW"):L("高潮","HIGH")):
+                    L("从真实远眺台接受航标谱，按低-高-低三次实际潮位完成解码",
+                      "Start at the authentic lookout. Calibrate in genuine low-high-low tide windows");
+                q.reward=L("首通硬币65、碎片2、经验105；永久本地潮汐或移动增益",
+                    "First clear: 65 coins, 2 shards, 105 XP; permanent local tide or movement upgrade");
+                return q;
+            }
 
             if(id=="thornwatch")
             {
