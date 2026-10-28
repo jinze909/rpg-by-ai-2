@@ -87,6 +87,13 @@ namespace Starfall
         private const float EnemyHitAlertSeconds=6f;
         private const float SprintNoiseRadius=5.5f;
         private float nextSprintNoise=.2f;
+        private int recentSprintFootstepHearers;
+        // Count only actual newly acquired listeners at the last live
+        // sprint contact; never advertise nearby but isolated sentries.
+        // False when stopped, on menus/travel, or before a real footstep.
+        public int RecentSprintFootstepHearers
+        { get { return Sprinting&&mode=="world"?
+            recentSprintFootstepHearers:0; } }
         private void EnsureEnemyHitAlertSession()
         {
             if(!System.Object.ReferenceEquals(enemyHitAlertSave,save)||
@@ -103,6 +110,7 @@ namespace Starfall
             enemyHitAlertSave=null;
             enemyHitAlertMap=null;
             nextSprintNoise=.2f;
+            recentSprintFootstepHearers=0;
         }
         private void NotifyEnemyOfActualDistantPlayerHit(Enemy e,ImpactProfile impact)
         {
@@ -522,11 +530,13 @@ namespace Starfall
                !CanStand(Position))
             {
                 nextSprintNoise=.2f;
+                recentSprintFootstepHearers=0;
                 return;
             }
             nextSprintNoise-=Math.Max(0f,dt);
             if(nextSprintNoise>0f)return;
             nextSprintNoise=.55f;
+            recentSprintFootstepHearers=0;
             EnsureEnemyHitAlertSession();
             foreach(Enemy guard in enemies)
             {
@@ -557,6 +567,7 @@ namespace Starfall
                     alert.runningFootsteps=true;
                     enemyHitAlert[guard]=alert;
                 }
+                recentSprintFootstepHearers++;
                 effects.Add(new Effect("number",guard.Position,.75f,
                     L("听到奔跑脚步","HEARD RUNNING")));
             }

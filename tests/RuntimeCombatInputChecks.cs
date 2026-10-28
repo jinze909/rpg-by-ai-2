@@ -11426,16 +11426,24 @@ public static class RuntimeCombatInputChecks
                 !(bool)sight.Invoke(g,new object[]{g.Position,witness.Position}),
                 "Real tile cover blocks direct human visibility before footfall contact");
             for(int i=0;i<4;i++)g.Tick(.05f,new Point(1,0),null,true);
-            Check(g.Sprinting&&g.IsEnemyInvestigatingFootsteps(witness)&&
+            Check(g.Sprinting&&g.RecentSprintFootstepHearers==1&&
+                g.IsEnemyInvestigatingFootsteps(witness)&&
                 g.IsEnemyInvestigatingImpact(witness),
                 "World Tick produces a genuine noise investigation from translated sprint feet behind stone");
             Set(app,"camera",g.Position);
             Set(app,"drawingOutline",false);
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(line=>line.Contains("HEARD FOOTSTEPS")&&
+                line.Contains("1 GUARD(S)")),
+                "Actual player HUD reports only a confirmed audible running-footstep witness");
             GUI.commands.Clear();Call(app,"DrawEnemyActor",witness);
             Check(GUI.commands.Exists(line=>line.Contains("RUNNING HEARD")),
                 "Original monster actor shows distinct English running-footstep suspicion");
             g.save.english=false;GUI.commands.Clear();
-            Call(app,"DrawEnemyActor",witness);
+            Call(app,"OnGUI");
+            Check(GUI.commands.Exists(line=>line.Contains("1名守卫听见脚步")),
+                "Player HUD has matching Chinese confirmed footstep listener feedback");
+            GUI.commands.Clear();Call(app,"DrawEnemyActor",witness);
             Check(GUI.commands.Exists(line=>line.Contains("追查奔跑脚步")),
                 "Original monster actor shows corresponding Chinese suspicion");
             g.enemies.Remove(witness);

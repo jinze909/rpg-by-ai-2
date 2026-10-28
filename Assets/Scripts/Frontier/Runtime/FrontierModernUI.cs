@@ -450,8 +450,12 @@ namespace Starfall
                 Text(415,98,454,24,
                     Game.QuietStepping ? Game.L("轻步潜行 ×0.58 · 未警觉巡逻兵侦测距离减半",
                         "QUIET STEP ×0.58 · reduced unalerted patrol awareness") :
-                    Game.Sprinting ? Game.L("疾跑 ×1.5 · 每秒消耗耐力",
-                        "SPRINT ×1.5 · stamina drain") :
+                    Game.Sprinting ?
+                        (Game.RecentSprintFootstepHearers>0 ?
+                            Game.L("疾跑 ×1.5 · "+Game.RecentSprintFootstepHearers+"名守卫听见脚步",
+                                "SPRINT ×1.5 · "+Game.RecentSprintFootstepHearers+" GUARD(S) HEARD FOOTSTEPS") :
+                            Game.L("疾跑 ×1.5 · 脚步声可能惊动附近守卫",
+                                "SPRINT ×1.5 · footsteps may alert patrols")) :
                     Game.SprintFatigued ? Game.L("疾跑疲劳 · 耐力恢复至35后可再次使用",
                         "SPRINT TIRED · recover 35 energy") :
                         controllerUsed?

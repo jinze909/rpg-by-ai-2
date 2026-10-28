@@ -439,6 +439,7 @@ namespace Starfall.Tests
                 g.enemies.Add(guard);
                 for(int i=0;i<4;i++)g.Tick(.05f,new Point(1,0),null,true);
                 Check(g.Sprinting&&g.CanStand(g.Position)&&
+                    g.RecentSprintFootstepHearers==1&&
                     g.IsEnemyInvestigatingFootsteps(guard),
                     "Genuine 200ms sprint behind opaque but navigable cover alerts the actual living listener");
                 Check(g.IsEnemyInvestigatingImpact(guard)&&
@@ -457,13 +458,15 @@ namespace Starfall.Tests
                 unheard.timer=100f;isolated.enemies.Add(unheard);
                 for(int i=0;i<4;i++)
                     isolated.Tick(.05f,new Point(1,0),null,true);
-                Check(isolated.Sprinting&&!isolated.IsEnemyInvestigatingFootsteps(unheard),
+                Check(isolated.Sprinting&&isolated.RecentSprintFootstepHearers==0&&
+                    !isolated.IsEnemyInvestigatingFootsteps(unheard),
                     "A closed, island-separating wall does not leak real footstep noise");
                 // The same blocked runner cannot keep manufacturing
                 // footsteps through an ordinary isolated actor footprint.
                 for(int i=0;i<15;i++)
                     isolated.Tick(.05f,new Point(1,0),null,true);
-                Check(!isolated.Sprinting&&!isolated.IsEnemyInvestigatingFootsteps(unheard),
+                Check(!isolated.Sprinting&&isolated.RecentSprintFootstepHearers==0&&
+                    !isolated.IsEnemyInvestigatingFootsteps(unheard),
                     "A stationary runner pushing into a wall emits no fictional patrol sounds");
                 var quiet=SprintTestWorld(data);
                 quiet.enemies.Add(new Enemy(998083,0,13.5f,15.5f,100f));
