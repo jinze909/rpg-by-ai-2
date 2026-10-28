@@ -33,6 +33,9 @@ namespace Starfall.Tests
                 Check(g.UnlistedDone&&g.UnlistedReliefCount==0,
                     "An ending starts optional relief work, not three free stations");
                 int initialTalent=g.save.skillPoints;
+                // The fixture represents gathering enough field Moonherb to
+                // test all three paid treatments, not free station stock.
+                g.save.inventory[2]=12;
                 var handler=typeof(GameCore).GetMethod("ChooseUnlisted",
                     BindingFlags.NonPublic|BindingFlags.Instance);
                 for(int act=0;act<3;act++)
