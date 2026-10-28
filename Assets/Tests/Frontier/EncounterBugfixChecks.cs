@@ -597,6 +597,23 @@ namespace Starfall.Tests
                 Check(game.IsEnemyReturningFromImpact(sentry)&&
                     (sentry.Position-post).Length<farDistance-.025f,
                     "Visible but distant hero cannot steal a sound-decoy return or strand the guard");
+                // A crouching hero directly BEHIND a returning guard is
+                // also unseen, even with a totally open physical corridor.
+                // This runs the real stealth Tick and would fail if return
+                // logic still treated all 360-degree clear rays as sight.
+                Point quietRear=sentry.Position+new Point(-1.55f,0);
+                Check(game.CanStand(quietRear)&&
+                    (sentry.Position-quietRear).Length<4f&&
+                    (bool)sight.Invoke(game,new object[]{sentry.Position,quietRear}),
+                    "Real open ground supports a close rear stealth position");
+                game.save.x=quietRear.x;game.save.y=quietRear.y;
+                sentry.Face(new Point(1,0));
+                float quietReturnDistance=(sentry.Position-post).Length;
+                game.Tick(.02f,new Point(),null,false,true);
+                Check(game.QuietStepping&&
+                    game.IsEnemyReturningFromImpact(sentry)&&
+                    (sentry.Position-post).Length<quietReturnDistance,
+                    "Quiet unseen hero behind a real returning patrol cannot cancel its world-space return");
                 // A CLOSE hero behind genuine intervening stone is still
                 // hidden; mere geometric proximity must not cancel return.
                 string[] nearRows=(string[])game.Map.rows.Clone();

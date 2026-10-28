@@ -344,7 +344,16 @@ namespace Starfall
                    // confirmed sighting inside normal 8-tile awareness.
                    // Conversely, a hidden hero within eight tiles must
                    // not cancel the guard's return through solid stone.
-                   (range<=8f&&ClearAttackPath(e.Position,Position))||
+                   // A returning sound-lured sentry has not witnessed the
+                   // player. Ordinary footfall can be noticed inside normal
+                   // eight-tile awareness, but Ctrl-quiet travel still needs
+                   // a forward physical sighting (or a close body bump).
+                   // Mere open geometry BEHIND the sentry cannot reveal
+                   // the hidden hero and erase the earned distraction.
+                   (range<=8f&&CanStand(Position)&&
+                    (!QuietStepping?
+                        ClearAttackPath(e.Position,Position):
+                        ImpactSearchGuardSeesHero(e)))||
                    !CanStand(alert.homeFoot)||
                    (e.Position-alert.homeFoot).Length<.42f||
                    alert.remaining<=0f)
