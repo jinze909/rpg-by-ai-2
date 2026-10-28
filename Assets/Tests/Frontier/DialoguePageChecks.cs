@@ -101,6 +101,26 @@ namespace Starfall.Tests
                     string.Concat(chinesePages.ToArray())==chinese,
                     "A full-width Chinese ellipsis and dialogue quote remain joined");
             }
+            // A full-body emoji can sit exactly on the final glyph-width
+            // budget. Its ZWJ-linked tool or skin tone belongs to that same
+            // glyph even when the scalar itself would exceed the page width.
+            for(int mode=0;mode<2;mode++)
+            {
+                bool large=mode==1;
+                string prefix=new string('甲',large?251:311);
+                string joined=prefix+"👩\u200d🔬"+new string('乙',90);
+                var joinedPages=DialogueLayout.Pages(joined,large);
+                Check(joinedPages.Count>1 &&
+                    joinedPages[0].EndsWith("👩\u200d🔬") &&
+                    string.Concat(joinedPages.ToArray())==joined,
+                    "Joined emoji remains whole on its original dialogue card");
+                string toned=prefix+"👋🏽"+new string('丙',90);
+                var tonedPages=DialogueLayout.Pages(toned,large);
+                Check(tonedPages.Count>1 &&
+                    tonedPages[0].EndsWith("👋🏽") &&
+                    string.Concat(tonedPages.ToArray())==toned,
+                    "Emoji skin-tone modifiers stay with the base glyph");
+            }
             Check(DialogueLayout.VisiblePageText(null)=="" &&
                 DialogueLayout.VisiblePageText("a\r\nb\r\n")=="a\r\nb" &&
                 DialogueLayout.VisiblePageText("a\nb")=="a\nb",

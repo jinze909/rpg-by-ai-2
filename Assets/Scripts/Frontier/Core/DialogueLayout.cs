@@ -48,6 +48,45 @@ namespace Starfall
             return previous>0 && char.IsLowSurrogate(text[previous]) &&
                 char.IsHighSurrogate(text[previous-1]) ? previous-1 : previous;
         }
+        // Keep an entire Unicode grapheme on one reading card. A page
+        // boundary can fall after the first scalar of a joined emoji,
+        // before a skin-tone modifier or after a ZWJ. The UI renders these
+        // as one visible glyph; splitting them produces broken silhouettes.
+        // Preserve the exact UTF-16 text: this changes only the boundary.
+        private static int DialogueScalar(string text,int index)
+        {
+            if(index<0||index>=text.Length)return -1;
+            char c=text[index];
+            return char.IsHighSurrogate(c)&&index+1<text.Length &&
+                char.IsLowSurrogate(text[index+1])?
+                char.ConvertToUtf32(c,text[index+1]):(int)c;
+        }
+        private static int NextDialogueScalar(string text,int index)
+        {
+            return index+1<text.Length &&
+                char.IsHighSurrogate(text[index]) &&
+                char.IsLowSurrogate(text[index+1])?index+2:index+1;
+        }
+        private static bool DialogueGraphemeTail(int scalar)
+        {
+            return scalar>=0 &&
+                ((scalar<=0xffff && DialogueCombining((char)scalar)) ||
+                 (scalar>=0xfe00&&scalar<=0xfe0f) ||
+                 (scalar>=0xe0100&&scalar<=0xe01ef) ||
+                 (scalar>=0x1f3fb&&scalar<=0x1f3ff));
+        }
+        private static int CompleteDialogueGrapheme(string text,int end)
+        {
+            while(end>0 && end<text.Length)
+            {
+                int next=DialogueScalar(text,end);
+                int previous=DialogueScalar(text,PreviousDialogueScalar(text,end));
+                if(!DialogueGraphemeTail(next) && next!=0x200d &&
+                    previous!=0x200d)break;
+                end=NextDialogueScalar(text,end);
+            }
+            return end;
+        }
         // Pagination preserves the exact original CR/LF characters for
         // dialogue history and save-neutral rereading. A separator consumed
         // as page eight's final paragraph break must not render a phantom
@@ -120,6 +159,9 @@ namespace Starfall
                 if(end<=start)
                     end=start+(char.IsHighSurrogate(text[start]) &&
                         start+1<text.Length && char.IsLowSurrogate(text[start+1])?2:1);
+                // A small glyph-width overrun is preferable to cutting a
+                // joined sprite or skin tone across two visible cards.
+                if(!paragraphLimit)end=CompleteDialogueGrapheme(text,end);
                 pages.Add(text.Substring(start,end-start));
                 start=end;
             }
