@@ -173,9 +173,13 @@ namespace Starfall.Tests
                 "One-use machine-part reinforcement cannot be duplicated");
             BoatAt(g,mid);
             for(int i=0;i<160;i++)g.Tick(.05f,new Point());
-            Check(g.MistConvoyHull==100f&&g.MistConvoyBraceSeconds>1.9f&&
-                g.MistConvoyBoatFoot.y>=40.45f,
-                "After 8s real wave, physical brace protects actual hull while boat reaches relay");
+            Check(Math.Abs(g.MistConvoyHull-100f)<.01f,
+                "Real hull bracing must preserve 100 integrity through first wave; observed "+g.MistConvoyHull);
+            Check(g.MistConvoyBraceSeconds>1.9f,
+                "Actual 10s brace must survive 8s of gameplay; observed "+g.MistConvoyBraceSeconds);
+            Check(g.MistConvoyBoatFoot.y>=40.45f,
+                "Physically guided boat must reach true midway by 8s; actual "+g.MistConvoyBoatFoot.y+
+                ", stage "+g.MistConvoyStage+", remaining "+g.MistConvoySeconds);
             g.Talk(mid);
             Check(BoatChoice(g,"mistconvoy_mid")&&g.MistConvoyStage==3,
                 "Shielded boat still requires physical midway signaling");
