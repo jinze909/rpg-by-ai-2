@@ -62,6 +62,21 @@ namespace Starfall
             silentLedgerStage==2?L("沿暗道取回证人口供","RECOVER THE WITNESS TESTIMONY"):
             silentLedgerStage==3?L("避开巡逻，抵达旧封存台","REACH THE SEALED CITADEL CONSOLE"):
             L("从城墙下的档案告示牌进入","READ THE CIVIC ARCHIVE NOTICE");}}
+        // Reached from the EXISTING inn guest's real "local news" choice.
+        // This is aftermath testimony, not a repeatable quest or reward.
+        // The branch facts are authoritative v2 outcome flags.
+        private string SilentLedgerInnAftermath(bool english)
+        {
+            if(SilentLedgerPublic)
+                return english?
+                    "\n\nThe traveler spreads the copied Citadel register beside a bowl of cooling stew. One child's name has been circled three times. An older woman from the hearth comes over, still holding her untouched soup. 'That's my granddaughter,' she says. 'At least now I know where to ask.' The reopened archive desk gives families a place to rest and buys time for the next evacuation.":
+                    "\n\n旅人把堡垒新誊的名册摊在快凉的汤碗旁。有个孩子的名字被圈了三次。炉边一位老人端着没喝的汤走过来，低声说：‘这是我孙女。总算知道该去哪里问了。’档案台如今能安置回乡的人，也给下一次撤离多争取了一点时间。";
+            if(SilentLedgerRoutes)
+                return english?
+                    "\n\nThe traveler keeps the restored route chart beneath his supper plate, away from the patrol at the next table. A thin line crosses the old culvert. Beside it someone wrote: 'Let the children go first.' The roadwardens now protect that crossing; walkers leaving the Citadel can move faster, and the families behind them no longer have to run just to keep up.":
+                    "\n\n旅人把恢复的归乡路线图压在餐盘底下，不让隔桌巡兵看见。旧涵洞旁有一道细线，旁边写着：‘让孩子先过。’现在守护这条路的是巡路队。离开堡垒的人走得更快了，跟在后面的家人也不必一路追赶。";
+            return "";
+        }
         private void ResetSilentLedger()
         {
             silentLedgerStage=silentLedgerSweep=0;

@@ -262,6 +262,57 @@ namespace Starfall.Tests
                 "Light manipulation is transient and leaves legacy SaveData v2 unchanged");
         }
 
+        public static void SilentLedgerOutcomesChangeRealInnTravelerMemoryAfterPhysicalEvidence(Campaign data)
+        {
+            var untouched=Fresh(data);untouched.Enter(0);
+            ReadInnNews(untouched,Object(untouched,"innGuest"));
+            Check(!untouched.conversation.textEn.Contains("circled three times")&&
+                !untouched.conversation.textEn.Contains("Let the children go first"),
+                "Original inn traveler cannot claim an unearned archival outcome");
+
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=SilentLedgerStart(data);
+                var north=SilentLedgerPost(g,"silentledger_record");
+                var south=SilentLedgerPost(g,"silentledger_witness");
+                var console=SilentLedgerPost(g,"silentledger_console");
+                SilentLedgerMoveTo(g,north);g.Talk(north);
+                Check(SilentLedgerChoice(g,"silentledger_record"),
+                    "Real northern register must be recovered before local aftermath");
+                SilentLedgerMoveTo(g,south);g.Talk(south);
+                Check(SilentLedgerChoice(g,"silentledger_witness"),
+                    "Real southern witness testimony is required before a branch");
+                SilentLedgerMoveTo(g,console);g.Talk(console);
+                Check(SilentLedgerChoice(g,branch==0?
+                    "silentledger_public":"silentledger_routes"),
+                    "Only a fully evidenced Citadel console selects the public or private civilian future");
+                Check(g.SilentLedgerComplete&&!g.SilentLedgerActive,
+                    "Inn aftermath starts only after the actual original mission completes");
+                g.Enter(0);
+                Check(g.save.room==0,"Completed archive frees genuine return to Emberfall");
+                ReadInnNews(g,Object(g,"innGuest"));
+                string en=g.conversation.textEn;
+                string zh=g.conversation.text;
+                Check(branch==0?
+                    en.Contains("circled three times")&&
+                    en.Contains("archive desk")&&
+                    zh.Contains("孙女")&&
+                    !en.Contains("Let the children go first"):
+                    en.Contains("Let the children go first")&&
+                    en.Contains("roadwardens")&&
+                    zh.Contains("巡路队")&&
+                    !en.Contains("circled three times"),
+                    "The real inn guest remembers only the player-earned branch and its actual world consequences");
+                g.Close();g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                loaded.Start();loaded.Enter(0);
+                ReadInnNews(loaded,Object(loaded,"innGuest"));
+                Check(loaded.save.version==2&&loaded.conversation.textEn.Contains(
+                    branch==0?"circled three times":"Let the children go first"),
+                    "An existing SaveData v2 slot preserves its own authentic inn aftermath after reload");
+            }
+        }
+
         public static void SilentLedgerRestorationImprovesRealChapterFourCivilianEvacuation(Campaign data)
         {
             float[] followDistance=new float[3];
