@@ -11199,6 +11199,22 @@ public static class RuntimeCombatInputChecks
         guard.timer=100f;g.enemies.Add(guard);
         Check(g.NearbyPebbleLaunchListeners()==1,
             "A true nearby back-facing guard can actually hear the throw");
+        // A committed attack is more important than a harmless noise.
+        // The HUD cannot promise an audible distract-and-retarget while
+        // this very same physical sentry is winding up its weapon.
+        guard.state=1;
+        Check(g.NearbyPebbleLaunchListeners()==0,
+            "A guard in a genuine weapon windup is not a decoy-launch listener");
+        var physicalLanding=new Projectile {
+            position=guard.Position,visual="pebble",
+            source="quietDecoy",friendly=true,damage=0f
+        };
+        CallCore(g,"InvestigateRealPebbleLanding",physicalLanding);
+        Check(!g.IsEnemyInvestigatingImpact(guard),
+            "A landed pebble does not convert the attacker to a sound-search state mid-windup");
+        guard.state=0;
+        Check(g.NearbyPebbleLaunchListeners()==1,
+            "A guard that has finished combat remains eligible for real physical hearing");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("PEBBLE")&&
             s.Contains("1 HEAR")),

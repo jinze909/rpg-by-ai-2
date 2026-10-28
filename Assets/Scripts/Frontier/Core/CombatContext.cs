@@ -480,7 +480,10 @@ namespace Starfall
             foreach(Enemy enemy in enemies)
             {
                 if(enemy==null||enemy.hp<=0||enemy.boss||
-                   !CanStand(enemy.Position)||
+                   // A committed, telegraphed weapon strike outranks a
+                   // harmless distant clang; it cannot be retargeted by
+                   // the decoy before its actual physical release.
+                   enemy.state==1||!CanStand(enemy.Position)||
                    ArrowSoundCannotOverrideObjective(enemy))continue;
                 float heard=(enemy.Position-soundFoot).Length;
                 float fromHero=(enemy.Position-Position).Length;
@@ -532,7 +535,9 @@ namespace Starfall
         private bool PatrolCanHearPebbleLaunch(Enemy guard,Point origin)
         {
             return guard!=null&&guard.hp>0f&&!guard.boss&&
-                Finite(origin.x)&&Finite(origin.y)&&
+                // The actor has already committed a real weapon attack.
+                // A noncombat throw cannot steal that target mid-windup.
+                guard.state!=1&&Finite(origin.x)&&Finite(origin.y)&&
                 !ArrowSoundCannotOverrideObjective(guard)&&
                 CanStand(guard.Position)&&
                 (guard.Position-origin).Length<=2.5f&&
@@ -606,6 +611,7 @@ namespace Starfall
             foreach(Enemy guard in enemies)
             {
                 if(guard==null||guard.hp<=0||guard.boss||
+                   guard.state==1||
                    ArrowSoundCannotOverrideObjective(guard)||
                    !CanStand(guard.Position)||
                    (guard.Position-soundFoot).Length>5.5f||
