@@ -3610,6 +3610,112 @@ namespace Starfall.Tests
             }
         }
 
+
+        public static void AfterglowCouncilOffersTwoRealPersistentCivilianPolicies(Campaign data)
+        {
+            for(int policy=0;policy<2;policy++)
+            {
+                var g=Fresh(data);g.save.room=9;g.mode="world";g.enemies.Clear();
+                for(int room=0;room<8;room++)
+                {
+                    g.save.flags.Add("afterglow_done_"+room);
+                    if(room<5)g.save.flags.Add("afterglow_cut_"+room);
+                }
+                g.save.flags.Add("afterglow_all");
+                WorldObject archive=Array.Find(g.Map.objects,
+                    o=>o.kind=="annexinnarchive");
+                Check(archive!=null&&g.AfterglowWins==8&&g.AfterglowCutWins==5,
+                    "Eight live-region completions preserve five authentic interception decisions");
+                g.save.x=archive.x;g.save.y=archive.y;
+                var handler=typeof(GameCore).GetMethod("ChooseAnnexExploration",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(handler!=null,"Production civic epilogue handler exists");
+                int initialCoins=g.save.coins,initialShards=g.save.shards;
+                handler.Invoke(g,new object[]{"afterglow_ending_shelter"});
+                Check(!g.Has("afterglow_ending_shelter")&&
+                    !g.Has("afterglow_ending_watch")&&g.save.coins==initialCoins,
+                    "A forged epilogue action without the actual archive cannot claim either policy");
+                g.Talk(archive);
+                int council=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="afterglow_epilogue");
+                Check(council>=0,"Eight real watch flags unlock a physical public-council option");
+                g.Choose(council);
+                Check(g.mode=="dialog"&&g.conversation.textEn.Contains("5 aggressive interceptions"),
+                    "Multi-page public council reflects the player's actual tactical history");
+                int option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action== (policy==0?"afterglow_ending_shelter":"afterglow_ending_watch"));
+                Check(option>=0,"Both meaningful permanent council plans are genuinely selectable");
+                g.Choose(option);
+                Check(g.save.coins==initialCoins+55&&g.save.shards==initialShards+2&&
+                    g.Has(policy==0?"afterglow_ending_shelter":"afterglow_ending_watch")&&
+                    !g.Has(policy==0?"afterglow_ending_watch":"afterglow_ending_shelter"),
+                    "Each permanent public choice pays exactly once and excludes the other ending");
+                g.Close();
+                g.Talk(archive);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="afterglow_epilogue")<0,
+                    "The already-adopted public policy cannot be selected a second time");
+                g.Close();handler.Invoke(g,new object[]{"afterglow_ending_watch"});
+                Check(g.save.coins==initialCoins+55,
+                    "Synthetic replay of a finished council cannot farm money");
+                g.PrepareSave();
+                var reload=new GameCore(data,CloneSave(g.save));
+                Check(reload.save.version==2&&
+                    reload.Has(policy==0?"afterglow_ending_shelter":"afterglow_ending_watch"),
+                    "The chosen public chapter ending persists under the original v2 schema");
+                g.Enter(0);g.enemies.Clear();
+                WorldObject camp=Array.Find(g.Map.objects,
+                    o=>o.id=="annex_camp_0");
+                Check(camp!=null,"The original outdoor camp remains the reward service");
+                g.save.x=camp.x;g.save.y=camp.y;
+                g.save.inventory[0]=5;g.save.inventory[2]=3;
+                if(policy==0)
+                {
+                    g.save.health=20f;g.save.energy=70f;
+                    g.Talk(camp);
+                    int rest=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="annex_rest");
+                    Check(rest>=0,"The civilian shelter ending uses the true camp rest option");
+                    g.Choose(rest);
+                    Check(Math.Abs(g.save.health-80f)<.1f&&g.save.energy==100f&&
+                        g.save.inventory[0]==4,
+                        "Shelter council ending truly upgrades one paid rest from 40 to 60 HP");
+                }
+                else
+                {
+                    g.save.flags.Add("annex_signal_network_published");
+                    g.Talk(camp);
+                    int ward=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="annex_ward_light");
+                    Check(ward>=0,"The night watch ending retains the actual paid signal fire");
+                    g.Choose(ward);
+                    Check(g.CampWardActive&&g.CampWardSeconds==150f&&
+                        g.CampWardCharges==5&&g.save.inventory[0]==3&&
+                        g.save.inventory[2]==2,
+                        "Early-warning council ending truly extends the bought five-charge fire to 150 seconds");
+                }
+            }
+        }
+
+        public static void AfterglowCouncilRequiresEightLegitimateRegionalWins(Campaign data)
+        {
+            var g=Fresh(data);g.save.room=9;g.mode="world";g.enemies.Clear();
+            for(int room=0;room<7;room++)g.save.flags.Add("afterglow_done_"+room);
+            g.save.flags.Add("afterglow_all");
+            WorldObject archive=Array.Find(g.Map.objects,
+                o=>o.kind=="annexinnarchive");
+            g.save.x=archive.x;g.save.y=archive.y;
+            g.Talk(archive);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_epilogue")<0,
+                "A forged all-watch milestone cannot expose a final decision without eight kills-backed region flags");
+            g.Close();g.save.flags.Add("afterglow_done_7");g.Talk(archive);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_epilogue")>=0,
+                "Eighth genuine regional watch makes the physical closing council available");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
