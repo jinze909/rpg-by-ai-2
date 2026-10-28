@@ -139,6 +139,40 @@ namespace Starfall.Tests
             Check(!loaded.SilentLedgerActive&&loaded.save.version==2,
                 "Transient sentries and alarm correctly reset on old v2 save reload");
         }
+        public static void SilentLedgerWeaponNoiseOnlyAlertsPhysicallyHearingPatrols(Campaign data)
+        {
+            var nearby=SilentLedgerStart(data);
+            Point sentry=nearby.SilentLedgerSentryPosition(0);
+            Point hero=new Point(nearby.save.x,nearby.save.y);
+            Check((hero-sentry).Length<8f&&hero.x<sentry.x,
+                "Original Citadel notice is behind a real close patrolling sentry");
+            nearby.Attack(new Point(-1f,0f));
+            nearby.Tick(.05f,new Point());
+            Check(nearby.SilentLedgerSuspicion>0f&&
+                nearby.SilentLedgerSentrySearchSeconds(0)>3.5f&&
+                (nearby.SilentLedgerSentrySearchTarget(0)-hero).Length<.01f,
+                "Real close weapon swing raises suspicion and sends a guard to its actual sound source");
+
+            var distant=SilentLedgerStart(data);
+            Point isolated=new Point(44.5f,50.5f);
+            Check(distant.CanStand(isolated)&&
+                (isolated-distant.SilentLedgerSentryPosition(0)).Length>10f&&
+                (isolated-distant.SilentLedgerSentryPosition(1)).Length>10f,
+                "Distant sword noise test uses reachable ground beyond both real searchers");
+            distant.save.x=isolated.x;distant.save.y=isolated.y;
+            distant.Tick(.05f,new Point());
+            Check(distant.SilentLedgerSuspicion==0f&&
+                distant.SilentLedgerSentrySearchSeconds(0)==0f&&
+                distant.SilentLedgerSentrySearchSeconds(1)==0f,
+                "Moving outside both patrols' actual hearing must not freeze or raise alert");
+            distant.Attack(new Point(1f,0f));
+            distant.Tick(.05f,new Point());
+            Check(distant.SilentLedgerSuspicion==0f&&
+                distant.SilentLedgerSentrySearchSeconds(0)==0f&&
+                distant.SilentLedgerSentrySearchSeconds(1)==0f,
+                "Distant sword attack cannot summon sentries or trigger a map-wide stealth alarm");
+        }
+
         public static void SilentLedgerRestorationImprovesRealChapterFourCivilianEvacuation(Campaign data)
         {
             float[] followDistance=new float[3];

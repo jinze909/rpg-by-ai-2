@@ -335,26 +335,45 @@ namespace Starfall
             // the rate of a real alarm without granting invisibility.
             bool loudStep=moved>dt*5.2f&&!QuietStepping;
             bool attackNoise=playerAction!=null&&!playerAction.released;
-            if(seen)
-                silentLedgerSuspicion+=dt*(QuietStepping?11f:25f);
-            else if(loudStep)
-            {
-                bool heard=false;
+            // A weapon is audible to REAL nearby sentries, not to the whole
+            // Citadel. The sound gives a physical last-heard foot to search.
+            // Stone blocks both hearing and the shortcut to the target.
+            bool attackHeard=false;
+            if(attackNoise)
                 for(int i=0;i<2;i++)
-                    if((silentLedgerSentries[i]-Position).Length<5f&&
-                       ClearAttackPath(silentLedgerSentries[i],Position))
+                    if((silentLedgerSentries[i]-Position).Length<8f&&
+                        ClearAttackPath(silentLedgerSentries[i],Position))
                     {
-                        heard=true;
+                        attackHeard=true;
                         if(silentLedgerDiversion<=0f)
                         {
                             silentLedgerSearchTarget[i]=Position;
-                            silentLedgerSearchSeconds[i]=4.2f;
+                            silentLedgerSearchSeconds[i]=Math.Max(
+                                silentLedgerSearchSeconds[i],4.2f);
                         }
                     }
-                silentLedgerSuspicion+=dt*(heard?19f:0f);
+            if(seen)
+                silentLedgerSuspicion+=dt*(QuietStepping?11f:25f);
+            else
+            {
+                bool heardStep=false;
+                if(loudStep)
+                    for(int i=0;i<2;i++)
+                        if((silentLedgerSentries[i]-Position).Length<5f&&
+                            ClearAttackPath(silentLedgerSentries[i],Position))
+                        {
+                            heardStep=true;
+                            if(silentLedgerDiversion<=0f)
+                            {
+                                silentLedgerSearchTarget[i]=Position;
+                                silentLedgerSearchSeconds[i]=Math.Max(
+                                    silentLedgerSearchSeconds[i],4.2f);
+                            }
+                        }
+                if(heardStep)silentLedgerSuspicion+=dt*19f;
+                else if(!attackHeard)silentLedgerSuspicion-=dt*9f;
             }
-            else silentLedgerSuspicion-=dt*9f;
-            if(attackNoise)silentLedgerSuspicion+=dt*24f;
+            if(attackHeard)silentLedgerSuspicion+=dt*24f;
             silentLedgerSuspicion=Math.Max(0f,Math.Min(100f,silentLedgerSuspicion));
             if(silentLedgerSuspicion>=100f)
             {
