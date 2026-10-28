@@ -99,5 +99,33 @@ namespace Starfall.Tests
             Check(g.ForgeMasterwork==2,
                 "Once safe, original speaker permits funded real combat upgrade");
         }
+        public static void ForgeMasterworkQuestIsGroundedInActualTownAndTracksTheBuild(Campaign data)
+        {
+            var g=Fresh(data);
+            var locked=g.GetQuest("forge_masterwork");
+            Check(locked.locked&&!locked.complete&&locked.steps.Count==3,
+                "Novice save sees prerequisites without a fabricated craft unlock");
+            g.save.flags.Add("ally_3");
+            g.save.stage=2;g.save.inventory[0]=10;g.save.inventory[1]=10;
+            g.save.inventory[4]=10;
+            var noll=Object(g,"forge");
+            var available=g.GetQuest("forge_masterwork");
+            Check(!available.locked&&!available.complete&&available.room==0&&
+                (available.target-new Point(noll.x,noll.y)).Length<.01f,
+                "Unlocked journal routes to Noll's original physical forge, not a fake mission marker");
+            g.TrackQuest("forge_masterwork");
+            Check(g.save.trackedQuest=="forge_masterwork",
+                "The original quest tracking system accepts the actual blacksmith task");
+            g.save.x=noll.x;g.save.y=noll.y;g.Talk(noll);
+            g.Choose(ForgeOption(g,"forge_skill_quick"));
+            var finished=g.GetQuest("forge_masterwork");
+            Check(finished.complete&&finished.Progress==1f&&
+                finished.next.Contains("2.65"),
+                "A physical paid regulator marks the journal complete with the real cooldown");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.trackedQuest=="forge_masterwork"&&
+                restored.GetQuest("forge_masterwork").complete,
+                "Old v2 save reload retains the tracked blacksmith quest and final selected outcome");
+        }
     }
 }

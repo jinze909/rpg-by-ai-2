@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,40 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="forge_masterwork")
+            {
+                q.title=L("诺尔 · 职业战技调谐",
+                    "Noll · Class Skill Regulator");
+                q.category=L("锻造专精 · 永久战技分支",
+                    "FORGE MASTERY · PERMANENT BUILD");
+                q.locked=!ForgeMasterworkUnlocked;
+                q.complete=ForgeMasterwork!=0;
+                q.room=0;q.target=ObjectPoint(0,"forge",new Point(18,14));
+                q.description=L(
+                    "修复余烬镇水泵并交回第二枚星核后，诺尔会提供两种永久调谐：迅捷调谐缩短Q冷却；重击校准让职业战技伤害更高，但延长出手间隔。只可选择一种。需走到原铁匠铺支付材料。",
+                    "After repairing the Emberfall pump and delivering two starcores, Noll can fit one permanent class-skill regulator: faster Q recovery or heavier impact with a slower cooldown. Visit his actual forge and pay the materials.");
+                q.steps.Add(new QuestStep(L("修好镇口水泵",
+                    "Repair the town pump"),Has("ally_3")));
+                q.steps.Add(new QuestStep(L("交付第二枚星核",
+                    "Deliver the second starcore"),save.stage>=2));
+                q.steps.Add(new QuestStep(L("在铁匠铺选择一项永久校准",
+                    "Choose one permanent skill regulator at Noll's forge"),q.complete));
+                q.next=q.complete?(ForgeMasterwork==1?
+                    L("迅捷调谐生效：Q 战技冷却2.65秒",
+                      "Quickwork equipped: Q cooldown 2.65s"):
+                    L("重击校准生效：Q 伤害+30%，冷却4.2秒",
+                      "Heavy impact equipped: Q damage +30%, cooldown 4.2s")):
+                    !Has("ally_3")?L("先完成诺尔的水泵零件委托",
+                        "Finish Noll's town-pump repair first"):
+                    save.stage<2?L("继续主线，交回第二枚星核",
+                        "Advance the story; deliver the second starcore"):
+                    L("带材料去余烬镇铁匠铺与诺尔交谈",
+                        "Bring materials to Noll's original forge");
+                q.reward=L("迅捷：Q 冷却2.65秒（木2晶2零件2）；重击：伤害+30%、冷却4.2秒（木1晶4零件3）",
+                    "Quick: 2.65s Q cooldown (2 timber, 2 crystals, 2 parts); heavy: +30% Q damage, 4.2s cooldown (1 timber, 4 crystals, 3 parts)");
+                return q;
+            }
 
             if(id=="specialist_drill")
             {
