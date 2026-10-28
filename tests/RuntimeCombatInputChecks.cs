@@ -336,6 +336,25 @@ public static class RuntimeCombatInputChecks
         }
         Check(!g.WayfarerDecoyRouteSealed(raiders[0]),
             "Reopening the real terrain removes only the blocked presentation state");
+        // The actual SpriteRenderer/OnGUI fallback must describe the
+        // original enemy's new sound-search AI, not an unearned sighting.
+        raiders[0].x=npc.x+1f;raiders[0].y=npc.y;
+        raiders[0].Face(new Point(1f,0f));
+        raiders[0].stun=0f;raiders[0].timer=100f;
+        g.save.x=npc.x;g.save.y=npc.y;
+        g.Tick(.05f,new Point(-1f,0),null,false,true);
+        Check(g.QuietStepping&&
+            g.WayfarerDecoySearching(raiders[0])&&
+            !g.WayfarerDecoyCanSeeHero(raiders[0]),
+            "Actual world-frame quiet hero eludes raider while physical local search begins");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("搜寻声源")),
+            "Real enemy renderer labels the authentic local sound search in Chinese");
+        g.save.english=true;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("SEARCHING SHOUT")),
+            "Real enemy renderer labels the same local search in English");
+        g.save.english=false;
         float energyAfterFirstCall=g.save.energy;
         float remainingBeforeRepeat=g.WayfarerDecoyTime;
         Input.keys.Add(KeyCode.L);Update(app);

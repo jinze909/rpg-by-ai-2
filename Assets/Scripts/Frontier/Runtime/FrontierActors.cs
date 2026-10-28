@@ -1209,6 +1209,8 @@ namespace Starfall
                     sealedRoute?Game.L("声源封闭","ROUTE SEALED"):
                     Game.WayfarerDecoyCanSeeHero(e)?
                         Game.L("追击玩家","DRAWN TO HERO"):
+                        Game.WayfarerDecoySearching(e)?
+                        Game.L("搜寻声源","SEARCHING SHOUT"):
                         Game.L("追查呼喊处","LAST SHOUT"),
                     10,lure,
                     TextAnchor.MiddleCenter);

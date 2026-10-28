@@ -230,8 +230,8 @@ namespace Starfall
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
             wayfarerDecoyLastSeen.Clear();
-                wayfarerDecoySweepSteps.Clear();
-                wayfarerDecoySweepGoals.Clear();
+            wayfarerDecoySweepSteps.Clear();
+            wayfarerDecoySweepGoals.Clear();
             wayfarerConfirmedKills = 0;
         }
         private static int WayfarerItem(int region) { return region == 1 ? 2 : region == 2 ? 1 : 4; }
@@ -490,8 +490,8 @@ namespace Starfall
             wayfarerDecoyUsed=false;wayfarerDecoyTime=0f;
             wayfarerDecoyTargets.Clear();
             wayfarerDecoyLastSeen.Clear();
-                wayfarerDecoySweepSteps.Clear();
-                wayfarerDecoySweepGoals.Clear();
+            wayfarerDecoySweepSteps.Clear();
+            wayfarerDecoySweepGoals.Clear();
             wayfarerRaiders[0]=wayfarerRaiders[1]=null;
             wayfarerConfirmedKills = 0;
             for (int slot = 0; slot < 2; slot++)
