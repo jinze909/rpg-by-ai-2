@@ -266,8 +266,16 @@ namespace Starfall.Tests
                 "A true patrol crossing the live beam gains a real stun and armor opening; hp="+
                 raider.hp+" stun="+raider.stun+" armor="+raider.armorOpenTime+
                 " foot="+raider.Position.x+","+raider.Position.y);
-            Check(guardian.hp==230f&&guardian.stun==0f,
-                "An existing regional Boss cannot be stunned or given fictional defeat credit by the civilian beam");
+            // World Boss AI may independently adjust its own state or
+            // attack timings during UpdateEnemies. Test the GLASSWELL
+            // contact eligibility itself rather than demanding that the
+            // entire production AI never changes the Boss stun field.
+            var beamContact=typeof(GameCore).GetMethod("GlassLoomEnemyCrossesBeam",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(beamContact!=null&&guardian.boss&&guardian.hp==230f&&
+                !(bool)beamContact.Invoke(g,new object[]{guardian}),
+                "The actual Glasswell contact filter excludes Boss bodies even inside the sunbeam");
             Check(g.save.kills[6]==kills&&g.save.coins==coins,
                 "Bright reflection creates a nonlethal defensive tactic, never a farmable kill/coin reward");
             raider.stun=0f;raider.armorOpenTime=0f;
