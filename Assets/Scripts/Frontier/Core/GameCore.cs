@@ -587,6 +587,12 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            if(AfterglowActive)
+            {
+                Notify("夜间守望仍在进行。完成真实战斗，或回原营火明确中止后才能离开。",
+                    "Night watch is live. Finish its real combat or abort at the original fire before leaving.");
+                return true;
+            }
             // The two-way dispatch requires walking to a lookout and returning.
             // No map crossing or fast-return may award a free remote receipt.
             if(SignalRelayActive)

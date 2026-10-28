@@ -476,6 +476,29 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.AfterglowActive&&!drawingOutline)
+            {
+                Point fire=Game.AfterglowCampFoot;
+                Color ink=Game.AfterglowPhase==2?mint:
+                    Game.AfterglowTime<=15f?
+                    new Color(1f,.47f,.33f,1f):gold;
+                if(WorldDrawable(fire.x,fire.y,240f,240f))
+                {
+                    Ring(fire,1f,ink,32);
+                    Point screen=ScreenPoint(fire);
+                    Text(screen.x-116f,screen.y-95f,232f,20f,
+                        Game.AfterglowPhase==2?
+                            Game.L("回营地选择战术","CHOOSE TACTIC AT CAMP"):
+                            Game.L("余烬夜袭 · 守住营火","AFTERGLOW RAID · DEFEND"),
+                        12,ink,TextAnchor.MiddleCenter);
+                }
+                Text(35,94,490,24,
+                    Game.L("守望 ","WATCH ")+Game.AfterglowPhase+
+                    "/3 · "+Game.L("敌人 ","FOES ")+Game.AfterglowRemaining+
+                    (Game.AfterglowPhase==2?" · "+Game.L("选择战术","CHOOSE TACTIC"):
+                    " · "+Game.AfterglowTime.ToString("0")+"s"),
+                    13,ink);
+            }
             // Scene-connected visual of the live paid field defense. These
             // tiny edge sparks describe real wall-clipped projectile reach;
             // they never impersonate a newly accepted painted Sprite.
