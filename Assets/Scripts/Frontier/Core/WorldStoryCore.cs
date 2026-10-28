@@ -1470,8 +1470,15 @@ namespace Starfall
         private bool StoryMenuSourceIsAuthentic()
         {
             WorldObject source=StoryDialogueSource;
-            if(source==null||
-                (source.kind!="worldchronicle"&&
+            // The shipped read-only archive also opens from authored
+            // story/script context without a physical speaker. Choose()
+            // explicitly carries that SOURCE-FREE permission for this
+            // single selected menu action only; direct orphan commands
+            // and unrelated real NPCs still fail safely.
+            if(source==null)return scriptedStoryChoiceInProgress||
+                (mode=="dialog"&&conversation!=null&&
+                 conversationSource==null);
+            if((source.kind!="worldchronicle"&&
                  source.kind!="guild"&&source.kind!="innGuest")||
                 IsObjectFromAnotherMap(source)||
                 !SourceBelongsToActiveMap(source)||

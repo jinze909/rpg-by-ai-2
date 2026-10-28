@@ -5464,7 +5464,6 @@ namespace Starfall.Tests
                 if(o.kind=="outercache"){chest=o;break;}
             Check(chest!=null,"Original region contains a different physical chest speaker");
             g.save.x=chest.x;g.save.y=chest.y;
-            int coins=g.save.coins,gear=g.save.inventory[4],flags=g.save.flags.Count;
             string[] borrowed={"story_menu","outer_signal_routes","outer_repair"};
             foreach(string action in borrowed)
             {
@@ -5477,6 +5476,8 @@ namespace Starfall.Tests
                 g.conversation.choices=new Choice[]{
                     new Choice("旧选项","Stale option",action)};
                 int before=g.DialogueRecordCount;
+                int coins=g.save.coins,gear=g.save.inventory[4],
+                    flags=g.save.flags.Count;
                 g.Choose(0);
                 Check(g.mode=="world"&&g.DialogueRecordCount==before&&
                     g.save.room==0&&g.save.coins==coins&&

@@ -170,6 +170,10 @@ namespace Starfall
         // A choice may open a second dialogue. Carry the original source only
         // through that dispatch, and only attach it if no new source was chosen.
         private WorldObject pendingDialogueSource;
+        // Trusted source-free archive pages are opened by the game's own
+        // read-only chronicle, not by a world NPC. Carry their authority
+        // for only ONE validated choice dispatch, then clear it.
+        private bool scriptedStoryChoiceInProgress;
         private int pendingDialogueSourceRoom = -1;
         private bool pendingDialogueSourceWasMapObject;
         private bool pendingDialogueSourceWasReachable;
@@ -4421,7 +4425,12 @@ namespace Starfall
                 action=="outer_repair";
             if(!story&&!signal)return true;
             WorldObject speaker=conversationSource;
-            if(speaker==null)return false;
+            if(speaker==null)
+            {
+                // Scripted chronicle panels have no physical NPC source,
+                // but are genuine open dialogs, not abandoned old actions.
+                return story&&mode=="dialog"&&conversation!=null;
+            }
             return story?
                 (speaker.kind=="worldchronicle"||
                  speaker.kind=="guild"||
@@ -4523,14 +4532,21 @@ namespace Starfall
             int selectedSourceRoom = conversationSourceRoom;
             bool selectedSourceWasMapObject = conversationSourceWasMapObject;
             bool selectedSourceWasReachable = conversationSourceWasReachable;
+            bool scriptedStory=selectedSource==null&&
+                action!=null&&action.StartsWith("story_",StringComparison.Ordinal);
             Close();
             pendingDialogueSource = selectedSource;
             pendingDialogueSourceRoom = selectedSourceRoom;
             pendingDialogueSourceWasMapObject = selectedSourceWasMapObject;
             pendingDialogueSourceWasReachable = selectedSourceWasReachable;
-            try { ChooseCore(action); }
+            try
+            {
+                scriptedStoryChoiceInProgress=scriptedStory;
+                ChooseCore(action);
+            }
             finally
             {
+                scriptedStoryChoiceInProgress=false;
                 pendingDialogueSource = null;
                 pendingDialogueSourceRoom = -1;
                 pendingDialogueSourceWasMapObject = false;
