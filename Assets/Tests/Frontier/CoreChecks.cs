@@ -3399,6 +3399,116 @@ namespace Starfall.Tests
                 "Epilogue awards an actual +2 stamina-per-second outdoor gameplay benefit");
         }
 
+
+        public static void AfterglowWatchHasRealTwoWaveCombatAndTacticalBranch(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("annex_relay_archived");
+            g.save.flags.Add("annex_relay_done_0");
+            WorldObject camp=Array.Find(g.Map.objects,
+                o=>o.id=="annex_camp_0");
+            Check(camp!=null&&g.CanStand(new Point(camp.x,camp.y)),
+                "The live night watch originates at an existing reachable camp");
+            g.save.x=camp.x;g.save.y=camp.y;
+            var choose=typeof(GameCore).GetMethod("ChooseAfterglow",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(choose!=null,"The new nightwatch action exists in the production core");
+            choose.Invoke(g,new object[]{"afterglow_begin"});
+            Check(!g.AfterglowActive&&g.enemies.Count==0,
+                "Forged direct command with no physical camp dialogue cannot spawn combatants");
+            g.Talk(camp);
+            int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="afterglow_begin");
+            Check(choice>=0,"Physical camp offers a real new encounter after the public relay chapter");
+            g.Choose(choice);
+            Check(g.AfterglowActive&&g.AfterglowPhase==1&&
+                g.AfterglowRemaining==2&&g.enemies.Count==2&&g.AfterglowTime==75f,
+                "Nightwatch spawns actual two-person first wave with a 75-second clock");
+            g.Enter(1);
+            Check(g.save.room==0&&g.AfterglowPhase==1,
+                "A live nightwatch blocks region transfer instead of escaping the field fight");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Authentic enemy damage transaction is available");
+            int coins=g.save.coins,shards=g.save.shards;
+            Enemy first=g.enemies[0];Enemy second=g.enemies[1];
+            // A fabricated disappearance is never an earned kill.
+            g.enemies.Remove(first);
+            for(int i=0;i<3;i++)g.Tick(.05f,new Point());
+            Check(!g.AfterglowActive&&!g.Has("afterglow_done_0")&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Missing enemy aborts without progress, and authentic other actors remain");
+            g.enemies.Clear();g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);choice=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_begin");
+            Check(choice>=0,"A failed watch can be retried from the source");
+            g.Choose(choice);
+            Check(g.AfterglowPhase==1&&g.AfterglowRemaining==2,
+                "A retry creates a fresh real combat roster");
+            var wave=new System.Collections.Generic.List<Enemy>(g.enemies);
+            foreach(Enemy foe in wave)
+                hit.Invoke(g,new object[]{foe,10000f,false,null,null});
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(g.AfterglowPhase==2&&g.AfterglowRemaining==0&&
+                !g.Has("afterglow_done_0"),
+                "Only both lethal callbacks unlock a safe tactical interlude, not first-wave rewards");
+            g.Talk(camp);
+            int cut=Array.FindIndex(g.conversation.choices,c=>c.action=="afterglow_cut");
+            int screen=Array.FindIndex(g.conversation.choices,c=>c.action=="afterglow_screen");
+            Check(cut>=0&&screen>=0,"Live camp dialogue offers two different enemy-wave strategies");
+            g.Choose(cut);
+            Check(g.AfterglowPhase==3&&g.AfterglowRemaining==3&&
+                g.AfterglowTime==95f&&
+                g.enemies.Exists(e=>e.kind==2),
+                "Risky interception physically spawns three live raiders including a heavy");
+            wave=new System.Collections.Generic.List<Enemy>(g.enemies);
+            foreach(Enemy foe in wave)
+                hit.Invoke(g,new object[]{foe,10000f,false,null,null});
+            for(int i=0;i<5;i++)g.Tick(.05f,new Point());
+            Check(!g.AfterglowActive&&g.AfterglowWins==1&&
+                g.Has("afterglow_done_0")&&g.save.coins>=coins+72&&
+                g.save.shards>=shards+2,
+                "Two truly defeated waves award one nonfarmable risky-watch victory");
+            g.Talk(camp);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_begin")<0,
+                "After first real clear the regional attack cannot be farmed");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.Has("afterglow_done_0")&&
+                !loaded.AfterglowActive&&loaded.save.version==2,
+                "Clear persists in existing v2 flags while combat state does not leak across save slots");
+        }
+
+        public static void AfterglowWatchTimeoutAndSourceAbortDoNotGrantLoot(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();g.save.flags.Add("annex_relay_archived");
+            g.save.flags.Add("annex_relay_done_0");
+            WorldObject camp=Array.Find(g.Map.objects,o=>o.id=="annex_camp_0");
+            g.save.x=camp.x;g.save.y=camp.y;g.Talk(camp);
+            int begin=Array.FindIndex(g.conversation.choices,c=>c.action=="afterglow_begin");
+            g.Choose(begin);
+            int initial=g.save.coins;
+            var countdown=typeof(GameCore).GetField("afterglowTime",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(countdown!=null,"A real world-ticked raid deadline exists");
+            countdown.SetValue(g,.01f);
+            for(int i=0;i<4;i++)g.Tick(.05f,new Point());
+            Check(!g.AfterglowActive&&!g.Has("afterglow_done_0")&&
+                g.save.coins==initial,
+                "Remaining live raiders at deadline cannot collect mission rewards");
+            g.enemies.Clear();g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_begin");g.Choose(begin);
+            g.Talk(camp);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="afterglow_abort");
+            Check(abort>=0,"Original physical camp permits explicit withdrawal");
+            g.Choose(abort);
+            Check(!g.AfterglowActive&&g.enemies.Count==0&&
+                g.save.coins==initial&&!g.Has("afterglow_done_0"),
+                "Withdrawal despawns only mission-owned enemies with no reward");
+        }
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
