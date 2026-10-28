@@ -457,6 +457,37 @@ namespace Starfall
                 (IsAfterlightWatchEnemy(enemy)&&enemy.kind!=1)||
                 (IsOuterPatrolEnemy(enemy)&&enemy.kind!=1);
         }
+        // Noise follows walkable corridors even when an opaque corner
+        // interrupts a visual ray. Return the actual short-route distance
+        // rather than using Euclidean proximity to listen through a sealed
+        // wall. Search only on real sound contacts, not every AI frame.
+        // The strict physical finish forbids the compass solver's
+        // nearest-frontier fallback from hearing across locked islands.
+        private bool AudibleAlongWorld(Point source,Point listener,float radius)
+        {
+            if(!Finite(source.x)||!Finite(source.y)||
+               !Finite(listener.x)||!Finite(listener.y)||
+               !CanStand(source)||!CanStand(listener))return false;
+            float straight=(listener-source).Length;
+            if(!Finite(straight)||straight>radius)return false;
+            if(ClearAttackPath(source,listener))return true;
+            List<Point> steps=NavigationPathFrom(source,listener,true);
+            if(steps.Count==0)return false;
+            Point last=source;
+            float distance=0f;
+            foreach(Point step in steps)
+            {
+                distance+=(step-last).Length;
+                if(distance>radius)return false;
+                last=step;
+            }
+            // The solver stops within physical reach of the target instead
+            // of replacing the actual sound foot with an approximate pin.
+            // Count the remaining segment and reject any fresh closed wall.
+            return ClearAttackPath(last,listener)&&
+                distance+(listener-last).Length<=radius;
+        }
+
         private void InvestigateRealArrowWallImpact(Projectile shot)
         {
             if(shot==null||!shot.friendly||shot.explosive||
@@ -491,7 +522,7 @@ namespace Starfall
                    !Finite(fromHero)||fromHero<=8f||fromHero>18f||
                    // An opaque wall blocks direct impact noise: don't
                    // alarm a soldier sheltered on its far side.
-                   !ClearAttackPath(soundFoot,enemy.Position))continue;
+                   !AudibleAlongWorld(soundFoot,enemy.Position,4.5f))continue;
                 EnemyHitAlert alert;
                 if(enemyHitAlert.TryGetValue(enemy,out alert))
                 {
@@ -541,7 +572,7 @@ namespace Starfall
                 !ArrowSoundCannotOverrideObjective(guard)&&
                 CanStand(guard.Position)&&
                 (guard.Position-origin).Length<=2.5f&&
-                ClearAttackPath(origin,guard.Position)&&
+                AudibleAlongWorld(origin,guard.Position,2.5f)&&
                 !patrolsThatSawHero.Contains(guard)&&
                 !ImpactSearchGuardSeesHero(guard);
         }
@@ -615,7 +646,7 @@ namespace Starfall
                    ArrowSoundCannotOverrideObjective(guard)||
                    !CanStand(guard.Position)||
                    (guard.Position-soundFoot).Length>5.5f||
-                   !ClearAttackPath(soundFoot,guard.Position)||
+                   !AudibleAlongWorld(soundFoot,guard.Position,5.5f)||
                    // Do not reset actual visual pursuit or weapon alarm.
                    patrolsThatSawHero.Contains(guard)||
                    ImpactSearchGuardSeesHero(guard))
