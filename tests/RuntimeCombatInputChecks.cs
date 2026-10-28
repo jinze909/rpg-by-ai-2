@@ -11130,7 +11130,11 @@ public static class RuntimeCombatInputChecks
             "A true nearby back-facing guard can actually hear the throw");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(s=>s.Contains("1 HEAR")),
-            "Production playable U button displays live, physically grounded launch hearing");
+            "Production playable U button displays live, physically grounded launch hearing; mode="+g.mode+
+            " language="+g.save.english+" listeners="+g.NearbyPebbleLaunchListeners()+
+            " cmds="+GUI.commands.Count+" cues="+string.Join(" | ",
+                GUI.commands.FindAll(s=>s.Contains("PEBBLE")||
+                    s.Contains("HEAR")||s.Contains("投石")).ToArray()));
         g.enemies.Remove(guard);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(s=>s.Contains("PEBBLE")&&
