@@ -3500,14 +3500,32 @@ namespace Starfall.Tests
             g.enemies.Clear();g.save.x=camp.x;g.save.y=camp.y;
             g.Talk(camp);begin=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="afterglow_begin");g.Choose(begin);
+            // The attacker's real released arrow must retire with its
+            // exact living owner; unrelated wilderness bodies and a
+            // player's own shot must not be wiped by the mission reset.
+            Enemy shooter=g.enemies[0];
+            var enemyArrow=new Projectile{hostileShooter=shooter,
+                position=shooter.Position,velocity=new Point(2,0),
+                life=2f,damage=10f,visual="enemyArrow",
+                afterglowOwned=true};
+            var friendly=new Projectile{friendly=true,
+                position=g.Position,velocity=new Point(2,0),
+                life=2f,damage=4f,visual="arrow"};
+            var wilderness=new Enemy(999999,0,camp.x+15f,
+                camp.y+15f,30f,false);
+            g.enemies.Add(wilderness);g.projectiles.Add(enemyArrow);
+            g.projectiles.Add(friendly);
             g.Talk(camp);
             int abort=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="afterglow_abort");
             Check(abort>=0,"Original physical camp permits explicit withdrawal");
             g.Choose(abort);
-            Check(!g.AfterglowActive&&g.enemies.Count==0&&
+            Check(!g.AfterglowActive&&g.enemies.Count==1&&
+                g.enemies.Contains(wilderness)&&
+                !g.projectiles.Contains(enemyArrow)&&
+                g.projectiles.Contains(friendly)&&
                 g.save.coins==initial&&!g.Has("afterglow_done_0"),
-                "Withdrawal despawns only mission-owned enemies with no reward");
+                "Withdrawal retires only mission-owned enemies and arrows, preserving real unrelated combat");
         }
         public static void EightAfterglowWatchesStrengthenRealCampProtection(Campaign data)
         {

@@ -2827,7 +2827,8 @@ namespace Starfall
                         roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned,
-                        afterlightWatchOwned = p.afterlightWatchOwned });
+                        afterlightWatchOwned = p.afterlightWatchOwned,
+                        afterglowOwned = p.afterglowOwned });
         }
         // Share exact hero/escort first-contact and deflection rules across
         // normal flight samples and a shot's final legal sample before cover.
@@ -3243,7 +3244,8 @@ namespace Starfall
                         roadTrialOwned = p.roadTrialOwned, skywatchOwned = p.skywatchOwned, atlasEchoOwned = p.atlasEchoOwned, wayfarerOwned = p.wayfarerOwned,
                         stormOwned = p.stormOwned, lastDirectiveOwned = p.lastDirectiveOwned,
                         civicConduitOwned = p.civicConduitOwned,
-                        afterlightWatchOwned = p.afterlightWatchOwned });
+                        afterlightWatchOwned = p.afterlightWatchOwned,
+                        afterglowOwned = p.afterglowOwned });
                 }
                 else if (p.life <= 0 && projectiles.Remove(p))
                     AddProjectileFade(p);
