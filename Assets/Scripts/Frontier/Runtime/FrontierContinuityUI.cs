@@ -59,6 +59,11 @@ namespace Starfall
                 rects.Add(new Rect(426, 730, 428, 54)); rects.Add(new Rect(1134, 746, 126, 36));
                 rects.Add(CombatPebbleButton);
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
+                // A real audible sprint receives a distinct battle HUD
+                // panel. Include it in the same actor-reveal region list:
+                // enemy or hero sprites overlapping the status retain
+                // their identity/visibility, just like Boss and health HUD.
+                if (Game.Sprinting) rects.Add(new Rect(380,108,520,27));
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
                 if (HasLiveBoss || HasFallenBoss || Game.BossVictoryFeedback ||
@@ -165,6 +170,25 @@ namespace Starfall
             Text(66,25,199,23,"LV " + Game.save.level + "  ·  " + (int)Game.save.health + "/" + (int)Game.save.maxHealth,14,paper);
             Bar(34,56,232,Game.save.health/Game.save.maxHealth,PixelArt.C("#d28b86"),6);
             Bar(34,72,232,Game.save.energy/100,mint,4); Text(34,78,232,17,Game.L("耐力 ","ENERGY ")+(int)Game.save.energy,10,mint);
+            // Battle mode replaces the entire exploration HUD whenever a
+            // living enemy approaches. Do not hide the meaningful stealth
+            // choice precisely when a noisy sprint alerts a real guard.
+            // The count is the last genuine acoustic notification, NOT
+            // all enemies within straight-line distance.
+            if (Game.Sprinting)
+            {
+                int listeners=Game.RecentSprintFootstepHearers;
+                Color soundTint=listeners>0?gold:mint;
+                Panel(380,108,520,27,
+                    new Color(.045f,.08f,.13f,.68f),
+                    new Color(soundTint.r,soundTint.g,soundTint.b,.65f));
+                Text(394,112,492,19,listeners>0?
+                    Game.L("疾跑脚步 · "+listeners+"名守卫听见脚步",
+                        "SPRINT ×1.5 · "+listeners+" GUARD(S) HEARD FOOTSTEPS"):
+                    Game.L("疾跑 ×1.5 · 脚步声可能惊动附近守卫",
+                        "SPRINT ×1.5 · footsteps may alert patrols"),
+                    12,soundTint,TextAnchor.MiddleCenter);
+            }
             if (CombatClimate)
             {
                 Panel(20,103,260,26,new Color(.045f,.08f,.13f,.45f),new Color(mint.r,mint.g,mint.b,.3f));
