@@ -79,12 +79,16 @@ namespace Starfall
                     C("继续沿路巡查","Keep surveying","close"));
                 return true;
             }
+            if(TalkUnlistedRidge(o))return true;
             if(RidgeLinked(room))
             {
                 // Keep ordinary crossing first. An unlocked, uncleared
                 // highland also lets the player track the living patrol
                 // directly from this real marker without searching the log.
-                Choice crossing=C("穿越巡路 · 耐力 12","Cross route · 12 energy","ridge_travel");
+                Choice crossing=C(Has("unlisted_public")?
+                    "穿越公共巡路 · 耐力 6":"穿越巡路 · 耐力 12",
+                    Has("unlisted_public")?"Cross public ridge · 6 energy":
+                        "Cross route · 12 energy","ridge_travel");
                 Choice depart=C("继续步行","Keep walking","close");
                 Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
                     new Choice[]{crossing,C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
@@ -93,10 +97,10 @@ namespace Starfall
                         "Warden field aid · 1 Moonherb","ridge_field_aid"),depart}:
                     new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
-                    "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 12 耐力。"+
+                    "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 "+(Has("unlisted_public")?6:12)+" 耐力。"+
                     (first?"\n\n这处地标首次记录：经验 +9。线路连通：硬币 +20、碎片 +1、经验 +24。":""),
                     en[room]+RidgeWatchHint(room,true)+
-                    "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for 12 energy."+
+                    "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for "+(Has("unlisted_public")?6:12)+" energy."+
                     (first?"\n\nFirst visit: +9 XP. Route linked: +20 coins, +1 shard, +24 XP.":""),
                     choices);
                 return true;
@@ -194,9 +198,11 @@ namespace Starfall
                     "Ridge transfer is blocked by combat or live fieldwork. Finish or cancel the active mission first.");
                 return true;
             }
-            if(save.energy<12)
+            int cost=Has("unlisted_public")?6:12;
+            if(save.energy<cost)
             {
-                Notify("需要 12 点耐力才能走完这条新通道。","The route requires 12 energy.");
+                Notify("需要 "+cost+" 点耐力才能走完这条高地通道。",
+                    "This ridge crossing requires "+cost+" energy.");
                 return true;
             }
             Point destination=new Point(end.x,end.y);
@@ -209,7 +215,7 @@ namespace Starfall
                     "Enemies, live projectiles or warned impacts block the far end of the ridge crossing.");
                 return true;
             }
-            save.x=end.x;save.y=end.y;save.energy-=12;
+            save.x=end.x;save.y=end.y;save.energy-=cost;
             revision++;sound="reward";
             Notify("安全穿越已经连通的偏远高地路。","Crossed the restored ridge way.");
             return true;

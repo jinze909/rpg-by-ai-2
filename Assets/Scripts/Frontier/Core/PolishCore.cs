@@ -415,6 +415,7 @@ namespace Starfall
             if (ChooseAfterlight(action)) return true;
             if (ChooseHearing(action)) return true;
             if (ChooseRoadCharter(action)) return true;
+            if (ChooseUnlisted(action)) return true;
             if (ChooseAnnexExploration(action)) return true;
             if (ChooseOuterRescue(action)) return true;
             if (ChooseOuterPatrol(action)) return true;

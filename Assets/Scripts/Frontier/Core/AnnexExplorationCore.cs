@@ -368,6 +368,7 @@ namespace Starfall
                         signals==8?
                         " 八地守火已经实地点亮，可以把信号标准公布给所有旅人。":
                         " 在每个地区营地实际付出木材与药草点亮信号后，回来公开共用灯网。")+
+                    UnlistedArchiveZh+
                     (complete?"\n\n这份公开地图已经交给所有旅人。":
                         ready?"\n\n每一处地点都被亲自验证。可以公开最后的归乡图。":
                         "\n\n继续探索全部八个户外区域，回来归档旧路。"),
@@ -392,6 +393,7 @@ namespace Starfall
                         signals==8?
                         " All eight paid field signals are verified. Publish a shared civilian fire code.":
                         " Prepare a paid signal fire at each region's real camp to make a public safety network.")+
+                    UnlistedArchiveEn+
                     (complete?"\n\nYour route chart is now public.":ready?
                         "\n\nAll positions verified. The final homeward chart can be published.":
                         "\n\nExplore all eight outdoor regions and return to publish their chart."),
@@ -410,6 +412,14 @@ namespace Starfall
                         C("余烬议事 · 决定公共安全方案",
                             "Afterglow Council · choose public policy","afterglow_epilogue"):
                         C("继续整理史册","Keep cataloguing","close"),
+                    UnlistedAct<0?
+                        C("调查《未列名者》","Investigate The Unlisted","unlisted_accept"):
+                        UnlistedAct==3&&!UnlistedDone?
+                        C("公开全本名册 · 开放通路","Publish the full registry · open routes","unlisted_public"):
+                        C("查看未列名者进度","Review Unlisted progress","close"),
+                    UnlistedAct==3&&!UnlistedDone?
+                        C("保护姓名 · 秘密交还家属","Protect the names · return privately","unlisted_protect"):
+                        C("继续整理","Keep cataloguing","close"),
                     C("继续旅程","Keep exploring","close"));
                 return true;
             }
@@ -464,9 +474,17 @@ namespace Starfall
             string noteZh=zh[save.room],noteEn=en[save.room];
             if(kind=="annexcache")
             {
-                Dialog(o.name,o.en,noteZh+(first?"\n\n遗失补给：硬币 +7、材料 +2。":"\n\n物资已被取走，记录仍在。"),
-                    noteEn+(first?"\n\nRecovered supplies: +7 coins, +2 materials.":"\n\nSupplies already recovered."),
-                    C("继续巡路","Continue","close"));
+                int part=UnlistedCachePart(o),act=UnlistedAct;
+                bool evidence=part>=0&&act>=0&&act<3&&
+                    !Has((part==0?"unlisted_a_":"unlisted_b_")+act);
+                Dialog(o.name,o.en,noteZh+(first?"\n\n遗失补给：硬币 +7、材料 +2。":"\n\n物资已被取走，记录仍在。")+
+                    (evidence?"\n\n这处旧补给点保留着《未列名者》的原始记录。请亲手核验。":""),
+                    noteEn+(first?"\n\nRecovered supplies: +7 coins, +2 materials.":"\n\nSupplies already recovered.")+
+                    (evidence?"\n\nThis original cache holds a missing registry clue. Verify it here.":""),
+                    evidence?C("核验未列名者原始证据","Verify Unlisted evidence",
+                        part==0?"unlisted_clue_a":"unlisted_clue_b"):
+                        C("继续巡路","Continue","close"),
+                    C("继续探索","Keep exploring","close"));
                 return true;
             }
             if(kind=="annexvista")
