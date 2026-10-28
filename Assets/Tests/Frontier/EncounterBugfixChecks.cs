@@ -708,7 +708,7 @@ namespace Starfall.Tests
                 // ordinary long cooldown tests could never expose.
                 sentry.timer=-.01f;
                 float before=(sentry.Position-post).Length;
-                int oldHealth=game.save.health;
+                float oldHealth=game.save.health;
                 game.Tick(.02f,new Point(),null,false,true);
                 Check(game.QuietStepping&&
                     game.IsEnemyReturningFromImpact(sentry)&&
