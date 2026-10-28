@@ -75,8 +75,56 @@ namespace Starfall
             return Game.practicing && Contains(new Rect(785,246,130,34), mouse);
         }
         private bool TideBlocksGuide { get { return Game.save.room == 5 && !Game.LowTide && routeGoal.HasValue && (routeGoal.Value - Game.Position).Length > 1.8f && route.Count == 0; } }
-        private bool DialogueChoicesVisible() { return Game.conversation != null && Game.conversation == lastConversation && dialoguePage >= DialogueLayout.Pages(Game.L(Game.conversation.text, Game.conversation.textEn), Game.save.largeText).Count - 1; }
-        private void AdvanceDialogue() { if (Game.conversation == null) return; if (lastConversation != Game.conversation) { lastConversation = Game.conversation; dialoguePage = 0; } dialoguePage = Math.Min(DialogueLayout.Pages(Game.L(Game.conversation.text, Game.conversation.textEn), Game.save.largeText).Count - 1, dialoguePage + 1); }
+        // The renderer, pad focus and numbered-key choices must paginate one
+        // identical localized snapshot. Parsing a long testimony separately
+        // during every input and IMGUI call could stutter and temporarily
+        // disagree with the card when font size or language changed.
+        private List<string> CurrentDialoguePages()
+        {
+            if(Game==null||Game.conversation==null)return null;
+            Conversation c=Game.conversation;
+            string localizedText=Game.L(c.text,c.textEn);
+            bool large=Game.save.largeText;
+            if(dialoguePages==null ||
+                !System.Object.ReferenceEquals(dialoguePagesConversation,c) ||
+                dialoguePagesLarge!=large ||
+                !String.Equals(dialoguePagesText,localizedText,
+                    StringComparison.Ordinal))
+            {
+                dialoguePagesConversation=c;
+                dialoguePagesText=localizedText;
+                dialoguePagesLarge=large;
+                dialoguePages=DialogueLayout.Pages(localizedText,large);
+            }
+            return dialoguePages;
+        }
+        private bool DialogueChoicesVisible()
+        {
+            List<string> pages=CurrentDialoguePages();
+            return pages!=null &&
+                System.Object.ReferenceEquals(Game.conversation,lastConversation) &&
+                dialoguePage==pages.Count-1;
+        }
+        private void AdvanceDialogue()
+        {
+            if(Game==null||Game.conversation==null)return;
+            if(!System.Object.ReferenceEquals(lastConversation,Game.conversation))
+            {
+                lastConversation=Game.conversation;
+                dialoguePage=dialogueChoicePage=0;
+                dialogueHistoryOpen=false;
+            }
+            List<string> pages=CurrentDialoguePages();
+            int next=Math.Min(pages.Count-1,dialoguePage+1);
+            if(next!=dialoguePage)
+            {
+                dialoguePage=next;
+                // The previous card's focused control must not activate a
+                // newly revealed response on this very input frame.
+                confirmControl=null;
+                navigation.Scope(InputScope());
+            }
+        }
         private void PreviousDialoguePage()
         {
             if (Game == null || Game.mode != "dialog" || Game.conversation == null ||

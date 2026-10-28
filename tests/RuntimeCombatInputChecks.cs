@@ -87,6 +87,13 @@ public static class RuntimeCombatInputChecks
             "Real shipped game UI exposes its new in-conversation review action");
         Input.keys.Add(KeyCode.F2);Update(app);
         GUI.commands.Clear();Call(app,"OnGUI");
+        var historyCache=typeof(FrontierRuntime).GetField("dialogueHistoryPages",Private);
+        object historyLayout=historyCache.GetValue(app);
+        Call(app,"MoveDialogueHistory",0);
+        Call(app,"OnGUI");
+        Check(historyLayout!=null &&
+            System.Object.ReferenceEquals(historyLayout,historyCache.GetValue(app)),
+            "Repeated transcript reads reuse the live read-only layout without replaying speech");
         Check((bool)typeof(FrontierRuntime).GetField(
                 "dialogueHistoryOpen",Private).GetValue(app)&&
             GUI.commands.Exists(x=>x.Contains("夜行旅人"))&&
@@ -11115,11 +11122,20 @@ public static class RuntimeCombatInputChecks
         // localization must invalidate them immediately, without an NPC swap.
         var pageField=typeof(FrontierRuntime).GetField("dialoguePages",Private);
         object originalLayout=pageField.GetValue(app);
+        Check(System.Object.ReferenceEquals(originalLayout,Call(app,"CurrentDialoguePages")) &&
+              System.Object.ReferenceEquals(originalLayout,Call(app,"CurrentDialoguePages")),
+            "Live navigation and the actual rendered NPC must share one cached page list");
         Call(app,"OnGUI");
         Check(System.Object.ReferenceEquals(originalLayout,pageField.GetValue(app)),
             "An unchanged production NPC repaint must reuse its page layout");
-        game.save.largeText=true;Call(app,"OnGUI");
+        game.save.largeText=true;
+        object earlyAccessible=Call(app,"CurrentDialoguePages");
+        Check(!System.Object.ReferenceEquals(originalLayout,earlyAccessible),
+            "Gamepad and keyboard see accessible pagination before next repaint");
+        Call(app,"OnGUI");
         object accessibleLayout=pageField.GetValue(app);
+        Check(System.Object.ReferenceEquals(earlyAccessible,accessibleLayout),
+            "Renderer reuses the precise page count input already validated");
         Check(!System.Object.ReferenceEquals(originalLayout,accessibleLayout),
             "Turning on large dialogue text rebuilds the real reader immediately");
         game.save.english=true;Call(app,"OnGUI");
@@ -11129,7 +11145,10 @@ public static class RuntimeCombatInputChecks
             "Switching language in the same conversation rebuilds translated pages");
         game.save.largeText=false;game.save.english=false;
         Call(app,"OnGUI");
+        Set(app,"confirmControl","stale-card-choice");
         for(int i=1;i<cn.Count;i++)Call(app,"AdvanceDialogue");
+        Check(typeof(FrontierRuntime).GetField("confirmControl",Private).GetValue(app)==null,
+            "Advancing the story must retire the prior card's pending focus activation");
         GUI.commands.Clear();GUI.buttonCalls.Clear();Call(app,"OnGUI");
         Check(GUI.buttonCalls.FindAll(b=>b.rect.y>=539 && b.rect.y<670).Count==1,
             "The final page must still reveal its real actionable response");

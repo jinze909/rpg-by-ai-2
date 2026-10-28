@@ -32,18 +32,14 @@ namespace Starfall
                Game.DialogueRecordCount==0)return;
             var entry=Game.DialogueRecordAt(dialogueHistoryIndex);
             if(entry==null)return;
-            int count=DialogueLayout.Pages(
-                Game.L(entry.text,entry.textEn),
-                Game.save.largeText).Count;
+            int count=CurrentDialogueHistoryPages(entry).Count;
             int next=dialogueHistoryPage+delta;
             if(next>=0&&next<count)dialogueHistoryPage=next;
             else if(next<0&&dialogueHistoryIndex>0)
             {
                 dialogueHistoryIndex--;
                 entry=Game.DialogueRecordAt(dialogueHistoryIndex);
-                dialogueHistoryPage=DialogueLayout.Pages(
-                    Game.L(entry.text,entry.textEn),
-                    Game.save.largeText).Count-1;
+                dialogueHistoryPage=CurrentDialogueHistoryPages(entry).Count-1;
             }
             else if(next>=count&&
                     dialogueHistoryIndex<Game.DialogueRecordCount-1)
@@ -302,6 +298,28 @@ namespace Starfall
         private string dialoguePagesText;
         private bool dialoguePagesLarge;
         private List<string> dialoguePages;
+        private DialogueRecord dialogueHistoryPagesRecord;
+        private string dialogueHistoryPagesText;
+        private bool dialogueHistoryPagesLarge;
+        private List<string> dialogueHistoryPages;
+        private List<string> CurrentDialogueHistoryPages(DialogueRecord entry)
+        {
+            if(entry==null)return null;
+            string localizedText=Game.L(entry.text,entry.textEn);
+            bool large=Game.save.largeText;
+            if(dialogueHistoryPages==null ||
+                !System.Object.ReferenceEquals(dialogueHistoryPagesRecord,entry) ||
+                dialogueHistoryPagesLarge!=large ||
+                !String.Equals(dialogueHistoryPagesText,localizedText,
+                    StringComparison.Ordinal))
+            {
+                dialogueHistoryPagesRecord=entry;
+                dialogueHistoryPagesText=localizedText;
+                dialogueHistoryPagesLarge=large;
+                dialogueHistoryPages=DialogueLayout.Pages(localizedText,large);
+            }
+            return dialogueHistoryPages;
+        }
         private readonly string[] menuModes = { "inventory", "loadout", "talents", "companions", "journal", "map", "camp", "bounties", "help" };
         private readonly string[] menuZh = { "冒险背包", "遗物配装", "职业成长", "同行伙伴", "任务手帐", "世界地图", "城镇建设", "公会悬赏", "冒险指南" };
         private readonly string[] menuEn = { "Inventory", "Relics", "Talents", "Companions", "Journal", "World map", "Town projects", "Contracts", "Field guide" };
@@ -1630,18 +1648,7 @@ namespace Starfall
         private void DrawDialogue()
         {
             if (Game.conversation == null) { Game.Close(); return; } Conversation c = Game.conversation; if (c != lastConversation) { lastConversation = c; dialoguePage = dialogueChoicePage = 0; dialogueHistoryOpen=false; }
-            string localizedText = Game.L(c.text, c.textEn);
-            if (dialoguePages == null ||
-                !System.Object.ReferenceEquals(dialoguePagesConversation, c) ||
-                dialoguePagesLarge != Game.save.largeText ||
-                !String.Equals(dialoguePagesText, localizedText, StringComparison.Ordinal))
-            {
-                dialoguePagesConversation = c;
-                dialoguePagesText = localizedText;
-                dialoguePagesLarge = Game.save.largeText;
-                dialoguePages = DialogueLayout.Pages(localizedText, dialoguePagesLarge);
-            }
-            var pages = dialoguePages;
+            var pages=CurrentDialoguePages();
             dialoguePage = Math.Min(dialoguePage, pages.Count - 1);
             Dim(); Card(88, 180, 1104, c.choices.Length > DialogueChoicesPerPage ? 558 : 506);
             if (Button(967, 211, 184, 34, dialogueHistoryOpen?
@@ -1655,9 +1662,7 @@ namespace Starfall
                 DialogueRecord entry=Game.DialogueRecordAt(dialogueHistoryIndex);
                 if(entry!=null)
                 {
-                    string reviewed=Game.L(entry.text,entry.textEn);
-                    List<string> transcriptPages=DialogueLayout.Pages(
-                        reviewed,Game.save.largeText);
+                    List<string> transcriptPages=CurrentDialogueHistoryPages(entry);
                     dialogueHistoryPage=Math.Max(0,Math.Min(
                         transcriptPages.Count-1,dialogueHistoryPage));
                     string person=Game.L(entry.speaker,entry.en);
