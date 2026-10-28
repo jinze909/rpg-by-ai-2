@@ -338,11 +338,17 @@ public static class RuntimeCombatInputChecks
             "Reopening the real terrain removes only the blocked presentation state");
         // The actual SpriteRenderer/OnGUI fallback must describe the
         // original enemy's new sound-search AI, not an unearned sighting.
-        raiders[0].x=npc.x+1f;raiders[0].y=npc.y;
-        raiders[0].Face(new Point(1f,0f));
+        // Use BOTH already verified walkable feet: the exact original
+        // heard foot (where the hero paid for the shout), and the real
+        // enemy's previously audible three-tile combat foot. A nearby
+        // arbitrary +1 tile can be a solid boulder on the shipped map.
+        raiders[0].x=npc.x;raiders[0].y=npc.y;
+        raiders[0].Face(new Point(-1f,0f));
         raiders[0].stun=0f;raiders[0].timer=100f;
-        g.save.x=npc.x;g.save.y=npc.y;
-        g.Tick(.05f,new Point(-1f,0),null,false,true);
+        g.save.x=npc.x+3f;g.save.y=npc.y;
+        Check(g.CanStand(raiders[0].Position)&&g.CanStand(g.Position),
+            "Both real search/quiet feet are actual planted walkable terrain");
+        g.Tick(.05f,new Point(1f,0),null,false,true);
         Check(g.QuietStepping&&
             g.WayfarerDecoySearching(raiders[0])&&
             !g.WayfarerDecoyCanSeeHero(raiders[0]),
