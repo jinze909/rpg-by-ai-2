@@ -55,7 +55,13 @@ namespace Starfall
                 last=Position;
                 wayfarerDecoyLastSeen[enemy]=last;
             }
-            return last;
+            // A raised flood gate can bury or isolate the ORIGINAL heard
+            // foot *after* the shout. Preserve the private memory, but hold
+            // the raider safely at its real foot until a connected route
+            // reopens. Do not fall back to the hero's new, hidden position
+            // or let a partial compass route fabricate pursuit.
+            return SoundSweepFootReachable(enemy.Position,last)?
+                last:enemy.Position;
         }
         // A shout can bend around a *short, traversable* corner, but a sealed
         // room or a lengthy maze must not turn into supernatural hearing.

@@ -164,6 +164,31 @@ namespace Starfall.Tests
                 Point soundFoot=(Point)seek.Invoke(game,new object[]{near});
                 Check((soundFoot-game.Position).Length<.01f,
                     "Covered raider searches the original audible player foot");
+                // The short detour can seal AFTER a genuine shout. Retain
+                // the actual heard foot but do not move across a now
+                // isolated barrier or switch to live-player tracking.
+                for(int y=2;y<=27;y++)
+                {
+                    char[] wall=rows[y].ToCharArray();
+                    wall[14]='#';rows[y]=new string(wall);
+                }
+                Check(((Point)seek.Invoke(game,new object[]{near})-
+                    near.Position).Length<.01f &&
+                    game.IsWayfarerDecoyTarget(near),
+                    "A newly sealed post-shout gate holds the alerted actor on safe ground");
+                // Restoring the originally connected short corner resumes
+                // the SAME original sound source, without resetting timer,
+                // spending another resource or creating a second alarm.
+                for(int y=12;y<=27;y++)
+                {
+                    char[] wall=rows[y].ToCharArray();
+                    wall[14]='.';rows[y]=new string(wall);
+                }
+                Check(((Point)seek.Invoke(game,new object[]{near})-
+                    soundFoot).Length<.01f &&
+                    game.WayfarerDecoyTime==5f &&
+                    game.save.energy==energy-15f,
+                    "Reopened physical corridor resumes the exact remembered sound foot without charges");
                 game.save.x=11.5f;game.save.y=9.5f;
                 Check(!game.WayfarerDecoyCanSeeHero(near)&&
                     ((Point)seek.Invoke(game,new object[]{near})-soundFoot).Length<.01f,
