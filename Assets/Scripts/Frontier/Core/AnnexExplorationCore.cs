@@ -71,6 +71,8 @@ namespace Starfall
         {
             if(!CampWardActive||shot==null||shot.friendly||
                 shot.blockedAtSpawn||shot.visual=="pebble"||
+                !Finite(shot.velocity.x)||!Finite(shot.velocity.y)||
+                shot.velocity.Length<=.5f||
                 !Finite(shot.damage)||shot.damage<=0f||
                 !Finite(shot.position.x)||!Finite(shot.position.y)||
                 (shot.position-CampWardFoot).Length>3.25f||

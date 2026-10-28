@@ -3012,6 +3012,10 @@ namespace Starfall.Tests
                     g.CampWardSeconds==90f&&g.save.inventory[0]==5&&
                     g.save.inventory[2]==2&&g.save.version==2,
                     "Preparing a fire spends real supplies and creates three finite timed interceptions");
+                Check(g.CampWardVisualSample(new Point(11.5f,10.5f))&&
+                    !g.CampWardVisualSample(new Point(13.5f,10.5f))&&
+                    !g.CampWardVisualSample(new Point(18.5f,10.5f)),
+                    "World overlay shows the actual covered lane but never a solid wall or distant safe halo");
                 g.Talk(camp);
                 light=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="annex_ward_light");
@@ -3043,10 +3047,14 @@ namespace Starfall.Tests
                 var inert=new Projectile{position=new Point(11.2f,11.5f),
                     velocity=new Point(-4f,0f),damage=0f,life=1f,
                     friendly=false,visual="enemyArrow",source="shot"};
+                var stationary=new Projectile{position=new Point(11.8f,11.5f),
+                    velocity=new Point(0f,0f),damage=10f,life=1f,
+                    friendly=false,visual="enemyOrb",source="shot"};
                 g.projectiles.Add(blocked);g.projectiles.Add(inert);
+                g.projectiles.Add(stationary);
                 g.Tick(.05f,new Point());
-                Check(g.CampWardCharges==1,
-                    "Terrain-separated and harmless projectiles cannot consume a fireward charge");
+                Check(g.CampWardCharges==1&&g.projectiles.Contains(stationary),
+                    "Terrain-separated, inert and stationary attack objects cannot consume a genuine airborne interception");
                 var final=new Projectile{position=new Point(10.5f,12f),
                     velocity=new Point(0f,-4f),damage=11f,life=1f,
                     friendly=false,visual="enemyArrow",source="shot"};
