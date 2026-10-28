@@ -830,7 +830,12 @@ namespace Starfall
             if(!alert.impactOnly)return fallback;
             if(alert.searchStep<0)
             {
-                if((enemy.Position-alert.lastKnown).Length>1.3f)
+                // A real impact or running foot can become inaccessible
+                // AFTER it was heard. Recheck the original remembered foot
+                // against current terrain before committing any movement:
+                // never chase a newly buried tile or a sealed island.
+                if((enemy.Position-alert.lastKnown).Length>1.3f&&
+                   SoundSweepFootReachable(enemy.Position,alert.lastKnown))
                     return alert.lastKnown;
                 alert.searchStep=0;
             }

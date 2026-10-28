@@ -11611,6 +11611,22 @@ public static class RuntimeCombatInputChecks
             Point rerouted=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,from);
             Check((rerouted-goal).Length>.01f,
                 "Actual search AI retires a now-sealed waypoint instead of pushing into the wall");
+            // A second genuine sound can be heard just before the gate
+            // shuts ON its original last-known foot. Previously this
+            // pre-sweep stage kept chasing that buried tile for 3.5s.
+            var publicAlert=BindingFlags.Public|BindingFlags.Instance;
+            alertType.GetField("lastKnown",publicAlert).SetValue(alert,goal);
+            alertType.GetField("searchStep",publicAlert).SetValue(alert,-1);
+            Point freshlyBlocked=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,from);
+            Check((freshlyBlocked-goal).Length>.01f&&g.CanStand(freshlyBlocked),
+                "A blocked original stone/sprint sound foot instantly falls back to a physical near-side search");
+            row[ax+3]='.';rows[ay+1]=new string(row);
+            Check(g.CanStand(goal),
+                "Actual reopened floor restores the last-known sound source without changing save data");
+            alertType.GetField("searchStep",publicAlert).SetValue(alert,-1);
+            Point reopened=(Point)CallCore(g,"LiveSoundSearchGoal",sentry,from);
+            Check((reopened-goal).Length<.001f,
+                "A fresh search on the reopened terrain resumes its genuine heard target");
         }
         finally{map.rows=original;}
         Console.WriteLine("PASS Live sound-search sentry detours around real cover and rejects changed closed footing");
