@@ -11435,7 +11435,14 @@ public static class RuntimeCombatInputChecks
             GUI.commands.Clear();Call(app,"OnGUI");
             Check(GUI.commands.Exists(line=>line.Contains("HEARD FOOTSTEPS")&&
                 line.Contains("1 GUARD(S)")),
-                "Actual player HUD reports only a confirmed audible running-footstep witness");
+                "Actual player HUD reports only a confirmed audible running-footstep witness;"+
+                " mode="+g.mode+" sprint="+g.Sprinting+
+                " count="+g.RecentSprintFootstepHearers+
+                " drawn="+string.Join("|",GUI.commands.FindAll(line=>
+                    line.Contains("SPRINT")||line.Contains("FOOT")||
+                    line.Contains("GUARD")||line.Contains("疾跑")||
+                    line.Contains("脚步")).ToArray())+
+                " totalCommands="+GUI.commands.Count);
             GUI.commands.Clear();Call(app,"DrawEnemyActor",witness);
             Check(GUI.commands.Exists(line=>line.Contains("RUNNING HEARD")),
                 "Original monster actor shows distinct English running-footstep suspicion");
