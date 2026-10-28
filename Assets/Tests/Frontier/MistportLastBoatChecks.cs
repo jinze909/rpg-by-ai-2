@@ -111,6 +111,13 @@ namespace Starfall.Tests
             Check(!BoatChoice(g,"mistconvoy_hidden")&&
                 g.save.coins==coins+75,
                 "The other branch can never be claimed after accepting a real rescue outcome");
+            SilentLedgerVisitRealInnFromEmberfall(g);
+            ReadInnNews(g,Object(g,"innGuest"));
+            Check(g.conversation!=null&&
+                g.conversation.textEn.Contains("thirteenth mug")&&
+                !g.conversation.textEn.Contains("The patrol counted twelve passengers"),
+                "Only actual publicly sheltered survivors are remembered by the original Hearth Inn traveler");
+            g.Close();
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
             Check(loaded.save.version==2&&loaded.MistConvoyPublic&&
@@ -192,6 +199,13 @@ namespace Starfall.Tests
             {g.Tick(.05f,new Point());without.Tick(.05f,new Point());}
             Check(g.save.energy>without.save.energy+1.6f,
                 "Night-pilot outcome changes actual world stamina regen by +3/s, not just a reward toast");
+            SilentLedgerVisitRealInnFromEmberfall(g);
+            ReadInnNews(g,Object(g,"innGuest"));
+            Check(g.conversation!=null&&
+                g.conversation.textEn.Contains("The patrol counted twelve passengers")&&
+                !g.conversation.textEn.Contains("thirteenth mug"),
+                "Original Hearth Inn recalls only the secret pilot's passenger count after the genuine rescue");
+            g.Close();
             g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
             Check(restored.save.version==2&&restored.MistConvoyHidden&&
                 !restored.MistConvoyActive&&restored.GetQuest("mistport_lastboat").complete,

@@ -33,6 +33,21 @@ namespace Starfall
             mistConvoyStage==2?L("跟船沿岸前进，在中继台确认位置","WALK WITH THE BOAT · CONFIRM MIDWAY"):
             mistConvoyStage==3?L("接应驶抵南码头的载人船","RECEIVE SURVIVORS AT THE SOUTH DOCK"):
             L("读取雾港求援航线记录","READ THE HARBOR RESCUE LOG");}}
+        // Heard from the ORIGINAL Hearth Inn night traveler after the
+        // actual moving-hull reception. These memories are branch-specific
+        // civic consequences of v2 flags, not another free quest reward.
+        private string MistConvoyInnNews(bool english)
+        {
+            if(MistConvoyPublic)
+                return english?
+                    "\n\nThe night traveler has set twelve chipped mugs on the inn table. A sailor with salt still on her sleeves keeps counting them. 'There were thirteen of us,' she says. 'The youngest stayed aboard until everybody else got off. Then he jumped.' The innkeeper brings a thirteenth mug. At the harbor, the new refuge keeps a light burning for the next unnamed boat.":
+                    "\n\n守夜旅人在桌上摆了十二只磕口的杯子。一个袖口还沾盐的水手反复数着，低声说：‘我们明明有十三个人。最小的那个非要等大家都上岸才跳船。’店主默默送来第十三只杯子。港口新开的避风站已经点起灯，等着下一艘没有名字的船。";
+            if(MistConvoyHidden)
+                return english?
+                    "\n\nThe traveler folds the wet mooring rope into a neat coil beneath his chair. 'The patrol counted twelve passengers,' he says. 'I counted thirteen.' He neither asks a name nor writes it down. Across the room a quiet pilot dries a child's scarf at the hearth. Outside, the sheltered channel carries another boat past the watchtower without a bell.":
+                    "\n\n守夜旅人把湿漉漉的缆绳卷好，塞到椅子底下。‘巡兵说船上十二个人，’他说，‘我数出来十三个。’他没问多出的那个人叫什么，更没有记在纸上。炉边的女引航员正替一个孩子烘干围巾。塔楼外的暗水道又悄悄送过一艘船，钟一次也没响。";
+            return "";
+        }
         private void ResetMistConvoy()
         {
             mistConvoyStage=0;mistConvoyClock=mistConvoyHull=mistConvoySwell=mistConvoyBrace=0f;

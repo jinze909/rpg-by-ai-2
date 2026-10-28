@@ -594,6 +594,18 @@ namespace Starfall
                     Point at=ScreenPoint(afloat);
                     PropImage("boat",0,at.x-52,at.y-65,104,67,hull);
                     Ring(afloat,.75f,hull,22);
+                    // Only an actually translated boat leaves a visible
+                    // water wake. The original boat art remains unchanged.
+                    if(Game.MistConvoyStage>=2)
+                        for(int trail=1;trail<=3;trail++)
+                        {
+                            Point foam=new Point(afloat.x,
+                                afloat.y-(trail*.26f));
+                            if(WorldDrawable(foam.x,foam.y,40f,40f))
+                                Ring(foam,.10f+trail*.07f,
+                                    new Color(.72f,.91f,1f,.6f),12);
+                        }
+
                     Text(at.x-81,at.y-95,162,18,
                         Game.MistConvoyBoatFollowing?
                             Game.L("跟随岸灯航行","FOLLOWING SHORE LIGHT"):
