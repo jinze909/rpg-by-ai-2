@@ -231,7 +231,7 @@ namespace Starfall
             { gateOpeningTime = .55f; sound = "quest"; effects.Add(new Effect("gateOpen", new Point(26.5f, 13.5f), .65f)); }
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
-        public float Damage { get { return (19 + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
+        public float Damage { get { return (19 + (ThornwatchSevered&&save.room<8?3:0) + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
         public float Speed { get { return 4.5f + (Has("roadcharter_public") ? .25f : 0) + (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
@@ -367,7 +367,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -565,6 +565,12 @@ namespace Starfall
             {
                 Notify("高原火种尚在运送。必须送往公共暖站，或回西部站主动归还。",
                     "A highland ember is in transit. Deliver it or return it to the western signal.");
+                return true;
+            }
+            if(ThornwatchActive)
+            {
+                Notify("荆棘密林根钟守望正在进行。完成战斗，或回真实远眺台主动撤销。",
+                    "Thornwood root-bell watch is active. Finish the fight or withdraw at its real overlook.");
                 return true;
             }
             if(LastLanternActive)
@@ -945,7 +951,8 @@ namespace Starfall
             TickSpecialistDrill(dt);
             dodgeEscapeTime = Math.Max(0, dodgeEscapeTime - dt);
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
-                (Has("commons_relay_complete") ? 2 : 0) + (Has("roadcharter_reserve") ? 3 : 0) +
+                (Has("commons_relay_complete") ? 2 : 0) +
+                (ThornwatchTuned&&save.room<8?2:0) + (Has("roadcharter_reserve") ? 3 : 0) +
                 // Real completion of eight two-way civilian dispatches
                 // improves long-distance outdoor stamina recovery only.
                 (save.room<8&&Has("annex_relay_archived") ? 2 : 0) +
@@ -990,6 +997,7 @@ namespace Starfall
             TickCivicResponse(dt);
             TickMineConvoy(dt);
             TickLastLantern(dt);
+            TickThornwatch(dt);
             TickFrostSignal(dt);
             TickFloodRelief(dt);
             TickLastDirective(dt);
@@ -1506,6 +1514,7 @@ namespace Starfall
             OnFrostSignalEnemyDefeated(e);
             OnMineConvoyEnemyDefeated(e);
             OnLastLanternEnemyDefeated(e);
+            OnThornwatchEnemyDefeated(e);
             OnGlasswindEnemyDefeated(e);
             OnTriadSecurityEnemyDefeated(e);
             OnTideSalvageEnemyDefeated(e);
@@ -1541,7 +1550,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -3957,6 +3966,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkThornwatch(o)) return;
             if (TalkLastLantern(o)) return;
             if (TalkPolish(o)) return;
             if (TalkExpansion(o)) return;
@@ -4450,7 +4460,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || LastLanternActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || LastLanternActive || ThornwatchActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4692,6 +4702,7 @@ namespace Starfall
             if (ChooseFrostSignal(action)) return;
             if (ChooseMineConvoy(action)) return;
             if (ChooseLastLantern(action)) return;
+            if (ChooseThornwatch(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
             if (ChoosePolish(action)) return;

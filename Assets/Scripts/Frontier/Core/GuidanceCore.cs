@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1062,6 +1062,45 @@ namespace Starfall
                 return q;
             }
 
+
+            if(id=="thornwatch")
+            {
+                q.title=L("荆棘密林 · 归途根钟","Thornwood · The Homeward Root Bell");
+                q.category=L("双轮战斗 · 守林人的归路","TWO-WAVE COMBAT · FOREST HOMEWARD TRAIL");
+                q.locked=!Has("boss_1");
+                q.complete=ThornwatchComplete;
+                q.room=1;
+                q.description=L(
+                    "在荆棘密林真正的远眺台（65.5,40.5）挑战两轮守卫。第一轮要实际击败两名猎兵；再到附近营地（61.5,36.5）调和根钟或斩断根缚。第二轮出现重甲精英及护卫，地脉预警中留有真正可闪避的空白方位。胜利后回远眺台登记，两个永久结局分别加强户外耐力回复或实际攻击。",
+                    "At the real Thornwood overlook (65.5,40.5), defeat two actual hunter waves. After wave one, reach the nearby camp (61.5,36.5) and choose to retune the root bell or sever its bindings. Wave two features an armored elite, a live guard and physical ground pulse warnings with walkable exits. Return to the overlook for one permanent outdoor stamina or damage upgrade.");
+                q.steps.Add(new QuestStep(L("在远眺台迎战首轮猎兵",
+                    "Defeat two live hunters at the overlook"),
+                    thornwatchStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("到邻近营地决定根钟战术",
+                    "Choose the bell strategy at the nearby camp"),
+                    thornwatchStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("躲避根震并真正击败精英护卫",
+                    "Evade root pulses and defeat the elite pair"),
+                    thornwatchStage>=4||q.complete));
+                q.steps.Add(new QuestStep(L("回远眺台交还归路",
+                    "Report the open trail at the overlook"),q.complete));
+                q.target=ThornwatchActive?ThornwatchTarget:
+                    new Point(65.5f,40.5f);
+                q.next=q.locked?L("先击败荆棘密林的原主线守护者",
+                    "Defeat Thornwood's original regional guardian"):
+                    q.complete?(ThornwatchTuned?
+                        L("归途根钟已调和：户外耐力每秒恢复额外+2",
+                          "Bell retuned: +2 outdoor energy regeneration per second"):
+                        L("根缚已斩断：户外攻击基础伤害额外+3",
+                          "Roots severed: +3 base outdoor attack damage")):
+                    ThornwatchActive?ThornwatchStepText+" · "+
+                        ThornwatchTime.ToString("0")+"s":
+                    L("前往荆棘密林远眺台 65.5,40.5 开始真正的双轮守卫战",
+                      "Visit the real Thornwood overlook 65.5,40.5 to begin two live waves");
+                q.reward=L("首次完成：70硬币、3碎片、105经验；永久户外回能或伤害增益",
+                    "First clear: 70 coins, 3 shards, 105 XP; permanent outdoor regen or damage");
+                return q;
+            }
 
             if(id=="last_lantern")
             {

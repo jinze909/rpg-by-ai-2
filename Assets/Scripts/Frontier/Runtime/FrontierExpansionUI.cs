@@ -476,6 +476,26 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            if(Game.mode=="world"&&Game.ThornwatchActive&&!drawingOutline)
+            {
+                Point target=Game.ThornwatchTarget;
+                Color ink=Game.ThornwatchTime<25f?
+                    new Color(1f,.55f,.40f,1f):mint;
+                if(WorldDrawable(target.x,target.y,170f,170f))
+                {
+                    Ring(target,.75f,ink,32);
+                    Point p=ScreenPoint(target);
+                    Text(p.x-135,p.y-83,270,20,
+                        Game.ThornwatchStepText,12,ink,
+                        TextAnchor.MiddleCenter);
+                }
+                Text(35,231,485,23,Game.L("归途根钟 · ","ROOT BELL · ")+
+                    Game.ThornwatchStage+"/4 · "+
+                    Game.L("剩余 ","LEFT ")+Game.ThornwatchTime.ToString("0")+"s"+
+                    Game.L(" · 敌人 "," · FOES ")+Game.ThornwatchSurvivors,
+                    12,ink);
+            }
+
             // Live three-site Last Lantern signal. The map marker follows
             // authentic objective position, not a fabricated static waypoint.
             if(Game.mode=="world"&&Game.LastLanternActive&&!drawingOutline)
