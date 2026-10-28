@@ -11,6 +11,7 @@ namespace Starfall
         private readonly List<Rect> hudRegions=new List<Rect>(10),hudPointerRegions=new List<Rect>(3);
         private readonly List<Rect> worldOverlayRegions = new List<Rect>(8);
         private static readonly Rect CombatJournalButton=new Rect(1185,58,65,24);
+        private static readonly Rect CombatPebbleButton=new Rect(32,737,284,36);
         private bool CombatClimate { get { return Game.save.room == 6 || Game.save.room == 7 || Game.save.teaUntil > Game.save.totalTime; } }
         private bool CounterHud
         { get { return Game.riposteTime > .001f ||
@@ -56,6 +57,7 @@ namespace Starfall
             {
                 rects.Add(new Rect(20, 20, 260, 77)); rects.Add(new Rect(1030, 22, 230, 70));
                 rects.Add(new Rect(426, 730, 428, 54)); rects.Add(new Rect(1134, 746, 126, 36));
+                rects.Add(CombatPebbleButton);
                 if (CombatClimate) rects.Add(new Rect(20,103,260,26));
                 if (CounterHud) rects.Add(new Rect(20,CounterHudY,260,27));
                 if (Game.toastTime > 0) rects.Add(new Rect(20,CombatToastY,260,62));
@@ -93,7 +95,7 @@ namespace Starfall
             // The real action controls retain their pointer protection.
             hudPointerRegions.Clear();
             if (!CombatHud) for (int i = 0; i < regions.Count - worldOverlayRegions.Count; i++) hudPointerRegions.Add(regions[i]);
-            else { hudPointerRegions.Add(regions[2]); hudPointerRegions.Add(regions[3]); hudPointerRegions.Add(CombatJournalButton); }
+            else { hudPointerRegions.Add(regions[2]); hudPointerRegions.Add(regions[3]); hudPointerRegions.Add(CombatJournalButton); hudPointerRegions.Add(CombatPebbleButton); }
             return hudPointerRegions;
         }
         private static bool OverlapsRegions(List<Rect> regions,Rect bounds)
@@ -484,6 +486,17 @@ namespace Starfall
                 Bar(401,71,478,flame/100f,accent,7);
             }
             else if (HasFallenBoss) Text(380,29,520,31,Game.L("守护者已倒下 · 战利品已收取","Guardian defeated · loot secured"),18,gold,TextAnchor.MiddleCenter);
+            // Near a visible enemy the compact CombatHud replaces the
+            // exploration controls. U is still an actual gameplay action:
+            // keep its risk feedback and clickable physical release
+            // here too, without covering the established Q/F/T/Z/dodge.
+            if(Button(CombatPebbleButton.x,CombatPebbleButton.y,
+                CombatPebbleButton.width,CombatPebbleButton.height,
+                LivePebbleHudLabel(),false,
+                Game.mode=="world"&&!Game.Dying&&!Game.practicing&&
+                Game.pebbleCooldown<=0f&&
+                Game.save.energy>=GameCore.PebbleEnergyCost))
+                Game.ThrowPebble(Game.aim);
             Panel(426,730,428,54,new Color(.045f,.08f,.13f,.65f),new Color(.3f,.4f,.46f,.4f));
             ActionSlot(430,ControlKey("Q","Y"),SkillName(),Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff",Game.skillCooldown,Game.save.energy >= (Game.Relic(4)?50:40),()=>Game.Skill(InputAim(true)),3.5f,Game.L("耐力不足","Low energy"));
             ActionSlot(515,ControlKey("F","LB"),Game.L("汤 ","Stew ")+Game.save.inventory[6],"stew",0,Game.save.inventory[6]>0&&!Game.practicing,()=>Game.Eat());

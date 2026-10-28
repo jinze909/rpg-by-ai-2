@@ -409,6 +409,32 @@ namespace Starfall
             if (replacePrompt) { drawingModal = true; drawnControls.Clear(); Dim(); Card(385, 282, 510, 235); Text(414, 310, 447, 43, Game.L("开启另一段旅程", "A new beginning"), 27, gold); Text(414, 370, 447, 58, Game.L("开始新冒险会替换自动存档，手动位置保留。", "Replaces the autosave. Your manual slots are retained."), 18, paper); if (Button(414, 447, 214, 43, Game.L("开始新冒险", "Start new"), true)) BeginAdventure(); if (Button(647, 447, 214, 43, Game.L("取消", "Cancel"))) replacePrompt = false; }
         }
         private void BeginAdventure() { Game.NewGame(selectedClass); camera = CameraTarget(); Save(); replacePrompt = false; }
+        // Both production HUD layouts must present the exact same
+        // sound-risk and cooldown decision for the same real U/gamepad
+        // projectile. Combat HUD is selected near a living sentry, so
+        // exploration-only controls would conceal the warning precisely
+        // when that sentry is near enough to hear the throw.
+        private string LivePebbleHudLabel()
+        {
+            string hint=Game.pebbleCooldown>.00001f?
+                Game.L(" · 冷却 "+(int)Math.Ceiling(Game.pebbleCooldown)+"秒",
+                       " · CD "+(int)Math.Ceiling(Game.pebbleCooldown)+"s"):
+                Game.save.energy<GameCore.PebbleEnergyCost?
+                    Game.L(" · 耐力不足"," · LOW EN"):"";
+            int heard=Game.NearbyPebbleLaunchListeners();
+            string label=heard>0?
+                (controllerUsed?
+                    Game.L("L3+R3 · 投石 · "+heard+"名守卫能听见",
+                           "L3+R3 · PEBBLE · "+heard+" HEAR"):
+                    Game.L("U · 投石 · "+heard+"名守卫能听见",
+                           "U · PEBBLE · "+heard+" HEAR")):
+                (controllerUsed?
+                    Game.L("L3+R3 · 投石 · 8耐力",
+                           "L3+R3 · PEBBLE · 8 EN"):
+                    Game.L("U · 投石诱敌 · 8耐力",
+                           "U · THROW PEBBLE · 8 EN"));
+            return label+hint;
+        }
         private void DrawExplorationHud()
         {
             bool world = Game.mode == "world";
@@ -466,27 +492,7 @@ namespace Starfall
                 // Show the true reason the physical stealth throw is
                 // unavailable on its actual, clickable world HUD control.
                 // This uses the same GameCore clock/energy as keyboard and pad.
-                string pebbleHint=Game.pebbleCooldown>.00001f?
-                    Game.L(" · 冷却 "+(int)Math.Ceiling(Game.pebbleCooldown)+"秒",
-                           " · CD "+(int)Math.Ceiling(Game.pebbleCooldown)+"s"):
-                    Game.save.energy<GameCore.PebbleEnergyCost?
-                        Game.L(" · 耐力不足"," · LOW EN"):"";
-                int throwListeners=Game.NearbyPebbleLaunchListeners();
-                // Risk preview is computed from the EXACT guard-hearing
-                // predicate used at release; never promise sound through
-                // terrain or show listeners for an unavailable throw.
-                string throwLabel=throwListeners>0?
-                    (controllerUsed?
-                        Game.L("L3+R3 · 投石 · "+throwListeners+"名守卫能听见",
-                               "L3+R3 · PEBBLE · "+throwListeners+" HEAR"):
-                        Game.L("U · 投石 · "+throwListeners+"名守卫能听见",
-                               "U · PEBBLE · "+throwListeners+" HEAR")):
-                    (controllerUsed?
-                        Game.L("L3+R3 · 投石 · 8耐力",
-                               "L3+R3 · PEBBLE · 8 EN"):
-                        Game.L("U · 投石诱敌 · 8耐力",
-                               "U · THROW PEBBLE · 8 EN"));
-                if(Button(24,691,304,27,throwLabel+pebbleHint,
+                if(Button(24,691,304,27,LivePebbleHudLabel(),
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
                     !Game.practicing))

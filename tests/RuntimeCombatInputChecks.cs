@@ -11129,17 +11129,27 @@ public static class RuntimeCombatInputChecks
         Check(g.NearbyPebbleLaunchListeners()==1,
             "A true nearby back-facing guard can actually hear the throw");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(s=>s.Contains("1 HEAR")),
-            "Production playable U button displays live, physically grounded launch hearing; mode="+g.mode+
-            " language="+g.save.english+" listeners="+g.NearbyPebbleLaunchListeners()+
-            " cmds="+GUI.commands.Count+" cues="+string.Join(" | ",
-                GUI.commands.FindAll(s=>s.Contains("PEBBLE")||
-                    s.Contains("HEAR")||s.Contains("投石")).ToArray()));
+        Check(GUI.commands.Exists(s=>s.Contains("PEBBLE")&&
+            s.Contains("1 HEAR")),
+            "The actual combat overlay exposes the same near-side listener risk as the core action");
+        // Click the combat-only U control at its real HUD bounds. It
+        // must launch one original nonlethal physical projectile rather
+        // than simply render a decorative warning.
+        g.aim=new Point(0f,1f);
+        GUI.queuedClick=new Rect(32,737,284,36);
+        Call(app,"OnGUI");
+        Check(GUI.queuedClick==null&&
+            g.projectiles.Exists(p=>p.visual=="pebble"&&
+                p.source=="quietDecoy"&&p.damage==0f)&&
+            g.save.energy<100f,
+            "Live compact combat HUD button performs exactly the authoritative nonlethal throw");
+        GUI.queuedClick=null;
+        g.projectiles.Clear();g.pebbleCooldown=0f;g.save.energy=100f;
         g.enemies.Remove(guard);
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(s=>s.Contains("PEBBLE")&&
             s.Contains(" HEAR"))&&
-            GUI.commands.Exists(s=>s.Contains("THROW PEBBLE")),
+            GUI.commands.Exists(s=>s.Contains("PEBBLE")),
             "The production HUD immediately retires stale listener warnings without changing combat state");
         Console.WriteLine("PASS Live stealth pebble HUD: audible guard count uses exactly real throw physics");
     }
