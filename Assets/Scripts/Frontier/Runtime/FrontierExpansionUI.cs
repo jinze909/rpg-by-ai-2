@@ -572,6 +572,14 @@ namespace Starfall
                         Game.L("旧警铃引导巡逻 ","BELL DIVERSION ")+
                         Game.SilentLedgerDiversion.ToString("0.0")+"s",
                         11,gold);
+                // This is the existing real, costed U-key world action.
+                // UI never starts phantom sound or spends stamina.
+                Text(35,432,515,19,
+                    Game.L("U 投石诱敌 · 耐力8 · ","U PEBBLE LURE · 8 ENERGY · ")+
+                    (Game.pebbleCooldown>.00001f?
+                        Game.L("冷却 ","READY IN ")+Game.pebbleCooldown.ToString("0.0")+"s":
+                        Game.L("可投掷","READY")),
+                    11,new Color(.76f,.89f,.97f,1f));
             }
             if(Game.mode=="world"&&Game.PressureworksActive&&!drawingOutline)
             {

@@ -35,6 +35,10 @@ namespace Starfall.Tests
             var g=SilentLedgerReady(data);
             WorldObject notice=SilentLedgerPost(g,"silentledger_notice");
             SilentLedgerMoveTo(g,notice);g.Talk(notice);
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                g.conversation.textEn.Contains("Press U to throw a pebble")&&
+                g.conversation.text.Contains("按 U 投石"),
+                "Real original Citadel briefing teaches the actual paid U-key projectile and nearby launch risk");
             Check(SilentLedgerChoice(g,"silentledger_start")&&
                 g.SilentLedgerStage==1&&g.SilentLedgerTime>150f,
                 "Original physical notice starts a fully timed stealth infiltration");

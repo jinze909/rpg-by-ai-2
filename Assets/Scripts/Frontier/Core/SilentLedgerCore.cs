@@ -136,8 +136,8 @@ namespace Starfall
                 if(silentLedgerStage==0)
                 {
                     Dialog(o.name,o.en,
-                        "旧堡垒的名册刻意漏记了撤离的家庭。两名夜巡守卫在外墙来回走动，视线会被真实墙壁遮住。悄步移动能减轻被发现的速度；冲刺声会吸引他们。东墙照明闸能暂时压低夜巡灯光，却会发出引来近处守卫的金属声。到北边取走被涂改的登记，再去南侧找目击者口供，最后潜入封存台公开真相。若被发现或倒计时结束，行动会撤回，可以免费重试。",
-                        "The old citadel erased evacuated families from the register. Two night sentries patrol the outer wall and see only through actual unblocked sightlines. Quiet walking reduces exposure; sprinting attracts them. The east-wall lighting shutter briefly dims patrol lanterns, but its metal latch can be heard by nearby sentries. Take the tampered north register, recover the southern eyewitness testimony, then reach the sealed console. Detection or timeout cancels this attempt; retries are free.",
+                        "旧堡垒的名册刻意漏记了撤离的家庭。两名夜巡守卫在外墙来回走动，视线会被真实墙壁遮住。悄步移动能减轻被发现的速度；冲刺声会吸引他们。按 U 投石，石子真实落地处会引开守卫，近处的投掷动作却也会暴露位置。东墙照明闸能暂时压低夜巡灯光，却会发出引来近处守卫的金属声。到北边取走被涂改的登记，再去南侧找目击者口供，最后潜入封存台公开真相。若被发现或倒计时结束，行动会撤回，可以免费重试。",
+                        "The old citadel erased evacuated families from the register. Two night sentries patrol the outer wall and see only through actual unblocked sightlines. Quiet walking reduces exposure; sprinting attracts them. Press U to throw a pebble: its real landing can lure a patrol, but a nearby sentry can also hear your arm throw. The east-wall lighting shutter briefly dims patrol lanterns, but its metal latch can be heard by nearby sentries. Take the tampered north register, recover the southern eyewitness testimony, then reach the sealed console. Detection or timeout cancels this attempt; retries are free.",
                         C("潜入夺回名册","Infiltrate the sealed register","silentledger_start"),
                         C("稍后再说","Not yet","close"));return true;
                 }
