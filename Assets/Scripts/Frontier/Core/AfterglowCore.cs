@@ -28,6 +28,8 @@ namespace Starfall
             return n;}}
         public int AfterglowWins {get{int n=0;for(int room=0;room<8;room++)
             if(Has("afterglow_done_"+room))n++;return n;}}
+        public int AfterglowCutWins {get{int n=0;for(int room=0;room<8;room++)
+            if(Has("afterglow_cut_"+room))n++;return n;}}
         private bool IsAfterglowEnemy(Enemy e)
         {return e!=null&&afterglowPhase>0&&afterglowRoom==save.room&&
             afterglowActors.Contains(e);}
@@ -136,6 +138,7 @@ namespace Starfall
                 ResetAfterglow();
                 if(Has("afterglow_done_"+room))return;
                 Flag("afterglow_done_"+room);
+                Flag((plan==2?"afterglow_cut_":"afterglow_screen_")+room);
                 CreditCoins(plan==2?72:38);
                 CreditShards(plan==2?2:1);AddXp(plan==2?95:60);
                 RecordMoment(plan==2?

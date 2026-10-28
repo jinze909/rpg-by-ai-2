@@ -125,7 +125,8 @@ namespace Starfall
             if(!Spend(2,0,1,0,0))return true;
             campWardCamp=camp;campWardRoom=save.room;
             campWardMap=Map;campWardSave=save;
-            campWardSeconds=CampSignalNetworkPublished?120f:90f;
+            campWardSeconds=Has("afterglow_ending_watch")?150f:
+                CampSignalNetworkPublished?120f:90f;
             campWardCharges=Has("afterglow_all")?5:
                 CampSignalNetworkPublished?4:3;
             campWardFlareClock=0f;
@@ -351,7 +352,11 @@ namespace Starfall
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
                     "/8 · 余烬守望 "+watches+"/8。"+
-                    (Has("afterglow_all")?" 八地守望完成，营火防护上限提高到5次。":"")+
+                    (Has("afterglow_all")?" 八地守望完成，营火防护上限提高到5次；其中主动截击 "+AfterglowCutWins+"/8。":"")+
+                    (Has("afterglow_ending_shelter")?
+                        " 余烬议事已选择公用避难所，营地休息恢复生命60。":
+                        Has("afterglow_ending_watch")?
+                        " 余烬议事已选择远程警戒，守火持续150秒。":"")+
                     (Has("annex_relay_archived")?
                         "\n\n《归途回声》已经存入旅店的公共史册。户外耐力恢复永久 +2/秒。":
                         Has("annex_relay_all")?
@@ -370,7 +375,12 @@ namespace Starfall
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+
                     "/8 · Afterglow watches "+watches+"/8."+
-                    (Has("afterglow_all")?" Eight watches secured: each prepared fire now blocks five shots.":"")+
+                    (Has("afterglow_all")?" Eight watches secured, "+AfterglowCutWins+
+                        "/8 aggressive interceptions. Each fire now blocks five shots.":"")+
+                    (Has("afterglow_ending_shelter")?
+                        " Public shelters now restore 60 HP per camp rest.":
+                        Has("afterglow_ending_watch")?
+                        " Public early-warning signals now last 150 seconds.":"")+
                     (Has("annex_relay_archived")?
                         "\n\nHomeward Echoes is now part of the public chronicle. Outdoor stamina recovery is permanently +2/s.":
                         Has("annex_relay_all")?
@@ -394,6 +404,12 @@ namespace Starfall
                         !Has("annex_relay_archived")?
                         C("提交八地回执 · 归途回声","File eight replies · Homeward Echoes","annex_relay_archive"):
                         C("查看公开回执","Read public replies","close"),
+                    Has("afterglow_all")&&AfterglowWins==8&&
+                        !Has("afterglow_ending_shelter")&&
+                        !Has("afterglow_ending_watch")?
+                        C("余烬议事 · 决定公共安全方案",
+                            "Afterglow Council · choose public policy","afterglow_epilogue"):
+                        C("继续整理史册","Keep cataloguing","close"),
                     C("继续旅程","Keep exploring","close"));
                 return true;
             }
@@ -482,7 +498,8 @@ namespace Starfall
                     C("出发烽火传讯 · 往返挑战","Carry the signal · round trip","annex_relay_begin"):
                     C("查看传讯记录","Review dispatch record","close");
             Dialog(o.name,o.en,noteZh+
-                    "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 40 和全部耐力。"+
+                    "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 "+
+                    (Has("afterglow_ending_shelter")?60:40)+" 和全部耐力。"+
                     (SignalRelayActive?"\n\n当前传讯："+SignalRelayStage+"/2段，火种完整度 "+
                         SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
                         Has("annex_relay_done_"+save.room)?
@@ -492,7 +509,8 @@ namespace Starfall
                         Has("afterglow_done_"+save.room)?"\n\n本地余烬守望已胜利。":"")+
                     (first?"\n\n首次发现营地，硬币 +5。":"")+
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
-                    noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores 40 HP and full energy."+
+                    noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores "+
+                    (Has("afterglow_ending_shelter")?60:40)+" HP and full energy."+
                     (SignalRelayActive?"\n\nDispatch stage "+SignalRelayStage+"/2 · flame "+
                         SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
                         Has("annex_relay_done_"+save.room)?
@@ -516,6 +534,67 @@ namespace Starfall
         }
         private bool ChooseAnnexExploration(string action)
         {
+            if(action=="afterglow_epilogue"||
+               action=="afterglow_ending_shelter"||
+               action=="afterglow_ending_watch")
+            {
+                WorldObject archive=pendingDialogueSource;
+                if(save.room!=9||mode!="world"||Dying||practicing||
+                    !Has("afterglow_all")||AfterglowWins!=8||
+                    Has("afterglow_ending_shelter")||
+                    Has("afterglow_ending_watch")||
+                    archive==null||archive.kind!="annexinnarchive"||
+                    pendingDialogueSourceRoom!=9||
+                    !SourceBelongsToActiveMap(archive)||
+                    !HasPhysicalInteractionReach(archive))return true;
+                if(action=="afterglow_epilogue")
+                {
+                    Dialog("余烬议事 · 归路常明","Afterglow Council · The Road Stays Lit",
+                        "值夜人摊开八地战报。"+AfterglowCutWins+
+                        "次主动截击，另外 "+(8-AfterglowCutWins)+
+                        "次优先护送。每个营地都有同一个问题：下一次听见求救时，先保护谁？"+
+                        "\n\n守路队没有宣布唯一正确的答案。他们请你把今后共同使用的安全方案写到公共记录里。"+
+                        "\n\n选择后永久有效，不能重复领取结算。",
+                        "The night keeper spreads eight reports across the inn table. "+
+                        AfterglowCutWins+" aggressive interceptions and "+
+                        (8-AfterglowCutWins)+" shelter screens. Each camp asks the same question: whom do we protect first next time?"+
+                        "\n\nNo officer declares a single correct answer. Write the new public safety practice for everyone to share."+
+                        "\n\nThis choice is permanent; the final award is one-time.",
+                        C("优先开放避难所 · 休息生命 +20",
+                            "Open civilian shelters · +20 camp healing","afterglow_ending_shelter"),
+                        C("完善警戒网络 · 守火延长30秒",
+                            "Extend warning network · +30s fireward","afterglow_ending_watch"),
+                        C("暂不决定","Decide later","close"));
+                    return true;
+                }
+                bool shelter=action=="afterglow_ending_shelter";
+                Flag(shelter?"afterglow_ending_shelter":"afterglow_ending_watch");
+                CreditCoins(55);CreditShards(2);
+                RecordMoment(shelter?
+                    "炉火旅店把守火胜利的一部分拨给每处公共避难所。夜归者可以先暖过来，再告诉大家自己看到了什么。":
+                    "炉火旅店把守火胜利的一部分拨给长夜警戒。每一次多亮半分钟的火光，都是给迟归的人留出的时间。",
+                    shelter?
+                    "The Hearth Inn devotes the watches' reward to open shelters: travelers may recover first, then tell their stories.":
+                    "The Hearth Inn devotes the watches' reward to an early-warning network, leaving an extra half-minute of light for travelers still returning.");
+                revision++;sound="reward";
+                Dialog("归路常明 · 公共决定","The Road Stays Lit · Public Decision",
+                    shelter?
+                    "记录员没有盖上军印，而是在纸边留下一个空栏，允许后来者写下新的避难地址。"+
+                    "\n\n避难所方案生效：户外营地每次休息恢复60点生命，耐力仍全部恢复。"+
+                    "\n\n硬币 +55，碎片 +2。":
+                    "修钟匠把几枚旧齿轮装进共同的信号计时器。他说：只要有人还没回来，就别急着熄灯。"+
+                    "\n\n警戒方案生效：每次付费守火可持续150秒，五次拦截规则不变。"+
+                    "\n\n硬币 +55，碎片 +2。",
+                    shelter?
+                    "The keeper leaves room in the margin for tomorrow's shelter addresses."+
+                    "\n\nShelter policy: every outdoor camp rest restores 60 HP and full stamina."+
+                    "\n\n+55 coins, +2 shards.":
+                    "A clockmaker reuses old cogs to keep public warning lights burning longer."+
+                    "\n\nWatch policy: paid signal fires last 150 seconds with the same five contact charges."+
+                    "\n\n+55 coins, +2 shards.",
+                    C("收起议事记录","Close council record","close"));
+                return true;
+            }
             if(action=="annex_relay_archive")
             {
                 WorldObject archive=pendingDialogueSource;
@@ -620,9 +699,11 @@ namespace Starfall
                 return true;
             }
             if(!Spend(1,0,0,0,0))return true;
-            save.health=Clamp(save.health+40,0,save.maxHealth);save.energy=100;
+            int healing=Has("afterglow_ending_shelter")?60:40;
+            save.health=Clamp(save.health+healing,0,save.maxHealth);save.energy=100;
             revision++;sound="reward";
-            Notify("营火补给：生命恢复 40，耐力全满。","Campfire: +40 HP and full stamina.");
+            Notify("营火补给：生命恢复 "+healing+"，耐力全满。",
+                "Campfire: +"+healing+" HP and full stamina.");
             return true;
         }
     }
