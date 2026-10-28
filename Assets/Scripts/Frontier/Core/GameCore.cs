@@ -1029,11 +1029,37 @@ namespace Starfall
         public const float PebbleRecoverySeconds=5f;
         public void ThrowPebble(Point direction)
         {
-            if(mode!="world"||Dying||practicing||playerAction!=null||
-               dashTime>0f||playerHitTime>0f||
-               pebbleCooldown>.00001f||save.energy<PebbleEnergyCost||
-               !CanStand(Position)||!Finite(direction.x)||
-               !Finite(direction.y)||direction.Length<.2f)return;
+            if(mode!="world"||Dying||practicing)return;
+            // This is a deliberate single-press world ability, not a held
+            // attack. Explain why a physical throw was rejected instead of
+            // making the player's button press look broken.
+            if(playerAction!=null||dashTime>0f||playerHitTime>0f)
+            {
+                Notify("当前动作未结束，暂时不能投石。",
+                    "Finish your current action before throwing a pebble.");
+                return;
+            }
+            if(!CanStand(Position))
+            {
+                WarnBlockedFooting("脚下地形已封闭，不能投石。",
+                    "Footing is blocked. Cannot throw a pebble.");
+                return;
+            }
+            if(pebbleCooldown>.00001f)
+            {
+                int seconds=(int)Math.Ceiling(pebbleCooldown);
+                Notify("石子尚未准备好，剩余 "+seconds+" 秒。",
+                    "Pebble ready in "+seconds+"s.");
+                return;
+            }
+            if(save.energy<PebbleEnergyCost)
+            {
+                Notify("耐力不足：投石需要 8 点耐力。",
+                    "Not enough energy: pebble needs 8.");
+                return;
+            }
+            if(!Finite(direction.x)||!Finite(direction.y)||
+               direction.Length<.2f)return;
             Point heading=direction.Normalized;
             var pebble=new Projectile{
                 position=Position,velocity=heading*11f,

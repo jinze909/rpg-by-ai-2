@@ -785,7 +785,7 @@ namespace Starfall.Tests
                 var g=Fresh(data);g.save.stage=3;g.Enter(1);
                 g.enemies.Clear();g.mode="world";
                 g.save.x=6.5f;g.save.y=10.5f;
-                g.save.energy=100f;
+                g.save.energy=100f;g.save.english=true;
                 var guard=new Enemy(99131,0,14.5f,12.5f,300f);
                 guard.stun=100f;guard.timer=100f;
                 g.enemies.Add(guard);
@@ -798,8 +798,9 @@ namespace Starfall.Tests
                     "World button releases a real non-damaging, stamina-paid projectile with its own cooldown");
                 g.ThrowPebble(new Point(1,0));
                 Check(g.projectiles.Count==1&&
-                    g.save.energy==100f-GameCore.PebbleEnergyCost,
-                    "Spam cannot spawn free additional pebbles or double-spend energy");
+                    g.save.energy==100f-GameCore.PebbleEnergyCost&&
+                    g.toast!=null&&g.toast.Contains("Pebble ready in"),
+                    "Cooldown refusal explains the real wait without extra projectiles or energy cost");
                 Advance(g,.72f);
                 Check(!g.projectiles.Exists(p=>p.visual=="pebble")&&
                     g.IsEnemyInvestigatingImpact(guard)&&
@@ -814,6 +815,11 @@ namespace Starfall.Tests
                 g.Load(saved);g.mode="world";
                 Check(g.save.version==2&&g.pebbleCooldown==0f,
                     "Transient decoy cooldown and alerts do not enter SaveData v2");
+                g.save.energy=3f;
+                g.ThrowPebble(new Point(1,0));
+                Check(g.projectiles.Count==0&&g.save.energy==3f&&
+                    g.toast!=null&&g.toast.Contains("pebble needs 8"),
+                    "Insufficient energy refuses the actual throw with an actionable explanation");
                 g.enemies.Clear();
                 var blocked=new Enemy(99132,0,14.5f,12.5f,300f);
                 blocked.stun=100f;g.enemies.Add(blocked);

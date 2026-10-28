@@ -463,12 +463,20 @@ namespace Starfall
                 ActionSlot(586, ControlKey("T", "PACK"), Game.L("凉茶", "Tea") + " " + Game.save.tea, "tea", Game.TeaCooldownLeft, Game.CanDrinkTea || Game.TeaCooldownLeft>0 && Game.save.tea>0 && !Game.practicing, () => Game.DrinkTea(), GameCore.TeaCooldownSeconds, Game.L("保护仍在","Protected"));
                 ActionSlot(702, ControlKey("Z", "RB"), Game.L("同行指令", "Command"), "companion", Game.companionCooldown, Game.save.companion >= 0 && !Game.practicing, () => Game.CommandCompanion(), Game.save.frontierEnding == 3 ? 12 : 18);
                 ActionSlot(818, ControlKey("SPACE", "A"), Game.L("闪避", "Dodge"), "shield", Game.dashCooldown, Game.save.energy >= (Game.Relic(2) ? 25 : 20), () => Game.Dash(HudDodgeDirection()), .75f - Game.save.talents[2] * .06f, Game.L("耐力不足", "Low energy"));
+                // Show the true reason the physical stealth throw is
+                // unavailable on its actual, clickable world HUD control.
+                // This uses the same GameCore clock/energy as keyboard and pad.
+                string pebbleHint=Game.pebbleCooldown>.00001f?
+                    Game.L(" · 冷却 "+(int)Math.Ceiling(Game.pebbleCooldown)+"秒",
+                           " · CD "+(int)Math.Ceiling(Game.pebbleCooldown)+"s"):
+                    Game.save.energy<GameCore.PebbleEnergyCost?
+                        Game.L(" · 耐力不足"," · LOW EN"):"";
                 if(Button(24,691,304,27,
-                    controllerUsed?
+                    (controllerUsed?
                         Game.L("L3+R3 · 投石 · 8耐力",
                                "L3+R3 · PEBBLE · 8 EN"):
                         Game.L("U · 投石诱敌 · 8耐力",
-                               "U · THROW PEBBLE · 8 EN"),
+                               "U · THROW PEBBLE · 8 EN"))+pebbleHint,
                     false,Game.pebbleCooldown<=0f&&
                     Game.save.energy>=GameCore.PebbleEnergyCost&&
                     !Game.practicing))

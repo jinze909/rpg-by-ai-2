@@ -7154,6 +7154,9 @@ public static class RuntimeCombatInputChecks
             p.source=="quietDecoy"&&p.damage==0f)&&
             g.save.energy<100f&&g.pebbleCooldown>0f,
             "Live world U fires an actual tiny non-damaging moving pebble and pays real energy");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("PEBBLE")&&c.Contains("CD")),
+            "Live world HUD displays the current physical pebble cooldown after throwing");
         int before=g.projectiles.Count;
         Input.keys.Add(KeyCode.U);Update(app);
         Check(g.projectiles.Count==before,
@@ -7164,6 +7167,10 @@ public static class RuntimeCombatInputChecks
         Check(g.projectiles.Count==before,
             "Modal inventory cannot interpret U as a fresh world throw");
         g.mode="world";g.projectiles.Clear();
+        g.pebbleCooldown=0f;g.save.energy=0f;
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(c=>c.Contains("PEBBLE")&&c.Contains("LOW EN")),
+            "Live world HUD explains energy gating instead of leaving an inert stealth button");
         g.pebbleCooldown=0f;g.save.energy=100f;
         g.aim=new Point(1,0);
         Input.Clear();
