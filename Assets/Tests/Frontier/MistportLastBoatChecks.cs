@@ -94,6 +94,25 @@ namespace Starfall.Tests
             Check(BoatChoice(g,"mistconvoy_mid")&&g.MistConvoyStage==3&&
                 (g.GetQuest("mistport_lastboat").target-new Point(dock.x,dock.y)).Length<.01f,
                 "Midway confirmation genuinely requires boat arrival and routes to actual south dock");
+            // Optional survivor is an actual timed, costly rescue at the
+            // physical relay: no free flag for merely clicking the dialogue.
+            g.save.energy=4f;g.Talk(midway);
+            Check(BoatChoice(g,"mistconvoy_drifter")&&
+                !g.MistConvoyDrifterAboard&&g.save.energy==4f,
+                "Low stamina prevents taking the stranger aboard");
+            g.save.energy=100f;g.Talk(midway);
+            float beforeDetourTime=g.MistConvoySeconds,
+                beforeDetourHull=g.MistConvoyHull;
+            Check(BoatChoice(g,"mistconvoy_drifter")&&
+                g.MistConvoyDrifterAboard&&g.save.energy==82f&&
+                Math.Abs(g.MistConvoySeconds-(beforeDetourTime-12f))<.01f&&
+                Math.Abs(g.MistConvoyHull-(beforeDetourHull-12f))<.01f&&
+                !g.save.flags.Contains("mistconvoy_drifter"),
+                "Physical drifter rescue spends energy, deadline and hull, but grants no premature save flag");
+            g.Talk(midway);
+            Check(!BoatChoice(g,"mistconvoy_drifter"),
+                "One survivor cannot be picked up repeatedly for extra rewards");
+            g.Close();
             BoatAt(g,dock);g.Talk(dock);
             Check(BoatChoice(g,"mistconvoy_public")&&g.MistConvoyStage==3,
                 "A staffed dock alone cannot fake rescued crew before the hull arrives");
@@ -104,12 +123,13 @@ namespace Starfall.Tests
             g.Talk(dock);
             Check(BoatChoice(g,"mistconvoy_public")&&
                 g.MistConvoyComplete&&g.MistConvoyPublic&&!g.MistConvoyHidden&&
-                !g.MistConvoyActive&&g.save.coins==coins+75&&
-                g.save.shards==shards+2&&g.GetQuest("mistport_lastboat").complete,
+                !g.MistConvoyActive&&g.save.coins==coins+110&&
+                g.save.shards==shards+2&&g.GetQuest("mistport_lastboat").complete&&
+                g.save.flags.Contains("mistconvoy_drifter"),
                 "Public survivor reception pays actual first completion only after full moving escort");
             g.Talk(dock);
             Check(!BoatChoice(g,"mistconvoy_hidden")&&
-                g.save.coins==coins+75,
+                g.save.coins==coins+110,
                 "The other branch can never be claimed after accepting a real rescue outcome");
             g.Close();
             BoatAt(g,horn);g.save.health=35f;
@@ -127,12 +147,14 @@ namespace Starfall.Tests
             ReadInnNews(g,Object(g,"innGuest"));
             Check(g.conversation!=null&&
                 g.conversation.textEn.Contains("thirteenth mug")&&
+                g.conversation.textEn.Contains("writes her own name")&&
                 !g.conversation.textEn.Contains("The patrol counted twelve passengers"),
                 "Only actual publicly sheltered survivors are remembered by the original Hearth Inn traveler");
             g.Close();
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
             Check(loaded.save.version==2&&loaded.MistConvoyPublic&&
+                loaded.save.flags.Contains("mistconvoy_drifter")&&
                 !loaded.MistConvoyActive&&loaded.GetQuest("mistport_lastboat").complete,
                 "New story outcome persists through original v2 records without phantom active boats");
         }
@@ -154,6 +176,7 @@ namespace Starfall.Tests
                 "The actual unmanned hull STOPS and loses integrity when no nearby shore guide exists");
             for(int i=0;i<800&&g.MistConvoyActive;i++)g.Tick(.05f,new Point());
             Check(!g.MistConvoyActive&&!g.MistConvoyComplete&&
+                !g.save.flags.Contains("mistconvoy_drifter")&&
                 !g.GetQuest("mistport_lastboat").complete,
                 "Real surf and abandonment can sink civilian vessel; no fake completion or rewards");
             WorldObject notice=BoatPost(g,"mistconvoy_notice");

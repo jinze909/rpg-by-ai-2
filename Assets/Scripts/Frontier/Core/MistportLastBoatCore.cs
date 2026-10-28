@@ -10,7 +10,7 @@ namespace Starfall
         private int mistConvoyStage;
         private float mistConvoyClock,mistConvoyHull,mistConvoySwell,mistConvoyBrace;
         private Point mistConvoyBoat;
-        private bool mistConvoyPartUsed;
+        private bool mistConvoyPartUsed,mistConvoyDrifterRescued;
         public bool MistConvoyActive {get{return mistConvoyStage>0&&save.room==5;}}
         public bool MistConvoyComplete {get{return Has("mistconvoy_public")||Has("mistconvoy_hidden");}}
         public bool MistConvoyPublic {get{return Has("mistconvoy_public");}}
@@ -21,6 +21,7 @@ namespace Starfall
         public float MistConvoySwell {get{return MistConvoyActive?mistConvoySwell:0f;}}
         public float MistConvoyBraceSeconds {get{return MistConvoyActive?mistConvoyBrace:0f;}}
         public bool MistConvoyPartUsed {get{return MistConvoyActive&&mistConvoyPartUsed;}}
+        public bool MistConvoyDrifterAboard {get{return MistConvoyActive&&mistConvoyDrifterRescued;}}
         public Point MistConvoyBoatFoot {get{return MistConvoyActive?mistConvoyBoat:new Point();}}
         public bool MistConvoyBoatFollowing {get{return MistConvoyActive&&mistConvoyStage>=2&&
             (Position-mistConvoyBoat).Length<=6.5f;}}
@@ -38,20 +39,23 @@ namespace Starfall
         // civic consequences of v2 flags, not another free quest reward.
         private string MistConvoyInnNews(bool english)
         {
+            string drifterNews=Has("mistconvoy_drifter")?
+                (english?" The woman pulled from the relay water asks the keeper for paper. For the first time in years, she writes her own name.":
+                    " 从中继台救起的女子向店主借了纸，许多年来第一次亲手写下自己的名字。"):"";
             if(MistConvoyPublic)
                 return english?
-                    "\n\nThe night traveler has set twelve chipped mugs on the inn table. A sailor with salt still on her sleeves keeps counting them. 'There were thirteen of us,' she says. 'The youngest stayed aboard until everybody else got off. Then he jumped.' The innkeeper brings a thirteenth mug. At the harbor, the new refuge keeps a light burning for the next unnamed boat.":
-                    "\n\n守夜旅人在桌上摆了十二只磕口的杯子。一个袖口还沾盐的水手反复数着，低声说：‘我们明明有十三个人。最小的那个非要等大家都上岸才跳船。’店主默默送来第十三只杯子。港口新开的避风站已经点起灯，等着下一艘没有名字的船。";
+                    "\n\nThe night traveler has set twelve chipped mugs on the inn table. A sailor with salt still on her sleeves keeps counting them. 'There were thirteen of us,' she says. 'The youngest stayed aboard until everybody else got off. Then he jumped.' The innkeeper brings a thirteenth mug. At the harbor, the new refuge keeps a light burning for the next unnamed boat."+drifterNews:
+                    "\n\n守夜旅人在桌上摆了十二只磕口的杯子。一个袖口还沾盐的水手反复数着，低声说：‘我们明明有十三个人。最小的那个非要等大家都上岸才跳船。’店主默默送来第十三只杯子。港口新开的避风站已经点起灯，等着下一艘没有名字的船。"+drifterNews;
             if(MistConvoyHidden)
                 return english?
-                    "\n\nThe traveler folds the wet mooring rope into a neat coil beneath his chair. 'The patrol counted twelve passengers,' he says. 'I counted thirteen.' He neither asks a name nor writes it down. Across the room a quiet pilot dries a child's scarf at the hearth. Outside, the sheltered channel carries another boat past the watchtower without a bell.":
-                    "\n\n守夜旅人把湿漉漉的缆绳卷好，塞到椅子底下。‘巡兵说船上十二个人，’他说，‘我数出来十三个。’他没问多出的那个人叫什么，更没有记在纸上。炉边的女引航员正替一个孩子烘干围巾。塔楼外的暗水道又悄悄送过一艘船，钟一次也没响。";
+                    "\n\nThe traveler folds the wet mooring rope into a neat coil beneath his chair. 'The patrol counted twelve passengers,' he says. 'I counted thirteen.' He neither asks a name nor writes it down. Across the room a quiet pilot dries a child's scarf at the hearth. Outside, the sheltered channel carries another boat past the watchtower without a bell."+drifterNews:
+                    "\n\n守夜旅人把湿漉漉的缆绳卷好，塞到椅子底下。‘巡兵说船上十二个人，’他说，‘我数出来十三个。’他没问多出的那个人叫什么，更没有记在纸上。炉边的女引航员正替一个孩子烘干围巾。塔楼外的暗水道又悄悄送过一艘船，钟一次也没响。"+drifterNews;
             return "";
         }
         private void ResetMistConvoy()
         {
             mistConvoyStage=0;mistConvoyClock=mistConvoyHull=mistConvoySwell=mistConvoyBrace=0f;
-            mistConvoyBoat=new Point();mistConvoyPartUsed=false;
+            mistConvoyBoat=new Point();mistConvoyPartUsed=false;mistConvoyDrifterRescued=false;
         }
         private bool MistConvoySource(WorldObject o,string id)
         {
@@ -130,6 +134,18 @@ namespace Starfall
             }
             if(o.id=="mistconvoy_mid")
             {
+                // The relay is a physical, short-lived rescue window. The
+                // drifting passenger cannot be recovered from a remote menu
+                // or after the guided boat has left this stretch of water.
+                if(mistConvoyStage==3&&!mistConvoyDrifterRescued&&
+                    mistConvoyBoat.y>=40.45f&&mistConvoyBoat.y<=41.25f)
+                {
+                    Dialog(o.name,o.en,
+                        "回声已经传向南港。一个湿透的水手却抓着中继台下的木桩：她不是船员，名字也不在名单上。让小船折回接她，需要18点耐力，还会损失12秒和12点船体耐久。现在冒险，还是先把船上的人安全送走？",
+                        "The relay signal has reached the south dock. But a drenched stranger clings to a piling below. She is not on the crew list. Drawing the boat close enough to take her aboard costs 18 energy, 12 seconds and 12 hull integrity. Risk the crossing, or bring the crew home first?",
+                        C("冒险拉她上船 · 耐力18","Pull her aboard · 18 energy","mistconvoy_drifter"),
+                        C("先护送现有船员","Protect the crew first","close"));return true;
+                }
                 Dialog(o.name,o.en,
                     mistConvoyStage==2?
                         "中继台的铜片震动着。只有船身真正驶到这段水道，才能发出下一个方向的回声。":
@@ -211,6 +227,23 @@ namespace Starfall
                     "Hull reinforced: +25 integrity and 10 seconds of swell cover.");
                 return true;
             }
+            if(action=="mistconvoy_drifter")
+            {
+                if(site.id!="mistconvoy_mid"||mistConvoyStage!=3||
+                    mistConvoyDrifterRescued||mistConvoyBoat.y<40.45f||
+                    mistConvoyBoat.y>41.25f)return true;
+                // A risky voluntary detour, not a free collectible. Success
+                // becomes durable only if the whole boat actually lands.
+                if(save.energy<18f)
+                {Notify("体力不足，无法把落水者拉上来。","Not enough energy to reach the drifter.");return true;}
+                if(mistConvoyClock<=14f||mistConvoyHull<=20f)
+                {Notify("船体或剩余时间已不足以安全折返。","Too little time or hull left for a safe detour.");return true;}
+                save.energy-=18f;mistConvoyClock-=12f;mistConvoyHull-=12f;
+                mistConvoyDrifterRescued=true;revision++;sound="quest";
+                Notify("落水者攀上了船沿！继续引航；只有全船靠岸，她才真正获救。",
+                    "The drifter is aboard! Keep guiding; only a real landing saves her.");
+                return true;
+            }
             if(action=="mistconvoy_mid")
             {
                 if(site.id!="mistconvoy_mid"||mistConvoyStage!=2)return true;
@@ -228,8 +261,15 @@ namespace Starfall
                 if(mistConvoyBoat.y<44.40f)
                 {Notify("船还没靠到码头，不能替他们签收。","The boat has not reached the dock yet.");return true;}
                 bool publicShelter=action=="mistconvoy_public";
+                bool drifterAboard=mistConvoyDrifterRescued;
                 ResetMistConvoy();Flag(publicShelter?"mistconvoy_public":"mistconvoy_hidden");
                 CreditCoins(75);CreditShards(2);AddXp(125);
+                if(drifterAboard)
+                {
+                    Flag("mistconvoy_drifter");CreditCoins(35);AddXp(60);
+                    RecordMoment("中继台下无名的落水者被冒险带上船，并与最后一船的船员一同抵达了南港。",
+                        "The unnamed drifter from beneath the relay made it ashore with the final boat.");
+                }
                 RecordMoment(publicShelter?
                     "你沿雾港东岸把最后一艘载人船平安护送至码头，并建立对无船籍者开放的夜间避风站。":
                     "你沿雾港东岸将最后一艘船领回码头，把无名乘客托付给守夜引航员，暗航道得以保全。",

@@ -629,6 +629,9 @@ namespace Starfall
                     "/100 · "+Game.L("下一阵浪 ","NEXT SWELL ")+
                     Game.MistConvoySwell.ToString("0.0")+"s",11,hull);
                 Bar(35,390,280,Game.MistConvoyHull/100f,hull,7);
+                if(Game.MistConvoyDrifterAboard)
+                    Text(335,388,345,20,Game.L("落水者已上船 · 必须抵港",
+                        "DRIFTER ABOARD · LAND THE BOAT"),10,gold);
                 if(Game.MistConvoyBraceSeconds>0f)
                     Text(35,408,500,18,
                         Game.L("加固船板 · 防浪 ","HULL BRACED · SHELTER ")+
