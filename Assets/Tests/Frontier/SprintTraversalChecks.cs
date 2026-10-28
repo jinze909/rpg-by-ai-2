@@ -444,26 +444,26 @@ namespace Starfall.Tests
                 Check(g.IsEnemyInvestigatingImpact(guard)&&
                     !g.QuietStepping&&g.save.version==2,
                     "Footsteps reuse transient physical sound-search rather than new persistent aggro");
-                // A completely sealed long wall does not carry running
+                // A completely isolated long wall does not carry running
                 // noise, despite deceptively short Euclidean proximity.
-                var sealed=SprintTestWorld(data);
-                sealed.save.x=8.5f;sealed.save.y=15.5f;
+                var isolated=SprintTestWorld(data);
+                isolated.save.x=8.5f;isolated.save.y=15.5f;
                 for(int y=2;y<36;y++)
                 {
-                    char[] barrier=sealed.Map.rows[y].ToCharArray();
-                    barrier[11]='#';sealed.Map.rows[y]=new string(barrier);
+                    char[] barrier=isolated.Map.rows[y].ToCharArray();
+                    barrier[11]='#';isolated.Map.rows[y]=new string(barrier);
                 }
                 var unheard=new Enemy(998082,0,13.5f,15.5f,100f);
-                unheard.timer=100f;sealed.enemies.Add(unheard);
+                unheard.timer=100f;isolated.enemies.Add(unheard);
                 for(int i=0;i<4;i++)
-                    sealed.Tick(.05f,new Point(1,0),null,true);
-                Check(sealed.Sprinting&&!sealed.IsEnemyInvestigatingFootsteps(unheard),
+                    isolated.Tick(.05f,new Point(1,0),null,true);
+                Check(isolated.Sprinting&&!isolated.IsEnemyInvestigatingFootsteps(unheard),
                     "A closed, island-separating wall does not leak real footstep noise");
                 // The same blocked runner cannot keep manufacturing
-                // footsteps through an ordinary sealed actor footprint.
+                // footsteps through an ordinary isolated actor footprint.
                 for(int i=0;i<15;i++)
-                    sealed.Tick(.05f,new Point(1,0),null,true);
-                Check(!sealed.Sprinting&&!sealed.IsEnemyInvestigatingFootsteps(unheard),
+                    isolated.Tick(.05f,new Point(1,0),null,true);
+                Check(!isolated.Sprinting&&!isolated.IsEnemyInvestigatingFootsteps(unheard),
                     "A stationary runner pushing into a wall emits no fictional patrol sounds");
                 var quiet=SprintTestWorld(data);
                 quiet.enemies.Add(new Enemy(998083,0,13.5f,15.5f,100f));
