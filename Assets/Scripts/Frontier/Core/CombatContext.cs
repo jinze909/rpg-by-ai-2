@@ -651,6 +651,17 @@ namespace Starfall
         // near-side sweep. The same map collision and movement sampler used
         // by real enemy pursuit handles each chosen foot. A wall, new sighting
         // or higher-priority civilian duty cannot create a hidden teleporter.
+        // An impact sweep is navigation, not an attack ray. An opaque
+        // corner can conceal the target while still having a walkable route
+        // around it. Use the existing live, footprint-aware route solver only
+        // when the direct line is blocked; its strict-finish mode rejects
+        // sealed islands and never follows a nearest-frontier compass pin.
+        private bool SoundSweepFootReachable(Point origin,Point target)
+        {
+            if(!CanStand(origin)||!CanStand(target))return false;
+            if(ClearAttackPath(origin,target))return true;
+            return NavigationPathFrom(origin,target,true).Count>0;
+        }
         private Point LiveSoundSearchGoal(Enemy enemy,Point fallback)
         {
             EnemyHitAlert alert;
@@ -678,9 +689,8 @@ namespace Starfall
                     default:offset=new Point(1.35f,-.95f);break;
                 }
                 Point target=alert.lastKnown+offset;
-                if(!CanStand(target)||
-                   !ClearAttackPath(enemy.Position,target)||
-                   (target-alert.lastKnown).Length>2.1f)continue;
+                if((target-alert.lastKnown).Length>2.1f||
+                   !SoundSweepFootReachable(enemy.Position,target))continue;
                 alert.searchGoal=target;
                 return target;
             }
