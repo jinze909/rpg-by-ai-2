@@ -3509,6 +3509,35 @@ namespace Starfall.Tests
                 g.save.coins==initial&&!g.Has("afterglow_done_0"),
                 "Withdrawal despawns only mission-owned enemies with no reward");
         }
+        public static void EightAfterglowWatchesStrengthenRealCampProtection(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("annex_signal_network_published");
+            for(int room=0;room<8;room++)
+                g.save.flags.Add("afterglow_done_"+room);
+            g.save.flags.Add("afterglow_all");
+            WorldObject camp=Array.Find(g.Map.objects,
+                o=>o.id=="annex_camp_0");
+            Check(camp!=null&&g.AfterglowWins==8,
+                "Eight regional authenticated watch flags are recognized");
+            g.save.x=camp.x;g.save.y=camp.y;
+            g.save.inventory[0]=5;g.save.inventory[2]=2;
+            g.Talk(camp);
+            int light=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_ward_light");
+            Check(light>=0,"Completed watch still retains a paid real-camp ward choice");
+            g.Choose(light);
+            Check(g.CampWardActive&&g.CampWardCharges==5&&
+                g.CampWardSeconds==120f&&g.save.inventory[0]==3&&
+                g.save.inventory[2]==1,
+                "Victory across eight watches grants a real fifth defensive contact, without free materials");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("afterglow_all")&&
+                !restored.CampWardActive,
+                "Upgraded ward capability persists as legacy flags, not a leaked active fight or new save field");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)

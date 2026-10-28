@@ -119,6 +119,12 @@ namespace Starfall
             {
                 if(afterglowPhase==1)
                 {
+                    // Even a dead archer can leave an already-released
+                    // arrow in flight. Interlude begins safe and cannot
+                    // inherit attacks from a completed previous roster.
+                    projectiles.RemoveAll(p=>p.afterglowOwned||
+                        (p.hostileShooter!=null&&afterglowActors.Contains(p.hostileShooter)));
+                    effects.RemoveAll(e=>e.afterglowOwned);
                     afterglowPhase=2;afterglowTime=0f;
                     afterglowActors.Clear();afterglowKills.Clear();
                     revision++;sound="quest";
@@ -141,8 +147,8 @@ namespace Starfall
                 if(AfterglowWins==8&&!Has("afterglow_all"))
                 {
                     Flag("afterglow_all");CreditSkillPoints(1);
-                    RecordMoment("八地火光都经过真正夜袭的考验。路不必被封锁才能得到保护。",
-                        "All eight civilian fires survived genuine raids. Roads can be protected without closing them.");
+                    RecordMoment("八地火光都经过真正夜袭的考验。路不必被封锁才能得到保护。守望者将第五道防护火符交给所有营地，从此每次守火可以抵挡五次真实飞弹。",
+                        "All eight civilian fires survived genuine raids. The wardens publish a fifth fireguard charge for every prepared camp, protecting open roads without locking the gates.");
                 }
                 revision++;sound="reward";
                 Notify("余烬守望胜利！已经守护 "+AfterglowWins+"/8 处营火。",

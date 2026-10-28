@@ -126,7 +126,8 @@ namespace Starfall
             campWardCamp=camp;campWardRoom=save.room;
             campWardMap=Map;campWardSave=save;
             campWardSeconds=CampSignalNetworkPublished?120f:90f;
-            campWardCharges=CampSignalNetworkPublished?4:3;
+            campWardCharges=Has("afterglow_all")?5:
+                CampSignalNetworkPublished?4:3;
             campWardFlareClock=0f;
             Flag("annex_signal_fire_"+save.room);
             effects.Add(new Effect("burst",CampWardFoot,.45f)
@@ -350,6 +351,7 @@ namespace Starfall
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
                     "/8 · 余烬守望 "+watches+"/8。"+
+                    (Has("afterglow_all")?" 八地守望完成，营火防护上限提高到5次。":"")+
                     (Has("annex_relay_archived")?
                         "\n\n《归途回声》已经存入旅店的公共史册。户外耐力恢复永久 +2/秒。":
                         Has("annex_relay_all")?
@@ -368,6 +370,7 @@ namespace Starfall
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+
                     "/8 · Afterglow watches "+watches+"/8."+
+                    (Has("afterglow_all")?" Eight watches secured: each prepared fire now blocks five shots.":"")+
                     (Has("annex_relay_archived")?
                         "\n\nHomeward Echoes is now part of the public chronicle. Outdoor stamina recovery is permanently +2/s.":
                         Has("annex_relay_all")?
