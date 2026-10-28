@@ -1202,6 +1202,10 @@ namespace Starfall
                     Text(p.x-78,p.y-132,156,20,
                         Game.L("呼援路线封闭","REPORT ROUTE SEALED"),
                         10,patrolTint,TextAnchor.MiddleCenter);
+                else if(Game.IsRidgeWatchSweepingReport(e))
+                    Text(p.x-78,p.y-132,156,20,
+                        Game.L("搜查交战处","SEARCHING REPORT"),
+                        10,patrolTint,TextAnchor.MiddleCenter);
             }
             if(!drawingOutline&&Game.IsWayfarerDecoyTarget(e))
             {

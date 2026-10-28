@@ -11942,6 +11942,34 @@ public static class RuntimeCombatInputChecks
                 g.save.coins==coins&&g.save.shards==shards&&
                 g.save.version==2,
                 "Old cue retires on reentry without reward or save-schema changes");
+            // Move the ORIGINAL actor onto the exact real injury point,
+            // away from the caller, and advance an actual world frame.
+            // Search must be driven by authoritative GameCore patrol AI
+            // rather than an invented renderer-only animation.
+            caller.x=29.5f;caller.y=35.5f;
+            listener.x=34.5f;listener.y=35.5f;
+            listener.stun=0f;listener.timer=100f;
+            g.Tick(.05f,new Point());
+            Check(g.IsRidgeWatchSweepingReport(listener)&&
+                g.CanStand(listener.Position),
+                "Original alerted patrol starts a real ground-foot investigation");
+            Set(app,"camera",listener.Position);
+            g.save.english=false;
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(s=>s.Contains("搜查交战处")),
+                "Actual GameView fallback shows truthful Chinese report-search cue");
+            g.save.english=true;
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(GUI.commands.Exists(s=>s.Contains("SEARCHING REPORT"))&&
+                !GUI.commands.Exists(s=>s.Contains("REPORT ROUTE SEALED")),
+                "Exact same original actor shows correct English search and no fake seal");
+            for(int step=0;step<135;step++)g.Tick(.05f,new Point());
+            GUI.commands.Clear();Call(app,"OnGUI");
+            Check(!g.RidgeWatchAlarmActive&&
+                !g.IsRidgeWatchSweepingReport(listener)&&
+                !GUI.commands.Exists(s=>s.Contains("SEARCHING REPORT"))&&
+                g.save.version==2,
+                "Actual completed six-second search retires its transient world cue");
         }
         finally
         {
