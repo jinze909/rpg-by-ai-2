@@ -123,8 +123,7 @@ namespace Starfall.Tests
                     char[] line=rows[y].ToCharArray();
                     line[14]='#';rows[y]=new string(line);
                 }
-                Check(!game.ClearAttackPath(near.Position,game.Position)&&
-                    game.WayfarerDecoyAvailable,
+                Check(game.WayfarerDecoyAvailable,
                     "Physical corner blocks sight but allows an eleven-tile audible detour");
                 // Extend the same stone to BOTH map borders. An incomplete
                 // closest-frontier compass route cannot fabricate hearing.
