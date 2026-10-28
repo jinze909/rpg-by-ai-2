@@ -1934,6 +1934,10 @@ namespace Starfall
         // a bystander happened to occupy when dialogue opened.
         private Conversation npcTrackedConversation;
         private WorldObject npcTrackedInterlocutor;
+        // DrawObject binds the EXACT scene WorldObject during the native
+        // world pass. Two overlapping NPCs of one kind must never both
+        // sway or claim each other's dialogue bubble.
+        private WorldObject npcRenderSource;
         private float npcTalkStartedAt=float.NegativeInfinity;
 
         private void DrawNpc(string kind, Point position, int id = -1)
@@ -1949,8 +1953,13 @@ namespace Starfall
             WorldObject interlocutor = Game.conversationSource;
             bool isTalking = Game.conversation != null &&
                 interlocutor != null && interlocutor.kind == kind &&
-                Math.Abs(interlocutor.x - position.x) < .05f &&
-                Math.Abs(interlocutor.y - position.y) < .05f;
+                // The actual production DrawObject pass owns an object
+                // reference, not a kind + coordinate. Fallback direct
+                // preview/QA draws retain their physical-foot matching.
+                (npcRenderSource != null ?
+                    System.Object.ReferenceEquals(npcRenderSource,interlocutor) :
+                    Math.Abs(interlocutor.x-position.x)<.05f &&
+                    Math.Abs(interlocutor.y-position.y)<.05f);
             Color tint = occludes ? new Color(1,1,1,.45f) : Color.white;
             // VISUAL RESTORATION: the temporary 64px-vector-looking
             // EmberfallResidents replacement erased the richer original

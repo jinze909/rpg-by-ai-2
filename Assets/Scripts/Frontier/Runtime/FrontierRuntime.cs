@@ -1455,7 +1455,14 @@ namespace Starfall
             { PropImage(kind, 0, p.x - 27, p.y - 55, 54, 63, Game.Has("node_" + o.id) ? new Color(.6f, .6f, .6f, .45f) : Color.white); return; }
             if (kind == "rest") { if (Game.save.room != 9) PropImage("table", 0, p.x - 27, p.y - 33, 54, 42); return; }
             if (kind == "routes") return; // The sign and well are already scenery.
-            DrawNpc(kind, new Point(o.x, o.y));
+            // Production speech motion is tied to THIS actual object,
+            // not a same-kind resident sharing the same world coordinates.
+            // Clear the draw scope even when the rendering bridge declines
+            // a GPU-only resource or an imported texture throws.
+            WorldObject priorNpc=npcRenderSource;
+            npcRenderSource=o;
+            try { DrawNpc(kind,new Point(o.x,o.y)); }
+            finally { npcRenderSource=priorNpc; }
             bool quest = kind == "guild" || (kind == "scout" && !Game.Has("scout_saved")) || (kind == "garden" && !Game.Has("ally_1")) || (kind == "fish" && !Game.Has("ally_2")) || (kind == "forge" && !Game.Has("ally_3")) || (kind == "innGuest" && Game.CivicConduitComplete && !Game.Has("civic_aftercare_published"));
             if (quest) Text(p.x - 10, p.y - 77, 20, 26, "!", 22, gold, TextAnchor.MiddleCenter);
         }

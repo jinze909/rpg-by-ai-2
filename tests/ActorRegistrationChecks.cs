@@ -1904,6 +1904,25 @@ public static class ActorRegistrationChecks
                 new Point(npc.x,npc.y),-1);
             var body=active.Single(c=>c.texture.name==original);
             var cue=active.Single(c=>c.texture.name==signals);
+            // The real world pass has the scene object's reference.
+            // Exact coordinate/kind equality is NOT sufficient: stacked
+            // residents may legitimately occupy the same authored foot.
+            var impostor=new WorldObject{id="same-position-other-person",
+                kind=npc.kind,x=npc.x,y=npc.y};
+            Clear();
+            var otherSceneBody=Draw(app,"DrawObject",impostor);
+            Check(otherSceneBody.Any(c=>c.texture.name==original)&&
+                !otherSceneBody.Any(c=>c.texture.name==signals),
+                "Live DrawObject must never give an overlapping bystander the active speaker's bubble");
+            Clear();
+            var originalSceneBody=Draw(app,"DrawObject",npc);
+            Check(originalSceneBody.Any(c=>c.texture.name==original)&&
+                originalSceneBody.Any(c=>c.texture.name==signals),
+                "Live DrawObject must preserve the actual bound interlocutor's full-body speaking cue");
+            Check(typeof(FrontierRuntime).GetField(
+                "npcRenderSource",Private).GetValue(app)==null,
+                "Scene NPC draw scope must not leak an object identity into the next body paint");
+            Clear();
             Check(cue.texture.width==96&&cue.texture.height==40&&
                 Math.Abs(cue.uv.width-.25f)<.00001f&&
                 Math.Abs(cue.uv.height-.5f)<.00001f&&
