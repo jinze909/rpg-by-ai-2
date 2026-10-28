@@ -587,6 +587,57 @@ namespace Starfall.Tests
                 "Switching between physical book and Lyra changes no reward or old save data");
         }
 
+        public static void InnTravelersNewsUpdatesAfterRealAlliesJoin(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.Enter(9);
+            WorldObject traveler=Object(g,"innGuest");
+            Check(traveler!=null,
+                "Real Hearth Inn has the physical world-bound road witness");
+            g.save.x=traveler.x;g.save.y=traveler.y;
+            int coins=g.save.coins;
+            var flags=new System.Collections.Generic.List<string>(g.save.flags);
+            try
+            {
+                for(int ally=1;ally<=3;ally++)
+                    g.save.flags.Remove("ally_"+ally);
+                g.Talk(traveler);
+                ChooseStoryChoice(g,"story_catchup");
+                ChooseStoryChoice(g,"story_people");
+                Check(g.conversation.text.Contains("杏还在镇口等药")&&
+                    g.conversation.text.Contains("老潮在渡口等木板")&&
+                    g.conversation.text.Contains("诺尔等着能停住矿机")&&
+                    g.conversation.textEn.Contains("An's still waiting")&&
+                    g.conversation.textEn.Contains("Old Tide needs ferry planks")&&
+                    g.conversation.textEn.Contains("Noll's waiting"),
+                    "Before recruitment, original resident problems remain concrete and bilingual");
+                g.Close();
+                g.save.flags.Add("ally_1");
+                g.save.flags.Add("ally_2");
+                g.save.flags.Add("ally_3");
+                g.Talk(traveler);
+                ChooseStoryChoice(g,"story_catchup");
+                ChooseStoryChoice(g,"story_people");
+                Check(g.conversationSource==traveler&&
+                    g.conversation.text.Contains("杏的药已经有人帮忙带了")&&
+                    g.conversation.text.Contains("老潮重新记了渡口的班次")&&
+                    g.conversation.text.Contains("诺尔已经肯停下来修机器")&&
+                    !g.conversation.text.Contains("杏还在镇口等药")&&
+                    !g.conversation.text.Contains("老潮在渡口等木板")&&
+                    g.conversation.textEn.Contains("Someone carried An's medicine")&&
+                    g.conversation.textEn.Contains("Old Tide has marked")&&
+                    g.conversation.textEn.Contains("Noll finally stopped")&&
+                    !g.conversation.textEn.Contains("An's still waiting"),
+                    "After real permanent recruitments, the traveler's distinct first-hand news advances rather than replaying obsolete errands");
+                Check(g.save.coins==coins&&g.save.version==2,
+                    "Reading progressed testimony never grants currency or migrates saves");
+            }
+            finally
+            {
+                g.Close();g.save.flags.Clear();g.save.flags.AddRange(flags);
+            }
+            Console.WriteLine("PASS Inn witness has fresh bilingual reports from three actual recruitments without touching progression");
+        }
+
         public static void InnStoryFollowUpsRemainInTravelersOwnVoice(Campaign data)
         {
             var g=Fresh(data);g.Close();g.Enter(9);

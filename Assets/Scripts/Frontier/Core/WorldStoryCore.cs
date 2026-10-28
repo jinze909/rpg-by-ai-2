@@ -187,8 +187,31 @@ namespace Starfall
         }
         private void WorldInnStoryPeople(WorldObject traveler)
         {
-            string zh="旅人抽出一张皱巴巴的货单。\n\n“杏在镇口等药，老潮在渡口等木板，诺尔在矿场等能关停机器的零件。三样东西听着不搭边，可路断了，谁都等不来。”";
-            string en="The traveler unfolds a creased freight slip.\n\n“An's waiting for medicine, Old Tide for ferry planks, and Noll for a part that will stop the mine machines. Different cargo. Same broken roads.”";
+            // The road slip is current testimony, not an immutable early-
+            // game list of missing supplies. Recruitments are permanent
+            // save-backed proof that each resident can now help the player;
+            // the traveler must no longer claim they are still waiting for
+            // their first errand. Every clause keeps its own physical person.
+            string zh="旅人抽出一张皱巴巴的货单，把湿透的边角抹平。";
+            string en="The traveler unfolds a creased freight slip and smooths its rain-softened edges.";
+            zh+=Has("ally_1")?
+                "\n\n“杏的药已经有人帮忙带了。她如今把药棚里多出来的一包留给下一个迷路的人。”":
+                "\n\n“杏还在镇口等药。她把空药盒摆在窗边，好让送货的人一眼认出来。”";
+            en+=Has("ally_1")?
+                "\n\n“Someone carried An's medicine. She keeps a spare packet at the clinic for whoever comes in next.”":
+                "\n\n“An's still waiting for medicine. She left the empty case in the window so a courier can find her.”";
+            zh+=Has("ally_2")?
+                "\n\n“老潮重新记了渡口的班次。夜里最后一班，总有人留一盏灯等没赶上的旅客。”":
+                "\n\n“老潮在渡口等木板。潮涨之前，他还得把那艘漏水的渡船拖上岸。”";
+            en+=Has("ally_2")?
+                "\n\n“Old Tide has marked the ferry departures again. At night somebody keeps a lamp for those who miss the last crossing.”":
+                "\n\n“Old Tide needs ferry planks. He still has to haul the leaking boat ashore before the tide turns.”";
+            zh+=Has("ally_3")?
+                "\n\n“诺尔已经肯停下来修机器了。他说工棚的门得先留给能自己走出来的工人。”":
+                "\n\n“诺尔等着能停住矿机的零件。钟声没断过，连换班的人都听不清彼此说话。”";
+            en+=Has("ally_3")?
+                "\n\n“Noll finally stopped to repair the machines. He says the workshop door must stay clear for workers who can still walk out.”":
+                "\n\n“Noll's waiting for the part that stops the mine machinery. The bell never stops; workers can barely hear one another change shifts.”";
             if(Has("scout_saved"))
             {
                 zh+="\n\n“你救回的巡路员昨天在这里住过一夜。他靴子上有铁镐留下的木屑。密林里的麻烦恐怕不全是野兽干的。”";
