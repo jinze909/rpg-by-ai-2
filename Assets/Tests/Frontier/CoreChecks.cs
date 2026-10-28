@@ -2969,6 +2969,118 @@ namespace Starfall.Tests
             Check(game.save.coins==save.coins,"Published atlas cannot be farmed by rereading");
         }
 
+        public static void PreparedCampfireWardInterceptsOnlyPhysicalHostileFlight(Campaign data)
+        {
+            MapData old=data.maps[0];
+            try
+            {
+                string[] rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] cells=new string('#',26).ToCharArray();
+                    for(int x=2;x<24&&y>=2&&y<24;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                // One solid dividing wall makes a hostile projectile and
+                // the distant fire visually adjacent but physically isolated.
+                char[] wall=rows[10].ToCharArray();
+                wall[13]='#';rows[10]=new string(wall);
+                var camp=new WorldObject{id="annex_camp_0",
+                    kind="annexcamp",name="Signal camp",en="Signal camp",
+                    x=10.5f,y=10.5f};
+                data.maps[0]=new MapData{id=0,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{camp},decor=new Decoration[0]};
+                var g=Fresh(data,0);g.Enter(0);g.enemies.Clear();
+                g.save.x=camp.x;g.save.y=camp.y;
+                g.save.inventory[0]=7;g.save.inventory[2]=3;
+                g.save.energy=100;
+                var forged=typeof(GameCore).GetMethod("ChooseCampWard",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(forged!=null,"Production signal fire is a real game choice handler");
+                forged.Invoke(g,new object[]{"annex_ward_light"});
+                Check(!g.CampWardActive&&g.save.inventory[0]==7&&
+                    g.save.inventory[2]==3,
+                    "A fabricated fire action without a living camp dialogue cannot spend supplies");
+                g.Talk(camp);
+                int light=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="annex_ward_light");
+                Check(light>=0&&g.mode=="dialog",
+                    "Existing in-world camp now offers a physical signal-fire choice");
+                g.Choose(light);
+                Check(g.CampWardActive&&g.CampWardCharges==3&&
+                    g.CampWardSeconds==90f&&g.save.inventory[0]==5&&
+                    g.save.inventory[2]==2&&g.save.version==2,
+                    "Preparing a fire spends real supplies and creates three finite timed interceptions");
+                g.Talk(camp);
+                light=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="annex_ward_light");
+                if(light>=0)g.Choose(light);else g.Close();
+                Check(g.CampWardCharges==3&&g.save.inventory[0]==5,
+                    "A lit fire cannot stack new charges or double-spend timber");
+                // The projectile engine, not a direct helper call, must
+                // actually intercept both hostile magic and enemy arrows.
+                var arrow=new Projectile{position=new Point(12f,10.5f),
+                    velocity=new Point(-6f,0),damage=10f,life=1f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                var orb=new Projectile{position=new Point(10.5f,12f),
+                    velocity=new Point(0,-5f),damage=12f,life=1f,
+                    friendly=false,visual="enemyOrb",source="shot",explosive=true};
+                var ally=new Projectile{position=new Point(11.5f,9.5f),
+                    velocity=new Point(3f,0),damage=8f,life=1f,
+                    friendly=true,visual="arrow"};
+                g.projectiles.Add(arrow);g.projectiles.Add(orb);
+                g.projectiles.Add(ally);
+                float beforeHp=g.save.health;
+                g.Tick(.05f,new Point());
+                Check(!g.projectiles.Contains(arrow)&&
+                    !g.projectiles.Contains(orb)&&g.projectiles.Contains(ally)&&
+                    g.save.health==beforeHp&&g.CampWardCharges==1,
+                    "Actual swept hostile arrow and orb are disarmed before hitting the hero; allied arrows survive");
+                var blocked=new Projectile{position=new Point(14.5f,10.5f),
+                    velocity=new Point(-6f,0f),damage=9f,life=1f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                var inert=new Projectile{position=new Point(11.2f,11.5f),
+                    velocity=new Point(-4f,0f),damage=0f,life=1f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                g.projectiles.Add(blocked);g.projectiles.Add(inert);
+                g.Tick(.05f,new Point());
+                Check(g.CampWardCharges==1,
+                    "Terrain-separated and harmless projectiles cannot consume a fireward charge");
+                var final=new Projectile{position=new Point(10.5f,12f),
+                    velocity=new Point(0f,-4f),damage=11f,life=1f,
+                    friendly=false,visual="enemyArrow",source="shot"};
+                g.projectiles.Add(final);
+                g.Tick(.05f,new Point());
+                Check(!g.CampWardActive&&g.CampWardCharges==0&&
+                    !g.projectiles.Contains(final),
+                    "Third real contact exhausts the fire exactly once, without unlimited protection");
+                g.projectiles.Clear();g.enemies.Clear();
+                g.Talk(camp);
+                light=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="annex_ward_light");
+                Check(light>=0,"An exhausted fire can be deliberately rebuilt with new materials");
+                g.Choose(light);
+                Check(g.CampWardActive&&g.save.inventory[0]==3&&
+                    g.save.inventory[2]==1,"New fire is a separate paid choice");
+                // A later loaded v2 save must not inherit an unrecorded,
+                // already-spent defensive ward from a previous character.
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(!loaded.CampWardActive&&loaded.CampWardCharges==0&&
+                    loaded.save.version==2,"Old save slots remain compatible; ward is session-only");
+                var field=typeof(GameCore).GetField("campWardSeconds",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(field!=null,"Real world-time expiration clock exists");
+                field.SetValue(g,.02f);
+                g.Tick(.05f,new Point());
+                Check(!g.CampWardActive&&g.CampWardCharges==0,
+                    "Genuine game simulation expires finite signal-fire protection");
+            }
+            finally { data.maps[0]=old; }
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
