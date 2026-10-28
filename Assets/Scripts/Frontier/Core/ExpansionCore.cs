@@ -2208,7 +2208,19 @@ namespace Starfall
             else if (delta.Length > stoppingDistance)
             {
                 Point heading = DirectionTo(companionPosition, follow), before = companionPosition;
-                Point next = SweepActor(before, heading * Math.Min(delta.Length, dt * (Speed + 1)));
+                float followSpeed=Speed+1f;
+                // A quiet protagonist cannot look like a covert squad
+                // while their ordinary follower sprints several tiles to
+                // every new formation socket. Match the existing 0.58
+                // quiet-footstep pace when there is no live defendable
+                // threat; preserve full speed for a real urgent ally shot,
+                // explicit focus and assigned watch/receiver defenses.
+                if(QuietStepping&&!CompanionHoldingPosition&&
+                   !OuterPatrolActive&&!AfterlightWatchActive&&
+                   !CompanionFocusActive&&NearestCompanionThreat()==null)
+                    followSpeed*=.58f;
+                Point next = SweepActor(before,
+                    heading * Math.Min(delta.Length,dt*followSpeed));
                 Point travelled = next - before;
                 if (travelled.Length > .001f)
                 {

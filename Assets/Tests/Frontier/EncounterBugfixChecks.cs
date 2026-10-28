@@ -933,6 +933,62 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+
+        public static void QuietCompanionFollowsAtActualControlledFootstepSpeed(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                string[] rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=14.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                float[] travelled=new float[2];
+                GameCore quiet=null;
+                for(int stance=0;stance<2;stance++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.projectiles.Clear();
+                    g.mode="world";g.save.companion=1;
+                    g.save.x=14.5f;g.save.y=10.5f;
+                    g.companionPosition=new Point(7.5f,10.5f);
+                    Point initial=g.companionPosition;
+                    for(int frame=0;frame<4;frame++)
+                        g.Tick(.02f,new Point(),null,false,stance==1);
+                    travelled[stance]=(g.companionPosition-initial).Length;
+                    Check(g.CanStand(g.companionPosition)&&
+                        g.save.version==2&&g.companionMoving,
+                        "Real party feet advance on legal world terrain without save changes");
+                    if(stance==1)
+                    {
+                        quiet=g;
+                        Check(g.QuietStepping,
+                            "Actual Ctrl posture is active during quiet party travel");
+                    }
+                }
+                Check(travelled[0]>.25f&&
+                    travelled[1]>.12f&&
+                    travelled[1]<travelled[0]*.75f&&
+                    travelled[1]>travelled[0]*.40f,
+                    "Quiet ally movement uses a genuinely slower swept foot distance, not merely a silent HUD label");
+                Point before=quiet.companionPosition;
+                quiet.Tick(.02f,new Point(),null,false,false);
+                float normalStep=(quiet.companionPosition-before).Length;
+                Check(!quiet.QuietStepping&&
+                    normalStep>travelled[1]/4f*1.35f&&
+                    quiet.save.version==2,
+                    "Releasing Ctrl immediately restores the original companion's ordinary live follow speed");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void ThrownPebbleIsPhysicalNonlethalBoundedSoundLure(Campaign data)
         {
             MapData old=data.maps[1];
