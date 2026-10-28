@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1021,6 +1021,33 @@ namespace Starfall
 
 
 
+
+            if(id=="mistport_lastlight")
+            {
+                q.title=L("雾港 · 最后一盏灯","Mistport · The Last Light");
+                q.category=L("潮雾求援 · 真实风暴机关","TIDE RESCUE · LIVE STORM DEVICES");
+                q.room=5;q.locked=!CanEnter(5);q.complete=MistlightComplete;
+                q.description=L(
+                    "从雾港旧灯湾告示（54.5,38.5）展开110秒抢修。到北岸旧信标（60.5,37.5）用12耐力点灯；再到东墙海镜（65.5,38.5）趁阵风间歇校准；最终在南栈桥（65.5,43.5）决定公开求援灯还是秘密归航线。每9秒风暴降低信标完整度22，可从灯座耗费1零件进行一次性+30完整度及12秒挡风。失败可重试，不会跳过实地交互。公开航标让安全栈桥可治疗，秘密航线提供雾港永久+0.25移速。",
+                    "Start the 110-second rescue at Mistport's old Lantern Bay notice (54.5,38.5). Spend 12 energy igniting the real north beacon (60.5,37.5), align the east sea mirror (65.5,38.5) between gusts, then choose public rescue or a hidden homeward channel at the southern pier (65.5,43.5). Every 9s the storm deals 22 damage to lamp integrity; once per attempt, spend 1 machine part at the beacon for +30 integrity and 12s shelter. Failure allows retries. Public signaling provides safe pier healing; hidden routes grant +0.25 permanent Mistport speed.");
+                q.steps.Add(new QuestStep(L("点亮北岸旧信标","Ignite the north shore beacon"),
+                    MistlightStage>=2||q.complete));
+                q.steps.Add(new QuestStep(L("在风隙校准东墙海镜","Align east mirror between gusts"),
+                    MistlightStage>=3||q.complete));
+                q.steps.Add(new QuestStep(L("在南栈桥选择求援方式","Choose rescue route at southern pier"),q.complete));
+                q.target=MistlightActive?MistlightTarget:new Point(54.5f,38.5f);
+                q.next=q.locked?L("先解锁雾港","Unlock Mistport first"):
+                    q.complete?MistlightPublic?
+                        L("公开求援航标已亮起，安全栈桥可恢复生命","Public rescue beacon lit; safe pier heals wounds"):
+                        L("秘密归航线已护住，雾港移速永久+0.25","Hidden passage protected; +0.25 Mistport speed"):
+                    MistlightActive?MistlightObjective+" · "+MistlightTime.ToString("0")+"s"+
+                        L(" · 灯芯 "," · LIGHT ")+MistlightIntegrity.ToString("0"):
+                    L("在雾港旧灯湾告示牌接取最后的求援任务",
+                        "Read the last-light rescue notice at Mistport Lantern Bay");
+                q.reward=L("首胜：60硬币、2碎片、100经验；公共救援或隐蔽航路",
+                    "First rescue: 60 coins, 2 shards, 100 XP; public healing or hidden routes");
+                return q;
+            }
 
             if(id=="family_dispatch")
             {

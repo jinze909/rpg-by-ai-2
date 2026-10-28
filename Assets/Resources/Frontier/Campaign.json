@@ -7161,6 +7161,38 @@
           "y": 42.5
         },
         {
+          "id": "mistlight_notice",
+          "kind": "mistlightnotice",
+          "name": "雾港旧灯湾 · 最后的求援",
+          "en": "Mistport Lantern Bay · The Last Light",
+          "x": 54.5,
+          "y": 38.5
+        },
+        {
+          "id": "mistlight_lamp",
+          "kind": "mistlightlamp",
+          "name": "北岸信标 · 未熄的煤油",
+          "en": "Northshore Beacon · Keeper's Oil",
+          "x": 60.5,
+          "y": 37.5
+        },
+        {
+          "id": "mistlight_mirror",
+          "kind": "mistlightmirror",
+          "name": "东墙海镜 · 破裂的镜框",
+          "en": "East Wall Sea Mirror · Fractured Frame",
+          "x": 65.5,
+          "y": 38.5
+        },
+        {
+          "id": "mistlight_pier",
+          "kind": "mistlightpier",
+          "name": "南侧旧栈桥 · 单声船笛",
+          "en": "Southern Pier · The One-Horn Signal",
+          "x": 65.5,
+          "y": 43.5
+        },
+        {
           "id": "annex_vista_5",
           "name": "雾港旧灯湾观景台",
           "en": "Mistport Lantern Bay · Charting overlook",

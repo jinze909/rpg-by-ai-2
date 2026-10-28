@@ -581,6 +581,33 @@ namespace Starfall
                         Game.L("可投掷","READY")),
                     11,new Color(.76f,.89f,.97f,1f));
             }
+            if(Game.mode=="world"&&Game.MistlightActive&&!drawingOutline)
+            {
+                Color live=Game.MistlightIntegrity<31f?
+                    new Color(1f,.48f,.38f,1f):new Color(.68f,.91f,.96f,1f);
+                Point site=Game.MistlightTarget;
+                if(WorldDrawable(site.x,site.y,165f,165f))
+                {
+                    Ring(site,.86f,live,26);
+                    Point target=ScreenPoint(site);
+                    Text(target.x-147,target.y-90,294,20,
+                        Game.MistlightObjective,11,live,TextAnchor.MiddleCenter);
+                }
+                Text(35,345,550,22,
+                    Game.L("雾港 · 最后一盏灯 ","MISTPORT · THE LAST LIGHT ")+
+                    Game.MistlightStage+"/3 · "+
+                    Game.MistlightTime.ToString("0")+"s",12,live);
+                Text(35,367,550,20,
+                    Game.L("信标完整度 ","BEACON INTEGRITY ")+
+                    Game.MistlightIntegrity.ToString("0")+
+                    "/100 · "+Game.L("下次狂风 ","NEXT GALE ")+
+                    Game.MistlightNextGust.ToString("0.0")+"s",11,live);
+                Bar(35,393,270,Game.MistlightIntegrity/100f,live,7);
+                if(Game.MistlightShield>0f)
+                    Text(35,413,450,20,
+                        Game.L("灯座已加固 · 挡风 ","BEACON BRACED · SHELTER ")+
+                        Game.MistlightShield.ToString("0.0")+"s",11,gold);
+            }
             if(Game.mode=="world"&&Game.PressureworksActive&&!drawingOutline)
             {
                 Color pressure=Game.PressureworksPressure>75?
@@ -1360,6 +1387,28 @@ namespace Starfall
                         Game.SilentLedgerPublic?
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
+                        10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(o.kind=="mistlightnotice"||o.kind=="mistlightlamp"||
+               o.kind=="mistlightmirror"||o.kind=="mistlightpier")
+            {
+                Point site=new Point(o.x,o.y);
+                Color glow=Game.MistlightComplete?mint:
+                    Game.MistlightActive?gold:muted;
+                PropImage("post",0,p.x-25,p.y-68,50,68,glow);
+                Ring(site,o.kind=="mistlightlamp"?.68f:.46f,glow,20);
+                if(Game.MistlightActive&&o.kind=="mistlightlamp")
+                    Text(p.x-85,p.y-88,170,17,
+                        Game.MistlightShield>0f?
+                            Game.L("信标已加固","LAMP BRACED"):
+                            Game.L("迎风的最后一盏灯","LAST LIGHT"),
+                        10,glow,TextAnchor.MiddleCenter);
+                if(Game.MistlightComplete&&o.kind=="mistlightpier")
+                    Text(p.x-78,p.y-88,156,17,
+                        Game.MistlightPublic?
+                            Game.L("公共求援航标","PUBLIC RESCUE LIGHT"):
+                            Game.L("隐蔽归航信号","HIDDEN HOMEWARD LIGHT"),
                         10,mint,TextAnchor.MiddleCenter);
                 return true;
             }
