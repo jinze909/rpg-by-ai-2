@@ -143,6 +143,88 @@ namespace Starfall.Tests
             Check(g.RootsongComplete&&g.save.version==2,
                 "Combat utility needs no new persistent data or companion character");
         }
+
+        public static void RootguardDispersesOnlyReachableHostileProjectiles(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[26];
+                for(int y=0;y<26;y++)
+                {
+                    char[] cells=new string('#',26).ToCharArray();
+                    if(y>=2&&y<=23)
+                        for(int x=2;x<=23;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                char[] barrier=rows[10].ToCharArray();
+                barrier[12]='#';rows[10]=new string(barrier);
+                WorldObject root=new WorldObject{id="rootsong_1",
+                    kind="rootsonestone",name="Rootsong one",
+                    en="Rootsong one",x=10.5f,y=10.5f};
+                data.maps[1]=new MapData{id=1,spawnX=10.5f,
+                    spawnY=10.5f,rows=rows,objects=new[]{root},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.Enter(1);g.enemies.Clear();
+                g.save.flags.Add("scout_saved");
+                for(int step=1;step<=3;step++)g.save.flags.Add("rootsong_"+step);
+                g.save.flags.Add("rootsong_complete");
+                g.save.x=root.x;g.save.y=root.y;g.save.energy=95;
+                var arrow=new Projectile{position=new Point(11.3f,10.5f),
+                    velocity=new Point(-5,0),life=1f,damage=9f,
+                    friendly=false,visual="enemyArrow"};
+                var orb=new Projectile{position=new Point(10.5f,11.5f),
+                    velocity=new Point(0,-4),life=1f,damage=12f,
+                    friendly=false,visual="enemyOrb",explosive=true};
+                var ally=new Projectile{position=new Point(11.1f,10.5f),
+                    velocity=new Point(5,0),life=1f,damage=8f,friendly=true};
+                var behindWall=new Projectile{position=new Point(13.5f,10.5f),
+                    velocity=new Point(-6,0),life=1f,damage=10f,friendly=false};
+                var distant=new Projectile{position=new Point(15.5f,10.5f),
+                    velocity=new Point(-5,0),life=1f,damage=10f,friendly=false};
+                var spent=new Projectile{position=new Point(10.7f,10.5f),
+                    velocity=new Point(-4,0),life=0,damage=10f,friendly=false};
+                var blockedAtSpawn=new Projectile{position=new Point(11.2f,10.5f),
+                    velocity=new Point(-4,0),life=1f,damage=10f,
+                    friendly=false,blockedAtSpawn=true};
+                var harmless=new Projectile{position=new Point(11.1f,10.5f),
+                    velocity=new Point(-4,0),life=1f,damage=0,friendly=false};
+                g.projectiles.AddRange(new[]{arrow,orb,ally,behindWall,
+                    distant,spent,blockedAtSpawn,harmless});
+                Check(g.Blocked(12.5f,10.5f)&&
+                    g.CanStand(g.Position)&&g.enemies.Count==0,
+                    "Physical root test has an actual wall and no active enemy to interrupt");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.Talk(root);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The restored root can be read in the active Frontier world");
+                int choice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="rootsongpulse_1");
+                Check(choice>=0,
+                    "An independently flying hostile shot enables the real root defense choice");
+                g.Choose(choice);
+                Check(!g.projectiles.Contains(arrow)&&!g.projectiles.Contains(orb)&&
+                    g.projectiles.Count==6,
+                    "Rootguard actually disperses both an arrow and hostile magic in live flight");
+                Check(g.projectiles.Contains(ally)&&g.projectiles.Contains(behindWall)&&
+                    g.projectiles.Contains(distant)&&g.projectiles.Contains(spent)&&
+                    g.projectiles.Contains(blockedAtSpawn)&&g.projectiles.Contains(harmless),
+                    "Rootguard must not erase allied fire, wall-separated shots, distant or inert projectiles");
+                Check(g.save.energy==65&&g.RootsongPulseCooldown>8f&&
+                    g.save.coins==coins&&g.save.shards==shards&&
+                    g.save.version==2&&
+                    g.effects.Exists(e=>e.kind=="burst"&&e.radius<.3f),
+                    "Physical anti-projectile contact spends energy once with visual feedback and no free rewards");
+                g.Close();
+                g.Talk(root);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="rootsongpulse_1")<0,
+                    "A spent projectile pulse cannot be immediately reused during cooldown");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void ThornwoodRootsongUsesPhysicalTimingAndPersistentHarmony(Campaign data)
         {
             var g=Fresh(data);g.Enter(1);g.enemies.Clear();

@@ -28,6 +28,21 @@ namespace Starfall
         // One non-farmable, transient field-control decision. An old save can
         // still use its energy and the original root flags without migration.
         public float RootsongPulseCooldown { get; private set; }
+        // The sung root can also shelter nearby travelers from a bolt that
+        // has ALREADY left its attacker. Inspect the same live projectile
+        // collection used by combat contact, not an enemy's prior windup.
+        // Solid terrain between the root and the flight stays protective:
+        // the root cannot erase projectiles in another sealed corridor.
+        private bool RootsongAirThreat(Projectile shot,Point origin)
+        {
+            return shot!=null&&!shot.friendly&&!shot.blockedAtSpawn&&
+                shot.life>0&&shot.damage>0&&
+                Finite(shot.position.x)&&Finite(shot.position.y)&&
+                Finite(shot.velocity.x)&&Finite(shot.velocity.y)&&
+                shot.velocity.Length>.5f&&
+                (shot.position-origin).Length<4.1f&&
+                ClearAttackPath(origin,shot.position);
+        }
         private bool RootsongThreat(WorldObject stone)
         {
             if(stone==null||save.room!=1)return false;
@@ -35,6 +50,8 @@ namespace Starfall
             foreach(Enemy enemy in enemies)
                 if(enemy.hp>0&&(enemy.Position-position).Length<4.1f&&
                     ClearAttackPath(position,enemy.Position))return true;
+            foreach(Projectile shot in projectiles)
+                if(RootsongAirThreat(shot,position))return true;
             return false;
         }
         // A root's puzzle and field skill require real near-side access.
@@ -78,14 +95,28 @@ namespace Starfall
                 enemy.timer=Math.Max(enemy.timer,enemy.boss?.4f:.75f);
                 interrupted++;
             }
-            if(interrupted==0)return true;
+            // Remove only currently airborne, hostile, unobstructed bolts.
+            // Iterate backwards to leave every allied shot, blocked lane,
+            // spent projectile and existing hazard completely untouched.
+            int dispersed=0;
+            for(int i=projectiles.Count-1;i>=0;i--)
+            {
+                Projectile shot=projectiles[i];
+                if(!RootsongAirThreat(shot,origin))continue;
+                effects.Add(new Effect("burst",shot.position,.18f)
+                    {radius=.22f,variant=1});
+                projectiles.RemoveAt(i);
+                dispersed++;
+            }
+            if(interrupted+dispersed==0)return true;
             save.energy-=30;RootsongPulseCooldown=8.5f;
             effects.Add(new Effect("burst",origin,.5f){radius=4.1f,variant=1});
             effects.Add(new Effect("number",origin+new Point(0,-.7f),.75f,
                 L("古根护歌","ROOTGUARD")));
             revision++;sound="spell";
-            Notify("古根震鸣打断了 "+interrupted+" 个敌人。耐力 -30；无法连续释放。",
-                "Rootsong interrupted "+interrupted+" foes. -30 energy; the pulse must recharge.");
+            Notify("古根震鸣打断 "+interrupted+" 个敌人、驱散 "+dispersed+" 枚敌方飞弹。耐力 -30。",
+                "Rootguard interrupted "+interrupted+" foes and dispersed "+dispersed+
+                " hostile projectiles. -30 energy.");
             return true;
         }
         private WorldObject RootsongStone(int step)
@@ -137,8 +168,8 @@ namespace Starfall
                           "\n\nRootguard recharges for "+RootsongPulseCooldown.ToString("0.0")+"s.") :
                         save.energy<30?
                         L("\n\n护歌需要30耐力，当前不足。","\n\nRootguard needs 30 energy, which is currently unavailable.") :
-                        L("\n\n附近有敌人。消耗30耐力释放四格范围的护歌，短暂打断进攻。",
-                          "\n\nEnemies are nearby. Spend 30 energy on a four-tile Rootguard to interrupt attacks."));
+                        L("\n\n附近有敌人或飞弹。消耗30耐力释放四格范围的护歌，打断进攻并驱散无遮挡的敌方飞弹。",
+                          "\n\nThreats or hostile shots nearby. Spend 30 energy on a four-tile Rootguard to interrupt attackers and disperse unblocked enemy projectiles."));
                     if(ready)
                         RootsongDialog(o,description,
                             C("聆听历史","Review history","close"),
