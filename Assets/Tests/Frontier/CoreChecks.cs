@@ -3081,6 +3081,79 @@ namespace Starfall.Tests
             finally { data.maps[0]=old; }
         }
 
+        public static void EightPaidSignalFiresPublishSharedCivilianWatch(Campaign data)
+        {
+            var g=Fresh(data,0);g.save.room=9;
+            WorldObject archive=Array.Find(data.maps[9].objects,
+                o=>o.kind=="annexinnarchive");
+            Check(archive!=null,"The real Hearth Inn holds a permanent physical archive");
+            g.save.x=archive.x;g.save.y=archive.y;
+            g.enemies.Clear();
+            int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+            var commit=typeof(GameCore).GetMethod("ChooseAnnexExploration",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(commit!=null,"Original annex choice dispatch exists");
+            commit.Invoke(g,new object[]{"annex_signal_publish"});
+            Check(!g.CampSignalNetworkPublished&&g.save.coins==coins,
+                "Inventing a publish action without the speaker cannot grant rewards");
+            // One missing actual field signal is enough to withhold the
+            // public network regardless of the existing exploration atlas.
+            for(int room=0;room<7;room++)
+                g.save.flags.Add("annex_signal_fire_"+room);
+            Check(g.CampSignalCount==7&&!g.CampSignalNetworkPublished,
+                "Seven paid regional fires do not pretend to be eight");
+            g.Talk(archive);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="annex_signal_publish")<0,
+                "Archive dialogue does not offer the public network before the eighth fire");
+            g.Close();
+            g.save.flags.Add("annex_signal_fire_7");
+            g.Talk(archive);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_signal_publish");
+            Check(g.CampSignalCount==8&&option>=0&&
+                g.conversation.textEn.Contains("eight"),
+                "Eight field signals unlock the genuinely spoken publication option");
+            g.Choose(option);
+            Check(g.CampSignalNetworkPublished&&
+                g.save.coins==coins+40&&g.save.shards==shards+2&&
+                g.save.xp>=xp&&g.save.version==2,
+                "In-person publication rewards one verified civilian watch milestone");
+            int afterCoins=g.save.coins,afterShards=g.save.shards;
+            g.Talk(archive);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_signal_publish")<0,
+                "A published watch never offers a second collection");
+            g.Close();
+            commit.Invoke(g,new object[]{"annex_signal_publish"});
+            Check(g.save.coins==afterCoins&&g.save.shards==afterShards,
+                "Repeating the internal publish request cannot farm rewards");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.CampSignalNetworkPublished&&
+                restored.CampSignalCount==8&&restored.save.version==2,
+                "Civic watch record persists in the existing v2 string flags");
+            // The reward is a real improvement to the next purchased
+            // ward's time/charges, not merely a dialog/achievement label.
+            WorldObject camp=Array.Find(data.maps[0].objects,
+                o=>o.id=="annex_camp_0");
+            Check(camp!=null,"First outdoor camp is an existing real scene object");
+            restored.save.room=0;restored.save.x=camp.x;restored.save.y=camp.y;
+            restored.save.inventory[0]=5;restored.save.inventory[2]=3;
+            restored.enemies.Clear();
+            restored.Talk(camp);
+            option=Array.FindIndex(restored.conversation.choices,
+                c=>c.action=="annex_ward_light");
+            Check(option>=0,"The completed public watch retains the paid campfire service");
+            restored.Choose(option);
+            Check(restored.CampWardActive&&restored.CampWardCharges==4&&
+                restored.CampWardSeconds==120f&&restored.save.inventory[0]==3&&
+                restored.save.inventory[2]==2,
+                "A completed signal network upgrades a genuine paid ward to 4 contacts/120s");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
