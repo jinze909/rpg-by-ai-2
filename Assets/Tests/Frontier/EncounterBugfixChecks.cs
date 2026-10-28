@@ -934,6 +934,62 @@ namespace Starfall.Tests
             finally{data.maps[1]=old;}
         }
 
+
+        public static void PebbleContactsOnlyRealLivingBodyWithoutDamage(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                var rows=new string[28];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] tiles=new string('#',34).ToCharArray();
+                    if(y>=2&&y<=25)
+                        for(int x=2;x<=31;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=6.5f,
+                    spawnY=10.5f,rows=rows,
+                    objects=new WorldObject[0],decor=new Decoration[0]};
+                for(int scenario=0;scenario<4;scenario++)
+                {
+                    var g=Fresh(data);g.save.stage=3;g.Enter(1);
+                    g.enemies.Clear();g.mode="world";
+                    g.save.x=6.5f;g.save.y=10.5f;
+                    g.save.energy=100f;
+                    float y=scenario==1?12.5f:
+                        scenario==2?11.3f:10.5f;
+                    var actor=new Enemy(99171+scenario,0,11.5f,y,
+                        300f,scenario==2);
+                    actor.stun=100f;actor.timer=100f;
+                    if(scenario==3)actor.hp=0f;
+                    g.enemies.Add(actor);
+                    float hp=actor.hp;
+                    g.ThrowPebble(new Point(1f,0f));
+                    Check(g.projectiles.Exists(p=>p.visual=="pebble"),
+                        "A real world throw starts its live stone flight");
+                    g.sounds.Clear();
+                    Advance(g,.47f);
+                    bool inFlight=g.projectiles.Exists(
+                        p=>p.visual=="pebble"&&p.source=="quietDecoy");
+                    bool shouldStop=scenario==0||scenario==2;
+                    Check(inFlight!=shouldStop&&
+                        g.save.version==2&&actor.hp==hp&&
+                        Math.Abs(g.save.energy-92f)<.001f,
+                        "Real nonlethal stone stops on a living body, misses off-axis/dead actors and cannot pay or damage twice; scenario "+
+                        scenario+" flying="+inFlight);
+                    bool impact=new System.Collections.Generic.List<string>(
+                        g.sounds).Contains("stoneImpact");
+                    Check(impact==shouldStop,
+                        "Only genuine live-body contact generates an early audible impact, never midflight; scenario "+scenario);
+                    if(shouldStop)
+                        Check(g.effects.Exists(e=>e.kind=="projectileImpact"),
+                            "Actual intercept gets the original grounded contact VFX");
+                }
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void DistinctArrowWallSoundsRedirectOnlySearchingGuards(Campaign data)
         {
             MapData previous=data.maps[1];

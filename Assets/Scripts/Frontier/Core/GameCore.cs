@@ -1079,6 +1079,22 @@ namespace Starfall
             sound="stoneThrow";
             revision++;
         }
+        // Nonlethal decoys stop on actual live enemy hit circles, including
+        // a guardian's wider body. Dead actors and off-axis silhouettes do
+        // not stop stone flight. This NEVER uses damaging arrow callbacks.
+        private bool PebbleContactsLivingEnemy(Projectile pebble,Point foot)
+        {
+            foreach(Enemy actor in enemies)
+            {
+                if(actor==null||actor.hp<=0f||
+                   !CanStand(actor.Position))continue;
+                float radius=(actor.boss?.9f:.5f)+pebble.Radius;
+                if((actor.Position-foot).Length<radius&&
+                   ClearAttackPath(foot,actor.Position))
+                    return true;
+            }
+            return false;
+        }
         public void Attack(Point direction)
         {
             if(!Finite(direction.x)||!Finite(direction.y))
@@ -2898,9 +2914,13 @@ namespace Starfall
                     bool hitGround=false;
                     if(!startedInRock)
                     {
+                        // Resolve genuine first contact at a physical swept
+                        // sample. Never teleport a pebble through stone or
+                        // let it pass through a living enemy's whole body.
+                        hitGround=PebbleContactsLivingEnemy(p,p.position);
                         int segments=Math.Max(1,
                             (int)Math.Ceiling(speed*flightDt/.08f));
-                        for(int segment=0;segment<segments;segment++)
+                        for(int segment=0;segment<segments&&!hitGround;segment++)
                         {
                             Point next=p.position+
                                 p.velocity*(flightDt/segments);
@@ -2909,6 +2929,8 @@ namespace Starfall
                                 hitGround=true;break;
                             }
                             p.position=next;
+                            if(PebbleContactsLivingEnemy(p,p.position))
+                                hitGround=true;
                         }
                         if(p.life<=.00001f)hitGround=true;
                     }
