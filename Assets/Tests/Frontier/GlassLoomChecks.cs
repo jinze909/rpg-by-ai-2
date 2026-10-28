@@ -278,20 +278,30 @@ namespace Starfall.Tests
                 "The actual Glasswell contact filter excludes Boss bodies even inside the sunbeam");
             Check(g.save.kills[6]==kills&&g.save.coins==coins,
                 "Bright reflection creates a nonlethal defensive tactic, never a farmable kill/coin reward");
+            // The full first contact above uses the real world Tick.
+            // To isolate the beam's *own* per-actor cooldown, call its
+            // production Tick directly: a full Tick may also stagger
+            // enemies from independent Boss movement/collision logic.
+            var tickBeam=typeof(GameCore).GetMethod("TickGlassLoom",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(tickBeam!=null,"The live optical update method is accessible to regression tests");
             raider.stun=0f;raider.armorOpenTime=0f;
             raider.x=66.5f;raider.y=50.5f;
-            g.Tick(.05f,new Point());
-            Check(raider.stun==0f,
-                "One body crossing a steady beam cannot be repeatedly stunned every rendered frame");
+            tickBeam.Invoke(g,new object[]{.05f});
+            Check(raider.stun==0f&&raider.armorOpenTime==0f,
+                "The production beam itself cannot re-stun its same actor in the four-second recovery window");
             g.save.totalTime+=4.25f;
             raider.x=66.5f;raider.y=50.5f;
-            g.Tick(.05f,new Point());
-            Check(raider.stun>.7f,
-                "After a genuine four-second recovery, an ordinary pursuer can be lured into a second real beam contact");
-            raider.stun=0f;g.save.totalTime=160f;
-            g.Tick(.05f,new Point());
-            Check(!g.GlassLoomBeamActive&&raider.stun==0f,
-                "Actual nightfall disables the beam's enemy-blinding physics as well as its player hazard");
+            tickBeam.Invoke(g,new object[]{.05f});
+            Check(raider.stun>.7f&&raider.armorOpenTime>.4f,
+                "After four genuine seconds, the real optical mechanic rearms against that same body");
+            raider.stun=0f;raider.armorOpenTime=0f;
+            g.save.totalTime=160f;
+            tickBeam.Invoke(g,new object[]{.05f});
+            Check(!g.GlassLoomBeamActive&&raider.stun==0f&&
+                raider.armorOpenTime==0f,
+                "Nightfall disables the optical mechanic's enemy contacts without relying on independent Boss AI");
         }
         public static void GlasswellSolarBeamSweepsFastCrossingsAndKeepsActorIdentity(Campaign data)
         {
