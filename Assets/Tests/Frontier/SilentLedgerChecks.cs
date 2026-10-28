@@ -534,6 +534,12 @@ namespace Starfall.Tests
                 var notFunded=CloneSave(g.save);
                 notFunded.flags.Remove("silentledger_family_done");
                 var comparison=new GameCore(data,notFunded);
+                // Loading a v2 save alone does not begin world simulation.
+                // Start the control just as an actual returning player does,
+                // or its normal stamina recovery stays paused in title mode.
+                comparison.Start();
+                Check(g.mode=="world"&&comparison.mode=="world",
+                    "Both funded and unfunded saves must actually tick the playable world");
                 Check(g.CanStand(new Point(g.save.x,g.save.y))&&
                     comparison.CanStand(new Point(comparison.save.x,comparison.save.y)),
                     "Funded relief gameplay is evaluated on original safe Emberfall ground");
