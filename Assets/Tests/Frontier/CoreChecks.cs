@@ -3162,6 +3162,174 @@ namespace Starfall.Tests
                 "A completed signal network upgrades a genuine paid ward to 4 contacts/120s");
         }
 
+
+        public static void SignalRelayRequiresRealTwoWayWorldChoicesAndSavesCompletion(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("annex_signal_network_published");
+            g.save.flags.Add("annex_signal_fire_0");
+            WorldObject camp=Array.Find(g.Map.objects,
+                o=>o.kind=="annexcamp"&&o.id=="annex_camp_0");
+            WorldObject vista=Array.Find(g.Map.objects,
+                o=>o.kind=="annexvista"&&o.id=="annex_vista_0");
+            Check(camp!=null&&vista!=null&&
+                g.CanStand(new Point(camp.x,camp.y))&&
+                g.CanStand(new Point(vista.x,vista.y)),
+                "Production relay uses two original, standable physical world landmarks");
+            g.save.x=camp.x;g.save.y=camp.y;
+            var action=typeof(GameCore).GetMethod("ChooseSignalRelay",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(action!=null,"The real relay choice handler exists");
+            action.Invoke(g,new object[]{"annex_relay_begin"});
+            Check(!g.SignalRelayActive,"A synthesized relay without physical camp dialogue cannot start");
+            g.Talk(camp);
+            int begin=Array.FindIndex(g.conversation.choices,c=>c.action=="annex_relay_begin");
+            Check(begin>=0,"Published network offers a live two-way dispatch at the actual camp");
+            g.Choose(begin);
+            Check(g.SignalRelayStage==1&&g.SignalRelayIntegrity==3&&
+                g.SignalRelaySeconds==300f,"A real camp starts a timed, damage-sensitive first leg");
+            int startingCoins=g.save.coins,startingShards=g.save.shards;
+            float startingTime=g.SignalRelaySeconds;
+            g.Talk(camp);g.Tick(.05f,new Point());
+            Check(Math.Abs(g.SignalRelaySeconds-startingTime)<.001f,
+                "Opening the actual dialogue pauses both the world and the courier deadline");
+            g.Close();
+            g.Tick(.05f,new Point());
+            Check(g.SignalRelaySeconds<startingTime,
+                "Only genuine unpaused world simulation advances the courier deadline");
+            g.Enter(1);
+            Check(g.save.room==0&&g.SignalRelayStage==1,
+                "Region transitions cannot skip a live two-way dispatch");
+            g.ReturnToTown();
+            Check(g.SignalRelayStage==1,
+                "Quick return cannot skip courier route even from the home region");
+            g.save.x=vista.x;g.save.y=vista.y;
+            g.Talk(vista);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="annex_relay_deliver")>=0,
+                "The original lookout offers the physically reached handoff");
+            action.Invoke(g,new object[]{"annex_relay_report"});
+            Check(g.SignalRelayStage==1&&g.SignalRelayDoneCount==0,
+                "A remote lookout cannot counterfeit the camp's return receipt");
+            int handoff=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_deliver");
+            g.Choose(handoff);
+            Check(g.SignalRelayStage==2&&g.SignalRelayDoneCount==0,
+                "One-way delivery alone cannot mint rewards or persistent progress");
+            g.Talk(vista);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_deliver")<0,
+                "The lookout will not generate duplicate delivery states");
+            g.Close();
+            g.PrepareSave();
+            var premature=new GameCore(data,CloneSave(g.save));
+            Check(!premature.SignalRelayActive&&premature.SignalRelayDoneCount==0,
+                "Unfinished dispatch is transient and cannot leak through a v2 save slot");
+            g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);
+            int receipt=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_report");
+            Check(receipt>=0,"Only the original reached camp offers the reply handoff");
+            g.Choose(receipt);
+            Check(!g.SignalRelayActive&&g.SignalRelayDoneCount==1&&
+                g.save.coins==startingCoins+20&&
+                g.save.shards==startingShards+1&&g.save.version==2,
+                "A full two-way dispatch awards exactly one genuine field reward");
+            g.Talk(camp);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_report")<0,
+                "A completed dispatch cannot replay its return reward");
+            g.Close();
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.SignalRelayDoneCount==1&&
+                loaded.Has("annex_relay_done_0")&&loaded.save.version==2,
+                "Authenticated regional courier progress persists in original v2 flags");
+        }
+
+        public static void SignalRelayActualDamageDeadlineAndFinalEightRegionMoment(Campaign data)
+        {
+            var g=Fresh(data);g.enemies.Clear();
+            g.save.flags.Add("annex_signal_network_published");
+            g.save.flags.Add("annex_signal_fire_0");
+            WorldObject camp=Array.Find(g.Map.objects,
+                o=>o.id=="annex_camp_0");
+            g.save.x=camp.x;g.save.y=camp.y;
+            g.Talk(camp);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_begin");
+            g.Choose(begin);
+            Check(g.SignalRelayActive,"Damage tests start a real packet from actual dialogue");
+            var hit=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"A live player HP injury handler exists");
+            for(int i=0;i<22;i++)g.Tick(.05f,new Point());
+            hit.Invoke(g,new object[]{0f,"shot",null});
+            Check(g.SignalRelayIntegrity==3,"Zero-damage warning never damages a physical packet");
+            for(int contact=0;contact<3;contact++)
+            {
+                for(int i=0;i<22;i++)g.Tick(.05f,new Point());
+                hit.Invoke(g,new object[]{5f,"shot",null});
+                Check(g.SignalRelayIntegrity==Math.Max(0,2-contact),
+                    "Only authentic post-armor hero injury reduces relay integrity");
+            }
+            Check(!g.SignalRelayActive&&!g.Has("annex_relay_done_0"),
+                "Three real damaging contacts destroy the dispatch without any free progression");
+            g.Talk(camp);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="annex_relay_begin");
+            Check(begin>=0,"A damaged dispatch can be restarted at the true source camp");
+            g.Choose(begin);
+            var seconds=typeof(GameCore).GetField("signalRelaySeconds",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(seconds!=null,"Five-minute dispatch uses a live, nonpersisted world-time clock");
+            seconds.SetValue(g,.02f);
+            g.Tick(.05f,new Point());
+            Check(!g.SignalRelayActive&&!g.Has("annex_relay_done_0"),
+                "Real world time can expire an unfinished relay without minting rewards");
+            // A complete network is awarded only when the actual final
+            // region performs BOTH interactions, not for an invented count.
+            var last=Fresh(data);last.save.room=7;last.enemies.Clear();
+            last.save.flags.Add("annex_signal_network_published");
+            last.save.flags.Add("annex_signal_fire_7");
+            for(int room=0;room<7;room++)
+                last.save.flags.Add("annex_relay_done_"+room);
+            WorldObject origin=Array.Find(last.Map.objects,
+                o=>o.id=="annex_camp_7");
+            WorldObject destination=Array.Find(last.Map.objects,
+                o=>o.id=="annex_vista_7");
+            Check(origin!=null&&destination!=null&&last.SignalRelayDoneCount==7,
+                "Final two-way dispatch uses the eighth original camp and lookout");
+            last.save.x=origin.x;last.save.y=origin.y;last.Talk(origin);
+            begin=Array.FindIndex(last.conversation.choices,
+                c=>c.action=="annex_relay_begin");
+            Check(begin>=0,"Final region accepts a real paid-network mission");
+            last.Choose(begin);
+            last.save.x=destination.x;last.save.y=destination.y;
+            last.Talk(destination);
+            int handoff=Array.FindIndex(last.conversation.choices,
+                c=>c.action=="annex_relay_deliver");
+            Check(handoff>=0,"Eighth live lookout takes the outgoing signal");
+            last.Choose(handoff);
+            last.save.x=origin.x;last.save.y=origin.y;last.Talk(origin);
+            int receipt=Array.FindIndex(last.conversation.choices,
+                c=>c.action=="annex_relay_report");
+            Check(receipt>=0,"Original eighth camp accepts the true return");
+            int talents=last.save.skillPoints;
+            last.Choose(receipt);
+            Check(last.SignalRelayDoneCount==8&&last.Has("annex_relay_all")&&
+                last.save.skillPoints==talents+1,
+                "Eight distinct real round trips complete the civilian relay arc and award one talent");
+            last.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(last.save));
+            Check(loaded.Has("annex_relay_all")&&loaded.SignalRelayDoneCount==8,
+                "Final chapter milestone survives SaveData v2 serialization");
+        }
+
         public static void NewAnnexSitesAreRealWalkableAndPersistent(Campaign data)
         {
             for(int region=0;region<8;region++)
