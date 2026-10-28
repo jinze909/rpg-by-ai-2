@@ -357,8 +357,12 @@ namespace Starfall
                     (!QuietStepping?
                         ClearAttackPath(e.Position,Position):
                         ImpactSearchGuardSeesHero(e)))||
-                   !CanStand(alert.homeFoot)||
-                   (e.Position-alert.homeFoot).Length<.42f||
+                   // Rising tides and closing gates must not make a
+                   // sound-lured guard forget its posted identity. Keep
+                   // the bounded return intent until the ground reopens;
+                   // LiveSoundSearchGoal holds it on safe feet meanwhile.
+                   (e.Position-alert.homeFoot).Length<.42f&&
+                   CanStand(alert.homeFoot)||
                    alert.remaining<=0f)
                 {
                     enemyHitAlert.Remove(e);
@@ -713,8 +717,19 @@ namespace Starfall
         private Point LiveSoundSearchGoal(Enemy enemy,Point fallback)
         {
             EnemyHitAlert alert;
-            if(enemy==null||!enemyHitAlert.TryGetValue(enemy,out alert)||
-               !alert.impactOnly)return fallback;
+            if(enemy==null||!enemyHitAlert.TryGetValue(enemy,out alert))
+                return fallback;
+            if(alert.returning)
+            {
+                // A posted guard is allowed to wait safely for a flooded
+                // or gated sentry foot to reopen. Do not drive it into an
+                // impossible tile or silently promote it to player pursuit.
+                // On the first reopened frame the ORIGINAL home becomes
+                // the real navigation target again, within the old timeout.
+                return CanStand(alert.homeFoot)?
+                    alert.homeFoot:enemy.Position;
+            }
+            if(!alert.impactOnly)return fallback;
             if(alert.searchStep<0)
             {
                 if((enemy.Position-alert.lastKnown).Length>1.3f)
