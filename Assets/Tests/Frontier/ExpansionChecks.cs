@@ -5541,6 +5541,83 @@ namespace Starfall.Tests
             }
         }
 
+        public static void RidgeWatchSquadPhysicallySweepsOnlyReportedContact(Campaign data)
+        {
+            var g=Unlocked(data);
+            g.save.flags.Add("boss_1");
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            g.Enter(1);
+            var ids=(Dictionary<int,int>)typeof(GameCore).GetField(
+                "ridgeWatchIds",BindingFlags.Instance|
+                BindingFlags.NonPublic).GetValue(g);
+            Enemy caller=null,listener=null;
+            foreach(Enemy e in g.enemies)
+            {
+                int index;
+                if(!ids.TryGetValue(e.id,out index))continue;
+                if(index==0)caller=e;
+                if(index==2)listener=e;
+            }
+            Check(caller!=null&&listener!=null&&
+                g.IsActiveRidgeWatchPatrol(caller)&&
+                g.IsActiveRidgeWatchPatrol(listener),
+                "Two original mapped ridge guards own the real squad search");
+            var previousRows=g.Map.rows;
+            var previousDecor=g.Map.decor;
+            try
+            {
+                string[] rows=new string[100];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] cells=new string('#',100).ToCharArray();
+                    if(y>=2&&y<=97)
+                        for(int x=2;x<=97;x++)cells[x]='.';
+                    rows[y]=new string(cells);
+                }
+                g.Map.rows=rows;g.Map.decor=new Decoration[0];
+                caller.x=35.5f;caller.y=35.5f;
+                listener.x=39.5f;listener.y=35.5f;
+                g.save.x=39.5f;g.save.y=35.5f;
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                hit.Invoke(g,new object[]{caller,1f,false,null,null});
+                Check(g.RidgeWatchCallPending,
+                    "Real patrol HP injury begins the interruptible signal");
+                g.save.x=80.5f;g.save.y=80.5f;
+                for(int i=0;i<19;i++)g.Tick(.05f,new Point());
+                Check(g.RidgeWatchAlarmActive&&
+                    g.IsRidgeWatchResponder(listener),
+                    "The exact original nearby patrol actually hears its ally");
+                // Return actor to the real REPORT position, not the
+                // concealed hero's current remote position.
+                listener.x=39.5f;listener.y=35.5f;
+                listener.stun=0f;listener.timer=100f;
+                g.Tick(.05f,new Point());
+                Check(g.IsRidgeWatchSweepingReport(listener)&&
+                    g.CanStand(listener.Position)&&
+                    (listener.Position-new Point(39.5f,35.5f)).Length>.01f,
+                    "Live original enemy starts a physical local report sweep and genuinely walks");
+                var seek=typeof(GameCore).GetMethod("RidgeWatchPursuitFoot",
+                    BindingFlags.Instance|BindingFlags.NonPublic);
+                Point goal=(Point)seek.Invoke(g,new object[]{listener,g.Position});
+                Check(g.CanStand(goal)&&
+                    (goal-new Point(39.5f,35.5f)).Length<2.2f&&
+                    (goal-g.Position).Length>30f,
+                    "Physical search target stays near genuine injury, not remotely tracked hero");
+                for(int i=0;i<135;i++)g.Tick(.05f,new Point());
+                Check(!g.RidgeWatchAlarmActive&&
+                    !g.IsRidgeWatchSweepingReport(listener)&&
+                    !g.IsRidgeWatchResponder(listener)&&g.save.version==2,
+                    "Six-second alarm and original enemy search expire without persistent save fields");
+            }
+            finally
+            {
+                g.Map.rows=previousRows;
+                g.Map.decor=previousDecor;
+            }
+        }
+
         public static void RidgeWatchWhistleCannotRecruitAcrossLongStoneMaze(Campaign data)
         {
             var g=Unlocked(data);

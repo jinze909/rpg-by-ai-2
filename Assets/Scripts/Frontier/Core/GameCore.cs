@@ -2495,7 +2495,13 @@ namespace Starfall
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
-                float desired = trackingOrdinaryFoot ? .22f :
+                // A summoned archer is investigating an actual reported
+                // injury, not maintaining its 4.5-tile shooting distance
+                // from a patch of empty earth. Reach the real sound foot
+                // before searching; actual visual contact restores combat.
+                float desired = RidgeWatchRespondsToAlarm(e)&&
+                    !RidgeWatchSeesLiveHero(e,Position) ? .22f :
+                    trackingOrdinaryFoot ? .22f :
                     playerHitProvoked&&
                     (IsEnemyInvestigatingImpact(e)||
                      IsEnemyReturningFromImpact(e)) ? .22f :

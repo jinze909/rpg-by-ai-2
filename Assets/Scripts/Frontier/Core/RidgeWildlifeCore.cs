@@ -50,6 +50,13 @@ namespace Starfall
         // hero for player-owned attacks, companion for ally-owned contacts.
         // Hearing a whistle never reveals the hero through sealed terrain.
         private Point ridgeWatchReportedContactFoot;
+        // Each recruited original enemy searches the PHYSICAL reported
+        // contact vicinity, only for the life of the genuine 6s alarm.
+        // Nothing is serialized and no numeric patrol ID owns the memory.
+        private readonly Dictionary<Enemy,int> ridgeWatchSweepSteps=
+            new Dictionary<Enemy,int>();
+        private readonly Dictionary<Enemy,Point> ridgeWatchSweepGoals=
+            new Dictionary<Enemy,Point>();
         // An actual injured body must FINISH its telegraphed warning:
         // defeating or stunning it beforehand stops the reinforcement.
         public bool RidgeWatchCallPending
@@ -112,6 +119,48 @@ namespace Starfall
                 !SoundSweepFootReachable(enemy.Position,
                     ridgeWatchReportedContactFoot);
         }
+        public bool IsRidgeWatchSweepingReport(Enemy enemy)
+        {
+            int step;
+            return RidgeWatchRespondsToAlarm(enemy)&&
+                !RidgeWatchSeesLiveHero(enemy,Position)&&
+                !IsRidgeWatchReportRouteSealed(enemy)&&
+                ridgeWatchSweepSteps.TryGetValue(enemy,out step)&&
+                step>=0&&step<4;
+        }
+        // The issued whistle gives a last PHYSICALLY reported source,
+        // not endless remote target updates. Arriving at that original
+        // foot leads to a four-point, bounded real-ground investigation.
+        private Point RidgeWatchLocalReportSweep(Enemy enemy,Point report)
+        {
+            int step;
+            if(!ridgeWatchSweepSteps.TryGetValue(enemy,out step))
+            {
+                if((enemy.Position-report).Length>1.12f)return report;
+                step=0;
+            }
+            else
+            {
+                Point previous;
+                if(ridgeWatchSweepGoals.TryGetValue(enemy,out previous)&&
+                    (enemy.Position-previous).Length<.34f)step++;
+            }
+            for(;step<4;step++)
+            {
+                Point offset=step==0?new Point(-1.4f,.9f):
+                    step==1?new Point(-1.4f,-.9f):
+                    step==2?new Point(1.4f,.9f):
+                    new Point(1.4f,-.9f);
+                Point next=report+offset;
+                if(!SoundSweepFootReachable(enemy.Position,next))continue;
+                ridgeWatchSweepSteps[enemy]=step;
+                ridgeWatchSweepGoals[enemy]=next;
+                return next;
+            }
+            ridgeWatchSweepSteps[enemy]=4;
+            ridgeWatchSweepGoals.Remove(enemy);
+            return enemy.Position;
+        }
         private Point RidgeWatchPursuitFoot(Enemy enemy,Point heroFoot)
         {
             if(!RidgeWatchRespondsToAlarm(enemy))return heroFoot;
@@ -125,14 +174,19 @@ namespace Starfall
             // detection as ordinary investigating sentries, and never
             // resolve a synthetic caller coordinate as the live hero.
             if(RidgeWatchSeesLiveHero(enemy,heroFoot))
+            {
+                ridgeWatchSweepSteps.Remove(enemy);
+                ridgeWatchSweepGoals.Remove(enemy);
                 return heroFoot;
+            }
             // A gate can shut AFTER a real whistle recruited teammates.
-            // Never drive toward a disconnected report island or snap the
-            // target to the concealed live hero. Recheck current actor-scale
-            // physical connectivity; keep the ORIGINAL report for reopening.
-            return SoundSweepFootReachable(enemy.Position,
-                ridgeWatchReportedContactFoot)?
-                ridgeWatchReportedContactFoot:enemy.Position;
+            // Keep the original report and pause physical searches until
+            // safe footing reopens. Never turn into a hidden-hero tracker.
+            if(!SoundSweepFootReachable(enemy.Position,
+                ridgeWatchReportedContactFoot))
+                return enemy.Position;
+            return RidgeWatchLocalReportSweep(enemy,
+                ridgeWatchReportedContactFoot);
         }
         private void AlertRidgeWatchOnRealHit(Enemy struck,Point sourceFoot)
         {
@@ -147,6 +201,10 @@ namespace Starfall
                 // A NEW genuine incoming hit supplies fresh information.
                 // Hidden movement alone never updates the squad's sighting.
                 ridgeWatchReportedContactFoot=sourceFoot;
+                // A NEW real injury is new information; restart the local
+                // search rather than sweeping obsolete, already-checked feet.
+                ridgeWatchSweepSteps.Clear();
+                ridgeWatchSweepGoals.Clear();
                 ridgeWatchAlarmSeconds=Math.Max(ridgeWatchAlarmSeconds,3f);
                 return;
             }
@@ -155,6 +213,8 @@ namespace Starfall
             ridgeWatchCaller=struck;
             ridgeWatchCallSeconds=.85f;
             ridgeWatchReportedContactFoot=sourceFoot;
+            ridgeWatchSweepSteps.Clear();
+            ridgeWatchSweepGoals.Clear();
             effects.Add(new Effect("number",struck.Position,.85f,
                 L("巡敌正在呼援！","PATROL CALLING!")));
             revision++;
@@ -178,6 +238,8 @@ namespace Starfall
             if(!IsActiveRidgeWatchPatrol(struck))return;
             ridgeWatchAlarmSeconds=6f;
             ridgeWatchResponders.Clear();
+            ridgeWatchSweepSteps.Clear();
+            ridgeWatchSweepGoals.Clear();
             foreach(Enemy ally in enemies)
             {
                 if(!IsActiveRidgeWatchPatrol(ally))continue;
@@ -200,6 +262,7 @@ namespace Starfall
         {
             ridgeWatchIds.Clear();ridgeWatchActors.Clear();
             ridgeWatchResponders.Clear();ridgeWatchAlarmSeconds=0f;
+            ridgeWatchSweepSteps.Clear();ridgeWatchSweepGoals.Clear();
             ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;
             ridgeWatchReportedContactFoot=new Point();
             ridgeWatchRespawnCheck=0f;ridgeWatchRoom=-1;ridgeWatchMap=null;
@@ -329,6 +392,8 @@ namespace Starfall
                 !ridgeWatchActors.TryGetValue(enemy.id,out actual)||
                 !Object.ReferenceEquals(actual,enemy))return;
             ridgeWatchResponders.Remove(enemy);
+            ridgeWatchSweepSteps.Remove(enemy);
+            ridgeWatchSweepGoals.Remove(enemy);
             if(System.Object.ReferenceEquals(ridgeWatchCaller,enemy))
             {ridgeWatchCaller=null;ridgeWatchCallSeconds=0f;}
             string flag="ridge_watch_"+save.room+"_"+index;
@@ -382,7 +447,12 @@ namespace Starfall
             // a patrol's authored footing. Retry missing bodies on the live
             // map instead of making the three-kill quest impossible forever.
             ridgeWatchAlarmSeconds=Math.Max(0f,ridgeWatchAlarmSeconds-dt);
-            if(ridgeWatchAlarmSeconds<=0f)ridgeWatchResponders.Clear();
+            if(ridgeWatchAlarmSeconds<=0f)
+            {
+                ridgeWatchResponders.Clear();
+                ridgeWatchSweepSteps.Clear();
+                ridgeWatchSweepGoals.Clear();
+            }
             if(ridgeWatchCaller!=null)
             {
                 Enemy caller=ridgeWatchCaller;
