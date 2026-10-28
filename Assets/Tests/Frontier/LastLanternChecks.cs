@@ -83,13 +83,17 @@ namespace Starfall.Tests
                     "Actual watchkeeper is the final quest navigation foot");
                 g.save.x=watch.x;g.save.y=watch.y;g.Talk(watch);
                 int beforeCoins=g.save.coins;
+                int herbs=g.save.inventory[2];
                 Check(LanternChoice(g,publicCall?
                     "lastlantern_public":"lastlantern_silent"),
                     "Watchkeeper makes a genuine two-way final ethical choice");
                 Check(!g.LastLanternActive&&g.LastLanternComplete&&
                     g.LastLanternPublic==publicCall&&g.LastLanternSilent!=publicCall&&
-                    g.save.coins==beforeCoins+55,
-                    "The unique end grants actual rewards and one exclusive policy");
+                    g.save.coins==beforeCoins+55&&
+                    g.LastLanternEvadedPursuer&&
+                    !g.LastLanternDefeatedPursuer&&
+                    g.save.inventory[2]==herbs+1,
+                    "Outrunning the live pursuit grants an earned Moonherb and records the authentic route to safety");
                 Check(Math.Abs(g.LastLanternPebbleCooldown-
                     (publicCall?3.5f:5f))<.01f&&
                     g.LastLanternSnareGearCost==(publicCall?1:0),
@@ -205,10 +209,40 @@ namespace Starfall.Tests
             Check(!g.LastLanternPursuerAlive&&
                 g.save.coins==before&&g.save.kills[4]==kills,
                 "Authored pursuer defeat produces no farmable combat loot or bounty credit");
+            int gear=g.save.inventory[4];
             g.Talk(watch);
             Check(LanternChoice(g,"lastlantern_public")&&
-                g.LastLanternComplete,
-                "Real interception removes the watchpost blockade and restores the ethical choice");
+                g.LastLanternComplete&&g.LastLanternDefeatedPursuer&&
+                !g.LastLanternEvadedPursuer&&
+                g.save.inventory[4]==gear+1,
+                "Real interception opens the watchpost and awards the one-off salvaged gear ending");
+        }
+        public static void LastLanternMissingPursuerCannotSpoofAnEvasion(Campaign data)
+        {
+            var g=LanternReady(data);
+            var cache=LanternPost(g,"annex_cache_4_a");
+            var relay=LanternPost(g,"outer_4_1");
+            g.save.x=cache.x;g.save.y=cache.y;g.Talk(cache);
+            LanternChoice(g,"lastlantern_begin");
+            g.save.x=relay.x;g.save.y=relay.y;g.Talk(relay);
+            LanternChoice(g,"lastlantern_fight");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            foreach(Enemy e in g.enemies.FindAll(g.IsLastLanternEnemy))
+            {
+                e.hp=6f;e.stun=100f;
+                hit.Invoke(g,new object[]{e,99999f,false,null,null});
+            }
+            g.Talk(relay);LanternChoice(g,"lastlantern_forward");
+            Check(g.LastLanternStage==3&&g.LastLanternPursuerAlive,
+                "The final courier leg has an authentic moving pursuer");
+            var actual=g.enemies.Find(g.IsLastLanternEnemy);
+            var counterfeit=new Enemy(actual.id,0,actual.x,actual.y,80);
+            g.enemies.Remove(actual);g.enemies.Add(counterfeit);
+            g.Tick(.05f,new Point());
+            Check(!g.LastLanternActive&&!g.LastLanternComplete&&
+                g.enemies.Contains(counterfeit),
+                "If the REAL pursuer vanishes, a reused-ID counterfeit cannot mint a clean escape");
         }
     }
 }

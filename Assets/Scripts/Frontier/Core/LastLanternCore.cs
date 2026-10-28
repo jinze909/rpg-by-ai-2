@@ -13,6 +13,32 @@ namespace Starfall
         // player may defeat the raider or beat its approach through cover.
         // No new flags, map objects or duplicated enemy spawns on reload.
         private int lastLanternKills;
+        private bool lastLanternPursuerDefeated;
+        public bool LastLanternEvadedPursuer
+        {get{return Has("lastlantern_evaded");}}
+        public bool LastLanternDefeatedPursuer
+        {get{return Has("lastlantern_stood_ground");}}
+        private string LastLanternReturnTale(bool english)
+        {
+            if(!LastLanternComplete)return "";
+            string action=LastLanternEvadedPursuer?
+                (english?" You outran the last pursuer on the road.":
+                    " 你甩开了最后一名追兵，抢在搜捕队前送达。"):
+                LastLanternDefeatedPursuer?
+                (english?" You stood and defeated the final pursuer.":
+                    " 你在守望岗前击退了最后的追兵。"):"";
+            return english?
+                "\n\nThe Last Lantern's erased warning reached the watchkeeper."+
+                (LastLanternPublic?
+                    " Its handprints are now public; ordinary travelers can send quicker stone signals on outdoor roads.":
+                    " The confidential escape path remains with its families; outdoor snares use timber stakes rather than scarce metal parts.")+
+                action:
+                "\n\n最后的灯讯已送达守望岗。"+
+                (LastLanternPublic?
+                    "居民的求救手印已经公开，户外巡路的投石信号能更快接续。":
+                    "隐蔽逃生路由家属守护，户外绊索得以用木楔代替珍贵零件。")+
+                action;
+        }
         public bool LastLanternActive {get{return lastLanternStage>0;}}
         public int LastLanternStage {get{return lastLanternStage;}}
         public float LastLanternSeconds {get{return LastLanternActive?lastLanternSeconds:0f;}}
@@ -57,6 +83,7 @@ namespace Starfall
             }
             lastLanternA=lastLanternB=lastLanternPursuer=null;
             lastLanternStage=0;lastLanternSeconds=0;lastLanternKills=0;
+            lastLanternPursuerDefeated=false;
         }
         public bool IsLastLanternEnemy(Enemy e)
         {return save.room==4&&e!=null&&
@@ -67,7 +94,13 @@ namespace Starfall
                 Object.ReferenceEquals(e,lastLanternPursuer));}
         private void OnLastLanternEnemyDefeated(Enemy e)
         {
-            if(!IsLastLanternEnemy(e)||lastLanternStage!=2)return;
+            if(!IsLastLanternEnemy(e))return;
+            if(lastLanternStage==3&&
+                Object.ReferenceEquals(e,lastLanternPursuer))
+            {
+                lastLanternPursuerDefeated=true;return;
+            }
+            if(lastLanternStage!=2)return;
             if(Object.ReferenceEquals(e,lastLanternA))lastLanternKills|=1;
             if(Object.ReferenceEquals(e,lastLanternB))lastLanternKills|=2;
         }
@@ -117,6 +150,7 @@ namespace Starfall
                 out foot))return false;
             lastLanternPursuer=CreatePlacedEnemy(++enemyId,0,foot,85,false);
             lastLanternPursuer.timer=1.2f;
+            lastLanternPursuerDefeated=false;
             enemies.Add(lastLanternPursuer);
             return true;
         }
@@ -129,7 +163,9 @@ namespace Starfall
             if(lastLanternSeconds<=0f||
                 lastLanternStage==2&&
                 ((lastLanternKills&1)==0&&!enemies.Contains(lastLanternA)||
-                 (lastLanternKills&2)==0&&!enemies.Contains(lastLanternB)))
+                 (lastLanternKills&2)==0&&!enemies.Contains(lastLanternB))||
+                lastLanternStage==3&&!lastLanternPursuerDefeated&&
+                !LastLanternPursuerAlive)
             {
                 ResetLastLantern();revision++;
                 Notify("最后的灯讯失去了窗口；旧补给点仍保留消息，可重新送达。",
@@ -269,8 +305,15 @@ namespace Starfall
                 !LastLanternComplete&&lastLanternSeconds>0f&&
                 !LastLanternPursuerThreatensWatch)
             {
+                // Either physically outrun the still-living pursuer or
+                // earn its lethal-contact callback. Despawning an owned
+                // actor cannot impersonate a victory or an evasion.
+                bool escaped=LastLanternPursuerAlive;
+                if(!escaped&&!lastLanternPursuerDefeated)return true;
                 bool published=action=="lastlantern_public";
                 ResetLastLantern();
+                Flag(escaped?"lastlantern_evaded":"lastlantern_stood_ground");
+                CreditInventory(escaped?2:4,1);
                 Flag(published?"lastlantern_public":"lastlantern_silent");
                 CreditCoins(55);CreditShards(2);AddXp(95);
                 RecordMoment(published?

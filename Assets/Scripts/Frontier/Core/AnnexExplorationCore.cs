@@ -482,12 +482,16 @@ namespace Starfall
                 Dialog(o.name,o.en,noteZh+(first?"\n\n遗失补给：硬币 +7、材料 +2。":"\n\n物资已被取走，记录仍在。")+
                     (evidence?"\n\n这处旧补给点保留着《未列名者》的原始记录。请亲手核验。":"")+
                     UnlistedReliefCacheNote(false,reliefRegion,relief)+
+                    (save.room==4&&o.id=="annex_cache_4_a"?
+                        LastLanternReturnTale(false):"")+
                     (save.room==4&&Has("boss_4")&&!LastLanternComplete?
                      "\n\n外墙旧补给箱底夹着一封未发的民用求救信。去东侧旧灯，再到南侧守望岗，找到传递这封信的理由。":
                      ""),
                     noteEn+(first?"\n\nRecovered supplies: +7 coins, +2 materials.":"\n\nSupplies already recovered.")+
                     (evidence?"\n\nThis original cache holds a missing registry clue. Verify it here.":"")+
                     UnlistedReliefCacheNote(true,reliefRegion,relief)+
+                    (save.room==4&&o.id=="annex_cache_4_a"?
+                        LastLanternReturnTale(true):"")+
                     (save.room==4&&Has("boss_4")&&!LastLanternComplete?
                      "\n\n外墙旧补给箱底夹着一封未发的民用求救信。真实的传递路线要先经过东侧旧求援灯，再到南侧守望岗。":
                      ""),
