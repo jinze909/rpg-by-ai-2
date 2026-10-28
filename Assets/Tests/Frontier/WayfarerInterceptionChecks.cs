@@ -267,6 +267,74 @@ namespace Starfall.Tests
             finally{data.maps[1]=original;}
         }
 
+        public static void QuietRearOfShoutedRaiderDoesNotTriggerInvisibleMeleeWindup(Campaign data)
+        {
+            MapData old=data.maps[1];
+            try
+            {
+                string[] rows=new string[30];
+                for(int y=0;y<30;y++)
+                {
+                    char[] tiles=new string('#',30).ToCharArray();
+                    if(y>=2&&y<=27)
+                        for(int x=2;x<=27;x++)tiles[x]='.';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,
+                    spawnX=12.5f,spawnY=10.5f,rows=rows,
+                    objects=new[]{new WorldObject{kind="wayfarer1",
+                        id="wayfarer1",x=10.5f,y=10.5f,
+                        name="旅人",en="Traveler"}},decor=new Decoration[0]};
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("scout_saved");
+                g.Enter(1);g.enemies.Clear();
+                g.save.x=12.5f;g.save.y=10.5f;
+                Action(g,"wayfarer1","wayfarer_defend_1");
+                var raiders=g.enemies.FindAll(e=>e.id>=82000&&e.id<82100);
+                Check(g.WayfarerEncounterRoom==1&&raiders.Count==2,
+                    "An actual active traveler ambush owns the real raider AI");
+                Enemy listening=raiders[0];
+                listening.x=15.5f;listening.y=10.5f;
+                listening.stun=100f;listening.timer=100f;
+                raiders[1].x=26.5f;raiders[1].y=26.5f;
+                raiders[1].stun=100f;raiders[1].timer=100f;
+                Check(g.QuickDrawWayfarerFire()&&
+                    g.IsWayfarerDecoyTarget(listening),
+                    "One real shout legally diverts the original living enemy");
+                int coins=g.save.coins,shards=g.save.shards;
+                // Reposition the same living raider on the near side of its
+                // original shout, looking EAST toward the genuine heard foot.
+                // Quiet hero slips WEST behind it, still inside melee reach.
+                listening.x=10.5f;listening.y=10.5f;
+                listening.Face(new Point(1,0));
+                listening.stun=0f;listening.timer=0f;
+                listening.state=0;
+                g.save.x=9.0f;g.save.y=10.5f;
+                Check(!g.WayfarerDecoyCanSeeHero(listening),
+                    "The real near raider does not see a hero approaching from its back");
+                g.Tick(.05f,new Point(-1f,0),null,false,true);
+                Check(g.QuietStepping&&
+                    !g.WayfarerDecoyCanSeeHero(listening)&&
+                    listening.state==0&&
+                    !listening.targetingWayfarer&&
+                    g.IsWayfarerDecoyTarget(listening),
+                    "Shout-guided raider cannot begin an impossible blind strike while quiet hero stands in melee range");
+                // Drop quiet movement. At the SAME physically near foot,
+                // normal visible combat resumes and must still warn/attack.
+                g.Tick(.05f,new Point(),null,false,false);
+                Check(!g.QuietStepping&&
+                    g.WayfarerDecoyCanSeeHero(listening)&&
+                    listening.state==1&&
+                    !listening.targetingWayfarer&&
+                    (listening.target-g.Position).Length<.2f,
+                    "Actual visible hero immediately draws the normal telegraphed attack, never a civilian strike");
+                Check(g.save.version==2&&g.save.coins==coins&&
+                    g.save.shards==shards,
+                    "No score, reward or save schema changes from real acoustic stealth combat");
+            }
+            finally{data.maps[1]=old;}
+        }
+
         public static void OriginalWayfarerShoutIsFiniteNativeAudibleClip(Campaign data)
         {
             Check(Array.IndexOf(AudioSynthesis.Events,"wayfarerShout")>=0,

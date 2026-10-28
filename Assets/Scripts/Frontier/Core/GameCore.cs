@@ -2578,6 +2578,14 @@ namespace Starfall
                 // ordinary audible approach) actually reacquires the hero.
                 bool heroInRange = !IsEnemyInvestigatingImpact(e)&&
                     !IsEnemyReturningFromImpact(e)&&
+                    // A shouted diversion is not a permanent license to
+                    // acquire a quietly hidden hero from behind. Use the
+                    // SAME physical visual reacquisition rule as this
+                    // raider's last-known sound-foot pursuit. An existing
+                    // committed attack still completes under its own
+                    // unchanged windup/release contract above.
+                    (!travelerAttacker||!IsWayfarerDecoyTarget(e)||
+                     WayfarerDecoyCanSeeHero(e))&&
                     distance < (e.boss ? 12 : e.kind == 1 ? 7 : 2.5f) &&
                     ClearAttackPath(e.Position, Position) &&
                     (e.boss||e.kind!=1||
