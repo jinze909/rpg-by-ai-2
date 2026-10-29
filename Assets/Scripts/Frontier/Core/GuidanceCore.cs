@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,48 @@ namespace Starfall
 
 
 
+            if(id=="unsent_warning")
+            {
+                q.title=L("未送达的警报 · 沉桥与矿工",
+                    "The Unsent Warning · Bridge and Mine");
+                q.category=L("新章节 · 限时实地递送",
+                    "NEW CHAPTER · TWO LIVE COURIER RUNS");
+                q.locked=!UnsentWarningUnlocked&&!UnsentWarningStarted;
+                q.complete=UnsentWarningComplete;
+                q.room=UnsentWarningTargetRoom;
+                q.target=UnsentWarningObjective;
+                q.description=L(
+                    "沉没遗迹的渡口记录与赤铁矿场的最后一班矿车都完成后，到余烬镇公会接取两份被扣下的警报。必须在沉没遗迹西路标（14.5,31.5）支付草药1、耐力10开始105秒递送，穿过真正可通行的道路到东路标（47.5,23.5），沿路避开或击退两名真实袭击者；受到敌人实战打击会毁坏信封，至少亲自走过18格才能交付。第二份警报在赤铁矿场同样的两端旧路标递送。失败只能从原西路标重试，但已交付的第一份永久保存。回余烬镇公会决定公开失踪者的姓名并在两地旧路标提供安全治疗，或保留证人隐私并在两地旧路标提供安全耐力补给。所有进度使用原有SaveData v2标志。",
+                    "After completing both the Drowned ferry archive and Ironreach's final minecart, take two suppressed warnings from Emberfall guild. Spend one herb and 10 energy at the Drowned Ruins west waymark (14.5,31.5), then really walk to the eastern waymark (47.5,23.5) within 105 seconds. Two live raiders threaten the route; actual hostile hits damage the sealed copy and at least 18 tiles of real movement are required to deliver. Repeat in Ironreach, with earlier deliveries durable across failed attempts and loads. Finally publish the erased names for safe first aid at both waymarks, or protect witnesses' identities for safe energy supply. All progress uses the existing SaveData v2 flags.");
+                q.steps.Add(new QuestStep(L("在余烬镇公会认领两封警报",
+                    "Accept the two warnings at Emberfall guild"),
+                    UnsentWarningStarted||q.complete));
+                q.steps.Add(new QuestStep(L("护送沉没遗迹警报穿过完整的旧渡口道路",
+                    "Carry the Drowned warning across its actual road"),
+                    UnsentRiverDelivered||q.complete));
+                q.steps.Add(new QuestStep(L("护送赤铁矿场警报穿过旧铁路道路",
+                    "Carry the mine warning through Ironreach"),
+                    UnsentMineDelivered||q.complete));
+                q.steps.Add(new QuestStep(L("回公会决定公开或保护证人",
+                    "Return to guild and choose the witnesses' future"),q.complete));
+                q.next=q.locked?
+                    L("先完成沉桥渡口档案和矿车护送主线",
+                        "First complete the drowned ferry archive and the minecart"):
+                    q.complete?UnsentWarningPublic?
+                        L("证词公开 · 两地真实旧路标安全疗伤",
+                            "Public warnings · safe healing at both old waymarks"):
+                        L("证人获保护 · 两地真实旧路标安全恢复耐力",
+                            "Protected witnesses · safe stamina at both old waymarks"):
+                    UnsentWarningObjectiveText+
+                        (UnsentWarningRunActive?
+                            L(" · 信封 "," · SEAL ")+UnsentWarningIntegrity.ToString("0")+
+                            "/100 · "+UnsentWarningSeconds.ToString("0")+"s"+
+                            L(" · 路程 "," · WALKED ")+UnsentWarningTravel.ToString("0.0")+"/18":
+                            "");
+                q.reward=L("两封信真实送达：70硬币、2碎片、120经验与永久两地民间救助",
+                    "Two genuine deliveries: 70 coins, 2 shards, 120 XP and lasting two-region relief");
+                return q;
+            }
             if(id=="mistport_tidechart")
             {
                 q.title=L("雾港 · 落水者的潮汐航图","Mistport · The Drifter's Tide Chart");

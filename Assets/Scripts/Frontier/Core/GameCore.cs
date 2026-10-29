@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetUnsentWarning(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -1090,6 +1090,7 @@ namespace Starfall
             TickMistlight(dt);
             TickMistConvoy(dt);
             TickFloodRelief(dt);
+            TickUnsentWarning(dt);
             TickLastDirective(dt);
             TickCivicConduit(dt);
             TickExpansion(dt);
@@ -1843,6 +1844,7 @@ namespace Starfall
             DamageCivicResponseMedicine(actualDamage,source);
             DamageCivicConduit(actualDamage,source);
             DamageFloodReliefParcel(actualDamage,source);
+            DamageUnsentWarning(actualDamage,source);
             DamageAfterlightCharge(actualDamage,source);
             QuietStepping=false;
             invulnerable = .65f; sound = "hurt"; playerHitTime = .18f; playerFlash = .09f; playerRecoil = reaction.Normalized; recoilSpeed = damage >= 20 ? 1.8f : .75f;
@@ -3782,6 +3784,10 @@ namespace Starfall
                     AppendSoupRouteChoice(o);
                     AppendFarCourierRewardChoice(o);
                 }
+                // Preserve ALL existing guild and waytrail conversations.
+                // Append the new courier chapter to their actual source.
+                if(mode=="dialog"&&conversation!=previousConversation)
+                    AppendUnsentWarningChoice(o);
             }
             finally
             {
@@ -4817,6 +4823,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseUnsentWarning(action)) return;
             if (ChooseFieldSnareTraining(action)) return;
             if (ChooseForgeMasterwork(action)) return;
             if (ChooseSwordLesson(action)) return;
