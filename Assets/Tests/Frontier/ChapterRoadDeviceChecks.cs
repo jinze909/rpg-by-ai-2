@@ -152,5 +152,43 @@ namespace Starfall.Tests
                     "Only this chapter's earned civilian receipt weakens the actual guardian by 8%: "+room);
             }
         }
+        public static void FourGuardianShrinesActuallyAcknowledgeSignedResidentsAndChoice(Campaign data)
+        {
+            string[] publicPhrase={"",
+                "rescue bell rings again","ferry crew speak the missing names",
+                "Miners nail their stop-work petition",
+                "Orrin sees the new wall of names"};
+            string[] privatePhrase={"",
+                "rescue bell rings again","crew seal their names inside",
+                "Workers carry their protected work order",
+                "An evacuated child gives Orrin"};
+            for(int room=1;room<=4;room++)
+                for(int choice=0;choice<3;choice++)
+                {
+                    GameCore g=Fresh(data);g.mode="world";
+                    g.save.room=room;g.save.stage=room-1;g.enemies.Clear();
+                    g.save.flags.Add("gate_"+room);
+                    if(choice>0)g.save.flags.Add("chapter_road_done_"+room);
+                    if(choice==1)g.save.flags.Add("chapter_road_witness_"+room);
+                    WorldObject shrine=Array.Find(g.Map.objects,
+                        o=>o.kind=="shrine");
+                    Check(shrine!=null&&PlaceWithinTalkReach(g,shrine),
+                        "Original region's guardian altar remains real and reachable");
+                    g.Talk(shrine);
+                    Check(g.conversation!=null&&
+                        Array.FindIndex(g.conversation.choices,
+                            c=>c.action=="boss")>=0,
+                        "Original guardian battle menu is never replaced by chapter prose");
+                    string speech=g.conversation.textEn;
+                    if(choice==0)
+                        Check(!speech.Contains(publicPhrase[room])&&
+                            !speech.Contains(privatePhrase[room]),
+                            "Unfinished civilian story cannot impersonate a signed rescue");
+                    else
+                        Check(speech.Contains(choice==1?
+                            publicPhrase[room]:privatePhrase[room]),
+                            "Original boss recognizes actual regional testimony and its distinct published/sealed choice: "+room);
+                }
+        }
     }
 }
