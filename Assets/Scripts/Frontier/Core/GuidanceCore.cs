@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,45 @@ namespace Starfall
 
 
 
+            if(id=="seventh_bed")
+            {
+                q.title=L("炉火旅店 · 第七张床","Hearth Inn · The Seventh Bed");
+                q.category=L("新章节 · 多房间调查与证人抉择",
+                    "NEW CHAPTER · MULTI-ROOM SOCIAL DEDUCTION");
+                q.room=9;q.target=SeventhBedTarget;
+                q.locked=!SeventhBedUnlocked&&!SeventhBedStarted;
+                q.complete=SeventhBedComplete;
+                q.description=L(
+                    "第一枚星核完成后，在炉火旅店前厅的空床启事(11.5,17.5)接受调查。检查重盖日期的收据(23.5,17.5)、远侧客房的潮湿毯子(25.5,10.5)、附楼墙缝里的七人回信(44.5,13.5)，再亲自向原厨师阿茴(12,10)核对七碗热汤。回启事前比较全部四份证据，推理七人是自愿带孩子去旧仓避雨，账册日期被模糊以免暴露他们的避难地点。可以误判，但错误指控会失去额外技能点，不能再领取清白推理奖励。最后向原厨师选择公开七人平安而不透露住址（炉火客房安全疗伤），或为不愿登记的人守密（厨师灶台安全恢复耐力）。基础奖励硬币45、碎片1、经验90，无错误额外技能点1。所有标志写入SaveData v2。",
+                    "After the first starcore, investigate the inn's seventh empty bed notice (11.5,17.5). Examine the restamped receipt (23.5,17.5), rain-wet guest-room blanket (25.5,10.5), and the seven pencil marks behind the far annex mortar (44.5,13.5). Ask the original cook Ari (12,10) about the seven bowls of soup. Compare four independent clues at the original notice: seven refugees chose to take children to shelter; the ledger date was blurred to hide their location. You may accuse incorrectly and retry, but false accusations permanently forfeit the clean-reasoning talent. Resolve the story with Ari: announce seven safe without exposing their address to unlock safe healing at the inn's original guest room, or protect anonymity to gain safe energy by the original cook. Base reward 45 coins, one shard and 90 XP; +1 talent only for zero false accusations. Existing SaveData v2 flags persist.");
+                q.steps.Add(new QuestStep(L("阅读第七张床的启事","Accept the seventh-bed inquiry"),
+                    SeventhBedStarted||q.complete));
+                q.steps.Add(new QuestStep(L("抄下重盖日期的收据","Copy the restamped receipt"),
+                    SeventhBedStamp||q.complete));
+                q.steps.Add(new QuestStep(L("检查客房潮湿毯子","Inspect the wet guest-room blanket"),
+                    SeventhBedBlanket||q.complete));
+                q.steps.Add(new QuestStep(L("走到远侧附楼阅读回信","Read the distant annex letter"),
+                    SeventhBedLetter||q.complete));
+                q.steps.Add(new QuestStep(L("问厨师阿茴七碗汤的证言","Ask Ari about seven bowls"),
+                    SeventhBedCook||q.complete));
+                q.steps.Add(new QuestStep(L("重新核对四份证词并推断真相",
+                    "Reconcile all four clues and deduce the truth"),
+                    SeventhBedDeduction||q.complete));
+                q.steps.Add(new QuestStep(L("回阿茴处选择如何保护避难的客人",
+                    "Return to Ari and choose the guests' fate"),q.complete));
+                q.next=q.locked?
+                    L("先完成首枚星核章节","First complete the first starcore"):
+                    q.complete?SeventhBedPublic?
+                        L("七人平安已公布 · 原客房安全疗伤",
+                            "Seven guests acknowledged · guest-room healing"):
+                        L("匿名住客获得保护 · 原厨房安全恢复耐力",
+                            "Unnamed guests protected · kitchen energy recovery"):
+                    SeventhBedObjective+
+                        L(" · 证据 "," · CLUES ")+SeventhBedEvidenceCount+"/4";
+                q.reward=L("45硬币、1碎片、90经验与互斥旅店补给；无误判额外技能点1",
+                    "45 coins, one shard, 90 XP and exclusive inn relief; +1 talent for a clean deduction");
+                return q;
+            }
             if(id=="bridge_chords")
             {
                 q.title=L("断弦桥 · 余震之声","Broken Chord Bridge · The Echo Engine");
