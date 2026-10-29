@@ -590,6 +590,24 @@
           "en": "Canal Relief Seal",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey0",
+          "name": "旧城邻里信号",
+          "en": "Neighbors' Signal Post",
+          "kind": "biomeSurvey",
+          "x": 40.5,
+          "y": 32.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer0",
+          "name": "远街旧账",
+          "en": "Outer Street Ledger",
+          "kind": "biomeAnswer",
+          "x": 99.5,
+          "y": 56.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -2020,6 +2038,18 @@
           "x": 98.5,
           "y": 69.5,
           "variant": 3
+        },
+        {
+          "kind": "post",
+          "x": 42.5,
+          "y": 33.5,
+          "variant": 0
+        },
+        {
+          "kind": "lamp",
+          "x": 101.5,
+          "y": 57.5,
+          "variant": 1
         }
       ]
     },
@@ -2523,6 +2553,24 @@
           "en": "Canopy Nursery Checkpoint",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey1",
+          "name": "猎人的折枝标记",
+          "en": "Broken-Sapling Trail",
+          "kind": "biomeSurvey",
+          "x": 72.5,
+          "y": 26.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer1",
+          "name": "林径末端的伪足印",
+          "en": "False Tracks at the Grove",
+          "kind": "biomeAnswer",
+          "x": 29.5,
+          "y": 65.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -3977,6 +4025,18 @@
           "x": 92.5,
           "y": 66.5,
           "variant": 0
+        },
+        {
+          "kind": "tree",
+          "x": 74.5,
+          "y": 27.5,
+          "variant": 1
+        },
+        {
+          "kind": "root",
+          "x": 31.5,
+          "y": 66.5,
+          "variant": 2
         }
       ]
     },
@@ -4504,6 +4564,24 @@
           "en": "Ferry Cargo Seal",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey2",
+          "name": "石阶水位铭文",
+          "en": "Waterline Inscription",
+          "kind": "biomeSurvey",
+          "x": 48.5,
+          "y": 53.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer2",
+          "name": "潮汐尽头的遗址",
+          "en": "Tidal Ruin Causeway",
+          "kind": "biomeAnswer",
+          "x": 102.5,
+          "y": 23.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -6024,6 +6102,18 @@
           "x": 97.5,
           "y": 73.5,
           "variant": 3
+        },
+        {
+          "kind": "column",
+          "x": 50.5,
+          "y": 54.5,
+          "variant": 2
+        },
+        {
+          "kind": "ruin",
+          "x": 104.5,
+          "y": 24.5,
+          "variant": 0
         }
       ]
     },
@@ -6599,6 +6689,24 @@
           "en": "Miners' Cargo Check",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey3",
+          "name": "矿工的通风牌",
+          "en": "Miner's Airflow Board",
+          "kind": "biomeSurvey",
+          "x": 67.5,
+          "y": 29.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer3",
+          "name": "火炉深处的阀门",
+          "en": "Deep Furnace Valve",
+          "kind": "biomeAnswer",
+          "x": 24.5,
+          "y": 64.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -8071,6 +8179,18 @@
           "x": 95.5,
           "y": 74.5,
           "variant": 3
+        },
+        {
+          "kind": "barrel",
+          "x": 69.5,
+          "y": 30.5,
+          "variant": 0
+        },
+        {
+          "kind": "crystal",
+          "x": 26.5,
+          "y": 65.5,
+          "variant": 1
         }
       ]
     },
@@ -8661,6 +8781,24 @@
           "en": "Civilian Ration Check",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey4",
+          "name": "城墙避难刻印",
+          "en": "Citadel Shelter Carving",
+          "kind": "biomeSurvey",
+          "x": 44.5,
+          "y": 61.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer4",
+          "name": "堡垒远端的封印图",
+          "en": "Far Sanctuary Plan",
+          "kind": "biomeAnswer",
+          "x": 104.5,
+          "y": 33.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -10097,6 +10235,18 @@
           "x": 95.5,
           "y": 66.5,
           "variant": 0
+        },
+        {
+          "kind": "obelisk",
+          "x": 46.5,
+          "y": 62.5,
+          "variant": 1
+        },
+        {
+          "kind": "column",
+          "x": 106.5,
+          "y": 34.5,
+          "variant": 2
         }
       ]
     },
@@ -10680,6 +10830,24 @@
           "en": "Harbor Saltproof Seal",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey5",
+          "name": "双灯航线记录",
+          "en": "Twin Beacon Log",
+          "kind": "biomeSurvey",
+          "x": 93.5,
+          "y": 29.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer5",
+          "name": "航道尽头的灯标",
+          "en": "Outer Harbor Beacon",
+          "kind": "biomeAnswer",
+          "x": 23.5,
+          "y": 61.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -12044,6 +12212,18 @@
           "x": 91.5,
           "y": 74.5,
           "variant": 3
+        },
+        {
+          "kind": "lamp",
+          "x": 95.5,
+          "y": 30.5,
+          "variant": 2
+        },
+        {
+          "kind": "boat",
+          "x": 25.5,
+          "y": 62.5,
+          "variant": 0
         }
       ]
     },
@@ -12595,6 +12775,24 @@
           "en": "Oasis Water Check",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey6",
+          "name": "沙幕测影石",
+          "en": "Desert Shadow Gauge",
+          "kind": "biomeSurvey",
+          "x": 33.5,
+          "y": 38.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer6",
+          "name": "沙海远端的折光镜",
+          "en": "Mirage Reflection Stone",
+          "kind": "biomeAnswer",
+          "x": 100.5,
+          "y": 64.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -13947,6 +14145,18 @@
           "x": 90.5,
           "y": 73.5,
           "variant": 3
+        },
+        {
+          "kind": "crystal",
+          "x": 35.5,
+          "y": 39.5,
+          "variant": 0
+        },
+        {
+          "kind": "obelisk",
+          "x": 102.5,
+          "y": 65.5,
+          "variant": 1
         }
       ]
     },
@@ -14474,6 +14684,24 @@
           "en": "Frostwind Relief Check",
           "x": 111.5,
           "y": 61.5
+        },
+        {
+          "id": "biomeSurvey7",
+          "name": "霜钟听风站",
+          "en": "Windward Listening Post",
+          "kind": "biomeSurvey",
+          "x": 74.5,
+          "y": 51.5,
+          "lore": -1
+        },
+        {
+          "id": "biomeAnswer7",
+          "name": "雪崖尽头的回声钟",
+          "en": "Cliff Echo Bell",
+          "kind": "biomeAnswer",
+          "x": 27.5,
+          "y": 24.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -15838,6 +16066,18 @@
           "x": 88.5,
           "y": 61.5,
           "variant": 1
+        },
+        {
+          "kind": "bell",
+          "x": 76.5,
+          "y": 52.5,
+          "variant": 1
+        },
+        {
+          "kind": "snowpine",
+          "x": 29.5,
+          "y": 25.5,
+          "variant": 2
         }
       ]
     },
