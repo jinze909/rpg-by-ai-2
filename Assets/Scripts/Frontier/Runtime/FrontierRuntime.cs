@@ -1475,6 +1475,13 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),next?.7f:.46f,ink,22);
                 if(next||!done&&slot==0)
                     Diamond(p.x,p.y-82,next?7:5,ink);
+                if(live&&Game.ChapterRoadSeconds>0&&slot==1)
+                    Text(p.x-86,p.y-133,172,18,
+                        Game.L("潮位 / 热压任务 · "+
+                                (int)Game.ChapterRoadSeconds+"秒",
+                            "TIDE / PRESSURE · "+
+                                (int)Game.ChapterRoadSeconds+"S"),
+                        10,gold,TextAnchor.MiddleCenter);
                 Text(p.x-107,p.y-109,214,20,
                     done?Game.L("本章居民行动完成 ✓","CHAPTER ROUTE COMPLETE ✓"):
                     live?Game.L(Game.ChapterRoadStage==2?

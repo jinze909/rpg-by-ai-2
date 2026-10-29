@@ -5410,6 +5410,23 @@ namespace Starfall
             if(save.ending>0&&save.trackedQuest=="main")
                 return L("主线已完结。边境有了新的生活；可以自愿探索后日谈。",
                     "Main story complete. Live freely or choose optional afterstory.");
+            // Real chapter fieldwork temporarily owns the HUD objective,
+            // instead of leaving the player staring at a stale boss marker.
+            // Original story objectives return unchanged on completion or withdrawal.
+            if(ChapterRoadActive)
+            {
+                string window=ChapterRoadSeconds>0?
+                    L(" · 剩余"+(int)Math.Ceiling(ChapterRoadSeconds)+"秒",
+                      " · "+(int)Math.Ceiling(ChapterRoadSeconds)+"s left"):"";
+                if(ChapterRoadStage==1)
+                    return L("本章居民求援：步行抵达第二现场并按 E 组织防守",
+                        "Chapter civilians: walk to the second site and defend")+window;
+                if(ChapterRoadSecured)
+                    return L("居民路线已安全：到第三处接收点亲手交付证词",
+                        "Road secured: reach the third survivor handoff")+window;
+                return L("保护居民退路：还有"+ChapterRoadRemaining+"名袭击者",
+                    "Defend the civilian road: "+ChapterRoadRemaining+" raiders remain")+window;
+            }
             string extra = ExpansionObjective(); if (extra != null) return extra;
             if (save.ending > 0) return L("边境迎来了新的日子。继续冒险与生活。", "A new day on the frontier. Keep exploring.");
             if (save.room == 0)
