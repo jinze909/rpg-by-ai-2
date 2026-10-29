@@ -1302,6 +1302,66 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS actual world field-kit source, visible stock and earned recovered art state");
     }
 
+    // This exercises the actual production world renderer for the original
+    // relay machinery and survey objects. No fabricated map pin or menu
+    // pretending to show game content is accepted.
+    public static void PhysicalCivilianCourierRendersEveryLiveObjective(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.stage=3;g.save.flags.Add("scout_saved");
+        g.save.english=true;g.Enter(1);g.mode="world";
+        g.enemies.Clear();
+        g.save.flags.Add("biome_field_done_1");
+        g.save.flags.Add("field_kit_recovered_1");
+        g.save.flags.Add("field_outpost_ward_1");
+        g.save.inventory[2]=5;g.save.energy=100f;
+        WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+        WorldObject survey=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+        Check(kit!=null&&survey!=null,
+            "The shipped map has an authentic kit and distant original survey");
+        g.save.x=kit.x;g.save.y=kit.y;Set(app,"camera",g.Position);
+        g.Talk(kit);
+        int start=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_start");
+        Check(start>=0,"Actual built aid station offers an on-foot courier");
+        g.Choose(start);
+        Check(g.FieldDispatchActive&&g.FieldDispatchStage==1,
+            "The real source begins the first physical delivery stage");
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(x=>x.Contains("CIVILIAN CARGO")&&
+            x.Contains("IN TRANSIT")),
+            "Origin renders a distinctive actually-live supply transport cue");
+        Point step=g.FieldDispatchTarget;
+        WorldObject machine=Array.Find(g.Map.objects,o=>
+            o.kind=="regionalMachine"&&
+            (new Point(o.x,o.y)-step).Length<.01f);
+        Check(machine!=null,"The target is a shipped original engineering machine");
+        ClearDraw();Call(app,"DrawObject",machine);
+        Check(GUI.commands.Exists(x=>x.Contains("CARGO CHECKPOINT")),
+            "Original in-world mechanism visibly becomes the real next objective");
+        g.Close();g.save.x=machine.x;g.save.y=machine.y;g.Talk(machine);
+        int intermediate=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_checkpoint");
+        Check(intermediate>=0,"The physically approached mechanism offers a valid signed handoff");
+        g.Choose(intermediate);
+        ClearDraw();Call(app,"DrawObject",survey);
+        Check(GUI.commands.Exists(x=>x.Contains("CARGO DELIVERY")),
+            "Original far survey changes to the actual final waypoint");
+        g.Close();g.save.x=survey.x;g.save.y=survey.y;g.Talk(survey);
+        int finish=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_finish");
+        Check(finish>=0,"Original survey presents a true final public receipt");
+        g.Choose(finish);
+        Check(!g.FieldDispatchActive&&g.FieldDispatchDone(1),
+            "This two-step runtime world interaction banks genuine cargo");
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(x=>x.Contains("VERIFIED COURIER")&&
+            x.Contains("STOCK UPGRADED")),
+            "Original field object now visibly displays its earned persistent facility upgrade");
+        Console.WriteLine("PASS real civilian courier in-world origin, machine, survey and upgraded return display");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
         try{FieldKitIsVisibleAndCollectibleInLiveWorld(app);CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(app);InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
