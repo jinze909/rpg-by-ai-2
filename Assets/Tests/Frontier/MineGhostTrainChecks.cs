@@ -264,6 +264,42 @@ namespace Starfall.Tests
                 "Passenger rail outcome has different natural NPC testimony instead of public-healing claims");
         }
 
+        public static void FourPostTrainPlacesTellDistinctSourceAuthenticBilingualEndings(Campaign data)
+        {
+            for(int outcome=0;outcome<2;outcome++)
+            {
+                GameCore g=PreparedGhostStory(data);
+                g.save.flags.Add("ghost_train_complete");
+                g.save.flags.Add(outcome==0?"ghost_train_public":"ghost_train_freight");
+                var texts=new HashSet<string>();
+                var english=new HashSet<string>();
+                int coins=g.save.coins,flags=g.save.flags.Count;
+                foreach(string name in new string[]{"dispatch","manifest","switch","medbay"})
+                {
+                    WorldObject source=GhostSite(g,name);
+                    GhostWalk(g,source);
+                    Check(g.conversation.speaker==source.name&&
+                        g.conversation.speakerEn==source.en,
+                        "Aftermath must retain the correct original on-site speaker");
+                    Check(texts.Add(g.conversation.text)&&
+                        english.Add(g.conversation.textEn)&&
+                        g.conversation.text.Length>45&&
+                        g.conversation.textEn.Length>65,
+                        "Every real mine field record must have its own substantial original bilingual aftermath");
+                    int rides=0;
+                    foreach(Choice choice in g.conversation.choices)
+                        if(choice.action.StartsWith("ghost_train_ride_",
+                            StringComparison.Ordinal))rides++;
+                    Check(rides==(outcome==1&&name!="manifest"?2:0),
+                        "Only the three physical restored railway platforms should offer two real carriages");
+                    g.Close();
+                }
+                Check(texts.Count==4&&english.Count==4&&
+                    g.save.coins==coins&&g.save.flags.Count==flags,
+                    "Re-reading all four genuine epilogues changes no durable reward or save state");
+            }
+        }
+
         public static void SilentTrainDecisionsChangeRealLocalSpeedOrExistingCivilianShelterHealing(Campaign data)
         {
             GameCore baseline=PreparedGhostStory(data);

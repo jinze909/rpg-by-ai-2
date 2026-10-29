@@ -172,8 +172,8 @@ namespace Starfall
                     "\n\n“The inn now keeps a copy of those seventeen names. Noll can no longer call the wagon empty. The mine shelters have more medicine, though I wish the workers had never needed it.”":
                     "\n\n“旅店也抄下了那十七个人的名字。诺尔再不能说那趟车是空的了。矿场补给站多了药，可我宁可他们从未受过那些伤。”";
                 return english?
-                    "\n\n“Train seventeen came home on the repaired passenger siding. The workers will choose when to tell their own story. You can board at dispatch, the switchyard or the infirmary. The workers themselves decide when to tell their story.”":
-                    "\n\n“第十七趟车终于走上了修好的载人侧线。工人们自己决定何时讲出名字。调度台、转辙台和矿医站都能上车。工人们自己决定何时讲出名字。”";
+                    "\n\n“Train seventeen came home on the repaired passenger siding. You can board at dispatch, the switchyard or the infirmary. The workers decide when to tell their own story.”":
+                    "\n\n“第十七趟车终于走上了修好的载人侧线。调度台、转辙台和矿医站都能上车。工人们自己决定何时讲出名字。”";
             }
             if(GhostTrainChapter>=4)return english?
                 "\n\n“The infirmary has the missing workers' testimony. The journey isn't over until the survivors, not the dispatch office, decide what happens to their names.”":
@@ -181,6 +181,43 @@ namespace Starfall
             return english?
                 "\n\n“Someone brought back the nightshift train's original ledger. Seventeen signatures, despite the empty-wagon stamp. I'll keep a lamp here for them until dispatch tells the truth.”":
                 "\n\n“有人找到了夜班车的旧名册。明明盖着空车戳，却有十七份签字。调度室说实话以前，我会在店里给他们留一盏灯。”";
+        }
+        // Four original physical speakers/sources must not all repeat
+        // Noll's dispatch summary. Each locale keeps its own consequence
+        // and knows only what the player actually committed to.
+        private string GhostTrainEpilogue(WorldObject site,bool english)
+        {
+            if(site.id=="mine_ghost_dispatch")
+                return GhostTrainPublic?
+                    english?
+                        "Noll pins the seventeen original signatures over the old EMPTY order.\n\n“No more blank columns. When another shift is late, the town can count who has not returned.”":
+                        "诺尔把十七份原始签字钉在旧“空车”调度令上。\n\n“往后哪班人没回来，镇上都能对得上数。再不许留空栏。”":
+                    english?
+                        "Noll tears down the false freight notice and unfolds the three-stop passenger timetable.\n\n“Dispatch, the switchyard, the infirmary. Two coins, ten energy. The survivors may tell their own story when they're ready.”":
+                        "诺尔撕掉虚假的货运公告，摊开三站载人时刻表。\n\n“调度台、转辙台、医护站。两枚硬币，十点耐力。人还活着，故事该由他们自己讲。”";
+            if(site.id=="mine_ghost_manifest")
+                return GhostTrainPublic?
+                    english?
+                        "The ledger's EMPTY stamp is crossed out beside seventeen real signatures. A public copy hangs next to it, so these workers can no longer vanish as a line of freight.":
+                        "旧名册上“空车”的红戳被划掉，旁边十七份原始签字清清楚楚。公开副本就在铁柜外，不能再把活人抹成一行货物。":
+                    english?
+                        "Seventeen signatures remain inside their sealed envelope. The false EMPTY sheet is preserved as evidence, but no one has posted the survivors' names without their consent.":
+                        "十七份签字仍封在原信封中。假的“空车”货单被留作证物，却没有人擅自张贴幸存者的姓名。";
+            if(site.id=="mine_ghost_switch")
+                return GhostTrainPublic?
+                    english?
+                        "Three guard bootprints still scar the ballast. The repaired emergency switch now keeps the infirmary siding clear; the public record explains who was hidden on that wagon.":
+                        "碎石道床还留着三个冒牌守卫的靴印。抢修过的急救道岔保持畅通，公开名册写明那节车厢当年藏了谁。":
+                    english?
+                        "The restored switch clicks toward the passenger siding. Three real terminals share the route now; the old guards cannot lock another injured worker behind a freight order.":
+                        "转辙机咔哒一响，指向载人支线。三处真实站台现在能互相通车，旧守卫再不能凭一张货单把伤员困住。";
+            return GhostTrainPublic?
+                english?
+                    "An's original treatment slips have every patient's name restored. New medicine reaches the public mine shelters; the stretcher records stay here for any family who asks.":
+                    "矿医杏的原始诊疗单重新写全病人的名字。矿区公共补给处添了药，担架登记簿留在这里，家属随时可以来核对。":
+                english?
+                    "The infirmary lamp is still lit. Recovered patients can board the passenger siding here for dispatch or the switchyard; An keeps their medical testimony sealed until they choose otherwise.":
+                    "医护站的灯还亮着。康复的工人可从本站乘车去调度台或转辙台，杏依旧替他们封存诊疗证词，等本人决定何时公开。";
         }
         // The restored passenger siding is a REAL usable local service,
         // not a fictional reward or a free remote teleport. Three of the
@@ -304,12 +341,8 @@ namespace Starfall
             }
             if(stage==5)
             {
-                string zh=GhostTrainPublic?
-                    "那份写着17名夜班矿工姓名的原始名册如今钉在公示牌上。调度员终于肯承认，所谓空车厢里一直有人。":
-                    "你保住了唯一能载伤员下山的侧线。幸存者留下的姓名依然交给他们本人决定何时公开。\n\n客车现已恢复三站短驳，沿途危险时暂停发车。";
-                string en=GhostTrainPublic?
-                    "The names of seventeen missing nightshift workers are now public. Dispatch can no longer pretend the wagon was empty.":
-                    "The workers' rescue track is operating again. The survivors keep the right to decide when their names are public.\n\nThree passenger stops now operate when the mine road is safe.";
+                string zh=GhostTrainEpilogue(o,false);
+                string en=GhostTrainEpilogue(o,true);
                 if(GhostTrainFreight&&GhostTrainPassengerStop(o))
                 {
                     string first=o.id=="mine_ghost_dispatch"?"medbay":"dispatch";
