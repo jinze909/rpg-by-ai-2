@@ -493,6 +493,27 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Each region's original evidence is a real pair of distant
+            // WorldObjects. Show only the presently actionable location,
+            // never grant progress from an overlay or override manual pins.
+            if(Game.mode=="world"&&Game.save.room>=0&&Game.save.room<8&&
+               !Game.BiomeFieldDone&&!drawingOutline)
+            {
+                Point target=Game.BiomeFieldNextTarget;
+                Color ink=Game.BiomeFieldStarted?gold:mint;
+                if(WorldDrawable(target.x,target.y,140f,150f))
+                {
+                    Ring(target,.74f,ink,28);
+                    Point screen=ScreenPoint(target);
+                    Text(screen.x-145,screen.y-101,290,19,
+                        Game.BiomeFieldStarted?
+                            Game.L("区域远端 · 核对证据",
+                                "DISTANT LANDMARK · TEST EVIDENCE"):
+                            Game.L("本地地标 · 实地调查",
+                                "REGIONAL LANDMARK · INVESTIGATE"),
+                        10,ink,TextAnchor.MiddleCenter);
+                }
+            }
             // All four new sources are physical objects in the actual inn
             // world. Journal and live goal marker use the same sources.
             if(Game.mode=="world"&&Game.save.room==9&&

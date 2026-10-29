@@ -989,6 +989,29 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            // Authored field sites are true walkable WorldObjects, rendered
+            // through the production depth queue rather than map-only pins.
+            // Their form differs from ordinary random terrain decorations.
+            if(kind=="biomeSurvey"||kind=="biomeAnswer")
+            {
+                bool second=kind=="biomeAnswer";
+                bool finished=Game.BiomeFieldDone;
+                bool ready=Game.BiomeFieldStarted;
+                Color ink=finished?mint:second?
+                    ready?gold:muted:new Color(.63f,.87f,.96f);
+                PropImage(second?"obelisk":"post",0,
+                    p.x-36,p.y-82,72,84,ink);
+                Ring(new Point(o.x,o.y),second?.59f:.46f,ink,24);
+                if(!finished&&(!second||ready))
+                {
+                    Diamond(p.x,p.y-89,6,ink);
+                    Text(p.x-102,p.y-113,204,18,
+                        second?Game.L("远方实地判断","FIELD INTERPRETATION"):
+                            Game.L("探查本区线索","READ REGIONAL CLUE"),
+                        10,ink,TextAnchor.MiddleCenter);
+                }
+                return;
+            }
             if (DrawPolishObject(o) || DrawExpansionObject(o)) return;
             if(kind=="tidefishery")
             {
