@@ -158,6 +158,123 @@ namespace Starfall.Tests
                 !loaded.MistConvoyActive&&loaded.GetQuest("mistport_lastboat").complete,
                 "New story outcome persists through original v2 records without phantom active boats");
         }
+        // The chart can only begin after a truly landed extra passenger,
+        // not a synthetic free flag or a dialogue-only boat completion.
+        private static GameCore BoatBringDrifterHome(Campaign data)
+        {
+            GameCore g=BoatStart(data);
+            WorldObject horn=BoatPost(g,"mistconvoy_horn"),
+                mid=BoatPost(g,"mistconvoy_mid"),
+                dock=BoatPost(g,"mistconvoy_dock");
+            BoatAt(g,horn);g.Talk(horn);
+            Check(BoatChoice(g,"mistconvoy_horn"),
+                "Authentic north horn must launch the crowded vessel");
+            BoatAt(g,mid);
+            for(int i=0;i<85;i++)g.Tick(.05f,new Point());
+            Check(g.MistConvoyBoatFoot.y>=40.45f,
+                "Actual water-channel hull arrives at the midway relay");
+            g.Talk(mid);
+            Check(BoatChoice(g,"mistconvoy_mid")&&g.MistConvoyStage==3,
+                "True midway signal precedes additional passenger rescue");
+            g.save.energy=100f;g.Talk(mid);
+            Check(BoatChoice(g,"mistconvoy_drifter")&&g.MistConvoyDrifterAboard,
+                "Real drifter boards after costly physical relay intervention");
+            BoatAt(g,dock);
+            for(int i=0;i<152;i++)g.Tick(.05f,new Point());
+            Check(g.MistConvoyBoatFoot.y>=44.40f&&g.MistConvoyHull>0f,
+                "Drifter cannot unlock a tide chart without real safe boat landing");
+            g.Talk(dock);
+            Check(BoatChoice(g,"mistconvoy_public")&&g.MistConvoyComplete&&
+                g.MistChartUnlocked&&!g.MistChartStarted,
+                "Actual survivor reception releases future chart testimony");
+            return g;
+        }
+        public static void MistportDriftersTideChartRequiresPhysicalSalvageAndChangesRealWorld(Campaign data)
+        {
+            var locked=BoatReady(data,true);
+            Check(locked.GetQuest("mistport_tidechart").locked&&
+                !locked.MistChartUnlocked,
+                "Old saves and ordinary sailors cannot invent a rescued drifter's chart");
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=BoatBringDrifterHome(data);
+                WorldObject notice=BoatPost(g,"mistconvoy_notice"),
+                    mid=BoatPost(g,"mistconvoy_mid"),
+                    dock=BoatPost(g,"mistconvoy_dock");
+                Check(!g.GetQuest("mistport_tidechart").locked,
+                    "Earned rescued drifter unlocks distinct physical follow-up quest");
+                BoatAt(g,notice);g.Talk(notice);
+                Check(BoatChoice(g,"mistchart_start")&&g.MistChartStarted&&
+                    g.save.trackedQuest=="mistport_tidechart"&&
+                    g.GetQuest("mistport_tidechart").steps.Count==3,
+                    "Keeper's original crew ledger opens an actual routed chart quest");
+                BoatAt(g,mid);g.Talk(mid);
+                int wood=g.save.inventory[0],gear=g.save.inventory[4];
+                g.save.x=55.5f;
+                Check(BoatChoice(g,"mistchart_recover")&&!g.MistChartRecovered&&
+                    g.save.inventory[0]==wood&&g.save.inventory[4]==gear,
+                    "Moving away from real relay cancels stale salvage choice without materials");
+                BoatAt(g,mid);g.save.energy=5f;g.Talk(mid);
+                Check(BoatChoice(g,"mistchart_recover")&&!g.MistChartRecovered,
+                    "A tired traveler cannot remotely or freely recover chart");
+                g.save.energy=100f;g.save.inventory[4]=0;
+                g.Talk(mid);
+                Check(BoatChoice(g,"mistchart_recover")&&!g.MistChartRecovered,
+                    "Chart needs an actual machine part and wooden line, not a free story flag");
+                g.save.inventory[0]=3;g.save.inventory[4]=3;
+                int coins=g.save.coins,xp=g.save.xp;
+                g.Talk(mid);
+                Check(BoatChoice(g,"mistchart_recover")&&g.MistChartRecovered&&
+                    g.save.inventory[0]==2&&g.save.inventory[4]==2&&
+                    Math.Abs(g.save.energy-88f)<.01f,
+                    "Real physical relay salvage spends one timber, one part and twelve stamina");
+                Check(g.GetQuest("mistport_tidechart").steps[1].done&&
+                    (g.GetQuest("mistport_tidechart").target-
+                     new Point(dock.x,dock.y)).Length<.01f,
+                    "Original quest journal routes the recovered chart to the real dock");
+                BoatAt(g,dock);g.Talk(dock);
+                Check(BoatChoice(g,branch==0?"mistchart_public":"mistchart_secret")&&
+                    g.MistChartComplete&&g.GetQuest("mistport_tidechart").complete&&
+                    g.save.coins==coins+45&&g.save.xp==xp+90,
+                    "Two exclusive chart resolutions award once only after genuine landing and salvage");
+                Check(branch==0?g.MistChartPublic&&!g.MistChartSecret:
+                    g.MistChartSecret&&!g.MistChartPublic,
+                    "Public medical watch and confidential pilot supply have exclusive v2 flags");
+                g.Talk(dock);
+                Check(!BoatChoice(g,branch==0?"mistchart_secret":"mistchart_public")&&
+                    g.save.coins==coins+45,
+                    "Revisiting dock cannot claim the opposing reward or mint coins");
+                g.Close();
+                var controlSave=CloneSave(g.save);
+                controlSave.flags.Remove(branch==0?"mistchart_public":"mistchart_secret");
+                var control=new GameCore(data,controlSave);control.Start();
+                if(branch==0)
+                {
+                    BoatAt(g,mid);
+                    control.save.x=mid.x;control.save.y=mid.y;
+                    g.save.health=control.save.health=25f;
+                    for(int i=0;i<12;i++)
+                    {g.Tick(.05f,new Point());control.Tick(.05f,new Point());}
+                    Check(g.save.health>control.save.health+.8f,
+                        "Published tide chart really heals travelers at staffed original relay");
+                }
+                else
+                {
+                    BoatAt(g,dock);control.save.x=dock.x;control.save.y=dock.y;
+                    g.save.energy=control.save.energy=10f;
+                    for(int i=0;i<12;i++)
+                    {g.Tick(.05f,new Point());control.Tick(.05f,new Point());}
+                    Check(g.save.energy>control.save.energy+1f,
+                        "Secret tide chart really improves active safe Mistport stamina recovery");
+                }
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.MistChartComplete&&
+                    restored.GetQuest("mistport_tidechart").complete&&
+                    (branch==0?restored.MistChartPublic:restored.MistChartSecret),
+                    "Tide chart and earned practical consequences persist through original v2");
+            }
+        }
         public static void MistportLastBoatUnguidedHullStallsAndRealSurfCanSinkIt(Campaign data)
         {
             GameCore g=BoatStart(data);
