@@ -491,6 +491,10 @@ namespace Starfall
                 Game.SilentLedgerDarkness>0f&&!drawingOutline)
                 Box(0,0,Width,Height,new Color(.025f,.035f,.08f,.16f));
         }
+        private static readonly string[] biomeBearingsZh=
+            {"东","东南","南","西南","西","西北","北","东北"};
+        private static readonly string[] biomeBearingsEn=
+            {"E","SE","S","SW","W","NW","N","NE"};
         private void DrawExpansionWorld()
         {
             // Each region's original evidence is a real pair of distant
@@ -501,6 +505,22 @@ namespace Starfall
             {
                 Point target=Game.BiomeFieldNextTarget;
                 Color ink=Game.BiomeFieldStarted?gold:mint;
+                if(Game.BiomeFieldStarted)
+                {
+                    // The objective is a physical far-side monument. The
+                    // bearing is crow-flight, never an imaginary walking
+                    // route across active gates or tidal channels.
+                    Point delta=target-Game.Position;
+                    double angle=Math.Atan2(delta.y,delta.x);
+                    int sector=((int)Math.Round(angle*4/Math.PI)+8)%8;
+                    int range=(int)Math.Ceiling(delta.Length);
+                    Text(Width-385,87,350,22,
+                        Game.L("远端证据 · ","FIELD EVIDENCE · ")+
+                        Game.L(biomeBearingsZh[sector],
+                            biomeBearingsEn[sector])+" · "+
+                        range+Game.L(" 格直线距离"," tiles direct"),
+                        12,ink,TextAnchor.MiddleRight);
+                }
                 if(WorldDrawable(target.x,target.y,140f,150f))
                 {
                     Ring(target,.74f,ink,28);
