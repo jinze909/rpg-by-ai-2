@@ -113,8 +113,19 @@ namespace Starfall.Tests
                         g.save.inventory[slot]==before+3,
                         "Each required evidence sample is gathered from the real world");
                 }
-                Check(g.BiomeSupplySampleCount(room)==2,
-                    "Two independently harvested remote samples certify a real route");
+                Check(g.BiomeSupplySampleCount(room)==2&&
+                    g.Has("biome_supply_sample_"+room+"_0")&&
+                    g.Has("biome_supply_sample_"+room+"_2"),
+                    "Two genuine resource transactions permanently record distinct survey evidence");
+                // The shipped town-rest refresh clears renewable node_*.
+                // It must NEVER reset this distinct, publicly reported
+                // overland survey milestone or require redoing a completed
+                // forty-tile journey just to claim a civilian policy.
+                g.save.flags.RemoveAll(flag=>flag.StartsWith("node_"));
+                Check(g.BiomeSupplySampleCount(room)==2&&
+                    !g.Has("node_"+caches[0].id)&&
+                    !g.Has("node_"+caches[1].id),
+                    "Renewed resources leave permanent field logistics evidence intact");
                 g.save.x=marker.x;g.save.y=marker.y;
                 g.save.inventory[0]=20;g.save.inventory[2]=20;
                 g.save.inventory[4]=10;

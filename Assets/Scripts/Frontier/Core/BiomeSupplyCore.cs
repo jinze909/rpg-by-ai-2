@@ -38,8 +38,24 @@ namespace Starfall
         public int BiomeSupplySampleCount(int room)
         {
             if(room<0||room>=8)return 0;
-            return (Has("node_trail_forager_"+room+"_0")?1:0)+
-                (Has("node_trail_forager_"+room+"_2")?1:0);
+            // Rest renews node_* for material harvest, but it must not
+            // erase proof that the player has already physically surveyed
+            // a remote route. Old in-progress saves with live node flags
+            // are accepted even before their first renewed harvest.
+            return (Has("biome_supply_sample_"+room+"_0")||
+                    Has("node_trail_forager_"+room+"_0")?1:0)+
+                (Has("biome_supply_sample_"+room+"_2")||
+                 Has("node_trail_forager_"+room+"_2")?1:0);
+        }
+        private void RegisterBiomeSupplyGather(WorldObject o)
+        {
+            int region=save.room;
+            if(o==null||region<0||region>=8||
+                !SourceBelongsToActiveMap(o))return;
+            if(o.id=="trail_forager_"+region+"_0")
+                Flag("biome_supply_sample_"+region+"_0");
+            else if(o.id=="trail_forager_"+region+"_2")
+                Flag("biome_supply_sample_"+region+"_2");
         }
         public int BiomeSupplyNetworkCount
         {

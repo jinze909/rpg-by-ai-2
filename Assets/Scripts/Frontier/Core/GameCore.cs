@@ -4426,6 +4426,11 @@ namespace Starfall
                     kind == "ore" && !HasInventoryRoom(4, 3)) return;
                 Flag("node_" + o.id);
                 save.inventory[item] += 3; if (kind == "ore") save.inventory[4] += 3;
+                // This fires ONLY after the original successful real
+                // resource transaction, not from an atlas hover or a
+                // synthetic task completion. Evidence outlives inn rest;
+                // renewable supplies and their original node_* reset do not.
+                RegisterBiomeSupplyGather(o);
                 if (kind == "ore") BountyEvent(1, 1);
                 Notify(o.name + " +3" + (kind == "ore" ? "，零件 +3" : ""), o.en + " +3" + (kind == "ore" ? ", parts +3" : "")); sound = "reward"; return;
             }

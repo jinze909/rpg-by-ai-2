@@ -1321,7 +1321,12 @@ namespace Starfall
                     float py=originY+supply.y*tileScale;
                     Frame(px-3.5f,py-3.5f,7f,7f,tone);
                     if(!claimed)Box(px-1.5f,py-1.5f,3f,3f,tone);
-                    if(awaiting&&sample&&claimed)
+                    if(awaiting&&sample&&
+                        (Game.Has("biome_supply_sample_"+region+"_0")&&
+                         supply.id=="trail_forager_"+region+"_0"||
+                         Game.Has("biome_supply_sample_"+region+"_2")&&
+                         supply.id=="trail_forager_"+region+"_2"||
+                         claimed))
                         Frame(px-5,py-5,10,10,gold);
                 }
                 if(total>0)
