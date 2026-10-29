@@ -161,6 +161,27 @@ namespace Starfall
                 (o.id=="mine_ghost_dispatch"||o.id=="mine_ghost_manifest"||
                  o.id=="mine_ghost_switch"||o.id=="mine_ghost_medbay");
         }
+        // Only actual spoken traveler news; it cannot unlock rewards or
+        // impersonate the dispatch worker. Old v2 saves hear no spoilers.
+        private string GhostTrainInnNews(bool english)
+        {
+            if(GhostTrainChapter==0)return "";
+            if(GhostTrainComplete)
+            {
+                if(GhostTrainPublic)return english?
+                    "\n\n“The inn now keeps a copy of those seventeen names. Noll can no longer call the wagon empty. The mine shelters have more medicine, though I wish the workers had never needed it.”":
+                    "\n\n“旅店也抄下了那十七个人的名字。诺尔再不能说那趟车是空的了。矿场补给站多了药，可我宁可他们从未受过那些伤。”";
+                return english?
+                    "\n\n“Train seventeen came home on the repaired passenger siding. The workers will choose when to tell their own story. The mine paths are faster now; that is what a railway ought to do.”":
+                    "\n\n“第十七趟车终于走上了修好的载人侧线。工人们自己决定何时讲出名字。矿区的路变快了——铁路本来就该是送人回家的。”";
+            }
+            if(GhostTrainChapter>=4)return english?
+                "\n\n“The infirmary has the missing workers' testimony. The journey isn't over until the survivors, not the dispatch office, decide what happens to their names.”":
+                "\n\n“矿医站留下了失踪矿工的证词。事情还没完，名字要不要公开，得听活下来的人，不是听调度室的。”";
+            return english?
+                "\n\n“Someone brought back the nightshift train's original ledger. Seventeen signatures, despite the empty-wagon stamp. I'll keep a lamp here for them until dispatch tells the truth.”":
+                "\n\n“有人找到了夜班车的旧名册。明明盖着空车戳，却有十七份签字。调度室说实话以前，我会在店里给他们留一盏灯。”";
+        }
         private bool TalkGhostTrain(WorldObject o)
         {
             if(o==null||o.kind!="mineGhostTrain")return false;

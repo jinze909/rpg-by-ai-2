@@ -220,6 +220,47 @@ namespace Starfall.Tests
                 "Reloading an unfinished transient fight resumes its durable real-site quest without storing phantom enemies or changing save v2");
         }
 
+        public static void LiveInnTravelerAcknowledgesTrainEvidenceAndRespectsBothSurvivorOutcomes(Campaign data)
+        {
+            GameCore g=PreparedGhostStory(data);
+            g.save.room=0;
+            WorldObject traveler=Array.Find(g.Map.objects,o=>o.kind=="innGuest");
+            Check(traveler!=null,"Existing Hearth Inn traveler must remain on the real map");
+            ReadInnNews(g,traveler);
+            Check(!g.conversation.text.Contains("十七份签字")&&
+                !g.conversation.textEn.Contains("Seventeen signatures"),
+                "Unstarted chapter cannot leak a false historical confession into the existing inn");
+            g.Close();g.save.flags.Add("ghost_train_started");
+            ReadInnNews(g,traveler);
+            Check(g.conversation.speaker==traveler.name&&
+                g.conversation.text.Contains("十七份签字")&&
+                g.conversation.textEn.Contains("Seventeen signatures"),
+                "Only commissioned investigation earns a rumor from the original spoken traveler");
+            g.Close();g.save.flags.Add("ghost_train_manifest");
+            g.save.flags.Add("ghost_train_switch");
+            g.save.flags.Add("ghost_train_medbay");
+            ReadInnNews(g,traveler);
+            Check(g.conversation.text.Contains("矿医站")&&
+                g.conversation.textEn.Contains("infirmary")&&
+                !g.conversation.text.Contains("矿场补给站多了药"),
+                "Actual sealed infirmary testimony changes spoken news without announcing a premature ending");
+            g.Close();g.save.flags.Add("ghost_train_public");
+            g.save.flags.Add("ghost_train_complete");
+            ReadInnNews(g,traveler);
+            Check(g.conversation.speaker==traveler.name&&
+                g.conversation.text.Contains("矿场补给站多了药")&&
+                g.conversation.textEn.Contains("mine shelters have more medicine")&&
+                !g.conversation.text.Contains("修好的载人侧线"),
+                "Publication earns an original epilogue about the real improved healing, not a swapped ending");
+            g.Close();g.save.flags.Remove("ghost_train_public");
+            g.save.flags.Add("ghost_train_freight");
+            ReadInnNews(g,traveler);
+            Check(g.conversation.text.Contains("修好的载人侧线")&&
+                g.conversation.textEn.Contains("repaired passenger siding")&&
+                !g.conversation.text.Contains("矿场补给站多了药"),
+                "Passenger rail outcome has different natural NPC testimony instead of public-healing claims");
+        }
+
         public static void SilentTrainDecisionsChangeRealLocalSpeedOrExistingCivilianShelterHealing(Campaign data)
         {
             GameCore baseline=PreparedGhostStory(data);
