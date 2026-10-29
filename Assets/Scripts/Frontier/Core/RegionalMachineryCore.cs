@@ -150,6 +150,7 @@ namespace Starfall
                     C(regionalMachineChoiceZh[room,2],
                       regionalMachineChoiceEn[room,2],"regional_machine_pick_2"):
                     C("继续记录","Read the inscription","close"),
+                RegionalVigilChoice(o),
                 C("继续行走","Continue","close"));
             return true;
         }
@@ -231,8 +232,9 @@ namespace Starfall
                     (Position-new Point(site.x,site.y)).Length<=3.5f)
                 {close=true;break;}
             if(!close)return;
-            save.health=Clamp(save.health+dt*1.5f,0f,save.maxHealth);
-            save.energy=Clamp(save.energy+dt*3f,0f,100f);
+            float multiplier=RegionalVigilDone(save.room)?1.65f:1f;
+            save.health=Clamp(save.health+dt*1.5f*multiplier,0f,save.maxHealth);
+            save.energy=Clamp(save.energy+dt*3f*multiplier,0f,100f);
             save.heat=Math.Max(0f,save.heat-dt*1.5f);
             save.cold=Math.Max(0f,save.cold-dt*1.5f);
         }
