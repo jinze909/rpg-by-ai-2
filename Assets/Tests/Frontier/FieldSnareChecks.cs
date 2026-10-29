@@ -94,7 +94,7 @@ namespace Starfall.Tests
                 "A living enemy is not instantly removable before a real snare hits");
             for(int i=0;i<11;i++)g.Tick(.05f,new Point());
             Check(foe.hp==85f&&foe.stun>1f&&g.CanBindSnaredEnemy&&
-                Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                object.ReferenceEquals(g.SnaredBindTarget,foe),
                 "The original live world trap creates an exact-actor short capture window");
             int coins=g.save.coins,kills=g.save.kills[0],
                 oldWood=g.save.inventory[0],oldGear=g.save.inventory[4];
