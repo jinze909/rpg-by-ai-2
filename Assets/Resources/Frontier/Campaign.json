@@ -2724,8 +2724,8 @@
           "kind": "chapterroad",
           "name": "树洞里的伤者名单",
           "en": "Patients beneath the roots",
-          "x": 27.5,
-          "y": 11.5
+          "x": 10.5,
+          "y": 21.5
         }
       ],
       "decor": [
@@ -4917,8 +4917,8 @@
           "kind": "chapterroad",
           "name": "失踪渡工的点名台",
           "en": "Missing ferrymen's roll",
-          "x": 27.5,
-          "y": 12.5
+          "x": 13.5,
+          "y": 21.5
         }
       ],
       "decor": [
