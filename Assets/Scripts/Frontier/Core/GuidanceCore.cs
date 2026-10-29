@@ -2472,8 +2472,8 @@ namespace Starfall
                 q.category=L("开放世界 · 公共设施维护",
                     "OPEN WORLD · CIVIC MAINTENANCE");
                 q.description=L(
-                    "公共电网重新接通后，居民需要确认安全路线仍然能走。先在炉火旅店接取复核，再回访引水渠、赤铁矿场与雾港各一处旧路标，最后回旅店公开现场记录。公开后，已核验路标将提供消耗药草的野外急救。",
-                    "After the public grid is restored, residents need to verify that its safe routes remain usable. Accept the audit at Hearth Inn, revisit one old route marker each at Canal, Ironreach and Mistport, then publish the field record at the Inn. Publication equips their original markers with permanent, herb-funded safe field care.");
+                    "星核主线已经结束。居民可以自愿核验引水渠、赤铁矿场与雾港的真实旧路：走到任一原始路标就能开始，第三处实地确认自动归档并开放药草急救，无须去旅店领取新主线或重复审批。",
+                    "The starcore story has ended. Residents may voluntarily inspect actual roads in Canal, Ironreach and Mistport. Start at any original marker; the third real field check publishes the record and opens herbal first aid, without an extra inn sign-up or approval.");
                 q.locked=!CivicConduitComplete;
                 q.complete=Has("civic_aftercare_published");
                 q.steps.Add(new QuestStep(L("电网已恢复，居民可直接实地核验旧路",
@@ -3162,8 +3162,8 @@ namespace Starfall
                     "Finish Chapter Seven and Orrin's civilian responsibility pledge") :
                     q.complete ? L("旧路公约公开；所有原有结局和地区选择保留",
                         "Road charter published; previous endings and regional choices remain") :
-                    !RoadCharterStarted ? L("返回余烬镇，与公会莉雅谈第八章",
-                        "Speak to Lyra in Emberfall about Chapter Eight") :
+                    !RoadCharterStarted ? L("可直接到任一地区东部旧路碑开始测绘，也可找莉雅了解背景",
+                        "Inspect any genuine eastern road marker directly, or speak to Lyra for context") :
                     nextRegion > 0 ? L("实地走到东部新支路，阅读原始测绘石碑",
                         "Explore the eastern annex and read the old survey marker") :
                         L("三份实地证据齐备；返回公会与莉雅签署公约",

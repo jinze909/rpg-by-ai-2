@@ -174,10 +174,10 @@ namespace Starfall
                 "Afterstory · Who Keeps the Road After the Grid",
                 Has("civic_aftercare_started")?
                     "电网重新送来了光。夜行旅人摊开巡路簿，等着引水渠、赤铁矿场和雾港的旧路标留下亲自核验的记号。已确认的路能带人回家，未到过的路仍是空白。":
-                    "三道阀门都接通了，但灯亮不代表夜路安全。去炉火旅店找夜行旅人，领走巡路簿，替引水渠、赤铁矿场和雾港重新走一遍旧路标。",
+                    "星核的抉择早有结局，三道阀门也重新通电。后来的生活由居民自己维护：你可以直接走访引水渠、赤铁矿场与雾港的真实路碑，愿意就留下路况记录，不必再领取下一场救世任务。",
                 Has("civic_aftercare_started")?
                     "The grid carries light again. At Hearth Inn the night traveler has spread out the road ledger, waiting for first-hand marks from Canal, Ironreach and Mistport. A checked road brings people home; the unwalked routes remain blank.":
-                    "All three valves carry current, but lamplight alone cannot make a night road safe. Find the night traveler at Hearth Inn, take the route ledger and walk the old markers in Canal, Ironreach and Mistport.",
+                    "The starcore choice is settled and all three valves carry current. Residents now maintain their own roads; visit authentic markers in Canal, Ironreach and Mistport if you wish, without accepting another world-saving quest.",
                 "三地巡路实录已经公开，守路人会在核验路标旁留下药箱，照顾后来的人。",
                 "The three-region road ledger is published. Its surveyed markers now keep herbal field kits for those who come after.");
             // Chapter Twelve can be historically complete while residents
