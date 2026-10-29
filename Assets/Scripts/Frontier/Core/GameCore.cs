@@ -5346,6 +5346,11 @@ namespace Starfall
         }
         public string Objective()
         {
+            // The world can keep changing, but a completed main tracker
+            // cannot present those optional changes as unfinished credits.
+            if(save.ending>0&&save.trackedQuest=="main")
+                return L("主线已完结。边境有了新的生活；可以自愿探索后日谈。",
+                    "Main story complete. Live freely or choose optional afterstory.");
             string extra = ExpansionObjective(); if (extra != null) return extra;
             if (save.ending > 0) return L("边境迎来了新的日子。继续冒险与生活。", "A new day on the frontier. Keep exploring.");
             if (save.room == 0)
