@@ -212,6 +212,7 @@ namespace Starfall
             // Arbitrary actor removals still invalidate its signed receipt.
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
+            bool courierRestraint=OnFarCourierEnemyRestrained(target);
             effects.Add(new Effect("burst",target.Position,.65f)
                 {radius=.85f,variant=0});
             effects.Add(new Effect("number",target.Position,.9f,
@@ -226,17 +227,21 @@ namespace Starfall
                     "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
             }
             sound="counter";revision++;
-            if(patrolRestraint)
+            if(courierRestraint)
+                Notify("真实劫匪已被绊索活捉。必须亲手将救援包交给守棚人，才能登记安全与治疗奖励。",
+                    "Original parcel raider restrained alive. Complete the real delivery to earn security and care rewards.");
+            else if(patrolRestraint)
                 Notify("巡护委托：已活捉一名真实巡兵，剩余"+
                     FieldPatrolRemaining+"名。回原地标提交回执。",
                     "Patrol: one raider restrained alive. "+
                     FieldPatrolRemaining+" remain; report at the original post.");
-            Notify(firstBind?
-                "首次活捉成功！新手帐：诺尔的活口与守护技。没有击杀或战利品。":
-                "袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",
-                firstBind?
-                "First living capture! New journal chapter: Noll's humane techniques. No kill or loot.":
-                "Raider restrained alive. No kill, loot or Boss credit.");
+            else
+                Notify(firstBind?
+                    "首次活捉成功！新手帐：诺尔的活口与守护技。没有击杀或战利品。":
+                    "袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",
+                    firstBind?
+                    "First living capture! New journal chapter: Noll's humane techniques. No kill or loot.":
+                    "Raider restrained alive. No kill, loot or Boss credit.");
             return true;
         }
         public bool CanRecoverFieldSnare {get{return RecoverableFieldSnare()!=null;}}
