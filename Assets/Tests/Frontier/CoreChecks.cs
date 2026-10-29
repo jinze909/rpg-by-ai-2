@@ -347,6 +347,13 @@ namespace Starfall.Tests
                 interrupted.FieldPatrolRemaining==2,
                 "Region 1 patrol has two real registered live raiders");
             int originalCoins=interrupted.save.coins;
+            interrupted.PrepareSave();
+            Check(interrupted.save.version==2&&
+                interrupted.save.snapshotRoom==1&&
+                interrupted.save.worldEnemies!=null&&
+                interrupted.save.worldEnemies.Length==0&&
+                interrupted.FieldPatrolRemaining==2,
+                "Mid-contract v2 saves exclude temporary patrol raiders without deleting any live actor");
             interrupted.enemies.RemoveAt(0);
             interrupted.Tick(.02f,new Point());
             Check(!interrupted.FieldPatrolActive&&

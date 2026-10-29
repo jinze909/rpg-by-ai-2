@@ -392,6 +392,8 @@ namespace Starfall
             foreach(Enemy e in fieldPatrolEnemies)
                 if(!fieldPatrolKills.Contains(e)||e.hp>0f)return false;
             return true;}}
+        private bool IsFieldPatrolEnemy(Enemy e)
+        {return e!=null&&fieldPatrolEnemies.Contains(e);}
         private void OnFieldPatrolEnemyDefeated(Enemy e)
         {
             if(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))
