@@ -5162,8 +5162,19 @@ namespace Starfall
                 if (save.room == 0 || !GateOpen || GateBarrierActive || TriadDefenseActive || enemies.Exists(e => e.boss) || Has("boss_" + save.room)) return;
                 BossData b = data.bosses[save.room - 1];
                 float bossHealth = save.room == 4 && Has("triad_complete") ? b.hp * .85f : b.hp;
+                // The new early-chapter civilian routes are optional, but
+                // their signed survivors now make a real difference in the
+                // guardian confrontation (without bypassing the encounter).
+                // Only the current region's authentic saved receipt counts.
+                if(ChapterRoadDone(save.room))bossHealth*=.92f;
                 enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), bossHealth, true));
-                save.health = save.maxHealth; save.energy = 100; Notify(b.name + "：闪避红圈，抓住反击时机！", b.en + ": dodge the red circles and counter!");
+                save.health = save.maxHealth; save.energy = 100;
+                Notify(b.name + (ChapterRoadDone(save.room)?
+                    "：居民提供了旧防线的弱点。守护者防御削弱8%；注意红圈！":
+                    "：闪避红圈，抓住反击时机！"),
+                    b.en + (ChapterRoadDone(save.room)?
+                    ": Residents revealed a vulnerable defense route (8% less health). Dodge the warnings!":
+                    ": dodge the red circles and counter!"));
             }
             if (action.StartsWith("ending"))
             {
@@ -5425,7 +5436,9 @@ namespace Starfall
                     return L("居民路线已安全：到第三处接收点亲手交付证词",
                         "Road secured: reach the third survivor handoff")+window;
                 return L("保护居民退路：还有"+ChapterRoadRemaining+"名袭击者",
-                    "Defend the civilian road: "+ChapterRoadRemaining+" raiders remain")+window;
+                    "Defend the civilian road: "+ChapterRoadRemaining+" raiders remain")+
+                    (ChapterRoadDeviceReady?
+                        L(" · 中途装置可按 E 启用"," · press E at the field device"):"")+window;
             }
             string extra = ExpansionObjective(); if (extra != null) return extra;
             if (save.ending > 0) return L("边境迎来了新的日子。继续冒险与生活。", "A new day on the frontier. Keep exploring.");

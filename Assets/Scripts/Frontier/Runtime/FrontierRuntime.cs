@@ -1475,12 +1475,17 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),next?.7f:.46f,ink,22);
                 if(next||!done&&slot==0)
                     Diamond(p.x,p.y-82,next?7:5,ink);
+                if(live&&slot==1&&Game.ChapterRoadDeviceUsed)
+                    Text(p.x-103,p.y-127,206,17,
+                        Game.L("现场装置已启动","FIELD DEVICE ACTIVATED"),
+                        10,mint,TextAnchor.MiddleCenter);
                 // This line is the REAL radius of the active regional
                 // danger, not a decorative broad quest ring. The tide ring
                 // disappears at low water and the steam ring ends when the
                 // original attackers are contained.
                 if(live&&Game.ChapterRoadStage==2&&
                    Game.ChapterRoadRemaining>0&&slot==1&&
+                   !Game.ChapterRoadDeviceUsed&&
                    (room==3||room==2&&!Game.LowTide))
                 {
                     Color warning=room==3?

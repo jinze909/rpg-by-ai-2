@@ -49,10 +49,26 @@ namespace Starfall
         private SaveData chapterRoadSave;
         private WorldObject chapterRoadOrigin;
         private float chapterRoadTime;
+        private bool chapterRoadDeviceUsed;
         private readonly List<Enemy> chapterRoadFoes=new List<Enemy>();
         private readonly HashSet<Enemy> chapterRoadKills=new HashSet<Enemy>();
         private readonly HashSet<Enemy> chapterRoadBinds=new HashSet<Enemy>();
         public int ChapterRoadStage {get{return ChapterRoadActive?chapterRoadStage:0;}}
+        public bool ChapterRoadDeviceUsed
+        {get{return ChapterRoadActive&&chapterRoadDeviceUsed;}}
+        public bool ChapterRoadDeviceReady
+        {get{return ChapterRoadActive&&chapterRoadStage==2&&
+            !ChapterRoadSecured&&!chapterRoadDeviceUsed;}}
+        private static readonly string[] chapterDeviceZh={"",
+            "敲响修好的警铃 · 消耗木材1，震慑追兵并为伤者止血",
+            "打开临时分流闸 · 耐力18，挡住寒流、争取救援时间",
+            "打开紧急泄压阀 · 耐力18，驱散热浪、打断攻击",
+            "点亮撤离信号灯 · 耐力15，聚拢居民并打断袭击"};
+        private static readonly string[] chapterDeviceEn={"",
+            "Ring repaired warning bell · 1 wood, interrupt raiders and aid wounded",
+            "Raise bypass sluice · 18 stamina, stop chill and buy rescue time",
+            "Vent emergency manifold · 18 stamina, quell steam and interrupt attacks",
+            "Light civilian signal · 15 stamina, rally evacuees and interrupt raiders"};
         public float ChapterRoadSeconds {get{return ChapterRoadActive?chapterRoadTime:0f;}}
         public bool ChapterRoadDone(int room)
         {return room>=1&&room<=4&&Has("chapter_road_done_"+room);}
@@ -136,7 +152,7 @@ namespace Starfall
             }
             chapterRoadRoom=-1;chapterRoadStage=0;
             chapterRoadMap=null;chapterRoadSave=null;chapterRoadOrigin=null;
-            chapterRoadTime=0;chapterRoadFoes.Clear();
+            chapterRoadTime=0;chapterRoadDeviceUsed=false;chapterRoadFoes.Clear();
             chapterRoadKills.Clear();chapterRoadBinds.Clear();
         }
         private bool SpawnChapterRoadRaiders()
@@ -212,12 +228,12 @@ namespace Starfall
                     if(middle!=null&&
                        (Position-new Point(middle.x,middle.y)).Length<6f)
                     {
-                        if(chapterRoadRoom==2&&!LowTide)
+                        if(chapterRoadRoom==2&&!LowTide&&!chapterRoadDeviceUsed)
                         {
                             save.cold=Math.Min(100f,save.cold+dt*1.8f);
                             save.energy=Math.Max(0f,save.energy-dt*.55f);
                         }
-                        else if(chapterRoadRoom==3)
+                        else if(chapterRoadRoom==3&&!chapterRoadDeviceUsed)
                         {
                             save.heat=Math.Min(100f,save.heat+dt*2.4f);
                             save.energy=Math.Max(0f,save.energy-dt*.75f);
@@ -252,15 +268,20 @@ namespace Starfall
                         save.health+dt*(ChapterRoadChoice(1)==1?1.6f:.8f));
                     break;
                 case 2:
-                    save.cold=Math.Max(0,save.cold-dt*2f);
-                    save.heat=Math.Max(0,save.heat-dt*2f);
+                    float climate=ChapterRoadChoice(2)==2?3.2f:2f;
+                    save.cold=Math.Max(0,save.cold-dt*climate);
+                    save.heat=Math.Max(0,save.heat-dt*climate);
                     break;
                 case 3:
-                    save.energy=Math.Min(100,save.energy+dt*3.6f);
+                    save.energy=Math.Min(100,save.energy+
+                        dt*(ChapterRoadChoice(3)==2?5.2f:3.6f));
                     break;
                 case 4:
-                    save.health=Math.Min(save.maxHealth,save.health+dt*.7f);
-                    save.energy=Math.Min(100,save.energy+dt*2f);
+                    bool published=ChapterRoadChoice(4)==2;
+                    save.health=Math.Min(save.maxHealth,
+                        save.health+dt*(published?1.15f:.7f));
+                    save.energy=Math.Min(100,save.energy+
+                        dt*(published?3f:2f));
                     break;
             }
         }
@@ -323,13 +344,27 @@ namespace Starfall
                             "chapterroad_defend"),
                         C("先检查地形","Check the approach","close"));
                 else
-                    Dialog(o.name,o.en,ChapterRoadSecured?
+                {
+                    var midChoices=new List<Choice>();
+                    if(ChapterRoadDeviceReady)
+                        midChoices.Add(C(chapterDeviceZh[room],
+                            chapterDeviceEn[room],"chapterroad_device"));
+                    midChoices.Add(C("继续前进","Continue","close"));
+                    string siteZh=ChapterRoadSecured?
                         "袭击者已被真正击退或活捉。现在走到最后的居民安置点签收证词。":
-                        "前方仍有"+ChapterRoadRemaining+"名袭击者。保护退路，别让任何人被落在后面。",
-                        ChapterRoadSecured?
+                        "前方仍有"+ChapterRoadRemaining+
+                        "名袭击者。保护退路，别让任何人被落在后面。";
+                    string siteEn=ChapterRoadSecured?
                         "The original raiders are defeated or restrained. Reach the final civilian handoff.":
-                        ChapterRoadRemaining+" genuine raiders still hold the road. Secure it before proceeding.",
-                        C("继续前进","Continue","close"));
+                        ChapterRoadRemaining+
+                        " genuine raiders still hold the road. Secure it before proceeding.";
+                    if(chapterRoadDeviceUsed)
+                    {
+                        siteZh+="\n\n现场装置已经启动，不能反复领取帮助。";
+                        siteEn+="\n\nThe field mechanism has already fired; it cannot be reused.";
+                    }
+                    Dialog(o.name,o.en,siteZh,siteEn,midChoices.ToArray());
+                }
                 return true;
             }
             if(!ChapterRoadSecured)
@@ -391,11 +426,12 @@ namespace Starfall
                 return true;
             }
             bool start=action=="chapterroad_begin",fight=action=="chapterroad_defend",
+                device=action=="chapterroad_device",
                 abort=action=="chapterroad_abort",
                 care=action=="chapterroad_care",witness=action=="chapterroad_witness",
                 finish=action=="chapterroad_finish";
-            if(!start&&!fight&&!abort&&!care&&!witness&&!finish)return false;
-            int room=save.room,slot=abort||start?0:fight?1:2;
+            if(!start&&!fight&&!device&&!abort&&!care&&!witness&&!finish)return false;
+            int room=save.room,slot=abort||start?0:fight||device?1:2;
             WorldObject source=pendingDialogueSource;
             if(room<1||room>4||save.ending>0||Dying||practicing||
                mode!="world"||source==null||source!=ChapterRoadNode(room,slot)||
@@ -448,6 +484,54 @@ namespace Starfall
                     chapterRoadFoes.Count+"名袭击者，再步行前往接收点。",
                     chapterMiddleEn[room]+" Defeat or restrain all "+
                     chapterRoadFoes.Count+" actual raiders, then walk to the receiver.");
+                return true;
+            }
+            if(device)
+            {
+                if(!ChapterRoadDeviceReady||!ChapterRoadActive||
+                    !Object.ReferenceEquals(chapterRoadMap,Map))return true;
+                int timber=room==1?1:0;
+                int stamina=room==1?0:room==4?15:18;
+                if(save.inventory[0]<timber||save.energy<stamina)
+                {
+                    Notify("要真正发动现场装置，还缺少木材或耐力。",
+                        "The live mechanism requires timber or stamina.");
+                    return true;
+                }
+                save.inventory[0]-=timber;save.energy-=stamina;
+                chapterRoadDeviceUsed=true;
+                WorldObject mechanism=ChapterRoadNode(room,1);
+                Point center=new Point(mechanism.x,mechanism.y);
+                int disrupted=0;
+                foreach(Enemy foe in chapterRoadFoes)
+                    if(foe!=null&&foe.hp>0&&enemies.Contains(foe)&&
+                        (foe.Position-center).Length<=14f)
+                    {
+                        // The existing combat-control transaction cancels
+                        // REAL pending windups, not cosmetic status labels.
+                        ApplyEnemyControl(foe,room==1?1.4f:1.15f);
+                        foe.armorOpenTime=Math.Max(foe.armorOpenTime,.7f);
+                        disrupted++;
+                    }
+                if(room==1)
+                    save.health=Math.Min(save.maxHealth,save.health+12f);
+                if(room==2)
+                {
+                    save.cold=Math.Max(0,save.cold-12f);
+                    chapterRoadTime+=15f;
+                }
+                if(room==3)
+                {
+                    save.heat=Math.Max(0,save.heat-16f);
+                    chapterRoadTime+=12f;
+                }
+                if(room==4)
+                    save.energy=Math.Min(100f,save.energy+8f);
+                effects.Add(new Effect("burst",center,.6f)
+                    {radius=3.2f,variant=room%3});
+                sound="reward";revision++;
+                Notify(chapterDeviceZh[room]+" · 已激活，干扰"+disrupted+"名真实袭击者。",
+                    chapterDeviceEn[room]+" · activated; interrupted "+disrupted+" real attackers.");
                 return true;
             }
             if(!ChapterRoadActive||!ChapterRoadSecured||
