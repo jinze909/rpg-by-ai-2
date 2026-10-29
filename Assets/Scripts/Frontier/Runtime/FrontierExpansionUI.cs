@@ -572,6 +572,9 @@ namespace Starfall
                         Game.BridgeOfChordsCanDischarge?
                             Game.L("红圈已亮 · 到已接地音叉按 E 消除（耐力8）",
                                 "SURGE WARNED · E AT GROUNDED FORK (8 STAMINA)"):
+                        Game.BridgeOfChordsWarnedPulse?
+                            Game.L("红圈已亮 · 耐力不足8点，只能闪避",
+                                "SURGE WARNED · NEED 8 STAMINA OR DODGE"):
                         Game.BridgeOfChordsResonators>0?
                             Game.L("已接地音叉可以抵消下一次红圈（耐力8）",
                                 "GROUNDED FORKS CAN DISCHARGE SURGES (8 STAMINA)"):

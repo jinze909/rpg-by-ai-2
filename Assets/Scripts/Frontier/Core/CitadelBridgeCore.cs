@@ -222,17 +222,18 @@ namespace Starfall
         // stamina to discharge the elite's ALREADY telegraphed strike.
         // It is not a global hazard dispel: only live rifts owned by this
         // particular enemy are eligible, and no save data is added.
-        public bool BridgeOfChordsCanDischarge
+        public bool BridgeOfChordsWarnedPulse
         {
             get
             {
-                if(!BridgeOfChordsActive||bridgeResonators==0||
-                   bridgeGuardian.hp<=0f||save.energy<8f)return false;
-                return hazards.Exists(h=>h!=null&&h.kind=="rift"&&
-                    System.Object.ReferenceEquals(h.bossOwner,bridgeGuardian)&&
-                    h.timer>0f);
+                return BridgeOfChordsActive&&bridgeResonators>0&&
+                    bridgeGuardian.hp>0f&&hazards.Exists(h=>h!=null&&
+                    h.kind=="rift"&&h.timer>0f&&
+                    System.Object.ReferenceEquals(h.bossOwner,bridgeGuardian));
             }
         }
+        public bool BridgeOfChordsCanDischarge
+        {get{return BridgeOfChordsWarnedPulse&&save.energy>=8f;}}
         private bool DischargeBridgePulse(WorldObject site)
         {
             if(!BridgeChordsSource(site)||!BridgeOfChordsCanDischarge||
@@ -327,14 +328,24 @@ namespace Starfall
             // The fork is a genuine defensive tool even after first use.
             // Only a physical, active warning grants this reaction choice.
             bool grounded=low?bridgeResonators>=1:bridgeResonators>=2;
-            if(grounded&&BridgeOfChordsCanDischarge)
+            if(grounded)
             {
-                Dialog(site.name,site.en,
-                    "接地的音叉正在尖鸣。地面已经标出余震落点；现在可以用8点耐力把即将释放的冲击导进地线。",
-                    "The grounded fork rings sharply as marked bridge surges gather. Spend 8 stamina NOW to route the warned blasts into the earth.",
-                    C("消除当前预警冲击 · 耐力8",
-                      "Discharge warned surges · 8 stamina","bridge_chords_dampen"),
-                    C("自己闪避","Dodge instead","close"));
+                if(BridgeOfChordsCanDischarge)
+                    Dialog(site.name,site.en,
+                        "接地的音叉正在尖鸣。地面已经标出余震落点；现在可以用8点耐力把即将释放的冲击导进地线。",
+                        "The grounded fork rings sharply as marked bridge surges gather. Spend 8 stamina NOW to route the warned blasts into the earth.",
+                        C("消除当前预警冲击 · 耐力8",
+                          "Discharge warned surges · 8 stamina","bridge_chords_dampen"),
+                        C("自己闪避","Dodge instead","close"));
+                else
+                    Dialog(site.name,site.en,
+                        BridgeOfChordsWarnedPulse?
+                            "音叉已接地，红圈正在蓄力，但你还需要8点耐力才能把冲击导走。此刻只能闪避。":
+                            "这枚音叉已经接地。等地面真正出现精英的红圈预警时，可以花8点耐力消除这轮冲击。",
+                        BridgeOfChordsWarnedPulse?
+                            "The fork is grounded and a surge is warned, but you need 8 stamina to discharge it. Dodge for now.":
+                            "This fork is already grounded. When the elite marks another surge, you may spend 8 stamina here to discharge it.",
+                        C("返回战场","Return to fight","close"));
                 return true;
             }
             Dialog(site.name,site.en,

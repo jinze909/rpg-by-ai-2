@@ -226,9 +226,24 @@ namespace Starfall.Tests
             WorldObject low=BridgeSite(g,"bridge_low");
             g.Talk(low);
             Check(!BridgeChoice(g,"bridge_chords_dampen")&&
-                !g.BridgeOfChordsCanDischarge,
-                "A used fork cannot charge stamina or block attacks before a real warning exists");
+                !g.BridgeOfChordsCanDischarge&&
+                g.conversation!=null&&
+                g.conversation.textEn.Contains("already grounded"),
+                "A grounded fork honestly explains its future defensive use rather than falsely demanding grounding again");
             g.Close();
+            // Underfunded attempts must remain transparent and never
+            // consume a real warning, including through an old dialogue.
+            var probe=new Hazard{kind="rift",bossOwner=elite,timer=1.2f,
+                position=g.Position,radius=1f,damage=12f};
+            g.hazards.Add(probe);g.save.energy=7f;
+            Check(g.BridgeOfChordsWarnedPulse&&!g.BridgeOfChordsCanDischarge,
+                "A real owner-bound warning exists even when energy is too low to counter");
+            g.Talk(low);
+            Check(g.conversation.textEn.Contains("need 8 stamina")&&
+                !BridgeChoice(g,"bridge_chords_dampen")&&
+                g.hazards.Contains(probe)&&g.save.energy==7f,
+                "Insufficient stamina provides truthful actionable feedback without silently disarming the Boss");
+            g.Close();g.hazards.Remove(probe);g.save.energy=88f;
             Point pulseFoot=new Point(48.5f,38.5f);
             Check(g.CanStand(pulseFoot),"True old bridge contains a walkable pulse landing");
             g.save.x=pulseFoot.x;g.save.y=pulseFoot.y;
