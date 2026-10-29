@@ -201,6 +201,39 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        // The last harbor signal stands above water, but its old approach
+        // vanished under the tide at certain otherwise legitimate campaign
+        // timings. The raised quay must preserve a reachable interaction
+        // pad in high water, not require a lucky world-clock phase.
+        public static void MistportRelayTwoUsesPermanentPhysicalQuay(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.save.room=5;
+            WorldObject relay=Array.Find(g.Map.objects,o=>o.kind=="relay2");
+            Check(relay!=null&&relay.x==25f&&relay.y==19f,
+                "Original third harbor relay remains at the authored pier");
+            Point landing=new Point(27.5f,19.5f);
+            Point talkFoot=new Point(26.5f,19.5f);
+            var reach=typeof(GameCore).GetMethod("HasPhysicalInteractionReach",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic,
+                null,new Type[]{typeof(WorldObject)},null);
+            Check(reach!=null,"The real dialogue reach gate is available");
+            for(int i=0;i<8;i++)
+            {
+                // Different live tide timings; no fake collision flags.
+                g.save.totalTime=i*11f;
+                Check(g.CanStand(landing)&&g.CanStand(talkFoot)&&
+                    g.NavigationPathFrom(landing,talkFoot,true).Count>0,
+                    "A dry connected route remains on the third relay quay at tide phase "+i);
+                g.save.x=talkFoot.x;g.save.y=talkFoot.y;
+                Check((bool)reach.Invoke(g,new object[]{relay}),
+                    "The original relay can be physically reached from a real quay tile at phase "+i);
+            }
+            Check(g.save.version==2,
+                "The fixed physical landing needs no new serialized tide state");
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)
@@ -2907,7 +2940,14 @@ namespace Starfall.Tests
                 { movement = (g.Position - target.target).Length > .05f ? (g.Position - target.target).Normalized : new Point(-1, 0); g.Dash(movement); }
                 foreach (Hazard h in g.hazards) if (h.timer < .5f && (g.Position - h.position).Length < h.radius + .5f)
                 { movement = (g.Position - h.position).Length > .05f ? (g.Position - h.position).Normalized : new Point(-1, 0); g.Dash(movement); break; }
-                g.Tick(.02f, movement); g.Attack(target.Position - g.Position);
+                g.Tick(.02f, movement);
+                // A real player cannot hit an enemy across an entire
+                // procedural gallery. Spamming offscreen melee attacks at
+                // every path step repeatedly locks the test pilot in a swing
+                // and turns a walkable detour into a false combat softlock.
+                // Let the bot actually cross the physical route first.
+                if (distance <= (ranged ? 7f : 2.6f))
+                    g.Attack(target.Position - g.Position);
                 if (g.save.health < g.save.maxHealth * .8f) g.CommandCompanion();
                 if (distance < 3) g.Skill();
                 if (g.save.health < g.save.maxHealth * .6f && g.save.inventory[6] > 0) g.Eat();
