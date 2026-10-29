@@ -532,10 +532,66 @@ namespace Starfall
                     Ring(refuge,.78f,comfort,26);
                     Point near=ScreenPoint(refuge);
                     Text(near.x-115,near.y-80,230,20,
-                        Game.SeventhBedPublic?
-                            Game.L("安全住客疗伤","SAFE GUEST CARE"):
-                            Game.L("匿名旅人的热粥","ANONYMOUS GUEST SUPPER"),
+                        Game.SeventhSupperDone?
+                            Game.SeventhBedPublic?
+                                Game.L("加固的住客疗伤","REINFORCED GUEST CARE"):
+                                Game.L("加暖的匿名热粥","WARMER ANONYMOUS SUPPER"):
+                            Game.SeventhBedPublic?
+                                Game.L("安全住客疗伤","SAFE GUEST CARE"):
+                                Game.L("匿名旅人的热粥","ANONYMOUS GUEST SUPPER"),
                         10,comfort,TextAnchor.MiddleCenter);
+                }
+            }
+            // The post-mystery courier is live play, not a second menu or
+            // persistent HUD fiction: same real annex/cook coordinates as
+            // dialogue, same mutable cooling clock as GameCore.Tick.
+            if(Game.mode=="world"&&Game.save.room==9&&
+                Game.SeventhBedComplete&&!Game.SeventhSupperDone&&
+                !drawingOutline)
+            {
+                if(Game.SeventhSupperActive)
+                {
+                    Point destination=Game.SeventhSupperTarget;
+                    Color routeInk=Game.SeventhSupperReturning?mint:gold;
+                    if(WorldDrawable(destination.x,destination.y,140f,150f))
+                    {
+                        Ring(destination,.7f,routeInk,28);
+                        Point screen=ScreenPoint(destination);
+                        Text(screen.x-160,screen.y-88,320,19,
+                            Game.SeventhSupperObjective,10,routeInk,
+                            TextAnchor.MiddleCenter);
+                    }
+                    Text(35,565,620,21,
+                        Game.L("夜间补给 · 原路送餐","MIDNIGHT SUPPER · REAL INN DELIVERY"),
+                        12,routeInk);
+                    Text(35,591,610,19,
+                        Game.SeventhSupperObjective,11,routeInk);
+                    if(!Game.SeventhSupperReturning)
+                    {
+                        Bar(35,617,220,Game.SeventhSupperSeconds/45f,routeInk,6);
+                        Text(270,607,300,20,
+                            Game.L("热汤剩余 ","SUPPER HEAT ")+
+                            Game.SeventhSupperSeconds.ToString("0.0")+"s",
+                            10,routeInk);
+                    }
+                    else Text(35,614,580,19,
+                        Game.L("空碗已收好 · 返回厨房完成交接",
+                            "CLEAN BOWLS SECURED · RETURN TO ARI"),
+                        10,routeInk);
+                }
+                else
+                {
+                    // The original cook signals the optional service,
+                    // without overriding a different player-tracked quest.
+                    Point kitchen=new Point(12f,10f);
+                    if(WorldDrawable(kitchen.x,kitchen.y,105f,120f))
+                    {
+                        Point screen=ScreenPoint(kitchen);
+                        Text(screen.x-128,screen.y-95,256,18,
+                            Game.L("阿茴有一趟夜宵差事",
+                                "ARI HAS A MIDNIGHT SUPPER RUN"),
+                            10,gold,TextAnchor.MiddleCenter);
+                    }
                 }
             }
             // Real optional Citadel Boss. Its world cue tracks the ACTUAL
