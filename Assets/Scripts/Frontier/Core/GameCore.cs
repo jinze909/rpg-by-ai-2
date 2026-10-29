@@ -831,6 +831,16 @@ namespace Starfall
         public void Enter(int room)
         {
             if (Dying) return;
+            // Emergency civilian supplies require a WALKED two-endpoint
+            // circuit. All regional gates, quick transport and scripted
+            // shortcuts ultimately use Enter(), so none may move the hero
+            // into another map while a live cargo packet is being guarded.
+            if (BiomeCrisisActive)
+            {
+                Notify("紧急物资尚未送达。先完成护送或在出发地标取消。",
+                    "Finish the live civilian delivery or withdraw at its real origin before regional travel.");
+                return;
+            }
             if (BlockTravelForProtectedFieldMission(false)) return;
             if (practicing) EndPractice();
             if (room < 0 || room >= data.maps.Length) return;
