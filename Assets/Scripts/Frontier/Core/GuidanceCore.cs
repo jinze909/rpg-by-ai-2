@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1037,6 +1037,54 @@ namespace Starfall
 
 
 
+            if(id=="field_outposts")
+            {
+                q.title=L("七地前线据点 · 居民的安全道路",
+                    "Seven Field Outposts · Roads Kept Safe");
+                q.category=L("可选真实战斗 · 建设与长期使用",
+                    "PHYSICAL DEFENSE · PERSISTENT INFRASTRUCTURE");
+                q.description=L("从各地实际工具箱取回材料后，可以回到原址组织防守。真实击败或绊索活捉周围袭击者，再在原地用木材与零件各1份，将工具点改建成医疗避难站或绊索工坊。两种用途只能选择一个，旧存档与主线不受影响。",
+                    "After physically salvaging a regional kit, defend its real site. Defeat or genuinely restrain raiders, return to the same kit and spend 1 timber and 1 part to build either a field aid station or trap workshop. The choice is exclusive and persists independently of the main story.");
+                q.reward=L("每区真实战斗的硬币、碎片和经验；医疗站可用药草恢复，工坊可用硬币购置绊索材料",
+                    "Coins, shards and XP per defense; working aid stations or paid trap-supply workshops");
+                q.locked=false;
+                int selected=-1;
+                for(int region=1;region<=7;region++)
+                {
+                    bool done=FieldOutpostBuilt(region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?(FieldOutpostWard(region)?
+                              " · 公共医疗站已开":" · 绊索工坊已开"):
+                              FieldKitRecovered(region)?
+                              " · 防守尚未完成":" · 先回收实地材料",
+                          done?(FieldOutpostWard(region)?
+                              " · AID STATION OPEN":" · WORKSHOP OPEN"):
+                              FieldKitRecovered(region)?
+                              " · DEFENSE REQUIRED":" · RECOVER FIELD KIT FIRST"),done));
+                    if(!done&&CanEnter(region)&&(selected<0||region==save.room))
+                        selected=region;
+                }
+                if(FieldOutpostActive)selected=save.room;
+                q.complete=FieldOutpostWins==7;
+                q.room=selected>=0?selected:save.room;
+                q.target=selected>=0?
+                    ObjectPoint(selected,"fieldKit",
+                        new Point(data.maps[selected].spawnX,
+                            data.maps[selected].spawnY)):Position;
+                q.next=FieldOutpostActive?
+                    (FieldOutpostReady?
+                        L("敌人已通过真实战斗或活捉被控制。回原工具点选择建设用途。",
+                          "All real raiders accounted for. Return to your original kit and choose a permanent facility."):
+                        L("据点防守中，剩余袭击者"+FieldOutpostRemaining+"名。打通进路后再建站。",
+                          "Live outpost defense: "+FieldOutpostRemaining+" raiders remain. Fight or restrain before filing.")):
+                    q.complete?
+                        L("七地据点全部建立，远端道路终于有了可真正使用的避难或补给地点。",
+                          "All seven forward shelters are operational and can be used in the world."):
+                        L("先实地回收工具箱，返回该箱防守并选择永久设施。",
+                          "Recover a real kit, defend its location, then build a lasting facility.");
+                return q;
+            }
             if(id=="field_kits")
             {
                 q.title=L("七地遗失工具 · 重建安全绊索",

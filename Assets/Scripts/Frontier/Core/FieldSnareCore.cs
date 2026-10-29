@@ -211,6 +211,7 @@ namespace Starfall
             // An actual physical restraint counts for a civilian patrol.
             // Arbitrary actor removals still invalidate its signed receipt.
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
+            bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
             effects.Add(new Effect("burst",target.Position,.65f)
                 {radius=.85f,variant=0});
             effects.Add(new Effect("number",target.Position,.9f,

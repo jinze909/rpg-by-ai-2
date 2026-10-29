@@ -138,11 +138,49 @@ namespace Starfall
                 !SourceBelongsToActiveMap(o)||
                 !HasPhysicalInteractionReach(o)||!CanStand(Position))return true;
             if(FieldKitRecovered(room))
-                Dialog(o.name,o.en,fieldKitStoryZh[room]+
-                    "\n\n工具已回收，旧木箱留在原地供下一位迷路的旅人辨认。",
-                    fieldKitStoryEn[room]+
-                    "\n\nThe useful parts are gone. The box remains as a landmark for the next lost traveler.",
-                    C("继续赶路","Continue on the road","close"));
+            {
+                if(FieldOutpostActive)
+                    Dialog(o.name,o.en,fieldKitStoryZh[room]+
+                        "\n\n"+(FieldOutpostReady?
+                          "袭击者已解除威胁。现在可以选择建设救护站或绊索工坊，两者只能择一，均需要木材和零件各1。":
+                          "现场仍有"+FieldOutpostRemaining+"名袭击者。真正击退或活捉敌人，才能建立据点。"),
+                        fieldKitStoryEn[room]+
+                        "\n\n"+(FieldOutpostReady?
+                          "Every attacker has been accounted for. Build either a first-aid station or a snare workshop, using 1 timber and 1 spare part.":
+                          FieldOutpostRemaining+" raiders remain. Fight or bind them alive before building."),
+                        FieldOutpostReady?
+                          C("建造公共救护站 · 木材1、零件1",
+                            "Build aid station · 1 timber / 1 part","field_outpost_ward"):
+                          C("继续抵御袭击","Hold the route","close"),
+                        FieldOutpostReady?
+                          C("建造绊索物资工坊 · 木材1、零件1",
+                            "Build snare workshop · 1 timber / 1 part","field_outpost_forge"):
+                          C("查看战况","Review the live skirmish","close"),
+                        C("撤回防守","Withdraw this outpost","field_outpost_abort"));
+                else if(FieldOutpostWard(room))
+                    Dialog(o.name,o.en,"居民已把旧工具箱改建成前线救护站。"+
+                        "\n\n消耗1份月光草，恢复生命55、耐力40，并降低冷热危险各25。",
+                        "The salvaged kit is now a public aid station. "+
+                        "Spend 1 Moonherb for 55 HP, 40 stamina and 25 climate relief.",
+                        C("使用急救站 · 月光草1","Use aid · 1 Moonherb",
+                          "field_outpost_rest"),
+                        C("继续探索","Continue exploring","close"));
+                else if(FieldOutpostForge(room))
+                    Dialog(o.name,o.en,"这里的旧铁环已经变成旅人的绊索材料工坊。"+
+                        "\n\n花费12硬币补给木材和机械零件各1份。",
+                        "The salvage is now a working snare-supply bench. "+
+                        "Pay 12 coins for 1 timber and 1 mechanical part.",
+                        C("补给材料 · 12硬币",
+                          "Restock trap materials · 12 coins","field_outpost_stock"),
+                        C("继续探索","Continue exploring","close"));
+                else
+                    Dialog(o.name,o.en,fieldKitStoryZh[room]+
+                        "\n\n材料已收回，但原先的工具点仍遭袭扰。守住这里之后，可以建设永久医疗站或绊索工坊。",
+                        fieldKitStoryEn[room]+
+                        "\n\nThe tools are recovered, but raiders still threaten the road. Defend the real site to build a permanent aid post or snare workshop.",
+                        C("组织真实前线防守","Defend the real supply site","field_outpost_begin"),
+                        C("稍后再来","Return later","close"));
+            }
             else if(!BiomeFieldDone)
                 Dialog(o.name,o.en,fieldKitStoryZh[room]+
                     "\n\n先把本区两处实地证据核对完，才能确认这些工具属于旧巡路队。",
@@ -164,6 +202,7 @@ namespace Starfall
         }
         private bool ChooseFieldKit(string action)
         {
+            if(ChooseFieldOutpost(action))return true;
             if(action!="field_kit_collect")return false;
             WorldObject source=pendingDialogueSource;
             int room=save.room;

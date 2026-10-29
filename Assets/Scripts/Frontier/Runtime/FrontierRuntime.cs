@@ -1168,19 +1168,37 @@ namespace Starfall
             {
                 int room=Game.save.room;
                 bool recovered=Game.FieldKitRecovered(room);
-                Color ink=recovered?mint:gold;
+                bool active=Game.FieldOutpostActive;
+                bool ward=Game.FieldOutpostWard(room);
+                bool forge=Game.FieldOutpostForge(room);
+                Color ink=ward?mint:forge?new Color(.55f,.83f,1f):
+                    active?gold:recovered?new Color(.77f,.84f,.62f):gold;
                 PropImage(room==2||room==5?"barrel":
                     room==4?"post":"ruin",0,
                     p.x-34,p.y-77,68,79,ink);
                 Ring(new Point(o.x,o.y),recovered?.45f:.64f,ink,24);
                 if(!recovered)Diamond(p.x,p.y-87,6,ink);
-                Text(p.x-112,p.y-111,224,18,recovered?
-                    Game.L("巡路工具已取回","FIELD KIT RECOVERED"):
+                Text(p.x-112,p.y-111,224,18,ward?
+                    Game.L("安全前线 · 医疗站","SAFE OUTPOST · FIELD AID"):
+                    forge?Game.L("安全前线 · 绊索工坊",
+                        "SAFE OUTPOST · TRAP WORKSHOP"):
+                    active?Game.L(Game.FieldOutpostReady?
+                          "守住了道路 · 回来建站":
+                          "据点遭袭 · 剩余"+Game.FieldOutpostRemaining+"名",
+                          Game.FieldOutpostReady?
+                          "OUTPOST SECURED · BUILD HERE":
+                          "OUTPOST UNDER ATTACK · "+Game.FieldOutpostRemaining+" LEFT"):
+                    recovered?Game.L("工具已回收 · 可防守建站",
+                        "KIT RECOVERED · DEFEND TO BUILD"):
                     Game.L("遗失工具箱 · 木材"+Game.FieldKitTimber(room)+
                         " / 零件"+Game.FieldKitParts(room),
                         "LOST KIT · "+Game.FieldKitTimber(room)+
                         " TIMBER / "+Game.FieldKitParts(room)+" PARTS"),
                     10,ink,TextAnchor.MiddleCenter);
+                if(active)
+                    Ring(new Point(o.x,o.y),.92f,gold,28);
+                else if(ward||forge)
+                    Diamond(p.x,p.y-92,7,ink);
                 return;
             }
             if(kind=="biomeSurvey"||kind=="biomeAnswer")
