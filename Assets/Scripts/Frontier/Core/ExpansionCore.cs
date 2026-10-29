@@ -485,28 +485,10 @@ namespace Starfall
                     Point p = new Point(16.5f, 14.5f);
                     for (int attempt = 0; attempt < 100; attempt++)
                     { p = new Point(random.Next(13, 32) + .5f, random.Next(5, 19) + .5f); if (Fits(p) && (p - Position).Length > 5) break; }
-                    // Keep the original seeded enemy RNG draws and v2
-                    // snapshot restoration; distribute fresh-floor threats
-                    // into genuine remote chambers rather than only the
-                    // 20x15 opening. Earlier original fights stay intact.
-                    if(i>=3)
-                    {
-                        Point distant=i%3==0?
-                            new Point(58.5f,16.5f):
-                            i%3==1?
-                            new Point(35.5f,39.5f):
-                            new Point(57.5f,33.5f);
-                        if(CanStand(distant)&&
-                           (distant-Position).Length>8f)
-                        {
-                            // Several later waves may prefer one region:
-                            // separate them by actual foot collision, not
-                            // stack monsters on the same fixed point.
-                            p=new Point(distant.x+(i%2)*2f,
-                                distant.y-(i%2)*2f);
-                            if(!CanStand(p))p=distant;
-                        }
-                    }
+                    // Preserve the tested mandatory Abyss combat wave at
+                    // its original seeded positions. Remote galleries now
+                    // reward exploration through existing side-circuit,
+                    // survey, cache and refuge mechanics instead.
                     enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, p,
                         38 + save.abyssFloor * 6 + save.abyssRisk * 10));
                 }
