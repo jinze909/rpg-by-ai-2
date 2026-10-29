@@ -5792,6 +5792,30 @@
           "y": 42.5
         },
         {
+          "id": "bridge_heart",
+          "name": "断弦桥 · 余震核心",
+          "en": "Broken Chord Bridge · Echo Core",
+          "kind": "bridgeheart",
+          "x": 45.5,
+          "y": 37.5
+        },
+        {
+          "id": "bridge_low",
+          "name": "断弦桥 · 低频音叉",
+          "en": "Broken Chord Bridge · Low-Frequency Fork",
+          "kind": "bridgelow",
+          "x": 47.5,
+          "y": 42.5
+        },
+        {
+          "id": "bridge_high",
+          "name": "断弦桥 · 高频接地桩",
+          "en": "Broken Chord Bridge · High-Frequency Ground",
+          "kind": "bridgehigh",
+          "x": 49.5,
+          "y": 45.5
+        },
+        {
           "id": "silentledger_notice",
           "name": "堡垒档案 · 被抹去的名册",
           "en": "Citadel Archives · Erased Register",
