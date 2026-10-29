@@ -83,6 +83,69 @@ namespace Starfall.Tests
                 restored.save.inventory[4]==gear,
                 "Reclaimed timber persists in v2 while transient traps reset");
         }
+        public static void ActualSnaredEnemyCanBeRestrainedAliveWithoutKillOrLoot(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.inventory[0]=8;g.save.inventory[4]=8;
+            Point foot=PutRealSnare(g),hero=g.Position;
+            var foe=new Enemy(79333,0,foot.x,foot.y,85f);
+            foe.hitTime=5f;g.enemies.Add(foe);
+            Check(!g.CanBindSnaredEnemy&&!g.BindSnaredEnemy(),
+                "A living enemy is not instantly removable before a real snare hits");
+            for(int i=0;i<11;i++)g.Tick(.05f,new Point());
+            Check(foe.hp==85f&&foe.stun>1f&&g.CanBindSnaredEnemy&&
+                Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                "The original live world trap creates an exact-actor short capture window");
+            int coins=g.save.coins,kills=g.save.kills[0],
+                oldWood=g.save.inventory[0],oldGear=g.save.inventory[4];
+            int beforeLevel=g.save.level,beforeXp=g.save.xp;
+            g.save.x=hero.x+9f;
+            Check(!g.BindSnaredEnemy()&&g.enemies.Contains(foe)&&
+                g.save.energy>=0f,
+                "A distant hero cannot remotely eliminate the captive");
+            g.save.x=hero.x;g.save.y=hero.y;
+            g.save.energy=9f;
+            Check(!g.BindSnaredEnemy()&&g.enemies.Contains(foe),
+                "Restraint cannot bypass its ten stamina cost");
+            g.save.energy=100f;
+            Check(g.BindSnaredEnemy()&&!g.enemies.Contains(foe)&&
+                g.save.energy==90f&&g.save.coins==coins&&
+                g.save.kills[0]==kills&&g.save.inventory[0]==oldWood&&
+                g.save.inventory[4]==oldGear&&
+                g.Has("field_snare_mercy_first"),
+                "Physical nonlethal restraint removes exactly the genuine actor without kill, loot or material gain");
+            Check(!g.BindSnaredEnemy()&&g.enemies.Count==0,
+                "The same captive cannot be restrained or rewarded twice");
+            Check(g.save.level>beforeLevel||g.save.xp>beforeXp,
+                "A first true nonlethal success grants a single meaningful mastery record");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.Has("field_snare_mercy_first")&&
+                !restored.CanBindSnaredEnemy,
+                "V2 preserves the earned restraint memory without serializing transient bind targets");
+        }
+        public static void FieldSnareBindExpiresAndIgnoresUnrelatedStuns(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.inventory[0]=9;g.save.inventory[4]=9;
+            Point foot=PutRealSnare(g);
+            var unrelated=new Enemy(79334,0,foot.x+3f,foot.y,80f);
+            unrelated.hitTime=5f;unrelated.stun=2f;g.enemies.Add(unrelated);
+            Check(!g.CanBindSnaredEnemy&&!g.BindSnaredEnemy(),
+                "An ordinary stun does not impersonate a real snare capture");
+            var foe=new Enemy(79335,0,foot.x,foot.y,80f);
+            foe.hitTime=5f;g.enemies.Add(foe);
+            for(int i=0;i<11;i++)g.Tick(.05f,new Point());
+            Check(g.CanBindSnaredEnemy&&g.enemies.Contains(foe),
+                "Snare capture opens an initially usable physical window");
+            g.save.x=foot.x+10f;g.save.y=foot.y;
+            for(int i=0;i<70;i++)g.Tick(.05f,new Point());
+            g.save.x=foot.x-1.35f;g.save.y=foot.y;
+            Check(!g.CanBindSnaredEnemy&&!g.BindSnaredEnemy()&&
+                g.enemies.Contains(foe),
+                "A stale captured enemy cannot be restrained after the true hold expires");
+        }
         public static void FieldSnaresExpireResetAcrossRoomsAndOldSaveSlots(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();

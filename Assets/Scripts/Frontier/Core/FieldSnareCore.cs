@@ -17,6 +17,9 @@ namespace Starfall
         private readonly List<FieldSnare> fieldSnares=new List<FieldSnare>(3);
         private readonly Dictionary<Enemy,Point> fieldSnarePreviousFeet=
             new Dictionary<Enemy,Point>();
+        // Exact live actor references, not recyclable numeric enemy IDs.
+        // Only a GENUINELY triggered snare grants a short nonlethal bind.
+        private readonly HashSet<Enemy> fieldSnareBindCandidates=new HashSet<Enemy>();
         private int fieldSnareRoom=-1;
         private MapData fieldSnareMap;
         public IList<FieldSnare> FieldSnares
@@ -121,6 +124,60 @@ namespace Starfall
                     (foe.Position-Position).Length<3f)return null;
             return nearest;
         }
+        // A real planted snare is the ONLY source of a bind opportunity.
+        // Other stuns, ordinary attacks, distant enemies and Bosses are not
+        // converted into free instant kills or mission progression.
+        private Enemy BindableFieldEnemy()
+        {
+            if(mode!="world"||Dying||practicing||racing||
+               ActionTransitionBlocked||!CanStand(Position)||
+               save.energy<10f||fieldSnareRoom!=save.room||
+               !Object.ReferenceEquals(fieldSnareMap,Map))return null;
+            Enemy nearest=null;float best=1.5f;
+            foreach(Enemy foe in fieldSnareBindCandidates)
+            {
+                if(foe==null||foe.hp<=0f||foe.boss||
+                    !enemies.Contains(foe)||foe.stun<=.35f||
+                    ArrowSoundCannotOverrideObjective(foe)||
+                    !CanStand(foe.Position))continue;
+                float distance=(Position-foe.Position).Length;
+                if(distance>=best||!ClearAttackPath(Position,foe.Position))
+                    continue;
+                best=distance;nearest=foe;
+            }
+            return nearest;
+        }
+        public Enemy SnaredBindTarget {get{return BindableFieldEnemy();}}
+        public bool CanBindSnaredEnemy {get{return BindableFieldEnemy()!=null;}}
+        public bool BindSnaredEnemy()
+        {
+            Enemy target=BindableFieldEnemy();
+            if(target==null)return false;
+            // Remove this one ACTUAL actor, not every enemy with its ID.
+            // Pending attack warnings are retired; already released
+            // projectiles retain their actual flight and collision.
+            save.energy-=10f;
+            fieldSnareBindCandidates.Remove(target);
+            fieldSnarePreviousFeet.Remove(target);
+            RemoveEnemyPendingWarning(target);
+            enemies.Remove(target);
+            effects.Add(new Effect("burst",target.Position,.65f)
+                {radius=.85f,variant=0});
+            effects.Add(new Effect("number",target.Position,.9f,
+                L("非致命制服","RESTRAINED")));
+            if(!Has("field_snare_mercy_first"))
+            {
+                Flag("field_snare_mercy_first");
+                AddXp(25);
+                RecordMoment(
+                    "绊索拦住了袭击者，旅人亲手收紧绳结，留下活口，不让一次遭遇变成又一份伤亡名单。",
+                    "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
+            }
+            sound="counter";revision++;
+            Notify("袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",
+                "Raider restrained alive. No kill, loot or Boss credit.");
+            return true;
+        }
         public bool CanRecoverFieldSnare {get{return RecoverableFieldSnare()!=null;}}
         public bool RecoverFieldSnare()
         {
@@ -135,6 +192,7 @@ namespace Starfall
         private void ResetFieldSnares()
         {
             fieldSnares.Clear();fieldSnarePreviousFeet.Clear();
+            fieldSnareBindCandidates.Clear();
             fieldSnareRoom=-1;fieldSnareMap=null;
         }
         private void ValidateFieldSnareWorld()
@@ -220,6 +278,8 @@ namespace Starfall
         private void TickFieldSnares(float dt)
         {
             ValidateFieldSnareWorld();
+            fieldSnareBindCandidates.RemoveWhere(e=>e==null||
+                e.hp<=0f||e.stun<=.01f||!enemies.Contains(e));
             for(int i=fieldSnares.Count-1;i>=0;i--)
             {
                 FieldSnare snare=fieldSnares[i];
@@ -238,6 +298,7 @@ namespace Starfall
                     Has("field_snare_mastered")?2.1f:1.5f);
                 triggered.armorOpenTime=Math.Max(triggered.armorOpenTime,.7f);
                 triggered.state=0;triggered.timer=Math.Max(triggered.timer,.35f);
+                fieldSnareBindCandidates.Add(triggered);
                 effects.Add(new Effect("burst",snare.foot,.36f)
                     {radius=.8f,variant=0});
                 effects.Add(new Effect("number",triggered.Position,.8f,
