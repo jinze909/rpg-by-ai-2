@@ -1319,7 +1319,7 @@ namespace Starfall
                     Text(originX+172,originY-18,134,14,
                         Game.L("可采补给 ","FIELD SUPPLIES ")+
                         (total-gathered)+"/"+total,10,mint,
-                        TextAnchor.MiddleRight);
+                        TextAnchor.MiddleCenter);
             }
             foreach(WorldObject site in map.objects)
             {
