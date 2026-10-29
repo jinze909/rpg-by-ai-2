@@ -426,6 +426,64 @@ namespace Starfall.Tests
                 "Seven independent saved first-clears complete the permanent civilian patrol atlas");
         }
 
+        // A bent but fully walkable field lane is valid even if every old
+        // eight-direction ray has become a wall. Exercise the live post,
+        // dialogue and registered enemies; never grant a partial free wave.
+        public static void WindingSurveyRoadCanStageCompletePhysicalPatrol(Campaign data)
+        {
+            MapData map=data.maps[1];
+            string[] original=map.rows;
+            string[] changed=(string[])original.Clone();
+            const int sx=72,sy=26;
+            int[,] dirs={{1,0},{0,1},{-1,0},{0,-1},
+                {1,1},{-1,1},{-1,-1},{1,-1}};
+            try
+            {
+                // Only the local test fixture is edited; the shipped region
+                // and all neighboring test runs retain their original rows.
+                for(int y=sy-14;y<=sy+14;y++)
+                {
+                    char[] line=changed[y].ToCharArray();
+                    for(int x=sx-14;x<=sx+14;x++)line[x]='.';
+                    changed[y]=new string(line);
+                }
+                for(int d=0;d<8;d++)
+                for(int radius=7;radius<=12;radius++)
+                {
+                    int x=sx+dirs[d,0]*radius;
+                    int y=sy+dirs[d,1]*radius;
+                    char[] line=changed[y].ToCharArray();
+                    line[x]='#';changed[y]=new string(line);
+                }
+                map.rows=changed;
+                GameCore g=Fresh(data);
+                g.save.room=1;g.mode="world";g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_1");
+                WorldObject post=Array.Find(g.Map.objects,
+                    o=>o.id=="biomeSurvey1"&&o.kind=="biomeSurvey");
+                Check(post!=null&&PlaceWithinTalkReach(g,post),
+                    "Winding field post remains authentically reachable");
+                Point origin=g.Position;
+                g.Talk(post);
+                int accept=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin");
+                Check(accept>=0,"Authentic patrol dialogue offers a contract");
+                g.Choose(accept);
+                Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==2&&
+                    g.enemies.Count==2,
+                    "Winding but connected road stages a complete real wave");
+                foreach(Enemy foe in g.enemies)
+                    Check(g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(origin,foe.Position,true).Count>0&&
+                        (foe.Position-origin).Length>=5f,
+                        "Fallback raider is reached by actual collision-aware walking");
+                Check((g.enemies[0].Position-g.enemies[1].Position).Length>=5f&&
+                    !g.FieldPatrolDone(1)&&g.save.version==2,
+                    "Separated raiders grant no receipt before genuine combat");
+            }
+            finally {map.rows=original;}
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)

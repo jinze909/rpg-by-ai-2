@@ -245,6 +245,24 @@ namespace Starfall
         // only by the actual field-survey transaction. They must not move
         // the old campaign's mandatory room roster out of reach, nor turn
         // a distant core-Boss gate into a whole-map hunting chore.
+        // Preserve the region's deliberate first-choice patrol approaches.
+        // For a paid contract on a winding road, an open WALKING route is
+        // stronger evidence than eight straight compass rays. Never spawn
+        // inside another actor, beside a quest prop or through a closed gate.
+        private bool RegionalScoutFootClear(Point p,Point source,
+            bool requireFull,List<Point> selected)
+        {
+            if(!CanStand(p)||(p-Position).Length<5f)return false;
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&(new Point(o.x,o.y)-p).Length<4.5f)
+                    return false;
+            foreach(Enemy e in enemies)
+                if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
+                    return false;
+            if(selected.Exists(q=>(q-p).Length<5f))return false;
+            return requireFull?ActorHasLocalRoute(Position,p,16):
+                ClearAttackPath(source,p);
+        }
         private int SpawnRegionalScoutEncounter(WorldObject site,bool requireFull=false)
         {
             if(site==null||site.kind!="biomeSurvey"||save.room<1||
@@ -268,20 +286,27 @@ namespace Starfall
                     float dx=directions[direction,0],dy=directions[direction,1];
                     Point p=new Point((float)Math.Floor(source.x)+.5f+dx*radius,
                         (float)Math.Floor(source.y)+.5f+dy*radius);
-                    if(!CanStand(p)||(requireFull?
-                        !ActorHasLocalRoute(Position,p,16):
-                        !ClearAttackPath(source,p))||
-                        (p-Position).Length<5f)continue;
-                    bool obstructed=false;
-                    foreach(WorldObject o in Map.objects)
-                        if((new Point(o.x,o.y)-p).Length<4.5f)
-                        {obstructed=true;break;}
-                    foreach(Enemy e in enemies)
-                        if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
-                        {obstructed=true;break;}
-                    if(obstructed||pads.Exists(q=>(q-p).Length<5f))
+                    if(!RegionalScoutFootClear(p,source,requireFull,pads))
                         continue;
                     pads.Add(p);found=true;
+                }
+            }
+            // Irregular roads can invalidate every exact compass ray while
+            // still offering real connected combat ground beside the post.
+            // Search only this district, and only for full paid contracts;
+            // never drag an enemy across the map or reward a partial wave.
+            if(requireFull&&pads.Count<count)
+            {
+                int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
+                for(int radius=6;radius<=13&&pads.Count<count;radius++)
+                for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
+                for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+                {
+                    if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                        Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                    Point p=new Point(sx+dx+.5f,sy+dy+.5f);
+                    if(RegionalScoutFootClear(p,source,true,pads))
+                        pads.Add(p);
                 }
             }
             // Paid-off patrol contracts require a FULL wave. Check all feet
