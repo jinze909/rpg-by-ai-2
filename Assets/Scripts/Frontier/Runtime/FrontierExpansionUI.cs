@@ -566,9 +566,18 @@ namespace Starfall
                         Game.BridgeOfChordsResonators+
                         "/2 · "+Game.L("下一波 ","NEXT PULSE ")+
                         Game.BridgeOfChordsPulse.ToString("0.0")+"s",11,ink);
+                    // The same encounter-owned live state that enables
+                    // the interaction drives the warning; no fake HUD pulse.
                     Text(35,609,590,18,
-                        Game.L("地面红圈可躲避 · 音叉需现场接地",
-                            "DODGE REAL GROUND WARNING · GROUND FORKS IN PERSON"),10,ink);
+                        Game.BridgeOfChordsCanDischarge?
+                            Game.L("红圈已亮 · 到已接地音叉按 E 消除（耐力8）",
+                                "SURGE WARNED · E AT GROUNDED FORK (8 STAMINA)"):
+                        Game.BridgeOfChordsResonators>0?
+                            Game.L("已接地音叉可以抵消下一次红圈（耐力8）",
+                                "GROUNDED FORKS CAN DISCHARGE SURGES (8 STAMINA)"):
+                            Game.L("地面红圈可躲避 · 音叉需现场接地",
+                                "DODGE REAL GROUND WARNING · GROUND FORKS IN PERSON"),
+                        10,Game.BridgeOfChordsCanDischarge?mint:ink);
                 }
             }
             // A new authored Glass Desert investigation, never fabricated
@@ -1676,9 +1685,15 @@ namespace Starfall
                 // Authored three real walkable old-bridge prop objects:
                 // central core, low and high fork stations.
                 Point site=new Point(o.x,o.y);
-                Color cue=Game.BridgeOfChordsComplete?mint:
-                    Game.BridgeOfChordsActive?gold:muted;
                 bool heart=o.kind=="bridgeheart";
+                bool grounded=!heart&&Game.BridgeOfChordsActive&&
+                    (o.kind=="bridgelow"?
+                        Game.BridgeOfChordsResonators>=1:
+                        Game.BridgeOfChordsResonators>=2);
+                bool canDischarge=grounded&&Game.BridgeOfChordsCanDischarge;
+                Color cue=canDischarge?mint:
+                    Game.BridgeOfChordsComplete?mint:
+                    Game.BridgeOfChordsActive?gold:muted;
                 PropImage("post",0,p.x-(heart?31:23),
                     p.y-(heart?77:66),
                     heart?62:46,heart?77:66,cue);
@@ -1686,10 +1701,12 @@ namespace Starfall
                 if(Game.BridgeOfChordsUnlocked)
                 {
                     Text(p.x-109,p.y-91,218,18,
+                        canDischarge?
+                            Game.L("按 E 引走冲击","E · DISCHARGE SURGE"):
                         heart?Game.L("余震核心","ECHO CORE"):
                         o.kind=="bridgelow"?
-                        Game.L("低频接地音叉","LOW RESONATOR"):
-                        Game.L("高频接地桩","HIGH RESONATOR"),
+                            Game.L("低频接地音叉","LOW RESONATOR"):
+                            Game.L("高频接地桩","HIGH RESONATOR"),
                         10,cue,TextAnchor.MiddleCenter);
                 }
                 return true;
