@@ -4557,13 +4557,16 @@ namespace Starfall
                         C("出示撤离名单与同伴承诺 · 民用停战",
                             "Present evacuation roster and allied support · civilian ceasefire","blackout_ceasefire"),
                         C("仍然挑战统领","Fight Orrin","boss"),
-                        C("再做准备","Prepare first","close"));return;
+                        C("再做准备","Prepare first","close"));
+                    AppendChapterRoadBossForeword();return;
                 }
                 if (save.room == 4 && Proofs == 3 && save.frontierEnding == 3)
                 {
-                    Dialog(b.name, b.en, "三份原始记录摆在厄洛面前：港口的水位、沙海的调度、高原被封存的名字。你也带来了一个已经开始运行的三方协定。\n\n他不再能说除此之外别无选择。你可以提出让他放下武器，也可以坚持决斗。", "The tide log, allocation ledger and sealed names lie before Orrin. You also bring a working covenant between three regions.\n\nHe can no longer claim there is no alternative. Ask him to stand down, or insist on a duel.", C("用证词与协定说服他", "Present the records and covenant", "parley"), C("仍然挑战统领", "Challenge the warden", "boss"), C("准备一下", "Prepare", "close")); return;
+                    Dialog(b.name, b.en, "三份原始记录摆在厄洛面前：港口的水位、沙海的调度、高原被封存的名字。你也带来了一个已经开始运行的三方协定。\n\n他不再能说除此之外别无选择。你可以提出让他放下武器，也可以坚持决斗。", "The tide log, allocation ledger and sealed names lie before Orrin. You also bring a working covenant between three regions.\n\nHe can no longer claim there is no alternative. Ask him to stand down, or insist on a duel.", C("用证词与协定说服他", "Present the records and covenant", "parley"), C("仍然挑战统领", "Challenge the warden", "boss"), C("准备一下", "Prepare", "close"));
+                    AppendChapterRoadBossForeword();return;
                 }
                 Dialog(b.name, b.en, save.room == 4 ? (Has("triad_complete") ? "你带来了三核审计的原始记录。厄洛终于看到森林、河流与矿工分别失去的份额。他沉默了一阵，却仍握住武器：如果停下这道屏障，谁来保护里面的孩子？让我看看你的勇气，而不是另一道命令。\n\n" : "") + "厄洛：我见过屏障熄灭的那一晚。孩子们冻得发抖，我一个一个把他们抱进避难室。我发誓再也不让城墙倒下。\n\n你说星核在抽干城外的村庄？我知道。但现在停机，又该让谁在下一场灾害里死去？如果你有能真正运转的办法，就让我看见；否则先打败我。" : "守护者仍依照失控的星根旧指令驱赶靠近者。地面预警标出它即将攻击的区域。闪避后反击，并查清这一带的机关为何不能停止。", save.room == 4 ? (Has("triad_complete") ? "Your original audit lists the forests, rivers and miners stripped of their share. Orrin sees the accounts and falls silent, but grips his weapon: Who protects the children inside if the shield stops? Show me courage, not another command.\n\n" : "") + "Orrin: I remember the night the lights died. I carried freezing children into shelter, one by one. I swore no wall would fall again.\n\nYou say the cores are draining the villages? I know. But if I stop the shield now, who dies in the next storm? Show me an alternative that actually works—or defeat me first." : "The guardian still obeys an unstable ancient starroot command. Ground warnings reveal its next real contacts. Dodge and counter, then investigate why the regional machinery cannot stop.", C(save.room == 4 ? "为边境而战" : "开始挑战", save.room == 4 ? "Fight for the frontier" : "Challenge the guardian", "boss"), C("准备一下", "Prepare first", "close"));
+                AppendChapterRoadBossForeword();
             }
         }
         // Starcore handoffs MUST continue the story even at storage caps.

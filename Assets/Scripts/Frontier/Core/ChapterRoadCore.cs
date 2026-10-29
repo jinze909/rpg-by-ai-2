@@ -570,6 +570,50 @@ namespace Starfall
                 "Chapter route signed! This real site now offers safe local public care.");
             return true;
         }
+        // This is a narrative CONSEQUENCE of the real chapter handoff,
+        // not another compulsory quest or an invented extra boss choice.
+        // It is attached to the original live shrine conversation, including
+        // Orrin's established peaceful alternatives, without changing them.
+        private void AppendChapterRoadBossForeword()
+        {
+            if(save.room<1||save.room>4||!ChapterRoadDone(save.room)||
+               mode!="dialog"||conversation==null)return;
+            bool publicRecord=ChapterRoadChoice(save.room)==2;
+            string zh="",en="";
+            switch(save.room)
+            {
+                case 1:
+                    zh="林间的求救铃重新响起，连被荆棘封死的旧路都传来了回音。巨兽脚下的腐根裂开，露出早已失灵的护林铭文。";
+                    en="The rescue bell rings again through the forest. Old roots split beneath the beast, exposing the broken warding runes under its feet.";
+                    break;
+                case 2:
+                    zh=publicRecord?
+                        "渡工在岸边念出了失踪者的姓名。水声掩不住那些人的回答。守卫回头寻找旧渡船，胸口的潮汐机关因此露出空隙。":
+                        "摆渡人将名单收进防水筒。旧渡船的灯仍为他们亮着，潮汐守卫的机关跟着被打乱的水位闪烁。";
+                    en=publicRecord?
+                        "The ferry crew speak the missing names aloud. Voices answer across the water; the sentinel turns toward the old boat and exposes a gap in its tide mechanism.":
+                        "The crew seal their names inside a dry case. Old ferry lamps remain lit, and the sentinel's tide mechanism flickers against the changed current.";
+                    break;
+                case 3:
+                    zh=publicRecord?
+                        "矿工把停机联名纸钉在监工的门上。泄压管终于有了喘息的间隙，铁甲后那根一直绷紧的传动轴露了出来。":
+                        "独立复核的工单被送到安全的工棚。矿场的泄压管重新开启，监工铁甲里的传动轴不再承受全部压力。";
+                    en=publicRecord?
+                        "Miners nail their stop-work petition to the overseer's door. Steam escapes through the relief pipe, exposing the drive shaft behind its iron armor.":
+                        "Workers carry their protected work order to the safe shed. The reopened vent lowers the pressure across the overseer's armored drive.";
+                    break;
+                case 4:
+                    zh=publicRecord?
+                        "厄洛在城门外看见一面新的姓名墙。“这些名字怎么会在外头？”他停顿了片刻。没人替居民回答，墙上的纸却没有被撕掉。":
+                        "一名撤离的孩子把家人的名单递给厄洛。他看见同一份记录上城内与城外的地址，终于放下了握着铁门把手的那只手。";
+                    en=publicRecord?
+                        "Orrin sees the new wall of names outside his gates. 'Why were these people kept out?' No one answers for the civilians. The notices remain nailed in place.":
+                        "An evacuated child gives Orrin a copy of the family's names. Inside and outside addresses share the same page. His hand loosens on the gate handle.";
+                    break;
+            }
+            conversation.text+="\n\n"+zh;
+            conversation.textEn+="\n\n"+en;
+        }
         private void AppendChapterRoadGuildChoice(WorldObject o)
         {
             if(save.room!=0||save.ending>0||o==null||
