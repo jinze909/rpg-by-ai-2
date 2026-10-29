@@ -202,7 +202,7 @@ namespace Starfall
                         "旧名册上“空车”的红戳被划掉，旁边十七份原始签字清清楚楚。公开副本就在铁柜外，不能再把活人抹成一行货物。":
                     english?
                         "Seventeen signatures remain inside their sealed envelope. The false EMPTY sheet is preserved as evidence, but no one has posted the survivors' names without their consent.":
-                        "十七份签字仍封在原信封中。假的“空车”货单被留作证物，却没有人擅自张贴幸存者的姓名。";
+                        "十七份签字仍封在原信封中，纸页边角还保留着矿工摸黑写下的工号。假的“空车”货单被留作证物，却没有人擅自张贴幸存者的姓名。";
             if(site.id=="mine_ghost_switch")
                 return GhostTrainPublic?
                     english?
