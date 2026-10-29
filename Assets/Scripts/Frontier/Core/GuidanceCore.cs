@@ -2209,8 +2209,8 @@ namespace Starfall
                 q.title=L("第十章 · 最后指令","Chapter Ten · The Last Directive");
                 q.category=L("主线余波 · 原始证词、破译与守卫战",
                     "STORY AFTERMATH · TESTIMONY, CIPHER & COMBAT");
-                q.description=L("三地公共服务名册公开后，在余烬镇接到最后一道未署名的军用指令调查。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
-                    "After publishing the regional service ledger, investigate an unsigned citadel order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
+                q.description=L("三地公共服务名册公开后，旧军令调查直接解锁，无需再去告示牌接取。可向公会莉雅询问线索或直接进入堡垒外环搜集原件。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
+                    "The signed civic service ledger immediately unlocks this optional inquiry. Ask Lyra or go straight to the outer citadel evidence; no noticeboard handoff is needed. Investigate an unsigned order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
                 // A trace is an optional SECOND pass at each actual evidence
                 // object, not a hidden new ending requirement. Tell players
                 // where its gameplay payoff can be used before the final duel.
@@ -2218,7 +2218,7 @@ namespace Starfall
                     q.description+=L(
                         "\n\n可选调查：返回三份证词各查验背面的痕迹（"+LastDirectiveTraces+"/3）。全部查证后，在最终三名守卫战中可到原终端消耗20耐力接地一次，清除当前电弧并延后下一次。不会替你击败守卫。",
                         "\n\nOptional investigation: examine the reverse of all three original records ("+LastDirectiveTraces+"/3). Audit all three to ground one surge for 20 energy at the original console during the final three-guardian battle. The guards still need to be defeated.");
-                q.locked=!Has("civic_response_ledger");
+                q.locked=!LastDirectiveStarted;
                 // Publication already unlocks the next chapter, but an
                 // unpaid earned talent is still an actionable civic errand.
                 // Keep this journal entry OUT of the "completed quests"
@@ -4258,7 +4258,28 @@ namespace Starfall
                 save.stage == 1 ? "The first core is in guild custody, but the forest is not healed. A forgotten order locks the ruined sluices; restore Sun, Moon and Tide to expose its cost." :
                 save.stage == 2 ? "Two cores now feed the citadel, and the mines refuse to stop. Repair the elevator and discover whom the tireless machines serve." :
                 "Three cores feed Orrin's shield, protecting those inside while draining the outer land. Confront him and choose where their power belongs. Farshore testimony can reveal another path.");
-            q.complete = save.ending > 0;
+            // The decision at the citadel is the actual four-chapter finale.
+            // All subsequent playable civic content is independent and
+            // OPTIONAL, not eight more required chapters after saving the world.
+            if(save.ending>0)
+            {
+                q.title=L("星陨主线 · 已完结","The Fallen Star · Complete");
+                q.category=L("主线终章 · 结局已确定",
+                    "MAIN STORY FINALE · RESOLVED");
+                q.complete=true;q.locked=false;
+                q.room=save.room;q.target=Position;
+                for(int region=1;region<=3;region++)
+                    q.steps.Add(new QuestStep(
+                        L(new[]{"","密林星核交付","遗迹星核交付","矿场星核交付"}[region],
+                          new[]{"","Thornwood core delivered","Ruins core delivered","Mine core delivered"}[region]),
+                        save.stage>=region));
+                q.steps.Add(new QuestStep(L("在堡垒决定星核的归宿",
+                    "Decide the starcores' fate at the citadel"),true));
+                q.next=L("主线已经完结。自由探索，或在公会自愿加入后日谈；不必再完成任何新主线。",
+                    "The main story is complete. Explore freely, or opt into afterstory work at the guild. No new mandatory story remains.");
+                return q;
+            }
+            q.complete = false;
             int chapter = save.stage + 1; q.room = chapter; q.target = new Point(29, 8);
             bool gateOpen = chapter == 4 || chapter == 1 && Has("scout_saved") || Has("gate_" + chapter);
             q.steps.Add(new QuestStep(L(chapter == 1 ? "解救侦察员" : chapter == 2 ? "破解遗迹石碑" : chapter == 3 ? "修复矿场升降机" : "抵达统领所在祭坛", chapter == 1 ? "Rescue the scout" : chapter == 2 ? "Solve the tablets" : chapter == 3 ? "Repair the elevator" : "Reach the warden's altar"), gateOpen));

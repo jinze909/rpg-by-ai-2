@@ -4207,7 +4207,7 @@ namespace Starfall
                     "She slides over a blank roadwarden's slip. “There's hot stew at the inn. Take what you need before you go. No one's ordering you out. The roads still need someone.”",
                     C("开始新的远征", "Another expedition", "routes"),
                     C("回顾结局", "Revisit the ending", "epilogue"),
-                    C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); return; }
+                    C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); AddLastDirectiveGuildChoice(); return; }
                 int next = save.stage + 1;
                 if (save.stage < 3 && Has("core_" + next))
                     Dialog(o.name, o.en, (Has("witness_complete_"+next) ?
@@ -5109,7 +5109,11 @@ namespace Starfall
             {
                 int ending = int.Parse(action.Substring(6));
                 if (ending == 3 && Allies < 3) { FinalConversation(); return; }
-                save.ending = ending; Flag("completed"); Epilogue(); revision++;
+                save.ending = ending; Flag("completed");
+                // The starcore choice closes the campaign. Optional civic
+                // aftermath remains available, but cannot masquerade as
+                // unfinished mandatory main story.
+                TrackQuest("main"); Epilogue(); revision++;
             }
             if (action == "epilogue") Epilogue();
             if (action == "continue") Enter(0);
@@ -5331,7 +5335,7 @@ namespace Starfall
                 zh[ending] += "\n\n三核审计的原始记录存放在公会和居民档案中。无论你选择如何调配星核，今后的每份供能账都必须记下谁获益、谁承担代价。";
                 en[ending] += "\n\nThe original three-core audit is now public. Whatever you decided for the cores, future energy records must name both those protected and those paying the price.";
             }
-            Dialog("星陨边境 · 终章", "Starfall Frontier · Epilogue", zh[ending], en[ending], C("继续冒险与生活", "Keep adventuring", "continue")); sound = "reward";
+            Dialog("星陨边境 · 终章", "Starfall Frontier · Epilogue", zh[ending], en[ending], C("主线已完结 · 自由探索", "Main story complete · Explore freely", "continue")); sound = "reward";
         }
         public string GateHint(bool en)
         {

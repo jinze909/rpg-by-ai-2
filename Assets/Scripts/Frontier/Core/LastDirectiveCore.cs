@@ -16,7 +16,11 @@ public sealed partial class GameCore {
     {get{return directiveRoom==4&&directivePhase==3&&
         LastDirectiveTraces==3&&!directiveEvidenceGroundUsed;}}
     private static readonly Point[] directiveSpawns={new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(98.5f,74.5f),new Point(104.5f,74.5f),new Point(106.5f,73.5f)};
-    public bool LastDirectiveStarted {get{return Has("last_directive_started");}}
+    // A signed regional service ledger already unlocks the historical
+    // evidence. No second trip to a town signboard is required, including
+    // on an existing v2 save made after the three civic services.
+    public bool LastDirectiveStarted {get{return Has("last_directive_started")||
+        (save.ending>0&&Has("civic_response_ledger"));}}
     public bool LastDirectiveComplete {get{return Has("last_directive_complete");}}
     // Signed, unpaid Chapter Ten talent is represented by an existing
     // SaveData v2 string flag. The civic decision can publish even when
@@ -157,6 +161,16 @@ public sealed partial class GameCore {
             wave==1?"Two real citadel guardians engage.":"Second lock: melee, archer and armored guardians engage!");
         return true;
     }
+    private void AddLastDirectiveGuildChoice()
+    {
+        if(save.ending==0||!Has("civic_response_ledger")||
+            LastDirectiveComplete||conversation==null)return;
+        var choices=new System.Collections.Generic.List<Choice>(conversation.choices);
+        choices.Add(C("莉雅的可选线索 · 未署名军令",
+            "Lyra's optional lead · unsigned order",
+            "last_directive_guild"));
+        conversation.choices=choices.ToArray();
+    }
     private bool TalkLastDirective(WorldObject o){
         if(!o.kind.StartsWith("lastdirective"))return false;
         if(!HasPhysicalInteractionReach(o))return true;
@@ -207,8 +221,8 @@ public sealed partial class GameCore {
                         "Lyra lays three rubbings across the council ledger.\n\n“They buried the miners' petition, then changed the ferry list. The people at the hearth wrote those names back. No one can pretend they never lived now.”":
                         "“The military copy is three pages shorter,” Lyra says, tapping the desk.\n\n“The miners' shutdown petition, the ferry list, and the roadwardens' hearth book are still outside the citadel. Compare the dates. Then we can prove what came first.”"):
                     "Lyra lays an unsigned order on the desk.\n\n“It says the citadel could cut power to anyone. Nine years ago, who decided those people would be left in darkness? Find the original records. Don't rely on my guesses.",
-                C(LastDirectiveStarted?"追踪现场证据":"接取第十章 · 最后指令",
-                    LastDirectiveStarted?"Track the testimonies":"Begin Chapter Ten · Last Directive",
+                C(LastDirectiveStarted?"标记可选调查路线":"接取旧军令调查",
+                    LastDirectiveStarted?"Mark optional evidence route":"Begin unsigned-order inquiry",
                     LastDirectiveStarted?"last_directive_track":"last_directive_begin"),C("稍后再谈","Later","close"));return true;
         }
         if(save.room!=4)return true;
@@ -289,6 +303,28 @@ public sealed partial class GameCore {
     private bool ChooseLastDirective(string action){
         if(!action.StartsWith("last_directive_"))return false;
         if(Dying||practicing)return true;
+        if(action=="last_directive_guild"||
+            action=="last_directive_guild_track")
+        {
+            WorldObject source=pendingDialogueSource;
+            if(save.room!=0||!LastDirectiveStarted||
+                LastDirectiveComplete||source==null||source.kind!="guild"||
+                pendingDialogueSourceRoom!=0||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source))return true;
+            if(action=="last_directive_guild_track")
+            {
+                TrackQuest("last_directive");return true;
+            }
+            Dialog(source.name,source.en,
+                "“三地居民服务名册公布后，才有人敢寄来这道没有署名的旧军令。”莉雅压低声音。\\n\\n“矿工停机信、渡船名册和巡路队的炉火记录都在堡垒外环。你已经解决了星核危机，这只是可选的后续调查。想查就直接去现场，不需要再去议事路牌领一次任务。”",
+                "“Only after we published the three civic service records did someone dare send this unsigned order,” Lyra says.\\n\\n“The original miners' petition, ferry list and roadwardens' hearth log remain in the citadel's outer ring. The starcore crisis is resolved; this investigation is optional. You can go straight there—no noticeboard assignment required.”",
+                C("追查堡垒原件 · 标记路线",
+                    "Investigate original records · Mark route",
+                    "last_directive_guild_track"),
+                C("先留着线索","Save this lead for later","close"));
+            return true;
+        }
         WorldObject board=null,core=null;foreach(WorldObject o in Map.objects){
             if(o.kind=="lastdirectiveboard")board=o;if(o.kind=="lastdirectivecore")core=o;
         }
