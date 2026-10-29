@@ -82,7 +82,7 @@ namespace Starfall
         private string[] navigationRouteRowSnapshot;
         private Decoration[] navigationRouteDecor;
         private bool navigationRouteCacheValid, navigationRouteLowTide, navigationRouteGateBarrier;
-        private bool navigationRouteFarBridge, navigationRouteSeal;
+        private bool navigationRouteFarBridge, navigationRouteSeal, navigationRouteBreach;
         private bool navigationRouteStrictQuestFinish;
         private int navigationRouteRoom = -1, navigationRouteFloor = -1;
         private int navigationRouteStartX = int.MinValue, navigationRouteStartY = int.MinValue;
@@ -712,6 +712,7 @@ namespace Starfall
             bool lowTide = Game.LowTide, gateBarrier = Game.GateBarrierActive;
             bool farBridge = Game.Has("far_bridge_" + Game.save.room);
             bool seal = Game.Has("seal_" + Game.save.room);
+            bool breach = Game.RidgeBreachOpen(Game.save.room);
             // Unlike optional best-effort story hints, an explicitly
             // accepted cross-region route MUST physically reach the portal's
             // interaction side. Cached permissive paths cannot be reused
@@ -726,6 +727,7 @@ namespace Starfall
                 navigationRouteTargetX == targetX && navigationRouteTargetY == targetY &&
                 navigationRouteLowTide == lowTide && navigationRouteGateBarrier == gateBarrier &&
                 navigationRouteFarBridge == farBridge && navigationRouteSeal == seal &&
+                navigationRouteBreach == breach &&
                 navigationRouteStrictQuestFinish == strictQuestFinish)
                 return navigationRouteCache;
 
@@ -744,6 +746,7 @@ namespace Starfall
             navigationRouteTargetX = targetX; navigationRouteTargetY = targetY;
             navigationRouteLowTide = lowTide; navigationRouteGateBarrier = gateBarrier;
             navigationRouteFarBridge = farBridge; navigationRouteSeal = seal;
+            navigationRouteBreach = breach;
             navigationRouteStrictQuestFinish=strictQuestFinish;
             navigationRouteCacheValid = true;
             return navigationRouteCache;

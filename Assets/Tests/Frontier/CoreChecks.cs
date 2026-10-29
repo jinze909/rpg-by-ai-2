@@ -6805,6 +6805,99 @@ namespace Starfall.Tests
         // each includes real blockage, local environmental silhouettes and
         // a deliberate land route to three physically separated field sites.
         // Old boss/portal/quest objects and dynamic flood seals are retained.
+        // These seven paid repairs alter the REAL active GameCore foot
+        // collision, not only story prose or the atlas. Original long roads
+        // remain available, while source-bound clearance shortens the live
+        // physical path between two formerly separated ground cells.
+        public static void SevenTerrainClearancesOpenActualWalkableShortcutsWithoutForgedRewards(Campaign data)
+        {
+            int[,] seams={
+                {96,15},{96,8},{23,24},{99,15},
+                {72,14},{108,17},{96,15}
+            };
+            var repair=typeof(GameCore).GetMethod("ChooseRidgeBreach",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(repair!=null,"Native real terrain repair action exists");
+            for(int region=1;region<=7;region++)
+            {
+                GameCore g=new GameCore(data);
+                g.mode="world";g.save.room=region;
+                MapData m=data.maps[region];
+                WorldObject source=Array.Find(m.objects,o=>
+                    o.kind=="ridgeBreach"&&o.id=="ridge_breach_"+region);
+                int bx=seams[region-1,0],by=seams[region-1,1];
+                bool horizontal=region==3;
+                Point from=horizontal?
+                    new Point(bx-.5f,by+.5f):
+                    new Point(bx+.5f,by-.5f);
+                Point beyond=horizontal?
+                    new Point(bx+1.5f,by+.5f):
+                    new Point(bx+.5f,by+1.5f);
+                Check(source!=null&&m.rows[by][bx]=='!'&&
+                    g.Blocked(bx+.5f,by+.5f)&&
+                    g.CanStand(from)&&g.CanStand(beyond),
+                    "Each new civilian cut-through starts as a genuine blocked footprint with safely accessible approach sides");
+                Check(Math.Abs(source.x-from.x)<.01f&&
+                    Math.Abs(source.y-from.y)<.01f,
+                    "Only the actual near-side worker owns the original physical repair interaction");
+                var oldRoute=g.NavigationPathFrom(from,beyond,true);
+                Check(oldRoute.Count>8,
+                    "The blocked original passage must genuinely require a long detour, not merely repaint an open tile");
+                for(int item=0;item<5;item++)g.save.inventory[item]=25;
+                int coins=g.save.coins;
+                repair.Invoke(g,new object[]{"ridge_breach_clear"});
+                Check(!g.RidgeBreachOpen(region)&&g.save.coins==coins,
+                    "A remote forged source-free repair cannot grant new road permissions or coin rewards");
+                g.save.x=from.x;g.save.y=from.y;
+                g.Talk(source);
+                int action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_breach_clear");
+                Check(action>=0&&g.conversation.textEn.Length>95,
+                    "Every authentic biome contains its own human story and material-powered physical clearance");
+                // Moving away makes even a previously legitimate menu stale.
+                g.save.x=from.x+9;g.save.y=from.y;
+                g.Choose(action);
+                Check(!g.RidgeBreachOpen(region)&&g.save.coins==coins,
+                    "Walking away from the source prevents stale dialogue from purchasing a distant road");
+                g.save.x=from.x;g.save.y=from.y;
+                g.Talk(source);
+                action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_breach_clear");
+                Check(action>=0,"The genuine on-site repair can be reattempted");
+                g.Choose(action);
+                Check(g.RidgeBreachOpen(region)&&
+                    !g.Blocked(bx+.5f,by+.5f)&&
+                    g.CanStand(new Point(bx+.5f,by+.5f))&&
+                    g.save.coins==coins+8,
+                    "Actual payment opens only the region's correct persistent blocked footprint and pays once");
+                var restored=g.NavigationPathFrom(from,beyond,true);
+                Check(restored.Count>0&&restored.Count<=3&&
+                    restored.Count<oldRoute.Count,
+                    "The repaired field tile provides an immediate genuinely SHORTER physical walking route");
+                g.Talk(source);
+                Check(!Array.Exists(g.conversation.choices,
+                    c=>c.action=="ridge_breach_clear"),
+                    "Completed civilian work never offers a repeatable payout");
+                g.Close();
+                g.save.room=0;g.save.x=data.maps[0].spawnX;
+                g.save.y=data.maps[0].spawnY;
+                g.PrepareSave();
+                GameCore loaded=new GameCore(data,g.save);
+                loaded.mode="world";loaded.save.room=region;
+                Check(loaded.save.version==2&&loaded.RidgeBreachOpen(region)&&
+                    loaded.CanStand(new Point(bx+.5f,by+.5f)),
+                    "Existing SaveData v2 retains real physical passage, not a transient rendering hack");
+            }
+            GameCore all=new GameCore(data);
+            for(int region=1;region<=7;region++)
+                all.save.flags.Add("ridge_breach_done_"+region);
+            Check(all.RidgeBreachOpenCount==7&&
+                all.GetQuest("ridge_breaches").complete&&
+                all.GetQuest("ridge_breaches").steps.Count==7,
+                "Seven actual open passages complete the separate multi-region journal objective");
+        }
+
         public static void SevenRebuiltBiomesHavePhysicalCoverAndReachableOverlandNetworks(Campaign data)
         {
             int[,] actualSolid={

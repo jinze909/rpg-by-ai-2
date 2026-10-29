@@ -21,6 +21,9 @@ namespace Starfall
             // Locked gate surfaces are rasterized as stone; an unlocked seal
             // must invalidate the same cached map immediately.
             code=code*31+(Game.Has("seal_"+region)?1:0);
+            // A durable physical road clearance must rebuild the raster
+            // immediately: raw map rows stay '!' in SaveData v2.
+            code=code*31+(Game.RidgeBreachOpen(region)?1:0);
             if(!fog)return code;
             string prefix=region==8?
                 "abyss_annex_seen_"+Game.save.abyssSeed+"_"+Game.save.abyssFloor+"_":
@@ -50,7 +53,7 @@ namespace Starfall
         private int inspectedWalkRoom=-1,inspectedWalkFloor=-1;
         private int inspectedWalkStartX=int.MinValue,inspectedWalkStartY=int.MinValue;
         private Point inspectedWalkTarget;
-        private bool inspectedWalkLowTide,inspectedWalkGate,inspectedWalkBridge,inspectedWalkSeal;
+        private bool inspectedWalkLowTide,inspectedWalkGate,inspectedWalkBridge,inspectedWalkSeal,inspectedWalkBreach;
         private bool InspectedWalkRowsUnchanged(MapData map)
         {
             if(map==null||map.rows==null||inspectedWalkRowSnapshot==null||
@@ -74,7 +77,8 @@ namespace Starfall
             int startX=(int)Math.Floor(Game.Position.x);
             int startY=(int)Math.Floor(Game.Position.y);
             bool lowTide=Game.LowTide,gate=Game.GateBarrierActive;
-            bool bridge=Game.Has("far_bridge_"+room),seal=Game.Has("seal_"+room);
+            bool bridge=Game.Has("far_bridge_"+room),seal=Game.Has("seal_"+room),
+                breach=Game.RidgeBreachOpen(room);
             if(!object.ReferenceEquals(inspectedWalkOwner,Game)||
                 !object.ReferenceEquals(inspectedWalkMap,map)||
                 !object.ReferenceEquals(inspectedWalkDecor,map.decor)||
@@ -84,6 +88,7 @@ namespace Starfall
                 (inspectedWalkTarget-quest.target).Length>.001f||
                 inspectedWalkLowTide!=lowTide||inspectedWalkGate!=gate||
                 inspectedWalkBridge!=bridge||inspectedWalkSeal!=seal||
+                inspectedWalkBreach!=breach||
                 !InspectedWalkRowsUnchanged(map))
             {
                 // requirePhysicalFinish forbids a best-effort line across a
@@ -100,6 +105,7 @@ namespace Starfall
                 inspectedWalkTarget=quest.target;
                 inspectedWalkLowTide=lowTide;inspectedWalkGate=gate;
                 inspectedWalkBridge=bridge;inspectedWalkSeal=seal;
+                inspectedWalkBreach=breach;
                 inspectedWalkRowSnapshot=map.rows==null?null:(string[])map.rows.Clone();
             }
             return inspectedQuestWalk;

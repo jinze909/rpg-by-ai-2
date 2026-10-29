@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void SevenTerrainRepairsReallyUnblockWalkingAndSurviveOldSaveV2() { CoreChecks.SevenTerrainClearancesOpenActualWalkableShortcutsWithoutForgedRewards(Data()); }
         [Test] public void SevenBiomesHaveRealObstructingLandmarksAndContinuousThreeLegFieldRoads() { CoreChecks.SevenRebuiltBiomesHavePhysicalCoverAndReachableOverlandNetworks(Data()); }
         [Test] public void SevenHighlandWatchesSpreadAcrossDifferentWalkableBiomes() { CoreChecks.SevenRidgeWatchesActuallyOccupyDistinctReachableRegionalDistricts(Data()); }
         [Test] public void RealLocalNpcOffersDifferentActualRegionalJobs() { CoreChecks.RealCompanionLocalJobsOfferDistinctLiveQuestChoices(Data()); }
