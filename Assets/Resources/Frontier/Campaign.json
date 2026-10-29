@@ -393,19 +393,19 @@
         },
         {
           "id": "waytrail_supply0a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "街巷遗落药箱",
+          "en": "Lost neighborhood herbs",
           "kind": "herb",
-          "x": 25.5,
-          "y": 30.5
+          "x": 30.5,
+          "y": 44.5
         },
         {
           "id": "waytrail_supply0b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "旧市政工棚木料",
+          "en": "Civic repair timber",
           "kind": "wood",
-          "x": 40.5,
-          "y": 27.5
+          "x": 103.5,
+          "y": 68.5
         },
         {
           "id": "annex_cache_0_a",
@@ -466,26 +466,26 @@
         {
           "id": "trail_forager_0_0",
           "kind": "herb",
-          "name": "渠边苔草 · 1",
-          "en": "Canal Moss · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "运河边的药草",
+          "en": "Canal-bank herbs",
+          "x": 87.5,
+          "y": 23.5
         },
         {
           "id": "trail_forager_0_1",
           "kind": "wood",
-          "name": "渠边苔草 · 2",
-          "en": "Canal Moss · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "旧堤修缮木",
+          "en": "Old levee timber",
+          "x": 43.5,
+          "y": 60.5
         },
         {
           "id": "trail_forager_0_2",
           "kind": "herb",
-          "name": "渠边苔草 · 3",
-          "en": "Canal Moss · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "雨后堤岸药束",
+          "en": "Rainwashed levee herbs",
+          "x": 72.5,
+          "y": 48.5
         },
         {
           "id": "outer_0_0",
@@ -2050,6 +2050,42 @@
           "x": 101.5,
           "y": 57.5,
           "variant": 1
+        },
+        {
+          "kind": "lamp",
+          "x": 91.5,
+          "y": 22.5,
+          "variant": 0
+        },
+        {
+          "kind": "post",
+          "x": 85.5,
+          "y": 27.5,
+          "variant": 1
+        },
+        {
+          "kind": "post",
+          "x": 39.5,
+          "y": 61.5,
+          "variant": 1
+        },
+        {
+          "kind": "lamp",
+          "x": 41.5,
+          "y": 64.5,
+          "variant": 2
+        },
+        {
+          "kind": "lamp",
+          "x": 73.5,
+          "y": 53.5,
+          "variant": 2
+        },
+        {
+          "kind": "post",
+          "x": 68.5,
+          "y": 45.5,
+          "variant": 3
         }
       ]
     },
@@ -2332,19 +2368,19 @@
         },
         {
           "id": "waytrail_supply1a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "林下避难药篓",
+          "en": "Understory refuge herbs",
           "kind": "herb",
-          "x": 25.5,
-          "y": 30.5
+          "x": 35.5,
+          "y": 37.5
         },
         {
           "id": "waytrail_supply1b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "树根下的旧药箱",
+          "en": "Medicine beneath the roots",
           "kind": "herb",
-          "x": 40.5,
-          "y": 27.5
+          "x": 102.5,
+          "y": 49.5
         },
         {
           "id": "annex_cache_1_a",
@@ -2429,26 +2465,26 @@
         {
           "id": "trail_forager_1_0",
           "kind": "herb",
-          "name": "林下补给 · 1",
-          "en": "Forest Trail Materials · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "折枝路口月光草",
+          "en": "Herbs along broken branches",
+          "x": 87.5,
+          "y": 18.5
         },
         {
           "id": "trail_forager_1_1",
           "kind": "wood",
-          "name": "林下补给 · 2",
-          "en": "Forest Trail Materials · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "猎人旧营干木",
+          "en": "Abandoned hunter camp timber",
+          "x": 52.5,
+          "y": 57.5
         },
         {
           "id": "trail_forager_1_2",
           "kind": "herb",
-          "name": "林下补给 · 3",
-          "en": "Forest Trail Materials · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "荆棘外逃生草药",
+          "en": "Thornwood escape herbs",
+          "x": 20.5,
+          "y": 68.5
         },
         {
           "id": "outer_1_0",
@@ -4037,6 +4073,42 @@
           "x": 31.5,
           "y": 66.5,
           "variant": 2
+        },
+        {
+          "kind": "tree",
+          "x": 91.5,
+          "y": 17.5,
+          "variant": 1
+        },
+        {
+          "kind": "root",
+          "x": 88.5,
+          "y": 23.5,
+          "variant": 2
+        },
+        {
+          "kind": "root",
+          "x": 56.5,
+          "y": 56.5,
+          "variant": 2
+        },
+        {
+          "kind": "tree",
+          "x": 54.5,
+          "y": 53.5,
+          "variant": 3
+        },
+        {
+          "kind": "tree",
+          "x": 16.5,
+          "y": 69.5,
+          "variant": 3
+        },
+        {
+          "kind": "root",
+          "x": 24.5,
+          "y": 67.5,
+          "variant": 0
         }
       ]
     },
@@ -4343,19 +4415,19 @@
         },
         {
           "id": "waytrail_supply2a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "水尺旁的漂流木",
+          "en": "Driftwood by the flood gauge",
           "kind": "wood",
-          "x": 25.5,
-          "y": 30.5
+          "x": 46.5,
+          "y": 38.5
         },
         {
           "id": "waytrail_supply2b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "侧廊抢修木料",
+          "en": "Side gallery repair timber",
           "kind": "wood",
-          "x": 40.5,
-          "y": 27.5
+          "x": 85.5,
+          "y": 65.5
         },
         {
           "id": "annex_cache_2_a",
@@ -4440,26 +4512,26 @@
         {
           "id": "trail_forager_2_0",
           "kind": "wood",
-          "name": "退潮漂流木 · 1",
-          "en": "Ebb-Tide Timber · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "高阶旁的木板",
+          "en": "Timber on the high steps",
+          "x": 85.5,
+          "y": 14.5
         },
         {
           "id": "trail_forager_2_1",
           "kind": "herb",
-          "name": "退潮漂流木 · 2",
-          "en": "Ebb-Tide Timber · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "退潮石缝药草",
+          "en": "Ebb-tide crevice herbs",
+          "x": 34.5,
+          "y": 73.5
         },
         {
           "id": "trail_forager_2_2",
           "kind": "wood",
-          "name": "退潮漂流木 · 3",
-          "en": "Ebb-Tide Timber · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "旧渡口船舷木",
+          "en": "Abandoned ferry planks",
+          "x": 109.5,
+          "y": 56.5
         },
         {
           "id": "outer_2_0",
@@ -6114,6 +6186,42 @@
           "x": 104.5,
           "y": 24.5,
           "variant": 0
+        },
+        {
+          "kind": "column",
+          "x": 90.5,
+          "y": 16.5,
+          "variant": 2
+        },
+        {
+          "kind": "ruin",
+          "x": 80.5,
+          "y": 12.5,
+          "variant": 3
+        },
+        {
+          "kind": "ruin",
+          "x": 38.5,
+          "y": 72.5,
+          "variant": 3
+        },
+        {
+          "kind": "column",
+          "x": 39.5,
+          "y": 75.5,
+          "variant": 0
+        },
+        {
+          "kind": "column",
+          "x": 105.5,
+          "y": 57.5,
+          "variant": 0
+        },
+        {
+          "kind": "ruin",
+          "x": 104.5,
+          "y": 54.5,
+          "variant": 1
         }
       ]
     },
@@ -6436,19 +6544,19 @@
         },
         {
           "id": "waytrail_supply3a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "废轨工具箱",
+          "en": "Abandoned railway parts",
           "kind": "ore",
-          "x": 25.5,
-          "y": 30.5
+          "x": 36.5,
+          "y": 42.5
         },
         {
           "id": "waytrail_supply3b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "后通风口急救药",
+          "en": "Rear vent first-aid herbs",
           "kind": "herb",
-          "x": 40.5,
-          "y": 27.5
+          "x": 104.5,
+          "y": 30.5
         },
         {
           "id": "annex_cache_3_a",
@@ -6565,26 +6673,26 @@
         {
           "id": "trail_forager_3_0",
           "kind": "ore",
-          "name": "矿口余料 · 1",
-          "en": "Mine Worksite Scrap · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "废矿口星晶",
+          "en": "Crystal by the abandoned shaft",
+          "x": 92.5,
+          "y": 59.5
         },
         {
           "id": "trail_forager_3_1",
           "kind": "wood",
-          "name": "矿口余料 · 2",
-          "en": "Mine Worksite Scrap · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "疏散轨旁干木",
+          "en": "Timber beside the evacuation rail",
+          "x": 55.5,
+          "y": 19.5
         },
         {
           "id": "trail_forager_3_2",
           "kind": "ore",
-          "name": "矿口余料 · 3",
-          "en": "Mine Worksite Scrap · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "停炉后凝成的星晶",
+          "en": "Cooled forge crystals",
+          "x": 20.5,
+          "y": 68.5
         },
         {
           "id": "outer_3_0",
@@ -8191,6 +8299,42 @@
           "x": 26.5,
           "y": 65.5,
           "variant": 1
+        },
+        {
+          "kind": "crystal",
+          "x": 88.5,
+          "y": 60.5,
+          "variant": 3
+        },
+        {
+          "kind": "barrel",
+          "x": 97.5,
+          "y": 61.5,
+          "variant": 0
+        },
+        {
+          "kind": "barrel",
+          "x": 51.5,
+          "y": 20.5,
+          "variant": 0
+        },
+        {
+          "kind": "crystal",
+          "x": 50.5,
+          "y": 17.5,
+          "variant": 1
+        },
+        {
+          "kind": "crystal",
+          "x": 16.5,
+          "y": 69.5,
+          "variant": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 18.5,
+          "y": 72.5,
+          "variant": 2
         }
       ]
     },
@@ -8512,19 +8656,19 @@
         },
         {
           "id": "waytrail_supply4a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "应急通道零件",
+          "en": "Emergency passage parts",
           "kind": "ore",
           "x": 25.5,
-          "y": 30.5
+          "y": 38.5
         },
         {
           "id": "waytrail_supply4b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "守门台修复木料",
+          "en": "Gatehouse repair timber",
           "kind": "wood",
-          "x": 40.5,
-          "y": 27.5
+          "x": 92.5,
+          "y": 18.5
         },
         {
           "id": "annex_cache_4_a",
@@ -8657,26 +8801,26 @@
         {
           "id": "trail_forager_4_0",
           "kind": "wood",
-          "name": "外环应急件 · 1",
-          "en": "Outer Ring Supplies · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "侧门疏散木料",
+          "en": "Evacuation door timber",
+          "x": 104.5,
+          "y": 65.5
         },
         {
           "id": "trail_forager_4_1",
           "kind": "ore",
-          "name": "外环应急件 · 2",
-          "en": "Outer Ring Supplies · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "旧哨塔备用星晶",
+          "en": "Lookout spare crystals",
+          "x": 73.5,
+          "y": 23.5
         },
         {
           "id": "trail_forager_4_2",
           "kind": "herb",
-          "name": "外环应急件 · 3",
-          "en": "Outer Ring Supplies · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "医护窗边草药",
+          "en": "Clinic window herbs",
+          "x": 41.5,
+          "y": 52.5
         },
         {
           "id": "outer_4_0",
@@ -10247,6 +10391,42 @@
           "x": 106.5,
           "y": 34.5,
           "variant": 2
+        },
+        {
+          "kind": "obelisk",
+          "x": 100.5,
+          "y": 66.5,
+          "variant": 0
+        },
+        {
+          "kind": "column",
+          "x": 99.5,
+          "y": 63.5,
+          "variant": 1
+        },
+        {
+          "kind": "column",
+          "x": 69.5,
+          "y": 24.5,
+          "variant": 1
+        },
+        {
+          "kind": "obelisk",
+          "x": 77.5,
+          "y": 22.5,
+          "variant": 2
+        },
+        {
+          "kind": "obelisk",
+          "x": 39.5,
+          "y": 56.5,
+          "variant": 2
+        },
+        {
+          "kind": "column",
+          "x": 46.5,
+          "y": 54.5,
+          "variant": 3
         }
       ]
     },
@@ -10569,19 +10749,19 @@
         },
         {
           "id": "waytrail_supply5a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "港岸漂流木",
+          "en": "Harbor driftwood",
           "kind": "wood",
-          "x": 25.5,
-          "y": 30.5
+          "x": 39.5,
+          "y": 23.5
         },
         {
           "id": "waytrail_supply5b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "旧灯塔药篓",
+          "en": "Old lighthouse herbs",
           "kind": "herb",
-          "x": 40.5,
-          "y": 27.5
+          "x": 103.5,
+          "y": 39.5
         },
         {
           "id": "annex_cache_5_a",
@@ -10706,26 +10886,26 @@
         {
           "id": "trail_forager_5_0",
           "kind": "wood",
-          "name": "潮汐漂流箱 · 1",
-          "en": "Tidal Driftwood · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "潮沟搁浅木",
+          "en": "Wood stranded in the tidal channel",
+          "x": 89.5,
+          "y": 65.5
         },
         {
           "id": "trail_forager_5_1",
           "kind": "herb",
-          "name": "潮汐漂流箱 · 2",
-          "en": "Tidal Driftwood · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "双岸灯下盐生草",
+          "en": "Saltshore herbs below the twin lights",
+          "x": 50.5,
+          "y": 37.5
         },
         {
           "id": "trail_forager_5_2",
           "kind": "wood",
-          "name": "潮汐漂流箱 · 3",
-          "en": "Tidal Driftwood · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "断栈桥木板",
+          "en": "Timber from the broken jetty",
+          "x": 19.5,
+          "y": 52.5
         },
         {
           "id": "outer_5_0",
@@ -12224,6 +12404,42 @@
           "x": 25.5,
           "y": 62.5,
           "variant": 0
+        },
+        {
+          "kind": "lamp",
+          "x": 94.5,
+          "y": 67.5,
+          "variant": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 88.5,
+          "y": 60.5,
+          "variant": 2
+        },
+        {
+          "kind": "barrel",
+          "x": 48.5,
+          "y": 41.5,
+          "variant": 2
+        },
+        {
+          "kind": "lamp",
+          "x": 51.5,
+          "y": 42.5,
+          "variant": 3
+        },
+        {
+          "kind": "lamp",
+          "x": 15.5,
+          "y": 53.5,
+          "variant": 3
+        },
+        {
+          "kind": "barrel",
+          "x": 23.5,
+          "y": 51.5,
+          "variant": 0
         }
       ]
     },
@@ -12514,19 +12730,19 @@
         },
         {
           "id": "waytrail_supply6a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "测影石边矿屑",
+          "en": "Shadow-gauge mineral shards",
           "kind": "ore",
-          "x": 25.5,
-          "y": 30.5
+          "x": 45.5,
+          "y": 39.5
         },
         {
           "id": "waytrail_supply6b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "补水井修复木料",
+          "en": "Oasis well repair timber",
           "kind": "wood",
-          "x": 40.5,
-          "y": 27.5
+          "x": 87.5,
+          "y": 54.5
         },
         {
           "id": "annex_cache_6_a",
@@ -12651,26 +12867,26 @@
         {
           "id": "trail_forager_6_0",
           "kind": "ore",
-          "name": "沙坡星晶 · 1",
-          "en": "Glasswind Crystals · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "热影谷矿晶",
+          "en": "Crystals of the heat-haze valley",
+          "x": 98.5,
+          "y": 24.5
         },
         {
           "id": "trail_forager_6_1",
           "kind": "herb",
-          "name": "沙坡星晶 · 2",
-          "en": "Glasswind Crystals · 2",
+          "name": "背阴沙丘薄荷",
+          "en": "Mint from shaded dunes",
           "x": 57.5,
-          "y": 50.5
+          "y": 60.5
         },
         {
           "id": "trail_forager_6_2",
           "kind": "ore",
-          "name": "沙坡星晶 · 3",
-          "en": "Glasswind Crystals · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "假光塔旁碎晶",
+          "en": "Crystals near the false tower",
+          "x": 31.5,
+          "y": 73.5
         },
         {
           "id": "outer_6_0",
@@ -14157,6 +14373,42 @@
           "x": 98.5,
           "y": 50.5,
           "variant": 1
+        },
+        {
+          "kind": "palm",
+          "x": 102.5,
+          "y": 23.5,
+          "variant": 2
+        },
+        {
+          "kind": "crystal",
+          "x": 96.5,
+          "y": 28.5,
+          "variant": 3
+        },
+        {
+          "kind": "crystal",
+          "x": 61.5,
+          "y": 59.5,
+          "variant": 3
+        },
+        {
+          "kind": "palm",
+          "x": 59.5,
+          "y": 56.5,
+          "variant": 0
+        },
+        {
+          "kind": "palm",
+          "x": 27.5,
+          "y": 74.5,
+          "variant": 0
+        },
+        {
+          "kind": "crystal",
+          "x": 33.5,
+          "y": 69.5,
+          "variant": 1
         }
       ]
     },
@@ -14447,19 +14699,19 @@
         },
         {
           "id": "waytrail_supply7a",
-          "name": "遗路物资",
-          "en": "Forgotten road supplies",
+          "name": "旧信号哨的草药",
+          "en": "Abandoned beacon herbs",
           "kind": "herb",
-          "x": 25.5,
-          "y": 30.5
+          "x": 31.5,
+          "y": 52.5
         },
         {
           "id": "waytrail_supply7b",
-          "name": "边境物资",
-          "en": "Frontier field supplies",
+          "name": "守钟人急救药束",
+          "en": "Bell warden herbs",
           "kind": "herb",
-          "x": 40.5,
-          "y": 27.5
+          "x": 92.5,
+          "y": 37.5
         },
         {
           "id": "annex_cache_7_a",
@@ -14560,26 +14812,26 @@
         {
           "id": "trail_forager_7_0",
           "kind": "herb",
-          "name": "背风药草 · 1",
-          "en": "Frostcliff Herbs · 1",
-          "x": 75.5,
-          "y": 20.5
+          "name": "背风岩草",
+          "en": "Leeward rock herbs",
+          "x": 103.5,
+          "y": 64.5
         },
         {
           "id": "trail_forager_7_1",
           "kind": "wood",
-          "name": "背风药草 · 2",
-          "en": "Frostcliff Herbs · 2",
-          "x": 57.5,
-          "y": 50.5
+          "name": "低钟下的干松枝",
+          "en": "Dry pine below the low bell",
+          "x": 43.5,
+          "y": 27.5
         },
         {
           "id": "trail_forager_7_2",
           "kind": "herb",
-          "name": "背风药草 · 3",
-          "en": "Frostcliff Herbs · 3",
-          "x": 27.5,
-          "y": 50.5
+          "name": "暖棚药草",
+          "en": "Warming shelter herbs",
+          "x": 85.5,
+          "y": 17.5
         },
         {
           "id": "outer_7_0",
@@ -16077,6 +16329,42 @@
           "kind": "snowpine",
           "x": 29.5,
           "y": 25.5,
+          "variant": 2
+        },
+        {
+          "kind": "snowpine",
+          "x": 105.5,
+          "y": 60.5,
+          "variant": 3
+        },
+        {
+          "kind": "bell",
+          "x": 108.5,
+          "y": 66.5,
+          "variant": 0
+        },
+        {
+          "kind": "bell",
+          "x": 39.5,
+          "y": 28.5,
+          "variant": 0
+        },
+        {
+          "kind": "snowpine",
+          "x": 38.5,
+          "y": 25.5,
+          "variant": 1
+        },
+        {
+          "kind": "snowpine",
+          "x": 89.5,
+          "y": 16.5,
+          "variant": 1
+        },
+        {
+          "kind": "bell",
+          "x": 80.5,
+          "y": 15.5,
           "variant": 2
         }
       ]
