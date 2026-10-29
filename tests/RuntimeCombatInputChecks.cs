@@ -5410,11 +5410,11 @@ public static class RuntimeCombatInputChecks
         GUI.commands.Clear();GUI.buttonCalls.Clear();
         Event.current.type=EventType.Repaint;
         Call(app,"OnGUI");
-        Check(GUI.commands.Exists(x=>x.Contains("Chapter Five")) &&
+        Check(GUI.commands.Exists(x=>x.Contains("Afterstory")) &&
             GUI.commands.Exists(x=>x.Contains("After the core decision")) &&
             GUI.commands.Exists(x=>x.Contains("Next:")),
             "The actual Journey screen explains the unlocked historical cause and a live next step");
-        Check(!GUI.commands.Exists(x=>x.Contains("Chapter Eleven")),
+        Check(!GUI.commands.Exists(x=>x.Contains("The Civic Conduit")),
             "A new postwar save never exposes future chapter names on the Journey screen");
         var track=GUI.buttonCalls.Find(x=>Math.Abs(x.rect.x-480)<.01f &&
             Math.Abs(x.rect.y-652)<.01f);
