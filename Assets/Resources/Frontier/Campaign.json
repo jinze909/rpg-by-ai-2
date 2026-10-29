@@ -8472,6 +8472,30 @@
           "y": 36.5
         },
         {
+          "id": "glassledger_watch",
+          "name": "沙海 · 旧水站守夜柱",
+          "en": "Glass Desert · Night Watch Post",
+          "kind": "glassledgerwatch",
+          "x": 58.5,
+          "y": 36.5
+        },
+        {
+          "id": "glassledger_seal",
+          "name": "沙海 · 涂改的配水单",
+          "en": "Glass Desert · Altered Water Slips",
+          "kind": "glassledgerseal",
+          "x": 65.5,
+          "y": 36.5
+        },
+        {
+          "id": "glassledger_witness",
+          "name": "沙海 · 无名矿工的便条",
+          "en": "Glass Desert · Unlisted Worker's Note",
+          "kind": "glassledgerwitness",
+          "x": 75.5,
+          "y": 36.5
+        },
+        {
           "id": "glassloom_source",
           "name": "光井·被抹去的日晷",
           "en": "Glasswell · Erased sundial",
