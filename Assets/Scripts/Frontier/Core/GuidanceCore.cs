@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1037,6 +1037,40 @@ namespace Starfall
 
 
 
+            if(id=="field_kits")
+            {
+                q.title=L("七地遗失工具 · 重建安全绊索",
+                    "Seven Lost Field Kits · Rebuild Safe Restraints");
+                q.category=L("地图实体探索 · 工具回收",
+                    "PHYSICAL EXPLORATION · SALVAGE");
+                q.description=L("各地区的远端实地证据附近，都有一处遗失的巡路工具箱。先完成该地的两处调查，再亲自走到工具箱旁，用6点耐力拆取木材与机械零件。背包满时不能领用；七地互不替代。",
+                    "A forgotten field kit lies near the remote evidence in each wilderness. Complete both local clues, walk to the actual kit, and spend 6 stamina to recover timber and mechanical parts. A full pack cannot claim the kit. Each physical location is independent.");
+                q.reward=L("各地可用于绊索、工艺与巡路的材料，另有实得经验",
+                    "Physical timber, spare parts and XP for traps, crafting and patrols");
+                q.locked=false;
+                int selected=-1;
+                for(int room=1;room<=7;room++)
+                {
+                    bool done=FieldKitRecovered(room);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[room].name,data.maps[room].en)+
+                        L(done?" · 工具已取回":" · 工具仍在现场",
+                          done?" · KIT RECOVERED":" · KIT AWAITS SALVAGE"),done));
+                    if(!done&&CanEnter(room)&&
+                        (selected<0||room==save.room))selected=room;
+                }
+                q.complete=FieldKitRecoveredCount==7;
+                q.room=selected>=0?selected:save.room;
+                q.target=selected>=0?
+                    ObjectPoint(selected,"fieldKit",
+                        new Point(data.maps[selected].spawnX,data.maps[selected].spawnY)):Position;
+                q.next=q.complete?
+                    L("七处工具全部实地回收，野外巡路物资已得到补充。",
+                      "All seven real kit locations recovered; road supplies are replenished."):
+                    L("到本区远端工具箱取回物资；若调查未完成，先核对本区两处地标。",
+                      "Go to the distant physical field kit; complete both survey clues before collecting.");
+                return q;
+            }
             if(id=="field_patrols")
             {
                 q.title=L("七地区巡路回执 · 居民安全线",

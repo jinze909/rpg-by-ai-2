@@ -95,6 +95,118 @@ namespace Starfall
         }
         // Earned civilian safety reports actually improve the existing
         // physical field relay. One calculation owns both its label and pay.
+        // Seven distinct physically installed salvage sites are optional
+        // preparation for the actual snare, forge and road-watch systems.
+        // No free world-map pickup, no new SaveData v2 field and no deleted
+        // art: each field kit is a real, once-only campaign WorldObject.
+        private static readonly int[] fieldKitWood={0,3,2,1,2,2,1,3};
+        private static readonly int[] fieldKitGear={0,1,2,3,2,2,3,1};
+        private static readonly string[] fieldKitStoryZh={
+            "",
+            "树下埋着雨湿的猎夹。木柄还能用，铁扣却得拆掉；你把它们留给能做安全绊索的人。",
+            "断开的缆绳把索轮挂在高水线，旧船工刻下潮退时的回家路线。",
+            "工具匣压在停转的矿车下。有人用煤灰写着撤离班次，没有替工友画死亡记号。",
+            "担架底的折叠支架仍完好。队员沿民用小门撤出时，刻意留下了它。",
+            "礁石下的铁柜还系着稳固的岸标绳。这里的链扣比迷雾里的假灯可靠。",
+            "旧测影者把松散的齿轮包在帆布里，旁边只写着能回到绿洲的影长。",
+            "背风钟下的雪具箱干燥，里面的木撑和金属环可以重做保命的行路工具。"
+        };
+        private static readonly string[] fieldKitStoryEn={
+            "",
+            "A rain-wet hunter's snare lies beneath the roots. Its timber can still help travelers; its iron should become a safer restraint.",
+            "A severed cable left this winch above the high-water line. The ferryman marked the low-tide route home on the wood.",
+            "A toolbox rests under an idle ore cart. Someone chalked evacuation shifts on its lid instead of writing names of the dead.",
+            "An evacuation stretcher still has sound folding braces. The carriers left it beside the civilian side door on their way out.",
+            "This anchored locker survived the fog. Real mooring chain speaks more plainly than the false harbor lamps.",
+            "A surveyor bundled the loose gears in canvas and left the length of the oasis shadow beside them.",
+            "The supply case under the sheltered bell stayed dry. Its braces and iron loops could still keep another traveler alive."
+        };
+        public bool FieldKitRecovered(int room)
+        {return room>=1&&room<=7&&Has("field_kit_recovered_"+room);}
+        public int FieldKitRecoveredCount
+        {get{int n=0;for(int room=1;room<=7;room++)
+            if(FieldKitRecovered(room))n++;return n;}}
+        public int FieldKitTimber(int room)
+        {return room>=1&&room<=7?fieldKitWood[room]:0;}
+        public int FieldKitParts(int room)
+        {return room>=1&&room<=7?fieldKitGear[room]:0;}
+        private bool TalkFieldKit(WorldObject o)
+        {
+            if(o==null||o.kind!="fieldKit")return false;
+            int room=save.room;
+            if(room<1||room>7||o.id!="fieldKit"+room||
+                !SourceBelongsToActiveMap(o)||
+                !HasPhysicalInteractionReach(o)||!CanStand(Position))return true;
+            if(FieldKitRecovered(room))
+                Dialog(o.name,o.en,fieldKitStoryZh[room]+
+                    "\n\n工具已回收，旧木箱留在原地供下一位迷路的旅人辨认。",
+                    fieldKitStoryEn[room]+
+                    "\n\nThe useful parts are gone. The box remains as a landmark for the next lost traveler.",
+                    C("继续赶路","Continue on the road","close"));
+            else if(!BiomeFieldDone)
+                Dialog(o.name,o.en,fieldKitStoryZh[room]+
+                    "\n\n先把本区两处实地证据核对完，才能确认这些工具属于旧巡路队。",
+                    fieldKitStoryEn[room]+
+                    "\n\nVerify both original field clues first, so the tools can be accounted for rather than taken from an active rescue.",
+                    C("记住这个位置","Remember this location","close"));
+            else
+                Dialog(o.name,o.en,fieldKitStoryZh[room]+
+                    "\n\n拆取可用零件要消耗6点耐力。获得木材"+
+                    fieldKitWood[room]+"份、机械零件"+fieldKitGear[room]+"份；背包装不下就先保留现场。",
+                    fieldKitStoryEn[room]+
+                    "\n\nCareful disassembly costs 6 stamina. Recover "+
+                    fieldKitWood[room]+" timber and "+fieldKitGear[room]+
+                    " spare parts. If your pack is full, leave the case intact.",
+                    C("仔细拆开并收好零件","Disassemble and carry the parts",
+                        "field_kit_collect"),
+                    C("暂时不动","Leave it untouched","close"));
+            return true;
+        }
+        private bool ChooseFieldKit(string action)
+        {
+            if(action!="field_kit_collect")return false;
+            WorldObject source=pendingDialogueSource;
+            int room=save.room;
+            if(mode!="world"||Dying||practicing||racing||room<1||
+               room>7||source==null||source.kind!="fieldKit"||
+               source.id!="fieldKit"+room||
+               pendingDialogueSourceRoom!=room||
+               !SourceBelongsToActiveMap(source)||
+               !HasPhysicalInteractionReach(source)||!CanStand(Position)||
+               !BiomeFieldDone||FieldKitRecovered(room))return true;
+            if(FieldWorkPreventsRest||!SafeTravel||
+               BlockTravelForProtectedFieldMission(true))
+            {
+                Notify("附近仍有战斗或受保护的护送任务，暂时不能拆工具。",
+                    "Finish nearby combat or protected fieldwork before salvaging.");
+                return true;
+            }
+            if(save.energy<6f)
+            {
+                Notify("谨慎拆取需要6点耐力。","Careful salvage costs 6 stamina.");
+                return true;
+            }
+            if(!HasInventoryRoom(0,fieldKitWood[room])||
+               !HasInventoryRoom(4,fieldKitGear[room]))return true;
+            save.energy-=6f;
+            save.inventory[0]+=fieldKitWood[room];
+            save.inventory[4]+=fieldKitGear[room];
+            Flag("field_kit_recovered_"+room);
+            AddXp(20+room*3);
+            RecordMoment(fieldKitStoryZh[room]+
+                " 你在真实地标取回工具，为后续巡路准备了木材与零件。",
+                fieldKitStoryEn[room]+
+                " The recovered timber and parts can be used on the real road.");
+            revision++;sound="reward";
+            Notify("野外工具回收：木材+"+fieldKitWood[room]+
+                "、零件+"+fieldKitGear[room]+"、经验+"+(20+room*3)+
+                "。已回收"+FieldKitRecoveredCount+"/7。",
+                "Field kit salvaged: +"+fieldKitWood[room]+" timber, +"+
+                fieldKitGear[room]+" parts, +"+(20+room*3)+
+                " XP. Recovered "+FieldKitRecoveredCount+"/7.");
+            return true;
+        }
+
         // Read-only public cost mirrors for the live world marker.
         // The choice handler calls the same internal methods when paying.
         public int FieldRelayFareHere {get{return FieldRelayFare(save.room);}}

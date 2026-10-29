@@ -1164,6 +1164,25 @@ namespace Starfall
             // Authored field sites are true walkable WorldObjects, rendered
             // through the production depth queue rather than map-only pins.
             // Their form differs from ordinary random terrain decorations.
+            if(kind=="fieldKit")
+            {
+                int room=Game.save.room;
+                bool recovered=Game.FieldKitRecovered(room);
+                Color ink=recovered?mint:gold;
+                PropImage(room==2||room==5?"barrel":
+                    room==4?"post":"ruin",0,
+                    p.x-34,p.y-77,68,79,ink);
+                Ring(new Point(o.x,o.y),recovered?.45f:.64f,ink,24);
+                if(!recovered)Diamond(p.x,p.y-87,6,ink);
+                Text(p.x-112,p.y-111,224,18,recovered?
+                    Game.L("巡路工具已取回","FIELD KIT RECOVERED"):
+                    Game.L("遗失工具箱 · 木材"+Game.FieldKitTimber(room)+
+                        " / 零件"+Game.FieldKitParts(room),
+                        "LOST KIT · "+Game.FieldKitTimber(room)+
+                        " TIMBER / "+Game.FieldKitParts(room)+" PARTS"),
+                    10,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="biomeSurvey"||kind=="biomeAnswer")
             {
                 bool second=kind=="biomeAnswer";

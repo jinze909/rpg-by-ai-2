@@ -2686,6 +2686,15 @@
           "x": 17.5,
           "y": 68.5,
           "lore": -1
+        },
+        {
+          "id": "fieldKit1",
+          "name": "雨湿的猎夹箱",
+          "en": "Rain-Worn Hunter's Kit",
+          "kind": "fieldKit",
+          "x": 36.5,
+          "y": 65.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -4793,6 +4802,15 @@
           "kind": "regionalMachine",
           "x": 113.5,
           "y": 55.5,
+          "lore": -1
+        },
+        {
+          "id": "fieldKit2",
+          "name": "断缆旁的旧索轮",
+          "en": "Broken-Ferry Winch",
+          "kind": "fieldKit",
+          "x": 97.5,
+          "y": 19.5,
           "lore": -1
         }
       ],
@@ -7055,6 +7073,15 @@
           "x": 48.5,
           "y": 9.5,
           "lore": -1
+        },
+        {
+          "id": "fieldKit3",
+          "name": "矿工遗落的工具匣",
+          "en": "Miner's Lost Toolcase",
+          "kind": "fieldKit",
+          "x": 31.5,
+          "y": 58.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -9247,6 +9274,15 @@
           "x": 42.5,
           "y": 56.5,
           "lore": -1
+        },
+        {
+          "id": "fieldKit4",
+          "name": "疏散队留下的担架",
+          "en": "Abandoned Evacuation Stretcher",
+          "kind": "fieldKit",
+          "x": 97.5,
+          "y": 31.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -11396,6 +11432,15 @@
           "x": 16.5,
           "y": 52.5,
           "lore": -1
+        },
+        {
+          "id": "fieldKit5",
+          "name": "礁石下的锚链柜",
+          "en": "Reefside Anchor Locker",
+          "kind": "fieldKit",
+          "x": 29.5,
+          "y": 60.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -13441,6 +13486,15 @@
           "x": 28.5,
           "y": 73.5,
           "lore": -1
+        },
+        {
+          "id": "fieldKit6",
+          "name": "测影者的齿轮包",
+          "en": "Surveyor's Gear Satchel",
+          "kind": "fieldKit",
+          "x": 92.5,
+          "y": 57.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -15447,6 +15501,15 @@
           "kind": "regionalMachine",
           "x": 85.5,
           "y": 14.5,
+          "lore": -1
+        },
+        {
+          "id": "fieldKit7",
+          "name": "背风钟旁的雪具箱",
+          "en": "Sheltered Bell Supply Case",
+          "kind": "fieldKit",
+          "x": 21.5,
+          "y": 25.5,
           "lore": -1
         }
       ],

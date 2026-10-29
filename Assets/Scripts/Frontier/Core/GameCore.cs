@@ -4140,6 +4140,7 @@ namespace Starfall
             if (TalkRidgeBreach(o)) return;
             if (TalkRidgeEcho(o)) return;
             if (TalkRegionalMachine(o)) return;
+            if (TalkFieldKit(o)) return;
             if (TalkBiomeField(o)) return;
             if (TalkSeventhBed(o)) return;
             if (TalkBridgeOfChords(o)) return;
@@ -4909,6 +4910,7 @@ namespace Starfall
             if (ChooseRidgeEcho(action)) return;
             if (ChooseRegionalVigil(action)) return;
             if (ChooseRegionalMachine(action)) return;
+            if (ChooseFieldKit(action)) return;
             if (ChooseBiomeField(action)) return;
             if (ChooseSeventhBed(action)) return;
             if (ChooseBridgeOfChords(action)) return;

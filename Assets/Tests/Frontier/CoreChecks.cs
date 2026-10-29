@@ -630,6 +630,69 @@ namespace Starfall.Tests
                 "No paid patrol can be replayed to double-award nonlethal evidence");
         }
 
+        // New region content must be real map objects, not a reward bound
+        // to a fabricated dialogue ID. Inventory, physical reach and the
+        // original region survey are hard prerequisites of every pickup.
+        public static void SevenFieldKitsArePhysicalOnceOnlySalvage(Campaign data)
+        {
+            var located=new System.Collections.Generic.HashSet<string>();
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.save.room=room;g.mode="world";g.enemies.Clear();
+                WorldObject box=Array.Find(g.Map.objects,o=>
+                    o.kind=="fieldKit"&&o.id=="fieldKit"+room);
+                Check(box!=null&&located.Add(box.id)&&
+                    PlaceWithinTalkReach(g,box),
+                    "Authored regional field kit must be physically approachable in "+room);
+                Check(g.CanStand(g.Position)&&
+                    g.GetQuest("field_kits").id=="field_kits",
+                    "Existing production world and quest registry recognize the new kit");
+                int startWood=g.save.inventory[0],
+                    startGear=g.save.inventory[4];
+                g.Talk(box);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="field_kit_collect")<0,
+                    "Unexamined region cannot take strangers' field supplies");
+                g.Close();
+                g.save.flags.Add("biome_field_done_"+room);
+                g.save.energy=100f;
+                g.Talk(box);
+                int option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_kit_collect");
+                Check(option>=0,"Original kit offers genuine field recovery");
+                g.save.inventory[0]=9999;
+                g.Choose(option);
+                Check(!g.FieldKitRecovered(room)&&
+                    g.save.energy==100f&&g.save.inventory[4]==startGear,
+                    "Full timber stack cannot consume energy or partially award gears");
+                g.save.inventory[0]=startWood;
+                g.Close();g.Talk(box);
+                option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_kit_collect");
+                Check(option>=0,"Unclaimed case remains claimable after freeing storage");
+                g.Choose(option);
+                Check(g.FieldKitRecovered(room)&&
+                    g.save.inventory[0]==startWood+g.FieldKitTimber(room)&&
+                    g.save.inventory[4]==startGear+g.FieldKitParts(room)&&
+                    Math.Abs(g.save.energy-94f)<.001f,
+                    "Physical dismantling pays exactly real region-specific stock and stamina");
+                Check(g.GetQuest("field_kits").steps[room-1].done,
+                    "Authenticated pickup advances its own journal entry");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.FieldKitRecovered(room)&&
+                    restored.save.inventory[0]==g.save.inventory[0],
+                    "V2 save preserves one-time recovered materials and site ownership");
+                g.Close();g.Talk(box);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_kit_collect")<0,
+                    "A recovered physical kit never dispenses a second stack");
+            }
+            Check(located.Count==7,"Seven distinct source maps carry seven different physical kits");
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)
