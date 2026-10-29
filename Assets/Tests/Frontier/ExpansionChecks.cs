@@ -4977,10 +4977,12 @@ namespace Starfall.Tests
             {
                 // A temporarily closed 7x7 clearing suppresses ONLY the
                 // first patrol. It cannot silently turn 2/3 into a victory.
-                for(int y=58;y<=64;y++)
+                Point blockedDistrict=new Point(103.5f,67.5f);
+                int cx=(int)blockedDistrict.x,cy=(int)blockedDistrict.y;
+                for(int y=cy-3;y<=cy+3;y++)
                 {
                     char[] cells=rows[y].ToCharArray();
-                    for(int x=98;x<=104;x++)cells[x]='#';
+                    for(int x=cx-3;x<=cx+3;x++)cells[x]='#';
                     rows[y]=new string(cells);
                 }
                 data.maps[1]=new MapData{id=1,spawnX=original.spawnX,
@@ -5011,7 +5013,7 @@ namespace Starfall.Tests
                 g.TrackQuest("ridge_watch");
                 var waiting=g.GetQuest("ridge_watch");
                 Check(waiting.next.Contains("暂时封闭")&&
-                    (waiting.target-new Point(101.5f,61.5f)).Length<.001f,
+                    (waiting.target-blockedDistrict).Length<.001f,
                     "Real quest compass marks blocked missing clearing, never a dead patrol or misleading completion");
                 g.save.english=true;
                 Check(g.GetQuest("ridge_watch").next.Contains("last clearing is blocked"),
@@ -5026,7 +5028,7 @@ namespace Starfall.Tests
                     "Reopened real clearing allows one missing original patrol to join without a map reload");
                 var missing=g.enemies.Find(e=>tracked.ContainsKey(e.id)&&tracked[e.id]==0);
                 Check(missing!=null&&g.CanStand(missing.Position)&&
-                    (missing.Position-new Point(101.5f,61.5f)).Length<=4.25f,
+                    (missing.Position-blockedDistrict).Length<=4.25f,
                     "The recovered patrol stands on genuine local footing, not arbitrary fallback scenery");
                 Check((g.GetQuest("ridge_watch").target-missing.Position).Length<.001f,
                     "World compass automatically switches back to the genuine live patrol after terrain reopens");
@@ -5999,7 +6001,7 @@ namespace Starfall.Tests
             foreach(Enemy e in g.enemies)
                 if(tracked.ContainsKey(e.id)&&tracked[e.id]==0){scout=e;break;}
             Check(scout!=null,"Actual first patrol participates in the live enemy list");
-            var anchor=new Point(101.5f,61.5f);
+            var anchor=g.RidgeWatchDistrict(1,0);
             g.save.x=12.5f;g.save.y=14.5f;
             Point before=scout.Position;
             for(int step=0;step<100;step++)

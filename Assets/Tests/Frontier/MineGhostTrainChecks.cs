@@ -158,7 +158,10 @@ namespace Starfall.Tests
             var historical=new Point[]{
                 new Point(101.5f,61.5f),
                 new Point(89.5f,67.5f),
-                new Point(76.5f,66.5f)
+                new Point(76.5f,66.5f),
+                g.RidgeWatchDistrict(3,0),
+                g.RidgeWatchDistrict(3,1),
+                g.RidgeWatchDistrict(3,2)
             };
             foreach(string name in new string[]{"dispatch","manifest","switch","medbay"})
             {

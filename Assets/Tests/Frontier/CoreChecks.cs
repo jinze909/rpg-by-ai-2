@@ -6839,9 +6839,19 @@ namespace Starfall.Tests
                         Check((foot-new Point(site.x,site.y)).Length>=7f,
                             "No live ridge ambush may occupy the interaction reach of an existing story site: region "+room);
                     for(int j=0;j<i;j++)
-                        Check((foot-patrols[j].Position).Length>=25f,
-                            "One biome must contain THREE geographically distinct combat districts: region "+room);
+                        Check((foot-patrols[j].Position).Length>=9.5f,
+                            "Different patrols cannot stack their actual living bodies: region "+room);
                 }
+                Check((patrols[0].Position-patrols[1].Position).Length<=17f&&
+                    (patrols[0].Position-patrols[2].Position).Length>=30f&&
+                    (patrols[1].Position-patrols[2].Position).Length>=30f,
+                    "Every biome needs one physical two-guard squad and one remote combat lookout");
+                var whistle=typeof(GameCore).GetMethod("RidgeWatchWhistleReaches",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(whistle!=null&&
+                    (bool)whistle.Invoke(game,new object[]{patrols[0],patrols[1]}),
+                    "Paired regional guards must truly hear one another across the authored road");
                 for(int slot=0;slot<3;slot++)
                 {
                     Point mapped=game.RidgeWatchDistrict(room,slot);
@@ -6960,19 +6970,21 @@ namespace Starfall.Tests
                 }
                 int far=0;
                 foreach(Enemy e in g.enemies)
-                    if(e.x>=74&&e.y>=60)
+                    if(g.IsActiveRidgeWatchPatrol(e))
                     {
                         far++;
-                        Check(g.CanStand(e.Position),
-                            "New fifth-ring wildlife has physical passable collision");
+                        Check(g.CanStand(e.Position)&&
+                            (e.Position-new Point(data.maps[room].spawnX,
+                                data.maps[room].spawnY)).Length>40,
+                            "Real fifth-ring wildlife occupies passable distant original terrain");
                         foreach(WorldObject o in data.maps[room].objects)
-                            Check((e.Position-new Point(o.x,o.y)).Length>=8,
-                                "New wildlife remains away from real interaction points");
+                            Check((e.Position-new Point(o.x,o.y)).Length>=7,
+                                "Real wildlife stays beyond authored dialogue reach");
                         Check(e.hp>0&&e.maxHp>0,
-                            "New wildlife consists of actual combat actors with hitpoints");
+                            "Actual regional hostile has real positive combat health");
                     }
                 if(room==0)Check(far==0,"Original town remains peaceful");
-                else Check(far==3,"All seven dangerous regions gain three remote encounters");
+                else Check(far==3,"All seven regions gain three true remote enemies");
             }
         }
 

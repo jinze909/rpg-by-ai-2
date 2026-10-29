@@ -426,17 +426,18 @@ namespace Starfall
         // Seven genuinely different physical patrol routes. The old three
         // shared southeast coordinates made all outdoor regions repeat the
         // same formation, leaving their northern and eastern roads empty.
-        // These authored 120x80 clearings are walkable and separated from
-        // existing original story interactions on the shipped maps.
+        // Each biome has an audible two-guard squad and a distant lone
+        // lookout. Real corridor hearing still governs reinforcements;
+        // every authored foot stays clear of existing story interactions.
         private const int RidgeWatchSiteCount=3;
         private static readonly Point[,] RegionalRidgeWatchSites={
-            {new Point(76.5f,16.5f),new Point(103.5f,67.5f),new Point(73.5f,58.5f)}, // Thornwood canopy, ravine and lower trail
-            {new Point(112.5f,22.5f),new Point(73.5f,58.5f),new Point(103.5f,64.5f)}, // Ruins floodwall, dry ridge and downstream
-            {new Point(79.5f,16.5f),new Point(73.5f,58.5f),new Point(112.5f,31.5f)}, // Ironreach lift, quarry and eastern rail
-            {new Point(67.5f,7.5f),new Point(112.5f,34.5f),new Point(67.5f,67.5f)}, // Citadel north battlement, east road and southern descent
-            {new Point(88.5f,13.5f),new Point(73.5f,58.5f),new Point(103.5f,67.5f)}, // Mistport high light, inland yard and south marsh
-            {new Point(79.5f,16.5f),new Point(112.5f,22.5f),new Point(73.5f,58.5f)}, // Glasswind north dune, east saltbank and basin
-            {new Point(76.5f,16.5f),new Point(103.5f,64.5f),new Point(67.5f,67.5f)} // Frostbell upper shelf, east pass and sheltered descent
+            {new Point(103.5f,67.5f),new Point(93.5f,66.5f),new Point(76.5f,16.5f)}, // Thornwood: ravine duo, distant canopy
+            {new Point(103.5f,64.5f),new Point(90.5f,66.5f),new Point(76.5f,16.5f)}, // Ruins: downstream duo, upper floodwall
+            {new Point(112.5f,31.5f),new Point(114.5f,21.5f),new Point(73.5f,58.5f)}, // Ironreach: eastern-rail duo, south quarry
+            {new Point(112.5f,34.5f),new Point(112.5f,20.5f),new Point(67.5f,7.5f)}, // Citadel: east-sentry duo, north battlement
+            {new Point(103.5f,67.5f),new Point(93.5f,67.5f),new Point(88.5f,13.5f)}, // Mistport: marsh duo, high lighthouse
+            {new Point(103.5f,67.5f),new Point(93.5f,66.5f),new Point(79.5f,16.5f)}, // Glasswind: basin duo, north dune
+            {new Point(103.5f,64.5f),new Point(92.5f,66.5f),new Point(76.5f,16.5f)} // Frostbell: east-pass duo, upper shelf
         };
         private static readonly Point[] LegacyRidgeWatchSites={
             new Point(101.5f,61.5f),

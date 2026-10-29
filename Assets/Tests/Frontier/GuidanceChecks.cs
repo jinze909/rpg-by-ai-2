@@ -1153,7 +1153,7 @@ namespace Starfall.Tests
                     System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
                 spawn.Invoke(other,null);
                 int count=0;foreach(var foe in other.enemies)
-                    if(foe.x>=74&&foe.y>=60)count++;
+                    if(other.IsActiveRidgeWatchPatrol(foe))count++;
                 Check(count==3,
                     "The five new story interactables do not suppress original regional wildlife spawns");
             }
