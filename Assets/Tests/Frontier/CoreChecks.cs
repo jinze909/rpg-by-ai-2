@@ -630,6 +630,176 @@ namespace Starfall.Tests
                 "No paid patrol can be replayed to double-award nonlethal evidence");
         }
 
+        public static void SevenCivilianCouriersActuallyVisitBothOriginalStationsAndUpgradeFacilities(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.room=room;g.enemies.Clear();
+                bool medicine=room%2==1;
+                g.save.flags.Add("biome_field_done_"+room);
+                g.save.flags.Add("field_kit_recovered_"+room);
+                g.save.flags.Add((medicine?"field_outpost_ward_":"field_outpost_forge_")+room);
+                WorldObject kit=Array.Find(g.Map.objects,o=>
+                    o.id=="fieldKit"+room&&o.kind=="fieldKit");
+                WorldObject original=Array.Find(g.Map.objects,o=>
+                    o.id=="biomeSurvey"+room&&o.kind=="biomeSurvey");
+                Check(kit!=null&&original!=null&&PlaceWithinTalkReach(g,kit),
+                    "Real field kit and original survey source must be reachable in "+room);
+                g.save.energy=100f;g.save.inventory[medicine?2:4]=5;
+                g.save.coins=100;Point start=g.Position;
+                int before=g.save.inventory[medicine?2:4];
+                int shards=g.save.shards;
+                g.Talk(kit);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_start");
+                Check(begin>=0,"Physical permanent field kit must offer optional citizen delivery");
+                g.Choose(begin);
+                Check(g.FieldDispatchActive&&g.FieldDispatchStage==1&&
+                    g.FieldDispatchIntegrity==3&&g.FieldDispatchSeconds>200f&&
+                    g.save.inventory[medicine?2:4]==before-1&&
+                    Math.Abs(g.save.energy-88f)<.01f,
+                    "Paid dispatch starts real timer and cargo at original site");
+                Point checkpoint=g.FieldDispatchTarget;
+                WorldObject machine=Array.Find(g.Map.objects,o=>
+                    o.kind=="regionalMachine"&&
+                    (new Point(o.x,o.y)-checkpoint).Length<.01f);
+                Check(machine!=null&&g.CanStand(checkpoint)&&
+                    g.NavigationPathFrom(start,checkpoint,true).Count>0&&
+                    g.NavigationPathFrom(checkpoint,
+                        new Point(original.x,original.y),true).Count>0,
+                    "Actual regional machine and original survey must share a continuous foot route");
+                g.Enter(0);
+                Check(g.FieldDispatchActive&&g.save.room==room,
+                    "Real courier cannot cross a map gate without completing the route");
+                g.Close();
+                g.save.x=checkpoint.x;g.save.y=checkpoint.y;
+                g.Talk(machine);
+                int stage=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_checkpoint");
+                Check(stage>=0&&g.conversation.speaker==machine.name,
+                    "Only actual engineering checkpoint may register intermediate cargo");
+                g.Choose(stage);
+                Check(g.FieldDispatchActive&&g.FieldDispatchStage==2&&
+                    (g.FieldDispatchTarget-new Point(original.x,original.y)).Length<.01f,
+                    "Signed intermediate source advances the live compass to original survey");
+                g.Close();
+                g.save.x=original.x;g.save.y=original.y;
+                g.Talk(original);
+                int finish=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_finish");
+                Check(finish>=0&&g.conversation.speaker==original.name,
+                    "Only original physical survey offers final public handoff");
+                g.Choose(finish);
+                Check(!g.FieldDispatchActive&&g.FieldDispatchDone(room)&&
+                    g.FieldDispatchWins==1&&
+                    g.Has("field_dispatch_intact_"+room)&&
+                    g.save.shards==shards+2,
+                    "An actual two-leg undamaged delivery earns exclusive first signed receipt");
+                Check(g.GetQuest("field_dispatches").steps[room-1].done,
+                    "Bilingual physical courier journal now reflects earned infrastructure");
+                g.PrepareSave();
+                var recovered=new GameCore(data,CloneSave(g.save));
+                Check(recovered.save.version==2&&recovered.FieldDispatchDone(room)&&
+                    !recovered.FieldDispatchActive&&
+                    recovered.Has("field_dispatch_intact_"+room),
+                    "Old V2 save keeps permanent signed supply upgrades but not live cargo");
+                g.Close();g.save.x=start.x;g.save.y=start.y;
+                Check(PlaceWithinTalkReach(g,kit),
+                    "The upgraded original kit is still interactable");
+                g.Talk(kit);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_start")<0,
+                    "Signed public route cannot be replayed for infinite rewards");
+                int stock=Array.FindIndex(g.conversation.choices,
+                    c=>c.action== (medicine?"field_outpost_rest":"field_outpost_stock"));
+                Check(stock>=0,"Completed route leaves the original real facility operational");
+                if(medicine)
+                {
+                    g.save.health=g.save.maxHealth-90f;g.save.energy=25f;
+                    int herb=g.save.inventory[2];
+                    g.Choose(stock);
+                    Check(Math.Abs(g.save.health-(g.save.maxHealth-20f))<.01f&&
+                        Math.Abs(g.save.energy-75f)<.01f&&
+                        g.save.inventory[2]==herb-1,
+                        "A signed medicine delivery actually improves paid triage to 70 HP/50 stamina");
+                }
+                else
+                {
+                    int coins=g.save.coins,wood=g.save.inventory[0],
+                        gear=g.save.inventory[4];
+                    g.Choose(stock);
+                    Check(g.save.coins==coins-8&&g.save.inventory[0]==wood+1&&
+                        g.save.inventory[4]==gear+1,
+                        "A signed repairs delivery really cuts paid field trap supplies to 8 coins");
+                }
+            }
+        }
+
+        public static void FieldDispatchFailureAndSourceIsolationRejectFalseReceipts(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+            Check(kit!=null&&survey!=null&&PlaceWithinTalkReach(g,kit),
+                "Real route test sources are physically present");
+            g.save.inventory[2]=4;g.save.energy=100f;
+            g.Talk(kit);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start");
+            Check(begin>=0,"Constructed clinic offers field dispatch");
+            g.save.inventory[2]=0;
+            g.Choose(begin);
+            Check(!g.FieldDispatchActive&&!g.FieldDispatchDone(1)&&
+                g.save.energy==100f,
+                "Starting without actual cargo refuses all progress and energy charges");
+            g.save.inventory[2]=4;g.Close();g.Talk(kit);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start");
+            g.Choose(begin);
+            Check(g.FieldDispatchActive,"A legitimately paid dispatch becomes live");
+            int herbs=g.save.inventory[2],shards=g.save.shards;
+            // An attempt to use the final source BEFORE the road checkpoint
+            // must not complete a courier or grant any public subsidy.
+            g.Close();g.save.x=survey.x;g.save.y=survey.y;
+            g.Talk(survey);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_finish")<0&&
+                g.FieldDispatchStage==1&&!g.FieldDispatchDone(1),
+                "The original source cannot bypass an unpaid physical engineering step");
+            // Real player damage invokes this very method, not a mock flag.
+            var damage=typeof(GameCore).GetMethod("DamageFieldDispatchCargo",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(damage!=null,"Live damage pipeline carries a real cargo integrity callback");
+            damage.Invoke(g,new object[]{15f});
+            Check(g.FieldDispatchActive&&g.FieldDispatchIntegrity==2&&
+                !g.FieldDispatchDone(1),"First real strike degrades cargo without awarding a receipt");
+            damage.Invoke(g,new object[]{15f});
+            damage.Invoke(g,new object[]{15f});
+            Check(!g.FieldDispatchActive&&!g.FieldDispatchDone(1)&&
+                g.save.inventory[2]==herbs&&g.save.shards==shards,
+                "Three genuine cargo strikes fail without refund or fabricated reward");
+            g.Close();g.save.x=kit.x;g.save.y=kit.y;g.Talk(kit);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start");
+            Check(begin>=0,"Failed routes may be retried from their original physical dispatch site");
+            g.Choose(begin);
+            Check(g.FieldDispatchActive,"Retry creates fresh cargo ownership and time");
+            var clock=typeof(GameCore).GetField("dispatchSeconds",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(clock!=null,"Actual live countdown is present");
+            clock.SetValue(g,.01f);
+            g.Close();g.Tick(.05f,new Point());
+            Check(!g.FieldDispatchActive&&!g.FieldDispatchDone(1),
+                "World simulation expiration cancels the real cargo before it can pay");
+        }
+
         // Building real waystations depends on actual remote road terrain,
         // exact-identity raiders and a paid physical construction at the kit.
         public static void SevenForwardOutpostsRequireRealDefenseAndOfferWorkingChoices(Campaign data)
