@@ -12790,8 +12790,8 @@
           "name": "沙海远端的折光镜",
           "en": "Mirage Reflection Stone",
           "kind": "biomeAnswer",
-          "x": 100.5,
-          "y": 64.5,
+          "x": 96.5,
+          "y": 49.5,
           "lore": -1
         }
       ],
@@ -14154,8 +14154,8 @@
         },
         {
           "kind": "obelisk",
-          "x": 102.5,
-          "y": 65.5,
+          "x": 98.5,
+          "y": 50.5,
           "variant": 1
         }
       ]
