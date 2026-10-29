@@ -26,13 +26,13 @@ namespace Starfall
             "Civilians pinned their names beneath the citadel wall. The military ordered the notices removed. Bring their voices along the outer road to a place that cannot erase them."};
         private static readonly string[] chapterMiddleZh={"",
             "地上的救援铃绳还带着树脂。有人故意剪断它；伤者和救援者都被隔在了另一头。先挡住追来的劫掠者。",
-            "水闸边的绳索缠着三块姓名木牌。巡逻者正把这些木牌扔进深水；必须在他们销毁之前保住证词。",
-            "压力管传来沉闷的敲击声。站在熔炉旁的不是机器，是替矿工拦截逃生路的雇佣兵。争取让伤者先过。",
+            "水闸边的绳索缠着三块姓名木牌。涨潮时冰水会夺走体温；别守着深水不动。挡住巡逻者，保住证词。",
+            "压力管传来沉闷的敲击声。喷出的热气会烧灼靠近阀门的人。边躲开高温区边挡住雇佣兵，先让伤者撤走。",
             "城墙把居民分成有名册和没名册的两边。卫兵正在扯掉最后一盏撤离灯；不让他们把证据带走。"};
         private static readonly string[] chapterMiddleEn={"",
             "Resin still clings to the severed bell rope. The cut was deliberate. Raiders are now closing on both the stranded patients and the wardens.",
-            "Three nameplates are tangled in the sluice rope. A patrol is throwing them into the deep water. Protect the workers' names before they disappear.",
-            "The pressure pipe knocks from within. Hired guards are blocking the workers' escape beside the hot manifold. Clear their route.",
+            "Three nameplates are tangled in the sluice rope. Incoming high tide chills anyone fighting in the flooded lane. Keep moving and protect the names.",
+            "The pressure pipe knocks from within. Scalding steam builds near the manifold. Leave the hot zone between strikes and clear the workers' escape.",
             "The wall separates listed citizens from the uncounted. Soldiers are tearing down the final evacuation lantern; stop them from taking the evidence."};
         private static readonly string[] chapterEndZh={"",
             "树洞里有两副被鲜血浸透的绷带。巡林员用重新接通的铃告诉镇里有人活着回来。这条路以后仍然有人走。",
@@ -200,6 +200,29 @@ namespace Starfall
                                 "An unverified raider vanished. Restart at the original notice.");
                             return;
                         }
+                }
+                // Physical, region-specific combat terrain. The genuine
+                // ebb/flood clock affects Ruins; the exposed mine manifold
+                // heats its immediate vicinity. Stepping away avoids both.
+                // No idle damage, no global status and no save migration.
+                if(chapterRoadStage==2&&!ChapterRoadSecured&&dt>0f&&
+                   mode=="world")
+                {
+                    WorldObject middle=ChapterRoadNode(chapterRoadRoom,1);
+                    if(middle!=null&&
+                       (Position-new Point(middle.x,middle.y)).Length<6f)
+                    {
+                        if(chapterRoadRoom==2&&!LowTide)
+                        {
+                            save.cold=Math.Min(100f,save.cold+dt*1.8f);
+                            save.energy=Math.Max(0f,save.energy-dt*.55f);
+                        }
+                        else if(chapterRoadRoom==3)
+                        {
+                            save.heat=Math.Min(100f,save.heat+dt*2.4f);
+                            save.energy=Math.Max(0f,save.energy-dt*.75f);
+                        }
+                    }
                 }
                 if(chapterRoadTime>0f)
                 {
