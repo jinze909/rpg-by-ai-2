@@ -114,7 +114,10 @@ namespace Starfall.Tests
                     (chapter==1?g.ChapterRoadChoice(chapter)==1:
                         g.ChapterRoadChoice(chapter)==2),
                     "Real survivor handoff pays exactly once and records personal choice in v2 flags");
-                g.Close();g.Talk(nodes[0]);
+                g.Close();
+                Check(PlaceWithinTalkReach(g,nodes[0]),
+                    "Chapter "+chapter+" original distress site must remain physically revisitable");
+                g.Talk(nodes[0]);
                 Check(g.conversation!=null,"Chapter "+chapter+
                     " post-signature original distress record must remain readable");
                 Check(Array.FindIndex(g.conversation.choices,
