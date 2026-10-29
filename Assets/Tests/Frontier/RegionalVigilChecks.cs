@@ -110,6 +110,73 @@ namespace Starfall.Tests
                     "Legacy SaveData v2 retains only paid first-clear receipts, not temporary fighters");
             }
         }
+        public static void UrgentEngineeringResponseHasRealTwoHitRiskAndBetterOnceOnlyReceipt(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.Close();g.mode="world";g.save.room=0;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_0");
+            g.save.flags.Add("regional_machine_done_0");
+            for(int s=0;s<3;s++)g.save.flags.Add("regional_machine_stage_0_"+s);
+            WorldObject start=Array.Find(g.Map.objects,o=>o.id=="regional_machine_0_0");
+            WorldObject first=Array.Find(g.Map.objects,o=>o.id=="regional_machine_0_2");
+            WorldObject second=Array.Find(g.Map.objects,o=>o.id=="regional_machine_0_1");
+            g.save.inventory[0]=10;
+            g.save.x=start.x;g.save.y=start.y;
+            g.Talk(start);
+            int regular=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="regional_vigil_begin");
+            int urgent=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="regional_vigil_rush");
+            Check(regular>=0&&urgent>=0,
+                "Original source offers two independent authentic safe/urgent risk strategies");
+            g.Choose(urgent);
+            Check(g.RegionalVigilActive&&g.RegionalVigilRushed&&
+                g.RegionalVigilSeconds==240f&&g.RegionalVigilIntegrity==2,
+                "Urgent player choice enforces a genuinely shorter clock and reduced cargo endurance");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"Real urgent cargo uses actual hero HP contact");
+            g.invulnerable=0f;
+            hurt.Invoke(g,new object[]{5f,"environment",null});
+            Check(g.RegionalVigilActive&&g.RegionalVigilIntegrity==1,
+                "One real post-armor hit consumes exactly one urgent cargo integrity");
+            g.invulnerable=0f;
+            hurt.Invoke(g,new object[]{5f,"environment",null});
+            Check(!g.RegionalVigilActive&&!g.RegionalVigilDone(0)&&
+                !g.Has("regional_vigil_urgent_0"),
+                "Two actual hero HP contacts invalidate the urgent rescue without awards");
+            g.enemies.Clear();g.mode="world";
+            g.save.x=start.x;g.save.y=start.y;g.save.health=100;
+            g.Talk(start);RealVigilChoice(g,"regional_vigil_rush");
+            Check(g.RegionalVigilRushed&&g.RegionalVigilIntegrity==2,
+                "Failed urgent route may be retried by a true source dialogue");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.save.x=first.x;g.save.y=first.y;
+            g.Talk(first);RealVigilChoice(g,"regional_vigil_service");
+            g.save.x=second.x;g.save.y=second.y;
+            g.Talk(second);RealVigilChoice(g,"regional_vigil_service");
+            Check(g.RegionalVigilStage==3&&g.RegionalVigilRushed,
+                "Both physically serviced stations preserve chosen risk through final return");
+            g.save.x=start.x;g.save.y=start.y;
+            g.Talk(start);RealVigilChoice(g,"regional_vigil_report");
+            Check(!g.RegionalVigilActive&&g.RegionalVigilDone(0)&&
+                g.Has("regional_vigil_urgent_0")&&
+                g.save.coins==coins+62&&g.save.shards==shards+2,
+                "Only actually walked high-risk response yields larger first-clear reward");
+            g.Talk(start);
+            Check(Array.FindIndex(g.conversation.choices,c=>
+                c.action=="regional_vigil_rush"||
+                c.action=="regional_vigil_begin")<0,
+                "Fast and safe pathways share one nonfarmable civil receipt");
+            g.PrepareSave();
+            GameCore loaded=new GameCore(data,g.save);
+            Check(loaded.save.version==2&&loaded.RegionalVigilDone(0)&&
+                loaded.Has("regional_vigil_urgent_0")&&
+                !loaded.RegionalVigilActive&&!loaded.RegionalVigilRushed,
+                "V2 saves retain earned urgent accomplishment but not a stale live risky session");
+        }
+
         public static void RegionalEngineeringPatrolAbortsRetireOnlyOwnedActorsAndNoRewards(Campaign data)
         {
             GameCore g=new GameCore(data);
