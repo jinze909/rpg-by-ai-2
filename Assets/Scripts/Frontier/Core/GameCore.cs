@@ -4070,6 +4070,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkUnsentWarningRelay(o)) return;
             if (TalkGlassLoom(o)) return;
             if (TalkWhiteout(o)) return;
             if (TalkPressureworks(o)) return;

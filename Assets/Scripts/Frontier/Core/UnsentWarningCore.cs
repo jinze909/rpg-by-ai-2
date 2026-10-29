@@ -15,6 +15,9 @@ namespace Starfall
         // 0 untouched, 1 waterproof repair, 2 tactical smoke decoy.
         // These are transient choices until an actual east-waymark handoff.
         private int warningRelayChoice;
+        private bool warningRelayPursuerSpawned;
+        public bool UnsentWarningRelayPursuerActive
+        {get{return UnsentWarningRunActive&&warningRelayPursuerSpawned;}}
         public int UnsentWarningRelayChoice
         {get{return UnsentWarningRunActive?warningRelayChoice:0;}}
         public bool UnsentWarningRelayAvailable
@@ -129,7 +132,7 @@ namespace Starfall
                 }
             warningRaiders.Clear();
             warningRunRoom=-1;warningTime=warningIntegrity=warningMeters=0f;
-            warningRelayChoice=0;
+            warningRelayChoice=0;warningRelayPursuerSpawned=false;
             warningLastFoot=new Point();warningRunMap=null;warningRunSave=null;
         }
         private bool FindWarningRaiderFoot(Point origin,List<Point> taken,
@@ -177,7 +180,7 @@ namespace Starfall
             save.inventory[2]--;save.energy-=10f;
             warningRunRoom=region;warningRunMap=Map;warningRunSave=save;
             warningTime=105f;warningIntegrity=100f;warningMeters=0f;
-            warningRelayChoice=0;
+            warningRelayChoice=0;warningRelayPursuerSpawned=false;
             warningLastFoot=Position;
             for(int i=0;i<2;i++)
             {
@@ -215,6 +218,39 @@ namespace Starfall
                 Notify("警报受损！护住剩余纸页，继续赶往东侧路标。",
                     "Warning damaged by a real hit! Keep the remaining pages intact.");
         }
+        // A second, genuinely physical encounter begins only after the
+        // courier approaches the actual mid-route relay ON FOOT. A teleport
+        // to its tile with zero credited travel cannot summon the pursuer.
+        // All fighters are transient, exact actor references. Reset clears
+        // only this mission's living/dead enemies and warnings.
+        private void TrySpawnWarningRelayPursuer()
+        {
+            if(!UnsentWarningRunActive||warningRelayPursuerSpawned||
+               warningMeters<14f||warningTime<7f)return;
+            WorldObject relay=WarningRelay(save.room);
+            if(relay==null||!CanStand(Position)||
+               (Position-new Point(relay.x,relay.y)).Length>=7f)return;
+            Point[] positions={
+                new Point(41.5f,25.5f),new Point(37.5f,26.5f),
+                new Point(39.5f,24.5f),new Point(42.5f,26.5f)};
+            foreach(Point p in positions)
+            {
+                if(!CanStand(p)||(p-Position).Length<2.2f||
+                   (save.companion>=0&&(p-companionPosition).Length<1.7f)||
+                   enemies.Exists(e=>e!=null&&e.hp>0f&&
+                       (e.Position-p).Length<1.65f))continue;
+                Enemy hunter=CreatePlacedEnemy(++enemyId,
+                    save.room==3?2:1,p,90f+(save.room==3?20f:0f));
+                warningRaiders.Add(hunter);enemies.Add(hunter);
+                warningRelayPursuerSpawned=true;
+                effects.Add(new Effect("enemyRelease",p,.55f)
+                    {radius=1.1f,variant=0});
+                sound="alert";revision++;
+                Notify("追兵从真实路口截住警报！中继站可选一次加固或烟雾干扰。",
+                    "A pursuer has blocked the actual road! The relay offers one repair or smoke tactic.");
+                break;
+            }
+        }
         private void TickUnsentWarning(float dt)
         {
             if(warningRunRoom<0)
@@ -248,6 +284,7 @@ namespace Starfall
                step.Length>.001f&&step.Length<=.46f)
                 warningMeters+=step.Length;
             warningLastFoot=current;
+            TrySpawnWarningRelayPursuer();
             if(warningTime<=0f)
             {
                 ResetUnsentWarning();revision++;

@@ -690,6 +690,15 @@ namespace Starfall
                         Game.UnsentWarningTravel.ToString("0.0")+
                         "/18",12,warning);
                     Bar(35,512,285,Game.UnsentWarningIntegrity/100f,warning,7);
+                    if(Game.UnsentWarningRelayAvailable)
+                        Text(35,527,640,18,
+                            Game.L("可选支线：中途接应站 · 修复信封或使用诱敌烟雾",
+                                "OPTIONAL FIELD RELAY · PATCH OR DIVERT LIVE PURSUERS"),
+                            11,gold);
+                    if(Game.UnsentWarningRelayPursuerActive)
+                        Text(35,548,600,19,
+                            Game.L("追兵已经进入真实路口","LIVE PURSUER AT THE RELAY"),
+                            11,warning);
                 }
             }
             if(Game.mode=="world"&&Game.MistlightActive&&!drawingOutline)
@@ -1547,6 +1556,25 @@ namespace Starfall
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
                         10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(o.kind=="unsentrelay")
+            {
+                // The road relay is a genuine authored world object,
+                // never a screen-space stand-in for a map-side target.
+                Point relay=new Point(o.x,o.y);
+                Color ink=Game.UnsentWarningRunActive?
+                    Game.UnsentWarningRelayAvailable?gold:mint:muted;
+                PropImage("post",0,p.x-28,p.y-69,56,70,ink);
+                Ring(relay,Game.UnsentWarningRunActive?.68f:.43f,ink,24);
+                if(Game.UnsentWarningRunActive)
+                    Text(p.x-117,p.y-92,234,19,
+                        Game.UnsentWarningRelayChoice==0?
+                            Game.L("接应 · 加固 / 烟雾","RELAY · SEAL / SMOKE"):
+                            Game.UnsentWarningRelayChoice==1?
+                            Game.L("油布加固完成","SEAL REPAIRED"):
+                            Game.L("烟雾诱敌完成","SMOKE DIVERSION USED"),
+                        10,ink,TextAnchor.MiddleCenter);
                 return true;
             }
             if(o.kind=="mistconvoynotice"||o.kind=="mistconvoyhorn"||
