@@ -79,6 +79,9 @@ namespace Starfall.Tests
                 Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="vantage_begin")<0,
                     "Signed lookout is not a respawnable money exploit");
+                // Actual world-mode ticks, not paused dialogue repaint,
+                // must own the permanent local service.
+                g.Close();
                 if(care)
                 {
                     g.save.health=30;g.save.heat=20;g.save.cold=15;
