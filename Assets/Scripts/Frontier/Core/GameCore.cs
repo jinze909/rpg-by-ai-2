@@ -1033,6 +1033,7 @@ namespace Starfall
             save.energy = Clamp(save.energy + dt * ((save.profession == 2 ? 18 : 14) + (InAbyss ? save.boons[1] * 4 : 0) + (save.teaUntil > save.totalTime ? 6 : 0) +
                 (Has("commons_relay_complete") ? 2 : 0) +
                 (MistConvoyHidden&&save.room==5&&SafeTravel?3:0) +
+                (MistChartSecret&&save.room==5&&SafeTravel?2:0) +
                 (ThornwatchTuned&&save.room<8?2:0) + (PressureworksWorkers&&save.room==3?2:0) + (Has("roadcharter_reserve") ? 3 : 0) +
                 // Real completion of eight two-way civilian dispatches
                 // improves long-distance outdoor stamina recovery only.
@@ -4830,6 +4831,7 @@ namespace Starfall
             if (ChooseSilentLedger(action)) return;
             if (ChooseMistlight(action)) return;
             if (ChooseMistConvoy(action)) return;
+            if (ChooseMistChart(action)) return;
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;

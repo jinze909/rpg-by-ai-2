@@ -52,6 +52,77 @@ namespace Starfall
                     "\n\n守夜旅人把湿漉漉的缆绳卷好，塞到椅子底下。‘巡兵说船上十二个人，’他说，‘我数出来十三个。’他没问多出的那个人叫什么，更没有记在纸上。炉边的女引航员正替一个孩子烘干围巾。塔楼外的暗水道又悄悄送过一艘船，钟一次也没响。"+drifterNews;
             return "";
         }
+        // Drifter's Tide Chart: a new physically earned follow-up after
+        // recovering the passenger. Existing SaveData v2 string flags carry
+        // permanent progress, with no fabricated crew or rerun escort.
+        public bool MistChartUnlocked {get{return Has("mistconvoy_drifter");}}
+        public bool MistChartStarted {get{return Has("mistchart_started");}}
+        public bool MistChartRecovered {get{return Has("mistchart_recovered");}}
+        public bool MistChartPublic {get{return Has("mistchart_public");}}
+        public bool MistChartSecret {get{return Has("mistchart_secret");}}
+        public bool MistChartComplete {get{return MistChartPublic||MistChartSecret;}}
+        public bool MistChartActive {get{return MistChartStarted&&!MistChartComplete;}}
+        public Point MistChartTarget {get{return !MistChartStarted?
+            new Point(66.5f,37.5f):!MistChartRecovered?
+            new Point(69.5f,40.5f):new Point(69.5f,44.5f);}}
+        public string MistChartObjective {get{return !MistChartStarted?
+            L("从船员名单寻找遗失航图","FOLLOW THE CREW'S LOST TIDE CHART"):
+            !MistChartRecovered?L("在中继台打捞潮汐航图","SALVAGE THE RELAY TIDE CHART"):
+            L("在南码头决定航图去向","DECIDE THE CHART'S FATE AT SOUTH DOCK");}}
+        private bool ChooseMistChart(string action)
+        {
+            if(action!="mistchart_start"&&action!="mistchart_recover"&&
+               action!="mistchart_public"&&action!="mistchart_secret")
+                return false;
+            WorldObject site=pendingDialogueSource;
+            if(mode!="world"||Dying||practicing||!MistChartUnlocked||
+                !MistConvoyComplete||site==null||
+                pendingDialogueSourceRoom!=5||
+                !MistConvoySource(site,site.id)||MistChartComplete)return true;
+            if(action=="mistchart_start")
+            {
+                if(site.id!="mistconvoy_notice"||MistChartStarted)return true;
+                Flag("mistchart_started");TrackQuest("mistport_tidechart");
+                RecordMoment("落水者记得遗失在雾港中继台下的潮汐航图。地图上的暗礁能让下一艘载人船避开风暴。",
+                    "The rescued drifter remembers a tide chart caught beneath Mistport's relay. Its shoal marks could save the next crowded boat.");
+                revision++;sound="quest";
+                Notify("沿原有东岸中继台寻找潮汐航图。","Seek the tide chart at the original east-bank relay.");
+                return true;
+            }
+            if(action=="mistchart_recover")
+            {
+                if(site.id!="mistconvoy_mid"||!MistChartStarted||
+                    MistChartRecovered||!SafeTravel||FieldWorkPreventsRest)return true;
+                if(save.energy<12f)
+                {Notify("打捞需要12耐力。","Salvage requires 12 energy.");return true;}
+                if(save.inventory[0]<1||save.inventory[4]<1)
+                {Notify("需要木材1和零件1固定打捞绳。","Bring one timber and one machine part to rig the line.");return true;}
+                save.energy-=12f;save.inventory[0]--;save.inventory[4]--;
+                Flag("mistchart_recovered");revision++;sound="quest";
+                Notify("潮汐航图从水中取出！送去南码头决定如何使用。",
+                    "Tide chart recovered from real water. Bring it to the south dock.");
+                return true;
+            }
+            if(site.id!="mistconvoy_dock"||!MistChartRecovered||
+                !SafeTravel||FieldWorkPreventsRest)return true;
+            bool publicChart=action=="mistchart_public";
+            Flag(publicChart?"mistchart_public":"mistchart_secret");
+            CreditCoins(45);AddXp(90);
+            RecordMoment(publicChart?
+                "无名落水者的航图标出了一条向所有船只开放的安全浅滩线。中继台旁如今有人为受伤的水手守灯。":
+                "航图被交给守夜引航员，暗礁位置仅在可信任的船员之间传递。东岸秘密航路的后勤终于稳定。",
+                publicChart?
+                "The rescued drifter's chart marked shoals for every vessel; a public first-aid watch now staffs the old relay.":
+                "Night pilots safeguard the drifter's chart, keeping the dangerous hidden shoals known only to trusted crews.");
+            revision++;sound="reward";
+            Notify(publicChart?
+                "航图公开：硬币+45、经验+90；安全中继台可恢复生命。":
+                "航图保密：硬币+45、经验+90；雾港安全区域耐力恢复+2。",
+                publicChart?
+                "Chart shared: +45 coins, +90 XP; safe relay grants wound healing.":
+                "Chart protected: +45 coins, +90 XP; +2 energy recovery in safe Mistport.");
+            return true;
+        }
         private void ResetMistConvoy()
         {
             mistConvoyStage=0;mistConvoyClock=mistConvoyHull=mistConvoySwell=mistConvoyBrace=0f;
@@ -87,13 +158,23 @@ namespace Starfall
                 }
                 if(MistConvoyComplete)
                 {
+                    if(MistChartUnlocked&&!MistChartStarted)
+                    {
+                        Dialog(o.name,o.en,
+                            "落水者趴在船员名单上指出一处被潮水淹没的中继木桩。她把航图藏在那里，标出了风暴中无人敢走的浅滩。能不能把它取回来，让下一艘船不再迷路？",
+                            "The drifter points to a submerged relay piling on the crew list. She hid a tide chart there, marking shoals no captain would dare cross in a storm. Can you recover it before the next vessel is lost?",
+                            C("寻找落水者的潮汐航图","Find the drifter's tide chart","mistchart_start"),
+                            C("等准备好再说","Not yet","close"));return true;
+                    }
                     Dialog(o.name,o.en,MistConvoyPublic?
                         "你救回的船员如今掌管公开避风驿站。灯熄后，也有人会替陌生船点上第二盏。":
                         "返乡船员把暗水道记在心里，没有交给巡兵。有人专门守着秘密引航的讯号。",
                         MistConvoyPublic?
                         "The crew you rescued now tend the public refuge. Someone lights a second beacon even when the first goes out.":
                         "The returning crew kept the hidden channel out of the patrol's hands. Someone watches for its quiet signal.",
-                        C("继续前行","Continue","close"));return true;
+                        MistChartComplete?
+                            C("查看航图后续","Review the chart's outcome","close"):
+                            C("继续前行","Continue","close"));return true;
                 }
                 if(!MistConvoyActive)
                 {
@@ -134,6 +215,14 @@ namespace Starfall
             }
             if(o.id=="mistconvoy_mid")
             {
+                if(MistChartActive&&!MistChartRecovered)
+                {
+                    Dialog(o.name,o.en,
+                        "桩脚下有一张油布包着的潮汐航图。浪还在打转；要用一根木材和一个零件搭打捞绳，再耗费12耐力拉起它。没有人能从岸上凭空拿走这份记录。",
+                        "An oilskin tide chart is wedged beneath the real relay piling. Rig a salvage line with one timber and one machine part, then spend 12 energy hauling it up. It cannot be claimed from across the harbor.",
+                        C("支付物资 · 打捞潮汐航图","Spend materials · Recover chart","mistchart_recover"),
+                        C("先准备物资","Gather supplies first","close"));return true;
+                }
                 // The relay is a physical, short-lived rescue window. The
                 // drifting passenger cannot be recovered from a remote menu
                 // or after the guided boat has left this stretch of water.
@@ -158,6 +247,14 @@ namespace Starfall
             }
             if(o.id=="mistconvoy_dock")
             {
+                if(MistChartActive&&MistChartRecovered)
+                {
+                    Dialog(o.name,o.en,
+                        "那张潮汐航图终于晾干。落水者说：‘危险的不是海，是没人知道船可以走哪儿。’你可以在中继台为每条船公开安全浅滩线、组织疗伤；也可以把暗礁标记交给守夜引航员，守住秘密的归航能力。",
+                        "The tide chart has dried. The drifter says, 'The sea was never the danger. Not knowing where we could go was.' Publish the safe shoals and staff a first-aid watch, or entrust the chart to night pilots for a protected hidden supply route?",
+                        C("公开浅滩线 · 建立救护岗","Publish shoals · Staff first aid","mistchart_public"),
+                        C("保护暗航图 · 支援引航员","Keep chart secret · Supply pilots","mistchart_secret"));return true;
+                }
                 if(mistConvoyStage==3)
                 {
                     Dialog(o.name,o.en,
@@ -293,6 +390,10 @@ namespace Starfall
         {
             if(mistConvoyStage==0)
             {
+                if(MistChartPublic&&save.room==5&&!Dying&&!practicing&&
+                    SafeTravel&&!FieldWorkPreventsRest&&
+                    PhysicalRefugeReach(new Point(69.5f,40.5f),1.65f))
+                    save.health=Math.Min(save.maxHealth,save.health+1.8f*dt);
                 if(MistConvoyPublic&&save.room==5&&!Dying&&!practicing&&
                     SafeTravel&&!FieldWorkPreventsRest&&
                     PhysicalRefugeReach(new Point(68.5f,38.5f),2.6f))

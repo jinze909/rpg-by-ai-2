@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,34 @@ namespace Starfall
 
 
 
+            if(id=="mistport_tidechart")
+            {
+                q.title=L("雾港 · 落水者的潮汐航图","Mistport · The Drifter's Tide Chart");
+                q.category=L("港口余波 · 实地打捞","HARBOR AFTERMATH · PHYSICAL SALVAGE");
+                q.room=5;q.locked=!MistChartUnlocked||!CanEnter(5);
+                q.complete=MistChartComplete;
+                q.description=L(
+                    "必须亲自从中继台的真实载人船营救中救出落水者。船抵港后，在守灯人的第二份记录（66.5,37.5）接下航图委托，去原有中继台（69.5,40.5）支付木材1、零件1及耐力12进行实地打捞。把航图送到南码头（69.5,44.5），选择向所有船只公布安全浅滩、让安全中继岗恢复生命，或者将暗水道交给引航员保密，让雾港安全地区耐力恢复额外+2。旧版存档仍使用 v2 标志。",
+                    "Rescue the extra drifter from the REAL moving survivor boat first. Once the crew lands, accept her chart commission at the original keeper log (66.5,37.5). Physically salvage the chart at the original relay (69.5,40.5) with one timber, one machine part and 12 energy. Bring it to the south dock (69.5,44.5): share safe shoals to staff local relay healing, or protect the pilots' hidden chart for +2 energy regeneration in safe Mistport. Existing v2 flags preserve progress.");
+                q.steps.Add(new QuestStep(L("从船员名单接受落水者的委托",
+                    "Accept the drifter's commission at the crew ledger"),MistChartStarted||q.complete));
+                q.steps.Add(new QuestStep(L("实地打捞被水冲走的航图",
+                    "Physically salvage the tide chart at the relay"),MistChartRecovered||q.complete));
+                q.steps.Add(new QuestStep(L("在南码头交付并决定航图用途",
+                    "Deliver and choose the chart's use at south dock"),q.complete));
+                q.target=MistChartTarget;
+                q.next=q.locked?L("先在最后一船的真实水道救起落水者",
+                    "First save the drifter during the genuine boat escort"):
+                    q.complete?MistChartPublic?
+                        L("公开潮汐航图 · 安全中继台可疗伤",
+                            "Shoals published · safe relay heals wounds"):
+                        L("航图由引航员保管 · 安全耐力恢复+2",
+                            "Chart held by pilots · +2 safe energy regeneration"):
+                    MistChartObjective;
+                q.reward=L("硬币45、经验90；公开医疗或隐蔽补给",
+                    "45 coins, 90 XP; public medical watch or hidden supply");
+                return q;
+            }
             if(id=="mistport_lastboat")
             {
                 q.title=L("雾港 · 最后一船","Mistport · The Last Boat Home");
