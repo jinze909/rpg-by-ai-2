@@ -105,7 +105,8 @@ namespace Starfall
             if(BiomeFieldDone)
             {
                 int fare=BiomeSupplyRoadBuilt(region)?1:3;
-                int energy=BiomeSupplyRoadBuilt(region)?6:12;
+                int energy=BiomeSupplyRoadBuilt(region)?
+                    (Has("biome_crisis_done_"+region)?3:6):12;
                 Dialog(o.name,o.en,
                     "你已经把两处现场记录写进公共探路册。"+
                     "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
@@ -207,7 +208,8 @@ namespace Starfall
                     return true;
                 }
                 int fare=BiomeSupplyRoadBuilt(room)?1:3;
-                int energy=BiomeSupplyRoadBuilt(room)?6:12;
+                int energy=BiomeSupplyRoadBuilt(room)?
+                    (Has("biome_crisis_done_"+room)?3:6):12;
                 if(save.coins<fare||save.energy<energy)
                 {
                     Notify("地区接驳需要"+fare+"枚硬币与"+energy+"点耐力。",
@@ -869,7 +871,8 @@ namespace Starfall
             Dialog(o.name,o.en,noteZh+
                     "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 "+
                     ((Has("afterglow_ending_shelter")?60:40)+
-                        (BiomeSupplyMedicineBuilt(save.room)?20:0))+" 和全部耐力。"+
+                        (BiomeSupplyMedicineBuilt(save.room)?
+                            (Has("biome_crisis_done_"+save.room)?30:20):0))+" 和全部耐力。"+
                     (SignalRelayActive?"\n\n当前传讯："+SignalRelayStage+"/2段，火种完整度 "+
                         SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
                         Has("annex_relay_done_"+save.room)?
@@ -881,7 +884,8 @@ namespace Starfall
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
                     noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores "+
                     ((Has("afterglow_ending_shelter")?60:40)+
-                        (BiomeSupplyMedicineBuilt(save.room)?20:0))+" HP and full energy."+
+                        (BiomeSupplyMedicineBuilt(save.room)?
+                            (Has("biome_crisis_done_"+save.room)?30:20):0))+" HP and full energy."+
                     (SignalRelayActive?"\n\nDispatch stage "+SignalRelayStage+"/2 · flame "+
                         SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
                         Has("annex_relay_done_"+save.room)?
@@ -1071,7 +1075,8 @@ namespace Starfall
             }
             if(!Spend(1,0,0,0,0))return true;
             int healing=(Has("afterglow_ending_shelter")?60:40)+
-                (BiomeSupplyMedicineBuilt(save.room)?20:0);
+                (BiomeSupplyMedicineBuilt(save.room)?
+                            (Has("biome_crisis_done_"+save.room)?30:20):0);
             save.health=Clamp(save.health+healing,0,save.maxHealth);save.energy=100;
             revision++;sound="reward";
             Notify("营火补给：生命恢复 "+healing+"，耐力全满。",

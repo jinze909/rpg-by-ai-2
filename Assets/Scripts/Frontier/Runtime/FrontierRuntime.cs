@@ -1017,8 +1017,23 @@ namespace Starfall
                             "/2 · 3硬币/12耐力",
                             "SUPPLIES "+Game.BiomeSupplySampleCount(Game.save.room)+
                             "/2 · 3C/12ST");
-                    Text(p.x-117,p.y-114,234,18,status,10,ink,
-                        TextAnchor.MiddleCenter);
+                    bool crisisHere=Game.BiomeCrisisActive;
+                    if(crisisHere)
+                    {
+                        bool isTarget=Game.BiomeCrisisStage==3?!second:second;
+                        if(isTarget)
+                        {
+                            status=Game.L("紧急护送目标 · 剩"+
+                                (int)Game.BiomeCrisisSeconds+"秒",
+                                "RELIEF TARGET · "+(int)Game.BiomeCrisisSeconds+"S");
+                            Ring(new Point(o.x,o.y),.85f,gold,28);
+                        }
+                    }
+                    else if(Game.Has("biome_crisis_done_"+Game.save.room))
+                        status=Game.L("居民救援已签收 · 永久增益",
+                            "RELIEF SIGNED · LASTING BONUS");
+                    Text(p.x-117,p.y-114,234,18,status,10,
+                        crisisHere?gold:ink,TextAnchor.MiddleCenter);
                     if(medicine||road)
                         Diamond(p.x,p.y-91,6,ink);
                 }

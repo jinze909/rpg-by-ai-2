@@ -66,12 +66,24 @@ namespace Starfall
         {
             if(BiomeSupplyMedicineBuilt(room))
                 return english?
-                    "\n\nPublic medicine stock: camp rest heals +20 HP. At either original evidence marker, one Moonherb can treat 60 HP, 25 energy, and 25 heat/cold.":
-                    "\n\n公共药箱已建：营地休息额外恢复20生命。两处现场地标可用一株月光草治疗60生命、25耐力，并缓解冷热各25。";
+                    "\n\nPublic medicine stock: camp rest heals +"+
+                    (Has("biome_crisis_done_"+room)?30:20)+
+                    " HP. One Moonherb treats "+
+                    (Has("biome_crisis_done_"+room)?80:60)+
+                    " HP, 25 energy and 25 heat/cold at either real station.":
+                    "\n\n公共药箱：营地休息额外恢复"+
+                    (Has("biome_crisis_done_"+room)?30:20)+
+                    "生命。现场月光草治疗"+
+                    (Has("biome_crisis_done_"+room)?80:60)+
+                    "生命、25耐力，并缓解冷热各25。";
             if(BiomeSupplyRoadBuilt(room))
                 return english?
-                    "\n\nCivilian road stock: the verified field relay now costs only 1 coin and 6 energy, without bypassing live danger.":
-                    "\n\n居民通路已修复：实地接驳降为1硬币、6耐力；正在发生的战斗与阻断仍不能跳过。";
+                    "\n\nCivilian road: the field relay now costs 1 coin and "+
+                    (Has("biome_crisis_done_"+room)?3:6)+
+                    " energy. A verified emergency relief delivery permanently strengthens road footing.":
+                    "\n\n居民通路：接驳只需1硬币、"+
+                    (Has("biome_crisis_done_"+room)?3:6)+
+                    "耐力；完成真实护送后，本区步行也会更稳。";
             return english?
                 "\n\nRemote logistics: recover both far wilderness samples ("+
                 BiomeSupplySampleCount(room)+"/2), then fund ONE lasting local policy.":
@@ -135,13 +147,15 @@ namespace Starfall
                     return true;
                 }
                 if(!Spend(0,0,1,0,0))return true;
-                save.health=Math.Min(save.maxHealth,save.health+60f);
+                save.health=Math.Min(save.maxHealth,save.health+
+                    (Has("biome_crisis_done_"+room)?80f:60f));
                 save.energy=Math.Min(100f,save.energy+25f);
                 save.heat=Math.Max(0f,save.heat-25f);
                 save.cold=Math.Max(0f,save.cold-25f);
                 revision++;sound="reward";
-                Notify("公共药箱：生命+60、耐力+25，缓解冷热各25。",
-                    "Public triage: +60 HP, +25 energy, -25 heat and cold.");
+                int healed=Has("biome_crisis_done_"+room)?80:60;
+                Notify("公共药箱：生命+"+healed+"、耐力+25，缓解冷热各25。",
+                    "Public triage: +"+healed+" HP, +25 energy, -25 heat and cold.");
                 return true;
             }
             // The actual two wilderness pickups prove this route. A player

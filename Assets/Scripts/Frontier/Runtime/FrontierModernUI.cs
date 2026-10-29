@@ -1347,6 +1347,29 @@ namespace Starfall
                 Frame(x-5.5f,y-5.5f,11f,11f,ink);
                 Box(x-2,y-2,4,4,ink);
             }
+            // Only mark the exact target of the active, source-bound
+            // emergency contract, never a remote selected map.
+            if(Game.BiomeCrisisActive&&Game.save.room==region)
+            {
+                Point target=Game.BiomeCrisisTarget;
+                float cx=originX+target.x*tileScale;
+                float cy=originY+target.y*tileScale;
+                Frame(cx-8,cy-8,16,16,gold);
+                Box(cx-3,cy-3,6,6,gold);
+                Text(originX+1,originY+map.rows.Length*tileScale+20,
+                    304,16,
+                    Game.L("救援："+(Game.BiomeCrisisStage==1?
+                        "击退袭击者":Game.BiomeCrisisStage==2?
+                        "交接物资":"返回起点复命")+
+                        " · "+(int)Game.BiomeCrisisSeconds+"秒 · 物资"+
+                        Game.BiomeCrisisIntegrity+"/3",
+                        "LIVE RELIEF: "+(Game.BiomeCrisisStage==1?
+                        "DEFEAT RAIDERS":Game.BiomeCrisisStage==2?
+                        "DELIVER MATERIAL":"RETURN RECEIPT")+
+                        " · "+(int)Game.BiomeCrisisSeconds+"S · CARGO "+
+                        Game.BiomeCrisisIntegrity+"/3"),
+                    10,gold,TextAnchor.MiddleCenter);
+            }
             Text(originX,originY+map.rows.Length*tileScale+3,
                 306,15,completed?
                     Game.BiomeSupplyMedicineBuilt(region)?
