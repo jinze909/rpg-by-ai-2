@@ -103,7 +103,7 @@ namespace Starfall
         }
         private static readonly int[] CivicAftercareRegions={0,3,5};
         public bool CivicAftercareActive
-        { get { return CivicConduitComplete&&Has("civic_aftercare_started")&&!Has("civic_aftercare_published"); } }
+        { get { return CivicConduitComplete&&!Has("civic_aftercare_published"); } }
         public int CivicAftercareWaypointCount
         {
             get
@@ -507,15 +507,35 @@ namespace Starfall
             if(room!=0&&room!=3&&room!=5)return false;
             string flag="civic_aftercare_waytrail_"+room;
             if(Has(flag))return false;
+            if(!Has("civic_aftercare_started"))
+            {
+                Flag("civic_aftercare_started");
+                RecordMoment("公共电网已经恢复。你在真正走到的第一处路碑记录居民出行状况，后续不用回旅店领取新主线。",
+                    "After the grid was restored, you started recording civilian road conditions at a genuine original marker without a new mandatory chapter.");
+            }
             Flag(flag);
             int count=CivicAftercareWaypointCount;
             sound="quest";revision++;
-            Notify(count>=3?
-                "三地巡路复核已齐备。回炉火旅店公布记录。":
-                "巡路复核已记录 "+count+"/3。继续核验另外两地。",
-                count>=3?
-                "All three route checks are recorded. Return to Hearth Inn to publish the audit.":
-                "Road audit recorded "+count+"/3. Verify the other regions.");
+            if(count>=3)
+                PublishCivicAftercare();
+            else
+                Notify("居民巡路记录 "+count+"/3。可直接前往下一地区的旧路标。",
+                    "Civilian road checks "+count+"/3. Visit another original marker directly.");
+            return true;
+        }
+        // The final physical visit and legacy three-marker v2 receipts
+        // share one exact-once reward transaction. No second signboard gate.
+        private bool PublishCivicAftercare()
+        {
+            if(!CivicAftercareActive||CivicAftercareWaypointCount<3||
+                Has("civic_aftercare_published"))return false;
+            Flag("civic_aftercare_published");
+            CreditCoins(35);CreditShards(1);AddXp(45);
+            RecordMoment("三地居民沿真实旧路走完现场核验，最后一处路碑已自动公开记录，药草急救交给当地照管。",
+                "All three original roads were checked on foot. The last marker files the record on site and local residents now maintain first-aid supplies.");
+            sound="reward";revision++;
+            Notify("三地居民旧路现场归档：硬币+35、碎片+1、经验+45。路标急救点开放！",
+                "Three civilian roads filed in the field: +35 coins, +1 shard, +45 XP. Roadside first-aid sites open!");
             return true;
         }
         private string CivicAftercareInnNote(bool en)
@@ -964,12 +984,7 @@ namespace Starfall
                 {Notify("巡路复核已经公开，奖励不会重复发放。","The audit is already public; no duplicate reward is granted.");return true;}
                 if(!CivicAftercareActive||CivicAftercareWaypointCount<3)
                 {Notify("必须先在引水渠、赤铁矿场和雾港各核验一处旧路标。","Verify one old route marker each at Canal, Ironreach and Mistport first.");return true;}
-                Flag("civic_aftercare_published");
-                CreditCoins(35);CreditShards(1);AddXp(45);
-                RecordMoment("三地巡路复核已公开，公共电网的安全路线有了现场记录。","Published the three-region road audit, giving the restored public grid a field-verified route record.");
-                sound="reward";revision++;
-                Notify("三地巡路复核已公开：硬币+35、碎片+1、经验+45。三地旧路标已备好药草急救包！",
-                    "Road audit published: +35 coins, +1 shard, +45 XP. Civilian herbal first-aid kits now staff all three surveyed markers!");
+                PublishCivicAftercare();
                 return true;
             }
             return false;
@@ -2461,9 +2476,9 @@ namespace Starfall
                     "After the public grid is restored, residents need to verify that its safe routes remain usable. Accept the audit at Hearth Inn, revisit one old route marker each at Canal, Ironreach and Mistport, then publish the field record at the Inn. Publication equips their original markers with permanent, herb-funded safe field care.");
                 q.locked=!CivicConduitComplete;
                 q.complete=Has("civic_aftercare_published");
-                q.steps.Add(new QuestStep(L("在炉火旅店接取复核",
-                    "Accept the audit at Hearth Inn"),
-                    Has("civic_aftercare_started")||q.complete));
+                q.steps.Add(new QuestStep(L("电网已恢复，居民可直接实地核验旧路",
+                    "Grid restored: civilians may inspect original routes"),
+                    CivicConduitComplete));
                 int next=-1;
                 string[] namesZh={"引水渠","赤铁矿场","雾港"};
                 string[] namesEn={"Canal","Ironreach","Mistport"};
@@ -2474,8 +2489,8 @@ namespace Starfall
                     q.steps.Add(new QuestStep(L(namesZh[i],namesEn[i]),done));
                     if(next<0&&!done)next=room;
                 }
-                q.steps.Add(new QuestStep(L("回旅店公布记录并领取首次奖励",
-                    "Publish the record at Hearth Inn for the first-clear reward"),q.complete));
+                q.steps.Add(new QuestStep(L("实地核验三处旧路标后自动归档",
+                    "File automatically after three genuine field checks"),q.complete));
                 if(q.complete)
                 {
                     q.room=9;
@@ -2483,21 +2498,19 @@ namespace Starfall
                     q.next=L("三地复核已公开，核验路标提供药草急救",
                         "Audit published; surveyed route markers now offer herbal field aid");
                 }
-                else if(q.locked||!Has("civic_aftercare_started"))
+                else if(q.locked)
                 {
-                    q.room=9;
-                    q.target=ObjectPoint(9,"innGuest",new Point(20,12));
-                    q.next=q.locked?
-                        L("先完成公共电网的三处现场调谐","First complete the three physical grid valves"):
-                        L("与炉火旅店的夜行旅人交谈，接取复核",
-                          "Talk to the night traveler at Hearth Inn to begin");
+                    q.room=4;
+                    q.target=CivicConduitTarget(0);
+                    q.next=L("先在堡垒调通三处真实电网阀门",
+                        "First restore the real civilian grid valves");
                 }
                 else if(next<0)
                 {
                     q.room=9;
                     q.target=ObjectPoint(9,"innGuest",new Point(20,12));
-                    q.next=L("三处信标已复核，回旅店公布记录",
-                        "All three markers verified; return to the Inn to publish");
+                    q.next=L("旧存档已有三处现场记录，可到旅店补签一次性回执",
+                        "Legacy save has three field marks; sign its historical receipt at the inn");
                 }
                 else
                 {
