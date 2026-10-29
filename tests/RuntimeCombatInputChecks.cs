@@ -12091,8 +12091,19 @@ public static class RuntimeCombatInputChecks
         g.save.flags.Add("biome_field_done_1");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(GUI.commands.Exists(x=>x.Contains("FIELD COMPLETE"))&&
-            GUI.commands.Exists(x=>x.Contains("BOTH RELAY STATIONS OPEN")),
-            "Genuinely completed field route promotes two original atlas markers to relays");
+            GUI.commands.Exists(x=>x.Contains("SAMPLES 0/2"))&&
+            GUI.commands.Exists(x=>x.Contains("GOLD = REQUIRED")),
+            "Genuinely completed investigation exposes two real unclaimed wilderness supply samples");
+        g.save.flags.Add("node_trail_forager_1_0");
+        g.save.flags.Add("node_trail_forager_1_2");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("SAMPLES 2/2")),
+            "Real original node flags, not map browsing, advance the paid supply network");
+        g.save.flags.Add("biome_supply_road_1");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("CIVILIAN ROAD"))&&
+            GUI.commands.Exists(x=>x.Contains("RELAY 1C / 6ST")),
+            "Shipped atlas reads the lasting roadway choice and effective lower ferry fare");
         Check(g.BiomeFieldNotes==1,
             "Opening the map never forges another region's fieldwork reward or completion");
         g.Close();
@@ -12161,8 +12172,9 @@ public static class RuntimeCombatInputChecks
             "A correct genuinely sourced choice earns precisely this region's reward");
         GUI.commands.Clear();Call(app,"OnGUI");
         Check(!GUI.commands.Exists(x=>x.Contains("FIELD INTERPRETATION"))&&
-            GUI.commands.Exists(x=>x.Contains("FIELD RELAY · 3C / 12ST")),
-            "Resolved monument becomes a real rendered paid travel station rather than inert scenery");
+            GUI.commands.Exists(x=>x.Contains("SUPPLIES 0/2"))&&
+            GUI.commands.Exists(x=>x.Contains("3C/12ST")),
+            "Resolved in-world monument is a paid relay and honestly reports uncollected distant supply samples");
         Set(app,"camera",g.Position);
         Input.Clear();Input.keys.Add(KeyCode.E);
         Update(app);
@@ -12177,6 +12189,12 @@ public static class RuntimeCombatInputChecks
         Check((g.Position-new Point(first.x,first.y)).Length<2f&&
             g.save.coins==47&&Math.Abs(g.save.energy-88f)<.001f,
             "E at the finished far field stone actually rides the safe long route and pays once");
+        g.save.flags.Add("biome_supply_medicine_1");
+        g.mode="world";Set(app,"camera",g.Position);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("PUBLIC TRIAGE"))&&
+            GUI.commands.Exists(x=>x.Contains("CAMP HEALING")),
+            "After a real E crossing, the same production world marker renders persisted medical policy, not an obsolete fare");
         Console.WriteLine(
             "PASS live Thornwood fieldwork E, directional GameView, earned relay, paid real return");
     }
