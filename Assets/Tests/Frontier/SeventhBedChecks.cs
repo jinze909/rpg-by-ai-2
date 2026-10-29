@@ -211,6 +211,144 @@ namespace Starfall.Tests
                     "The unique completed civic ending grants physical local safe relief beyond baseline recovery");
             }
         }
+        private static GameCore SeventhSupperReady(Campaign data,int ending)
+        {
+            GameCore g=SeventhReady(data);
+            SeventhBegin(g);SeventhEvidence(g);
+            WorldObject notice=SeventhSite(g,"seventh_notice");
+            Check(PlaceWithinTalkReach(g,notice),"The real notice accepts a proved deduction");
+            g.Talk(notice);
+            Check(SeventhChoice(g,"seventh_reconstruct"),
+                "Four genuine testimonies support the existing case's conclusion");
+            WorldObject cook=SeventhSite(g,"innCook");
+            Check(PlaceWithinTalkReach(g,cook),
+                "The original chef must receive the first mystery outcome");
+            g.Talk(cook);
+            Check(SeventhChoice(g,ending==0?"seventh_announce":"seventh_shield")&&
+                g.SeventhBedComplete&&!g.SeventhSupperDone,
+                "Only a genuinely completed earlier social mystery unlocks optional aftercare");
+            return g;
+        }
+        private static int SeventhWalkTo(GameCore g,WorldObject site)
+        {
+            Point target=new Point(site.x,site.y);
+            Check((g.Position-target).Length>14f,
+                "Real aftercare destination is distant, not a one-tap reward from the same NPC");
+            int steps=0;
+            for(;steps<2600&&(g.Position-target).Length>1.05f;steps++)
+            {
+                Point direction=g.DirectionTo(g.Position,target);
+                if(direction.Length<.001f)break;
+                g.Tick(.05f,direction);
+            }
+            Check((g.Position-target).Length<1.8f&&
+                g.CanStand(g.Position)&&steps>50,
+                "Live GameCore movement navigates the real Hearth Inn corridor to the next source");
+            return steps;
+        }
+        public static void SeventhBedMidnightSupperTraversesBothRealCorridorsAndPaysOnce(Campaign data)
+        {
+            for(int ending=0;ending<2;ending++)
+            {
+                GameCore g=SeventhSupperReady(data,ending);
+                WorldObject cook=SeventhSite(g,"innCook");
+                WorldObject annex=SeventhSite(g,"seventh_reply");
+                var before=CloneSave(g.save);
+                int coins=g.save.coins;
+                Check(PlaceWithinTalkReach(g,cook),
+                    "Night courier starts only at the original cook in the real inn");
+                g.Talk(cook);
+                Check(SeventhChoice(g,"seventh_supper_start")&&
+                    g.SeventhSupperActive&&!g.SeventhSupperReturning&&
+                    Math.Abs(g.SeventhSupperSeconds-45f)<.01f&&
+                    (g.SeventhSupperTarget-new Point(annex.x,annex.y)).Length<.001f,
+                    "Original cook physically hands off a timed meal to the distant annex");
+                int firstSteps=SeventhWalkTo(g,annex);
+                Check(g.SeventhSupperActive&&g.SeventhSupperSeconds>0f&&
+                    g.SeventhSupperSeconds<45f&&firstSteps>50,
+                    "A real, clocked walk carries warm bowls into the annex instead of teleporting");
+                g.Talk(annex);
+                Check(SeventhChoice(g,"seventh_supper_drop")&&
+                    g.SeventhSupperReturning&&
+                    (g.SeventhSupperTarget-new Point(cook.x,cook.y)).Length<.001f,
+                    "The original annex shelf accepts hot food and hands over yesterday's actual return bowls");
+                int lastSteps=SeventhWalkTo(g,cook);
+                Check(lastSteps>50&&g.SeventhSupperReturning,
+                    "Player must actually walk the return corridor while carrying empty bowls");
+                g.Talk(cook);
+                Check(SeventhChoice(g,"seventh_supper_finish")&&
+                    g.SeventhSupperDone&&!g.SeventhSupperActive&&
+                    g.save.coins==coins+20&&g.save.version==2,
+                    "Only the complete two-leg source-verified delivery earns its one-time v2 reward");
+                g.Talk(cook);
+                Check(!SeventhChoice(g,"seventh_supper_finish")&&
+                    !SeventhChoice(g,"seventh_supper_start")&&
+                    g.save.coins==coins+20,
+                    "Finished aftercare never reissues cargo or double-pays rewards");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(loaded.SeventhSupperDone&&
+                    !loaded.SeventhSupperActive&&loaded.save.version==2,
+                    "Saved aftercare completion persists without serializing the carried bowls");
+                // Permanent aftercare improves the ORIGINAL, branch-specific
+                // refuge and never grants a universal heal outside the inn.
+                var control=new GameCore(data,CloneSave(g.save));
+                control.save.flags.Remove("seventh_supper_delivered");
+                loaded.Start();control.Start();
+                loaded.enemies.Clear();control.enemies.Clear();
+                WorldObject rest=SeventhSite(loaded,ending==0?"innRest":"innCook");
+                Check(PlaceWithinTalkReach(loaded,rest),
+                    "Enhanced refuge is still tied to the original actual physical site");
+                control.save.x=loaded.save.x;control.save.y=loaded.save.y;
+                if(ending==0)
+                    loaded.save.health=control.save.health=10f;
+                else loaded.save.energy=control.save.energy=20f;
+                for(int i=0;i<40;i++)
+                {loaded.Tick(.05f,new Point());control.Tick(.05f,new Point());}
+                Check(ending==0?loaded.save.health>control.save.health+1.1f:
+                    loaded.save.energy>control.save.energy+2f,
+                    "Actual optional delivery upgrades precisely the earned ending's safe inn service");
+                Check(before.version==2&&!before.flags.Contains("seventh_supper_delivered"),
+                    "An existing completed mystery is not retroactively granted the new sequel");
+            }
+        }
+        public static void SeventhBedMidnightSupperColdCargoAndTravelCannotForgeDelivery(Campaign data)
+        {
+            var g=SeventhSupperReady(data,1);
+            WorldObject cook=SeventhSite(g,"innCook");
+            Check(PlaceWithinTalkReach(g,cook),"Original cook is within genuine local reach");
+            g.Talk(cook);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="seventh_supper_start");
+            Check(action>=0,"The completed chapter offers actual aftercare on the original cook");
+            g.save.x=44.5f;g.save.y=13.5f;
+            g.Choose(action);
+            Check(!g.SeventhSupperActive,
+                "Stale remote chef choices cannot hand out food or a free timed quest");
+            Check(PlaceWithinTalkReach(g,cook),"Travel back to original cook");
+            g.Talk(cook);
+            Check(SeventhChoice(g,"seventh_supper_start")&&g.SeventhSupperActive,
+                "A fresh physically sourced request legitimately starts delivery");
+            for(int n=0;n<920&&g.SeventhSupperActive;n++)
+                g.Tick(.05f,new Point());
+            Check(!g.SeventhSupperActive&&!g.SeventhSupperDone&&
+                g.SeventhSupperSeconds==0f,
+                "Food really goes cold after 45 simulated world seconds with no fake reward");
+            g.Talk(cook);
+            Check(SeventhChoice(g,"seventh_supper_start")&&g.SeventhSupperActive,
+                "Player can retry cold delivery from real cook without save corruption");
+            g.PrepareSave();
+            var resumed=new GameCore(data,CloneSave(g.save));
+            Check(resumed.save.version==2&&resumed.SeventhBedComplete&&
+                !resumed.SeventhSupperActive&&!resumed.SeventhSupperDone,
+                "Saving midway does not serialize a temporary steaming meal");
+            g.Enter(0);
+            Check(!g.SeventhSupperActive,
+                "Changing real regions safely abandons transient quest cargo");
+            g.Enter(9);
+            Check(!g.SeventhSupperActive&&!g.SeventhSupperDone,
+                "Returning to the original inn cannot resurrect cargo across a region reset");
+        }
         public static void SeventhBedWrongAccusationIsRecoverableButCannotEarnFlawlessTalent(Campaign data)
         {
             var g=SeventhReady(data);SeventhBegin(g);SeventhEvidence(g);
