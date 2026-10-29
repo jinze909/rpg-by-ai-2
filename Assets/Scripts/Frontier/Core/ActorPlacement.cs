@@ -176,12 +176,13 @@ namespace Starfall
             }
             return reachable;
         }
-        private bool RegionalBattleFootFree(Point foot,bool[] connected)
+        private bool RegionalBattleFootFree(Point foot,bool[] connected,
+            bool expanded=false)
         {
             int x=(int)Math.Floor(foot.x),y=(int)Math.Floor(foot.y);
             int width=Map.rows[0].Length;
-            if(x<4||x>33||y<3||y>21||
-                x>=width||y>=Map.rows.Length||
+            if(x<0||y<0||x>=width||y>=Map.rows.Length||
+                (!expanded&&(x<4||x>33||y<3||y>21))||
                 !connected[y*width+x]||!Fits(foot)||
                 (foot-Position).Length<4.5f)return false;
             // Leave conversations, resources, exits and quest machinery
@@ -208,14 +209,41 @@ namespace Starfall
                 Point p=new Point(ax+dx+.5f,ay+dy+.5f);
                 if(RegionalBattleFootFree(p,connected))return p;
             }
-            // A future modded map can remove an entire opening lane. Keep
-            // the legacy repair behavior rather than dropping mandatory
-            // enemy count or mutating the campaign/save format.
+            // A changed gate or authored map can eliminate every favored
+            // battle pad. The former final fallback used unvalidated legacy
+            // coordinates, potentially placing a mandatory enemy IN a wall
+            // or on the far side of a closed crossing. Keep those historical
+            // positions only if the same live physical checks accept them.
             int[,] original={
                 {11,12},{15,17},{21,15},{24,6},
                 {9,7},{30,16},{23,19},{14,9}
             };
-            return new Point(original[rank,0],original[rank,1]);
+            Point legacy=new Point(original[rank,0],original[rank,1]);
+            if(RegionalBattleFootFree(legacy,connected))return legacy;
+            // Last resort: look beyond the old compact arena, but ONLY on
+            // the hero-reachable component and with the same collision,
+            // object and enemy clearances. This path runs on exceptional
+            // blocked layouts, never every combat tick or normal spawn.
+            Point nearest=new Point();float best=float.MaxValue;
+            int width=Map.rows[0].Length;
+            for(int y=2;y<Map.rows.Length-2;y++)
+            for(int x=2;x<width-2;x++)
+            {
+                int index=y*width+x;
+                if(!connected[index])continue;
+                Point candidate=new Point(x+.5f,y+.5f);
+                float dx=candidate.x-(ax+.5f),dy=candidate.y-(ay+.5f);
+                float squared=dx*dx+dy*dy;
+                if(squared>=best||
+                    !RegionalBattleFootFree(candidate,connected,true))continue;
+                nearest=candidate;best=squared;
+            }
+            if(best<float.MaxValue)return nearest;
+            // A region without a single reachable, unoccupied battle tile
+            // is corrupt. Fail explicitly rather than silently creating an
+            // enemy inside an unwalkable tile and breaking progression.
+            throw new InvalidOperationException(
+                "No reachable and uncrowded regional battle spawn.");
         }
         private void SpawnRegionalBaselineEnemies(int count,float health)
         {

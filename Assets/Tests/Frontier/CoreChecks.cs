@@ -539,6 +539,56 @@ namespace Starfall.Tests
                 "The seven opening encounters must meaningfully depart from the legacy shared coordinates");
         }
 
+        public static void RegionalBattleFallbackNeverSpawnsBehindBlockedTerrain(Campaign data)
+        {
+            MapData map=data.maps[1];
+            string[] original=map.rows;
+            try
+            {
+                string[] isolated=new string[original.Length];
+                for(int y=0;y<isolated.Length;y++)
+                {
+                    char[] cells=new string('#',original[y].Length).ToCharArray();
+                    if(y>=8&&y<=33)
+                        for(int x=36;x<=65;x++)cells[x]='.';
+                    isolated[y]=new string(cells);
+                }
+                map.rows=isolated;
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.room=1;
+                g.save.x=43.5f;g.save.y=20.5f;
+                g.enemies.Clear();
+                var flags=System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance;
+                var reachableFn=typeof(GameCore).GetMethod(
+                    "RegionalBattleReachableTiles",flags);
+                var footFn=typeof(GameCore).GetMethod("RegionalBattleFoot",flags);
+                Check(reachableFn!=null&&footFn!=null,
+                    "Authentic regional spawn uses a reachable-tile search");
+                bool[] reachable=(bool[])reachableFn.Invoke(g,null);
+                Point origin=g.Position;
+                for(int rank=0;rank<4;rank++)
+                {
+                    Point foot=(Point)footFn.Invoke(g,new object[]{rank,reachable});
+                    Check(foot.x>=36f&&g.CanStand(foot)&&
+                        (foot-origin).Length>=4.5f&&
+                        g.NavigationPathFrom(origin,foot,true).Count>0,
+                        "Blocked old arena retargets a real accessible battle foot");
+                    foreach(Enemy existing in g.enemies)
+                        Check((existing.Position-foot).Length>=2.5f,
+                            "Fallback enemy keeps real combat separation");
+                    foreach(WorldObject o in g.Map.objects)
+                        Check((new Point(o.x,o.y)-foot).Length>=2f,
+                            "No fallback enemy occupies a physical quest prop");
+                    g.enemies.Add(new Enemy(95000+rank,rank%3,
+                        foot.x,foot.y,75f));
+                }
+                Check(g.enemies.Count==4&&g.save.version==2,
+                    "Four real distinct actors stage without changing saved schema");
+            }
+            finally{map.rows=original;}
+        }
+
         public static void AuthoredEnemySpawnsAndTideRecoveryAvoidWideGuardianBodies(Campaign data)
         {
             MapData original=data.maps[0];
