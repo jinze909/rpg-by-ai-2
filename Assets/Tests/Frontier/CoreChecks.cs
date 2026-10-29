@@ -744,6 +744,69 @@ namespace Starfall.Tests
             }
         }
 
+        public static void CourierAmbushCombatCannotBeFarmedAndWithdrawsWithoutGhosts(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            Check(kit!=null&&PlaceWithinTalkReach(g,kit),
+                "An authored field kit can dispatch real courier cargo");
+            g.save.inventory[2]=3;g.save.energy=100f;
+            g.Talk(kit);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start");
+            Check(start>=0,"Actual public medicine dispatch exists");
+            g.Choose(start);
+            Check(g.FieldDispatchStage==1&&g.enemies.Count==0,
+                "No artificial ambush spawns before the genuine waypoint signature");
+            Point waypoint=g.FieldDispatchTarget;
+            WorldObject machine=Array.Find(g.Map.objects,o=>
+                o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-waypoint).Length<.01f);
+            Check(machine!=null,"The signed waypoint is a real original machine");
+            g.Close();g.save.x=machine.x;g.save.y=machine.y;
+            g.Talk(machine);
+            int sign=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_checkpoint");
+            Check(sign>=0,"Actual machine offers its own source-bound receipt");
+            g.Choose(sign);
+            Check(g.FieldDispatchStage==2&&g.FieldDispatchLivingRaiders>0&&
+                g.enemies.Count==g.FieldDispatchLivingRaiders,
+                "The second leg creates distinct real encounter actors");
+            Enemy raider=g.enemies[0];
+            int coins=g.save.coins,kills=g.save.kills[1],shards=g.save.shards,
+                xp=g.save.xp,level=g.save.level;
+            int herbs=g.save.inventory[2],loot=g.save.inventory[raider.kind==2?4:
+                raider.kind==1?1:2];
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Original contact damage is available");
+            hit.Invoke(g,new object[]{raider,9999f,true,null,null});
+            Check(!g.enemies.Contains(raider)&&g.FieldDispatchActive&&
+                g.save.coins==coins&&g.save.kills[1]==kills&&
+                g.save.shards==shards&&g.save.xp==xp&&g.save.level==level&&
+                g.save.inventory[raider.kind==2?4:raider.kind==1?1:2]==loot,
+                "Actual courier ambush kills cannot be farmed for chapter kills, normal XP, cash or loot");
+            g.Close();g.save.x=kit.x;g.save.y=kit.y;
+            g.Talk(kit);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_abort");
+            Check(abort>=0,"Only original kit allows optional withdrawal");
+            g.Choose(abort);
+            Check(!g.FieldDispatchActive&&!g.FieldDispatchDone(1)&&
+                g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0&&
+                g.save.inventory[2]==herbs&&g.save.shards==shards,
+                "Withdrawal retires every owned raider without refunding cargo or awarding a receipt");
+            g.Close();g.Talk(kit);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_dispatch_start")>=0,
+                "Aborted dispatch leaves the authentic route available for one paid retry");
+        }
+
         public static void FieldDispatchFailureAndSourceIsolationRejectFalseReceipts(Campaign data)
         {
             GameCore g=Fresh(data);
