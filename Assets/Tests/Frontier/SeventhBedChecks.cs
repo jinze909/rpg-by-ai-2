@@ -74,6 +74,36 @@ namespace Starfall.Tests
                 "Original night traveler has a coherent physical optional witness conversation");
             g.Close();
         }
+        public static void SeventhBedAnnexLetterIsReallyReachableByLiveInnWorldWalking(Campaign data)
+        {
+            var g=SeventhReady(data);
+            SeventhBegin(g);
+            WorldObject notice=SeventhSite(g,"seventh_notice"),
+                annex=SeventhSite(g,"seventh_reply");
+            Check(PlaceWithinTalkReach(g,notice),
+                "The real first clue routes from the original near-side inn hall");
+            float firstDistance=(g.Position-new Point(annex.x,annex.y)).Length;
+            Check(firstDistance>15f,
+                "The distant annex source is a genuinely separated investigation destination");
+            int steps=0;
+            Point target=new Point(annex.x,annex.y);
+            for(;steps<2600&&(g.Position-target).Length>1.1f;steps++)
+            {
+                Point direction=g.DirectionTo(g.Position,target);
+                if(direction.Length<.001f)break;
+                g.Tick(.05f,direction);
+            }
+            Check((g.Position-target).Length<1.75f&&steps>55&&
+                g.CanStand(g.Position),
+                "True terrain-steered player movement crosses the original inn corridors and reaches the annex without teleporting through walls");
+            g.Talk(annex);
+            Check(SeventhChoice(g,"seventh_take_letter")&&
+                g.SeventhBedLetter&&!g.SeventhBedBlanket&&
+                !g.SeventhBedStamp,
+                "Reaching the far annex by real world walking grants ONLY the letter, never invents other clues");
+            Check(g.SeventhBedEvidenceCount==1,
+                "Physical investigation remains flexible rather than falsely enforcing a locked linear quest menu");
+        }
         public static void SeventhBedRejectsUnstartedAndStaleDialogueAndPersistsPartialEvidence(Campaign data)
         {
             var untouched=Fresh(data);
