@@ -997,16 +997,31 @@ namespace Starfall
                 bool second=kind=="biomeAnswer";
                 bool finished=Game.BiomeFieldDone;
                 bool ready=Game.BiomeFieldStarted;
-                Color ink=finished?mint:second?
-                    ready?gold:muted:new Color(.63f,.87f,.96f);
+                bool medicine=Game.BiomeSupplyMedicineBuilt(Game.save.room);
+                bool road=Game.BiomeSupplyRoadBuilt(Game.save.room);
+                Color ink=finished?
+                    (medicine?mint:road?gold:new Color(.63f,.87f,.96f)):
+                    second?(ready?gold:muted):new Color(.63f,.87f,.96f);
                 PropImage(second?"obelisk":"post",0,
                     p.x-36,p.y-82,72,84,ink);
                 Ring(new Point(o.x,o.y),second?.59f:.46f,ink,24);
                 if(finished)
-                    Text(p.x-105,p.y-114,210,18,
-                        Game.L("地区接驳 · 硬币3 / 耐力12",
-                            "FIELD RELAY · 3C / 12ST"),10,ink,
+                {
+                    string status=medicine?
+                        Game.L("公共药箱 · 营地治疗增强",
+                            "PUBLIC TRIAGE · CAMP HEALING"):
+                        road?
+                        Game.L("居民通路 · 1硬币/6耐力",
+                            "PUBLIC ROAD · 1C / 6ST"):
+                        Game.L("远路物资 "+Game.BiomeSupplySampleCount(Game.save.room)+
+                            "/2 · 3硬币/12耐力",
+                            "SUPPLIES "+Game.BiomeSupplySampleCount(Game.save.room)+
+                            "/2 · 3C/12ST");
+                    Text(p.x-117,p.y-114,234,18,status,10,ink,
                         TextAnchor.MiddleCenter);
+                    if(medicine||road)
+                        Diamond(p.x,p.y-91,6,ink);
+                }
                 if(!finished&&(!second||ready))
                 {
                     Diamond(p.x,p.y-89,6,ink);

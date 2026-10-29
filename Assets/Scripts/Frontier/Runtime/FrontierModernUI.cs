@@ -1308,12 +1308,21 @@ namespace Starfall
                     total++;
                     bool claimed=Game.Has("node_"+supply.id);
                     if(claimed)gathered++;
-                    Color tone=claimed?muted:supply.kind=="ore"?gold:
+                    bool sample=supply.id=="trail_forager_"+region+"_0"||
+                        supply.id=="trail_forager_"+region+"_2";
+                    bool awaiting=completed&&!Game.BiomeSupplyBuilt(region);
+                    // Two distant, truly gathered sites certify the actual
+                    // civilian logistics decision. Yellow outlines distinguish
+                    // samples without pretending a map click collected them.
+                    Color tone=awaiting&&sample?gold:
+                        claimed?muted:supply.kind=="ore"?gold:
                         supply.kind=="wood"?PixelArt.C("#c0a577"):mint;
                     float px=originX+supply.x*tileScale;
                     float py=originY+supply.y*tileScale;
                     Frame(px-3.5f,py-3.5f,7f,7f,tone);
                     if(!claimed)Box(px-1.5f,py-1.5f,3f,3f,tone);
+                    if(awaiting&&sample&&claimed)
+                        Frame(px-5,py-5,10,10,gold);
                 }
                 if(total>0)
                     Text(originX+172,originY-18,134,14,
@@ -1335,8 +1344,18 @@ namespace Starfall
             }
             Text(originX,originY+map.rows.Length*tileScale+3,
                 306,15,completed?
-                    Game.L("调查已完成 · 两处地标可付费往返",
-                        "FIELD COMPLETE · BOTH RELAY STATIONS OPEN"):
+                    Game.BiomeSupplyMedicineBuilt(region)?
+                        Game.L("公共药箱已开放 · 可到两处地标治疗",
+                            "PUBLIC TRIAGE · BOTH FIELD STATIONS OPEN"):
+                    Game.BiomeSupplyRoadBuilt(region)?
+                        Game.L("居民通路已修复 · 接驳1硬币/6耐力",
+                            "CIVILIAN ROAD · RELAY 1C / 6ST"):
+                    Game.L("调查完成 · 远端物资"+
+                        Game.BiomeSupplySampleCount(region)+
+                        "/2 · 金框是所需样本",
+                        "FIELD COMPLETE · SAMPLES "+
+                        Game.BiomeSupplySampleCount(region)+
+                        "/2 · GOLD = REQUIRED"):
                     started?
                     Game.L("已记录初始线索 · 金色方框为远端证据",
                         "FIRST CLUE READ · GOLD BOX MARKS FAR EVIDENCE"):
