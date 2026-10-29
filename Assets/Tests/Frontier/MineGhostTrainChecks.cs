@@ -334,20 +334,52 @@ namespace Starfall.Tests
             GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ride_dispatch");
             Check((g.Position-new Point(dispatch.x,dispatch.y)).Length<1.8f,
                 "Rail transit is bidirectional and returns physically to dispatch");
-            // Insufficient fares cannot move the hero or consume stock.
-            g.save.coins=1;Point stay=g.Position;int coins=g.save.coins;
-            GhostWalk(g,dispatch);GhostChoice(g,"ghost_train_ride_switch");
+            // Check position AFTER walking to the actual boarding object.
+            // A scripted walk in this fixture must not count as a free ride.
+            g.save.coins=1;
+            GhostWalk(g,dispatch);
+            Point stay=g.Position;int coins=g.save.coins;
+            GhostChoice(g,"ghost_train_ride_switch");
             Check((g.Position-stay).Length<.01f&&g.save.coins==coins,
                 "Cannot ride without real coins: no teleport and no hidden fee");
+            g.save.coins=20;g.save.energy=9f;
+            GhostWalk(g,dispatch);stay=g.Position;
+            GhostChoice(g,"ghost_train_ride_medbay");
+            Check((g.Position-stay).Length<.01f&&
+                g.save.energy==9f&&g.save.coins==20,
+                "Insufficient stamina likewise cannot move the rider or charge a ticket");
             // Combat safety is source-bound, including a live hostile actor.
-            g.save.coins=20;g.save.energy=90;
+            g.save.energy=90;
             g.enemies.Add(new Enemy(123456,0,dispatch.x+1.5f,
                 dispatch.y,80f));
-            GhostWalk(g,dispatch);
+            GhostWalk(g,dispatch);stay=g.Position;
             GhostChoice(g,"ghost_train_ride_switch");
             Check((g.Position-stay).Length<.01f&&g.save.coins==20,
                 "Nearby authentic combat prevents fast rail travel and charges nothing");
             g.enemies.Clear();
+            // A closed actual arrival platform must never strand a rider
+            // inside rock, charge a fare or vandalize shared map terrain.
+            MapData mine=g.Map;
+            int cx=(int)infirmary.x,cy=(int)infirmary.y;
+            var backups=new Dictionary<int,string>();
+            try
+            {
+                for(int y=cy-2;y<=cy+2;y++)
+                {
+                    backups[y]=mine.rows[y];
+                    char[] cells=mine.rows[y].ToCharArray();
+                    for(int x=cx-2;x<=cx+2;x++)cells[x]='#';
+                    mine.rows[y]=new string(cells);
+                }
+                GhostWalk(g,dispatch);stay=g.Position;
+                GhostChoice(g,"ghost_train_ride_medbay");
+                Check((g.Position-stay).Length<.01f&&g.save.coins==20,
+                    "A physically sealed mine terminal causes no route teleport or ticket charge");
+            }
+            finally
+            {
+                foreach(var pair in backups)mine.rows[pair.Key]=pair.Value;
+            }
             g.PrepareSave();
             GameCore loaded=new GameCore(data,g.save);
             Check(loaded.save.version==2&&loaded.GhostTrainFreight&&
