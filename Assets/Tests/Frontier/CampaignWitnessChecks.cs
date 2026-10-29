@@ -3,6 +3,65 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void NewOverworldBiomesKeepPhysicalQuestPathsAndHaveDifferentRemoteSilhouettes(Campaign data)
+        {
+            // Source maps have 120x80 cells, but a different-looking ASCII
+            // mask is not enough. Check all 16 earned field sites are
+            // actually reachable using GameCore's production actor feet.
+            var g=Fresh(data);
+            for(int room=0;room<8;room++)
+            {
+                MapData map=data.maps[room];
+                g.save.room=room;
+                g.save.x=map.spawnX;g.save.y=map.spawnY;
+                int w=map.rows[0].Length,h=map.rows.Length;
+                Check(w==120&&h==80&&g.CanStand(g.Position),
+                    "Every reworked region retains the original standable arrival foot");
+                int[] queue=new int[w*h],dirsX={1,-1,0,0},dirsY={0,0,1,-1};
+                bool[] visited=new bool[w*h];
+                int start=(int)map.spawnY*w+(int)map.spawnX,front=0,end=0;
+                queue[end++]=start;visited[start]=true;
+                while(front<end)
+                {
+                    int node=queue[front++],x=node%w,y=node/w;
+                    for(int direction=0;direction<4;direction++)
+                    {
+                        int xx=x+dirsX[direction],yy=y+dirsY[direction];
+                        if(xx<2||yy<2||xx>=w-2||yy>=h-2)continue;
+                        int next=yy*w+xx;
+                        if(visited[next]||!g.CanStand(new Point(xx+.5f,yy+.5f)))
+                            continue;
+                        visited[next]=true;queue[end++]=next;
+                    }
+                }
+                Check(end>3500,
+                    "The new biome's safe walking region remains sizable, not a sealed grid");
+                foreach(WorldObject source in map.objects)
+                {
+                    if(source==null||source.kind!="biomeSurvey"&&
+                       source.kind!="biomeAnswer")continue;
+                    int x=(int)source.x,y=(int)source.y;
+                    Check(x>=2&&y>=2&&x<w-2&&y<h-2&&
+                        visited[y*w+x]&&g.CanStand(new Point(source.x,source.y)),
+                        "All two-site biome missions remain reachable through actual game collision, not map glyphs");
+                }
+            }
+            // Match only the old, materially similar distant regions:
+            // a fresh forest, mine, desert and snowfield must now present
+            // hundreds of genuinely different walkable/blocked terrain cells.
+            int[] compare={1,3,6,7};
+            for(int i=0;i<compare.Length;i++)
+            for(int j=i+1;j<compare.Length;j++)
+            {
+                int differences=0;
+                MapData a=data.maps[compare[i]],b=data.maps[compare[j]];
+                for(int y=27;y<75;y++)
+                for(int x=37;x<116;x++)
+                    if(a.rows[y][x]!=b.rows[y][x])differences++;
+                Check(differences>500,
+                    "Remote forest, mine, desert and ice terrain must not remain recolored copies");
+            }
+        }
         public static void EarnedRegionalRelaysRequireRealCompletedWalkAndSafePaidTwoWayTravel(Campaign data)
         {
             var g=Fresh(data);
