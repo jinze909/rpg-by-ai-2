@@ -119,9 +119,9 @@ namespace Starfall.Tests
                 Check(guide.steps.Count==4&&guide.steps[chapter-1].done,
                     "New four-chapter storyline is connected to real journal progress");
                 var main=g.GetQuest("main");
-                Check(main.steps.Exists(s=>s.done&&s.label.Contains(
+                Check(main.steps.Exists(s=>s.done&&s.text.Contains(
                     "civilian rescue"))||main.steps.Exists(s=>
-                    s.done&&s.label.Contains("居民")),
+                    s.done&&s.text.Contains("居民")),
                     "Original main chapter journal recognizes the new playable scene");
             }
         }
