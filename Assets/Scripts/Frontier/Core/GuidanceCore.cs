@@ -1060,6 +1060,17 @@ namespace Starfall
                         done));
                 }
                 q.complete=ChapterRoadCompleted==4;
+                // These episodes occur BETWEEN the original four chapters.
+                // An older completed-ending save must never receive a new
+                // impossible main-story arrow or relive the pre-finale crisis.
+                // Keep the completed/unfinished flags truthful in the journal.
+                if(save.ending>0)
+                {
+                    q.locked=true;q.room=save.room;q.target=Position;
+                    q.next=L("星核主线已经完结。这里保留当时完成的居民记录，不再强制回到过去做任务。",
+                        "The core story has ended. Existing civilian records remain readable; no impossible pre-finale mission is issued.");
+                    return q;
+                }
                 int next=-1;
                 if(ChapterRoadActive)next=save.room;
                 else if(save.room>=1&&save.room<=4&&
