@@ -3,6 +3,82 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void EarnedRegionalRelaysRequireRealCompletedWalkAndSafePaidTwoWayTravel(Campaign data)
+        {
+            var g=Fresh(data);
+            g.enemies.Clear();g.invulnerable=900f;
+            MapData town=g.Map;
+            WorldObject first=Array.Find(town.objects,o=>o.id=="biomeSurvey0");
+            WorldObject last=Array.Find(town.objects,o=>o.id=="biomeAnswer0");
+            Check(first!=null&&last!=null,
+                "The exact two authored town evidence stones still exist");
+            Check(PlaceWithinTalkReach(g,first),
+                "An unearned source must be physically reachable");
+            g.Talk(first);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_relay")<0,
+                "Uncompleted field evidence never unlocks a free regional ferry");
+            g.Close();
+            // Earlier dedicated investigations check the genuine two-site
+            // reasoning and reward; this fixture validates the persistent
+            // v2 completion gate independently from walking speed.
+            g.save.flags.Add("biome_field_read_0");
+            g.save.flags.Add("biome_field_done_0");
+            g.Talk(first);
+            int forward=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_relay");
+            Check(forward>=0,
+                "A completed original field marker now offers a real two-way service");
+            g.save.coins=60;g.save.energy=100f;
+            int previousCoins=g.save.coins;
+            g.Choose(forward);
+            Check(g.mode=="world"&&
+                (g.Position-new Point(last.x,last.y)).Length<2f&&
+                g.save.coins==previousCoins-3&&
+                Math.Abs(g.save.energy-88f)<.001f,
+                "An earned ride moves onto genuine open far-side ground and charges once");
+            Check(g.CanStand(g.Position),
+                "Physical relay never places the hero inside water, cliff or building");
+            Check(PlaceWithinTalkReach(g,last),
+                "Far endpoint offers a matching real return station");
+            g.Talk(last);
+            int back=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_relay");
+            Check(back>=0,"Reverse travel starts only at the true remote monument");
+            g.Choose(back);
+            Check((g.Position-new Point(first.x,first.y)).Length<2f&&
+                g.save.coins==previousCoins-6&&
+                Math.Abs(g.save.energy-76f)<.001f,
+                "Returning from the other end uses the same physical and economic rules");
+            Check(PlaceWithinTalkReach(g,first),"Return source remains reachable");
+            g.Talk(first);
+            int threat=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_relay");
+            Point departure=g.Position;
+            g.enemies.Add(new Enemy(997,0,departure.x+1f,
+                departure.y,40f));
+            int unsafeCoins=g.save.coins;float unsafeEnergy=g.save.energy;
+            g.Choose(threat);
+            Check((g.Position-departure).Length<.001f&&
+                g.save.coins==unsafeCoins&&
+                Math.Abs(g.save.energy-unsafeEnergy)<.001f,
+                "Live enemy pressure blocks a protected field relay without spending a coin");
+            g.enemies.Clear();
+            g.Close();
+            g.Talk(first);
+            int underfunded=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_relay");
+            g.save.coins=0;g.save.energy=5f;
+            g.Choose(underfunded);
+            Check((g.Position-departure).Length<.001f&&
+                g.save.coins==0&&Math.Abs(g.save.energy-5f)<.001f,
+                "Underfunded replay cannot get a free full-map shortcut");
+            g.Close();g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.Has("biome_field_done_0")&&
+                restored.save.version==2,
+                "Relay access derives solely from existing persistent fieldwork flags");
+        }
         public static void ReworkedBiomesHaveDistinctDistantFieldChallengesAndOneTimeAtlas(Campaign data)
         {
             var g=Fresh(data);
