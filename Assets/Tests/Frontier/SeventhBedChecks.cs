@@ -334,6 +334,10 @@ namespace Starfall.Tests
             Check(!SeventhChoice(g,"seventh_supper_wrap")&&g.SeventhSupperWrapped&&
                 Math.Abs(g.save.energy-(energy-8f))<.001f,
                 "Returning to original cot cannot stack insulation or charge again");
+            // A rejected choice leaves the conversation open. Simulated
+            // travel clocks advance in the actual world, never while reading.
+            g.Close();
+            Check(g.mode=="world","Cooling benchmark resumes real world simulation");
             for(int i=0;i<40;i++)g.Tick(.05f,new Point());
             Check(g.SeventhSupperSeconds>43.75f&&
                 g.SeventhSupperSeconds<44f,
