@@ -113,8 +113,8 @@ namespace Starfall
             if(o.kind=="biomeSurvey")
             {
                 Dialog(o.name,o.en,
-                    biomeOpeningZh[region]+"\\n\\n亲眼看过这处标记后，才能到远端比对真正的答案。",
-                    biomeOpeningEn[region]+"\\n\\nRead this marker in person, then travel across the region to test its meaning.",
+                    biomeOpeningZh[region]+"\n\n亲眼看过这处标记后，才能到远端比对真正的答案。",
+                    biomeOpeningEn[region]+"\n\nRead this marker in person, then travel across the region to test its meaning.",
                     BiomeFieldStarted?C("已经记下","Already recorded","close"):
                         C("抄下当地线索","Copy local field evidence","biome_note"),
                     C("以后再来","Not yet","close"));
@@ -129,8 +129,8 @@ namespace Starfall
                 return true;
             }
             Dialog(o.name,o.en,
-                biomeFinalZh[region]+"\\n\\n把前后两处证据放在一起，下一位旅人该怎样行动？答错会消耗6点耐力重新核对现场。",
-                biomeFinalEn[region]+"\\n\\nCompare both original sites. What should the next traveler do? A wrong interpretation costs 6 stamina to reassess.",
+                biomeFinalZh[region]+"\n\n把前后两处证据放在一起，下一位旅人该怎样行动？答错会消耗6点耐力重新核对现场。",
+                biomeFinalEn[region]+"\n\nCompare both original sites. What should the next traveler do? A wrong interpretation costs 6 stamina to reassess.",
                 C(biomeAnswersZh[region,0],biomeAnswersEn[region,0],"biome_pick_0"),
                 C(biomeAnswersZh[region,1],biomeAnswersEn[region,1],"biome_pick_1"),
                 C(biomeAnswersZh[region,2],biomeAnswersEn[region,2],"biome_pick_2"),
