@@ -656,6 +656,42 @@ namespace Starfall
                     12,signal);
                 Text(35,454,605,19,Game.MistChartObjective,11,signal);
             }
+            // New actual two-region courier chapter. All HUD positions
+            // are projections of existing authored waytrail sources; the
+            // ambushers remain real native enemy actors, never UI clones.
+            if(Game.mode=="world"&&Game.UnsentWarningStarted&&
+                !Game.UnsentWarningComplete&&!drawingOutline&&
+                Game.UnsentWarningTargetRoom==Game.save.room)
+            {
+                Point target=Game.UnsentWarningObjective;
+                Color warning=Game.UnsentWarningRunActive&&
+                    (Game.UnsentWarningIntegrity<32f||
+                     Game.UnsentWarningSeconds<20f)?
+                    new Color(1f,.48f,.35f,1f):gold;
+                if(WorldDrawable(target.x,target.y,180f,160f))
+                {
+                    Ring(target,.67f,warning,28);
+                    Point mark=ScreenPoint(target);
+                    Text(mark.x-162,mark.y-86,324,20,
+                        Game.UnsentWarningObjectiveText,11,warning,
+                        TextAnchor.MiddleCenter);
+                }
+                if(Game.UnsentWarningRunActive)
+                {
+                    Text(35,465,635,24,
+                        Game.L("未送达的警报 · 实地递送",
+                            "UNSENT WARNING · LIVE COURIER"),
+                        13,warning);
+                    Text(35,488,650,20,
+                        Game.L("信封 ","SEAL ")+
+                        Game.UnsentWarningIntegrity.ToString("0")+
+                        "/100 · "+Game.UnsentWarningSeconds.ToString("0")+
+                        "s · "+Game.L("已步行 ","WALKED ")+
+                        Game.UnsentWarningTravel.ToString("0.0")+
+                        "/18",12,warning);
+                    Bar(35,512,285,Game.UnsentWarningIntegrity/100f,warning,7);
+                }
+            }
             if(Game.mode=="world"&&Game.MistlightActive&&!drawingOutline)
             {
                 Color live=Game.MistlightIntegrity<31f?
