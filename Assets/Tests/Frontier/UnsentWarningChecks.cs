@@ -56,6 +56,172 @@ namespace Starfall.Tests
                 g.UnsentWarningSeconds>0f,
                 "Genuine terrain-steered movement physically connects west and east waymarks within the live deadline");
         }
+        private static WorldObject PhysicalWarningRelay(GameCore game,int room)
+        {
+            foreach(WorldObject o in game.Map.objects)
+                if(o.id=="unsent_relay_"+room&&o.kind=="unsentrelay")
+                    return o;
+            throw new Exception("Missing true map-side warning relay in "+room);
+        }
+        private static void WalkToWarningRelay(GameCore game,WorldObject post)
+        {
+            Point target=new Point(post.x,post.y);
+            for(int frame=0;frame<2000&&game.UnsentWarningRunActive&&
+                (game.Position-target).Length>1.25f;frame++)
+            {
+                Point step=game.DirectionTo(game.Position,target);
+                if(step.Length<.01f)break;
+                game.Tick(.05f,step);
+            }
+            Check(game.UnsentWarningRunActive&&
+                (game.Position-target).Length<1.8f&&
+                game.UnsentWarningTravel>=14f,
+                "A physically steered courier crosses authored terrain into the real mid-route field station");
+        }
+        public static void UnsentRelayRequiresRealDamageAndForbidsRemoteAndRepeatedSupplies(Campaign data)
+        {
+            var g=UnsentReady(data);
+            UnsentOpenAtRealGuild(g);
+            g.Enter(2);g.enemies.Clear();g.invulnerable=900f;
+            WorldObject west=UnsentPost(g,2,false),
+                relay=PhysicalWarningRelay(g,2);
+            Check(g.CanStand(new Point(relay.x,relay.y))&&
+                !g.UnsentWarningRelayAvailable,
+                "The original Drowned map has a truly walkable field relay with no fake pre-quest supplies");
+            Check(PlaceWithinTalkReach(g,relay),"A traveler can inspect the original mid-route post");
+            g.Talk(relay);
+            Check(g.mode=="dialog"&&g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,c=>c.action=="unsent_relay_repair")<0,
+                "Inactive warning courier cannot take the field repair by conversation");
+            g.Close();
+            Check(PlaceWithinTalkReach(g,west),"The start waytrail remains reachable");
+            g.Talk(west);
+            Check(UnsentChoice(g,"unsent_run_2")&&g.UnsentWarningRunActive,
+                "Original west waytrail launches an actual dangerous parcel");
+            foreach(Enemy foe in g.enemies)
+            {foe.stun=150f;foe.timer=150f;}
+            int herbs=g.save.inventory[2],wood=g.save.inventory[0];
+            WalkToWarningRelay(g,relay);
+            Check(PlaceWithinTalkReach(g,relay),
+                "A real road crossing brings the courier within source-bound relay reach");
+            g.Talk(relay);
+            Check(UnsentChoice(g,"unsent_relay_repair")&&
+                g.UnsentWarningRelayChoice==0&&
+                g.save.inventory[2]==herbs,
+                "Perfectly intact warning cannot burn resources to mint fake repair credit");
+            var hurt=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hurt!=null,"The game's actual hero-damage path exists");
+            g.save.health=g.save.maxHealth;g.invulnerable=0f;
+            hurt.Invoke(g,new object[]{18f,"shot",null});
+            Check(g.UnsentWarningRunActive&&g.UnsentWarningIntegrity<100f,
+                "A genuine hit damages the courier seal before patching");
+            g.invulnerable=900f;
+            float integrity=g.UnsentWarningIntegrity,
+                remaining=g.UnsentWarningSeconds,energy=g.save.energy;
+            g.Close();g.Talk(relay);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="unsent_relay_repair");
+            Check(option>=0,"Damaged warning exposes the physical oilcloth decision");
+            g.save.x=relay.x+12f;g.Choose(option);
+            Check(g.UnsentWarningRelayChoice==0&&
+                g.save.inventory[2]==herbs&&
+                g.UnsentWarningIntegrity==integrity,
+                "A stale remote relay choice cannot patch a damaged parcel");
+            Check(PlaceWithinTalkReach(g,relay),
+                "Real terrain permits return after stale dialogue");
+            g.Talk(relay);
+            Check(UnsentChoice(g,"unsent_relay_repair")&&
+                g.UnsentWarningRelayChoice==1&&
+                g.UnsentWarningIntegrity==Math.Min(100f,integrity+45f)&&
+                Math.Abs(g.UnsentWarningSeconds-(remaining-8f))<.001f&&
+                g.save.inventory[2]==herbs-1&&g.save.inventory[0]==wood&&
+                Math.Abs(g.save.energy-(energy-12f))<.001f,
+                "Actual oilcloth repair trades exactly one herb, 12 energy and 8 deadline seconds for +45 seal");
+            g.Talk(relay);
+            Check(!UnsentChoice(g,"unsent_relay_smoke")&&
+                g.UnsentWarningRelayChoice==1&&
+                g.save.inventory[2]==herbs-1,
+                "Patch and smoke are exclusive, with no repeated material spend");
+            Check(!g.Has("unsent_warning_relay_2"),
+                "Only an actual finished run, not an optional field choice, can bank a durable relief receipt");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.UnsentWarningStarted&&
+                !loaded.UnsentWarningRunActive&&!loaded.Has("unsent_warning_relay_2"),
+                "Pending relay choice and pursuer are transient across legacy SaveData v2 reload");
+        }
+        public static void UnsentLivePursuerAndSmokeRequireTraversedRealTerrain(Campaign data)
+        {
+            var g=UnsentReady(data);UnsentOpenAtRealGuild(g);
+            g.Enter(3); // The next regional task is still gated by river proof.
+            g.Enter(2);g.enemies.Clear();g.invulnerable=900f;
+            WorldObject west=UnsentPost(g,2,false),
+                relay=PhysicalWarningRelay(g,2),
+                east=UnsentPost(g,2,true);
+            Check(PlaceWithinTalkReach(g,relay),"Real relay is source reachable");
+            Check(!g.UnsentWarningRelayPursuerActive&&
+                !g.UnsentWarningRunActive,
+                "Walking to an inactive relay does not invent ambushes");
+            Check(PlaceWithinTalkReach(g,west),"Walk to actual west start");
+            g.Talk(west);
+            Check(UnsentChoice(g,"unsent_run_2")&&g.UnsentWarningRunActive,
+                "Genuine warning starts before field approach");
+            foreach(Enemy foe in g.enemies)
+            {foe.stun=150f;foe.timer=150f;}
+            int startingActors=g.enemies.Count;
+            // Position spoofing alone never earns 14 tiles of ACTUAL travel.
+            g.save.x=relay.x;g.save.y=relay.y;
+            g.Tick(.05f,new Point());
+            Check(!g.UnsentWarningRelayPursuerActive&&
+                g.enemies.Count==startingActors&&
+                g.UnsentWarningTravel<14f,
+                "Teleporting near the relay cannot fake a genuine patrol event");
+            Check(PlaceWithinTalkReach(g,west),
+                "After fake relocation, safely return to the real west start");
+            WalkToWarningRelay(g,relay);
+            Check(g.UnsentWarningRelayPursuerActive&&
+                g.enemies.Count==startingActors+1,
+                "Only actual traversed distance triggers one real new living hunter beside the relay");
+            // Keep the first two fighters disabled, but the new one has its
+            // original authentic AI, HP and time until the player acts.
+            Enemy hunter=g.enemies[g.enemies.Count-1];
+            Check(hunter.hp>0f&&g.CanStand(hunter.Position)&&!hunter.boss,
+                "This threat is a real killable normal enemy, not a HUD animation or Boss reward");
+            Check(PlaceWithinTalkReach(g,relay),"The relay is physically reachable beside live enemies");
+            g.Talk(relay);
+            int wood=g.save.inventory[0],herb=g.save.inventory[2],
+                kills=g.save.kills[1],coin=g.save.coins;
+            float before=g.UnsentWarningSeconds,energy=g.save.energy;
+            Check(UnsentChoice(g,"unsent_relay_smoke")&&
+                g.UnsentWarningRelayChoice==2&&
+                g.save.inventory[0]==wood-1&&g.save.inventory[2]==herb&&
+                Math.Abs(g.save.energy-(energy-12f))<.001f&&
+                Math.Abs(g.UnsentWarningSeconds-(before-5f))<.001f,
+                "An actual relay smokes only visible, live raiders for a real five-second deadline penalty");
+            Check(hunter.stun>=2.5f&&g.enemies.Contains(hunter)&&
+                g.save.kills[1]==kills&&g.save.coins==coin,
+                "Smoke interrupts genuine raiders but never fabricates kills, coins or a Boss victory");
+            g.Close();g.Talk(relay);
+            Check(!UnsentChoice(g,"unsent_relay_repair")&&
+                g.save.inventory[0]==wood-1,
+                "One tactical choice per run blocks fake second-tier repair");
+            g.Close();
+            // Do not freeze world time: genuine end-to-end completion banks
+            // the optional signal only after actually reaching the east post.
+            hunter.stun=150f;hunter.timer=150f;
+            UnsentWalkToEasternPost(g,east);
+            g.Talk(east);
+            Check(UnsentChoice(g,"unsent_deliver_2")&&g.UnsentRiverDelivered&&
+                g.Has("unsent_warning_relay_2")&&
+                !g.UnsentWarningRunActive,
+                "A genuinely delivered warning banks the optional tactical receipt once");
+            g.PrepareSave();var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.UnsentRiverDelivered&&
+                loaded.Has("unsent_warning_relay_2")&&
+                !loaded.UnsentWarningRunActive,
+                "True relay receipt persists on SaveData v2 without resuming stale pursuer actors");
+        }
         public static void UnsentWarningRequiresTwoPriorTrueStoriesAndAuthenticGuild(Campaign data)
         {
             var locked=Fresh(data);locked.save.stage=3;
