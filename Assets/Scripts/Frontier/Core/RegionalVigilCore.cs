@@ -34,6 +34,8 @@ namespace Starfall
         };
         private int vigilRoom=-1,vigilStage,vigilIntegrity;
         private float vigilSeconds;
+        private bool vigilRush;
+        public bool RegionalVigilRushed {get{return RegionalVigilActive&&vigilRush;}}
         private MapData vigilMap;
         private SaveData vigilSave;
         private WorldObject vigilOrigin;
@@ -88,7 +90,8 @@ namespace Starfall
                     {RemoveEnemyPendingWarning(enemies[i]);enemies.RemoveAt(i);}
             }
             vigilRoom=-1;vigilStage=0;vigilIntegrity=0;
-            vigilSeconds=0f;vigilMap=null;vigilSave=null;vigilOrigin=null;
+            vigilSeconds=0f;vigilRush=false;
+            vigilMap=null;vigilSave=null;vigilOrigin=null;
             vigilHostiles.Clear();vigilKills.Clear();
         }
         private bool SpawnRegionalVigilRaiders(WorldObject remote)
@@ -178,14 +181,20 @@ namespace Starfall
             if(vigilIntegrity<=0)
             {
                 ResetRegionalVigil();revision++;
-                Notify("工程应急物资受损三次，巡护失败。请从源站重试。",
+                Notify(vigilRush?
+                    "紧急快线物资受损两次，巡护失败。可从起点重新选择方案。":
+                    "工程应急物资受损三次，巡护失败。请从源站重试。",
+                    vigilRush?
+                    "Two real hits destroyed the urgent dispatch. Retry either route from the origin.":
                     "Three actual combat hits destroyed the engineering packet. Restart at the origin.");
             }
             else
             {
                 revision++;
-                Notify("工程物资被击中，剩余完整度 "+vigilIntegrity+"/3。",
-                    "Engineering packet damaged: "+vigilIntegrity+"/3 integrity.");
+                Notify("工程物资被击中，剩余完整度 "+vigilIntegrity+
+                    (vigilRush?"/2":"/3")+"。",
+                    "Engineering packet damaged: "+vigilIntegrity+
+                    (vigilRush?"/2":"/3")+" integrity.");
             }
         }
         // Add a contextual option to the EXISTING device dialogue. The action
@@ -214,9 +223,21 @@ namespace Starfall
                   "regional_vigil_begin"):
                 C("到起点装置接取工程巡护","Begin watch at the first station","close");
         }
+        private Choice RegionalVigilRushChoice(WorldObject site)
+        {
+            int station=RegionalMachineIndex(site),room=save.room;
+            if(station!=0||!RegionalMachineDone(room)||
+                RegionalVigilDone(room)||RegionalVigilActive)
+                return C("继续维护巡路设备","Keep checking the devices","close");
+            return C("抢修快线 · 240秒 / 2次受伤失败 / 奖励更高",
+                "Urgent response · 240s / 2 hits / higher reward",
+                "regional_vigil_rush");
+        }
         private bool ChooseRegionalVigil(string action)
         {
-            if(action!="regional_vigil_begin"&&action!="regional_vigil_service"&&
+            if(action!="regional_vigil_begin"&&
+                action!="regional_vigil_rush"&&
+                action!="regional_vigil_service"&&
                 action!="regional_vigil_report"&&action!="regional_vigil_abort")
                 return false;
             WorldObject site=pendingDialogueSource;
@@ -226,7 +247,7 @@ namespace Starfall
                 !SourceBelongsToActiveMap(site)||!HasPhysicalInteractionReach(site)||
                 !CanStand(Position)||!RegionalMachineDone(room)||
                 RegionalVigilDone(room))return true;
-            if(action=="regional_vigil_begin")
+            if(action=="regional_vigil_begin"||action=="regional_vigil_rush")
             {
                 if(station!=0||RegionalVigilActive||
                     FieldWorkPreventsRest||!SafeTravel||racing||
@@ -240,14 +261,20 @@ namespace Starfall
                     (Position-new Point(target.x,target.y)).Length<18f)
                     return true;
                 vigilRoom=room;vigilMap=Map;vigilSave=save;
-                vigilOrigin=site;vigilStage=1;vigilSeconds=360f;
-                vigilIntegrity=3;
+                vigilOrigin=site;vigilStage=1;
+                vigilRush=action=="regional_vigil_rush";
+                vigilSeconds=vigilRush?240f:360f;
+                vigilIntegrity=vigilRush?2:3;
                 if((room==1||room==3||room==4)&&
                     !SpawnRegionalVigilRaiders(target))
                 {ResetRegionalVigil();return true;}
                 revision++;sound="quest";
-                Notify(vigilZh[room]+" 六分钟内走完两个真实维护站并返回；三次实际受伤会损毁物资。",
-                    vigilEn[room]+" Walk two real faraway stations and return within six minutes. Three real hits destroy the supply packet.");
+                Notify(vigilZh[room]+(vigilRush?
+                    " 你选择抢修快线：四分钟内走完两站并返回，两次真实受伤会导致失败。":
+                    " 你选择稳妥巡护：六分钟内走完两站并返回，三次真实受伤会导致失败。"),
+                    vigilEn[room]+(vigilRush?
+                    " Urgent response: four minutes, two real hits destroy the packet. A greater genuine reward awaits.":
+                    " Safe response: six minutes, three real hits destroy the packet."));
                 return true;
             }
             if(!RegionalVigilActive||room!=vigilRoom)return true;
@@ -289,10 +316,13 @@ namespace Starfall
                 !Object.ReferenceEquals(site,vigilOrigin))return true;
             if(!RegionalVigilRaidersDefeated()||!SafeTravel)return true;
             int completed=vigilRoom;
+            bool rushed=vigilRush;
             ResetRegionalVigil();
             if(RegionalVigilDone(completed))return true;
             Flag("regional_vigil_done_"+completed);
-            CreditCoins(42);CreditShards(1);AddXp(75);
+            if(rushed)Flag("regional_vigil_urgent_"+completed);
+            CreditCoins(rushed?62:42);CreditShards(rushed?2:1);
+            AddXp(rushed?100:75);
             RecordMoment(vigilZh[completed]+
                 " 两处真实公共设施在限时巡护中完成复核，签收单带回了出发地标。"+
                 "此后当地安全补给的恢复效果提高。",
@@ -305,9 +335,13 @@ namespace Starfall
                     "All eight civilian networks passed genuine local emergencies, with signed receipts for each walked and defended route.");
             }
             revision++;sound="reward";
-            Notify("地区紧急巡护完成！硬币+42，碎片+1，经验+75。已完成 "+
+            Notify(rushed?
+                    "抢修快线完成：硬币+62、碎片+2、经验+100，已完成 ":
+                    "稳妥巡护完成：硬币+42、碎片+1、经验+75，已完成 "+
                 RegionalVigilWins+"/8地区。",
-                "Engineering watch verified: +42 coins, +1 shard, +75 XP. "+
+                (rushed?
+                    "Urgent field watch: +62 coins, +2 shards, +100 XP. ":
+                    "Safe field watch: +42 coins, +1 shard, +75 XP. ")+
                 RegionalVigilWins+"/8 districts certified.");
             return true;
         }

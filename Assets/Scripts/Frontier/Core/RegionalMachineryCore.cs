@@ -151,6 +151,7 @@ namespace Starfall
                       regionalMachineChoiceEn[room,2],"regional_machine_pick_2"):
                     C("继续记录","Read the inscription","close"),
                 RegionalVigilChoice(o),
+                RegionalVigilRushChoice(o),
                 C("继续行走","Continue","close"));
             return true;
         }

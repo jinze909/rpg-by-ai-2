@@ -196,13 +196,18 @@ namespace Starfall
                 Game.L("前往第二处工程装置",
                     "WALK TO SECOND ENGINEERING TARGET");
             Text(392,143,495,26,
-                Game.L("公共工程巡护 · ","ENGINEERING WATCH · ")+objective,
+                Game.L(Game.RegionalVigilRushed?"工程抢修快线 · ":
+                    "公共工程巡护 · ",
+                    Game.RegionalVigilRushed?"URGENT ENGINEERING WATCH · ":
+                    "ENGINEERING WATCH · ")+objective,
                 13,accent,TextAnchor.MiddleCenter);
             Text(392,170,495,23,
                 Game.L("剩余"+seconds+"秒 · 物资"+integrity+
-                    "/3 · 距目标"+(int)distance+"格 · 地图标出实址",
+                    (Game.RegionalVigilRushed?"/2":"/3")+
+                    " · 距目标"+(int)distance+"格 · 地图标出实址",
                     seconds+"S LEFT · CARGO "+integrity+
-                    "/3 · "+(int)distance+" TILES TO TARGET · CHECK MAP"),
+                    (Game.RegionalVigilRushed?"/2":"/3")+
+                    " · "+(int)distance+" TILES TO TARGET · CHECK MAP"),
                 12,paper,TextAnchor.MiddleCenter);
         }
 
