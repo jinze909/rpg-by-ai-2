@@ -218,6 +218,52 @@ namespace Starfall.Tests
                     "The earned branching outcome changes actual safe terrain recovery instead of a fake lore flag");
             }
         }
+        public static void BrokenChordBridgeGroundedForkCanDischargeOnlyRealWarnedStrikes(Campaign data)
+        {
+            var g=BridgeReady(data);
+            Enemy elite=BeginBridgeAtOriginalCore(g);
+            GroundBridgeFork(g,"bridge_low","bridge_chords_low",1);
+            WorldObject low=BridgeSite(g,"bridge_low");
+            g.Talk(low);
+            Check(!BridgeChoice(g,"bridge_chords_dampen")&&
+                !g.BridgeOfChordsCanDischarge,
+                "A used fork cannot charge stamina or block attacks before a real warning exists");
+            g.Close();
+            Point pulseFoot=new Point(48.5f,38.5f);
+            Check(g.CanStand(pulseFoot),"True old bridge contains a walkable pulse landing");
+            g.save.x=pulseFoot.x;g.save.y=pulseFoot.y;
+            for(int n=0;n<160&&!g.BridgeOfChordsCanDischarge;n++)
+                g.Tick(.05f,new Point());
+            Check(g.BridgeOfChordsActive&&g.BridgeOfChordsCanDischarge&&
+                g.hazards.Exists(h=>h!=null&&h.kind=="rift"&&
+                    object.ReferenceEquals(h.bossOwner,elite)&&h.timer>0f),
+                "A live elite actually telegraphs a cancellable delayed strike after low-fork grounding");
+            var otherOwner=new Enemy(9501,0,3,3,30f);
+            var foreign=new Hazard{kind="rift",timer=5f,
+                position=pulseFoot,bossOwner=otherOwner,radius=1f,damage=30f};
+            var ambient=new Hazard{kind="rift",timer=5f,
+                position=pulseFoot,radius=1f,damage=30f};
+            g.hazards.Add(foreign);g.hazards.Add(ambient);
+            float energy=g.save.energy;
+            int resonators=g.BridgeOfChordsResonators;
+            Check(PlaceWithinTalkReach(g,low),"The same grounded original fork remains reachable");
+            g.Talk(low);
+            Check(BridgeChoice(g,"bridge_chords_dampen")&&
+                Math.Abs(g.save.energy-(energy-8f))<.001f&&
+                g.BridgeOfChordsResonators==resonators&&
+                !g.hazards.Exists(h=>h!=null&&h.kind=="rift"&&
+                    object.ReferenceEquals(h.bossOwner,elite))&&
+                g.hazards.Contains(foreign)&&g.hazards.Contains(ambient),
+                "Real on-site counterplay spends exactly 8 stamina and retracts ONLY current elite-owned rifts");
+            g.Talk(low);
+            Check(!BridgeChoice(g,"bridge_chords_dampen")&&
+                Math.Abs(g.save.energy-(energy-8f))<.001f,
+                "A used warning cannot be discharged twice or farm stamina");
+            g.Close();
+            Check(!g.BridgeOfChordsDefeated&&!g.BridgeOfChordsCalibrated&&
+                g.save.version==2,
+                "Counterplay changes combat danger without faking Boss death, mastery or save schema");
+        }
         public static void BrokenChordBridgeUncalibratedAndTimeoutDoNotForgeBossVictory(Campaign data)
         {
             var g=BridgeReady(data);Enemy elite=BeginBridgeAtOriginalCore(g);

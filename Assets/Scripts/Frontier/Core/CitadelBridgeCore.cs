@@ -218,6 +218,43 @@ namespace Starfall
                 bridgeResonators==1?5.6f:
                 bridgeGuardian.BossPhase>=2?3.3f:4.4f;
         }
+        // A player who reached a previously grounded real fork may spend
+        // stamina to discharge the elite's ALREADY telegraphed strike.
+        // It is not a global hazard dispel: only live rifts owned by this
+        // particular enemy are eligible, and no save data is added.
+        public bool BridgeOfChordsCanDischarge
+        {
+            get
+            {
+                if(!BridgeOfChordsActive||bridgeResonators==0||
+                   bridgeGuardian.hp<=0f||save.energy<8f)return false;
+                return hazards.Exists(h=>h!=null&&h.kind=="rift"&&
+                    System.Object.ReferenceEquals(h.bossOwner,bridgeGuardian)&&
+                    h.timer>0f);
+            }
+        }
+        private bool DischargeBridgePulse(WorldObject site)
+        {
+            if(!BridgeChordsSource(site)||!BridgeOfChordsCanDischarge||
+               !(site.id=="bridge_low"&&bridgeResonators>=1||
+                 site.id=="bridge_high"&&bridgeResonators>=2))
+                return false;
+            int cancelled=hazards.RemoveAll(h=>h!=null&&h.kind=="rift"&&
+                System.Object.ReferenceEquals(h.bossOwner,bridgeGuardian)&&
+                h.timer>0f);
+            if(cancelled<=0)return false;
+            save.energy-=8f;
+            effects.Add(new Effect("discover",new Point(site.x,site.y),.45f)
+                {radius=.9f});
+            sound="reward";revision++;
+            Notify(cancelled>1?
+                "音叉抵消了两道正在蓄力的桥面冲击！耐力 -8。":
+                "音叉接走了正在蓄力的桥面冲击！耐力 -8。",
+                cancelled>1?
+                "The grounded fork discharged both warned surges! 8 stamina spent.":
+                "The grounded fork discharged the warned surge! 8 stamina spent.");
+            return true;
+        }
         private string BridgeOfChordsInnNews(bool english)
         {
             if(BridgeOfChordsShelter)return english?
@@ -287,6 +324,19 @@ namespace Starfall
             }
             bool low=site.kind=="bridgelow";
             bool ready=low?bridgeResonators==0:bridgeResonators==1;
+            // The fork is a genuine defensive tool even after first use.
+            // Only a physical, active warning grants this reaction choice.
+            bool grounded=low?bridgeResonators>=1:bridgeResonators>=2;
+            if(grounded&&BridgeOfChordsCanDischarge)
+            {
+                Dialog(site.name,site.en,
+                    "接地的音叉正在尖鸣。地面已经标出余震落点；现在可以用8点耐力把即将释放的冲击导进地线。",
+                    "The grounded fork rings sharply as marked bridge surges gather. Spend 8 stamina NOW to route the warned blasts into the earth.",
+                    C("消除当前预警冲击 · 耐力8",
+                      "Discharge warned surges · 8 stamina","bridge_chords_dampen"),
+                    C("自己闪避","Dodge instead","close"));
+                return true;
+            }
             Dialog(site.name,site.en,
                 ready?(low?
                     "低音叉振出三个短音。当前可花费12耐力接地，打断精英并减慢之后的脉冲。":
@@ -307,7 +357,8 @@ namespace Starfall
         {
             if(action!="bridge_chords_start"&&action!="bridge_chords_low"&&
                action!="bridge_chords_high"&&action!="bridge_chords_shelter"&&
-               action!="bridge_chords_grid")return false;
+               action!="bridge_chords_grid"&&
+               action!="bridge_chords_dampen")return false;
             WorldObject source=pendingDialogueSource;
             if(source==null||pendingDialogueSourceRoom!=save.room||
                mode!="world"||Dying||practicing||racing||
@@ -318,6 +369,11 @@ namespace Starfall
                    !StartBridgeOfChords())
                     Notify("核心周围仍有战斗或真实守卫站位冲突；先腾出安全场地。",
                         "The true arena or spawn feet are occupied. Secure the bridge and retry.");
+                return true;
+            }
+            if(action=="bridge_chords_dampen")
+            {
+                DischargeBridgePulse(source);
                 return true;
             }
             if(action=="bridge_chords_low"||action=="bridge_chords_high")
