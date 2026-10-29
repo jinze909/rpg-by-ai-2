@@ -449,6 +449,13 @@ namespace Starfall
                 RegionalRidgeWatchSites[room-1,index]:
                 LegacyRidgeWatchSites[Math.Max(0,Math.Min(2,index))];
         }
+        // Expose immutable authored districts to the actual in-game atlas.
+        // The map marks physical patrol territories (not an invented enemy
+        // or a free ability to locate hidden moving combat actors).
+        public Point RidgeWatchDistrict(int room,int index)
+        {
+            return RidgeWatchSite(room,index);
+        }
         // Saved v2 world snapshots can still hold real living patrols at
         // the historical shared coordinates. Recognize those bodies by
         // existing archetype, HP, and physical foot before assigning identity.

@@ -1402,6 +1402,36 @@ namespace Starfall
                         (Game.RegionalVigilRushed?"/2":"/3")),
                     10,gold,TextAnchor.MiddleCenter);
             }
+            // Show the three ACTUAL regional ridge patrol districts once
+            // two remote route markers and the original guardian unlock
+            // the living high-trail watch. A gold numbered ring is a real
+            // uncredited patrol clearing, not another quest on an empty map.
+            if(region>=1&&region<=7&&Game.RidgeLinked(region)&&
+                Game.Has("boss_"+region))
+            {
+                int cleared=Game.RidgeWatchProgress(region);
+                for(int i=0;i<3;i++)
+                {
+                    Point location=Game.RidgeWatchDistrict(region,i);
+                    float sx=originX+location.x*tileScale;
+                    float sy=originY+location.y*tileScale;
+                    bool done=Game.Has("ridge_watch_"+region+"_"+i);
+                    Color marker=done?muted:PixelArt.C("#e7a47b");
+                    Frame(sx-7,sy-7,14,14,marker);
+                    if(!done)
+                        Frame(sx-10,sy-10,20,20,gold);
+                    Text(sx-10,sy-6,20,13,(i+1).ToString(),
+                        10,marker,TextAnchor.MiddleCenter);
+                }
+                Text(originX+3,originY+map.rows.Length*tileScale+87,
+                    300,16,Game.RidgeWatchComplete(region)?
+                        Game.L("高地已清理 · 三处民用巡路安全",
+                            "RIDGE CLEAR · THREE CIVILIAN ROUTES SAFE"):
+                        Game.L("巡敌区域 "+cleared+"/3 · 黄框为尚未清理的巡逻地带",
+                            "WATCH "+cleared+"/3 · GOLD = UNCLEARED PATROL DISTRICT"),
+                    10,Game.RidgeWatchComplete(region)?mint:gold,
+                    TextAnchor.MiddleCenter);
+            }
             if(region==3&&Game.GhostTrainChapter>0)
             {
                 foreach(WorldObject story in map.objects)

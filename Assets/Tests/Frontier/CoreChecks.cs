@@ -6842,7 +6842,14 @@ namespace Starfall.Tests
                         Check((foot-patrols[j].Position).Length>=25f,
                             "One biome must contain THREE geographically distinct combat districts: region "+room);
                 }
-                signatures[room-1]=String.Join(";",
+                for(int slot=0;slot<3;slot++)
+                {
+                    Point mapped=game.RidgeWatchDistrict(room,slot);
+                    Check(game.CanStand(mapped)&&
+                        (mapped-patrols[slot].Position).Length<=3.01f,
+                        "Real world-map ridge pin must identify the same actual original patrol district");
+                }
+                signatures[room-1]=String.Join(";
                     patrols.ConvertAll(p=>p.Position.x.ToString("0")+
                         ","+p.Position.y.ToString("0")).ToArray());
                 // Completed kills persist on original v2 flag schema.
