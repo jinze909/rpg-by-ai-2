@@ -133,6 +133,18 @@ namespace Starfall.Tests
                     "The original Ivo settles exactly one exclusive civic outcome with +1 real silent skill beyond normal XP");
                 Check(g.GetQuest("glassledger").complete,
                     "The chapter completion is actually reflected in the live tracked journal");
+                // The same original Hearth Inn traveler, not a copied
+                // cutscene, must remember the publicly known or hidden
+                // seven workers after the genuine source-bound outcome.
+                SilentLedgerVisitRealInnFromEmberfall(g);
+                ReadInnNews(g,Object(g,"innGuest"));
+                Check(outcome==0?
+                    g.conversation.textEn.Contains("fresh water roster")&&
+                    !g.conversation.textEn.Contains("folded note but no names"):
+                    g.conversation.textEn.Contains("folded note but no names")&&
+                    !g.conversation.textEn.Contains("fresh water roster"),
+                    "The actual Hearth Inn traveler recounts only the earned civic branch");
+                g.Close();g.Enter(6);
                 g.Talk(ivo);
                 Check(!LedgerChoose(g,action)&&g.save.coins==coins+60,
                     "Repeated conversations cannot farm the same permanent reward");

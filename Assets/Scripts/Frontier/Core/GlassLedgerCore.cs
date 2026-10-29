@@ -376,6 +376,18 @@ namespace Starfall
             }
             return true;
         }
+        // A civilian, not the engineer's quest text, carries the result
+        // through the existing Hearth Inn traveler after actual resolution.
+        private string GlassLedgerInnNews(bool english)
+        {
+            if(GlassLedgerPublic)return english?
+                "\n\nA fresh water roster arrived from the Glass Desert. The traveler runs a finger over seven handwritten names: 'Those workers repaired the wells for the children. The old list called them lost barrels.' Ivo keeps the public field station cooled for anyone who cannot outrun the heat.":
+                "\n\n玻璃沙海送来一张新配水牌。守夜旅人念过七个手写名字：‘他们修井给孩子找水，旧账竟说他们是损失的水桶。’伊沃让原野外站的避热设施对所有人开放。";
+            if(GlassLedgerProtected)return english?
+                "\n\nA traveler from the Glass Desert leaves a folded note but no names. 'The seven well workers are alive. Ivo did not sell their hiding place for a public plaque.' The innkeeper quietly marks the original oasis as a safe place for those fleeing the ration patrols.":
+                "\n\n一位沙海来客留下一张折起的便条，没有署名。‘修井的七人还活着，伊沃没有拿他们的藏身处去换一块功绩牌。’店主悄悄标出原绿洲的安全补水路线。";
+            return "";
+        }
         private void AppendGlassLedgerTinkerChoice(WorldObject tinker)
         {
             if(tinker==null||tinker.kind!="tinker"||save.room!=6||
