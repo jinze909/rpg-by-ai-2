@@ -989,6 +989,55 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            if(kind=="ridgeEcho")
+            {
+                int region=Game.save.room;
+                int stage=-1;
+                for(int i=0;i<3;i++)
+                    if(o.id=="ridge_echo_"+region+"_"+i){stage=i;break;}
+                if(stage<0)return;
+                bool complete=Game.RidgeEchoComplete(region);
+                Point current=Game.RidgeEchoObjective(region);
+                bool goal=!complete&&Game.Has("biome_field_done_"+region)&&
+                    (current-new Point(o.x,o.y)).Length<.01f;
+                Color ink=complete?mint:goal?gold:
+                    region==1?PixelArt.C("#84bb8d"):
+                    region==2?PixelArt.C("#77b9b9"):
+                    region==3?PixelArt.C("#d7a66e"):
+                    region==4?PixelArt.C("#b0a8ce"):
+                    region==5?PixelArt.C("#82b9ca"):
+                    region==6?PixelArt.C("#e1ba78"):
+                    PixelArt.C("#a8cbe1");
+                string prop=stage==0?"obelisk":stage==1?"post":"barrel";
+                PropImage(prop,0,p.x-36,p.y-80,72,80,ink);
+                // Each stage has a distinct physical silhouette, not a
+                // placeholder icon detached from the world collision.
+                if(stage==0)
+                {
+                    Frame(p.x-25,p.y-79,50,17,ink);
+                    Box(p.x-16,p.y-72,32,2,ink);
+                }
+                else if(stage==1)
+                {
+                    Box(p.x-3,p.y-89,6,43,ink);
+                    Diamond(p.x,p.y-94,10,ink);
+                }
+                else
+                {
+                    Box(p.x-28,p.y-62,56,5,ink);
+                    Frame(p.x-19,p.y-91,38,26,ink);
+                }
+                Ring(new Point(o.x,o.y),goal?.85f:.52f,ink,22);
+                if(goal)Diamond(p.x,p.y-102,7,gold);
+                Text(p.x-145,p.y-120,290,17,
+                    Game.RidgeEchoRunActive&&stage==2?
+                        Game.L("民用传令 · "+Game.RidgeEchoSeconds+"秒",
+                            "OVERLAND RELAY · "+Game.RidgeEchoSeconds+"S"):
+                    complete&&stage==2?
+                        Game.L("民用远端营地 · 安全恢复","CIVILIAN REFUGE · HEAL & REST"):
+                    Game.L(o.name,o.en),10,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="mineGhostTrain")
             {
                 int stage=Game.GhostTrainChapter;

@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1021,6 +1021,54 @@ namespace Starfall
 
 
 
+
+            // Seven genuine three-site expeditions share the old v2 save
+            // schema but remain separately actionable in the shipped journal.
+            if(id=="ridge_echo")
+            {
+                q.title=L("七地失落信号 · 居民远途传令",
+                    "Seven Lost Signals · Overland Civilian Relays");
+                q.category=L("野外新玩法 · 21处真实站台 · 限时物资传递",
+                    "OPEN WORLD · 21 PHYSICAL SITES · TIMED DELIVERY");
+                q.description=L(
+                    "七片野外地图各有三处相距遥远的旧传讯台。完成原地区两处地标调查后，亲赴第一站辨别真实居民线索；在第二站消耗8耐力启动92–112秒真实步行送信；到第三站交付该地区物资，永久开放安全补给营地。失败需重新从第二站出发，不能快速旅行或读档跳过距离。不同地区有不同讯号与材料，全部七处完成额外获得技能点1。",
+                    "Seven wilderness regions now contain three widely separated original relay terminals each. Survey the biome landmarks, decipher the true civilian signal at the first site, spend eight stamina at the second to start a 92–112 second REAL overland delivery, and provide regional materials at the third to staff a permanent safe refuge. Timeout, reload and travel cannot skip physical distance. Every biome has distinct evidence and supplies; finish all seven for one talent.");
+                q.reward=L("每地区硬币33–51、碎片1、经验55及远端营地生命/耐力恢复；七地区完成奖励技能点1",
+                    "Per region: 33–51 coins, 1 shard, 55 XP and safe health/stamina refuge; all seven: 1 talent");
+                q.complete=RidgeEchoCompleteCount==7;
+                q.locked=true;
+                int chosen=-1;
+                for(int room=1;room<=7;room++)
+                {
+                    bool surveyed=Has("biome_field_done_"+room);
+                    bool done=RidgeEchoComplete(room);
+                    q.steps.Add(new QuestStep(L(data.maps[room].name,data.maps[room].en)+
+                        L(" · "+(done?"已启用远端补给站":
+                            RidgeEchoSurveyed(room)?"证据已核实，等待实地传令":"等待原始线索"),
+                          " · "+(done?"REFUGE OPEN":
+                            RidgeEchoSurveyed(room)?"EVIDENCE VERIFIED · DELIVER":"RECOVER SIGNAL")),done));
+                    if(surveyed)q.locked=false;
+                    if(surveyed&&!done&&CanEnter(room)&&
+                        (chosen<0||room==save.room))chosen=room;
+                }
+                q.room=chosen>=0?chosen:save.room;
+                q.target=chosen>=0?RidgeEchoObjective(chosen):Position;
+                q.next=q.complete?
+                    L("七地民用讯号均已恢复，所有远端营地开放。",
+                        "All seven civilian relays are restored; distant refuges are open."):
+                    chosen<0?
+                        L("先完成某个野外地区的两处地标调查。",
+                            "First survey both real landmarks of a wilderness biome."):
+                    !RidgeEchoSurveyed(chosen)?
+                        L("前往真正的第一处信号台，辨认居民原始线索。",
+                            "Reach the first original signal terminal and decipher the civilian clue."):
+                    RidgeEchoRunActive&&chosen==save.room?
+                        L("限时送信还剩"+RidgeEchoSeconds+"秒；携带地区材料赶往第三处终点。",
+                            "LIVE RELAY: "+RidgeEchoSeconds+"s. Carry regional materials to the third actual site."):
+                    L("在第二处传令台启动限时路线，真实跑到第三处营地。",
+                        "Start the timed run at the second site and traverse to the remote refuge.");
+                return q;
+            }
 
             // The independent Iron Mine chapter is a genuine journal quest.
             // Targets are read from shipped map objects, not the currently

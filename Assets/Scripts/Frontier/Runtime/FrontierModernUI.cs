@@ -1335,6 +1335,37 @@ namespace Starfall
                         (total-gathered)+"/"+total,10,mint,
                         TextAnchor.MiddleCenter);
             }
+            if(completed&&region>=1&&region<=7)
+            {
+                Point active=Game.RidgeEchoObjective(region);
+                bool done=Game.RidgeEchoComplete(region);
+                foreach(WorldObject signal in map.objects)
+                {
+                    if(signal==null||signal.kind!="ridgeEcho")continue;
+                    float sx=originX+signal.x*tileScale;
+                    float sy=originY+signal.y*tileScale;
+                    bool target=!done&&
+                        (active-new Point(signal.x,signal.y)).Length<.01f;
+                    Color color=done?mint:target?gold:muted;
+                    Frame(sx-5,sy-5,10,10,color);
+                    if(target)Frame(sx-9,sy-9,18,18,gold);
+                    if(done)Box(sx-2,sy-2,4,4,mint);
+                }
+                Text(originX+3,originY+map.rows.Length*tileScale+109,
+                    300,15,done?
+                        Game.L("三处民用信号恢复 · 远端营地开放",
+                            "THREE RELAYS RESTORED · REFUGE OPEN"):
+                        Game.RidgeEchoRunActive&&Game.save.room==region?
+                            Game.L("限时传令："+Game.RidgeEchoSeconds+"秒 · 前往金色终点",
+                                "LIVE COURIER "+Game.RidgeEchoSeconds+"S · REACH GOLD SITE"):
+                            Game.L(Game.RidgeEchoSurveyed(region)?
+                                "野外旧讯号：前往传令起点":
+                                "野外旧讯号：前往原始线索台",
+                                Game.RidgeEchoSurveyed(region)?
+                                "FIELD RELAY · START FROM DISPATCH":
+                                "FIELD RELAY · FIND ORIGINAL RECORD"),
+                    10,done?mint:gold,TextAnchor.MiddleCenter);
+            }
             if(completed)
             {
                 foreach(WorldObject machine in map.objects)
