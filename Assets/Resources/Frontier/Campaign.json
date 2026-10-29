@@ -8787,8 +8787,8 @@
           "name": "城墙避难刻印",
           "en": "Citadel Shelter Carving",
           "kind": "biomeSurvey",
-          "x": 44.5,
-          "y": 61.5,
+          "x": 42.5,
+          "y": 64.5,
           "lore": -1
         },
         {
@@ -10238,8 +10238,8 @@
         },
         {
           "kind": "obelisk",
-          "x": 46.5,
-          "y": 62.5,
+          "x": 44.5,
+          "y": 65.5,
           "variant": 1
         },
         {
