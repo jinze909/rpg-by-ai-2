@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetUnsentWarning(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -1083,6 +1083,7 @@ namespace Starfall
             TickThornwatch(dt);
             TickCountertide(dt);
             TickGlassLoom(dt);
+            TickGlassLedger(dt);
             TickFrostSignal(dt);
             TickWhiteout(dt);
             TickPressureworks(dt);
@@ -1613,6 +1614,7 @@ namespace Starfall
             OnTriadSecurityEnemyDefeated(e);
             OnTideSalvageEnemyDefeated(e);
             OnWayfarerEnemyDefeated(e);
+            OnGlassLedgerGuardDefeated(e);
             OnRoadwardenTrialEnemyDefeated(e);
             OnFarCourierEnemyDefeated(e);
             OnFloodReliefEnemyDefeated(e);
@@ -3787,7 +3789,10 @@ namespace Starfall
                 // Preserve ALL existing guild and waytrail conversations.
                 // Append the new courier chapter to their actual source.
                 if(mode=="dialog"&&conversation!=previousConversation)
+                {
                     AppendUnsentWarningChoice(o);
+                    if(o.kind=="tinker")AppendGlassLedgerTinkerChoice(o);
+                }
             }
             finally
             {
@@ -4070,6 +4075,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkGlassLedger(o)) return;
             if (TalkUnsentWarningRelay(o)) return;
             if (TalkGlassLoom(o)) return;
             if (TalkWhiteout(o)) return;
@@ -4824,6 +4830,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseGlassLedger(action)) return;
             if (ChooseUnsentWarning(action)) return;
             if (ChooseFieldSnareTraining(action)) return;
             if (ChooseForgeMasterwork(action)) return;

@@ -255,7 +255,7 @@ namespace Starfall
             {
                 if(!GlassLedgerFirstEvidence)
                 {
-                    Dialog(site.name,site,
+                    Dialog(site.name,site.en,
                         "矿工的便条只写了半个名字。先找到原始配水单，才能辨认其它指印。",
                         "The miner's note is fragmentary. Find the ration slip first.",
                         C("继续寻找","Continue","close"));
@@ -263,14 +263,14 @@ namespace Starfall
                 }
                 if(!GlassLedgerSecondEvidence)
                 {
-                    Dialog(site.name,site,
+                    Dialog(site.name,site.en,
                         "‘我们不是沙车。我们在井下修管道，七个人把水送给避难的孩子，姓名却被删掉。’",
                         "'We are not carts. Seven of us repaired the well for the children. Someone erased our names.'",
                         C("抄录无名矿工的证词","Copy the worker's testimony","glassledger_testimony"),
                         C("离开","Leave","close"));
                     return true;
                 }
-                Dialog(site.name,site,
+                Dialog(site.name,site.en,
                     "纸页互相印证。究竟是谁偷走了水？是沙暴损毁了水桶，还是账房把七个人写成了货物？",
                     "Both records agree. Was the water lost in a storm, or were seven people written down as cargo?",
                     C("沙暴吞掉了七桶水","Seven barrels lost in a sandstorm","glassledger_storm"),
@@ -324,9 +324,16 @@ namespace Starfall
                     "Witness protection: +60 coins, 1 shard, 100 XP. Safe stamina at the original oasis.");
                 return true;
             }
-            if(!GlassLedgerActive||!GlassLedgerSecured)return true;
             if(action=="glassledger_begin")
+            {
+                if(site.id=="glassledger_watch"&&GlassLedgerStarted&&
+                   !GlassLedgerReconstructed&&!GlassLedgerActive)
+                    if(!StartGlassLedgerWatch())
+                        Notify("守夜柱周围有活跃战斗或站位受阻。清理道路后再调查。",
+                            "Real guard feet are occupied. Secure the path and retry.");
                 return true;
+            }
+            if(!GlassLedgerActive||!GlassLedgerSecured)return true;
             if(action=="glassledger_copy")
             {
                 if(site.id!="glassledger_seal"||GlassLedgerFirstEvidence)return true;

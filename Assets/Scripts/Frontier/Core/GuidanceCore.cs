@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,38 @@ namespace Starfall
 
 
 
+            if(id=="glassledger")
+            {
+                q.title=L("沙海 · 被抹去的水账","Glass Desert · The Erased Water Ledger");
+                q.category=L("新章节 · 潜行调查或实战突围","NEW CHAPTER · STEALTH / COMBAT INVESTIGATION");
+                q.locked=!GlassLedgerUnlocked&&!GlassLedgerStarted;
+                q.complete=GlassLedgerComplete;
+                q.room=6;q.target=GlassLedgerTarget;
+                q.description=L(
+                    "从原技师伊沃接下沙海被抹去的配水账调查，前往远岸守夜柱(58.5,36.5)启动双守卫潜入。真实视线与距离会提升警戒；三级警戒必须真正击败两名守卫才能继续。读取涂改的配水单(65.5,36.5)，绕过墙体找到矿工便条(75.5,36.5)，推理出七名修井工人的配水被伪装成砂车损耗。错答会提升警报。无声无伤取得证词可获得额外技能点。最后回伊沃处公开姓名，让原野外站安全降温，或保护证人，让原绿洲安全恢复耐力。所有永久状态用SaveData v2标志。",
+                    "Accept Ivo's lost water-ration investigation. Begin the real two-guard stakeout at the outer watch (58.5,36.5). Living sentries react to unobstructed sight, distance and quiet-stepping; alarm three locks the evidence until both guards are actually defeated. Copy the altered ration slip (65.5,36.5), navigate to the miner's note (75.5,36.5), and deduce how seven real workers were disguised as cart loss. A wrong answer escalates patrol alert. A fully unseen, bloodless inquiry earns a talent point. Return to Ivo to publish the workers' names for safe heat relief at the original field station or protect identities for safe stamina at the original oasis. All durable state uses SaveData v2.");
+                q.steps.Add(new QuestStep(L("从原技师伊沃接下调查","Accept Ivo's investigation"),
+                    GlassLedgerStarted||q.complete));
+                q.steps.Add(new QuestStep(L("取得被涂改的配水单","Copy the altered ration slip"),
+                    GlassLedgerFirstEvidence||q.complete));
+                q.steps.Add(new QuestStep(L("找到无名矿工留下的证词","Read the worker's original note"),
+                    GlassLedgerSecondEvidence||q.complete));
+                q.steps.Add(new QuestStep(L("正确重建七个人的真实水账","Correctly reconstruct the seven workers' ledger"),
+                    GlassLedgerReconstructed||q.complete));
+                q.steps.Add(new QuestStep(L("回伊沃处决定如何处理真实姓名",
+                    "Return to Ivo for the public or protected outcome"),q.complete));
+                q.next=q.locked?L("先打通前往玻璃沙海的道路",
+                    "First unlock the Glass Desert route"):
+                    q.complete?GlassLedgerPublic?
+                        L("公开姓名 · 原野外站安全降温","Public roster · safe cooling at the field station"):
+                        L("保护证人 · 原绿洲安全恢复耐力","Protected witnesses · safe oasis stamina"):
+                    GlassLedgerObjective+(GlassLedgerActive?
+                        L(" · 警戒 "," · ALERT ")+GlassLedgerAlarm+
+                        "/3"+L(" · 现存守卫 "," · LIVE GUARDS ")+GlassLedgerActualGuards:"");
+                q.reward=L("真实调查：硬币60、碎片1、经验100与永久民间救助；全程不被发现额外技能点1",
+                    "Real investigation: 60 coins, 1 shard, 100 XP, permanent local relief; +1 talent for unseen evidence");
+                return q;
+            }
             if(id=="unsent_warning")
             {
                 q.title=L("未送达的警报 · 沉桥与矿工",
