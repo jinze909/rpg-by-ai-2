@@ -534,7 +534,7 @@ namespace Starfall
             RecordMoment("三地居民沿真实旧路走完现场核验，最后一处路碑已自动公开记录，药草急救交给当地照管。",
                 "All three original roads were checked on foot. The last marker files the record on site and local residents now maintain first-aid supplies.");
             sound="reward";revision++;
-            Notify("三地居民旧路现场归档：硬币+35、碎片+1、经验+45。路标急救点开放！",
+            Notify("三地居民旧路现场归档：硬币+35、碎片+1、经验+45。三地旧路标已备好药草急救包！",
                 "Three civilian roads filed in the field: +35 coins, +1 shard, +45 XP. Roadside first-aid sites open!");
             return true;
         }

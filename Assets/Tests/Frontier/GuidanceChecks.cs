@@ -3548,113 +3548,100 @@ namespace Starfall.Tests
 
         public static void CivicAftercareRequiresPhysicalInnPublicationAndPersistsTheAudit(Campaign data)
         {
-            var g=Fresh(data);
+            // A genuine civic-grid finale opens voluntary resident roadwork.
+            // The old inn remains a LEGACY publication route, not another
+            // forced step after three real physical field checks.
+            var g=Fresh(data);g.Close();g.save.stage=3;g.save.ending=2;
             g.save.flags.Add("civic_conduit_complete");
-            g.save.room=9;
-            WorldObject inn=Object(g,"innGuest");
-            g.save.x=inn.x;g.save.y=inn.y;g.enemies.Clear();
-            int coins=g.save.coins,shards=g.save.shards;
-            int totalXp=g.save.xp+20*g.save.level*(g.save.level-1);
-            Action(g,"innGuest","civic_aftercare_begin");
-            Check(g.CivicAftercareActive&&g.save.trackedQuest=="civic_aftercare",
-                "The completed grid starts the real three-region audit through the inn traveler");
-
+            Check(g.CivicAftercareActive&&!g.Has("civic_aftercare_started")&&
+                g.GetQuest("civic_aftercare").room==0,
+                "After restoring power the optional road checks already exist at their real markers");
             var handler=typeof(GameCore).GetMethod("ChooseCivicAftercare",
                 System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
-            Check(handler!=null,"The audit actions route through the actual gameplay handler");
-            var remote=Fresh(data);
+            Check(handler!=null,"All civic aftercare choices share the production guarded handler");
+            var remote=Fresh(data);remote.Close();
             remote.save.flags.Add("civic_conduit_complete");
-            remote.save.room=0;
             handler.Invoke(remote,new object[]{"civic_aftercare_begin"});
-            Check(!remote.Has("civic_aftercare_started")&&
-                remote.save.trackedQuest!="civic_aftercare",
-                "A forged begin request outside the physical inn cannot start or track the audit");
-
-            handler.Invoke(g,new object[]{"civic_aftercare_publish"});
-            Check(!g.Has("civic_aftercare_published")&&g.save.coins==coins&&
-                g.save.shards==shards&&g.save.xp+20*g.save.level*(g.save.level-1)==totalXp,
-                "An incomplete audit cannot publish or grant any reward even at the inn");
-
-            g.save.room=0;
-            WorldObject remoteMarker=Object(g,"waytrail");
-            g.save.flags.Add("waytrail_"+remoteMarker.id);
-            g.save.x=18f;g.save.y=18f;
-            g.Talk(remoteMarker);g.Close();
-            Check(!g.Has("civic_aftercare_waytrail_0")&&
-                g.CivicAftercareWaypointCount==0,
-                "Calling Talk on a distant route marker cannot forge physical Chapter Twelve field evidence");
-
-            foreach(int room in new[]{0,3,5})
+            Check(!remote.Has("civic_aftercare_started"),
+                "A forged distant inn signup does not produce a v2 progress flag");
+            handler.Invoke(remote,new object[]{"civic_aftercare_publish"});
+            Check(!remote.Has("civic_aftercare_published"),
+                "Remote publication without any physical markers can never grant credit");
+            int coins=g.save.coins,shards=g.save.shards;
+            int lifetime=g.save.xp+20*g.save.level*(g.save.level-1);
+            int[] regions={0,3,5};
+            for(int i=0;i<regions.Length;i++)
             {
-                g.save.room=room;
+                int room=regions[i];g.Close();g.save.room=room;
                 var markers=new System.Collections.Generic.List<WorldObject>();
                 foreach(WorldObject o in g.Map.objects)
                     if(o.kind=="waytrail")markers.Add(o);
-                Check(markers.Count>=2,"Each audit region retains its two original route markers");
+                Check(markers.Count>=2,
+                    "The original region still contains two physically interactive route stones: "+room);
                 foreach(WorldObject marker in markers)
-                    g.save.flags.Add("waytrail_"+marker.id);
-                g.save.x=markers[0].x;g.save.y=markers[0].y;
-                g.Talk(markers[0]);
-                Check(g.mode=="dialog","The audit reuses the actual route-marker interaction");
-                g.Choose(0);
+                    if(!g.Has("waytrail_"+marker.id))
+                        g.save.flags.Add("waytrail_"+marker.id);
+                WorldObject first=markers[0];
+                Check(g.CanStand(new Point(first.x,first.y)),
+                    "Each real civilian record stands on authentic navigable map terrain");
+                g.save.x=first.x;g.save.y=first.y;
+                g.Talk(first);
                 Check(g.Has("civic_aftercare_waytrail_"+room)&&
-                    g.CivicAftercareWaypointCount==(room==0?1:room==3?2:3),
-                    "A previously charted marker can be revisited and counts once for its region");
-
-                if(room==0)
-                {
-                    g.save.x=markers[1].x;g.save.y=markers[1].y;
-                    g.Talk(markers[1]);g.Choose(0);
-                    Check(g.CivicAftercareWaypointCount==1,
-                        "A second marker in the same region cannot double-count the regional audit");
-                }
+                    g.CivicAftercareWaypointCount==i+1,
+                    "First real marker contact records exactly one true region, no inn registration required");
+                if(i<2)
+                    Check(!g.Has("civic_aftercare_published")&&
+                        g.save.coins==coins&&g.save.shards==shards,
+                        "One or two different sites cannot release the three-site civic reward");
+                else
+                    Check(g.Has("civic_aftercare_published")&&
+                        !g.CivicAftercareActive&&
+                        g.save.coins==coins+35&&g.save.shards==shards+1&&
+                        g.save.xp+20*g.save.level*(g.save.level-1)==lifetime+45,
+                        "The third genuine site automatically files the audit and grants only its original reward");
+                g.Close();
+                g.save.x=markers[1].x;g.save.y=markers[1].y;
+                g.Talk(markers[1]);
+                Check(g.CivicAftercareWaypointCount==i+1,
+                    "Two different original markers in one region cannot fake two districts");
             }
-
-            g.save.room=5;
+            int paid=g.save.coins;
             handler.Invoke(g,new object[]{"civic_aftercare_publish"});
-            handler.Invoke(g,new object[]{"civic_aftercare_status"});
-            Check(!g.Has("civic_aftercare_published")&&g.mode=="world"&&
-                g.save.coins==coins&&g.save.shards==shards&&g.save.xp+20*g.save.level*(g.save.level-1)==totalXp,
-                "Neither remote publishing nor remote status can bypass the physical inn interaction");
-
-            g.save.room=9;inn=Object(g,"innGuest");
-            g.save.x=inn.x;g.save.y=inn.y;
-            var atInn=typeof(GameCore).GetMethod("AtCivicAftercareInn",
-                System.Reflection.BindingFlags.Instance|
-                System.Reflection.BindingFlags.NonPublic);
-            Check(atInn!=null&&(bool)atInn.Invoke(g,null)&&
-                g.CivicAftercareActive&&g.CivicAftercareWaypointCount==3,
-                "The complete audit is still active and the hero is physically beside the authored inn traveler");
-            Action(g,"innGuest","civic_aftercare_publish");
-            Check(g.Has("civic_aftercare_published"),
-                "Publishing at the inn sets the persistent public-record flag");
-            Check(g.GetQuest("civic_aftercare").complete,
-                "Published civic aftercare is complete in the real quest journal");
-            Check(g.save.coins==coins+35,
-                "Publication grants exactly 35 coins (before "+coins+", after "+g.save.coins+")");
-            Check(g.save.shards==shards+1,
-                "Publication grants exactly one shard (before "+shards+", after "+g.save.shards+")");
-            Check(g.save.xp+20*g.save.level*(g.save.level-1)==totalXp+45,
-                "Publication grants exactly 45 lifetime XP across real level-up thresholds");
-            handler.Invoke(g,new object[]{"civic_aftercare_publish"});
-            Check(g.save.coins==coins+35&&g.save.shards==shards+1&&
-                g.save.xp+20*g.save.level*(g.save.level-1)==totalXp+45,
-                "Replaying publication cannot duplicate coins, shards or lifetime XP");
-
+            Check(g.save.coins==paid&&g.Has("civic_aftercare_published"),
+                "Remote publish can never duplicate a physically signed civilian record");
             g.PrepareSave();
             var resumed=new GameCore(data,CloneSave(g.save));resumed.Start();
-            Check(resumed.save.version==2&&resumed.Has("civic_aftercare_published")&&
+            Check(resumed.save.version==2&&
+                resumed.Has("civic_aftercare_published")&&
                 resumed.CivicAftercareWaypointCount==3&&
                 resumed.GetQuest("civic_aftercare").complete,
-                "All audit regions and the published result survive the original SaveData v2 reload");
-            resumed.save.room=9;WorldObject resumedInn=Object(resumed,"innGuest");
-            resumed.save.x=resumedInn.x;resumed.save.y=resumedInn.y;
-            ReadInnNews(resumed,resumedInn);
+                "Three real road records and their permanent service survive v2 reload");
+            resumed.save.room=9;WorldObject guest=Object(resumed,"innGuest");
+            resumed.save.x=guest.x;resumed.save.y=guest.y;
+            ReadInnNews(resumed,guest);
             Check(resumed.conversation!=null&&
-                resumed.conversation.textEn.Contains("three-region road audit is now on the public record")&&
                 resumed.conversation.textEn.Contains("field kits"),
-                "The inn's persistent bilingual response reflects the published audit after reload");
+                "A genuine inn traveler recognizes the finished civilian road service");
+            var legacy=Fresh(data);legacy.Close();legacy.save.room=9;
+            legacy.save.stage=3;legacy.save.ending=2;
+            legacy.save.flags.Add("civic_conduit_complete");
+            legacy.save.flags.Add("civic_aftercare_started");
+            foreach(int room in regions)
+                legacy.save.flags.Add("civic_aftercare_waytrail_"+room);
+            Check(!legacy.Has("civic_aftercare_published")&&
+                legacy.GetQuest("civic_aftercare").room==9,
+                "Old v2 saves with all three markers and an unpaid inn receipt retain their handoff");
+            WorldObject inn=Object(legacy,"innGuest");
+            legacy.save.x=inn.x;legacy.save.y=inn.y;
+            int oldCoins=legacy.save.coins;
+            Action(legacy,"innGuest","civic_aftercare_publish");
+            Check(legacy.Has("civic_aftercare_published")&&
+                legacy.save.coins==oldCoins+35,
+                "A pending historic inn receipt still grants its legitimate one-time reward");
+            Action(legacy,"innGuest","civic_aftercare_status");
+            Check(legacy.save.coins==oldCoins+35,
+                "Revisiting the old inn never awards a second settlement");
         }
 
     }
