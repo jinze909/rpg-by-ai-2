@@ -324,6 +324,8 @@ namespace Starfall.Tests
                 "Freight-first outcome unlocks two named actual destinations at real dispatch");
             int beforeCoins=g.save.coins;float beforeEnergy=g.save.energy;
             GhostChoice(g,"ghost_train_ride_medbay");
+            Check(g.sound=="railDepart",
+                "A successful verified passenger ride dispatches native train audio");
             Check(g.save.room==3&&
                 (g.Position-new Point(infirmary.x,infirmary.y)).Length<1.8f&&
                 g.save.coins==beforeCoins-2&&g.save.energy==beforeEnergy-10f,
@@ -385,6 +387,29 @@ namespace Starfall.Tests
             Check(loaded.save.version==2&&loaded.GhostTrainFreight&&
                 loaded.GhostTrainComplete,
                 "Passenger service survives unchanged v2 slots without serialized runtime objects");
+        }
+
+        public static void RealPassengerRailHasDistinctNativeReadyOriginalTrainAudio(Campaign data)
+        {
+            Check(Array.IndexOf(AudioSynthesis.Events,"railDepart")>=0,
+                "The native scene audio registry owns its bespoke passenger-train event");
+            float[] sound=AudioSynthesis.Event("railDepart");
+            float[] repeated=AudioSynthesis.Event("railDepart");
+            float[] travel=AudioSynthesis.Event("travel");
+            Check(sound.Length>AudioSynthesis.Rate/2&&
+                sound.Length!=travel.Length&&sound.Length==repeated.Length,
+                "The carriage gets its own full steam-and-wheel event, not generic travel SFX");
+            float peak=0f;
+            for(int i=0;i<sound.Length;i++)
+            {
+                Check(!float.IsNaN(sound[i])&&!float.IsInfinity(sound[i])&&
+                    Math.Abs(sound[i])<.95f&&sound[i]==repeated[i],
+                    "Original passenger PCM must be deterministic, finite and safe for Unity AudioClip");
+                peak=Math.Max(peak,Math.Abs(sound[i]));
+            }
+            Check(peak>.06f&&Math.Abs(sound[0])<.001f&&
+                Math.Abs(sound[sound.Length-1])<.001f,
+                "Steam whistle and wheel contacts must be audible and release cleanly at boundaries");
         }
 
         public static void SilentTrainCombatRejectsForgedActionsAndCleansTimeoutAndOwnedActors(Campaign data)

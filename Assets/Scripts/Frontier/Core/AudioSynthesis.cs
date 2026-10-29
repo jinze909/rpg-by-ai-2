@@ -5,7 +5,7 @@ namespace Starfall
     public static class AudioSynthesis
     {
         public const int Rate = 22050;
-        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneThrow", "stoneImpact", "ambush", "sentryAlarm", "wayfarerShout" };
+        public static readonly string[] Events = { "attack", "hit", "guard", "counter", "dash", "skill", "reward", "quest", "hurt", "travel", "ui", "deny", "equip", "save", "step", "windup", "slam", "arrow", "spell", "fishBite", "stoneThrow", "stoneImpact", "ambush", "sentryAlarm", "wayfarerShout", "railDepart" };
         private static readonly int[][] Melodies = {
             new[] { 64, 67, 69, 67, 62, 64, 67, 62 }, new[] { 60, 63, 67, 63, 58, 60, 65, 63 },
             new[] { 62, 65, 69, 72, 69, 65, 64, 62 }, new[] { 57, 60, 64, 67, 64, 62, 60, 57 },
@@ -88,6 +88,7 @@ namespace Starfall
             if (name == "ambush") return AmbushContact();
             if (name == "sentryAlarm") return SentryAlarm();
             if (name == "wayfarerShout") return WayfarerShout();
+            if (name == "railDepart") return RailDeparture();
             int id = Array.IndexOf(Events, name); if (id < 0) id = 0;
             double duration = name == "quest" || name == "save" ? .55 : name == "travel" || name == "skill" ? .4 : name == "windup" || name == "spell" ? .28 : name == "slam" ? .24 : .12;
             var wave = new float[(int)(Rate * duration)]; var random = new Random(id + 71); double phase = 0;
@@ -103,6 +104,47 @@ namespace Starfall
             }
             return wave;
         }
+        // Original passenger train: two steel wheel contacts beneath an
+        // ascending steam whistle. No recorded stock audio, imported music,
+        // GUID changes or extra Unity objects. The existing scene's native
+        // FrontierAudio registers Events and plays this exact signal only
+        // after a paid, verified trip has really reached another station.
+        private static float[] RailDeparture()
+        {
+            const double length=.82;
+            var wave=new float[(int)(Rate*length)];
+            var random=new Random(173017);
+            double whistlePhase=0,steelPhase=0,steamNoise=0;
+            for(int i=0;i<wave.Length;i++)
+            {
+                double seconds=i/(double)Rate;
+                double t=seconds/length;
+                double edge=Math.Min(1,seconds*170)*
+                    Math.Min(1,(length-seconds)*110);
+                double steam=(random.NextDouble()*2-1);
+                steamNoise+=(steam-steamNoise)*.11;
+                double rising=(seconds-.07)/.48;
+                double hornEnvelope=seconds<.07||seconds>.57?0:
+                    Math.Min(1,(seconds-.07)*35)*
+                    Math.Min(1,(.57-seconds)*25);
+                double pitch=510+180*Math.Max(0,Math.Min(1,rising));
+                whistlePhase+=2*Math.PI*pitch/Rate;
+                double whistle=(Math.Sin(whistlePhase)*.20+
+                    Math.Sin(whistlePhase*2)*.065)*hornEnvelope;
+                double click=0;
+                foreach(double onset in new double[]{.06,.32,.63})
+                    if(seconds>=onset)
+                        click+=Math.Exp(-(seconds-onset)*95)*
+                            (steamNoise*.24+
+                             Math.Sin(2*Math.PI*1200*(seconds-onset))*.10);
+                steelPhase+=2*Math.PI*88/Rate;
+                double wheels=(Math.Sin(steelPhase)*.064+
+                    steamNoise*.035)*Math.Sin(Math.PI*t);
+                wave[i]=(float)((whistle+click+wheels)*edge);
+            }
+            return wave;
+        }
+
         // An original, sharp two-beat field call, unmistakably different
         // from ordinary parry/guard, a hostile watch whistle, and a
         // reward. This is the one real-time physical lure action's audio.

@@ -279,7 +279,7 @@ namespace Starfall
             }
             save.coins-=2;
             save.energy=Math.Max(0f,save.energy-10f);
-            sound="travel";revision++;
+            sound="railDepart";revision++;
             Notify("第十七趟载人车到达"+GhostTrainStopZh(destination.id)+
                 "。票价2硬币、10耐力。",
                 "Passenger train seventeen arrived at "+
