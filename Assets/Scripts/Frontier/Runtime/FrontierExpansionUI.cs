@@ -637,6 +637,25 @@ namespace Starfall
                         Game.L("加固船板 · 防浪 ","HULL BRACED · SHELTER ")+
                         Game.MistConvoyBraceSeconds.ToString("0.0")+"s",11,gold);
             }
+            // The drifter's new quest uses the ORIGINAL authored relay,
+            // ledger and dock, not a free-standing test-only objective.
+            if(Game.mode=="world"&&Game.MistChartActive&&!drawingOutline&&
+                Game.save.room==5)
+            {
+                Point chart=Game.MistChartTarget;
+                Color signal=new Color(.78f,.91f,.81f,1f);
+                if(WorldDrawable(chart.x,chart.y,175f,145f))
+                {
+                    Ring(chart,.64f,signal,24);
+                    Point pin=ScreenPoint(chart);
+                    Text(pin.x-145,pin.y-79,290,22,
+                        Game.MistChartObjective,11,signal,TextAnchor.MiddleCenter);
+                }
+                Text(35,432,565,24,
+                    Game.L("雾港 · 落水者的航图","MISTPORT · DRIFTER'S TIDE CHART"),
+                    12,signal);
+                Text(35,454,605,19,Game.MistChartObjective,11,signal);
+            }
             if(Game.mode=="world"&&Game.MistlightActive&&!drawingOutline)
             {
                 Color live=Game.MistlightIntegrity<31f?
