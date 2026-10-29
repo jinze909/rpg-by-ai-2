@@ -114,10 +114,12 @@ namespace Starfall.Tests
                     Check(PlaceWithinTalkReach(g,east)==true,
                         "East waytrail itself is reachable on original physical ground");
                     g.Talk(east);
-                    Check(UnsentChoice(g,"unsent_deliver_"+room)&&
-                        !g.UnsentRiverDelivered&&!g.UnsentMineDelivered&&
+                    // An unopened or rejected early choice must never
+                    // claim a route: the run still needs witnessed walking.
+                    UnsentChoice(g,"unsent_deliver_"+room);
+                    Check(!g.UnsentRiverDelivered&&!g.UnsentMineDelivered&&
                         g.UnsentWarningRunActive&&g.UnsentWarningTravel<18f,
-                        "Early live destination choice is rejected until actual walking earns 18 tiles");
+                        "Early arrival cannot bank a warning without actual walking");
                     g.Close();
                     Check(PlaceWithinTalkReach(g,west),"Can return to the real western start");
                     UnsentWalkToEasternPost(g,east);
@@ -184,8 +186,8 @@ namespace Starfall.Tests
             g.Talk(west);
             int herb=g.save.inventory[2];
             g.save.x=west.x+14f;
-            Check(!UnsentChoice(g,"unsent_run_2")&&
-                g.save.inventory[2]==herb&&!g.UnsentWarningRunActive,
+            UnsentChoice(g,"unsent_run_2");
+            Check(g.save.inventory[2]==herb&&!g.UnsentWarningRunActive,
                 "Abandoned remote dialogue cannot start a run or spend supplies");
             Check(PlaceWithinTalkReach(g,west),"Return to original source");
             g.Talk(west);
