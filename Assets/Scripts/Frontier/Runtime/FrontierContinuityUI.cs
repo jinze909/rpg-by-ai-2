@@ -137,6 +137,7 @@ namespace Starfall
                 // never vanish merely because an enemy comes on camera.
                 DrawBiomeCrisisHud();
                 DrawRegionalVigilHud();
+                DrawGhostTrainHud();
             }
             finally { drawingHud = false; }
         }
@@ -208,6 +209,47 @@ namespace Starfall
                     seconds+"S LEFT · CARGO "+integrity+
                     (Game.RegionalVigilRushed?"/2":"/3")+
                     " · "+(int)distance+" TILES TO TARGET · CHECK MAP"),
+                12,paper,TextAnchor.MiddleCenter);
+        }
+
+        private void DrawGhostTrainHud()
+        {
+            // Existing protected field contracts take HUD priority. The new
+            // independent chapter stays visible in the map/journal instead
+            // of overpainting another real escort's countdown.
+            if(Game.save.room!=3||Game.GhostTrainChapter<1||
+                Game.GhostTrainChapter>=5||Game.RegionalVigilActive||
+                Game.BiomeCrisisActive)return;
+            int chapter=Game.GhostTrainChapter;
+            bool battle=Game.GhostTrainBattleActive;
+            Point delta=Game.GhostTrainTarget-Game.Position;
+            string objective=battle?
+                Game.L("夺回真正的转辙台 · 剩余守卫 "+
+                    Game.GhostTrainEnemiesLeft,
+                    "SECURE REAL RAIL SWITCH · GUARDS "+
+                    Game.GhostTrainEnemiesLeft):
+                chapter==1?
+                Game.L("找回十七名工人的原始签字","RECOVER ORIGINAL WORKERS' NAMES"):
+                chapter==2?
+                Game.L("前往被封死的转辙台","REACH SEALED RAIL SWITCH"):
+                chapter==3?
+                Game.L("去矿医站带去两份月光草","DELIVER TWO HERBS TO INFIRMARY"):
+                Game.L("携带证词返回调度员","RETURN SURVIVOR TESTIMONY");
+            Color accent=battle?PixelArt.C("#ec7668"):gold;
+            Panel(380,141,520,63,
+                new Color(.04f,.065f,.11f,.85f),
+                new Color(accent.r,accent.g,accent.b,.74f));
+            Text(392,143,495,26,
+                Game.L("失声的第十七趟列车 · ",
+                    "THE SILENT SEVENTEENTH · ")+objective,
+                12,accent,TextAnchor.MiddleCenter);
+            Text(392,170,495,23,
+                Game.L("实地线索 "+chapter+"/4 · 距离 "+
+                    (int)delta.Length+"格"+(battle?
+                        " · 战斗剩余"+(int)Game.GhostTrainSeconds+"秒":""),
+                    "PHYSICAL LEAD "+chapter+"/4 · "+
+                    (int)delta.Length+" TILES"+(battle?
+                        " · COMBAT "+(int)Game.GhostTrainSeconds+"S LEFT":"")),
                 12,paper,TextAnchor.MiddleCenter);
         }
 

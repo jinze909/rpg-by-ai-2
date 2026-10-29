@@ -233,7 +233,8 @@ namespace Starfall
                     (Position-new Point(site.x,site.y)).Length<=3.5f)
                 {close=true;break;}
             if(!close)return;
-            float multiplier=RegionalVigilDone(save.room)?1.65f:1f;
+            float multiplier=(RegionalVigilDone(save.room)?1.65f:1f)*
+                (save.room==3&&GhostTrainPublic?1.45f:1f);
             save.health=Clamp(save.health+dt*1.5f*multiplier,0f,save.maxHealth);
             save.energy=Clamp(save.energy+dt*3f*multiplier,0f,100f);
             save.heat=Math.Max(0f,save.heat-dt*1.5f);

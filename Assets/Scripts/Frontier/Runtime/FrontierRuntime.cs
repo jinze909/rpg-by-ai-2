@@ -989,6 +989,59 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            if(kind=="mineGhostTrain")
+            {
+                int stage=Game.GhostTrainChapter;
+                bool active=stage>0&&stage<5;
+                Point destination=Game.GhostTrainTarget;
+                bool objective=active&&
+                    (destination-new Point(o.x,o.y)).Length<.01f;
+                Color ink=stage==5?(Game.GhostTrainPublic?mint:gold):
+                    objective?gold:stage==0?muted:PixelArt.C("#91b9d8");
+                // Distinct public-site silhouettes using existing original
+                // production art, not a placeholder painted on the atlas.
+                string prop=o.id=="mine_ghost_dispatch"?"post":
+                    o.id=="mine_ghost_manifest"?"obelisk":
+                    o.id=="mine_ghost_switch"?"barrel":"post";
+                float size=o.id=="mine_ghost_switch"?88f:76f;
+                PropImage(prop,0,p.x-size*.5f,p.y-size*1.1f,
+                    size,size*1.2f,ink);
+                if(o.id=="mine_ghost_manifest")
+                {
+                    Frame(p.x-22,p.y-82,44,28,ink);
+                    Box(p.x-18,p.y-77,36,3,ink);
+                    Box(p.x-18,p.y-69,29,3,ink);
+                }
+                else if(o.id=="mine_ghost_switch")
+                {
+                    Box(p.x-32,p.y+3,64,6,ink);
+                    Box(p.x-2,p.y-67,5,67,ink);
+                    Diamond(p.x+4,p.y-70,9,ink);
+                }
+                else if(o.id=="mine_ghost_medbay")
+                {
+                    Box(p.x-19,p.y-72,38,8,ink);
+                    Box(p.x-4,p.y-87,8,36,ink);
+                }
+                if(objective)
+                {
+                    Ring(new Point(o.x,o.y),.93f,gold,26);
+                    Diamond(p.x,p.y-104,9,gold);
+                }
+                else Ring(new Point(o.x,o.y),.51f,ink,22);
+                Text(p.x-122,p.y-118,244,17,
+                    objective?
+                        Game.L(Game.GhostTrainBattleActive?
+                            "真实战斗 · "+Game.GhostTrainEnemiesLeft+"名守卫":
+                            "第十七趟列车 · 实地线索 "+stage+"/4",
+                            Game.GhostTrainBattleActive?
+                            "TRUE RAIL BATTLE · "+Game.GhostTrainEnemiesLeft+
+                                " GUARDS":
+                            "TRAIN SEVENTEEN · LIVE SITE "+stage+"/4"):
+                        Game.L(o.name,o.en),
+                    10,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             // These are NEW real pieces of interactive regional engineering,
             // rather than recycled foliage or cosmetic map-only symbols.
             if(kind=="regionalMachine")

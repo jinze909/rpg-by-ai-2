@@ -1402,6 +1402,42 @@ namespace Starfall
                         (Game.RegionalVigilRushed?"/2":"/3")),
                     10,gold,TextAnchor.MiddleCenter);
             }
+            if(region==3&&Game.GhostTrainChapter>0)
+            {
+                foreach(WorldObject story in map.objects)
+                {
+                    if(story==null||story.kind!="mineGhostTrain")continue;
+                    Point xy=new Point(story.x,story.y);
+                    float px=originX+story.x*tileScale;
+                    float py=originY+story.y*tileScale;
+                    bool current=Game.save.room==3&&
+                        Game.GhostTrainChapter<5&&
+                        (xy-Game.GhostTrainTarget).Length<.01f;
+                    Color shade=current?gold:
+                        Game.GhostTrainComplete?mint:muted;
+                    Frame(px-5,py-5,10,10,shade);
+                    if(current)
+                    {
+                        Frame(px-10,py-10,20,20,gold);
+                        Box(px-3,py-3,6,6,gold);
+                    }
+                }
+                Text(originX+2,originY+map.rows.Length*tileScale+69,
+                    308,16,
+                    Game.GhostTrainComplete?
+                        Game.L(Game.GhostTrainPublic?
+                            "第十七趟列车 · 17人名册公开":
+                            "第十七趟列车 · 民用铁路已复工",
+                            Game.GhostTrainPublic?
+                            "TRAIN 17 · WORKER NAMES RESTORED":
+                            "TRAIN 17 · PUBLIC RAIL REOPENED"):
+                        Game.L("第十七趟列车 · 亲赴目标 "+
+                            Game.GhostTrainChapter+"/4",
+                            "TRAIN 17 · PHYSICAL OBJECTIVE "+
+                            Game.GhostTrainChapter+"/4"),
+                    10,Game.GhostTrainComplete?mint:gold,
+                    TextAnchor.MiddleCenter);
+            }
             // Only mark the exact target of the active, source-bound
             // emergency contract, never a remote selected map.
             if(Game.BiomeCrisisActive&&Game.save.room==region)
