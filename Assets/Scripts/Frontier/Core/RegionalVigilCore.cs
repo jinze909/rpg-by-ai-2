@@ -335,9 +335,9 @@ namespace Starfall
                     "All eight civilian networks passed genuine local emergencies, with signed receipts for each walked and defended route.");
             }
             revision++;sound="reward";
-            Notify(rushed?
+            Notify((rushed?
                     "抢修快线完成：硬币+62、碎片+2、经验+100，已完成 ":
-                    "稳妥巡护完成：硬币+42、碎片+1、经验+75，已完成 "+
+                    "稳妥巡护完成：硬币+42、碎片+1、经验+75，已完成 ")+
                 RegionalVigilWins+"/8地区。",
                 (rushed?
                     "Urgent field watch: +62 coins, +2 shards, +100 XP. ":

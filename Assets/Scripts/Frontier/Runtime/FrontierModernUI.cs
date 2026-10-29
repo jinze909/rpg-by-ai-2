@@ -1393,11 +1393,13 @@ namespace Starfall
                     Game.L("工程应急巡护 · 目标装置 "+
                         Game.RegionalVigilNextStation+
                         " · "+(int)Game.RegionalVigilSeconds+
-                        "秒 · 完整度"+Game.RegionalVigilIntegrity+"/3",
+                        "秒 · 完整度"+Game.RegionalVigilIntegrity+
+                        (Game.RegionalVigilRushed?"/2":"/3"),
                         "LIVE ENGINEERING WATCH · TARGET "+
                         Game.RegionalVigilNextStation+
                         " · "+(int)Game.RegionalVigilSeconds+
-                        "S · CARGO "+Game.RegionalVigilIntegrity+"/3"),
+                        "S · CARGO "+Game.RegionalVigilIntegrity+
+                        (Game.RegionalVigilRushed?"/2":"/3")),
                     10,gold,TextAnchor.MiddleCenter);
             }
             // Only mark the exact target of the active, source-bound
