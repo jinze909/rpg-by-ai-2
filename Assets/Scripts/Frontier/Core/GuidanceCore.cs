@@ -4282,6 +4282,22 @@ namespace Starfall
                 q.title=L("星陨主线 · 已完结","The Fallen Star · Complete");
                 q.category=L("主线终章 · 结局已确定",
                     "MAIN STORY FINALE · RESOLVED");
+                // The closing journal is written AFTER the choice, never
+                // as a still-open order to confront the defeated Warden.
+                // All three genuine v2 endings retain different consequences.
+                string[] endingsZh={
+                    "",
+                    "你决定将星核归还森林、河流和矿脉。堡垒屏障慢慢熄灭，水重新流动；城外居民一起建立新的公共避难所。这段关于星核的旅程已经结束。",
+                    "你保留了堡垒的保护屏障，却要求打开城门，让原本被算作损失的人们得到庇护。城外仍要面对供能的代价；星核的抉择已经完成。",
+                    "你与同伴让星核能源逐步回到居民共管的水泵、渡船与道路。旧城墙不再替所有人决定未来；星核的旅程已经完成。"
+                };
+                string[] endingsEn={
+                    "",
+                    "You returned the cores to forest, river and mine. The citadel shield fades, water begins to flow and neighbors establish public refuges. The starcore journey is over.",
+                    "You kept the citadel shield but opened its shelter to people previously counted as losses. The outside world still faces the energy cost; your core decision is complete.",
+                    "With your allies, you placed core power in public pumps, ferries and roads under resident stewardship. The old walls no longer decide for everyone. The starcore journey is complete."
+                };
+                q.description=L(endingsZh[save.ending],endingsEn[save.ending]);
                 q.complete=true;q.locked=false;
                 q.room=save.room;q.target=Position;
                 for(int region=1;region<=3;region++)
