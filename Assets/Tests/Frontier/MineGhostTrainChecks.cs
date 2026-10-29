@@ -223,7 +223,10 @@ namespace Starfall.Tests
         public static void LiveInnTravelerAcknowledgesTrainEvidenceAndRespectsBothSurvivorOutcomes(Campaign data)
         {
             GameCore g=PreparedGhostStory(data);
-            g.save.room=0;
+            // The actual Hearth Inn is region 9, not the town exterior 0.
+            // Use the original inn map and its physical guest as other core
+            // dialogue regressions do; do not fabricate an off-map witness.
+            g.save.room=9;
             WorldObject traveler=Array.Find(g.Map.objects,o=>o.kind=="innGuest");
             Check(traveler!=null,"Existing Hearth Inn traveler must remain on the real map");
             ReadInnNews(g,traveler);
