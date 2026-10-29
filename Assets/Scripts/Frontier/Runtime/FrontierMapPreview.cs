@@ -117,6 +117,8 @@ namespace Starfall
         {
             char tile=map.rows[y][x];
             if(tile=='?')return Game.FarBridgeOpen(region)?'=':'#';
+            if(tile=='!')return Game.RidgeBreachOpen(region)?'=':
+                (region==2||region==5?'~':'#');
             if(tile=='%'&&!Game.LowTide)return '~';
             if(tile=='v'||tile=='w'||tile=='b')
                 return Game.Has("seal_"+region)?'=':'#';

@@ -805,6 +805,8 @@ namespace Starfall
                 Point p = ScreenPoint(new Point(x, y));
                 char tile = Game.Map.rows[y][x];
                 if(tile=='?')tile=Game.FarBridgeOpen(Game.save.room)?'=':'#';
+                if(tile=='!')tile=Game.RidgeBreachOpen(Game.save.room)?'=':
+                    (Game.save.room==2||Game.save.room==5?'~':'#');
                 if (tile == '%' && !Game.LowTide) tile = '~';
                 if ((tile == 'v' || tile == 'w' || tile == 'b') && Game.Has("seal_" + Game.save.room)) tile = '=';
                 // Keep original full-detail terrain and tile edges as the
@@ -989,6 +991,26 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            if(kind=="ridgeBreach")
+            {
+                int region=Game.save.room;
+                bool open=Game.RidgeBreachOpen(region);
+                Color tint=open?mint:gold;
+                PropImage(region==2||region==5?"post":
+                    region==3?"barrel":"ruin",0,
+                    p.x-36,p.y-78,72,80,tint);
+                Ring(new Point(o.x,o.y),open?.52f:.8f,tint,26);
+                if(!open)
+                {
+                    Box(p.x-31,p.y-42,62,8,tint);
+                    Diamond(p.x,p.y-86,8,gold);
+                }
+                Text(p.x-131,p.y-110,262,18,open?
+                    Game.L("居民捷径 · 已实际贯通","CIVILIAN PASSAGE · WALKABLE"):
+                    Game.L("实体障碍 · 可修复近路","PHYSICAL BLOCKADE · REPAIR"),
+                    10,tint,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="ridgeEcho")
             {
                 int region=Game.save.room;

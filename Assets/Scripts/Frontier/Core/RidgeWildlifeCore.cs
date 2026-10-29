@@ -943,5 +943,140 @@ namespace Starfall
             }
             return true;
         }
+
+        // Seven optional physical road clearances are part of the actual
+        // map collision graph. The '!' tiles in Campaign.json remain blocked
+        // until a source-authenticated civilian repair consumes resources.
+        // Completion persists only in preexisting SaveData v2 flag strings.
+        private static readonly Point[] ridgeBreachCells={
+            new Point(96.5f,15.5f),new Point(96.5f,8.5f),
+            new Point(23.5f,24.5f),new Point(99.5f,15.5f),
+            new Point(72.5f,14.5f),new Point(108.5f,17.5f),
+            new Point(96.5f,15.5f)
+        };
+        private static readonly string[] ridgeBreachStoryZh={
+            "低处的荆藤攀住旧路标。开出这道窄口，归途不必再绕过整段高枝；林道边的人可以自己决定什么时候回家。",
+            "两块被潮水淹没的旧踏石还能补上。修好这处缺口，摆渡人可以绕开昔日官船掌握的漫长外岸。",
+            "一车矿渣堵住了工人曾走的近道。清出这条窄缝，伤员不用沿整圈运煤轨道才能到医护站。",
+            "星陨堡垒外墙的旧侧门被砌死。解开这处狭隘通道，居民不必再绕过封锁的军事岗楼。",
+            "一道浪沟隔断码头回程。用旧料补上步桥，渔人能从背风侧到岸，不必去追随军港的长堤。",
+            "沙丘裂口被塌下的石砾盖住。清出一人宽的通道，走井的人不必再在烈日下兜整圈弯。",
+            "风雪把背风岔道冻成了石墙。打开小小一段旧路，迟归的人能先找暖棚，不必再走山脊的远路。"
+        };
+        private static readonly string[] ridgeBreachStoryEn={
+            "Thorns bind the low civilian marker. Cut one narrow opening and families need not circle the entire high canopy to find their road home.",
+            "Two old stepping stones have sunk beneath the tide. Rebuild them, and ferrymen can bypass the long shore controlled by official boats.",
+            "Spilled slag seals the workers' short route. Clear it and the injured no longer need to circle the coal-haul line to reach care.",
+            "The citadel bricked over its civilian side gate. Unseal the narrow passage and residents can bypass the militarized watchtower.",
+            "A wave-cut channel interrupts the harbor path. Repair the footbridge so fishing families can reach shelter without circling the naval quay.",
+            "A fallen dune ridge closes a once-walked passage. Clear it and well-goers need not lose hours in open desert sunlight.",
+            "Snow has packed the sheltered fork into a wall. Reopen it and late travelers can reach a warming hut without crossing the full ridge."
+        };
+        private static readonly string[] ridgeBreachMaterialZh={
+            "木材2份","水晶1份、机械零件1份","机械零件2份",
+            "木材1份、机械零件2份","木材2份、机械零件1份",
+            "木材1份、水晶2份","木材2份、月光草2株"
+        };
+        private static readonly string[] ridgeBreachMaterialEn={
+            "2 timber","1 crystal and 1 gear","2 gears",
+            "1 timber and 2 gears","2 timber and 1 gear",
+            "1 timber and 2 crystals","2 timber and 2 Moonherbs"
+        };
+        public bool RidgeBreachOpen(int room)
+        {return room>=1&&room<=7&&Has("ridge_breach_done_"+room);}
+        public int RidgeBreachOpenCount
+        {
+            get{int n=0;for(int r=1;r<=7;r++)if(RidgeBreachOpen(r))n++;return n;}
+        }
+        public Point RidgeBreachTile(int room)
+        {
+            return room>=1&&room<=7?ridgeBreachCells[room-1]:new Point();
+        }
+        public Point RidgeBreachObjective(int room)
+        {
+            if(room<1||room>7||data==null||data.maps==null||
+                room>=data.maps.Length)return new Point();
+            foreach(WorldObject o in data.maps[room].objects)
+                if(o!=null&&o.id=="ridge_breach_"+room&&o.kind=="ridgeBreach")
+                    return new Point(o.x,o.y);
+            return new Point();
+        }
+        private bool RidgeBreachSource(WorldObject source)
+        {
+            return source!=null&&save.room>=1&&save.room<=7&&
+                source.kind=="ridgeBreach"&&
+                source.id=="ridge_breach_"+save.room&&
+                SourceBelongsToActiveMap(source)&&
+                HasPhysicalInteractionReach(source);
+        }
+        private bool TalkRidgeBreach(WorldObject source)
+        {
+            if(source==null||source.kind!="ridgeBreach")return false;
+            if(!RidgeBreachSource(source)||!CanStand(Position))return true;
+            int room=save.room;
+            if(RidgeBreachOpen(room))
+            {
+                Dialog(source.name,source.en,
+                    "这道居民近路已经亲手修好。原来的绕路仍然开放，新通道是真正可通行的地面，不是传送捷径。",
+                    "The civilian shortcut is repaired. The original long path remains open, while the newly cleared ground is genuinely walkable, not a teleport.",
+                    C("继续走路","Continue exploring","close"));
+                return true;
+            }
+            Dialog(source.name,source.en,
+                ridgeBreachStoryZh[room-1]+"\n\n修复需要"+ridgeBreachMaterialZh[room-1]+"。只要清开真正的障碍，道路、地图和野外寻路都会重新连通。",
+                ridgeBreachStoryEn[room-1]+"\n\nA permanent physical repair costs "+
+                ridgeBreachMaterialEn[room-1]+". The actual obstacle will become a traversable road in both world and atlas.",
+                C("亲自清理道路","Repair real passage","ridge_breach_clear"),
+                C("核对被堵住的路","Read this crossing","ridge_breach_read"),
+                C("先找材料","Leave for supplies","close"));
+            return true;
+        }
+        private bool ChooseRidgeBreach(string action)
+        {
+            if(action!="ridge_breach_clear"&&action!="ridge_breach_read")
+                return false;
+            WorldObject source=pendingDialogueSource;
+            if(mode!="world"||pendingDialogueSourceRoom!=save.room||
+                !RidgeBreachSource(source)||!CanStand(Position)||Dying||
+                practicing)return true;
+            int room=save.room;
+            if(RidgeBreachOpen(room))return true;
+            if(action=="ridge_breach_read")
+            {
+                Notify(ridgeBreachStoryZh[room-1],
+                    ridgeBreachStoryEn[room-1]);
+                return true;
+            }
+            if(!SafeTravel||FieldWorkPreventsRest)
+            {
+                Notify("必须先脱离战斗并完成正在保护的现场任务，才能安全清理道路。",
+                    "Leave combat and finish protected fieldwork before repairing this real road.");
+                return true;
+            }
+            bool paid=false;
+            switch(room)
+            {
+                case 1:paid=Spend(2,0,0,0,0);break;
+                case 2:paid=Spend(0,1,0,0,1);break;
+                case 3:paid=Spend(0,0,0,0,2);break;
+                case 4:paid=Spend(1,0,0,0,2);break;
+                case 5:paid=Spend(2,0,0,0,1);break;
+                case 6:paid=Spend(1,2,0,0,0);break;
+                case 7:paid=Spend(2,0,2,0,0);break;
+            }
+            if(!paid)return true;
+            Flag("ridge_breach_done_"+room);
+            CreditCoins(8);AddXp(24);
+            RecordMoment("你在"+data.maps[room].name+"亲手清开了被堵住的民用通道。真实地面恢复可走，居民不必再依靠漫长的旧军用绕路。",
+                "You physically reopened a blocked civilian passage in "+
+                data.maps[room].en+
+                ". Its real walking ground is passable again without requiring the long military detour.");
+            revision++;sound="reward";
+            Notify("真正的捷径已开放：消耗"+ridgeBreachMaterialZh[room-1]+
+                "，获得8硬币和24经验。前往新开放的地面即可直接穿过。",
+                "Real shortcut restored: spend "+ridgeBreachMaterialEn[room-1]+
+                ", gain 8 coins and 24 XP. You can now walk directly through the cleared passage.");
+            return true;
+        }
     }
 }

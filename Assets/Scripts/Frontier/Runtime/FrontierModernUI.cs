@@ -1335,6 +1335,20 @@ namespace Starfall
                         (total-gathered)+"/"+total,10,mint,
                         TextAnchor.MiddleCenter);
             }
+            // Real permanent civilian breach, driven by an authored tile
+            // and the same durable flag as runtime collision. The strategic
+            // map must not still display a sealed cliff after repair.
+            if(region>=1&&region<=7)
+            {
+                bool repaired=Game.RidgeBreachOpen(region);
+                Point foot=Game.RidgeBreachObjective(region);
+                float bx=originX+foot.x*tileScale;
+                float by=originY+foot.y*tileScale;
+                Color color=repaired?mint:gold;
+                Frame(bx-6,by-6,12,12,color);
+                if(!repaired)Frame(bx-10,by-10,20,20,gold);
+                else Box(bx-2,by-2,4,4,mint);
+            }
             if(completed&&region>=1&&region<=7)
             {
                 Point active=Game.RidgeEchoObjective(region);

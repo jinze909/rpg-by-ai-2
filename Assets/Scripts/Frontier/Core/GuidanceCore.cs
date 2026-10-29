@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1021,6 +1021,41 @@ namespace Starfall
 
 
 
+
+            if(id=="ridge_breaches")
+            {
+                q.title=L("七地疏通 · 被封住的居民近路",
+                    "Seven Open Passages · Civilian Shortcuts");
+                q.category=L("七地区真实地形工程 · 持久碰撞改变",
+                    "SEVEN REAL TERRAIN REPAIRS · PERSISTENT GROUND");
+                q.description=L("在七片野外找到被塌方、荆藤、潮沟或石墙阻挡的实际近路。每处在原始堵口旁有一处民用施工台；走到现场交付该地材料，会永久将阻挡地格变成可通行道路。未完成时只能沿原路绕行。此工程不是菜单传送，不会影响原有桥梁、潮汐或任务进度。",
+                    "Seven actual shortcuts across the wilderness are blocked by thorns, floodwater, slag, old stone, dunes and snow. Walk to each authentic worker's marker and spend local materials to turn the physical blocker into walkable terrain. Before repair, travel the original detour. This is not teleportation and does not overwrite bridges, tides or earlier story progress.");
+                q.reward=L("每个真实修路点：8硬币、24经验，以及永久开放的可行走近路",
+                    "Each repaired crossing: 8 coins, 24 XP and a permanent real-ground shortcut");
+                q.complete=RidgeBreachOpenCount==7;q.locked=false;
+                int chosen=-1;
+                for(int region=1;region<=7;region++)
+                {
+                    bool done=RidgeBreachOpen(region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?" · 民用道路已贯通":" · 等待实地清障",
+                          done?" · PASSAGE OPEN":" · CLEAR PHYSICAL BLOCKADE"),done));
+                    if(!done&&CanEnter(region)&&
+                        (chosen<0||region==save.room))chosen=region;
+                }
+                q.room=chosen>=0?chosen:save.room;
+                q.target=chosen>=0?RidgeBreachObjective(chosen):Position;
+                q.next=q.complete?
+                    L("七处近路已经全部开放，地图上的地面可直接步行穿过。",
+                        "All seven shortcuts are permanently walkable on the real map."):
+                    chosen<0?
+                        L("先解锁一处野外地区，再寻找居民施工台。",
+                            "Unlock an outdoor region and find its original repair marker."):
+                    L("到真实的道路施工台，携带地区材料清理被阻挡的通道。",
+                        "Reach the authentic field clearance site with its regional materials.");
+                return q;
+            }
 
             // Seven genuine three-site expeditions share the old v2 save
             // schema but remain separately actionable in the shipped journal.
