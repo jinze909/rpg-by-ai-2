@@ -1213,9 +1213,46 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS actual ridge watch combat body, fixed ring, credited removal and sprite preservation");
     }
 
+    // Source-level gameplay indicators are drawn by the actual Frontier
+    // world object renderer. Reading the marker never modifies the save.
+    static void CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.Enter(1);
+        g.save.flags.Add("biome_field_done_1");
+        WorldObject post=Array.Find(g.Map.objects,
+            o=>o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+        Check(post!=null,"Actual authored first survey marker exists");
+        Set(app,"camera",new Point(post.x,post.y));
+        g.save.flags.Remove("biome_patrol_done_1");
+        g.save.flags.Remove("biome_patrol_spared_1");
+        ClearDraw();Call(app,"DrawObject",post);
+        Check(GUI.commands.Exists(c=>c.Contains("3C / 12ST")||
+            c.Contains("硬币3 / 耐力12")),
+            "Unclaimed patrol marker quotes live unmodified 3/12 relay fare");
+        g.save.flags.Add("biome_patrol_done_1");
+        ClearDraw();Call(app,"DrawObject",post);
+        Check(GUI.commands.Exists(c=>c.Contains("2C / 10ST")||
+            c.Contains("硬币2 / 耐力10"))&&
+            GUI.commands.Exists(c=>c.Contains("SIGNED PATROL RECEIPT")||
+                c.Contains("巡护安全回执已登记")),
+            "Genuine signed patrol changes both the physical price and field notice");
+        g.save.flags.Add("biome_patrol_spared_1");
+        ClearDraw();Call(app,"DrawObject",post);
+        Check(GUI.commands.Exists(c=>c.Contains("2C / 7ST")||
+            c.Contains("硬币2 / 耐力7"))&&
+            GUI.commands.Exists(c=>c.Contains("ALL CAPTURED")||
+                c.Contains("全员活捉")),
+            "Living-captive receipt draws a distinct map-world mark and charged 2/7 route");
+        Check(g.FieldRelayEnergyHere==7&&g.save.version==2,
+            "World draw uses the exact production price with no schema change");
+        Console.WriteLine("PASS live field marker shows patrol method and actual charged travel economy");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(app);InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }

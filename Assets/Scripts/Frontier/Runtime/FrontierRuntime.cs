@@ -1179,16 +1179,13 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),second?.59f:.46f,ink,24);
                 if(finished)
                 {
-                    string status=medicine?
-                        Game.L("公共药箱 · 营地治疗增强",
-                            "PUBLIC TRIAGE · CAMP HEALING"):
-                        road?
-                        Game.L("居民通路 · 1硬币/6耐力",
-                            "PUBLIC ROAD · 1C / 6ST"):
-                        Game.L("远路物资 "+Game.BiomeSupplySampleCount(Game.save.room)+
-                            "/2 · 3硬币/12耐力",
-                            "SUPPLIES "+Game.BiomeSupplySampleCount(Game.save.room)+
-                            "/2 · 3C/12ST");
+                    // The published field marker must quote the SAME
+                    // live fare charged by the real source dialogue. Supply,
+                    // council, patrol and all-living discounts all apply.
+                    string status=Game.L("接驳 · 硬币"+Game.FieldRelayFareHere+
+                            " / 耐力"+Game.FieldRelayEnergyHere,
+                            "RELAY · "+Game.FieldRelayFareHere+
+                            "C / "+Game.FieldRelayEnergyHere+"ST");
                     bool crisisHere=Game.BiomeCrisisActive;
                     if(crisisHere)
                     {
@@ -1208,6 +1205,33 @@ namespace Starfall
                         crisisHere?gold:ink,TextAnchor.MiddleCenter);
                     if(medicine||road)
                         Diamond(p.x,p.y-91,6,ink);
+                    // The physical FIRST survey post owns the patrol.
+                    // Distinct persistent marks distinguish captured
+                    // testimony from a violent completion without changing
+                    // original Sprite pixels or scene GUIDs.
+                    if(!second&&Game.FieldPatrolActive)
+                    {
+                        Ring(new Point(o.x,o.y),.93f,gold,28);
+                        Text(p.x-117,p.y-141,234,18,
+                            Game.L("巡兵仍在现场 · "+Game.FieldPatrolRemaining+"名",
+                                "PATROL ACTIVE · "+Game.FieldPatrolRemaining+" LEFT"),
+                            10,gold,TextAnchor.MiddleCenter);
+                    }
+                    else if(!second&&Game.FieldPatrolSpared(Game.save.room))
+                    {
+                        Ring(new Point(o.x,o.y),.93f,mint,28);
+                        Text(p.x-117,p.y-141,234,18,
+                            Game.L("全员活捉 · 安全路况已公开",
+                                "ALL CAPTURED · SAFE ROUTE KNOWN"),
+                            10,mint,TextAnchor.MiddleCenter);
+                    }
+                    else if(!second&&Game.FieldPatrolDone(Game.save.room))
+                    {
+                        Text(p.x-117,p.y-141,234,18,
+                            Game.L("巡护安全回执已登记",
+                                "SIGNED PATROL RECEIPT"),
+                            10,ink,TextAnchor.MiddleCenter);
+                    }
                 }
                 if(!finished&&(!second||ready))
                 {

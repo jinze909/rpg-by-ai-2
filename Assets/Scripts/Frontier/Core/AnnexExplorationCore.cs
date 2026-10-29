@@ -95,6 +95,10 @@ namespace Starfall
         }
         // Earned civilian safety reports actually improve the existing
         // physical field relay. One calculation owns both its label and pay.
+        // Read-only public cost mirrors for the live world marker.
+        // The choice handler calls the same internal methods when paying.
+        public int FieldRelayFareHere {get{return FieldRelayFare(save.room);}}
+        public int FieldRelayEnergyHere {get{return FieldRelayEnergy(save.room);}}
         private int FieldRelayFare(int room)
         {
             int fare=BiomeSupplyRoadBuilt(room)?1:3;

@@ -1043,10 +1043,10 @@ namespace Starfall
                     "Seven Field Patrols · Civilian Safety Receipts");
                 q.category=L("实地调查后的可选战斗 · 七地区",
                     "OPTIONAL COMBAT · SEVEN REGIONS");
-                q.description=L("先亲自完成本区两处探路地标调查。回到原始勘察地标领取巡路委托，真正击退当地2至3名敌人，再返回同一地标交付安全回执。撤销或离开区域不会结算击杀。七张回执合成居民巡路图。",
-                    "Finish both authentic local survey markers, then accept a patrol contract at the first post. Defeat two or three genuine raiders and return to the same post to file the receipt. Aborted or abandoned patrols grant no completion credit. Seven receipts create a civilian safety route atlas.");
-                q.reward=L("各地硬币、碎片与经验；七地全胜额外技能点1、碎片3",
-                    "Regional coins, shards and XP; all seven: +1 talent and 3 shards");
+                q.description=L("完成两处探路地标后，在原勘察地标接取巡路委托。你可以击败巡兵，也可以自己布下真实绊索，将他们全部活捉。返回原地标签回执；只有全员活捉才会获得额外碎片和本地区永久接驳省力。放弃或离开不结算。",
+                    "Complete both local survey sites and accept a patrol at the first post. Defeat the raiders or lay real snares and restrain them alive. Return to sign the receipt. Only taking every raider alive earns an extra shard and lasting local relay stamina savings. Abandoning or leaving grants no receipt.");
+                q.reward=L("每区硬币、碎片、经验；全员活捉多1碎片且本区接驳再省3耐力；七区全胜额外1技能点、3碎片",
+                    "Regional coins, shards and XP; all-captive +1 shard and -3 local relay stamina; seven signed +1 talent, 3 shards");
                 q.complete=FieldPatrolWins==7;q.locked=false;
                 int selected=-1;
                 for(int region=1;region<=7;region++)
@@ -1054,8 +1054,12 @@ namespace Starfall
                     bool done=FieldPatrolDone(region);
                     q.steps.Add(new QuestStep(
                         L(data.maps[region].name,data.maps[region].en)+
-                        L(done?" · 安全回执已签收":" · 待现场巡护",
-                            done?" · RECEIPT FILED":" · LIVE PATROL NEEDED"),done));
+                        L(done?(FieldPatrolSpared(region)?
+                                " · 全员活捉的安全证词":" · 安全回执已签收"):
+                                " · 待现场巡护",
+                            done?(FieldPatrolSpared(region)?
+                                " · LIVING TESTIMONY":" · RECEIPT FILED"):
+                                " · LIVE PATROL NEEDED"),done));
                     if(!done&&CanEnter(region)&&
                         (selected<0||region==save.room))selected=region;
                 }
@@ -1069,16 +1073,18 @@ namespace Starfall
                 if(FieldPatrolActive)
                 {
                     q.next=FieldPatrolReportReady?
-                        L("实战敌人全部击退，返回原调查地标提交回执。",
-                          "All assigned raiders defeated. Return to the original survey post for your receipt."):
+                        L("全部巡兵已被击退或活捉，返回原地标提交真实回执。",
+                          "Every assigned raider was defeated or restrained. Return to the first post to sign."):
                         L("巡路委托进行中，剩余巡兵"+FieldPatrolRemaining+
-                          "名；击退后带回安全回执。",
+                          "名；可战斗或用真正绊索活捉，之后返回原地标。",
                           "Active patrol: "+FieldPatrolRemaining+
-                          " raiders remain. Defeat them and return to the source.");
+                          " raiders remain. Fight or snare them alive, then return to the post.");
                 }
                 else if(q.complete)
-                    q.next=L("七地区全部有真实安全回执，居民巡路图已完成。",
-                        "All seven live patrol receipts filed; the civilian atlas is complete.");
+                    q.next=L("七地区安全回执已签完；其中全员活捉"+
+                        FieldPatrolSparedCount+"/7区，居民巡路图已完成。",
+                        "All seven patrol receipts signed; "+FieldPatrolSparedCount+
+                        "/7 districts secured entirely with living testimony.");
                 else
                     q.next=L("完成本区调查后，在第一个实地标记接取可选巡逻战斗。",
                         "Finish the local investigation, then accept the optional real patrol at its first field marker.");
