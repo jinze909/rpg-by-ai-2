@@ -551,8 +551,9 @@ namespace Starfall.Tests
             g.Talk(book);ChooseStoryChoice(g,"story_catchup");
             Check(g.conversation.text.Contains("巡路记录")&&
                 g.conversation.textEn.Contains("roadwarden log")&&
-                g.conversation.text.Contains("尚待登记"),
-                "After tuning the grid, the genuine inn audit must be opened before claiming a surveyed marker");
+                g.conversation.text.Contains("直接到现场核验")&&
+                g.conversation.textEn.Contains("directly in the field"),
+                "After grid restoration the archive explicitly allows checking genuine road markers without a second inn signup");
             g.Close();
             string[] auditFlags={"civic_aftercare_waytrail_0",
                 "civic_aftercare_waytrail_3","civic_aftercare_waytrail_5"};
