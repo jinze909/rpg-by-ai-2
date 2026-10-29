@@ -493,6 +493,39 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // Real optional Citadel Boss. Its world cue tracks the ACTUAL
+            // elite and authored tuning stations; no UI-only enemy clones.
+            if(Game.mode=="world"&&Game.save.room==4&&
+                Game.BridgeOfChordsUnlocked&&!Game.BridgeOfChordsComplete&&
+                !drawingOutline)
+            {
+                Point goal=Game.BridgeOfChordsTarget;
+                Color ink=Game.BridgeOfChordsActive?gold:mint;
+                if(WorldDrawable(goal.x,goal.y,145f,145f))
+                {
+                    Ring(goal,.66f,ink,24);
+                    Point label=ScreenPoint(goal);
+                    Text(label.x-155,label.y-91,310,20,
+                        Game.BridgeOfChordsObjective,10,ink,
+                        TextAnchor.MiddleCenter);
+                }
+                if(Game.BridgeOfChordsActive)
+                {
+                    Text(35,564,575,21,
+                        Game.L("断弦桥 · 余震精英",
+                            "BROKEN CHORD BRIDGE · ECHO ELITE"),12,ink);
+                    Text(35,587,595,19,
+                        Game.L("剩余 ","TIME ")+
+                        Game.BridgeOfChordsSeconds.ToString("0")+
+                        "s · "+Game.L("接地 ","FORKS ")+
+                        Game.BridgeOfChordsResonators+
+                        "/2 · "+Game.L("下一波 ","NEXT PULSE ")+
+                        Game.BridgeOfChordsPulse.ToString("0.0")+"s",11,ink);
+                    Text(35,609,590,18,
+                        Game.L("地面红圈可躲避 · 音叉需现场接地",
+                            "DODGE REAL GROUND WARNING · GROUND FORKS IN PERSON"),10,ink);
+                }
+            }
             // A new authored Glass Desert investigation, never fabricated
             // protagonist art or invented HUD-only patrol enemies.
             if(Game.mode=="world"&&Game.GlassLedgerStarted&&
@@ -1590,6 +1623,30 @@ namespace Starfall
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
                         10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(o.kind=="bridgeheart"||o.kind=="bridgelow"||
+               o.kind=="bridgehigh")
+            {
+                // Authored three real walkable old-bridge prop objects:
+                // central core, low and high fork stations.
+                Point site=new Point(o.x,o.y);
+                Color cue=Game.BridgeOfChordsComplete?mint:
+                    Game.BridgeOfChordsActive?gold:muted;
+                bool heart=o.kind=="bridgeheart";
+                PropImage("post",0,p.x-(heart?31:23),
+                    p.y-(heart?77:66),
+                    heart?62:46,heart?77:66,cue);
+                Ring(site,heart?.72f:.5f,cue,26);
+                if(Game.BridgeOfChordsUnlocked)
+                {
+                    Text(p.x-109,p.y-91,218,18,
+                        heart?Game.L("余震核心","ECHO CORE"):
+                        o.kind=="bridgelow"?
+                        Game.L("低频接地音叉","LOW RESONATOR"):
+                        Game.L("高频接地桩","HIGH RESONATOR"),
+                        10,cue,TextAnchor.MiddleCenter);
+                }
                 return true;
             }
             if(o.kind=="glassledgerwatch"||o.kind=="glassledgerseal"||
