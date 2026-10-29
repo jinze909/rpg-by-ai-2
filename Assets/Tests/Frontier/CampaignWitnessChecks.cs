@@ -3,6 +3,45 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void RegionalFieldSurveysActuallySpawnMultipleLocalReadableEncounters(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("scout_saved");
+            g.invulnerable=900f;
+            for(int room=1;room<=7;room++)
+            {
+                g.mode="world";g.enemies.Clear();
+                g.save.room=room;
+                WorldObject survey=Array.Find(g.Map.objects,
+                    o=>o.id=="biomeSurvey"+room);
+                Check(survey!=null&&g.CanStand(new Point(survey.x,survey.y)),
+                    "Every outdoor biome has an authentic accessible first landmark");
+                g.save.x=survey.x;g.save.y=survey.y;
+                g.Talk(survey);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Physical regional survey opens its OWN evidence conversation");
+                int note=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_note");
+                Check(note>=0,"Fresh new regional route accepts the first clue");
+                g.Choose(note);
+                Check(g.BiomeFieldStarted&&g.enemies.Count>=2&&
+                    g.enemies.Count<=3,
+                    "Every visited far-side biome actually offers at least two separate supplementary battles");
+                for(int i=0;i<g.enemies.Count;i++)
+                {
+                    Enemy e=g.enemies[i];
+                    Check(g.CanStand(e.Position)&&
+                        (e.Position-new Point(survey.x,survey.y)).Length>6f,
+                        "Region-specific scout really stands in open flankable terrain away from its field source");
+                    foreach(WorldObject objectSite in g.Map.objects)
+                        Check((e.Position-new Point(objectSite.x,objectSite.y)).Length>=4.2f,
+                            "No side patrol materializes on original quest interactions");
+                    for(int k=0;k<i;k++)
+                        Check((e.Position-g.enemies[k].Position).Length>=4.5f,
+                            "Spawned region patrols do not stack on one poor encounter point");
+                }
+            }
+        }
         public static void NewOverworldBiomesKeepPhysicalQuestPathsAndHaveDifferentRemoteSilhouettes(Campaign data)
         {
             // Source maps have 120x80 cells, but a different-looking ASCII
