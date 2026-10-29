@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // A real optional three-source walking delivery, not a map-click reward.
@@ -26,6 +27,45 @@ namespace Starfall
         };
         private int dispatchRoom=-1,dispatchStage,dispatchIntegrity;
         private float dispatchSeconds;
+        // Temporary local ambushers make the second physical leg a tactical
+        // choice (fight, snare or evade), not an empty timer. They never
+        // survive a failed/signed dispatch or serialize to a save.
+        private readonly List<Enemy> dispatchRaiders=new List<Enemy>();
+        public int FieldDispatchLivingRaiders
+        {get{int n=0;if(FieldDispatchActive)foreach(Enemy e in dispatchRaiders)
+            if(e!=null&&e.hp>0f&&enemies.Contains(e))n++;return n;}}
+        private bool IsFieldDispatchEnemy(Enemy e)
+        {return e!=null&&FieldDispatchActive&&dispatchRaiders.Contains(e);}
+        private int SpawnFieldDispatchAmbush()
+        {
+            if(!FieldDispatchActive||dispatchStage!=2)return 0;
+            Point center=new Point(dispatchCheckpoint.x,dispatchCheckpoint.y);
+            int sx=(int)Math.Floor(center.x),sy=(int)Math.Floor(center.y);
+            var pads=new List<Point>();
+            // One highland/forest scout or a paired ruinside raiding unit;
+            // leave every original NPC pad and foot route readable.
+            int count=dispatchRoom==2||dispatchRoom==3||
+                dispatchRoom==6?2:1;
+            for(int radius=7;radius<=12&&pads.Count<count;radius++)
+            for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
+            for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                    Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
+                if(RegionalScoutFootClear(foot,center,true,pads))
+                    pads.Add(foot);
+            }
+            foreach(Point foot in pads)
+            {
+                int kind=(dispatchRoom+dispatchRaiders.Count)%3;
+                Enemy foe=CreatePlacedEnemy(++enemyId,kind,foot,
+                    35f+dispatchRoom*7f);
+                dispatchRaiders.Add(foe);enemies.Add(foe);
+                effects.Add(new Effect("enemyRelease",foot,.65f){variant=kind});
+            }
+            return dispatchRaiders.Count;
+        }
         private MapData dispatchMap;
         private SaveData dispatchSave;
         private WorldObject dispatchOrigin,dispatchCheckpoint,dispatchFinal;
@@ -56,6 +96,14 @@ namespace Starfall
             dispatchStage==1?dispatchCheckpoint:dispatchFinal);}
         private void ResetFieldDispatch()
         {
+            projectiles.RemoveAll(p=>p.hostileShooter!=null&&
+                dispatchRaiders.Contains(p.hostileShooter));
+            foreach(Enemy e in dispatchRaiders)
+            {
+                RemoveEnemyPendingWarning(e);
+                enemies.Remove(e);
+            }
+            dispatchRaiders.Clear();
             dispatchRoom=-1;dispatchStage=dispatchIntegrity=0;
             dispatchSeconds=0f;dispatchMap=null;dispatchSave=null;
             dispatchOrigin=dispatchCheckpoint=dispatchFinal=null;
@@ -189,9 +237,13 @@ namespace Starfall
             {
                 if(dispatchStage!=1||
                     !Object.ReferenceEquals(source,dispatchCheckpoint))return true;
-                dispatchStage=2;revision++;sound="quest";
-                Notify("第一站已记录。必须步行前往本区原始调查地标交货。",
-                    "First checkpoint signed. Walk to the authentic original survey marker.");
+                dispatchStage=2;
+                int raiders=SpawnFieldDispatchAmbush();
+                revision++;sound="quest";
+                Notify("第一站已登记，前往本区原调查地标交货。"+
+                    (raiders>0?"附近出现"+raiders+"名真正的袭击者；可战斗、活捉或绕开。":""),
+                    "Checkpoint signed. Walk to the authentic survey post."+
+                    (raiders>0?" "+raiders+" genuine raiders are approaching; fight, snare or evade.":""));
                 return true;
             }
             if(dispatchStage!=2||!Object.ReferenceEquals(source,dispatchFinal)||

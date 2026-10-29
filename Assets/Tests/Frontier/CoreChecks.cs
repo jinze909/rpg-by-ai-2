@@ -683,6 +683,14 @@ namespace Starfall.Tests
                 Check(g.FieldDispatchActive&&g.FieldDispatchStage==2&&
                     (g.FieldDispatchTarget-new Point(original.x,original.y)).Length<.01f,
                     "Signed intermediate source advances the live compass to original survey");
+                int liveRaiders=g.FieldDispatchLivingRaiders;
+                Check(liveRaiders>=1&&liveRaiders<=(room==2||room==3||room==6?2:1),
+                    "An authentic local ambush appears on the second physical supply leg");
+                foreach(Enemy foe in g.enemies)
+                    Check(foe.hp>0f&&g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(checkpoint,foe.Position,true).Count>0&&
+                        (foe.Position-checkpoint).Length>=5f,
+                        "The courier's nonmandatory ambush uses actual connected combat feet");
                 g.Close();
                 g.save.x=original.x;g.save.y=original.y;
                 g.Talk(original);
@@ -692,10 +700,10 @@ namespace Starfall.Tests
                     "Only original physical survey offers final public handoff");
                 g.Choose(finish);
                 Check(!g.FieldDispatchActive&&g.FieldDispatchDone(room)&&
-                    g.FieldDispatchWins==1&&
+                    g.FieldDispatchWins==1&&g.enemies.Count==0&&
                     g.Has("field_dispatch_intact_"+room)&&
                     g.save.shards==shards+2,
-                    "An actual two-leg undamaged delivery earns exclusive first signed receipt");
+                    "An actual two-leg undamaged delivery cleans its optional attackers and earns only one signed reward");
                 Check(g.GetQuest("field_dispatches").steps[room-1].done,
                     "Bilingual physical courier journal now reflects earned infrastructure");
                 g.PrepareSave();
