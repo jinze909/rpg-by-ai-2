@@ -171,6 +171,55 @@ namespace Starfall.Tests
                         "The new chapter cannot suppress a preexisting dangerous-region wildlife patrol anchor");
             }
         }
+        public static void GhostTrainHasRealJournalEntryCrossRoomNavigationAndSafeCombatResume(Campaign data)
+        {
+            Check(Array.IndexOf(GameCore.QuestIds,"ghost_train")>=0,
+                "Seventeenth Train is selectable in the shipped journal, not only a floating HUD notice");
+            GameCore g=PreparedGhostStory(data);
+            WorldObject dispatch=GhostSite(g,"dispatch");
+            WorldObject roster=GhostSite(g,"manifest");
+            WorldObject switcher=GhostSite(g,"switch");
+            QuestGuide journal=g.GetQuest("ghost_train");
+            Check(!journal.locked&&!journal.complete&&journal.steps.Count==5&&
+                (journal.target-new Point(dispatch.x,dispatch.y)).Length<.01f,
+                "Restored original mine opens a complete journal route at real dispatch");
+            g.TrackQuest("ghost_train");
+            Check(g.save.trackedQuest=="ghost_train"&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-journal.target).Length<.01f,
+                "Tracking the new quest drives the true in-world compass");
+            g.save.room=0;
+            Check((g.GetQuest("ghost_train").target-new Point(dispatch.x,dispatch.y)).Length<.01f,
+                "An off-region journal must retain original mine coordinates instead of showing zero");
+            g.save.room=3;
+            GhostWalk(g,dispatch);GhostChoice(g,"ghost_train_start");
+            journal=g.GetQuest("ghost_train");
+            Check(journal.steps[0].done&&!journal.steps[1].done&&
+                (journal.target-new Point(roster.x,roster.y)).Length<.01f,
+                "Accepting the real commission advances journal steps and objective");
+            GhostWalk(g,roster);GhostChoice(g,"ghost_train_manifest");
+            journal=g.GetQuest("ghost_train");
+            Check(journal.steps[1].done&&!journal.steps[2].done&&
+                (journal.target-new Point(switcher.x,switcher.y)).Length<.01f,
+                "Recovering actual signatures routes the journal to the live switchyard");
+            g.TrackQuest("main");
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ambush");
+            Check(g.GhostTrainBattleActive&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-new Point(switcher.x,switcher.y)).Length<.01f&&
+                g.save.trackedQuest=="main",
+                "Timed combat temporarily owns the compass without rewriting an older pinned quest");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,g.save);
+            QuestGuide resumed=restored.GetQuest("ghost_train");
+            Check(!restored.GhostTrainBattleActive&&
+                restored.GhostTrainChapter==2&&!resumed.complete&&
+                resumed.steps[1].done&&!resumed.steps[2].done&&
+                (resumed.target-new Point(switcher.x,switcher.y)).Length<.01f&&
+                restored.save.version==2&&restored.save.trackedQuest=="main",
+                "Reloading an unfinished transient fight resumes its durable real-site quest without storing phantom enemies or changing save v2");
+        }
+
         public static void SilentTrainDecisionsChangeRealLocalSpeedOrExistingCivilianShelterHealing(Campaign data)
         {
             GameCore baseline=PreparedGhostStory(data);

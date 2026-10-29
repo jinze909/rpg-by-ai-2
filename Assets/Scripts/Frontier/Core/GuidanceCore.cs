@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1021,6 +1021,79 @@ namespace Starfall
 
 
 
+
+            // The independent Iron Mine chapter is a genuine journal quest.
+            // Targets are read from shipped map objects, not the currently
+            // loaded room: the journal must still guide a returning traveler.
+            if(id=="ghost_train")
+            {
+                int stage=GhostTrainChapter;
+                q.title=L("失声的第十七趟列车",
+                    "The Silent Seventeenth Train");
+                q.category=L("矿场调查 · 实战封锁 · 民用选择",
+                    "MINE INVESTIGATION · REAL COMBAT · CIVILIAN CHOICE");
+                q.room=3;
+                q.locked=stage==0&&
+                    ((!CanEnter(3)&&save.room!=3)||!RegionalMachineDone(3));
+                q.complete=GhostTrainComplete;
+                q.description=L(
+                    "赤铁矿场的第十七趟夜班车被登记为“空车”，十七名工人却随之失踪。完成矿场三处公共工程后，从西侧调度台接手调查；去远端取原始签字、在真正的转辙台击退三名守卫并花费两份零件、向医护站交付两株月光草，最后回调度台决定公开姓名还是优先修复载人线。守卫战限时180秒，失败可原地重新挑战。选择永久影响矿区公共医疗或行走速度。",
+                    "After restoring three Iron Mine public mechanisms, investigate a supposedly empty nightshift train carrying seventeen missing workers. Speak to dispatch, recover the original signed ledger, defeat three genuine guards within 180 seconds at the physical switch and pay two gears, deliver two Moonherbs to the distant infirmary, then return to dispatch. Decide whether to publish the names or prioritize passenger rail: the choice permanently improves local shelter healing or travel speed. A failed guard encounter can be retried.");
+                q.steps.Add(new QuestStep(L("在西侧调度台接受调查",
+                    "Accept the case at western dispatch"),stage>=1));
+                q.steps.Add(new QuestStep(L("找回17份原始签字名册",
+                    "Retrieve seventeen original worker signatures"),stage>=2));
+                q.steps.Add(new QuestStep(L("击退真实守卫并花零件抢通道岔",
+                    "Defeat the real guards and reopen the switch with gears"),stage>=3));
+                q.steps.Add(new QuestStep(L("向矿医站交药草并封存证词",
+                    "Deliver herbs and preserve infirmary testimony"),stage>=4));
+                q.steps.Add(new QuestStep(L("返回调度台决定工人和铁路的未来",
+                    "Decide the survivors' future at dispatch"),stage>=5));
+                string siteId=stage==1?"mine_ghost_manifest":
+                    stage==2?"mine_ghost_switch":
+                    stage==3?"mine_ghost_medbay":"mine_ghost_dispatch";
+                foreach(WorldObject site in data.maps[3].objects)
+                    if(site.id==siteId&&site.kind=="mineGhostTrain")
+                    {q.target=new Point(site.x,site.y);break;}
+                q.next=q.complete?
+                    GhostTrainPublic?
+                        L("十七名矿工姓名已公开，矿场公共补给处现在有更好的治疗。",
+                            "All seventeen names are public; mine shelters now heal more effectively."):
+                        L("民用载人侧线已恢复，矿区移动速度永久提高。",
+                            "Passenger rail is restored; mine travel is permanently faster."):
+                    q.locked?
+                        !CanEnter(3)&&save.room!=3?
+                            L("先解锁赤铁矿场，再完成三处民用工程。",
+                                "Unlock the Iron Mine, then restore all three public mechanisms."):
+                            L("先在赤铁矿场修复三处民用工程，再找调度员。",
+                                "Restore all three mine public mechanisms before seeing dispatch."):
+                    stage==0?
+                        L("到西侧调度台询问第十七趟夜班车。",
+                            "Ask western dispatch about nightshift train seventeen."):
+                    stage==1?
+                        L("去东北远端取回有签字的原始名册。",
+                            "Travel northeast for the original signed shift roster."):
+                    stage==2?
+                        GhostTrainBattleActive?
+                            GhostTrainEnemiesLeft>0?
+                                L("真实守卫剩余"+GhostTrainEnemiesLeft+
+                                    "人，封锁倒计时"+(int)GhostTrainSeconds+"秒。",
+                                    GhostTrainEnemiesLeft+" guards remain; "+
+                                    (int)GhostTrainSeconds+" seconds to clear the blockade."):
+                                L("守卫全部击倒，清理流弹并在原转辙台交付两份零件。",
+                                    "Guards defeated. Clear incoming fire and spend two gears at the original switch."):
+                            L("到东南转辙台启动真实伏击；击退三名守卫后需要两份零件。",
+                                "Confront three real guards at the southeast switch; bring two gears."):
+                    stage==3?
+                        L("到西北医护站亲自交付两株月光草。",
+                            "Personally deliver two Moonherbs to the northwest infirmary."):
+                        L("带着幸存者证词返回调度台，决定公开名册还是恢复载人线。",
+                            "Return to dispatch with testimony; publish the roster or restore passenger rail.");
+                q.reward=L(
+                    "经验125、技能点1、碎片2；公开姓名另得碎片1并强化矿场公共治疗，修复载人线另得25硬币与矿区速度+0.35",
+                    "125 XP, one talent and two shards; publication grants one additional shard and better mine shelter healing, or passenger rail grants 25 extra coins and +0.35 mine movement speed");
+                return q;
+            }
 
             if(id=="seventh_bed")
             {
@@ -4343,6 +4416,9 @@ namespace Starfall
             // player's original tracked quest is never modified.
             if(SwordLessonActive)return SwordLessonLauncher;
             if(FrostSignalActive)return GetQuest("frost_signal").target;
+            // The actual timed rail blockade owns the compass while live.
+            // Never overwrite the player's separately tracked saved quest.
+            if(GhostTrainBattleActive)return GhostTrainTarget;
             if(MineConvoyActive)return MineConvoyStage==2||
                 MineConvoyStage==4?GetQuest("mine_convoy").target:MineCartPosition;
             if(FarCourierActive) return GetQuest("far_couriers").target;
