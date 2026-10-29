@@ -156,6 +156,18 @@ namespace Starfall.Tests
                     reloaded.BridgeOfChordsCalibrated&&
                     reloaded.GetQuest("bridge_chords").complete,
                     "Earned physical elite, both forks and chosen civic service persist through old save v2");
+                // The actual Hearth Inn traveler remembers the true
+                // post-fight decision, not a copied mission-only cutscene.
+                SilentLedgerVisitRealInnFromEmberfall(g);
+                ReadInnNews(g,Object(g,"innGuest"));
+                Check(ending==0?
+                    g.conversation.textEn.Contains("bridge carpenter brings a brass resonance fork")&&
+                    !g.conversation.textEn.Contains("old bridge's power is back"):
+                    g.conversation.textEn.Contains("old bridge's power is back")&&
+                    !g.conversation.textEn.Contains("bridge carpenter brings a brass resonance fork"),
+                    "Original Hearth Inn traveler recounts exactly the earned real bridge outcome");
+                g.Close();g.Enter(4);g.enemies.Clear();
+                heart=BridgeSite(g,"bridge_heart");
                 // Compare ordinary safe resource regeneration against the
                 // exact same Citadel coordinates without its outcome flag.
                 Check(PlaceWithinTalkReach(g,heart),"Final core provides physically reachable recovery");

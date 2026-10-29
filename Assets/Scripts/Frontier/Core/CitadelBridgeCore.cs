@@ -198,6 +198,16 @@ namespace Starfall
                 bridgeResonators==1?5.6f:
                 bridgeGuardian.BossPhase>=2?3.3f:4.4f;
         }
+        private string BridgeOfChordsInnNews(bool english)
+        {
+            if(BridgeOfChordsShelter)return english?
+                "\n\nA bridge carpenter brings a brass resonance fork to the Hearth Inn, still warm from the old crossing. 'The machine used to strike every living footstep,' she says. 'Now it keeps a lamp burning for anybody too hurt to finish the road.' The innkeeper leaves blankets beside the notice.":
+                "\n\n一位修桥木匠把还带余温的铜音叉放在炉火旅店。‘以前机器听见脚步就打人，’她说，‘现在它给走不动的伤者留一盏灯。’店主在公告旁添了几条毛毯。";
+            if(BridgeOfChordsGrid)return english?
+                "\n\nThe old bridge's power is back. A road worker draws a fresh crossing map on the Hearth Inn table. 'Nobody needs permission from a dead sentry to return home,' he says. The recovered grid has put warm current into the safety rails.":
+                "\n\n断弦桥的供电终于恢复。修路工在炉火旅店桌上重新画出归乡地图：‘回家不该再向一台死去的守卫申请许可。’桥上的扶手也重新有了暖流。";
+            return "";
+        }
         private bool TalkBridgeOfChords(WorldObject site)
         {
             if(site==null||!(site.kind=="bridgeheart"||
