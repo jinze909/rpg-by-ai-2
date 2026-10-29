@@ -3,6 +3,114 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void ReworkedBiomesHaveDistinctDistantFieldChallengesAndOneTimeAtlas(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.energy=100f;
+            int[] answers={1,0,2,0,2,1,1,0};
+            int baseCoins=g.save.coins;
+            for(int room=0;room<8;room++)
+            {
+                MapData map=data.maps[room];
+                Check(map.rows.Length==80&&map.rows[0].Length==120&&
+                    map.decor.Length>=200,
+                    "Each giant biome has actual substantial authored furnishings and unique terrain");
+                WorldObject a=Array.Find(map.objects,
+                    o=>o.id=="biomeSurvey"+room);
+                WorldObject b=Array.Find(map.objects,
+                    o=>o.id=="biomeAnswer"+room);
+                Check(a!=null&&b!=null&&a.kind=="biomeSurvey"&&
+                    b.kind=="biomeAnswer"&&
+                    (new Point(a.x,a.y)-new Point(b.x,b.y)).Length>35f,
+                    "Region "+room+" has two ORIGINAL far-separated authored evidence sites");
+                g.Close();
+                g.save.room=room;
+                g.save.x=map.spawnX;g.save.y=map.spawnY;
+                g.enemies.Clear();
+                Check(!g.BiomeFieldStarted&&!g.BiomeFieldDone,
+                    "Unvisited area cannot inherit another biome's completion");
+                Check(PlaceWithinTalkReach(g,b),
+                    "Remote interpretation monument has genuine reachable physical footing");
+                g.Talk(b);
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="biome_pick_"+answers[room])<0,
+                    "Remote evidence cannot be guessed before visiting first site");
+                g.Close();
+                Check(PlaceWithinTalkReach(g,a),
+                    "First field monument has genuine reachable physical footing");
+                g.Talk(a);
+                int note=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_note");
+                Check(note>=0,"Physical first landmark permits field notes");
+                g.Choose(note);
+                Check(g.BiomeFieldStarted&&!g.BiomeFieldDone&&
+                    (g.BiomeFieldNextTarget-new Point(b.x,b.y)).Length<.001f,
+                    "Live quest target switches to distant original object only after physical inspection");
+                Check(PlaceWithinTalkReach(g,b),
+                    "Second monument has a valid original on-site interaction");
+                g.Talk(b);
+                int wrong=(answers[room]+1)%3;
+                int wrongChoice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_pick_"+wrong);
+                Check(wrongChoice>=0,"Actual remote interpretation offers multiple distinct choices");
+                g.save.energy=100f;
+                g.Choose(wrongChoice);
+                Check(!g.BiomeFieldDone&&
+                    Math.Abs(g.save.energy-94f)<.001f,
+                    "Wrong regional interpretation costs exactly 6 real energy and cannot earn treasure");
+                g.Talk(b);
+                int right=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_pick_"+answers[room]);
+                int coins=g.save.coins;
+                Check(right>=0,"The authentic distant witness offers a correct interpretation");
+                g.Choose(right);
+                Check(g.BiomeFieldDone&&g.BiomeFieldNotes==room+1&&
+                    g.save.coins==coins+24,
+                    "Regional puzzle has a single physically earned v2 reward with no fabricated victory");
+                g.Talk(b);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="biome_pick_"+answers[room])<0&&
+                    g.save.coins==coins+24,
+                    "Revisiting a resolved site cannot duplicate field rewards");
+                g.Close();
+            }
+            Check(g.BiomeFieldNotes==8&&g.Has("biome_field_atlas")&&
+                g.save.coins==baseCoins+8*24,
+                "Eight different lived-in region routes complete ONE shared atlas");
+            g.save.room=0;g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.BiomeFieldNotes==8&&
+                loaded.Has("biome_field_atlas"),
+                "Full regional atlas remains durable in unchanged legacy SaveData v2");
+        }
+        public static void ReworkedRegionalEnemiesSpreadAcrossReachableCombatSectors(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(spawn!=null,"Inspect only real production region spawn, not synthetic enemies");
+            for(int room=1;room<=7;room++)
+            {
+                var g=new GameCore(data);g.save.room=room;
+                spawn.Invoke(g,null);
+                int standard=room<3?6:room<5?8:7;
+                int far=0;
+                foreach(Enemy e in g.enemies)
+                {
+                    if(e.id>standard)continue;
+                    Check(g.CanStand(e.Position),
+                        "Every biome enemy must spawn on actual open footprint");
+                    if(e.x>39f)far++;
+                    foreach(WorldObject o in g.Map.objects)
+                        Check((e.Position-new Point(o.x,o.y)).Length>=4f,
+                            "Regional threats never spawn on preserved quest NPC or new field landmark");
+                }
+                Check(far>=3,
+                    "Outdoor region "+room+" now has at least three threats outside the original 30x20 arrival pocket");
+            }
+        }
         public static void CampaignWitnessesArePhysicalThreeChapterStoryNotFreeFlags(Campaign data)
         {
             var g=Fresh(data);
