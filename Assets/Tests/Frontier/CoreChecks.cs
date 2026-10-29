@@ -514,7 +514,7 @@ namespace Starfall.Tests
                 "Moving enemy into the trap does not forge an armed contact");
             for(int f=0;f<11;f++)g.Tick(.05f,new Point());
             Check(g.FieldPatrolActive&&g.CanBindSnaredEnemy&&
-                Object.ReferenceEquals(g.SnaredBindTarget,captive),
+                object.ReferenceEquals(g.SnaredBindTarget,captive),
                 "Only genuine armed snare contact enables living capture");
             Check(g.BindSnaredEnemy()&&!g.enemies.Contains(captive)&&
                 g.FieldPatrolRemaining==1&&!g.FieldPatrolReportReady,
