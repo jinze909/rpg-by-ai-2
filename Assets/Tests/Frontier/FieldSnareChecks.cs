@@ -232,9 +232,16 @@ namespace Starfall.Tests
             g.save.flags.Add("ally_3");
             guide=g.GetQuest("merciful_warden");
             Check(guide.steps[1].done&&!guide.complete&&
-                guide.next.Contains("forge"),
+                (guide.next.Contains("诺尔")||guide.next.Contains("forge")),
                 "Original repaired town pump genuinely unlocks the humane smith handoff");
-            g.save.flags.Add("field_snare_warden_calm");
+            g.save.inventory[1]=8;g.save.inventory[4]=8;
+            g.save.x=smith.x;g.save.y=smith.y;
+            g.Talk(smith);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_snare_warden_calm");
+            Check(option>=0,
+                "The original reachable Noll explicitly offers steady living-captive training");
+            g.Choose(option);
             guide=g.GetQuest("merciful_warden");
             Check(guide.complete&&guide.steps[2].done&&guide.Progress==1f&&
                 guide.next.Contains("0.6"),
