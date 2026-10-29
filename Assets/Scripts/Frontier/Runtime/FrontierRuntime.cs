@@ -1002,6 +1002,11 @@ namespace Starfall
                 PropImage(second?"obelisk":"post",0,
                     p.x-36,p.y-82,72,84,ink);
                 Ring(new Point(o.x,o.y),second?.59f:.46f,ink,24);
+                if(finished)
+                    Text(p.x-105,p.y-114,210,18,
+                        Game.L("地区接驳 · 硬币3 / 耐力12",
+                            "FIELD RELAY · 3C / 12ST"),10,ink,
+                        TextAnchor.MiddleCenter);
                 if(!finished&&(!second||ready))
                 {
                     Diamond(p.x,p.y-89,6,ink);
