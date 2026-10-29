@@ -491,12 +491,9 @@ namespace Starfall
                 PrepareSave();
                 return true;
             }
-            float[,] spots = { { 11, 12 }, { 15, 17 }, { 21, 15 }, { 24, 6 }, { 9, 7 }, { 30, 16 }, { 23, 19 } };
-            for (int i = 0; i < 7; i++)
-            {
-                Point p = new Point(spots[i, 0], spots[i, 1]);
-                enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, p, 42 + (save.room - 5) * 12));
-            }
+            // The distant shores use the same walkable, source-aware
+            // regional sectors as the early regions, not duplicate starts.
+            SpawnRegionalEncounterRoster(7,42+(save.room-5)*12);
             return true;
         }
         public void PrepareSave()

@@ -872,12 +872,10 @@ namespace Starfall
                 SpawnCivicCourierGuard();
                 return;
             }
-            float[,] locations = { { 11, 12 }, { 15, 17 }, { 21, 15 }, { 24, 6 }, { 9, 7 }, { 30, 16 }, { 23, 19 }, { 14, 9 } };
-            for (int i = 0; i < 6 + (save.room > 2 ? 2 : 0); i++)
-            {
-                float x = locations[i, 0], y = locations[i, 1];
-                enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, new Point(x, y), 34 + save.room * 9));
-            }
+            // Every biome has a regional encounter route rather than the
+            // identical eight-monster ambush at the arrival point.
+            SpawnRegionalEncounterRoster(6+(save.room>2?2:0),
+                34+save.room*9);
             SpawnRidgeWildlife();
             SpawnCivicCourierGuard();
         }
