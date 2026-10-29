@@ -585,6 +585,29 @@ namespace Starfall.Tests
                 }
                 Check(g.enemies.Count==4&&g.save.version==2,
                     "Four real distinct actors stage without changing saved schema");
+                // A legitimate closed-gate test can also leave only a tiny
+                // hero pocket with no room for any enemy at safe distance.
+                // Enter and encounter staging must remain possible then.
+                string[] sealedRows=new string[original.Length];
+                for(int y=0;y<sealedRows.Length;y++)
+                {
+                    char[] cells=new string('#',original[y].Length).ToCharArray();
+                    if(y>=18&&y<=22)
+                        for(int x=41;x<=45;x++)cells[x]='.';
+                    sealedRows[y]=new string(cells);
+                }
+                map.rows=sealedRows;
+                var pocket=Fresh(data);
+                pocket.mode="world";pocket.save.room=1;
+                pocket.save.x=43.5f;pocket.save.y=20.5f;
+                pocket.enemies.Clear();
+                var spawnFn=typeof(GameCore).GetMethod(
+                    "SpawnRegionalBaselineEnemies",flags);
+                Check(spawnFn!=null&&pocket.CanStand(pocket.Position),
+                    "Closed gate still permits actual hero footing");
+                spawnFn.Invoke(pocket,new object[]{6,80f});
+                Check(pocket.enemies.Count==0&&pocket.save.version==2,
+                    "Sealed actor pocket safely skips impossible enemies without fake wall spawns");
             }
             finally{map.rows=original;}
         }

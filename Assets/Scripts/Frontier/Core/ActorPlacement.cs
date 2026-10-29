@@ -196,7 +196,7 @@ namespace Starfall
                     (foot-other.Position).Length<2.5f)return false;
             return true;
         }
-        private Point RegionalBattleFoot(int rank,bool[] connected)
+        private Point? RegionalBattleFoot(int rank,bool[] connected)
         {
             int room=save.room;
             int ax=regionalBattleAnchors[room-1,rank,0],
@@ -239,18 +239,21 @@ namespace Starfall
                 nearest=candidate;best=squared;
             }
             if(best<float.MaxValue)return nearest;
-            // A region without a single reachable, unoccupied battle tile
-            // is corrupt. Fail explicitly rather than silently creating an
-            // enemy inside an unwalkable tile and breaking progression.
-            throw new InvalidOperationException(
-                "No reachable and uncrowded regional battle spawn.");
+            // A genuinely sealed pocket has no legal encounter position.
+            // Leave it empty instead of manufacturing a wall-spawn, and do
+            // not throw from Enter() during a valid closed-gate scenario.
+            return null;
         }
         private void SpawnRegionalBaselineEnemies(int count,float health)
         {
             bool[] connected=RegionalBattleReachableTiles();
             for(int i=0;i<count;i++)
+            {
+                Point? foot=RegionalBattleFoot(i,connected);
+                if(!foot.HasValue)break;
                 enemies.Add(CreatePlacedEnemy(++enemyId,i%3,
-                    RegionalBattleFoot(i,connected),health));
+                    foot.Value,health));
+            }
         }
 
         // Only the baseline authored overworld roster sleeps when the
