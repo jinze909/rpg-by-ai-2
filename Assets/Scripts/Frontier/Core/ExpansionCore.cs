@@ -485,7 +485,30 @@ namespace Starfall
                     Point p = new Point(16.5f, 14.5f);
                     for (int attempt = 0; attempt < 100; attempt++)
                     { p = new Point(random.Next(13, 32) + .5f, random.Next(5, 19) + .5f); if (Fits(p) && (p - Position).Length > 5) break; }
-                    enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, p, 38 + save.abyssFloor * 6 + save.abyssRisk * 10));
+                    // Keep the original seeded enemy RNG draws and v2
+                    // snapshot restoration; distribute fresh-floor threats
+                    // into genuine remote chambers rather than only the
+                    // 20x15 opening. Earlier original fights stay intact.
+                    if(i>=3)
+                    {
+                        Point distant=i%3==0?
+                            new Point(58.5f,16.5f):
+                            i%3==1?
+                            new Point(35.5f,39.5f):
+                            new Point(57.5f,33.5f);
+                        if(CanStand(distant)&&
+                           (distant-Position).Length>8f)
+                        {
+                            // Several later waves may prefer one region:
+                            // separate them by actual foot collision, not
+                            // stack monsters on the same fixed point.
+                            p=new Point(distant.x+(i%2)*2f,
+                                distant.y-(i%2)*2f);
+                            if(!CanStand(p))p=distant;
+                        }
+                    }
+                    enemies.Add(CreatePlacedEnemy(++enemyId, i % 3, p,
+                        38 + save.abyssFloor * 6 + save.abyssRisk * 10));
                 }
                 if (save.abyssFloor == 6) enemies.Add(CreatePlacedEnemy(++enemyId, 3, new Point(29, 9), CurrentBoss.hp, true));
                 PrepareSave();
@@ -4232,6 +4255,32 @@ namespace Starfall
             for(int y=8;y<=15;y++)
                 for(int x=63;x<=64;x++)
                     if((y+save.abyssFloor)%4==0)rows[y][x]='.';
+            // The player-facing outer branch no longer terminates in a
+            // featureless vertical hallway. Floor-dependent root ribs form
+            // three recognizable pockets, linked by TWO parallel lanes.
+            // Never touch x<=54,y<=36: that is the legacy v2 battle map.
+            for(int y=7;y<=35;y++)
+                for(int x=55;x<=64;x++)
+                {
+                    int tier=(y+save.abyssFloor*3)/7;
+                    bool cavern=(y>=8&&y<=13)||(y>=19&&y<=24)||
+                        (y>=30&&y<=35);
+                    if(cavern&&x>=55&&x<=64)
+                        rows[y][x]='.';
+                    if(x==55&&(y+save.abyssFloor)%5<2&&
+                       y>14&&y<29)rows[y][x]='#';
+                    if(x>=59&&x<=61&&y>=19&&y<=22&&
+                       (tier+save.abyssFloor)%2==0)
+                        rows[y][x]='.';
+                }
+            // Southern lower gallery expands into three small readable
+            // chambers off its preserved, always-open y=38-40 connector.
+            for(int x=19;x<=60;x++)
+                if((x>=19&&x<=29)||(x>=34&&x<=43)||
+                   (x>=49&&x<=60))
+                    rows[41][x]='.';
+            for(int x=18;x<=61;x++)
+                if(x%11==0)rows[40][x]='=';
             string[] strings = new string[44];
             for (int y = 0; y < 44; y++) strings[y] = new string(rows[y]);
             // Distinct optional refuge sites make the side-galleries worth
@@ -4273,6 +4322,25 @@ namespace Starfall
                     new Decoration { kind = "crystal", x = 63, y = 20 },
                     new Decoration { kind = "root", x = 61, y = 26 },
                     new Decoration { kind = "ruin", x = 63, y = 34 } } };
+            // Shards and root formations are real existing detailed
+            // world props and intentionally do not block foot clearance.
+            var grownRootDecor=new List<Decoration>(abyssMap.decor);
+            for(int section=0;section<4;section++)
+            {
+                int y=9+section*8;
+                grownRootDecor.Add(new Decoration {kind="root",
+                    x=55.5f,y=y+.5f,variant=section%3});
+                grownRootDecor.Add(new Decoration {kind="crystal",
+                    x=63.5f,y=y+1.5f,variant=(section+save.abyssFloor)%3});
+                grownRootDecor.Add(new Decoration {kind="obelisk",
+                    x=57.5f,y=y+3.5f,variant=section%3});
+            }
+            for(int gallery=0;gallery<3;gallery++)
+            {
+                grownRootDecor.Add(new Decoration {kind="ruin",
+                    x=23.5f+gallery*15f,y=41.5f,variant=gallery});
+            }
+            abyssMap.decor=grownRootDecor.ToArray();
             // The original seeded map, encounter RNG and reward gate stay
             // unchanged. The optional ward appears only on hazardous floors;
             // its site is chosen independently of the enemy RNG stream.
