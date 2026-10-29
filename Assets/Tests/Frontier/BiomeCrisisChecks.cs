@@ -171,6 +171,60 @@ namespace Starfall.Tests
             }
         }
 
+        public static void GenuineHeroContactDamagesReliefCargoWithoutDestroyingUnrelatedShots(Campaign data)
+        {
+            GameCore g=new GameCore(data);
+            g.Close();g.save.room=0;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_0");
+            g.save.flags.Add("biome_supply_medicine_0");
+            WorldObject origin=Array.Find(g.Map.objects,
+                o=>o.id=="biomeSurvey0");
+            g.save.x=origin.x;g.save.y=origin.y;
+            g.Talk(origin);RealReliefChoice(g,"biome_crisis_begin");
+            Check(g.BiomeCrisisStage==1&&g.BiomeCrisisIntegrity==3,
+                "Real cargo begins intact and only in live world combat");
+            Enemy attacker=g.enemies[0];
+            var hostile=new Projectile{
+                hostileShooter=attacker,position=attacker.Position,
+                velocity=new Point(2f,0f),life=2f,damage=5f,
+                visual="enemyArrow"};
+            var friendly=new Projectile{
+                friendly=true,position=g.Position,velocity=new Point(1,0),
+                life=3f,visual="friendly"};
+            g.projectiles.Add(hostile);g.projectiles.Add(friendly);
+            var damage=typeof(GameCore).GetMethod("Hurt",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(damage!=null,
+                "Real protected relief cargo is struck through the original hero HP transaction");
+            int coins=g.save.coins;
+            for(int n=0;n<3;n++)
+            {
+                g.invulnerable=0f;
+                float before=g.save.health;
+                damage.Invoke(g,new object[]{5f,"environment",null});
+                Check(g.save.health<before,
+                    "Only real, nonzero post-armor HP contact harms the hero");
+                Check(g.BiomeCrisisIntegrity==(n==2?0:2-n),
+                    "Each successful hero HP hit damages cargo exactly once");
+            }
+            Check(!g.BiomeCrisisActive&&g.enemies.Count==0&&
+                !g.projectiles.Contains(hostile)&&
+                g.projectiles.Contains(friendly)&&g.save.coins==coins&&
+                !g.Has("biome_crisis_done_0"),
+                "Cargo defeat retires ONLY owned enemy attacks, preserves unrelated shots and never rewards failure");
+            g.mode="world";g.invulnerable=0;g.save.health=100f;
+            g.save.x=origin.x;g.save.y=origin.y;
+            g.Talk(origin);RealReliefChoice(g,"biome_crisis_begin");
+            float remaining=g.BiomeCrisisSeconds;
+            g.mode="inventory";g.Tick(.05f,new Point());
+            Check(g.BiomeCrisisSeconds==remaining,
+                "Inventory pause cannot secretly drain an urgent world-only rescue clock");
+            g.mode="world";g.Tick(.05f,new Point());
+            Check(g.BiomeCrisisSeconds<remaining,
+                "The same contract counts down during genuine world simulation");
+        }
+
         public static void EmergencyReliefCannotBeSpoofedOrSurviveAbortedCombat(Campaign data)
         {
             var g=new GameCore(data);

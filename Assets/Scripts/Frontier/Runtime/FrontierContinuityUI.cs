@@ -129,9 +129,49 @@ namespace Starfall
         private void DrawHud()
         {
             drawingHud = true;
-            try { if (CombatHud) DrawCombatHud(); else DrawExplorationHud(); }
+            try
+            {
+                if (CombatHud) DrawCombatHud(); else DrawExplorationHud();
+                // A live relief contract survives the transition into
+                // real combat HUD mode. Its distant delivery target must
+                // never vanish merely because an enemy comes on camera.
+                DrawBiomeCrisisHud();
+            }
             finally { drawingHud = false; }
         }
+        private void DrawBiomeCrisisHud()
+        {
+            if(!Game.BiomeCrisisActive)return;
+            int stage=Game.BiomeCrisisStage;
+            Point delta=Game.BiomeCrisisTarget-Game.Position;
+            float distance=delta.Length;
+            int seconds=(int)Math.Ceiling(Game.BiomeCrisisSeconds);
+            Color tone=Game.BiomeCrisisIntegrity<=1?
+                PixelArt.C("#ec7668"):gold;
+            Panel(380,141,520,63,
+                new Color(.04f,.065f,.11f,.85f),
+                new Color(tone.r,tone.g,tone.b,.74f));
+            string objective=stage==1?
+                Game.L("前往远端 · 击退两名袭击者",
+                    "GO REMOTE · DEFEAT TWO RAIDERS"):
+                stage==2?
+                Game.L("袭击者已退 · 现场交付物资",
+                    "RAIDERS DEFEATED · HAND OFF CARGO"):
+                Game.L("带签收单返回真实出发地标",
+                    "RETURN SIGNED RECEIPT TO ORIGIN");
+            Text(392,143,495,26,
+                Game.L("居民救援 · ","CIVILIAN RELIEF · ")+objective,
+                14,tone,TextAnchor.MiddleCenter);
+            Text(392,170,495,23,
+                Game.L("剩余 "+seconds+"秒 · 物资"+
+                    Game.BiomeCrisisIntegrity+"/3 · 目标距离 "+
+                    (int)distance+"格 · 地图查看路线",
+                    seconds+"S LEFT · CARGO "+Game.BiomeCrisisIntegrity+
+                    "/3 · TARGET "+(int)distance+
+                    " TILES · CHECK MAP"),
+                12,paper,TextAnchor.MiddleCenter);
+        }
+
         private void DrawHudThreatWitness()
         {
             if (Game.mode != "world") return;
