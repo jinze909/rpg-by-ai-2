@@ -10792,6 +10792,38 @@
       ],
       "objects": [
         {
+          "id": "seventh_notice",
+          "kind": "seventhnotice",
+          "name": "炉火旅店 · 第七张空床的启事",
+          "en": "Hearth Inn · Seventh Empty Bed",
+          "x": 11.5,
+          "y": 17.5
+        },
+        {
+          "id": "seventh_stamp",
+          "kind": "seventhstamp",
+          "name": "炉火旅店 · 改过日期的收据",
+          "en": "Hearth Inn · Restamped Receipt",
+          "x": 23.5,
+          "y": 17.5
+        },
+        {
+          "id": "seventh_cot",
+          "kind": "seventhcot",
+          "name": "炉火旅店 · 没有收走的毯子",
+          "en": "Hearth Inn · Unclaimed Blanket",
+          "x": 25.5,
+          "y": 10.5
+        },
+        {
+          "id": "seventh_reply",
+          "kind": "seventhreply",
+          "name": "附楼 · 留在墙缝里的回信",
+          "en": "Annex · Letter in the Mortar",
+          "x": 44.5,
+          "y": 13.5
+        },
+        {
           "id": "innExit",
           "kind": "portal0",
           "name": "返回余烬镇",
