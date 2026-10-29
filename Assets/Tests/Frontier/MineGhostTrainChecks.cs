@@ -1,0 +1,191 @@
+using System;
+using System.Collections.Generic;
+namespace Starfall.Tests
+{
+    public static partial class CoreChecks
+    {
+        private static void GhostChoice(GameCore g,string action)
+        {
+            Check(g.conversation!=null,
+                "The Silent Seventeenth Train must use actual spoken field dialogue");
+            int i=Array.FindIndex(g.conversation.choices,c=>c.action==action);
+            Check(i>=0,"Original real-source conversation missing "+action);
+            g.Choose(i);
+        }
+        private static WorldObject GhostSite(GameCore g,string id)
+        {
+            WorldObject site=Array.Find(g.Map.objects,o=>o.id=="mine_ghost_"+id);
+            Check(site!=null&&g.CanStand(new Point(site.x,site.y))&&
+                site.name.Length>=5&&site.en.Length>=12,
+                "Each narrative site has a distinct original accessible mine landmark");
+            return site;
+        }
+        private static GameCore PreparedGhostStory(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.Close();g.save.room=3;g.mode="world";
+            g.enemies.Clear();g.save.inventory[2]=12;g.save.inventory[4]=12;
+            g.save.flags.Add("biome_field_done_3");
+            g.save.flags.Add("regional_machine_done_3");
+            for(int i=0;i<3;i++)
+                g.save.flags.Add("regional_machine_stage_3_"+i);
+            return g;
+        }
+        private static void GhostWalk(GameCore g,WorldObject o)
+        {
+            g.save.x=o.x;g.save.y=o.y;
+            g.Talk(o);
+            Check(g.conversation!=null&&g.conversation.speaker==o.name,
+                "Every narrative stage requires the correct original physical speaker");
+        }
+        private static void SecureTrueGhostSwitch(GameCore g,WorldObject switcher)
+        {
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ambush");
+            Check(g.GhostTrainBattleActive&&g.GhostTrainEnemiesLeft==3&&
+                g.GhostTrainSeconds==180f&&
+                (g.GhostTrainTarget-new Point(switcher.x,switcher.y)).Length<.01f,
+                "New chapter launches an actual timed three-soldier rail blockade in its real locale");
+            var wave=new List<Enemy>(g.enemies);
+            Check(wave.Count==3,"The authored ambush owns exactly three independent living actors");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Only real combat lethal callbacks may clear the switchyard");
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_switch_secure");
+            Check(g.GhostTrainChapter==2,
+                "A player at the original lever cannot bypass any remaining live soldiers");
+            g.Close();
+            foreach(Enemy soldier in wave)
+            {
+                Check((soldier.Position-new Point(switcher.x,switcher.y)).Length<12,
+                    "Three real rail guards spawn beside the original mined switch, not a fake marker");
+                hit.Invoke(g,new object[]{soldier,10000f,false,null,null});
+            }
+            g.invulnerable=1000f;
+            for(int k=0;k<5;k++)g.Tick(.05f,new Point());
+            Check(g.GhostTrainEnemiesLeft==0,"Actual combat defeats retire the three real rail guards");
+            int oldParts=g.save.inventory[4];
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_switch_secure");
+            Check(!g.GhostTrainBattleActive&&g.GhostTrainChapter==3&&
+                g.save.inventory[4]==oldParts-2,
+                "Winning real battle and paying two gears opens only the true emergency railway");
+        }
+        public static void SilentSeventeenthTrainHasFourTrueWalkedSitesAndTwoPermanentStoryOutcomes(Campaign data)
+        {
+            for(int choice=0;choice<2;choice++)
+            {
+                GameCore g=PreparedGhostStory(data);
+                WorldObject dispatch=GhostSite(g,"dispatch");
+                WorldObject roster=GhostSite(g,"manifest");
+                WorldObject switcher=GhostSite(g,"switch");
+                WorldObject clinic=GhostSite(g,"medbay");
+                WorldObject[] sites={dispatch,roster,switcher,clinic};
+                for(int i=0;i<4;i++)for(int j=i+1;j<4;j++)
+                    Check((new Point(sites[i].x-sites[j].x,
+                        sites[i].y-sites[j].y)).Length>25f,
+                        "Four chapter sites must be genuinely far-flung non-repeating map expeditions");
+                Check(g.GhostTrainChapter==0&&!g.GhostTrainComplete,
+                    "Old slots cannot silently pre-complete an optional chapter");
+                GhostWalk(g,roster);
+                Check(Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="ghost_train_manifest")<0,
+                    "Finding a remote document before the actual commission cannot grant free signatures");
+                GhostWalk(g,dispatch);GhostChoice(g,"ghost_train_start");
+                Check(g.GhostTrainChapter==1&&
+                    (g.GhostTrainTarget-new Point(roster.x,roster.y)).Length<.01f,
+                    "Only original dispatch authority starts and aims the physical archive route");
+                g.save.energy=100;
+                GhostWalk(g,roster);GhostChoice(g,"ghost_train_false_manifest");
+                Check(g.GhostTrainChapter==1&&g.save.energy==90,
+                    "Authentic forged manifest wastes ten stamina without yielding plot flags");
+                GhostWalk(g,roster);GhostChoice(g,"ghost_train_manifest");
+                Check(g.GhostTrainChapter==2&&
+                    (g.GhostTrainTarget-new Point(switcher.x,switcher.y)).Length<.01f,
+                    "True seventeen-worker roster updates the actual destination");
+                SecureTrueGhostSwitch(g,switcher);
+                int herbs=g.save.inventory[2];
+                GhostWalk(g,clinic);GhostChoice(g,"ghost_train_medbay");
+                Check(g.GhostTrainChapter==4&&
+                    g.save.inventory[2]==herbs-2&&
+                    (g.GhostTrainTarget-new Point(dispatch.x,dispatch.y)).Length<.01f,
+                    "Two real herbs at the remote physical infirmary authenticate the survivors");
+                int coins=g.save.coins,shards=g.save.shards;
+                GhostWalk(g,dispatch);
+                GhostChoice(g,choice==0?"ghost_train_public":"ghost_train_freight");
+                Check(g.GhostTrainChapter==5&&g.GhostTrainComplete&&
+                    g.GhostTrainPublic==(choice==0)&&
+                    g.GhostTrainFreight==(choice==1)&&
+                    g.save.coins==coins+(choice==0?85:110)&&
+                    g.save.shards==shards+(choice==0?3:2),
+                    "Player's final public-justice versus practical passenger-rail choice has distinct real rewards");
+                GhostWalk(g,dispatch);
+                Check(Array.FindIndex(g.conversation.choices,c=>
+                    c.action=="ghost_train_public"||
+                    c.action=="ghost_train_freight")<0,
+                    "The final public accountability decision cannot be reversed or farmed");
+                g.PrepareSave();GameCore reloaded=new GameCore(data,g.save);
+                Check(reloaded.save.version==2&&reloaded.GhostTrainComplete&&
+                    reloaded.GhostTrainPublic==(choice==0)&&
+                    reloaded.GhostTrainFreight==(choice==1)&&
+                    !reloaded.GhostTrainBattleActive,
+                    "Both original narrative endings persist without altering old v2 save structure");
+            }
+        }
+        public static void SilentTrainCombatRejectsForgedActionsAndCleansTimeoutAndOwnedActors(Campaign data)
+        {
+            GameCore g=PreparedGhostStory(data);
+            WorldObject dispatch=GhostSite(g,"dispatch");
+            WorldObject roster=GhostSite(g,"manifest");
+            WorldObject switcher=GhostSite(g,"switch");
+            var direct=typeof(GameCore).GetMethod("ChooseGhostTrain",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(direct!=null,"Real chapter command exists");
+            direct.Invoke(g,new object[]{"ghost_train_start"});
+            Check(g.GhostTrainChapter==0,
+                "Direct action without authenticated physically reached dispatch cannot forge stage one");
+            GhostWalk(g,dispatch);GhostChoice(g,"ghost_train_start");
+            GhostWalk(g,roster);GhostChoice(g,"ghost_train_manifest");
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ambush");
+            Check(g.GhostTrainBattleActive&&g.GhostTrainEnemiesLeft==3,
+                "A unique exact roster guards the physical train switch");
+            int coins=g.save.coins,room=g.save.room;
+            g.Enter(4);
+            Check(g.save.room==room&&g.GhostTrainBattleActive,
+                "Portal and fast travel cannot bypass an active timed story fight");
+            Enemy removed=g.enemies[0];
+            g.enemies.Remove(removed);
+            for(int i=0;i<3;i++)g.Tick(.05f,new Point());
+            Check(!g.GhostTrainBattleActive&&g.GhostTrainChapter==2&&
+                g.save.coins==coins,
+                "An enemy disappearing without a true lethal callback invalidates the record");
+            g.enemies.Clear();
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ambush");
+            Check(g.GhostTrainBattleActive,"Aborted wave may be started again on-site");
+            Enemy culprit=g.enemies[0];
+            var ownArrow=new Projectile{
+                hostileShooter=culprit,position=culprit.Position,
+                velocity=new Point(1,0),life=2f,damage=5f,visual="enemyArrow"};
+            var ourShot=new Projectile{
+                friendly=true,position=g.Position,
+                velocity=new Point(1,0),life=2f,visual="friendly"};
+            g.projectiles.Add(ownArrow);g.projectiles.Add(ourShot);
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_abort");
+            Check(!g.GhostTrainBattleActive&&g.enemies.Count==0&&
+                !g.projectiles.Contains(ownArrow)&&g.projectiles.Contains(ourShot),
+                "Source withdrawal removes exactly mission-owned foes/projectiles and keeps unrelated shots");
+            g.projectiles.Clear();
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ambush");
+            g.mode="inventory";float clock=g.GhostTrainSeconds;
+            g.Tick(.05f,new Point());
+            Check(g.GhostTrainSeconds==clock,
+                "Inventory pause cannot expire a world-time-only emergency combat clock");
+            g.mode="world";g.invulnerable=1000f;
+            // Drive genuine world frames; no private clock edits.
+            for(int i=0;i<3602&&g.GhostTrainBattleActive;i++)
+                g.Tick(.05f,new Point());
+            Check(!g.GhostTrainBattleActive&&g.GhostTrainChapter==2&&
+                !g.GhostTrainComplete&&g.save.coins==coins,
+                "Real 180-second deadline retires a failed fight without creating fake rewards");
+        }
+    }
+}
