@@ -197,8 +197,9 @@ namespace Starfall.Tests
                 shelter.Invoke(g,new object[]{1f});
             }
             Check(publicMine.save.health>baseline.save.health+.5f&&
-                Math.Abs(railway.save.health-baseline.save.health)<.01f,
-                "Restoring seventeen workers' public names improves only real local shelter healing; railway instead improves true movement");
+                Math.Abs(railway.save.health-baseline.save.health)<.01f&&
+                Math.Abs(publicMine.save.energy-baseline.save.energy)<.01f,
+                "Restoring public worker testimony improves precisely physical healing, not free energy; railway instead improves real movement speed");
         }
 
         public static void SilentTrainCombatRejectsForgedActionsAndCleansTimeoutAndOwnedActors(Campaign data)

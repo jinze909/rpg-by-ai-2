@@ -233,9 +233,13 @@ namespace Starfall
                     (Position-new Point(site.x,site.y)).Length<=3.5f)
                 {close=true;break;}
             if(!close)return;
-            float multiplier=(RegionalVigilDone(save.room)?1.65f:1f)*
-                (save.room==3&&GhostTrainPublic?1.45f:1f);
-            save.health=Clamp(save.health+dt*1.5f*multiplier,0f,save.maxHealth);
+            // Public testimony restores medical supplies, not a hidden
+            // stamina advantage. The alternative passenger rail offers
+            // genuine travel speed. Keep existing vigil stamina math.
+            float multiplier=RegionalVigilDone(save.room)?1.65f:1f;
+            float healthBoost=save.room==3&&GhostTrainPublic?1.45f:1f;
+            save.health=Clamp(save.health+dt*1.5f*multiplier*healthBoost,
+                0f,save.maxHealth);
             save.energy=Clamp(save.energy+dt*3f*multiplier,0f,100f);
             save.heat=Math.Max(0f,save.heat-dt*1.5f);
             save.cold=Math.Max(0f,save.cold-dt*1.5f);
