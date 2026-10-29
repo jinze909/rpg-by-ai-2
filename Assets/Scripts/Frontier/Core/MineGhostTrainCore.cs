@@ -182,6 +182,112 @@ namespace Starfall
                 "\n\n“Someone brought back the nightshift train's original ledger. Seventeen signatures, despite the empty-wagon stamp. I'll keep a lamp here for them until dispatch tells the truth.”":
                 "\n\n“有人找到了夜班车的旧名册。明明盖着空车戳，却有十七份签字。调度室说实话以前，我会在店里给他们留一盏灯。”";
         }
+        // The restored passenger siding is a REAL usable local service,
+        // not a fictional reward or a free remote teleport. Three of the
+        // existing four physical story objects are genuine rail stops.
+        private static bool GhostTrainPassengerStop(WorldObject o)
+        {
+            return o!=null&&o.kind=="mineGhostTrain"&&
+                (o.id=="mine_ghost_dispatch"||
+                 o.id=="mine_ghost_switch"||
+                 o.id=="mine_ghost_medbay");
+        }
+        private static string GhostTrainStopZh(string id)
+        {
+            return id=="mine_ghost_dispatch"?"西侧调度台":
+                id=="mine_ghost_switch"?"南侧转辙台":"北侧医护站";
+        }
+        private static string GhostTrainStopEn(string id)
+        {
+            return id=="mine_ghost_dispatch"?"Western dispatch":
+                id=="mine_ghost_switch"?"Southern switchyard":"Northern infirmary";
+        }
+        private Point? GhostTrainPassengerArrival(WorldObject stop)
+        {
+            Point[] feet={
+                new Point(0f,1.1f),new Point(-1.1f,0f),
+                new Point(1.1f,0f),new Point(0f,-1.1f),
+                new Point(-1f,1f),new Point(1f,1f),
+                new Point(-1f,-1f),new Point(1f,-1f)
+            };
+            Point original=Position;
+            foreach(Point foot in feet)
+            {
+                Point arrive=new Point(stop.x+foot.x,stop.y+foot.y);
+                if(!CanStand(arrive)||
+                    !CivicShuttleRoadSafe(original,arrive))continue;
+                try
+                {
+                    save.x=arrive.x;save.y=arrive.y;
+                    if(HasPhysicalInteractionReach(stop)&&SafeTravel)
+                        return arrive;
+                }
+                finally {save.x=original.x;save.y=original.y;}
+            }
+            return null;
+        }
+        private bool RideGhostTrain(string action,WorldObject source)
+        {
+            const string prefix="ghost_train_ride_";
+            if(!action.StartsWith(prefix,StringComparison.Ordinal))return false;
+            if(!GhostTrainFreight||!GhostTrainComplete||
+                !GhostTrainPassengerStop(source))return true;
+            string id="mine_ghost_"+action.Substring(prefix.Length);
+            WorldObject destination=null;
+            foreach(WorldObject stop in Map.objects)
+                if(GhostTrainPassengerStop(stop)&&stop.id==id)
+                {destination=stop;break;}
+            if(destination==null||Object.ReferenceEquals(source,destination))
+                return true;
+            if(racing||FieldWorkPreventsRest||!SafeTravel||
+                BlockTravelForProtectedFieldMission(true))
+            {
+                Notify("当前战斗或现场护送尚未结束，第十七趟客车无法发车。",
+                    "Train seventeen cannot depart during combat or protected fieldwork.");
+                return true;
+            }
+            if(save.coins<2||save.energy<10f)
+            {
+                Notify("第十七趟客运短驳需要2硬币和10耐力。",
+                    "The nightshift passenger train costs 2 coins and 10 energy.");
+                return true;
+            }
+            Point? arrival=GhostTrainPassengerArrival(destination);
+            if(!arrival.HasValue)
+            {
+                Notify("前往另一站的实地道路被挡住或仍有危险，车票没有扣除。",
+                    "The physical route is blocked or unsafe. No ticket was charged.");
+                return true;
+            }
+            Point before=Position;
+            save.x=arrival.Value.x;save.y=arrival.Value.y;
+            // Follow the same companion placement rules as the existing
+            // civic shuttle. A tactically ordered sentry stays at its post.
+            if(save.companion>=0&&!CompanionHoldingPosition&&
+                (Position-before).Length>3f)
+            {
+                Point follow=CompanionFollowTarget();
+                if(CanStand(follow)&&(follow-Position).Length>.55f)
+                {
+                    ClearCompanionFollowRoute();
+                    ClearCompanionCornerPlan();
+                    companionAutoTarget=null;
+                    companionPosition=follow;
+                    companionMoveTime=0f;companionMoving=false;
+                    companionPresentationGeneration++;
+                }
+            }
+            save.coins-=2;
+            save.energy=Math.Max(0f,save.energy-10f);
+            sound="travel";revision++;
+            Notify("第十七趟载人车到达"+GhostTrainStopZh(destination.id)+
+                "。票价2硬币、10耐力。",
+                "Passenger train seventeen arrived at "+
+                GhostTrainStopEn(destination.id)+
+                ". Fare: 2 coins and 10 energy.");
+            return true;
+        }
+
         private bool TalkGhostTrain(WorldObject o)
         {
             if(o==null||o.kind!="mineGhostTrain")return false;
@@ -198,12 +304,27 @@ namespace Starfall
             }
             if(stage==5)
             {
-                Dialog(o.name,o.en,GhostTrainPublic?
+                string zh=GhostTrainPublic?
                     "那份写着17名夜班矿工姓名的原始名册如今钉在公示牌上。调度员终于肯承认，所谓空车厢里一直有人。":
-                    "你保住了唯一能载伤员下山的侧线。幸存者留下的姓名依然交给他们本人决定何时公开。",
-                    GhostTrainPublic?
+                    "你保住了唯一能载伤员下山的侧线。幸存者留下的姓名依然交给他们本人决定何时公开。\n\n客车现已恢复三站短驳，沿途危险时暂停发车。";
+                string en=GhostTrainPublic?
                     "The names of seventeen missing nightshift workers are now public. Dispatch can no longer pretend the wagon was empty.":
-                    "The workers' rescue track is operating again. The survivors keep the right to decide when their names are public.",
+                    "The workers' rescue track is operating again. The survivors keep the right to decide when their names are public.\n\nThree passenger stops now operate when the mine road is safe.";
+                if(GhostTrainFreight&&GhostTrainPassengerStop(o))
+                {
+                    string first=o.id=="mine_ghost_dispatch"?"medbay":"dispatch";
+                    string second=o.id=="mine_ghost_switch"?"medbay":"switch";
+                    string idA="mine_ghost_"+first,idB="mine_ghost_"+second;
+                    Dialog(o.name,o.en,zh,en,
+                        C("乘车前往"+GhostTrainStopZh(idA)+" · 2币/10耐力",
+                          "Ride to "+GhostTrainStopEn(idA)+" · 2 coins/10 energy",
+                          "ghost_train_ride_"+first),
+                        C("乘车前往"+GhostTrainStopZh(idB)+" · 2币/10耐力",
+                          "Ride to "+GhostTrainStopEn(idB)+" · 2 coins/10 energy",
+                          "ghost_train_ride_"+second),
+                        C("暂不乘车","Stay on foot","close"));
+                }
+                else Dialog(o.name,o.en,zh,en,
                     C("向矿工道别","Leave the workers","close"));
                 return true;
             }
@@ -298,6 +419,7 @@ namespace Starfall
                 !HasPhysicalInteractionReach(o)||!CanStand(Position)||
                 Dying||practicing||!RegionalMachineDone(3))return true;
             int stage=GhostTrainChapter;
+            if(RideGhostTrain(action,o))return true;
             if(action=="ghost_train_start"&&stage==0&&
                 o.id=="mine_ghost_dispatch")
             {

@@ -295,6 +295,66 @@ namespace Starfall.Tests
                 "Restoring public worker testimony improves precisely physical healing, not free energy; railway instead improves real movement speed");
         }
 
+        public static void CompletedRailChoiceOperatesThreeRealSafePassengerStopsWithoutBypassingCombat(Campaign data)
+        {
+            GameCore g=PreparedGhostStory(data);
+            WorldObject dispatch=GhostSite(g,"dispatch");
+            WorldObject switcher=GhostSite(g,"switch");
+            WorldObject infirmary=GhostSite(g,"medbay");
+            g.save.coins=20;g.save.energy=90;
+            // Old saves, unfinished chapters and publication-first endings
+            // cannot falsely acquire the passenger rail service.
+            GhostWalk(g,dispatch);
+            Check(Array.FindIndex(g.conversation.choices,c=>
+                c.action=="ghost_train_ride_medbay")<0,
+                "Old incomplete v2 game cannot board a passenger service");
+            g.Close();g.save.flags.Add("ghost_train_complete");
+            g.save.flags.Add("ghost_train_public");
+            GhostWalk(g,dispatch);
+            Check(Array.FindIndex(g.conversation.choices,c=>
+                c.action=="ghost_train_ride_medbay")<0,
+                "Published-worker ending retains healing but does not quietly gain the alternate train");
+            g.Close();g.save.flags.Remove("ghost_train_public");
+            g.save.flags.Add("ghost_train_freight");
+            GhostWalk(g,dispatch);
+            Check(Array.FindIndex(g.conversation.choices,c=>
+                c.action=="ghost_train_ride_medbay")>=0&&
+                Array.FindIndex(g.conversation.choices,c=>
+                c.action=="ghost_train_ride_switch")>=0,
+                "Freight-first outcome unlocks two named actual destinations at real dispatch");
+            int beforeCoins=g.save.coins;float beforeEnergy=g.save.energy;
+            GhostChoice(g,"ghost_train_ride_medbay");
+            Check(g.save.room==3&&
+                (g.Position-new Point(infirmary.x,infirmary.y)).Length<1.8f&&
+                g.save.coins==beforeCoins-2&&g.save.energy==beforeEnergy-10f,
+                "Real local passenger carriage follows a safe original traversable road and charges only upon arrival");
+            GhostWalk(g,infirmary);GhostChoice(g,"ghost_train_ride_switch");
+            Check((g.Position-new Point(switcher.x,switcher.y)).Length<1.8f,
+                "Passenger service actually links the distant north and south terminals");
+            GhostWalk(g,switcher);GhostChoice(g,"ghost_train_ride_dispatch");
+            Check((g.Position-new Point(dispatch.x,dispatch.y)).Length<1.8f,
+                "Rail transit is bidirectional and returns physically to dispatch");
+            // Insufficient fares cannot move the hero or consume stock.
+            g.save.coins=1;Point stay=g.Position;int coins=g.save.coins;
+            GhostWalk(g,dispatch);GhostChoice(g,"ghost_train_ride_switch");
+            Check((g.Position-stay).Length<.01f&&g.save.coins==coins,
+                "Cannot ride without real coins: no teleport and no hidden fee");
+            // Combat safety is source-bound, including a live hostile actor.
+            g.save.coins=20;g.save.energy=90;
+            g.enemies.Add(new Enemy{hp=80f,x=dispatch.x+1.5f,
+                y=dispatch.y,kind=0});
+            GhostWalk(g,dispatch);
+            GhostChoice(g,"ghost_train_ride_switch");
+            Check((g.Position-stay).Length<.01f&&g.save.coins==20,
+                "Nearby authentic combat prevents fast rail travel and charges nothing");
+            g.enemies.Clear();
+            g.PrepareSave();
+            GameCore loaded=new GameCore(data,g.save);
+            Check(loaded.save.version==2&&loaded.GhostTrainFreight&&
+                loaded.GhostTrainComplete,
+                "Passenger service survives unchanged v2 slots without serialized runtime objects");
+        }
+
         public static void SilentTrainCombatRejectsForgedActionsAndCleansTimeoutAndOwnedActors(Campaign data)
         {
             GameCore g=PreparedGhostStory(data);
