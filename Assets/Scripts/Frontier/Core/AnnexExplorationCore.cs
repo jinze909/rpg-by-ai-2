@@ -107,6 +107,8 @@ namespace Starfall
                 int fare=BiomeSupplyRoadBuilt(region)?1:3;
                 int energy=BiomeSupplyRoadBuilt(region)?
                     (Has("biome_crisis_done_"+region)?3:6):12;
+                if(Has("biome_crisis_council_roads"))
+                    energy=Math.Max(1,energy-2);
                 Dialog(o.name,o.en,
                     "你已经把两处现场记录写进公共探路册。"+
                     "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
@@ -210,6 +212,8 @@ namespace Starfall
                 int fare=BiomeSupplyRoadBuilt(room)?1:3;
                 int energy=BiomeSupplyRoadBuilt(room)?
                     (Has("biome_crisis_done_"+room)?3:6):12;
+                if(Has("biome_crisis_council_roads"))
+                    energy=Math.Max(1,energy-2);
                 if(save.coins<fare||save.energy<energy)
                 {
                     Notify("地区接驳需要"+fare+"枚硬币与"+energy+"点耐力。",
@@ -664,6 +668,13 @@ namespace Starfall
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
                     "/8 · 余烬守望 "+watches+"/8。"+
+                    "\n\n居民救援实际签收 "+BiomeCrisisWins+"/8。"+
+                    (Has("biome_crisis_council_shelters")?
+                        " 最终公共方案：八地营地+10生命。":
+                     Has("biome_crisis_council_roads")?
+                        " 最终公共方案：户外移速+0.1，接驳另减2耐力。":
+                     Has("biome_crisis_all")?
+                        " 八张回执齐备。可以在此共同决定剩余救援物资的用途。":"")+
                     (Has("afterglow_all")?" 八地守望完成，营火防护上限提高到5次；其中主动截击 "+AfterglowCutWins+"/8。":"")+
                     (Has("afterglow_ending_shelter")?
                         " 余烬议事已选择公用避难所，营地休息恢复生命60。":
@@ -688,6 +699,13 @@ namespace Starfall
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+
                     "/8 · Afterglow watches "+watches+"/8."+
+                    "\n\nSigned emergency deliveries "+BiomeCrisisWins+"/8."+
+                    (Has("biome_crisis_council_shelters")?
+                        " Final policy: +10 HP at all outdoor camps.":
+                     Has("biome_crisis_council_roads")?
+                        " Final policy: +0.1 outdoor speed and -2 relay energy.":
+                     Has("biome_crisis_all")?
+                        " Eight genuine receipts await a public final council.":"")+
                     (Has("afterglow_all")?" Eight watches secured, "+AfterglowCutWins+
                         "/8 aggressive interceptions. Each fire now blocks five shots.":"")+
                     (Has("afterglow_ending_shelter")?
@@ -732,6 +750,13 @@ namespace Starfall
                     UnlistedAct==3&&!UnlistedDone?
                         C("保护姓名 · 秘密交还家属","Protect the names · return privately","unlisted_protect"):
                         C("继续整理","Keep cataloguing","close"),
+                    Has("biome_crisis_all")&&BiomeCrisisWins==8&&
+                        !Has("biome_crisis_council_shelters")&&
+                        !Has("biome_crisis_council_roads")?
+                        C("八地救援议事 · 公共余量怎么分配",
+                          "Eight Deliveries council · choose public policy",
+                          "biome_crisis_council"):
+                        C("继续整理八区签收单","Review eight relief receipts","close"),
                     C("继续旅程","Keep exploring","close"));
                 return true;
             }
@@ -872,7 +897,8 @@ namespace Starfall
                     "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 "+
                     ((Has("afterglow_ending_shelter")?60:40)+
                         (BiomeSupplyMedicineBuilt(save.room)?
-                            (Has("biome_crisis_done_"+save.room)?30:20):0))+" 和全部耐力。"+
+                            (Has("biome_crisis_done_"+save.room)?30:20):0)+
+                        (Has("biome_crisis_council_shelters")?10:0))+" 和全部耐力。"+
                     (SignalRelayActive?"\n\n当前传讯："+SignalRelayStage+"/2段，火种完整度 "+
                         SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
                         Has("annex_relay_done_"+save.room)?
@@ -885,7 +911,8 @@ namespace Starfall
                     noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores "+
                     ((Has("afterglow_ending_shelter")?60:40)+
                         (BiomeSupplyMedicineBuilt(save.room)?
-                            (Has("biome_crisis_done_"+save.room)?30:20):0))+" HP and full energy."+
+                            (Has("biome_crisis_done_"+save.room)?30:20):0)+
+                        (Has("biome_crisis_council_shelters")?10:0))+" HP and full energy."+
                     (SignalRelayActive?"\n\nDispatch stage "+SignalRelayStage+"/2 · flame "+
                         SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
                         Has("annex_relay_done_"+save.room)?
@@ -1076,7 +1103,8 @@ namespace Starfall
             if(!Spend(1,0,0,0,0))return true;
             int healing=(Has("afterglow_ending_shelter")?60:40)+
                 (BiomeSupplyMedicineBuilt(save.room)?
-                            (Has("biome_crisis_done_"+save.room)?30:20):0);
+                            (Has("biome_crisis_done_"+save.room)?30:20):0)+
+                        (Has("biome_crisis_council_shelters")?10:0);
             save.health=Clamp(save.health+healing,0,save.maxHealth);save.energy=100;
             revision++;sound="reward";
             Notify("营火补给：生命恢复 "+healing+"，耐力全满。",

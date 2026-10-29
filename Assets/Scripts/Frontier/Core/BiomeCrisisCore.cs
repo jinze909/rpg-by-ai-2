@@ -149,8 +149,74 @@ namespace Starfall
                     "Real combat damaged the supply packet: "+biomeCrisisIntegrity+" integrity left.");
             }
         }
+        // The eighth authentic delivery unlocks the civilian council at
+        // the ONE surviving physical Hearth Inn archive. This is a genuine
+        // two-policy ending, not a map click or a repeatable reward receipt.
+        private bool ChooseBiomeCrisisCouncil(string action)
+        {
+            if(action!="biome_crisis_council"&&
+                action!="biome_crisis_council_shelters"&&
+                action!="biome_crisis_council_roads")return false;
+            WorldObject archive=pendingDialogueSource;
+            if(save.room!=9||mode!="world"||Dying||practicing||
+                !Has("biome_crisis_all")||BiomeCrisisWins!=8||
+                Has("biome_crisis_council_shelters")||
+                Has("biome_crisis_council_roads")||
+                archive==null||archive.kind!="annexinnarchive"||
+                pendingDialogueSourceRoom!=9||
+                !SourceBelongsToActiveMap(archive)||
+                !HasPhysicalInteractionReach(archive))return true;
+            if(action=="biome_crisis_council")
+            {
+                Dialog("八地救援 · 最后一页","Eight Deliveries · The Final Page",
+                    "值夜的记录员将八张沾着泥的签收单逐一摊平，没有人为这八趟路写下庆功词。"+
+                    "\n\n第一张是洪水里的药，第四张沾着矿灰，最后一张纸边结了霜。"+
+                    "有人问：“下次警报响起时，这些多出来的物资应该先放在哪里？”"+
+                    "\n\n她请你替沿路的居民作出一个公开决定，两种安排只能选择其一。"+
+                    "这份记录不会重新发放八地护送的奖励。",
+                    "The night recorder lays eight mud-stained receipts beside the hearth. Nobody writes a victory anthem. "+
+                    "The first is a wet medicine order, the fourth bears coal dust and the last is rimed with frost."+
+                    "\n\n'Where should our remaining supplies go before the next alarm?' "+
+                    "The households ask for one shared policy. Pick one. No second payout can be claimed.",
+                    C("开放沿路避难补给 · 所有户外营地+10生命",
+                        "Public shelters · +10 HP at every outdoor camp",
+                        "biome_crisis_council_shelters"),
+                    C("维护所有居民通路 · 本地行走提速，接驳-2耐力",
+                        "Public roads · outdoor speed and -2 relay energy",
+                        "biome_crisis_council_roads"),
+                    C("先把签收单收好","Keep the receipts for now","close"));
+                return true;
+            }
+            bool shelters=action=="biome_crisis_council_shelters";
+            Flag(shelters?"biome_crisis_council_shelters":
+                "biome_crisis_council_roads");
+            CreditCoins(60);CreditShards(2);
+            RecordMoment(shelters?
+                "八地签收归档后，旅店没有把救援物资交回公会库房，而是分给每个户外营地的公共避难箱。今后任何旅人都能先休息，再讲述路上遇见了什么。":
+                "八地签收归档后，修路工把剩下的零件送去所有公开接驳点。路更好走，接驳更省力，没有人需要出示军令。",
+                shelters?
+                "After eight signed relief deliveries, spare medicine is distributed among every outdoor camp, open to travelers before anyone asks their business.":
+                "After eight signed relief deliveries, the mechanics repair the public approaches to all local field stations, making travel easier for everyone.");
+            revision++;sound="reward";
+            Dialog("最后一页 · 居民的决定","The Final Page · A Civilian Decision",
+                shelters?
+                "各地避难箱都添上一份药材。此后八地营地每次安全休息额外恢复10生命。"+
+                "\n\n签收的姓名仍留在原册上。硬币+60，碎片+2。":
+                "从湿地旧栈桥到霜钟背风路，每一处公开地标都有了可用的修复材料。"+
+                "此后户外移速额外+0.1，所有居民接驳额外节约2耐力（最低1）。"+
+                "\n\n硬币+60，碎片+2。",
+                shelters?
+                "Public shelter stock now adds +10 HP to safe outdoor camp rest in all eight regions. "+
+                "The original names remain on the record. +60 coins, +2 shards.":
+                "Public roads now grant +0.1 outdoor speed and save 2 energy on all field relays (minimum 1). "+
+                "+60 coins, +2 shards.",
+                C("归档最后一页","File the final page","close"));
+            return true;
+        }
+
         private bool ChooseBiomeCrisis(string action)
         {
+            if(ChooseBiomeCrisisCouncil(action))return true;
             if(action!="biome_crisis_begin"&&action!="biome_crisis_deliver"&&
                 action!="biome_crisis_report"&&action!="biome_crisis_abort")
                 return false;

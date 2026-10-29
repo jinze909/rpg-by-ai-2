@@ -268,6 +268,7 @@ namespace Starfall
         public float Speed { get { return 4.5f + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (SilentLedgerRoutes&&save.room==4?.35f:0f) + (MistlightPrivate&&save.room==5?.25f:0f) + (Has("roadcharter_public") ? .25f : 0) +
                 (save.room<8&&BiomeSupplyRoadBuilt(save.room)&&
                  Has("biome_crisis_done_"+save.room)?.18f:0f) +
+                (save.room<8&&Has("biome_crisis_council_roads")?.10f:0f) +
                 (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
