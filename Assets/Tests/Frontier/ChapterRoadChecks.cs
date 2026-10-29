@@ -38,6 +38,8 @@ namespace Starfall.Tests
                     "Original chapter distress marker is on a physically reachable walk");
                 Point origin=g.Position;
                 g.Talk(nodes[0]);
+                Check(g.conversation!=null,"Chapter "+chapter+
+                    " initial original source must open dialogue");
                 int start=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="chapterroad_begin");
                 Check(start>=0&&g.conversation.textEn.Length>80,
@@ -53,6 +55,8 @@ namespace Starfall.Tests
                 Check(PlaceWithinTalkReach(g,nodes[1]),
                     "Hero must actually reach the distinct middle chapter scene");
                 g.Talk(nodes[1]);
+                Check(g.conversation!=null,"Chapter "+chapter+
+                    " physically reached midpoint must open defense dialogue");
                 int defend=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="chapterroad_defend");
                 Check(defend>=0,"Real middle scene offers a live combat defense");
@@ -94,6 +98,8 @@ namespace Starfall.Tests
                 Check(g.SafeTravel&&g.ChapterRoadActive,
                     "Hero can safely sign at original survivor receiver after battle");
                 g.Talk(nodes[2]);
+                Check(g.conversation!=null,"Chapter "+chapter+
+                    " physical survivor handoff must open its real choice dialogue");
                 int finish=Array.FindIndex(g.conversation.choices,
                     c=>c.action==(chapter==1?
                         "chapterroad_care":"chapterroad_witness"));
@@ -106,6 +112,8 @@ namespace Starfall.Tests
                         g.ChapterRoadChoice(chapter)==2),
                     "Real survivor handoff pays exactly once and records personal choice in v2 flags");
                 g.Close();g.Talk(nodes[0]);
+                Check(g.conversation!=null,"Chapter "+chapter+
+                    " post-signature original distress record must remain readable");
                 Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="chapterroad_begin")<0,
                     "Original story cannot be farmed repeatedly after local completion");
@@ -146,6 +154,7 @@ namespace Starfall.Tests
                 Check(!g.ChapterRoadActive&&!g.ChapterRoadDone(chapter),
                     "Remote forged endpoint contact never starts or pays the chapter");
                 g.Close();g.Talk(start);
+                Check(g.conversation!=null,"Original source must reopen on the same real object");
                 int begin=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="chapterroad_begin");
                 Check(begin>=0,"Source exposes one live beginning");
@@ -167,6 +176,7 @@ namespace Starfall.Tests
                     Check(g.ChapterRoadSeconds==0f,
                         "Forest and city story scenes are exploration-paced without forced timers");
                     g.Close();g.Talk(start);
+                    Check(g.conversation!=null,"Withdraw menu must be physically readable");
                     int abort=Array.FindIndex(g.conversation.choices,
                         c=>c.action=="chapterroad_abort");
                     Check(abort>=0,"Original distress notice has an explicit withdrawal");
