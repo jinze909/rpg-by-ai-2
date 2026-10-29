@@ -404,7 +404,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetGhostTrain();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetGhostTrain();ResetRidgeEcho();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -1132,6 +1132,7 @@ namespace Starfall
             if (Dying) return;
             TickRegionalVigil(dt);
             TickGhostTrain(dt);
+            TickRidgeEcho(dt);
             TickRegionalMachineShelters(dt);
             TickGuidance(beforeMove);
             TickPolish(dt);
@@ -4131,6 +4132,7 @@ namespace Starfall
         private void TalkCore(WorldObject o)
         {
             if (TalkGhostTrain(o)) return;
+            if (TalkRidgeEcho(o)) return;
             if (TalkRegionalMachine(o)) return;
             if (TalkBiomeField(o)) return;
             if (TalkSeventhBed(o)) return;
@@ -4896,6 +4898,7 @@ namespace Starfall
                 return;
             }
             if (ChooseGhostTrain(action)) return;
+            if (ChooseRidgeEcho(action)) return;
             if (ChooseRegionalVigil(action)) return;
             if (ChooseRegionalMachine(action)) return;
             if (ChooseBiomeField(action)) return;

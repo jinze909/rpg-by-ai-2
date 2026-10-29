@@ -2209,6 +2209,30 @@
       ],
       "objects": [
         {
+          "id": "ridge_echo_1_0",
+          "kind": "ridgeEcho",
+          "name": "林间风铃 · 原始记录台",
+          "en": "Canopy Chime · Original Signal",
+          "x": 38.5,
+          "y": 17.5
+        },
+        {
+          "id": "ridge_echo_1_1",
+          "kind": "ridgeEcho",
+          "name": "林间风铃 · 民用传令起点",
+          "en": "Canopy Chime · Relay Dispatch",
+          "x": 64.5,
+          "y": 50.5
+        },
+        {
+          "id": "ridge_echo_1_2",
+          "kind": "ridgeEcho",
+          "name": "林间风铃 · 远端安全补给台",
+          "en": "Canopy Chime · Remote Safe Refuge",
+          "x": 45.5,
+          "y": 74.5
+        },
+        {
           "id": "home1",
           "name": "返回余烬镇",
           "en": "Return to Emberfall",
@@ -4258,6 +4282,30 @@
         "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       ],
       "objects": [
+        {
+          "id": "ridge_echo_2_0",
+          "kind": "ridgeEcho",
+          "name": "沉桥水尺 · 原始记录台",
+          "en": "Sunken Gauge · Original Signal",
+          "x": 38.5,
+          "y": 16.5
+        },
+        {
+          "id": "ridge_echo_2_1",
+          "kind": "ridgeEcho",
+          "name": "沉桥水尺 · 民用传令起点",
+          "en": "Sunken Gauge · Relay Dispatch",
+          "x": 67.5,
+          "y": 27.5
+        },
+        {
+          "id": "ridge_echo_2_2",
+          "kind": "ridgeEcho",
+          "name": "沉桥水尺 · 远端安全补给台",
+          "en": "Sunken Gauge · Remote Safe Refuge",
+          "x": 38.5,
+          "y": 58.5
+        },
         {
           "id": "home2",
           "name": "返回余烬镇",
@@ -6398,6 +6446,30 @@
         "########################################################################################################################"
       ],
       "objects": [
+        {
+          "id": "ridge_echo_3_0",
+          "kind": "ridgeEcho",
+          "name": "矿区应急线 · 原始记录台",
+          "en": "Ironreach Alert · Original Signal",
+          "x": 38.5,
+          "y": 16.5
+        },
+        {
+          "id": "ridge_echo_3_1",
+          "kind": "ridgeEcho",
+          "name": "矿区应急线 · 民用传令起点",
+          "en": "Ironreach Alert · Relay Dispatch",
+          "x": 54.5,
+          "y": 50.5
+        },
+        {
+          "id": "ridge_echo_3_2",
+          "kind": "ridgeEcho",
+          "name": "矿区应急线 · 远端安全补给台",
+          "en": "Ironreach Alert · Remote Safe Refuge",
+          "x": 45.5,
+          "y": 74.5
+        },
         {
           "id": "home3",
           "name": "返回余烬镇",
@@ -8575,6 +8647,30 @@
       ],
       "objects": [
         {
+          "id": "ridge_echo_4_0",
+          "kind": "ridgeEcho",
+          "name": "城墙避难令 · 原始记录台",
+          "en": "Civilian Refuge Order · Original Signal",
+          "x": 39.5,
+          "y": 17.5
+        },
+        {
+          "id": "ridge_echo_4_1",
+          "kind": "ridgeEcho",
+          "name": "城墙避难令 · 民用传令起点",
+          "en": "Civilian Refuge Order · Relay Dispatch",
+          "x": 64.5,
+          "y": 58.5
+        },
+        {
+          "id": "ridge_echo_4_2",
+          "kind": "ridgeEcho",
+          "name": "城墙避难令 · 远端安全补给台",
+          "en": "Civilian Refuge Order · Remote Safe Refuge",
+          "x": 32.5,
+          "y": 66.5
+        },
+        {
           "id": "civicConduitMaster",
           "kind": "civicconduitmaster",
           "name": "公共电网 · 临时熔断台",
@@ -10694,6 +10790,30 @@
       ],
       "objects": [
         {
+          "id": "ridge_echo_5_0",
+          "kind": "ridgeEcho",
+          "name": "雾港航灯 · 原始记录台",
+          "en": "Harbor Lantern · Original Signal",
+          "x": 44.5,
+          "y": 13.5
+        },
+        {
+          "id": "ridge_echo_5_1",
+          "kind": "ridgeEcho",
+          "name": "雾港航灯 · 民用传令起点",
+          "en": "Harbor Lantern · Relay Dispatch",
+          "x": 54.5,
+          "y": 50.5
+        },
+        {
+          "id": "ridge_echo_5_2",
+          "kind": "ridgeEcho",
+          "name": "雾港航灯 · 远端安全补给台",
+          "en": "Harbor Lantern · Remote Safe Refuge",
+          "x": 29.5,
+          "y": 50.5
+        },
+        {
           "id": "fieldstation5",
           "kind": "fieldstation5",
           "name": "潮痕观测站",
@@ -12734,6 +12854,30 @@
       ],
       "objects": [
         {
+          "id": "ridge_echo_6_0",
+          "kind": "ridgeEcho",
+          "name": "沙海水井 · 原始记录台",
+          "en": "Oasis Well · Original Signal",
+          "x": 44.5,
+          "y": 13.5
+        },
+        {
+          "id": "ridge_echo_6_1",
+          "kind": "ridgeEcho",
+          "name": "沙海水井 · 民用传令起点",
+          "en": "Oasis Well · Relay Dispatch",
+          "x": 38.5,
+          "y": 58.5
+        },
+        {
+          "id": "ridge_echo_6_2",
+          "kind": "ridgeEcho",
+          "name": "沙海水井 · 远端安全补给台",
+          "en": "Oasis Well · Remote Safe Refuge",
+          "x": 18.5,
+          "y": 74.5
+        },
+        {
           "id": "fieldstation6",
           "kind": "fieldstation6",
           "name": "风蚀观测站",
@@ -14729,6 +14873,30 @@
         "########################################################################################################################"
       ],
       "objects": [
+        {
+          "id": "ridge_echo_7_0",
+          "kind": "ridgeEcho",
+          "name": "霜钟归乡 · 原始记录台",
+          "en": "Frostbell Homeward · Original Signal",
+          "x": 44.5,
+          "y": 13.5
+        },
+        {
+          "id": "ridge_echo_7_1",
+          "kind": "ridgeEcho",
+          "name": "霜钟归乡 · 民用传令起点",
+          "en": "Frostbell Homeward · Relay Dispatch",
+          "x": 67.5,
+          "y": 28.5
+        },
+        {
+          "id": "ridge_echo_7_2",
+          "kind": "ridgeEcho",
+          "name": "霜钟归乡 · 远端安全补给台",
+          "en": "Frostbell Homeward · Remote Safe Refuge",
+          "x": 45.5,
+          "y": 74.5
+        },
         {
           "id": "fieldstation7",
           "kind": "fieldstation7",

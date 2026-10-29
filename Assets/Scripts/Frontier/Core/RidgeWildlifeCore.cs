@@ -622,5 +622,313 @@ namespace Starfall
                 TrySpawnRidgeWatchPatrol(i);
             ridgeWatchRespawnCheck=1.5f;
         }
+
+        // Seven original three-site wilderness missions. These are not
+        // journal-only markers: all 21 field terminals exist in Campaign.json
+        // at verified walkable feet, far from every preexisting story site.
+        // Survey flags are durable v2-compatible progress. The timed relay
+        // is transient and can NEVER resume or pay a reward after loading.
+        private static readonly string[] echoRegionsZh={
+            "密林回声","遗迹水尺","矿区急报","城墙传令","雾港航灯","沙海井信","霜钟归路"
+        };
+        private static readonly string[] echoRegionsEn={
+            "Canopy Echo","Flood Gauge","Mine Emergency Wire","Citadel Messenger",
+            "Harbor Lantern","Oasis Well Signal","Frostbell Return"
+        };
+        private static readonly string[] echoEvidenceZh={
+            "树上的小铜铃被风吹向西边。旧路书写着：找回家的人，要先听低处的铃，不要追高处的军号。",
+            "潮水留下的盐线比官方渡船名册更早。旧纸条说：信退潮后的水尺，不信写死的航时。",
+            "矿车经过时，钢轨震了三次。工人刻在铁板上：先把伤者人数传出去，再报告货物。",
+            "旧墙角有居民偷偷画下的逃生台阶。岗哨批文说先关城门；家人留下的记号却指向先开避难门。",
+            "雾里两盏灯相互错开。渔民的旧绳结写着：先朝岸上的固定灯回应，不追移动船火。",
+            "沙丘上的假井会随热浪摇晃。木牌刻着：先核对真实井沿的刻度，再传递补水路线。",
+            "雪后的风铃高低相接。暖棚记录写明：先送低处的求救声，别让瞭望哨的高音盖住它。"
+        };
+        private static readonly string[] echoEvidenceEn={
+            "Wind has bent the copper chime west. The trail book says to trust the low civilian bell, not the elevated military horn.",
+            "The salt line predates the official ferry timetable. The note says to trust the ebb gauge, not a fixed departure hour.",
+            "The rails rang three times. A worker etched: send the wounded headcount first, freight manifests second.",
+            "Families scratched an emergency stair into the old wall. Their marks say open the refuge gate before the military seal.",
+            "Two lights cross in the fog. The sailors' old knots say reply to the fixed shore lamp, not a moving boat flame.",
+            "A mirage well shifts in the heat. The sign says measure the real stone rim before marking a water route.",
+            "Two frost chimes answer one another. The shelter ledger says carry the lower distress tone before the watchtower note."
+        };
+        private static readonly string[] echoTrueZh={
+            "保留居民的低铃音","照退潮水尺校准","先记录十七名伤者","先开居民避难门",
+            "回应岸上固定航灯","核对真井石沿刻度","传递背风处低钟声"
+        };
+        private static readonly string[] echoFalseZh={
+            "按旧军号转发","按官定时刻转发","只报告货车重量","先封死居民门",
+            "追随雾中移动船火","标记摇晃的海市蜃楼","先传瞭望哨高钟声"
+        };
+        private static readonly string[] echoTrueEn={
+            "Record the low civilian bell","Trust the ebb gauge","Send the wounded headcount first",
+            "Open the civilian refuge gate","Answer the fixed shore lantern",
+            "Check the real well-rim markings","Carry the sheltered low chime"
+        };
+        private static readonly string[] echoFalseEn={
+            "Repeat the military horn","Use the fixed official ferry hour",
+            "Report cargo weight alone","Seal the civilians' gate",
+            "Follow the moving boat light","Mark the shifting mirage well",
+            "Send the watchtower's high chime"
+        };
+        private static readonly string[] echoStopNamesZh={"原始信号","传令起点","远端民用补给台"};
+        private static readonly string[] echoStopNamesEn={"Original signal","Relay dispatch","Distant civilian supply"};
+        private int echoRunRoom=-1;
+        private float echoRunClock;
+        private MapData echoRunMap;
+        private SaveData echoRunSave;
+        private WorldObject echoRunOrigin;
+
+        private static string EchoFlag(int room,string suffix)
+        {return "ridge_echo_"+room+"_"+suffix;}
+        public bool RidgeEchoComplete(int room)
+        {return room>=1&&room<=7&&Has(EchoFlag(room,"done"));}
+        public bool RidgeEchoSurveyed(int room)
+        {return room>=1&&room<=7&&Has(EchoFlag(room,"survey"));}
+        public int RidgeEchoCompleteCount
+        {get{int total=0;for(int r=1;r<=7;r++)if(RidgeEchoComplete(r))total++;return total;}}
+        public bool RidgeEchoRunActive
+        {
+            get{return echoRunRoom>=1&&echoRunRoom<=7&&
+                echoRunRoom==save.room&&echoRunClock>0f&&
+                Object.ReferenceEquals(echoRunMap,Map)&&
+                Object.ReferenceEquals(echoRunSave,save)&&
+                echoRunOrigin!=null&&SourceBelongsToActiveMap(echoRunOrigin);}
+        }
+        public int RidgeEchoSeconds {get{return RidgeEchoRunActive?(int)Math.Ceiling(echoRunClock):0;}}
+        public Point RidgeEchoObjective(int room)
+        {
+            if(room<1||room>7||data==null||data.maps==null||
+                room>=data.maps.Length)return new Point();
+            int stage=RidgeEchoComplete(room)?2:
+                !RidgeEchoSurveyed(room)?0:
+                RidgeEchoRunActive&&room==save.room?2:1;
+            string id="ridge_echo_"+room+"_"+stage;
+            foreach(WorldObject o in data.maps[room].objects)
+                if(o!=null&&o.id==id&&o.kind=="ridgeEcho")
+                    return new Point(o.x,o.y);
+            return new Point();
+        }
+        private static int RidgeEchoSiteIndex(WorldObject site,int room)
+        {
+            if(site==null||site.kind!="ridgeEcho"||room<1||room>7||
+                site.id==null)return -1;
+            for(int i=0;i<3;i++)
+                if(site.id=="ridge_echo_"+room+"_"+i)return i;
+            return -1;
+        }
+        private static int RidgeEchoTimeLimit(int room)
+        {return room==6||room==7?92:room==3?100:112;}
+        private static string RidgeEchoMaterialZh(int room)
+        {
+            return room==1?"2份木材、1株月光草":
+                room==2?"1份水晶、1株月光草":
+                room==3?"2份机械零件":
+                room==4?"1木材、1水晶、1机械零件":
+                room==5?"1木材、1条鱼":
+                room==6?"2水晶、1株月光草":
+                "1木材、2株月光草";
+        }
+        private static string RidgeEchoMaterialEn(int room)
+        {
+            return room==1?"2 timber and 1 Moonherb":
+                room==2?"1 crystal and 1 Moonherb":
+                room==3?"2 gears":
+                room==4?"1 timber, 1 crystal and 1 gear":
+                room==5?"1 timber and 1 fish":
+                room==6?"2 crystals and 1 Moonherb":
+                "1 timber and 2 Moonherbs";
+        }
+        private bool SpendRidgeEchoMaterials(int room)
+        {
+            switch(room)
+            {
+                case 1:return Spend(2,0,1,0,0);
+                case 2:return Spend(0,1,1,0,0);
+                case 3:return Spend(0,0,0,0,2);
+                case 4:return Spend(1,1,0,0,1);
+                case 5:return Spend(1,0,0,1,0);
+                case 6:return Spend(0,2,1,0,0);
+                case 7:return Spend(1,0,2,0,0);
+                default:return false;
+            }
+        }
+        private void ResetRidgeEcho()
+        {
+            echoRunRoom=-1;echoRunClock=0f;echoRunMap=null;
+            echoRunSave=null;echoRunOrigin=null;
+        }
+        private void TickRidgeEcho(float dt)
+        {
+            if(echoRunRoom>=0)
+            {
+                if(!RidgeEchoRunActive||Dying||practicing)
+                    ResetRidgeEcho();
+                else
+                {
+                    echoRunClock=Math.Max(0f,echoRunClock-dt);
+                    if(echoRunClock<=0f)
+                    {
+                        ResetRidgeEcho();
+                        Notify("传令错过了约定的窗口。回到本地区中继起点重试；原始线索仍然保留。",
+                            "The relay window closed. Return to the original dispatch site; the survey evidence remains safe.");
+                    }
+                }
+            }
+            // The repaired FAR end is an actual public refuge, not a
+            // map-only reward. Ordinary combat and protected rescue tasks
+            // take priority. Do not heal anywhere else in the region.
+            if(dt<=0f||save.room<1||save.room>7||
+                !RidgeEchoComplete(save.room)||Dying||practicing||
+                FieldWorkPreventsRest||!SafeTravel)return;
+            Point foot=RidgeEchoObjective(save.room);
+            if((Position-foot).Length>4.0f)return;
+            save.health=Clamp(save.health+dt*1.8f,0f,save.maxHealth);
+            save.energy=Clamp(save.energy+dt*3f,0f,100f);
+            if(save.room==6)save.heat=Math.Max(0f,save.heat-dt*2f);
+            if(save.room==7)save.cold=Math.Max(0f,save.cold-dt*2f);
+        }
+        private bool TalkRidgeEcho(WorldObject site)
+        {
+            if(site==null||site.kind!="ridgeEcho")return false;
+            int room=save.room,index=RidgeEchoSiteIndex(site,room);
+            if(index<0||!SourceBelongsToActiveMap(site)||
+                !HasPhysicalInteractionReach(site)||!CanStand(Position))
+                return true;
+            string title=site.name,english=site.en;
+            if(!Has("biome_field_done_"+room))
+            {
+                Dialog(title,english,
+                    "野外旧台上留着一条没有发完的居民讯号。先亲自核实本地区两处探路地标，再来接手这条路线。",
+                    "An unfinished civilian transmission rests here. Survey both original biome landmarks in person before rebuilding the field line.",
+                    C("记下位置","Remember this place","close"));
+                return true;
+            }
+            if(RidgeEchoComplete(room))
+            {
+                Dialog(title,english,
+                    "“"+echoRegionsZh[room-1]+"”已经传到三处旧台。远端补给处可以安全恢复生命和耐力；它不是新的传送入口。",
+                    "The "+echoRegionsEn[room-1]+" line now reaches all three field sites. The remote refuge restores real health and stamina outside combat; it is not a teleport.",
+                    C("继续巡路","Keep exploring","close"));
+                return true;
+            }
+            if(index==0)
+            {
+                Dialog(title,english,
+                    echoEvidenceZh[room-1]+"\n\n请选择保留哪一份真正的居民证据。",
+                    echoEvidenceEn[room-1]+"\n\nWhich original civilian reading belongs in the relay?",
+                    (room%2==0)?
+                        C(echoFalseZh[room-1],echoFalseEn[room-1],"ridge_echo_false"):
+                        C(echoTrueZh[room-1],echoTrueEn[room-1],"ridge_echo_true"),
+                    (room%2==0)?
+                        C(echoTrueZh[room-1],echoTrueEn[room-1],"ridge_echo_true"):
+                        C(echoFalseZh[room-1],echoFalseEn[room-1],"ridge_echo_false"),
+                    C("以后再核对","Leave this record","close"));
+                return true;
+            }
+            if(index==1)
+            {
+                Dialog(title,english,
+                    !RidgeEchoSurveyed(room)?
+                        "这里缺了原始读数。先走到真正的第一处旧台，确认居民的原始证据。":
+                        "信号已核对。现在以8点耐力发送实地传令，"+RidgeEchoTimeLimit(room)+
+                        "秒内亲自走到第三处远端补给台。重新发信会重新计时，但不会凭空完成路程。",
+                    !RidgeEchoSurveyed(room)?
+                        "The original reading is missing. Go to the first actual field terminal to recover it.":
+                        "The evidence is verified. Spend 8 stamina to start a "+
+                        RidgeEchoTimeLimit(room)+"-second physical delivery to the far civilian refuge. Restarting a run only resets its clock.",
+                    RidgeEchoSurveyed(room)?
+                        C("开始真实限时传令","Start timed overland relay","ridge_echo_launch"):
+                        C("返回寻找原件","Return for the evidence","close"),
+                    C("暂不行动","Not now","close"));
+                return true;
+            }
+            Dialog(title,english,
+                RidgeEchoRunActive?
+                    "你带着刚从中继起点发出的真实讯号，尚余"+RidgeEchoSeconds+
+                    "秒。交付"+RidgeEchoMaterialZh(room)+"，才能让这处偏远营地真的开始供应居民。":
+                    "最后的补给台没有收到有效传令。请先在第二处现场启动限时任务，再沿真实道路把讯号送来。",
+                RidgeEchoRunActive?
+                    "Your real relay has "+RidgeEchoSeconds+
+                    " seconds remaining. Deliver "+RidgeEchoMaterialEn(room)+
+                    " to staff this remote public refuge permanently.":
+                    "No verified message has reached this refuge. Start the timed run at the second physical station, then carry it here over real terrain.",
+                RidgeEchoRunActive?
+                    C("交付材料并完成民用路线","Deliver supplies and reopen the route","ridge_echo_finish"):
+                    C("查看未到达的讯号","Check missing signal","close"),
+                C("稍后再说","Leave","close"));
+            return true;
+        }
+        private bool ChooseRidgeEcho(string action)
+        {
+            if(action==null||!action.StartsWith("ridge_echo_",StringComparison.Ordinal))
+                return false;
+            WorldObject source=pendingDialogueSource;
+            int room=save.room,index=RidgeEchoSiteIndex(source,room);
+            if(index<0||mode!="world"||pendingDialogueSourceRoom!=room||
+                !SourceBelongsToActiveMap(source)||!HasPhysicalInteractionReach(source)||
+                !CanStand(Position)||Dying||practicing||
+                !Has("biome_field_done_"+room))return true;
+            if(action=="ridge_echo_true"&&index==0&&!RidgeEchoSurveyed(room))
+            {
+                Flag(EchoFlag(room,"survey"));revision++;sound="quest";
+                RecordMoment("你在"+echoRegionsZh[room-1]+"保留了第一处野外旧台的原始居民讯号，向远处的传令起点出发。",
+                    "You preserved the original civilian reading for "+echoRegionsEn[room-1]+" and set out for the distant field relay.");
+                Notify("原件已核实。前往第二处中继起点，开启有时间限制的实地传令。",
+                    "Original reading verified. Reach the second terminal to start the timed physical relay.");
+                return true;
+            }
+            if(action=="ridge_echo_false"&&index==0&&!RidgeEchoSurveyed(room))
+            {
+                save.energy=Math.Max(0f,save.energy-6f);revision++;sound="deny";
+                Notify("这份读数与现场痕迹不符。查验误读耗费6耐力；线索尚未结案。",
+                    "The false reading contradicts the site. -6 stamina; the evidence remains unresolved.");
+                return true;
+            }
+            if(action=="ridge_echo_launch"&&index==1&&RidgeEchoSurveyed(room))
+            {
+                if(FieldWorkPreventsRest||!SafeTravel)
+                {
+                    Notify("周围尚有战斗或受保护现场工作。先完成它们再发信。",
+                        "Combat or a protected field mission is active. Finish it before dispatching the relay.");
+                    return true;
+                }
+                if(save.energy<8f)
+                {Notify("发出传令需要8点耐力。","Sending this relay costs 8 energy.");return true;}
+                save.energy-=8f;
+                echoRunRoom=room;echoRunClock=RidgeEchoTimeLimit(room);
+                echoRunMap=Map;echoRunSave=save;echoRunOrigin=source;
+                revision++;sound="quest";
+                Notify("限时传令开始！请在"+RidgeEchoTimeLimit(room)+"秒内真正抵达第三处补给台。",
+                    "The timed relay is live! Reach the third physical field terminal within "+
+                    RidgeEchoTimeLimit(room)+" seconds.");
+                return true;
+            }
+            if(action=="ridge_echo_finish"&&index==2&&RidgeEchoRunActive&&
+                !RidgeEchoComplete(room))
+            {
+                if(!SafeTravel||FieldWorkPreventsRest)
+                {
+                    Notify("补给台周围仍有危险，必须先清理实际威胁。",
+                        "Real threats remain at the supply station. Clear them before delivering.");
+                    return true;
+                }
+                if(!SpendRidgeEchoMaterials(room))return true;
+                ResetRidgeEcho();Flag(EchoFlag(room,"done"));
+                CreditCoins(30+room*3);CreditShards(1);AddXp(55);
+                RecordMoment("你在"+echoRegionsZh[room-1]+"的第三处真实补给台完成了限时传令。原本空着的偏远路段如今有了药品、饮水和真正的民用讯号。",
+                    "A timed overland message reached the third real field station of "+echoRegionsEn[room-1]+". The previously empty route now has civilian supplies, water and a usable refuge.");
+                if(RidgeEchoCompleteCount==7&&!Has("ridge_echo_all"))
+                {Flag("ridge_echo_all");CreditSkillPoints(1);}
+                revision++;sound="reward";
+                Notify("偏远民用补给台正式启用：硬币+"+(30+room*3)+
+                    "、碎片+1、经验+55。可在此地安全恢复生命和耐力。",
+                    "Remote civilian refuge opened: +"+(30+room*3)+
+                    " coins, 1 shard, 55 XP. Rest here outside combat for actual healing and stamina.");
+                return true;
+            }
+            return true;
+        }
     }
 }
