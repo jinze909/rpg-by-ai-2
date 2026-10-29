@@ -630,6 +630,152 @@ namespace Starfall.Tests
                 "No paid patrol can be replayed to double-award nonlethal evidence");
         }
 
+        // Building real waystations depends on actual remote road terrain,
+        // exact-identity raiders and a paid physical construction at the kit.
+        public static void SevenForwardOutpostsRequireRealDefenseAndOfferWorkingChoices(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var hit=typeof(GameCore).GetMethod("Hit",flags);
+            Check(hit!=null,"Original physical combat transaction exists");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                g.save.flags.Add("field_kit_recovered_"+room);
+                WorldObject kit=Array.Find(g.Map.objects,o=>
+                    o.kind=="fieldKit"&&o.id=="fieldKit"+room);
+                Check(kit!=null&&PlaceWithinTalkReach(g,kit),
+                    "Original recovered case offers physical defense in "+room);
+                g.save.inventory[0]=6;g.save.inventory[4]=6;
+                g.save.inventory[2]=4;g.save.energy=100f;
+                Point start=g.Position;
+                g.Talk(kit);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_outpost_begin");
+                Check(begin>=0,"Recovered kit has a playable live defense option");
+                g.Choose(begin);
+                int count=room==2||room==3||room==6?3:2;
+                Check(g.FieldOutpostActive&&g.FieldOutpostRemaining==count&&
+                    g.enemies.Count==count&&!g.FieldOutpostReady,
+                    "Full authored local raider roster starts only at source");
+                var foes=g.enemies.ToArray();
+                foreach(Enemy e in foes)
+                {
+                    Check(g.CanStand(e.Position)&&
+                        (e.Position-start).Length>=5f&&
+                        g.NavigationPathFrom(start,e.Position,true).Count>0,
+                        "Every live outpost attacker is truly reachable on this road");
+                    foreach(WorldObject prop in g.Map.objects)
+                        Check((e.Position-new Point(prop.x,prop.y)).Length>=4.45f,
+                            "No paid field attacker spawns inside a quest or NPC prop");
+                }
+                // The protected source cannot be bypassed by map travel.
+                g.Enter(0);
+                Check(g.save.room==room&&g.FieldOutpostActive,
+                    "Fast region escape cannot turn an unfinished defense into a reward");
+                foreach(Enemy e in foes)
+                    hit.Invoke(g,new object[]{e,9999f,true,null,null});
+                Check(g.FieldOutpostReady&&g.FieldOutpostRemaining==0,
+                    "Only registered real combat defeats secure the forward site");
+                int beforeShards=g.save.shards;
+                g.invulnerable=50f;
+                for(int f=0;f<15;f++)g.Tick(.05f,new Point());
+                g.save.x=start.x;g.save.y=start.y;
+                Check(PlaceWithinTalkReach(g,kit),
+                    "Hero must return to the original field kit to build");
+                g.Close();g.Talk(kit);
+                bool ward=room%2==1;
+                int choice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==(ward?"field_outpost_ward":"field_outpost_forge"));
+                Check(choice>=0,"Signed construction offers two real alternatives");
+                g.Choose(choice);
+                Check(!g.FieldOutpostActive&&g.FieldOutpostBuilt(room)&&
+                    g.FieldOutpostWard(room)==ward&&
+                    g.FieldOutpostForge(room)!=ward&&
+                    g.save.inventory[0]==5&&g.save.inventory[4]==5&&
+                    g.save.shards==beforeShards+1,
+                    "An exclusive public facility spends real parts and pays once");
+                Check(g.GetQuest("field_outposts").steps[room-1].done,
+                    "The route atlas marks the chosen authentic facility type");
+                g.Close();g.Talk(kit);
+                int repeat=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_outpost_begin");
+                Check(repeat<0,"Permanent outposts never respawn a reward wave");
+                if(ward)
+                {
+                    float max=g.save.maxHealth;
+                    g.save.health=Math.Max(1,max-65);
+                    g.save.energy=28f;g.save.cold=32f;
+                    int herbs=g.save.inventory[2];
+                    int aid=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="field_outpost_rest");
+                    Check(aid>=0,"Medical site offers an actual working aid service");
+                    g.Choose(aid);
+                    Check(g.save.inventory[2]==herbs-1&&
+                        Math.Abs(g.save.health-(max-10))<.01f&&
+                        Math.Abs(g.save.energy-68f)<.01f&&g.save.cold==7f,
+                        "Physical paid triage changes actual health, stamina and cold");
+                }
+                else
+                {
+                    int coins=g.save.coins,wood=g.save.inventory[0],
+                        gear=g.save.inventory[4];
+                    int buy=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="field_outpost_stock");
+                    Check(buy>=0,"Workshop offers a real paid trap-parts supply");
+                    g.Choose(buy);
+                    Check(g.save.coins==coins-12&&
+                        g.save.inventory[0]==wood+1&&
+                        g.save.inventory[4]==gear+1,
+                        "Field workshop actually sells materials for the existing snare mechanic");
+                }
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.FieldOutpostBuilt(room)&&
+                    restored.FieldOutpostWard(room)==ward&&
+                    !restored.FieldOutpostActive,
+                    "Original V2 save retains build choice but never transient live enemies");
+            }
+        }
+
+        public static void FailedFieldOutpostDefensesDoNotPayOrResurrectGhosts(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            Check(kit!=null&&PlaceWithinTalkReach(g,kit),"Original kit is reachable");
+            g.Talk(kit);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_outpost_begin");
+            Check(begin>=0,"The real source offers the optional battle");
+            g.Choose(begin);
+            Check(g.FieldOutpostActive&&g.enemies.Count==2,
+                "Authentic defenders exist before sabotage simulation");
+            g.enemies.RemoveAt(0);
+            g.Tick(.05f,new Point());
+            Check(!g.FieldOutpostActive&&!g.FieldOutpostBuilt(1)&&
+                g.enemies.Count==0,
+                "An enemy removed without actual combat voids the entire wave and payout");
+            g.Close();g.Talk(kit);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_outpost_begin");
+            Check(begin>=0,"Failure still allows a fresh source-bound attempt");
+            g.Choose(begin);
+            Check(g.FieldOutpostActive&&g.FieldOutpostRemaining==2,
+                "Retry produces a complete new roster, not stale actor identity");
+            g.Close();g.Talk(kit);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_outpost_abort");
+            Check(abort>=0,"Original kit permits an explicit nonreward withdrawal");
+            g.Choose(abort);
+            Check(!g.FieldOutpostActive&&!g.FieldOutpostBuilt(1)&&
+                g.enemies.Count==0,"Withdrawn fieldwork leaves no live ghost or signed receipt");
+        }
+
         // New region content must be real map objects, not a reward bound
         // to a fabricated dialogue ID. Inventory, physical reach and the
         // original region survey are hard prerequisites of every pickup.
