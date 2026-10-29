@@ -212,6 +212,7 @@ namespace Starfall
             // Arbitrary actor removals still invalidate its signed receipt.
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
+            bool watchRestraint=OnVantageWatchEnemyRestrained(target);
             bool courierRestraint=OnFarCourierEnemyRestrained(target);
             effects.Add(new Effect("burst",target.Position,.65f)
                 {radius=.85f,variant=0});
@@ -227,7 +228,10 @@ namespace Starfall
                     "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
             }
             sound="counter";revision++;
-            if(courierRestraint)
+            if(watchRestraint)
+                Notify("远端观测站：一名真实袭击者已被绊索活捉，回原站登记。",
+                    "Lookout watch: one original raider captured alive. Return to sign at the original station.");
+            else if(courierRestraint)
                 Notify("真实劫匪已被绊索活捉。必须亲手将救援包交给守棚人，才能登记安全与治疗奖励。",
                     "Original parcel raider restrained alive. Complete the real delivery to earn security and care rewards.");
             else if(patrolRestraint)

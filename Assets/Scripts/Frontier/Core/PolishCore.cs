@@ -574,7 +574,7 @@ namespace Starfall
                     // The contract itself is transient. Never write its
                     // reference-owned raiders into an ordinary v2 world
                     // snapshot that would resurrect them without a mission.
-                    IsFieldPatrolEnemy(e)) continue;
+                    IsFieldPatrolEnemy(e) || IsVantageWatchEnemy(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();

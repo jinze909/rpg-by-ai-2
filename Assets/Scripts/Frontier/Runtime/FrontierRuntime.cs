@@ -1491,6 +1491,25 @@ namespace Starfall
                 PropImage(kind=="farhidden"?"barrel":"obelisk",0,
                     p.x-35,p.y-75,70,82,
                     shown?new Color(.7f,.85f,.8f,.8f):Color.white);
+                if(kind=="farlookout")
+                {
+                    int room=Game.save.room;
+                    bool aid=Game.VantageWatchAid(room),signal=Game.VantageWatchSignal(room);
+                    Color ink=aid?mint:signal?new Color(.6f,.83f,1f):
+                        Game.VantageWatchActive?gold:shown?muted:gold;
+                    if(aid||signal||Game.VantageWatchActive)
+                        Ring(new Point(o.x,o.y),.78f,ink,22);
+                    if(Game.VantageWatchActive||aid||signal)
+                        Text(p.x-99,p.y-110,198,19,
+                            Game.VantageWatchActive?
+                                Game.L(Game.VantageWatchReady?"返回登记巡护记录":
+                                    "守望 · 敌人 "+Game.VantageWatchRemaining,
+                                    Game.VantageWatchReady?"FILE WATCH REPORT":
+                                    "LOOKOUT RAIDERS · "+Game.VantageWatchRemaining):
+                                aid?Game.L("公共医疗瞭望站","CIVILIAN AID LOOKOUT"):
+                                    Game.L("公共信号瞭望站","CIVILIAN SIGNAL LOOKOUT"),
+                            11,ink,TextAnchor.MiddleCenter);
+                }
                 if(!shown)Diamond(p.x,p.y-72,5,gold);
                 return;
             }
