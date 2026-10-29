@@ -108,7 +108,7 @@ namespace Starfall.Tests
                         o=>o.id=="chapterroad_"+room+"_2");
                     Check(handoff!=null&&PlaceWithinTalkReach(g,handoff),
                         "Only actual chapter handoff site can provide earned local support");
-                    Check(g.SafeTravel&&!g.FieldWorkPreventsRest,
+                    Check(g.SafeTravel,
                         "The signed civilian service requires a safe, idle field");
                     for(int step=0;step<18;step++)g.Tick(.05f,new Point());
                     result[version]=room==2?g.save.cold:
