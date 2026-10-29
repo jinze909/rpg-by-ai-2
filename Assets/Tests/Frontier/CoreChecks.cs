@@ -324,6 +324,23 @@ namespace Starfall.Tests
                 Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="biome_patrol_begin")<0,
                     "A signed receipt cannot respawn another paid wave");
+                int relay=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_relay");
+                Check(relay>=0&&
+                    g.conversation.choices[relay].label.Contains("硬币2 / 耐力10"),
+                    "Every signed, unimproved district must advertise a real 2-coin/10-stamina relay");
+                if(room==1)
+                {
+                    g.save.coins=100;g.save.energy=100f;
+                    WorldObject far=Array.Find(g.Map.objects,
+                        o=>o.id=="biomeAnswer1");
+                    Check(far!=null,"Patrol discount uses the authentic far marker");
+                    g.Choose(relay);
+                    Check(g.save.coins==98&&
+                        Math.Abs(g.save.energy-90f)<.001f&&
+                        (g.Position-new Point(far.x,far.y)).Length<2f,
+                        "A signed patrol lowers a REAL physical relay price, not merely a dialogue label");
+                }
                 visited.Add(room);
             }
             // Missing or forged raiders must never pay a signed report.

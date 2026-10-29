@@ -93,6 +93,23 @@ namespace Starfall
                 return new Point();
             }
         }
+        // Earned civilian safety reports actually improve the existing
+        // physical field relay. One calculation owns both its label and pay.
+        private int FieldRelayFare(int room)
+        {
+            int fare=BiomeSupplyRoadBuilt(room)?1:3;
+            return Math.Max(0,fare-(FieldPatrolDone(room)?1:0));
+        }
+        private int FieldRelayEnergy(int room)
+        {
+            int energy=BiomeSupplyRoadBuilt(room)?
+                (Has("biome_crisis_done_"+room)?3:6):12;
+            if(Has("biome_crisis_council_roads"))
+                energy=Math.Max(1,energy-2);
+            if(FieldPatrolDone(room))
+                energy=Math.Max(1,energy-2);
+            return energy;
+        }
         private bool TalkBiomeField(WorldObject o)
         {
             if(o==null||(o.kind!="biomeSurvey"&&o.kind!="biomeAnswer"))
@@ -104,18 +121,17 @@ namespace Starfall
                 return true;
             if(BiomeFieldDone)
             {
-                int fare=BiomeSupplyRoadBuilt(region)?1:3;
-                int energy=BiomeSupplyRoadBuilt(region)?
-                    (Has("biome_crisis_done_"+region)?3:6):12;
-                if(Has("biome_crisis_council_roads"))
-                    energy=Math.Max(1,energy-2);
+                int fare=FieldRelayFare(region);
+                int energy=FieldRelayEnergy(region);
                 Dialog(o.name,o.en,
                     "你已经把两处现场记录写进公共探路册。"+
                     "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
+                    (FieldPatrolDone(region)?"\\n巡路安全回执：接驳减免1硬币、2耐力。":"")+
                     BiomeSupplySummary(false,region),
                     "Both original field testimonies are in the public wayfinder journal."+
                     "\n\nThe verified field relay now costs "+fare+
                     " coins and "+energy+" energy."+
+                    (FieldPatrolDone(region)?"\\nSigned patrol receipt: 1 coin and 2 stamina off travel.":"")+
                     BiomeSupplySummary(true,region),
                     C("地区接驳 · 硬币"+fare+" / 耐力"+energy,
                       "Field relay · "+fare+" coins / "+energy+" energy",
@@ -212,11 +228,8 @@ namespace Starfall
                         "Field relay unavailable during a protected mission, combat or live danger.");
                     return true;
                 }
-                int fare=BiomeSupplyRoadBuilt(room)?1:3;
-                int energy=BiomeSupplyRoadBuilt(room)?
-                    (Has("biome_crisis_done_"+room)?3:6):12;
-                if(Has("biome_crisis_council_roads"))
-                    energy=Math.Max(1,energy-2);
+                int fare=FieldRelayFare(room);
+                int energy=FieldRelayEnergy(room);
                 if(save.coins<fare||save.energy<energy)
                 {
                     Notify("地区接驳需要"+fare+"枚硬币与"+energy+"点耐力。",
