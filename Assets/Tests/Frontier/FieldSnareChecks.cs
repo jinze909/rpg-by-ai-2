@@ -125,6 +125,90 @@ namespace Starfall.Tests
                 !restored.CanBindSnaredEnemy,
                 "V2 preserves the earned restraint memory without serializing transient bind targets");
         }
+        public static void RealPacifistCaptureOpensOneExclusiveNollDiscipline(Campaign data)
+        {
+            for(int branch=0;branch<2;branch++)
+            {
+                var g=Fresh(data,0);g.enemies.Clear();
+                g.save.inventory[0]=12;g.save.inventory[1]=12;
+                g.save.inventory[4]=12;
+                Point foot=PutRealSnare(g);
+                var foe=new Enemy(79500+branch,0,foot.x,foot.y,80f);
+                foe.hitTime=5f;g.enemies.Add(foe);
+                for(int f=0;f<11;f++)g.Tick(.05f,new Point());
+                Check(g.CanBindSnaredEnemy&&g.BindSnaredEnemy()&&
+                    g.Has("field_snare_mercy_first"),
+                    "Actual live nonlethal restraint, not a fake v2 flag, earns Noll's humane lesson");
+                g.save.flags.Add("ally_3");g.enemies.Clear();
+                var smith=Object(g,"forge");
+                g.save.x=smith.x;g.save.y=smith.y;
+                g.Talk(smith);
+                string choice=branch==0?
+                    "field_snare_warden_swift":"field_snare_warden_calm";
+                string other=branch==0?
+                    "field_snare_warden_calm":"field_snare_warden_swift";
+                int selected=Array.FindIndex(g.conversation.choices,c=>c.action==choice);
+                Check(selected>=0&&g.SnareMercyTrainingAvailable,
+                    "The real repaired forge offers both earned, mutually exclusive humane methods");
+                int wood=g.save.inventory[0],crystals=g.save.inventory[1],
+                    parts=g.save.inventory[4];
+                g.save.x=smith.x+8f;g.Choose(selected);
+                Check(!g.Has(choice)&&g.save.inventory[1]==crystals&&
+                    g.save.inventory[4]==parts,
+                    "Old remote Noll dialogue cannot buy a new nonlethal combat upgrade");
+                g.save.x=smith.x;g.save.y=smith.y;g.Talk(smith);
+                selected=Array.FindIndex(g.conversation.choices,c=>c.action==choice);
+                Check(selected>=0,"Safe original forge still offers paid training");
+                g.Choose(selected);
+                Check(g.Has(choice)&&!g.Has(other)&&
+                    !g.SnareMercyTrainingAvailable&&
+                    g.save.inventory[0]==wood-1&&
+                    g.save.inventory[1]==crystals-2&&
+                    g.save.inventory[4]==parts-1&&
+                    g.SnareBindEnergyCost==(branch==0?6:10)&&
+                    Math.Abs(g.SnareHoldBonus-(branch==1?.6f:0f))<.001f,
+                    "One physically earned and paid living-captive technique changes actual combat parameters");
+                g.Talk(smith);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action==other)<0&&
+                    Array.FindIndex(g.conversation.choices,
+                    c=>c.action==choice)<0,
+                    "Once bought, neither discipline can be repurchased or stacked");
+                g.Close();
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&restored.Has(choice)&&
+                    !restored.Has(other)&&restored.SnareBindEnergyCost==(branch==0?6:10),
+                    "The exclusive player build survives unchanged legacy v2 saves");
+                // Test the expensive option on a new genuine deployed snare,
+                // not on a static numeric modifier or invented mission unit.
+                var trainer=Fresh(data,0);trainer.enemies.Clear();
+                trainer.save.flags.Add("field_snare_mercy_first");
+                trainer.save.flags.Add(choice);
+                trainer.save.inventory[0]=8;trainer.save.inventory[4]=8;
+                Point trap=PutRealSnare(trainer);
+                var captive=new Enemy(79510+branch,0,trap.x,trap.y,80f);
+                captive.hitTime=5f;trainer.enemies.Add(captive);
+                for(int frame=0;frame<11;frame++)
+                    trainer.Tick(.05f,new Point());
+                Check(trainer.CanBindSnaredEnemy&&
+                    (branch==1?captive.stun>1.85f:captive.stun>1.1f),
+                    "Earned technique still allows real physical restraint of an actor on a live trap");
+                if(branch==1)
+                {
+                    // A real fixed 1.5 second hold becomes 2.1 seconds.
+                    Check(captive.stun>1.9f&&captive.stun<2.2f,
+                        "Steady wardenship extends genuine ordinary snare hold by 0.6 seconds");
+                }
+                else
+                {
+                    trainer.save.energy=6f;
+                    Check(trainer.BindSnaredEnemy()&&
+                        trainer.save.energy==0f&&!trainer.enemies.Contains(captive),
+                        "Swift knots actually permit a six-energy live restraint");
+                }
+            }
+        }
         public static void FieldSnareBindExpiresAndIgnoresUnrelatedStuns(Campaign data)
         {
             var g=Fresh(data,0);g.enemies.Clear();
