@@ -519,7 +519,7 @@ namespace Starfall
                         Game.L(biomeBearingsZh[sector],
                             biomeBearingsEn[sector])+" · "+
                         range+Game.L(" 格直线距离"," tiles direct"),
-                        12,ink,TextAnchor.MiddleRight);
+                        12,ink,TextAnchor.MiddleCenter);
                 }
                 if(WorldDrawable(target.x,target.y,140f,150f))
                 {
