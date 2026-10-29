@@ -1052,7 +1052,17 @@ namespace Starfall
             movementDirection = new Point();
             TickVisuals(dt); if (mode != "world") return; TickGate(dt);
             TickEffects(dt);
-            if (Dying) { deathTime -= dt; if (deathTime <= 0) CompleteDeath(); return; }
+            if (Dying)
+            {
+                // Fatal damage can short-circuit this tick before the
+                // ordinary field-mission phase. Retire the exact watch
+                // raiders immediately instead of leaving a dead mission
+                // waiting for a future world tick or slot load.
+                TickVantageWatch(0f);
+                deathTime -= dt;
+                if (deathTime <= 0) CompleteDeath();
+                return;
+            }
             bool beganInPractice = practicing;
             save.totalTime += dt;
             // Advance consumption recovery in genuine world time. Inventory,
