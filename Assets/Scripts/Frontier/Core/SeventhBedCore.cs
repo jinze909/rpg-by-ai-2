@@ -18,6 +18,38 @@ namespace Starfall
         public bool SeventhBedPublic {get{return Has("seventh_bed_public");}}
         public bool SeventhBedPrivate {get{return Has("seventh_bed_private");}}
         public bool SeventhBedComplete {get{return SeventhBedPublic||SeventhBedPrivate;}}
+        // A playable post-mystery delivery, rather than a second detective
+        // dialogue. The meal and returned bowls are physical session cargo:
+        // loading, changing rooms or expiring the heat abandons that run,
+        // while a successful completed delivery uses a normal v2 string flag.
+        private int seventhSupperPhase; // 0 idle, 1 hot bowls, 2 empty bowls
+        private float seventhSupperHeat;
+        public bool SeventhSupperDone {get{return Has("seventh_supper_delivered");}}
+        public bool SeventhSupperActive
+        {get{return SeventhBedComplete&&!SeventhSupperDone&&
+            save.room==9&&seventhSupperPhase>0;}}
+        public bool SeventhSupperReturning
+        {get{return SeventhSupperActive&&seventhSupperPhase==2;}}
+        public float SeventhSupperSeconds
+        {get{return SeventhSupperActive&&seventhSupperPhase==1?
+            Math.Max(0f,seventhSupperHeat):0f;}}
+        public Point SeventhSupperTarget
+        {
+            get
+            {
+                WorldObject o=SeventhBedObject(SeventhSupperReturning?
+                    "innCook":"seventh_reply");
+                return o==null?new Point(11.5f,17.5f):new Point(o.x,o.y);
+            }
+        }
+        public string SeventhSupperObjective
+        {get{return SeventhSupperReturning?
+            L("带回旧碗，向阿茴交接","RETURN THE BOWLS TO ARI"):
+            L("趁热将汤放进附楼的隐蔽交接处",
+              "CARRY HOT SUPPER TO THE ANNEX RELAY");}}
+        private void ResetSeventhSupper()
+        {seventhSupperPhase=0;seventhSupperHeat=0f;}
+
         public int SeventhBedEvidenceCount
         {get{return (SeventhBedStamp?1:0)+(SeventhBedBlanket?1:0)+
             (SeventhBedLetter?1:0)+(SeventhBedCook?1:0);}}
@@ -98,6 +130,18 @@ namespace Starfall
             }
             if(SeventhBedComplete)
             {
+                // The annex is a REAL distant drop point, never a clickable
+                // reward from the cook, an abstract quest menu or a teleport.
+                if(site.id=="seventh_reply"&&SeventhSupperActive&&
+                   !SeventhSupperReturning)
+                {
+                    Dialog(site.name,site.en,
+                        "墙缝的旧信下有一层干净的木架。信使会从这里取走热汤，不必公开任何人的落脚点。旁边已放好昨天洗净的碗。",
+                        "Below the old mortar letter is a clean relay shelf. A messenger can collect the hot soup here without exposing anyone's refuge. Yesterday's washed bowls wait beside it.",
+                        C("留下热汤，带回洗净的碗","Leave supper and carry clean bowls",
+                          "seventh_supper_drop"),
+                        C("暂不交接","Wait","close"));return true;
+                }
                 Dialog(site.name,site.en,
                     SeventhBedPublic?
                     "七个人的平安已经公示，但地址依旧没有写上去。":
@@ -189,6 +233,18 @@ namespace Starfall
                     conversation.textEn+=SeventhBedPublic?
                         "\n\nAri touches the empty bowl: 'I wrote that they were safe. Their address is not mine to give away.'":
                         "\n\nAri stirs the porridge: 'If they will not write their names, keep a bowl, not a list.'";
+                    // The real cook's original topics remain usable.
+                    if(!SeventhSupperDone)
+                    {
+                        if(SeventhSupperReturning)
+                            AddSeventhChoice("seventh_supper_finish",
+                                "交回洗净的碗，完成夜宵交接",
+                                "Return the clean bowls · finish supper run");
+                        else if(!SeventhSupperActive)
+                            AddSeventhChoice("seventh_supper_start",
+                                "帮阿茴把热汤送到附楼的隐蔽交接处",
+                                "Carry Ari's hot supper to the annex relay");
+                    }
                     return;
                 }
                 if(SeventhBedStarted&&!SeventhBedCook)
@@ -229,6 +285,54 @@ namespace Starfall
             WorldObject site=pendingDialogueSource;
             if(site==null||!SeventhBedSource(site)||
                mode!="world"||Dying||practicing)return true;
+            if(action=="seventh_supper_start"||
+               action=="seventh_supper_drop"||
+               action=="seventh_supper_finish")
+            {
+                if(!SeventhBedComplete||SeventhSupperDone||
+                   racing)return true;
+                if(action=="seventh_supper_start")
+                {
+                    if(site.id!="innCook"||site.kind!="cook"||
+                       seventhSupperPhase!=0||!SafeTravel||
+                       FieldWorkPreventsRest)return true;
+                    seventhSupperPhase=1;seventhSupperHeat=45f;
+                    revision++;sound="quest";
+                    Notify("阿茴把七碗热汤交给你。45秒内走到附楼墙缝的交接架；别让汤凉了。",
+                        "Ari gives you seven hot bowls. Reach the annex mortar shelf in 45 seconds before the soup cools.");
+                    return true;
+                }
+                if(action=="seventh_supper_drop")
+                {
+                    if(site.id!="seventh_reply"||site.kind!="seventhreply"||
+                       !SeventhSupperActive||seventhSupperPhase!=1||
+                       seventhSupperHeat<=0f)return true;
+                    seventhSupperPhase=2;seventhSupperHeat=0f;
+                    revision++;sound="quest";
+                    RecordMoment(
+                        "你沿着旅店真正的回廊，把热汤留在附楼无人看守的交接架上。没有问任何人的名字。昨天洗净的七只空碗在这里等着被带回厨房。",
+                        "You carried supper through the inn's real corridors to the unguarded annex shelf without asking anyone's name. Seven cleaned bowls waited to go back to Ari.");
+                    Notify("热汤已送达，带上洗净的七只碗返回阿茴的厨房。",
+                        "Hot supper delivered. Return seven clean bowls to Ari's kitchen.");
+                    return true;
+                }
+                if(site.id!="innCook"||site.kind!="cook"||
+                   !SeventhSupperReturning||save.coins>999979)
+                    return true;
+                Flag("seventh_supper_delivered");
+                ResetSeventhSupper();
+                CreditCoins(20);AddXp(30);
+                revision++;sound="reward";
+                RecordMoment(SeventhBedPublic?
+                    "阿茴数完七只洗净的碗，在黑板的‘七人平安’旁画了一只小汤碗。她没有写下收餐的地址，厨房和客房却添了持续的暖意。":
+                    "阿茴数完七只洗净的碗，没有在账册上添一个名字。她把交接架的路线记在心里，匿名旅人的炉火此后更旺。",
+                    SeventhBedPublic?
+                    "Ari counts seven washed bowls and draws a small soup bowl beside 'Seven safe.' No collection address is published; the guest room grows warmer.":
+                    "Ari counts seven washed bowls without adding a single name to the ledger. She remembers the relay route, and keeps the anonymous guests' stove warmer.");
+                Notify("夜宵交接完成：硬币20、经验30；已建立更可靠的旅店补给。",
+                    "Supper run complete: 20 coins, 30 XP; stronger safe inn relief.");
+                return true;
+            }
             if(action=="seventh_begin")
             {
                 if(site.id!="seventh_notice"||!SeventhBedUnlocked||
@@ -330,14 +434,27 @@ namespace Starfall
         }
         private void TickSeventhBed(float dt)
         {
+            if(SeventhSupperActive&&seventhSupperPhase==1&&
+               mode=="world"&&dt>0f)
+            {
+                seventhSupperHeat=Math.Max(0f,seventhSupperHeat-dt);
+                if(seventhSupperHeat<=0f)
+                {
+                    ResetSeventhSupper();revision++;sound="alert";
+                    Notify("热汤已经凉了，不能再交给夜间信使。回阿茴处取新的热汤重试。",
+                        "The supper went cold. Return to Ari for fresh bowls and retry.");
+                }
+            }
             if(!SeventhBedComplete||save.room!=9||Dying||
                !SafeTravel||FieldWorkPreventsRest)return;
             WorldObject site=SeventhBedObject(SeventhBedPublic?"innRest":"innCook");
             if(site==null||!PhysicalRefugeReach(new Point(site.x,site.y),1.8f))return;
             if(SeventhBedPublic)
-                save.health=Math.Min(save.maxHealth,save.health+1.8f*dt);
+                save.health=Math.Min(save.maxHealth,save.health+
+                    (SeventhSupperDone?2.5f:1.8f)*dt);
             else if(SeventhBedPrivate)
-                save.energy=Math.Min(100f,save.energy+3.5f*dt);
+                save.energy=Math.Min(100f,save.energy+
+                    (SeventhSupperDone?4.7f:3.5f)*dt);
         }
     }
 }
