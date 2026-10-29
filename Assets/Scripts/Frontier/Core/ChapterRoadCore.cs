@@ -373,11 +373,11 @@ namespace Starfall
                 finish=action=="chapterroad_finish";
             if(!start&&!fight&&!abort&&!care&&!witness&&!finish)return false;
             int room=save.room,slot=abort||start?0:fight?1:2;
-            WorldObject from=pendingDialogueSource;
+            WorldObject source=pendingDialogueSource;
             if(room<1||room>4||save.ending>0||Dying||practicing||
-               mode!="world"||from==null||from!=ChapterRoadNode(room,slot)||
+               mode!="world"||source==null||source!=ChapterRoadNode(room,slot)||
                pendingDialogueSourceRoom!=room||
-               !SourceBelongsToActiveMap(from)||!HasPhysicalInteractionReach(from)||
+               !SourceBelongsToActiveMap(source)||!HasPhysicalInteractionReach(source)||
                !CanStand(Position))return true;
             if(abort)
             {
@@ -400,7 +400,7 @@ namespace Starfall
                 }
                 chapterRoadRoom=room;chapterRoadStage=1;
                 chapterRoadMap=Map;chapterRoadSave=save;
-                chapterRoadOrigin=from;
+                chapterRoadOrigin=source;
                 chapterRoadTime=(room==2?165f:room==3?150f:0f);
                 revision++;sound="quest";
                 Notify("沿真实道路找到下一个现场，按 E 组织防守。",
