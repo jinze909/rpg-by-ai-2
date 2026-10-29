@@ -1,0 +1,217 @@
+using System;
+namespace Starfall
+{
+    // A real optional three-source walking delivery, not a map-click reward.
+    // Only signed completion uses existing SaveData v2 string flags.
+    public sealed partial class GameCore
+    {
+        private static readonly int[] dispatchMachine={0,1,0,2,1,1,1,1};
+        private static readonly string[] dispatchZh={
+            "","断枝曾为逃难的人留下回家的路；这次要亲自沿路送回工具和药品。",
+            "不要追着水面的假影走。沿旧索轮和石阶核对涨潮前的安全通道。",
+            "有人在矿工名单上画下了最后的撤离路线；药箱必须真正抵达原始标记。",
+            "城墙的军令已经过期。担架上的物资应该走居民的坡道，而不是哨兵关口。",
+            "雾里的漂流灯会骗人。把救援物资从真正的礁锚送到岸上路标。",
+            "沙丘里的高塔只是海市蜃楼。沿水尺和阴影送货，不要错过绿洲。",
+            "风暴会把钟声带向悬崖。带着物资穿过背风火盆再抵达真实钟路。"
+        };
+        private static readonly string[] dispatchEn={
+            "","Broken branches once marked a safe way home. Carry real supplies along that route.",
+            "Ignore the false reflections. Check the winch and stone steps before the tide rises.",
+            "A miner marked the last evacuation route. The medicine must reach the actual survey post.",
+            "Military orders have expired. Carry stretcher supplies by the civilian ramp, not the guard's gate.",
+            "The drifting harbor lights lie. Take relief past the true anchor and back to the real shore marker.",
+            "The tower is a mirage. Trust the water gauge and shadows to carry supplies over the dunes.",
+            "The storm carries bells toward the cliffs. Pass the sheltered embers and find the genuine bell road."
+        };
+        private int dispatchRoom=-1,dispatchStage,dispatchIntegrity;
+        private float dispatchSeconds;
+        private MapData dispatchMap;
+        private SaveData dispatchSave;
+        private WorldObject dispatchOrigin,dispatchCheckpoint,dispatchFinal;
+        public bool FieldDispatchActive
+        {get{return dispatchStage>0&&dispatchRoom>=1&&dispatchRoom<=7&&
+            save.room==dispatchRoom&&Object.ReferenceEquals(dispatchMap,Map)&&
+            Object.ReferenceEquals(dispatchSave,save)&&
+            dispatchOrigin!=null&&dispatchCheckpoint!=null&&dispatchFinal!=null&&
+            SourceBelongsToActiveMap(dispatchOrigin)&&
+            SourceBelongsToActiveMap(dispatchCheckpoint)&&
+            SourceBelongsToActiveMap(dispatchFinal);}}
+        public bool FieldDispatchDone(int room)
+        {return room>=1&&room<=7&&FieldOutpostBuilt(room)&&
+            Has("field_dispatch_done_"+room);}
+        public int FieldDispatchWins
+        {get{int n=0;for(int i=1;i<=7;i++)if(FieldDispatchDone(i))n++;return n;}}
+        public int FieldDispatchStage {get{return FieldDispatchActive?dispatchStage:0;}}
+        public int FieldDispatchIntegrity {get{return FieldDispatchActive?dispatchIntegrity:0;}}
+        public float FieldDispatchSeconds {get{return FieldDispatchActive?dispatchSeconds:0f;}}
+        public Point FieldDispatchTarget
+        {get{
+            WorldObject o=FieldDispatchActive?
+                (dispatchStage==1?dispatchCheckpoint:dispatchFinal):null;
+            return o==null?Position:new Point(o.x,o.y);
+        }}
+        public bool FieldDispatchIsTarget(WorldObject o)
+        {return FieldDispatchActive&&o!=null&&Object.ReferenceEquals(o,
+            dispatchStage==1?dispatchCheckpoint:dispatchFinal);}
+        private void ResetFieldDispatch()
+        {
+            dispatchRoom=-1;dispatchStage=dispatchIntegrity=0;
+            dispatchSeconds=0f;dispatchMap=null;dispatchSave=null;
+            dispatchOrigin=dispatchCheckpoint=dispatchFinal=null;
+        }
+        private void TickFieldDispatch(float dt)
+        {
+            if(dispatchStage==0)return;
+            if(!FieldDispatchActive||Dying){ResetFieldDispatch();return;}
+            dispatchSeconds=Math.Max(0,dispatchSeconds-dt);
+            if(dispatchSeconds<=0f)
+            {
+                ResetFieldDispatch();revision++;sound="alert";
+                Notify("限时补给接力失败，已消耗的物资没有得到签收。",
+                    "Courier timed out. Spent supplies cannot become a receipt.");
+            }
+        }
+        private void DamageFieldDispatchCargo(float damage)
+        {
+            if(!FieldDispatchActive||!Finite(damage)||damage<=0f)return;
+            dispatchIntegrity--;
+            if(dispatchIntegrity<=0)
+            {
+                ResetFieldDispatch();revision++;
+                Notify("货物受真实打击损坏，接力失败。","Real hits destroyed the cargo. Courier failed.");
+            }
+            else
+            {
+                revision++;
+                Notify("货物受损，剩余完整度"+dispatchIntegrity+"。",
+                    "Cargo damaged. Integrity "+dispatchIntegrity+" remains.");
+            }
+        }
+        private WorldObject DispatchFind(string id,string kind)
+        {
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&o.id==id&&o.kind==kind)return o;
+            return null;
+        }
+        private bool TalkFieldDispatch(WorldObject o)
+        {
+            if(!FieldDispatchActive||o==null||
+                !SourceBelongsToActiveMap(o)||
+                !HasPhysicalInteractionReach(o)||!CanStand(Position))return false;
+            if(dispatchStage==1&&Object.ReferenceEquals(o,dispatchCheckpoint))
+            {
+                Dialog(o.name,o.en,dispatchZh[save.room]+
+                    "\n\n在这处真实工程装置登记物资，再步行去原探路石。剩余"+
+                    (int)dispatchSeconds+"秒，货物完整度"+dispatchIntegrity+"。",
+                    dispatchEn[save.room]+
+                    "\n\nRegister cargo at this actual machine, then walk to the original survey post. "+
+                    (int)dispatchSeconds+"s left; integrity "+dispatchIntegrity+".",
+                    C("登记真实中继站","Record this physical waypoint","field_dispatch_checkpoint"),
+                    C("稍后再来","Not yet","close"));
+                return true;
+            }
+            if(dispatchStage==2&&Object.ReferenceEquals(o,dispatchFinal))
+            {
+                Dialog(o.name,o.en,dispatchZh[save.room]+
+                    "\n\n物资抵达真实的起始调查地标。登记后该地区前线设施将永久改善。",
+                    dispatchEn[save.room]+
+                    "\n\nThe supplies reached the original survey post. Signing this genuine delivery permanently strengthens the regional outpost.",
+                    C("现场交货并签收","Deliver and sign actual cargo","field_dispatch_finish"),
+                    C("再检查一遍","Check the area first","close"));
+                return true;
+            }
+            return false;
+        }
+        private bool ChooseFieldDispatch(string action)
+        {
+            if(action!="field_dispatch_start"&&action!="field_dispatch_abort"&&
+               action!="field_dispatch_checkpoint"&&action!="field_dispatch_finish")
+                return false;
+            int room=save.room;
+            WorldObject source=pendingDialogueSource;
+            if(room<1||room>7||mode!="world"||Dying||practicing||racing||
+               source==null||pendingDialogueSourceRoom!=room||
+               !SourceBelongsToActiveMap(source)||
+               !HasPhysicalInteractionReach(source)||!CanStand(Position))return true;
+            if(action=="field_dispatch_start")
+            {
+                if(source.kind!="fieldKit"||source.id!="fieldKit"+room||
+                   !FieldOutpostBuilt(room)||FieldDispatchDone(room)||
+                   FieldWorkPreventsRest||!SafeTravel||
+                   BlockTravelForProtectedFieldMission(true))return true;
+                WorldObject middle=DispatchFind(
+                    "regional_machine_"+room+"_"+dispatchMachine[room],"regionalMachine");
+                WorldObject end=DispatchFind("biomeSurvey"+room,"biomeSurvey");
+                if(middle==null||end==null||
+                   !CanStand(new Point(middle.x,middle.y))||
+                   !CanStand(new Point(end.x,end.y))||
+                   NavigationPathFrom(Position,new Point(middle.x,middle.y),true).Count==0||
+                   NavigationPathFrom(new Point(middle.x,middle.y),
+                       new Point(end.x,end.y),true).Count==0)
+                {
+                    Notify("工程装置间的真实道路不通，不能发货，也不收费。",
+                        "The physical courier route is disconnected. No cargo charged.");
+                    return true;
+                }
+                bool ward=FieldOutpostWard(room);
+                int item=ward?2:4;
+                if(save.inventory[item]<1||save.energy<12f)
+                {
+                    Notify(ward?"需要月光草1份和12点耐力。":"需要机械零件1份和12点耐力。",
+                        ward?"Courier costs 1 Moonherb and 12 stamina.":
+                             "Courier costs 1 spare part and 12 stamina.");
+                    return true;
+                }
+                save.inventory[item]--;save.energy-=12f;
+                dispatchRoom=room;dispatchMap=Map;dispatchSave=save;
+                dispatchOrigin=source;dispatchCheckpoint=middle;
+                dispatchFinal=end;dispatchStage=1;dispatchIntegrity=3;
+                dispatchSeconds=room==2||room==5?300f:260f;
+                revision++;sound="quest";
+                Notify("补给接力开始。先沿真实道路抵达"+middle.name+
+                    "，再走到最初调查石；受伤会损坏货物，不能使用捷径。",
+                    "Courier started. Walk to "+middle.en+
+                    ", then to the original survey post. Real hits damage cargo.");
+                return true;
+            }
+            if(action=="field_dispatch_abort")
+            {
+                if(!FieldDispatchActive||
+                   !Object.ReferenceEquals(source,dispatchOrigin))return true;
+                ResetFieldDispatch();revision++;
+                Notify("运送已撤回，原料不会凭空退回或变成结算奖励。",
+                    "Courier withdrawn. Spent materials grant no receipt.");
+                return true;
+            }
+            if(!FieldDispatchActive||dispatchSeconds<=0f)return true;
+            if(action=="field_dispatch_checkpoint")
+            {
+                if(dispatchStage!=1||
+                    !Object.ReferenceEquals(source,dispatchCheckpoint))return true;
+                dispatchStage=2;revision++;sound="quest";
+                Notify("第一站已记录。必须步行前往本区原始调查地标交货。",
+                    "First checkpoint signed. Walk to the authentic original survey marker.");
+                return true;
+            }
+            if(dispatchStage!=2||!Object.ReferenceEquals(source,dispatchFinal)||
+               FieldDispatchDone(room))return true;
+            bool perfect=dispatchIntegrity==3;
+            ResetFieldDispatch();
+            Flag("field_dispatch_done_"+room);
+            if(perfect)Flag("field_dispatch_intact_"+room);
+            CreditCoins(20+room*3);CreditShards(perfect?2:1);
+            AddXp(65+room*8);
+            RecordMoment(dispatchZh[room]+
+                " 货物经真实工程装置抵达旧探路石，公开道路终于有了可核实的交接记录。",
+                dispatchEn[room]+
+                " Supplies traveled through the physical mechanism and original survey post. The public route has its first signed handoff.");
+            revision++;sound="reward";
+            Notify("民间接力完成！本区医疗或工坊补给永久改善，返程路费下降。"+
+                (perfect?"货物完好，额外获得1碎片。":""),
+                "Courier completed! Local supplies and return fare improve permanently."+
+                (perfect?" Intact cargo earns an extra shard.":""));
+            return true;
+        }
+    }
+}

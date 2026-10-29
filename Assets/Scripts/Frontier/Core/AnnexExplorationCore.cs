@@ -157,27 +157,64 @@ namespace Starfall
                             "Build snare workshop · 1 timber / 1 part","field_outpost_forge"):
                           C("查看战况","Review the live skirmish","close"),
                         C("撤回防守","Withdraw this outpost","field_outpost_abort"));
+                else if(FieldDispatchActive)
+                    Dialog(o.name,o.en,
+                        "本站民间补给运输正在进行。要先在真实工程装置记录，最后步行抵达旧调查石。"+
+                        "\n\n剩余"+(int)FieldDispatchSeconds+"秒，货物完整度"+FieldDispatchIntegrity+"。",
+                        "The civilian cargo is in transit. Walk to the engineering checkpoint, then deliver at the original survey post. "+
+                        (int)FieldDispatchSeconds+" seconds left; integrity "+FieldDispatchIntegrity+".",
+                        C("继续沿路运输","Keep carrying cargo","close"),
+                        C("放弃运输，不退回已花材料","Withdraw cargo without refund","field_dispatch_abort"));
                 else if(FieldOutpostWard(room))
                     Dialog(o.name,o.en,"居民已把旧工具箱改建成前线救护站。"+
-                        "\n\n消耗1份月光草，恢复生命55、耐力40，并降低冷热危险各25。",
-                        "The salvaged kit is now a public aid station. "+
-                        "Spend 1 Moonherb for 55 HP, 40 stamina and 25 climate relief.",
+                        "\n\n月光草1份可恢复生命"+
+                        (FieldDispatchDone(room)?70:55)+"、耐力"+
+                        (FieldDispatchDone(room)?50:40)+"，同时缓解冷热各25。",
+                        "The salvaged kit is a public aid station. 1 Moonherb heals "+
+                        (FieldDispatchDone(room)?70:55)+" HP, restores "+
+                        (FieldDispatchDone(room)?50:40)+
+                        " stamina and reduces both climate exposures by 25.",
                         C("使用急救站 · 月光草1","Use aid · 1 Moonherb",
                           "field_outpost_rest"),
-                        C("沿安全道路返回本区入口 · 4硬币/8耐力",
-                          "Return by cleared road · 4 coins / 8 stamina",
+                        C("沿真实道路返程 · "+
+                          (FieldDispatchDone(room)?2:4)+"硬币/"+
+                          (FieldDispatchDone(room)?6:8)+"耐力",
+                          "Return by real road · "+
+                          (FieldDispatchDone(room)?2:4)+" coins / "+
+                          (FieldDispatchDone(room)?6:8)+" stamina",
                           "field_outpost_return"),
+                        FieldDispatchDone(room)?
+                            C("真实民间补给已签收 · 设施已升级",
+                              "Civilian courier signed · facility upgraded","close"):
+                            C("发起限时药品运输 · 药草1、耐力12",
+                              "Dispatch medicine · 1 herb, 12 stamina",
+                              "field_dispatch_start"),
                         C("继续探索","Continue exploring","close"));
                 else if(FieldOutpostForge(room))
-                    Dialog(o.name,o.en,"这里的旧铁环已经变成旅人的绊索材料工坊。"+
-                        "\n\n花费12硬币补给木材和机械零件各1份。",
-                        "The salvage is now a working snare-supply bench. "+
-                        "Pay 12 coins for 1 timber and 1 mechanical part.",
-                        C("补给材料 · 12硬币",
-                          "Restock trap materials · 12 coins","field_outpost_stock"),
-                        C("沿安全道路返回本区入口 · 4硬币/8耐力",
-                          "Return by cleared road · 4 coins / 8 stamina",
+                    Dialog(o.name,o.en,"旧铁环已经成为沿路的绊索材料工坊。"+
+                        "\n\n补给木材和机械零件各一份需要"+
+                        (FieldDispatchDone(room)?8:12)+"枚硬币。",
+                        "The salvage is a working snare-supply bench. "+
+                        (FieldDispatchDone(room)?8:12)+
+                        " coins buy 1 timber and 1 mechanical part.",
+                        C("补给材料 · "+
+                          (FieldDispatchDone(room)?8:12)+"硬币",
+                          "Restock materials · "+
+                          (FieldDispatchDone(room)?8:12)+" coins",
+                          "field_outpost_stock"),
+                        C("沿真实道路返程 · "+
+                          (FieldDispatchDone(room)?2:4)+"硬币/"+
+                          (FieldDispatchDone(room)?6:8)+"耐力",
+                          "Return by real road · "+
+                          (FieldDispatchDone(room)?2:4)+" coins / "+
+                          (FieldDispatchDone(room)?6:8)+" stamina",
                           "field_outpost_return"),
+                        FieldDispatchDone(room)?
+                            C("真实民间补给已签收 · 设施已升级",
+                              "Civilian courier signed · facility upgraded","close"):
+                            C("发起限时零件运输 · 零件1、耐力12",
+                              "Dispatch parts · 1 part, 12 stamina",
+                              "field_dispatch_start"),
                         C("继续探索","Continue exploring","close"));
                 else
                     Dialog(o.name,o.en,fieldKitStoryZh[room]+

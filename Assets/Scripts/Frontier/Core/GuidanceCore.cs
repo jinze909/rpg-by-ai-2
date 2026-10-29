@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1037,6 +1037,56 @@ namespace Starfall
 
 
 
+            if(id=="field_dispatches")
+            {
+                q.title=L("七地民间补给 · 真实中继路",
+                    "Seven Civilian Couriers · Real Relay Roads");
+                q.category=L("步行接力 · 实物运输与长期福利",
+                    "PHYSICAL COURIER · LASTING PUBLIC BENEFITS");
+                q.description=L("先在实地工具箱建设一个前线据点，再付出实际药草或零件及耐力发运。先亲自抵达该地区指定的工程装置登记，后步行到最初调查标记交货。受真实攻击会损坏货物，超时、撤回和快速移动都不能领取奖励。成功后永久增强本站的医疗或工坊补给，并降低返程费用。",
+                    "Build a real field outpost, spend an actual herb or spare part plus stamina, then walk first to its designated engineering device and finally to the original regional survey post. Real damage harms cargo; timeout, withdrawal and shortcuts cannot claim rewards. Signed routes permanently improve field aid or supply prices and discount the return road.");
+                q.reward=L("每地硬币、经验、碎片；完好运输额外碎片，医疗站/工坊与返程费用永久改善",
+                    "Regional coins, XP and shards; extra shard for undamaged cargo; permanent cheaper aid/stock and return");
+                q.locked=false;
+                int selected=-1;
+                for(int region=1;region<=7;region++)
+                {
+                    bool done=FieldDispatchDone(region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?" · 真实运送已签收":
+                            FieldOutpostBuilt(region)?" · 可组织补给接力":" · 先建立真实据点",
+                          done?" · VERIFIED DELIVERY":
+                            FieldOutpostBuilt(region)?" · COURIER AVAILABLE":" · BUILD OUTPOST FIRST"),
+                        done));
+                    if(!done&&CanEnter(region)&&
+                        (selected<0||region==save.room))selected=region;
+                }
+                q.complete=FieldDispatchWins==7;
+                if(FieldDispatchActive)selected=save.room;
+                q.room=selected>=0?selected:save.room;
+                q.target=FieldDispatchActive?FieldDispatchTarget:
+                    selected>=0?
+                        ObjectPoint(selected,"fieldKit",
+                            new Point(data.maps[selected].spawnX,
+                                      data.maps[selected].spawnY)):
+                        Position;
+                q.next=FieldDispatchActive?
+                    L((FieldDispatchStage==1?"第一站：去工程装置登记真实物资。":
+                                               "第二站：步行去原调查地标交货。")+
+                      "剩余"+(int)FieldDispatchSeconds+"秒，货物完整度"+
+                      FieldDispatchIntegrity+"。",
+                      (FieldDispatchStage==1?"Visit the real engineering checkpoint. ":
+                                               "Deliver at the original survey post. ")+
+                      (int)FieldDispatchSeconds+"s left, integrity "+
+                      FieldDispatchIntegrity+"."):
+                    q.complete?
+                        L("七地民间接力全部签收，所有据点的补给与返程已改善。",
+                          "All seven physically delivered civilian routes are signed. Every field facility now offers better supplies and return travel."):
+                        L("前往已建设的真实工具据点领取运输合同；按顺序走到工程装置和原调查石。",
+                          "Go to a built real field kit and start a cargo journey through the authentic machine and survey post.");
+                return q;
+            }
             if(id=="field_outposts")
             {
                 q.title=L("七地前线据点 · 居民的安全道路",

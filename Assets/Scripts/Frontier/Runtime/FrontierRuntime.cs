@@ -1144,7 +1144,15 @@ namespace Starfall
                     tint=gold;
                     Ring(new Point(o.x,o.y),.88f,gold,28);
                 }
+                bool courierTarget=Game.FieldDispatchIsTarget(o);
+                if(courierTarget)
+                    Ring(new Point(o.x,o.y),.93f,gold,28);
                 Text(p.x-110,p.y-108,220,18,
+                    courierTarget?
+                        Game.L("补给中继站 · 剩余"+
+                            (int)Game.FieldDispatchSeconds+"秒",
+                            "CARGO CHECKPOINT · "+
+                            (int)Game.FieldDispatchSeconds+"S"):
                     vigilTarget?
                         Game.L(Game.RegionalVigilStage==3?"归还工程回执":
                             "紧急巡护目标 · "+(int)Game.RegionalVigilSeconds+"秒",
@@ -1199,6 +1207,16 @@ namespace Starfall
                     Ring(new Point(o.x,o.y),.92f,gold,28);
                 else if(ward||forge)
                     Diamond(p.x,p.y-92,7,ink);
+                if(Game.FieldDispatchActive)
+                    Text(p.x-112,p.y-139,224,18,
+                        Game.L("民间补给 · 正在运送",
+                            "CIVILIAN CARGO · IN TRANSIT"),
+                        10,gold,TextAnchor.MiddleCenter);
+                else if(Game.FieldDispatchDone(room))
+                    Text(p.x-112,p.y-139,224,18,
+                        Game.L("真实运送已签收 · 补给升级",
+                            "VERIFIED COURIER · STOCK UPGRADED"),
+                        10,mint,TextAnchor.MiddleCenter);
                 return;
             }
             if(kind=="biomeSurvey"||kind=="biomeAnswer")
@@ -1289,6 +1307,15 @@ namespace Starfall
                         second?Game.L("远方实地判断","FIELD INTERPRETATION"):
                             Game.L("探查本区线索","READ REGIONAL CLUE"),
                         10,ink,TextAnchor.MiddleCenter);
+                }
+                if(Game.FieldDispatchIsTarget(o))
+                {
+                    Ring(new Point(o.x,o.y),.94f,gold,28);
+                    Text(p.x-115,p.y-155,230,18,
+                        Game.L("民间补给终点 · 剩余"+
+                            (int)Game.FieldDispatchSeconds+"秒",
+                            "CARGO DELIVERY · "+(int)Game.FieldDispatchSeconds+"S"),
+                        10,gold,TextAnchor.MiddleCenter);
                 }
                 return;
             }

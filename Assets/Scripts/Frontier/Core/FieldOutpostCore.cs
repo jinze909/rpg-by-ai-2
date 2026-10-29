@@ -211,11 +211,12 @@ namespace Starfall
                 BlockTravelForProtectedFieldMission(true))return true;
             if(action=="field_outpost_return")
             {
-                const int fare=4,energy=8;
+                int fare=FieldDispatchDone(room)?2:4;
+                int energy=FieldDispatchDone(room)?6:8;
                 if(save.coins<fare||save.energy<energy)
                 {
-                    Notify("返程接驳需要4枚硬币和8点耐力。",
-                        "Road courier requires 4 coins and 8 stamina.");
+                    Notify("返程接驳需要"+fare+"枚硬币和"+energy+"点耐力。",
+                        "Road courier requires "+fare+" coins and "+energy+" stamina.");
                     return true;
                 }
                 // This is a physical route, not an unrestricted teleport.
@@ -262,8 +263,9 @@ namespace Starfall
                 }
                 save.coins-=fare;save.energy-=energy;
                 revision++;sound="travel";
-                Notify("沿已守住的居民道路返回本区入口：硬币-4，耐力-8。",
-                    "Returned to the regional entrance by a verified road. -4 coins, -8 stamina.");
+                Notify("沿真实居民道路返回本区入口：硬币-"+fare+"，耐力-"+energy+"。",
+                    "Returned to the regional entrance by a verified road. -"+
+                    fare+" coins, -"+energy+" stamina.");
                 return true;
             }
             if(action=="field_outpost_rest"&&FieldOutpostWard(room))
@@ -277,23 +279,30 @@ namespace Starfall
                     return true;
                 }
                 save.inventory[2]--;
-                save.health=Math.Min(save.maxHealth,save.health+55f);
-                save.energy=Math.Min(100f,save.energy+40f);
+                save.health=Math.Min(save.maxHealth,save.health+
+                    (FieldDispatchDone(room)?70f:55f));
+                save.energy=Math.Min(100f,save.energy+
+                    (FieldDispatchDone(room)?50f:40f));
                 save.heat=Math.Max(0f,save.heat-25f);
                 save.cold=Math.Max(0f,save.cold-25f);
                 revision++;sound="heal";
-                Notify("前线急救：药草-1，生命+55，耐力+40，冷热危险减轻。",
-                    "Field aid: -1 herb, +55 HP, +40 stamina and reduced exposure.");
+                Notify("前线急救：药草-1，生命+"+
+                    (FieldDispatchDone(room)?70:55)+"，耐力+"+
+                    (FieldDispatchDone(room)?50:40)+"，冷热危险减轻。",
+                    "Field aid: -1 herb, +"+(FieldDispatchDone(room)?70:55)+
+                    " HP, +"+(FieldDispatchDone(room)?50:40)+
+                    " stamina and reduced exposure.");
                 return true;
             }
             if(action=="field_outpost_stock"&&FieldOutpostForge(room))
             {
-                if(save.coins<12)return true;
+                int price=FieldDispatchDone(room)?8:12;
+                if(save.coins<price)return true;
                 if(!HasInventoryRoom(0,1)||!HasInventoryRoom(4,1))return true;
-                save.coins-=12;save.inventory[0]++;save.inventory[4]++;
+                save.coins-=price;save.inventory[0]++;save.inventory[4]++;
                 revision++;sound="reward";
-                Notify("绊索工坊：硬币-12，木材+1，机械零件+1。",
-                    "Trap stock: -12 coins, +1 timber and +1 spare part.");
+                Notify("绊索工坊：硬币-"+price+"，木材+1，机械零件+1。",
+                    "Trap stock: -"+price+" coins, +1 timber and +1 spare part.");
             }
             return true;
         }

@@ -404,7 +404,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetGhostTrain();ResetRidgeEcho();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -682,6 +682,12 @@ namespace Starfall
             {
                 Notify("前线据点仍在防守。请回原工具箱完成或撤回，再离开地区。",
                     "Defend or explicitly withdraw the live outpost at its real kit before travel.");
+                return true;
+            }
+            if(FieldDispatchActive)
+            {
+                Notify("民间补给正在实际步行运输。请抵达原调查点，或回据点撤回。",
+                    "Civilian cargo is on a real foot route. Deliver at the old post or withdraw at the kit.");
                 return true;
             }
             if(RidgeEchoRunActive)
@@ -1142,6 +1148,7 @@ namespace Starfall
             TickRegionalVigil(dt);
             TickFieldPatrol();
             TickFieldOutpost();
+            TickFieldDispatch(dt);
             TickGhostTrain(dt);
             TickRidgeEcho(dt);
             TickRegionalMachineShelters(dt);
@@ -1897,6 +1904,7 @@ namespace Starfall
             save.health -= actualDamage;
             DamageSignalRelayCargo(actualDamage,source);
             DamageBiomeCrisisCargo(actualDamage);
+            DamageFieldDispatchCargo(actualDamage);
             DamageRegionalVigilCargo(actualDamage);
             DamageFarCourierCargo(actualDamage,source);
             DamageOuterDeliveryDressings(actualDamage,source);
@@ -4147,6 +4155,7 @@ namespace Starfall
             if (TalkGhostTrain(o)) return;
             if (TalkRidgeBreach(o)) return;
             if (TalkRidgeEcho(o)) return;
+            if (TalkFieldDispatch(o)) return;
             if (TalkRegionalMachine(o)) return;
             if (TalkFieldKit(o)) return;
             if (TalkBiomeField(o)) return;
@@ -4678,7 +4687,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return FieldDispatchActive || FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4917,6 +4926,7 @@ namespace Starfall
             if (ChooseRidgeBreach(action)) return;
             if (ChooseRidgeEcho(action)) return;
             if (ChooseRegionalVigil(action)) return;
+            if (ChooseFieldDispatch(action)) return;
             if (ChooseRegionalMachine(action)) return;
             if (ChooseFieldKit(action)) return;
             if (ChooseBiomeField(action)) return;
