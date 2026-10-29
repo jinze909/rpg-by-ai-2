@@ -716,6 +716,8 @@ namespace Starfall
                     "\n\n公共避险棚已经建好。消耗木材1休息：生命 +35、耐力全满、寒冷 -25。")+
                 (FarCourierPristine(room)?
                     "\n\n【完好医药补给】本地添柴休息额外恢复生命 +10。":"")+
+                (FarCourierHumane(room)?
+                    "\n\n【非致命护送】两名劫匪被真实活捉，本地添柴休息额外恢复生命 +10。":"")+
                 (CivicSupplyClinic(room)?
                     "\n\n【居民医疗点】安全时持续疗伤；添柴额外恢复生命 +15。":
                  CivicSupplyWatch(room)?
@@ -731,6 +733,8 @@ namespace Starfall
                     "\n\nShared refuge: 1 timber restores +35 HP, full stamina, -25 cold.")+
                 (FarCourierPristine(room)?
                     "\n\n[Intact medicines] Timber-fueled rest here restores 10 extra HP.":"")+
+                (FarCourierHumane(room)?
+                    "\n\n[Both taken alive] Genuine raider restraint adds 10 more HP per timber rest here.":"")+
                 (CivicSupplyClinic(room)?
                     "\n\n[Resident clinic] Heal when safe; paid rest adds 15 HP.":
                  CivicSupplyWatch(room)?
@@ -928,7 +932,8 @@ namespace Starfall
             }
             if(!FarShelterBuilt(room)||!Spend(1,0,0,0,0))return true;
             int healed=(Has("far_courier_charter")?55:35)+
-                (CivicSupplyClinic(room)?15:0)+(FarCourierPristine(room)?10:0);
+                (CivicSupplyClinic(room)?15:0)+(FarCourierPristine(room)?10:0)+
+                (FarCourierHumane(room)?10:0);
             save.health=Clamp(save.health+healed,0,save.maxHealth);
             save.energy=100;
             save.cold=Math.Max(0,save.cold-(Has("far_courier_charter")?40:25));
