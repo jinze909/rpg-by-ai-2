@@ -115,6 +115,7 @@ namespace Starfall
             var wave=new float[(int)(Rate*length)];
             var random=new Random(173017);
             double whistlePhase=0,steelPhase=0,steamNoise=0;
+            double[] railContacts={.06,.32,.63};
             for(int i=0;i<wave.Length;i++)
             {
                 double seconds=i/(double)Rate;
@@ -132,7 +133,7 @@ namespace Starfall
                 double whistle=(Math.Sin(whistlePhase)*.20+
                     Math.Sin(whistlePhase*2)*.065)*hornEnvelope;
                 double click=0;
-                foreach(double onset in new double[]{.06,.32,.63})
+                foreach(double onset in railContacts)
                     if(seconds>=onset)
                         click+=Math.Exp(-(seconds-onset)*95)*
                             (steamNoise*.24+

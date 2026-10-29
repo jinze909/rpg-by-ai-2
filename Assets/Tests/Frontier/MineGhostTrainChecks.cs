@@ -279,7 +279,7 @@ namespace Starfall.Tests
                     WorldObject source=GhostSite(g,name);
                     GhostWalk(g,source);
                     Check(g.conversation.speaker==source.name&&
-                        g.conversation.speakerEn==source.en,
+                        g.conversation.en==source.en,
                         "Aftermath must retain the correct original on-site speaker");
                     Check(texts.Add(g.conversation.text)&&
                         english.Add(g.conversation.textEn)&&
