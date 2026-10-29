@@ -6874,6 +6874,144 @@ namespace Starfall.Tests
                         "Two biomes must not reuse the same three patrol places");
         }
 
+        // Twenty-one authored civilian signals: verify real source-bound
+        // gameplay, not merely a fresh JSON object counter or free flags.
+        public static void SevenBiomeFieldRelaysRequireCorrectEvidenceTimedRealTravelAndPhysicalSupplies(Campaign data)
+        {
+            var privateChoose=typeof(GameCore).GetMethod("ChooseRidgeEcho",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            var timeField=typeof(GameCore).GetField("echoRunClock",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(privateChoose!=null&&timeField!=null,
+                "All civilian relays use a real authoritative field-choice and countdown");
+            string[] signatures=new string[7];
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=new GameCore(data);
+                g.mode="world";g.save.room=room;g.enemies.Clear();
+                g.save.x=data.maps[room].spawnX;
+                g.save.y=data.maps[room].spawnY;
+                g.save.energy=100;
+                for(int item=0;item<5;item++)g.save.inventory[item]=25;
+                g.save.flags.Add("biome_field_done_"+room);
+                WorldObject[] sites=new WorldObject[3];
+                for(int i=0;i<3;i++)
+                {
+                    string id="ridge_echo_"+room+"_"+i;
+                    sites[i]=Array.Find(data.maps[room].objects,o=>
+                        o.id==id&&o.kind=="ridgeEcho");
+                    Check(sites[i]!=null&&g.CanStand(new Point(sites[i].x,sites[i].y))&&
+                        sites[i].name.Length>8&&sites[i].en.Length>14,
+                        "Every biome supplies three unique bilingual playable and standable sites: "+id);
+                    var route=g.NavigationPathFrom(
+                        new Point(data.maps[room].spawnX,data.maps[room].spawnY),
+                        new Point(sites[i].x,sites[i].y),true);
+                    Check(route.Count>0,
+                        "Original map roads physically connect the entrance to each civilian field station: "+id);
+                    foreach(WorldObject existing in data.maps[room].objects)
+                        if(existing!=sites[i]&&existing.kind!="ridgeEcho")
+                            Check((new Point(existing.x,existing.y)-
+                                new Point(sites[i].x,sites[i].y)).Length>=8,
+                                "Regional signal cannot cover a legacy NPC or active story interaction");
+                    for(int j=0;j<i;j++)
+                        Check((new Point(sites[i].x,sites[i].y)-
+                            new Point(sites[j].x,sites[j].y)).Length>=25,
+                            "Three genuine signal sites must make distinct real trips, not three adjacent menus");
+                }
+                signatures[room-1]=sites[0].x+","+sites[0].y+";"+
+                    sites[1].x+","+sites[1].y+";"+sites[2].x+","+sites[2].y;
+                // Direct actions with no physical dialogue source do nothing.
+                int coins=g.save.coins,shards=g.save.shards;
+                privateChoose.Invoke(g,new object[]{"ridge_echo_finish"});
+                Check(!g.RidgeEchoComplete(room)&&g.save.coins==coins&&
+                    g.save.shards==shards,"Forged remote finish grants neither progress nor payment");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;g.Talk(sites[2]);
+                Check(g.conversation!=null&&!Array.Exists(g.conversation.choices,
+                    c=>c.action=="ridge_echo_finish"),
+                    "Reaching final shelter before real courier dispatch cannot buy the reward");
+                g.Close();
+                g.save.x=sites[0].x;g.save.y=sites[0].y;g.Talk(sites[0]);
+                int wrong=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_echo_false");
+                Check(wrong>=0&&
+                    g.conversation.textEn.Length>50,
+                    "A biome-specific discoverable clue exists before selecting from two genuine answers");
+                float stamina=g.save.energy;g.Choose(wrong);
+                Check(!g.RidgeEchoSurveyed(room)&&
+                    Math.Abs(g.save.energy-(stamina-6f))<.01f,
+                    "Reading the wrong evidence loses stamina, never creates a forged survey flag");
+                g.save.x=sites[0].x;g.save.y=sites[0].y;g.Talk(sites[0]);
+                int correct=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_echo_true");
+                Check(correct>=0,"Original civilian testimony is an actual selectable decision");
+                g.Choose(correct);
+                Check(g.RidgeEchoSurveyed(room)&&!g.RidgeEchoComplete(room)&&
+                    (g.RidgeEchoObjective(room)-new Point(sites[1].x,sites[1].y)).Length<.01f,
+                    "Survey unlocks the NEXT genuinely distant site without gifting a completed route");
+                g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_echo_launch");
+                Check(start>=0&&g.conversation.textEn.Contains("seconds"),
+                    "Intermediate real field terminal offers an explained timed mission");
+                g.Choose(start);
+                Check(g.RidgeEchoRunActive&&g.RidgeEchoSeconds>=90&&
+                    (g.RidgeEchoObjective(room)-new Point(sites[2].x,sites[2].y)).Length<.01f,
+                    "Accepted dispatch starts a genuine transient world-clock run to the third real terminal");
+                // Timeout is real world simulation, not an action command;
+                // accelerate ONLY the transient timer to exercise expiry.
+                timeField.SetValue(g,.02f);
+                g.mode="world";g.Tick(.05f,new Point());
+                Check(!g.RidgeEchoRunActive&&g.RidgeEchoSurveyed(room)&&
+                    !g.RidgeEchoComplete(room)&&
+                    (g.RidgeEchoObjective(room)-new Point(sites[1].x,sites[1].y)).Length<.01f,
+                    "Missing the route window preserves evidence but revokes the live delivery");
+                g.save.energy=100;
+                g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);
+                start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_echo_launch");g.Choose(start);
+                int beforeCoins=g.save.coins,beforeShards=g.save.shards;
+                g.save.x=sites[2].x;g.save.y=sites[2].y;g.Talk(sites[2]);
+                int finish=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="ridge_echo_finish");
+                Check(finish>=0,"Authentic timed delivery can be handed over at real final shelter");
+                g.Choose(finish);
+                Check(g.RidgeEchoComplete(room)&&!g.RidgeEchoRunActive&&
+                    g.save.coins==beforeCoins+30+room*3&&
+                    g.save.shards==beforeShards+1,
+                    "A paid real overland courier completion unlocks its durable one-time site and reward");
+                g.save.x=sites[2].x;g.save.y=sites[2].y;g.Talk(sites[2]);
+                Check(!Array.Exists(g.conversation.choices,
+                    c=>c.action=="ridge_echo_finish"),
+                    "Visited completed terminals never duplicate their last payment");
+                g.Close();g.enemies.Clear();
+                g.save.health=30f;g.save.energy=30f;
+                g.Tick(.05f,new Point());
+                Check(g.save.health>30.05f&&g.save.energy>30.11f,
+                    "Remote civilian refuge restores actual simulation health and stamina at the physical campsite");
+                // SaveData v2 unchanged: the durable flags survive load
+                // even though the transient courier clock never does.
+                g.save.room=0;g.save.x=data.maps[0].spawnX;g.save.y=data.maps[0].spawnY;
+                g.PrepareSave();
+                GameCore loaded=new GameCore(data,g.save);
+                Check(loaded.save.version==2&&loaded.RidgeEchoComplete(room)&&
+                    !loaded.RidgeEchoRunActive,
+                    "Old SaveData version preserves completed civilian refuge with no transient clock");
+            }
+            for(int i=0;i<signatures.Length;i++)
+                for(int j=i+1;j<signatures.Length;j++)
+                    Check(signatures[i]!=signatures[j],
+                        "All seven biomes must have separately authored three-leg expeditions");
+            GameCore all=new GameCore(data);all.mode="world";
+            for(int room=1;room<=7;room++)
+                all.save.flags.Add("ridge_echo_"+room+"_done");
+            Check(all.RidgeEchoCompleteCount==7&&
+                all.GetQuest("ridge_echo").complete&&
+                all.GetQuest("ridge_echo").steps.Count==7,
+                "All seven persistent regions drive a genuine finished selectable journal quest");
+        }
+
         public static void EightRidgeRoutesNeedBothPhysicalLandmarksAndSafeTravel(Campaign data)
         {
             for(int room=0;room<8;room++)
