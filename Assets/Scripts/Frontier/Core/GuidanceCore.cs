@@ -3139,7 +3139,7 @@ namespace Starfall
                     "After the public hearing, public roads must be charted from paths residents actually use. Survey three eastern branches and bring the field evidence to Lyra for a lasting civic choice.");
                 q.locked = !RoadCharterReady;
                 q.complete = RoadCharterComplete;
-                q.steps.Add(new QuestStep(L("与莉雅开启道路实地测绘", "Begin Lyra's road survey"), RoadCharterStarted));
+                q.steps.Add(new QuestStep(L("听证会已举行，东部路碑可以直接核查", "Hearing held; eastern markers ready for direct inspection"), RoadCharterReady));
                 for (int region = 1; region <= 3; region++)
                     q.steps.Add(new QuestStep(L(new[] { "", "核对密林东部路标", "核对沉没遗迹东部路标", "核对矿场东部路标" }[region],
                         new[] { "", "Verify Thornwood's eastern route", "Verify the Ruins' eastern route", "Verify Ironreach's eastern route" }[region]),
@@ -3147,9 +3147,13 @@ namespace Starfall
                 q.steps.Add(new QuestStep(L("公会公布真实道路公约", "Enact the guild's public road charter"),
                     RoadCharterComplete));
                 int nextRegion = -1;
-                if (RoadCharterStarted)
+                // This charter is an optional field survey. Once the hearing
+                // authorizes access, lead to the FIRST actual east marker
+                // even before the player has formally talked to Lyra.
+                if (!q.locked && !q.complete)
                     for (int region = 1; region <= 3; region++)
-                        if (!Has("roadcharter_report_" + region)) { nextRegion = region; break; }
+                        if (!Has("roadcharter_report_" + region))
+                        { nextRegion = region; break; }
                 q.room = nextRegion < 0 ? 0 : nextRegion;
                 q.target = nextRegion < 0 ? ObjectPoint(0, "guild", new Point(18, 17)) :
                     ObjectPoint(nextRegion, "waytrail", new Point(47.5f, 23.5f));

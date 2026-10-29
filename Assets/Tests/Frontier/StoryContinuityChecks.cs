@@ -911,6 +911,14 @@ namespace Starfall.Tests
                 g.save.flags.Add(flag);
             Check(g.RoadCharterReady&&!g.RoadCharterStarted,
                 "A completed real public hearing is sufficient to unlock roadwork");
+            QuestGuide direct=g.GetQuest("roadcharter");
+            WorldObject first=Array.Find(data.maps[1].objects,
+                o=>o.id=="waytrail1e"&&o.kind=="waytrail");
+            Check(!direct.locked&&!direct.complete&&first!=null&&
+                direct.room==1&&
+                (direct.target-new Point(first.x,first.y)).Length<.001f&&
+                direct.steps[0].done,
+                "Before any guild signup the live compass guides directly to the authentic first eastern marker");
             g.save.room=2;
             WorldObject marker=Array.Find(g.Map.objects,
                 o=>o.id=="waytrail2e"&&o.kind=="waytrail");
