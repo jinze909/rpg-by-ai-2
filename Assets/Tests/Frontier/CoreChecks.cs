@@ -6859,7 +6859,7 @@ namespace Starfall.Tests
                         (mapped-patrols[slot].Position).Length<=3.01f,
                         "Real world-map ridge pin must identify the same actual original patrol district");
                 }
-                signatures[room-1]=String.Join(";
+                signatures[room-1]=String.Join(";",
                     patrols.ConvertAll(p=>p.Position.x.ToString("0")+
                         ","+p.Position.y.ToString("0")).ToArray());
                 // Completed kills persist on original v2 flag schema.
