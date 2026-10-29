@@ -831,6 +831,35 @@ namespace Starfall.Tests
             }
         }
 
+        public static void AfterstoryRoadCharterBeginsAtTheActualMarkerWithoutAnotherGuildSignup(Campaign data)
+        {
+            var g=Fresh(data);g.Close();
+            g.save.stage=3;g.save.ending=2;
+            foreach(string flag in new[]{"hearing_complete","hearing_public",
+                "hearing_orrin_aid","scout_saved","gate_1","gate_2","gate_3"})
+                g.save.flags.Add(flag);
+            Check(g.RoadCharterReady&&!g.RoadCharterStarted,
+                "A completed real public hearing is sufficient to unlock roadwork");
+            g.save.room=2;
+            WorldObject marker=Array.Find(g.Map.objects,
+                o=>o.id=="waytrail2e"&&o.kind=="waytrail");
+            Check(marker!=null&&g.CanStand(new Point(marker.x,marker.y)),
+                "Unregistered reconstruction uses the genuine original eastern waymarker");
+            g.save.x=marker.x;g.save.y=marker.y;
+            g.Talk(marker);
+            Check(g.Has("roadcharter_started")&&
+                g.Has("roadcharter_report_2")&&g.RoadCharterReports==1,
+                "First-hand contact starts and records the survey with no guild menu click");
+            g.Close();g.Talk(marker);
+            Check(g.RoadCharterReports==1,
+                "Repeating one physical marker cannot fabricate additional records");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.RoadCharterStarted&&restored.RoadCharterReports==1&&
+                restored.save.version==2,
+                "The existing v2 flags preserve field-first chapter continuity across load");
+        }
+
         public static void ChapterEightRoadCharterUsesRealFieldEvidenceAndPersistentOutcome(Campaign data)
         {
             foreach (bool publicRoute in new[] { true, false })

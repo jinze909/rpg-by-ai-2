@@ -34,11 +34,20 @@ namespace Starfall
         private bool RecordRoadCharterWaypoint(WorldObject o)
         {
             int region = save.room;
-            if (!RoadCharterReady || !RoadCharterStarted ||
+            if (!RoadCharterReady ||
                 RoadCharterComplete || region < 1 || region > 3 ||
                 o==null || o.kind != "waytrail" || o.id != "waytrail" + region + "e" ||
                 !HasPhysicalInteractionReach(o) ||
                 Has("roadcharter_report_" + region)) return false;
+            // Post-hearing evidence begins where people actually walk.
+            // The optional guild introduction remains available but is not
+            // another plot gate; only this physically reached marker signs.
+            if(!RoadCharterStarted)
+            {
+                Flag("roadcharter_started");
+                RecordMoment("听证会的决定早已传上路。你在原始东部路碑旁亲自开始核实居民证词，无须再到公会登记新章节。",
+                    "The hearing's decision has already reached the roads. You begin recording civilian testimony at a genuine eastern waymarker without a second guild signup.");
+            }
             Flag("roadcharter_report_" + region);
             RecordMoment(
                 new[] { "", "第八章实地证据：密林的旧路原本庇护落难者，树林的照护权不应被剥夺。",
