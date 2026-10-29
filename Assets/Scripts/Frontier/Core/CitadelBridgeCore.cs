@@ -105,6 +105,7 @@ namespace Starfall
             bridgeGuardian=CreatePlacedEnemy(++enemyId,2,spawn,320f,true);
             bridgeGuardian.timer=1.0f;
             enemies.Add(bridgeGuardian);
+            TrackQuest("bridge_chords");
             sound="windup";revision++;
             effects.Add(new Effect("enemyRelease",spawn,.6f)
                 {radius=1.2f,variant=0});

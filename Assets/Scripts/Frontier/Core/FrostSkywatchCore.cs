@@ -34,6 +34,8 @@ namespace Starfall
         {
             return IsSkywatchEnemy(actor)?
                 L("古观星守卫","Ancient Skywatch Guardian"):
+                IsBridgeChordsElite(actor)?
+                L("断弦桥 · 余震精英","Broken Chord · Echo Sentinel"):
                 L(CurrentBoss.name,CurrentBoss.en);
         }
         public string SkywatchCombatCue(Enemy actor)

@@ -41,6 +41,8 @@ namespace Starfall.Tests
             Enemy elite=g.enemies.Find(g.IsBridgeChordsElite);
             Check(elite!=null&&elite.hp>0f&&elite.boss&&
                 g.CanStand(elite.Position)&&
+                g.LiveBossName(elite).Contains("余震精英")&&
+                g.save.trackedQuest=="bridge_chords"&&
                 g.GetQuest("bridge_chords").steps.Count==3,
                 "Genuine Boss-class actor appears on walkable connected terrain and tracked journal");
             return elite;
