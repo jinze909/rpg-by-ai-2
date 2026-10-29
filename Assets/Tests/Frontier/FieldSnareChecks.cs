@@ -44,6 +44,45 @@ namespace Starfall.Tests
             Check(g.save.kills[0]==kills&&g.save.coins==coins,
                 "Nonlethal snare contact cannot counterfeit kill or loot rewards");
         }
+        public static void UnspentFieldSnareCanBePhysicallyReclaimedWithoutInfiniteSupplies(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            g.save.inventory[0]=5;g.save.inventory[4]=5;
+            g.save.energy=100f;
+            Point foot=PutRealSnare(g);
+            Check(g.FieldSnares.Count==1&&g.CanRecoverFieldSnare,
+                "Original world trap is recoverable only from its near standable foot");
+            int timber=g.save.inventory[0],gear=g.save.inventory[4];
+            float energy=g.save.energy;
+            Point position=g.Position;
+            g.save.x=position.x+12f;
+            Check(!g.RecoverFieldSnare()&&g.FieldSnares.Count==1&&
+                g.save.inventory[0]==timber&&g.save.inventory[4]==gear,
+                "Distant retrieval cannot teleport traps or mint materials");
+            g.save.x=position.x;g.save.y=position.y;
+            g.save.energy=5f;
+            Check(!g.RecoverFieldSnare()&&g.FieldSnares.Count==1&&
+                g.save.inventory[0]==timber,
+                "Exhausted hero cannot reclaim without stamina");
+            g.save.energy=energy;
+            var raider=new Enemy(71243,0,g.Position.x+.5f,g.Position.y,80f);
+            raider.hitTime=5f;g.enemies.Add(raider);
+            Check(!g.RecoverFieldSnare()&&g.FieldSnares.Count==1,
+                "Nearby living attacker prevents reclaiming a live defensive trap");
+            g.enemies.Remove(raider);
+            Check(g.RecoverFieldSnare()&&g.FieldSnares.Count==0&&
+                g.save.inventory[0]==timber+1&&g.save.inventory[4]==gear&&
+                Math.Abs(g.save.energy-(energy-6f))<.001f,
+                "Retrieve exactly one wooden stake, never consumed machine parts");
+            Check(!g.RecoverFieldSnare()&&g.save.inventory[0]==timber+1&&
+                g.FieldSnareCaptures==0,
+                "No repeated retrieval or counterfeit snare capture credit");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FieldSnares.Count==0&&
+                restored.save.inventory[0]==timber+1&&
+                restored.save.inventory[4]==gear,
+                "Reclaimed timber persists in v2 while transient traps reset");
+        }
         public static void FieldSnaresExpireResetAcrossRoomsAndOldSaveSlots(Campaign data)
         {
             var g=Fresh(data);g.enemies.Clear();

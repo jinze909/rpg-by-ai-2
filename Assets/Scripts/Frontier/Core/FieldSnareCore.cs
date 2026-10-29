@@ -97,6 +97,41 @@ namespace Starfall
                     save.inventory[4]>=LastLanternSnareGearCost;
             }
         }
+        // An untriggered stake can be physically reclaimed for its timber.
+        // The mechanism remains spent; there is no kill, XP or trap duplication.
+        private FieldSnare RecoverableFieldSnare()
+        {
+            if(mode!="world"||Dying||practicing||racing||
+                ActionTransitionBlocked||save.energy<6f||
+                fieldSnareRoom!=save.room||
+                !Object.ReferenceEquals(fieldSnareMap,Map)||
+                !CanStand(Position))return null;
+            FieldSnare nearest=null;float closest=1.8f;
+            foreach(FieldSnare snare in fieldSnares)
+            {
+                float distance=(Position-snare.foot).Length;
+                if(snare.seconds<=0f||distance>=closest||
+                    !CanStand(snare.foot)||
+                    !ClearAttackPath(Position,snare.foot))continue;
+                closest=distance;nearest=snare;
+            }
+            if(nearest==null)return null;
+            foreach(Enemy foe in enemies)
+                if(foe!=null&&foe.hp>0f&&
+                    (foe.Position-Position).Length<3f)return null;
+            return nearest;
+        }
+        public bool CanRecoverFieldSnare {get{return RecoverableFieldSnare()!=null;}}
+        public bool RecoverFieldSnare()
+        {
+            FieldSnare snare=RecoverableFieldSnare();
+            if(snare==null||!fieldSnares.Remove(snare))return false;
+            save.energy-=6f;save.inventory[0]++;
+            effects.Add(new Effect("number",snare.foot,.9f,
+                L("收回木桩","STAKE RECOVERED")));
+            sound="quest";revision++;
+            return true;
+        }
         private void ResetFieldSnares()
         {
             fieldSnares.Clear();fieldSnarePreviousFeet.Clear();
