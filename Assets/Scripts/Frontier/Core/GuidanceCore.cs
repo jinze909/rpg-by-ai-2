@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1037,6 +1037,60 @@ namespace Starfall
 
 
 
+            if(id=="vantage_watches")
+            {
+                q.title=L("远望之路 · 八地平民观测站",
+                    "Roads Beyond Sight · Eight Civilian Lookouts");
+                q.category=L("地图探索 · 真实防守和永久医疗/信号服务",
+                    "LIVE WORLD DEFENSE · PERSISTENT PUBLIC SERVICES");
+                q.description=L("在八张原始地图的远端观测站先记录地貌，再守住真实、可步行到达的敌人进路。可以击退或用真实绊索活捉袭击者，回原站用木材和零件各1份，二选一建医疗或信号望台。医疗点在安全时恢复生命并缓解冷热；信号台恢复耐力。未防守、撤回或快速移动均无奖励。",
+                    "Visit each original far lookout to chart the terrain, then face a real collision-reachable raider approach. Defeat or physically restrain the fighters; return to the exact lookout and spend one timber and one part to choose either local medical/climate care or stamina signal service. No reward on retreat or bypass.");
+                q.reward=L("每区真实战斗首通硬币、碎片、经验；全部八站守住额外技能点1",
+                    "Real first-clear coins, shards and XP per region; +1 skill point after all eight");
+                q.locked=false;
+                int next=-1,locked=-1;
+                for(int i=0;i<8;i++)
+                {
+                    bool done=VantageWatchBuilt(i);
+                    string state=done?(VantageWatchAid(i)?
+                        L(" · 医疗望台运行中"," · AID LOOKOUT OPERATING"):
+                        L(" · 信号望台运行中"," · SIGNAL LOOKOUT OPERATING")):
+                        Has("far_vista_"+i)?
+                        L(" · 等待守望"," · WATCH AVAILABLE"):
+                        L(" · 先测绘望台"," · CHART LOOKOUT FIRST");
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[i].name,data.maps[i].en)+state,done));
+                    if(!done)
+                    {
+                        if(CanEnter(i)&&(next<0||i==save.room))next=i;
+                        else if(locked<0)locked=i;
+                    }
+                }
+                q.complete=VantageWatchWins==8;
+                if(VantageWatchActive)next=save.room;
+                q.room=next>=0?next:save.room;
+                q.target=VantageWatchActive?VantageWatchGuideTarget:
+                    next>=0?ObjectPoint(next,"farlookout",
+                        new Point(data.maps[next].spawnX,data.maps[next].spawnY)):
+                        Position;
+                q.next=VantageWatchActive?
+                    (VantageWatchReady?
+                        L("已击退或活捉全部袭击者，回原观测站选择永久服务",
+                          "All attackers accounted for. Return to the original lookout and choose a lasting service"):
+                        L("守望进行中：还有 "+VantageWatchRemaining+" 名真实袭击者",
+                          "Live watch: "+VantageWatchRemaining+" original raiders remain")):
+                    q.complete?
+                        L("八地公共观测站都已守住，可在各自站点使用服务",
+                          "All eight public lookouts are secured and their local services work"):
+                    next>=0?
+                        L("前往原始远端观测站，记录地貌并选择真实守望",
+                          "Reach the authentic far lookout, chart it, then begin a real watch"):
+                        L("先沿主线开放下一片地区，再继续守望",
+                          "Unlock the next region through the story before more watches");
+                if(!q.complete&&next<0&&locked>=0)
+                    RouteLockedOutdoorSurvey(q,locked);
+                return q;
+            }
             if(id=="field_dispatches")
             {
                 q.title=L("七地民间补给 · 真实中继路",
@@ -4735,6 +4789,7 @@ namespace Starfall
             // arrow points back to the vulnerable physical cache, never
             // away to an unrelated stale journal waypoint. Original tracked
             // quest selection is left untouched after combat.
+            if(VantageWatchActive)return VantageWatchGuideTarget;
             if(OuterPatrolActive)return outerPatrolPost;
             if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
             // While actually carrying civilian aid, the live crossing, seal

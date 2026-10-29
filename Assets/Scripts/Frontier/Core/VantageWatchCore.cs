@@ -59,6 +59,14 @@ namespace Starfall
         public int VantageWatchRemaining
         {get{int n=0;if(VantageWatchActive)foreach(Enemy e in vantageFoes)
             if(e!=null&&e.hp>0&&enemies.Contains(e))n++;return n;}}
+        public Point VantageWatchGuideTarget
+        {get{
+            if(!VantageWatchActive)return Position;
+            foreach(Enemy foe in vantageFoes)
+                if(foe!=null&&foe.hp>0&&enemies.Contains(foe))
+                    return foe.Position;
+            return new Point(vantageSource.x,vantageSource.y);
+        }}
         public bool VantageWatchReady
         {get{
             if(!VantageWatchActive||vantageFoes.Count<2)return false;
