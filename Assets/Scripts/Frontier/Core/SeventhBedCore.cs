@@ -45,6 +45,15 @@ namespace Starfall
                 return o==null?new Point(11.5f,17.5f):new Point(o.x,o.y);
             }
         }
+        public Point SeventhSupperLinenTarget
+        {
+            get
+            {
+                WorldObject o=SeventhBedObject("seventh_cot");
+                return o==null?new Point(25.5f,10.5f):
+                    new Point(o.x,o.y);
+            }
+        }
         public string SeventhSupperObjective
         {get{return SeventhSupperReturning?
             L("带回旧碗，向阿茴交接","RETURN THE BOWLS TO ARI"):

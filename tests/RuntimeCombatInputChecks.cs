@@ -12157,6 +12157,32 @@ public static class RuntimeCombatInputChecks
         Check(GUI.commands.Exists(t=>t.Contains("MIDNIGHT SUPPER"))&&
               GUI.commands.Exists(t=>t.Contains("SUPPER HEAT")),
             "Actual shipped GameView now shows the real timer and objective");
+        // Original wet blanket stays evidence; optional clean guest-cot
+        // linen grants a genuine 8-stamina navigation/heat tradeoff.
+        WorldObject cot=null;
+        foreach(WorldObject o in g.Map.objects)
+            if(o.id=="seventh_cot")cot=o;
+        Check(cot!=null&&g.CanStand(new Point(cot.x,cot.y)),
+            "Optional insulation is sourced from the actual original guest room");
+        g.save.x=cot.x;g.save.y=cot.y;
+        Set(app,"camera",g.Position);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(t=>t.Contains("OPTIONAL · CLEAN GUEST LINEN")),
+            "World marks a real optional nearby source while preserving primary delivery objective");
+        Input.Clear();Input.keys.Add(KeyCode.E);Update(app);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+            g.conversation.speaker==cot.name,
+            "Actual E opens original guest cot as optional insulator");
+        int wrap=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="seventh_supper_wrap");
+        Check(wrap>=0,"Live guest room offers the paid clean-linen choice");
+        float stamina=g.save.energy;g.Choose(wrap);
+        Check(g.SeventhSupperWrapped&&
+            Math.Abs(g.save.energy-(stamina-8f))<.001f,
+            "The live choice actually pays stamina and slows future cooling");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(t=>t.Contains("LINEN WRAPPED · COOLING")),
+            "GameView reports actual earned insulation, not a generic equipped effect");
         // Core checks walk both corridors under movement; here the runtime
         // input/UI integration starts at an independently verified source.
         g.save.x=annex.x;g.save.y=annex.y;

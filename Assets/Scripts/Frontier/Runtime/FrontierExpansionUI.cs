@@ -568,11 +568,31 @@ namespace Starfall
                         Game.SeventhSupperObjective,11,routeInk);
                     if(!Game.SeventhSupperReturning)
                     {
+                        if(!Game.SeventhSupperWrapped)
+                        {
+                            Point linen=Game.SeventhSupperLinenTarget;
+                            if(WorldDrawable(linen.x,linen.y,130f,145f))
+                            {
+                                Ring(linen,.46f,mint,20);
+                                Point nearLinen=ScreenPoint(linen);
+                                Text(nearLinen.x-120,nearLinen.y-85,240,18,
+                                    Game.L("可选：客房干净麻布",
+                                        "OPTIONAL · CLEAN GUEST LINEN"),10,mint,
+                                    TextAnchor.MiddleCenter);
+                            }
+                        }
                         Bar(35,617,220,Game.SeventhSupperSeconds/45f,routeInk,6);
                         Text(270,607,300,20,
                             Game.L("热汤剩余 ","SUPPER HEAT ")+
                             Game.SeventhSupperSeconds.ToString("0.0")+"s",
                             10,routeInk);
+                        Text(35,630,600,18,
+                            Game.SeventhSupperWrapped?
+                                Game.L("干净麻布已包好 · 散热减慢45%",
+                                    "LINEN WRAPPED · COOLING 45% SLOWER"):
+                                Game.L("可选：在客房用8点耐力为热汤保温",
+                                    "OPTIONAL: WRAP AT GUEST COT · 8 STAMINA"),
+                            10,Game.SeventhSupperWrapped?mint:routeInk);
                     }
                     else Text(35,614,580,19,
                         Game.L("空碗已收好 · 返回厨房完成交接",
