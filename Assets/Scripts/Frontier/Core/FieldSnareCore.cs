@@ -45,20 +45,47 @@ namespace Starfall
         public bool FieldSnareTrainingAvailable
         { get { return FieldSnareCaptures==3&&Has("ally_3")&&
             !Has("field_snare_mastered"); } }
+        public bool SnareMercyTrainingAvailable {get{return Has("ally_3")&&
+            Has("field_snare_mercy_first")&&
+            !Has("field_snare_warden_swift")&&!Has("field_snare_warden_calm");}}
+        public int SnareBindEnergyCost {get{return Has("field_snare_warden_swift")?6:10;}}
+        public float SnareHoldBonus {get{return Has("field_snare_warden_calm")?.6f:0f;}}
+        private string FieldSnareMercyNote(bool english)
+        {
+            if(!Has("ally_3")||!Has("field_snare_mercy_first"))return "";
+            if(Has("field_snare_warden_swift"))return english?
+                "\n\nLiving-captive fast knots: binding costs only 6 energy.":
+                "\n\n活口快结已练成：非致命制服只消耗6耐力。";
+            if(Has("field_snare_warden_calm"))return english?
+                "\n\nCalm wardenship: real snares hold raiders 0.6 seconds longer.":
+                "\n\n守护稳索已练成：真实绊索束缚时间延长0.6秒。";
+            return english?
+                "\n\nYou brought a raider in alive. Choose ONE humane-warden technique: fast knots (bind for 6 energy), or steady lines (+0.6s hold). Each costs 1 timber, 2 crystals and 1 machine part.":
+                "\n\n你带回了一个活口。只能选一种守护技：快结（制服耗6耐力）或稳索（束缚+0.6秒）；都消耗木材1、星晶2、零件1。";
+        }
         private string FieldSnareTrainingNote(bool english)
         {
             if(!Has("ally_3"))return "";
             if(Has("field_snare_mastered"))return english?
-                "\n\nNoll's reinforced line is now your own: three active snares, faster arming and longer nonlethal holds.":
-                "\n\n诺尔的强化绊索已经装好：可同时布置三道，安装更快，牵制更久。";
+                "\n\nNoll's reinforced line is now your own: three active snares, faster arming and longer nonlethal holds."+FieldSnareMercyNote(true):
+                "\n\n诺尔的强化绊索已经装好：可同时布置三道，安装更快，牵制更久。"+FieldSnareMercyNote(false);
             return english?
                 "\n\nNoll is collecting proof from your field snares ("+
-                    FieldSnareCaptures+"/3 real captures). Three contacts unlock a paid reinforced line.":
+                    FieldSnareCaptures+"/3 real captures). Three contacts unlock a paid reinforced line."+FieldSnareMercyNote(true):
                 "\n\n诺尔在收集真实绊索记录（"+FieldSnareCaptures+
-                    "/3 次实际束缚）。完成三次后可出资强化。";
+                    "/3 次实际束缚）。完成三次后可出资强化。"+FieldSnareMercyNote(false);
         }
         private void AppendFieldSnareTrainingChoice(List<Choice> list)
         {
+            if(SnareMercyTrainingAvailable)
+            {
+                list.Add(C("活口快结 · 木1、晶2、零件1",
+                    "Merciful fast knots · 1 timber, 2 crystals, 1 part",
+                    "field_snare_warden_swift"));
+                list.Add(C("守护稳索 · 木1、晶2、零件1",
+                    "Steady restraint · 1 timber, 2 crystals, 1 part",
+                    "field_snare_warden_calm"));
+            }
             if(FieldSnareTrainingAvailable)
                 list.Add(C("强化实战绊索 · 星晶2、零件2",
                     "Reinforce field snares · 2 crystals, 2 parts",
@@ -66,9 +93,12 @@ namespace Starfall
         }
         private bool ChooseFieldSnareTraining(string action)
         {
-            if(action!="field_snare_masterwork")return false;
+            bool swift=action=="field_snare_warden_swift";
+            bool calm=action=="field_snare_warden_calm";
+            if(action!="field_snare_masterwork"&&!swift&&!calm)return false;
             WorldObject smith=pendingDialogueSource;
-            if(!FieldSnareTrainingAvailable||mode!="world"||Dying||
+            if((swift||calm?!SnareMercyTrainingAvailable:
+                !FieldSnareTrainingAvailable)||mode!="world"||Dying||
                 practicing||save.room!=0||smith==null||
                 smith.kind!="forge"||pendingDialogueSourceRoom!=0||
                 !SourceBelongsToActiveMap(smith)||
@@ -77,6 +107,23 @@ namespace Starfall
             {
                 Notify("还有敌情或现场行动，暂时无法重制绊索。",
                     "Clear nearby threats and fieldwork before reinforcing snares.");
+                return true;
+            }
+            if(swift||calm)
+            {
+                if(!Spend(1,2,0,0,1))return true;
+                Flag(swift?"field_snare_warden_swift":"field_snare_warden_calm");
+                RecordMoment(swift?
+                    "诺尔教会你如何在敌人挣脱前打出不伤血肉的快结。":
+                    "诺尔在绊索上加了一圈缓冲编织，让受制的袭击者得到更长的冷静时间。",
+                    swift?
+                    "Noll teaches a quicker living-captive knot that protects both prisoner and traveler.":
+                    "Noll braids a safer, steadier restraint line that buys time without a killing blow.");
+                revision++;sound="reward";
+                Notify(swift?"快结学会：非致命制服耐力10→6。":
+                    "稳索学会：所有真实绊索束缚延长0.6秒。",
+                    swift?"Fast knots learned: bind stamina 10 → 6.":
+                    "Steady lines learned: real snares hold 0.6s longer.");
                 return true;
             }
             if(!Spend(0,2,0,0,2))return true;
@@ -131,7 +178,7 @@ namespace Starfall
         {
             if(mode!="world"||Dying||practicing||racing||
                ActionTransitionBlocked||!CanStand(Position)||
-               save.energy<10f||fieldSnareRoom!=save.room||
+               save.energy<SnareBindEnergyCost||fieldSnareRoom!=save.room||
                !Object.ReferenceEquals(fieldSnareMap,Map))return null;
             Enemy nearest=null;float best=1.5f;
             foreach(Enemy foe in fieldSnareBindCandidates)
@@ -156,7 +203,7 @@ namespace Starfall
             // Remove this one ACTUAL actor, not every enemy with its ID.
             // Pending attack warnings are retired; already released
             // projectiles retain their actual flight and collision.
-            save.energy-=10f;
+            save.energy-=SnareBindEnergyCost;
             fieldSnareBindCandidates.Remove(target);
             fieldSnarePreviousFeet.Remove(target);
             RemoveEnemyPendingWarning(target);
@@ -295,7 +342,7 @@ namespace Starfall
                 // A grounded, non-lethal contact interrupts an actual
                 // enemy. It creates NO boss credit, damage, loot, or kill.
                 triggered.stun=Math.Max(triggered.stun,
-                    Has("field_snare_mastered")?2.1f:1.5f);
+                    (Has("field_snare_mastered")?2.1f:1.5f)+SnareHoldBonus);
                 triggered.armorOpenTime=Math.Max(triggered.armorOpenTime,.7f);
                 triggered.state=0;triggered.timer=Math.Max(triggered.timer,.35f);
                 fieldSnareBindCandidates.Add(triggered);
