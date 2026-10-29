@@ -493,6 +493,40 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // A new authored Glass Desert investigation, never fabricated
+            // protagonist art or invented HUD-only patrol enemies.
+            if(Game.mode=="world"&&Game.GlassLedgerStarted&&
+               !Game.GlassLedgerComplete&&Game.save.room==6&&!drawingOutline)
+            {
+                Point target=Game.GlassLedgerTarget;
+                Color color=Game.GlassLedgerAlarm>=3?
+                    new Color(1f,.44f,.37f,1f):
+                    Game.GlassLedgerActive?gold:mint;
+                if(WorldDrawable(target.x,target.y,160f,150f))
+                {
+                    Ring(target,.7f,color,25);
+                    Point screen=ScreenPoint(target);
+                    Text(screen.x-148,screen.y-84,296,20,
+                        Game.GlassLedgerObjective,11,color,TextAnchor.MiddleCenter);
+                }
+                Text(35,298,560,22,
+                    Game.L("被抹去的水账 · 实地调查",
+                        "ERASED WATER LEDGER · LIVE INVESTIGATION"),
+                    12,color);
+                Text(35,322,610,20,Game.GlassLedgerObjective,11,color);
+                if(Game.GlassLedgerActive)
+                {
+                    Text(35,346,520,20,
+                        Game.L("警戒 ","ALARM ")+Game.GlassLedgerAlarm+
+                        "/3 · "+Game.L("在场守卫 ","LIVING GUARDS ")+
+                        Game.GlassLedgerActualGuards,11,color);
+                    Bar(35,372,280,Game.GlassLedgerAlarm/3f,color,6);
+                    Text(35,390,620,19,
+                        Game.L("CTRL 低声潜行 · U 投石诱敌 · 错误推论提升警戒",
+                            "CTRL SNEAK · U PEBBLE DISTRACTION · FALSE CLAIM RAISES ALARM"),
+                        10,color);
+                }
+            }
             if(Game.mode=="world"&&Game.SilentLedgerActive&&!drawingOutline)
             {
                 Color stealth=Game.SilentLedgerSuspicion>70f?
@@ -1556,6 +1590,26 @@ namespace Starfall
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
                         10,mint,TextAnchor.MiddleCenter);
+                return true;
+            }
+            if(o.kind=="glassledgerwatch"||o.kind=="glassledgerseal"||
+               o.kind=="glassledgerwitness")
+            {
+                Point foot=new Point(o.x,o.y);
+                Color shade=Game.GlassLedgerComplete?mint:
+                    Game.GlassLedgerActive?gold:muted;
+                PropImage("post",0,p.x-26,p.y-69,52,69,shade);
+                Ring(foot,o.kind=="glassledgerwatch"?.65f:.48f,shade,23);
+                if(Game.GlassLedgerStarted&&!Game.GlassLedgerComplete)
+                {
+                    string name=o.kind=="glassledgerwatch"?
+                        Game.L("真实守夜调查","LIVE NIGHT WATCH"):
+                        o.kind=="glassledgerseal"?
+                        Game.L("被涂改的配水单","ALTERED WATER SLIP"):
+                        Game.L("无名矿工证词","UNLISTED WORKER'S LETTER");
+                    Text(p.x-107,p.y-88,214,20,name,10,shade,
+                        TextAnchor.MiddleCenter);
+                }
                 return true;
             }
             if(o.kind=="unsentrelay")
