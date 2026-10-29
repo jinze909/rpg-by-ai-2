@@ -212,7 +212,10 @@ namespace Starfall.Tests
             WorldObject relay=Array.Find(g.Map.objects,o=>o.kind=="relay2");
             Check(relay!=null&&relay.x==25f&&relay.y==19f,
                 "Original third harbor relay remains at the authored pier");
-            Point landing=new Point(27.5f,19.5f);
+            // Start two tiles away: NavigationPathFrom intentionally returns
+            // an empty route when the actor is already within its finish
+            // radius, so a one-step starting pad cannot test this bridge.
+            Point landing=new Point(28.5f,19.5f);
             Point talkFoot=new Point(26.5f,19.5f);
             var reach=typeof(GameCore).GetMethod("HasPhysicalInteractionReach",
                 System.Reflection.BindingFlags.Instance|
