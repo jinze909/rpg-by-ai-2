@@ -405,7 +405,7 @@
           "en": "Civic repair timber",
           "kind": "wood",
           "x": 103.5,
-          "y": 68.5
+          "y": 73.5
         },
         {
           "id": "annex_cache_0_a",
@@ -4426,8 +4426,8 @@
           "name": "侧廊抢修木料",
           "en": "Side gallery repair timber",
           "kind": "wood",
-          "x": 85.5,
-          "y": 65.5
+          "x": 98.5,
+          "y": 73.5
         },
         {
           "id": "annex_cache_2_a",
@@ -8803,8 +8803,8 @@
           "kind": "wood",
           "name": "侧门疏散木料",
           "en": "Evacuation door timber",
-          "x": 104.5,
-          "y": 65.5
+          "x": 109.5,
+          "y": 68.5
         },
         {
           "id": "trail_forager_4_1",
@@ -10888,8 +10888,8 @@
           "kind": "wood",
           "name": "潮沟搁浅木",
           "en": "Wood stranded in the tidal channel",
-          "x": 89.5,
-          "y": 65.5
+          "x": 85.5,
+          "y": 57.5
         },
         {
           "id": "trail_forager_5_1",
@@ -14812,10 +14812,10 @@
         {
           "id": "trail_forager_7_0",
           "kind": "herb",
-          "name": "背风岩草",
+          "name": "背风岩间药草",
           "en": "Leeward rock herbs",
-          "x": 103.5,
-          "y": 64.5
+          "x": 106.5,
+          "y": 73.5
         },
         {
           "id": "trail_forager_7_1",
@@ -14828,7 +14828,7 @@
         {
           "id": "trail_forager_7_2",
           "kind": "herb",
-          "name": "暖棚药草",
+          "name": "高原暖棚药草",
           "en": "Warming shelter herbs",
           "x": 85.5,
           "y": 17.5
