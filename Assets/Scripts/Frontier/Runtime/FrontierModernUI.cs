@@ -1279,6 +1279,40 @@ namespace Starfall
                 else Game.PlaceQuestApproachWaymark(q.id);
             }
         }
+        // Region-scale fieldwork is physically authored in Campaign.json:
+        // the 120x80 atlas shows the actual two monuments at their true
+        // tile locations. It never displays a fake clear route across a
+        // locked gate or competes with user-authored waymarks.
+        private void DrawBiomeFieldMapSites(MapData map,int region,
+            float originX,float originY,float tileScale)
+        {
+            if(region<0||region>=8||map==null||map.objects==null||
+               !Game.CanEnter(region))return;
+            bool started=Game.Has("biome_field_read_"+region);
+            bool completed=Game.Has("biome_field_done_"+region);
+            foreach(WorldObject site in map.objects)
+            {
+                if(site==null||(site.kind!="biomeSurvey"&&
+                   site.kind!="biomeAnswer"))continue;
+                bool far=site.kind=="biomeAnswer";
+                if(far&&!started&&!completed)continue;
+                Color ink=completed?mint:far?gold:PixelArt.C("#8fd2eb");
+                float x=originX+site.x*tileScale;
+                float y=originY+site.y*tileScale;
+                Frame(x-5.5f,y-5.5f,11f,11f,ink);
+                Box(x-2,y-2,4,4,ink);
+            }
+            Text(originX,originY+map.rows.Length*tileScale+3,
+                306,15,completed?
+                    Game.L("调查已完成 · 两处地标可付费往返",
+                        "FIELD COMPLETE · BOTH RELAY STATIONS OPEN"):
+                    started?
+                    Game.L("已记录初始线索 · 金色方框为远端证据",
+                        "FIRST CLUE READ · GOLD BOX MARKS FAR EVIDENCE"):
+                    Game.L("浅蓝方框：本地区可调查的地标",
+                        "PALE BLUE BOX · ORIGINAL FIELD SURVEY"),
+                10,completed?mint:muted,TextAnchor.MiddleCenter);
+        }
         private void DrawMap()
         {
             Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击青色任务点查看任务 · 点击空地标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click teal quests to inspect · click ground to pin · R/Y move pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
@@ -1326,6 +1360,7 @@ namespace Starfall
             {
                 MiniTerrain(888, 264, terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
+                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1436,6 +1471,7 @@ namespace Starfall
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
+                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.CurrentGuide;
                 if(q.room==selectedRegion&&!q.locked)
