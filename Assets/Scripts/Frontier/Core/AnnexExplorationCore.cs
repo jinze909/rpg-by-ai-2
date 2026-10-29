@@ -141,6 +141,8 @@ namespace Starfall
                                 "biome_crisis_begin"):
                             C("从初始地标接取紧急护送","Begin relief at the first post","close")):
                         C("先建居民补给，再开放救援","Build public stock first","close"),
+                    FieldPatrolChoice(o),
+                    FieldPatrolCancelChoice(o),
                     C("收起记录","Close the journal","close"));
                 return true;
             }
@@ -173,6 +175,7 @@ namespace Starfall
         }
         private bool ChooseBiomeField(string action)
         {
+            if(ChooseFieldPatrol(action))return true;
             if(ChooseBiomeCrisis(action))return true;
             if(ChooseBiomeSupply(action))return true;
             if(action!="biome_relay"&&action!="biome_note"&&

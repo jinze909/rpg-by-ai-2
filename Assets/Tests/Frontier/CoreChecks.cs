@@ -237,6 +237,92 @@ namespace Starfall.Tests
                 "The fixed physical landing needs no new serialized tide state");
         }
 
+        public static void SevenSurveyPatrolContractsRequireRealKillsAndSignedReports(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var hit=typeof(GameCore).GetMethod("Hit",flags);
+            Check(hit!=null,"Patrol kills use the original live combat damage function");
+            var visited=new System.Collections.Generic.HashSet<int>();
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.save.room=room;g.mode="world";
+                g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                WorldObject source=Array.Find(g.Map.objects,
+                    o=>o.kind=="biomeSurvey"&&o.id=="biomeSurvey"+room);
+                Check(source!=null&&PlaceWithinTalkReach(g,source),
+                    "Regional patrol "+room+" has a reachable original survey post");
+                Point origin=g.Position;
+                g.Talk(source);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin");
+                Check(begin>=0,"Patrol can be started in the real survey dialogue: "+room);
+                g.Choose(begin);
+                int needed=room==2||room==3||room==6?3:2;
+                Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==needed&&
+                    g.enemies.Count==needed,
+                    "Patrol "+room+" spawns its complete physical raider wave");
+                foreach(Enemy foe in g.enemies)
+                    Check(g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(origin,foe.Position,true).Count>0&&
+                        (foe.Position-origin).Length>=5f,
+                        "Every contracted enemy must stand on a genuine reachable attack lane");
+                Check(g.GetQuest("field_patrols").id=="field_patrols"&&
+                    g.GetQuest("field_patrols").room==room&&
+                    !g.GetQuest("field_patrols").complete,
+                    "The playable journal tracks an active region and the true combat");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.save.x=origin.x;g.save.y=origin.y;g.Talk(source);
+                int early=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_report");
+                Check(early<0&&!g.FieldPatrolReportReady&&
+                    g.save.coins==coins&&g.save.shards==shards,
+                    "The first post cannot pay a patrol receipt before real deaths");
+                g.Close();
+                Enemy[] wave=g.enemies.ToArray();
+                foreach(Enemy foe in wave)
+                    hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+                Check(g.FieldPatrolReportReady&&g.FieldPatrolRemaining==0,
+                    "All tracked actor identities were actually killed");
+                g.invulnerable=5f;
+                for(int t=0;t<150;t++)g.Tick(.02f,new Point());
+                g.save.x=origin.x;g.save.y=origin.y;
+                Check(PlaceWithinTalkReach(g,source),
+                    "Hero returns to exactly the original world marker");
+                g.Talk(source);
+                int report=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_report");
+                Check(report>=0,"The signed report is a genuine live dialogue choice");
+                g.Choose(report);
+                Check(g.FieldPatrolDone(room)&&!g.FieldPatrolActive&&
+                    g.save.coins>=coins+26+2*room&&
+                    g.save.shards>=shards+1&&
+                    g.GetQuest("field_patrols").steps[room-1].done,
+                    "Real kills and actual return grant precisely this district's saved receipt");
+                g.PrepareSave();
+                var restored=new GameCore(data,g.save);
+                Check(restored.FieldPatrolDone(room)&&
+                    !restored.FieldPatrolActive&&restored.save.version==2,
+                    "Old v2 save state permanently retains one receipt without reviving ephemeral raiders");
+                g.Talk(source);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin")<0,
+                    "A signed receipt cannot respawn another paid wave");
+                visited.Add(room);
+            }
+            Check(visited.Count==7,
+                "Seven physically distinct original patrol contracts have been completed");
+            var completed=Fresh(data);
+            for(int room=1;room<=7;room++)
+                completed.save.flags.Add("biome_patrol_done_"+room);
+            Check(completed.FieldPatrolWins==7&&
+                completed.GetQuest("field_patrols").complete&&
+                completed.GetQuest("field_patrols").steps.Count==7,
+                "Seven independent saved first-clears complete the permanent civilian patrol atlas");
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)

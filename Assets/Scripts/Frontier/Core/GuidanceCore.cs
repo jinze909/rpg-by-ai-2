@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,52 @@ namespace Starfall
 
 
 
+            if(id=="field_patrols")
+            {
+                q.title=L("七地区巡路回执 · 居民安全线",
+                    "Seven Field Patrols · Civilian Safety Receipts");
+                q.category=L("实地调查后的可选战斗 · 七地区",
+                    "OPTIONAL COMBAT · SEVEN REGIONS");
+                q.description=L("先亲自完成本区两处探路地标调查。回到原始勘察地标领取巡路委托，真正击退当地2至3名敌人，再返回同一地标交付安全回执。撤销或离开区域不会结算击杀。七张回执合成居民巡路图。",
+                    "Finish both authentic local survey markers, then accept a patrol contract at the first post. Defeat two or three genuine raiders and return to the same post to file the receipt. Aborted or abandoned patrols grant no completion credit. Seven receipts create a civilian safety route atlas.");
+                q.reward=L("各地硬币、碎片与经验；七地全胜额外技能点1、碎片3",
+                    "Regional coins, shards and XP; all seven: +1 talent and 3 shards");
+                q.complete=FieldPatrolWins==7;q.locked=false;
+                int selected=-1;
+                for(int region=1;region<=7;region++)
+                {
+                    bool done=FieldPatrolDone(region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?" · 安全回执已签收":" · 待现场巡护",
+                            done?" · RECEIPT FILED":" · LIVE PATROL NEEDED"),done));
+                    if(!done&&CanEnter(region)&&
+                        (selected<0||region==save.room))selected=region;
+                }
+                if(FieldPatrolActive)selected=save.room;
+                q.room=selected>=0?selected:save.room;
+                q.target=selected>=0?
+                    ObjectPoint(selected,"biomeSurvey",
+                        new Point(data.maps[selected].spawnX,
+                            data.maps[selected].spawnY)):Position;
+                if(FieldPatrolActive)
+                {
+                    q.next=FieldPatrolReportReady?
+                        L("实战敌人全部击退，返回原调查地标提交回执。",
+                          "All assigned raiders defeated. Return to the original survey post for your receipt."):
+                        L("巡路委托进行中，剩余巡兵"+FieldPatrolRemaining+
+                          "名；击退后带回安全回执。",
+                          "Active patrol: "+FieldPatrolRemaining+
+                          " raiders remain. Defeat them and return to the source.");
+                }
+                else if(q.complete)
+                    q.next=L("七地区全部有真实安全回执，居民巡路图已完成。",
+                        "All seven live patrol receipts filed; the civilian atlas is complete.");
+                else
+                    q.next=L("完成本区调查后，在第一个实地标记接取可选巡逻战斗。",
+                        "Finish the local investigation, then accept the optional real patrol at its first field marker.");
+                return q;
+            }
             if(id=="ridge_breaches")
             {
                 q.title=L("七地疏通 · 被封住的居民近路",

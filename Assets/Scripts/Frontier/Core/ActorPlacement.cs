@@ -245,7 +245,7 @@ namespace Starfall
         // only by the actual field-survey transaction. They must not move
         // the old campaign's mandatory room roster out of reach, nor turn
         // a distant core-Boss gate into a whole-map hunting chore.
-        private int SpawnRegionalScoutEncounter(WorldObject site)
+        private int SpawnRegionalScoutEncounter(WorldObject site,bool requireFull=false)
         {
             if(site==null||site.kind!="biomeSurvey"||save.room<1||
                save.room>7||!SourceBelongsToActiveMap(site)||
@@ -256,7 +256,7 @@ namespace Starfall
                 {1,0},{0,1},{-1,0},{0,-1},
                 {1,1},{-1,1},{-1,-1},{1,-1}
             };
-            int spawned=0;
+            var pads=new List<Point>();
             Point source=new Point(site.x,site.y);
             for(int i=0;i<count;i++)
             {
@@ -268,8 +268,10 @@ namespace Starfall
                     float dx=directions[direction,0],dy=directions[direction,1];
                     Point p=new Point((float)Math.Floor(source.x)+.5f+dx*radius,
                         (float)Math.Floor(source.y)+.5f+dy*radius);
-                    if(!CanStand(p)||!ClearAttackPath(source,p)||
-                       (p-Position).Length<5f)continue;
+                    if(!CanStand(p)||(requireFull?
+                        !ActorHasLocalRoute(Position,p,16):
+                        !ClearAttackPath(source,p))||
+                        (p-Position).Length<5f)continue;
                     bool obstructed=false;
                     foreach(WorldObject o in Map.objects)
                         if((new Point(o.x,o.y)-p).Length<4.5f)
@@ -277,16 +279,23 @@ namespace Starfall
                     foreach(Enemy e in enemies)
                         if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
                         {obstructed=true;break;}
-                    if(obstructed)continue;
-                    Enemy patrol=CreatePlacedEnemy(++enemyId,
-                        (room+i*2)%3,p,30+room*10);
-                    enemies.Add(patrol);
-                    // Only optional physically sourced side patrols can
-                    // sleep outside their local combat district.
-                    regionalAmbientEnemies.Add(patrol);
-                    spawned++;found=true;
+                    if(obstructed||pads.Exists(q=>(q-p).Length<5f))
+                        continue;
+                    pads.Add(p);found=true;
                 }
             }
+            // Paid-off patrol contracts require a FULL wave. Check all feet
+            // before touching enemies or actor IDs; no partial free reward.
+            if(requireFull&&pads.Count!=count)return 0;
+            foreach(Point p in pads)
+            {
+                int slot=pads.IndexOf(p);
+                Enemy patrol=CreatePlacedEnemy(++enemyId,
+                    (room+slot*2)%3,p,30+room*10);
+                enemies.Add(patrol);
+                regionalAmbientEnemies.Add(patrol);
+            }
+            int spawned=pads.Count;
             if(spawned>0)
             {
                 revision++;sound="alert";
@@ -294,6 +303,204 @@ namespace Starfall
                     "Your fieldwork draws a local patrol. These raiders hold this district rather than chasing you across the whole region.");
             }
             return spawned;
+        }
+        // Seven optional civilian field-patrol contracts reuse the actual
+        // surveyed landmarks and real enemies. All active identity belongs
+        // to this play session; only signed first-clear receipts use v2 flags.
+        private static readonly string[] scoutPatrolZh={
+            "","断枝旁的猎人正在抄近路。守住居民的避猎线，别让陷阱再封住回程。",
+            "护渠人发现石阶上的巡兵。清理旧路，才能让抬担架的人通过。",
+            "矿工被勒令替陌生武装守炉。取回炉门旁丢失的撤离名册。",
+            "堡垒的军用口令仍在驱赶平民。击退堵在后门的武装巡守。",
+            "港口的流灯引来了趁雾抢粮的人。夺回真正岸标的使用权。",
+            "巡兵追着假光塔逼人走进热沙。保住实际山影指向的安全路。",
+            "高地的假钟声引走了救援队。拦住埋伏者，再沿背风钟回报。"
+        };
+        private static readonly string[] scoutPatrolEn={
+            "","Hunters are cutting across the broken branches. Defend the travelers' safe bypass.",
+            "Raiders block the old high-water stair. Reopen it for the stretcher teams.",
+            "Armed strangers commandeered the forge watch. Recover the miners' lost evacuation roll.",
+            "Military challenges are still keeping civilians from the citadel side door. Clear the rear guard.",
+            "Looters follow wandering harbor lights to steal the food boats. Secure the true coast signal.",
+            "A false bright tower lures patrols into the dunes. Protect the route marked by a real mountain shadow.",
+            "False bell calls have led rescue teams into a highland ambush. Stop the hunters and report by the sheltered bell."
+        };
+        private int fieldPatrolRoom=-1;
+        private MapData fieldPatrolMap;
+        private SaveData fieldPatrolSave;
+        private WorldObject fieldPatrolOrigin;
+        private readonly List<Enemy> fieldPatrolEnemies=new List<Enemy>();
+        private readonly HashSet<Enemy> fieldPatrolKills=new HashSet<Enemy>();
+        public bool FieldPatrolActive
+        {get{return fieldPatrolRoom>=1&&fieldPatrolRoom<=7&&
+            fieldPatrolRoom==save.room&&
+            Object.ReferenceEquals(fieldPatrolMap,Map)&&
+            Object.ReferenceEquals(fieldPatrolSave,save)&&
+            fieldPatrolOrigin!=null&&
+            SourceBelongsToActiveMap(fieldPatrolOrigin);}}
+        public bool FieldPatrolDone(int room)
+        {return room>=1&&room<=7&&Has("biome_patrol_done_"+room);}
+        public int FieldPatrolWins
+        {get{int count=0;for(int i=1;i<=7;i++)
+            if(FieldPatrolDone(i))count++;return count;}}
+        public int FieldPatrolRemaining
+        {get{int count=0;if(FieldPatrolActive)
+            foreach(Enemy e in fieldPatrolEnemies)
+                if(!fieldPatrolKills.Contains(e)&&
+                    enemies.Contains(e)&&e.hp>0f)count++;
+            return count;}}
+        public bool FieldPatrolReportReady
+        {get{if(!FieldPatrolActive||fieldPatrolEnemies.Count<2)
+            return false;
+            foreach(Enemy e in fieldPatrolEnemies)
+                if(!fieldPatrolKills.Contains(e)||e.hp>0f)return false;
+            return true;}}
+        private void OnFieldPatrolEnemyDefeated(Enemy e)
+        {
+            if(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))
+                fieldPatrolKills.Add(e);
+        }
+        private void ResetFieldPatrol()
+        {
+            projectiles.RemoveAll(p=>p.hostileShooter!=null&&
+                fieldPatrolEnemies.Contains(p.hostileShooter));
+            foreach(Enemy e in fieldPatrolEnemies)
+            {
+                RemoveEnemyPendingWarning(e);
+                regionalAmbientEnemies.Remove(e);
+                enemies.Remove(e);
+            }
+            fieldPatrolRoom=-1;fieldPatrolMap=null;
+            fieldPatrolSave=null;fieldPatrolOrigin=null;
+            fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
+        }
+        private Choice FieldPatrolChoice(WorldObject site)
+        {
+            int room=save.room;
+            if(room<1||room>7||site.kind!="biomeSurvey")
+                return C("返回原调查地标领取巡逻委托",
+                    "Visit the original survey post for patrol work","close");
+            if(FieldPatrolDone(room))
+                return C("本地巡逻安全回执已登记",
+                    "Patrol safety receipt filed","close");
+            if(FieldPatrolActive)
+                return FieldPatrolReportReady?
+                    C("提交真正击退巡兵的现场回执",
+                      "File verified raider defeat receipt",
+                      "biome_patrol_report"):
+                    C("巡兵仍在现场 · 尚余"+FieldPatrolRemaining+"名",
+                      "Raiders remain · "+FieldPatrolRemaining+" active",
+                      "close");
+            return C("巡路实战 · 消除本区盗匪威胁",
+                "Field patrol · clear the genuine raider threat",
+                "biome_patrol_begin");
+        }
+        private Choice FieldPatrolCancelChoice(WorldObject site)
+        {
+            return FieldPatrolActive&&site.kind=="biomeSurvey"?
+                C("撤回本次巡逻委托","Withdraw this patrol contract",
+                  "biome_patrol_abort"):
+                C("查看巡逻任务日志","Review patrols in journal",
+                  "biome_patrol_journal");
+        }
+        private bool ChooseFieldPatrol(string action)
+        {
+            if(action!="biome_patrol_begin"&&
+               action!="biome_patrol_report"&&
+               action!="biome_patrol_abort"&&
+               action!="biome_patrol_journal")return false;
+            WorldObject site=pendingDialogueSource;
+            int room=save.room;
+            if(mode!="world"||Dying||practicing||room<1||room>7||
+               site==null||site.kind!="biomeSurvey"||
+               site.id!="biomeSurvey"+room||
+               pendingDialogueSourceRoom!=room||
+               !SourceBelongsToActiveMap(site)||
+               !HasPhysicalInteractionReach(site)||!CanStand(Position)||
+               !BiomeFieldDone)return true;
+            if(action=="biome_patrol_journal")
+            {
+                journalFocusRequest="field_patrols";revision++;
+                return true;
+            }
+            if(action=="biome_patrol_abort")
+            {
+                if(!FieldPatrolActive||
+                   !Object.ReferenceEquals(fieldPatrolOrigin,site))
+                    return true;
+                ResetFieldPatrol();revision++;sound="ui";
+                Notify("巡路队伍已撤回；没有结算任何额外巡护奖励。",
+                    "Patrol withdrawn; no unearned safety reward granted.");
+                return true;
+            }
+            if(FieldPatrolDone(room))return true;
+            if(action=="biome_patrol_begin")
+            {
+                if(FieldPatrolActive||FieldWorkPreventsRest||!SafeTravel||
+                   racing||BlockTravelForProtectedFieldMission(true))
+                {
+                    Notify("先完成正在进行的战斗和护送，再接巡路委托。",
+                        "Finish active combat and protected field missions before starting a patrol.");
+                    return true;
+                }
+                int before=enemies.Count;
+                int count=SpawnRegionalScoutEncounter(site,true);
+                int expected=room==2||room==3||room==6?3:2;
+                if(count!=expected)
+                {
+                    Notify("附近还没有完整可步行的巡兵进路。清理现场后再接委托。",
+                        "No complete walkable raider approach remains. Clear the site and retry.");
+                    return true;
+                }
+                fieldPatrolRoom=room;fieldPatrolMap=Map;
+                fieldPatrolSave=save;fieldPatrolOrigin=site;
+                fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
+                for(int i=before;i<enemies.Count;i++)
+                {
+                    Enemy enemy=enemies[i];
+                    fieldPatrolEnemies.Add(enemy);
+                    effects.Add(new Effect("enemyRelease",enemy.Position,.6f)
+                        {variant=enemy.kind});
+                }
+                revision++;sound="quest";
+                Notify(scoutPatrolZh[room]+
+                    " 击退"+count+"名真正的巡兵后，回这里交还现场回执。",
+                    scoutPatrolEn[room]+
+                    " Defeat "+count+" real raiders, then return to this post with the receipt.");
+                return true;
+            }
+            if(!FieldPatrolActive||
+               !Object.ReferenceEquals(fieldPatrolOrigin,site))return true;
+            if(!FieldPatrolReportReady||!SafeTravel)
+            {
+                Notify("只有全部巡兵经真实战斗击倒且周围安全，才能交回委托。",
+                    "Defeat every assigned raider in real combat and clear nearby danger before reporting.");
+                return true;
+            }
+            int cleared=room;
+            ResetFieldPatrol();
+            if(FieldPatrolDone(cleared))return true;
+            Flag("biome_patrol_done_"+cleared);
+            CreditCoins(26+cleared*2);CreditShards(1);AddXp(65+cleared*5);
+            RecordMoment(scoutPatrolZh[cleared]+
+                " 巡逻队经过真实交锋被击退，原调查地标收到安全回执。",
+                scoutPatrolEn[cleared]+
+                " The patrol was defeated in actual combat; the signed safety report reached the original survey post.");
+            revision++;sound="reward";
+            Notify("巡路委托结算：硬币"+(26+cleared*2)+
+                "、碎片1、经验"+(65+cleared*5)+"。已登记"+FieldPatrolWins+"/7地区。",
+                "Patrol signed: "+(26+cleared*2)+" coins, 1 shard, "+
+                (65+cleared*5)+" XP. Verified districts: "+FieldPatrolWins+"/7.");
+            if(FieldPatrolWins==7&&!Has("biome_patrol_seals_complete"))
+            {
+                Flag("biome_patrol_seals_complete");
+                CreditSkillPoints(1);CreditShards(3);
+                RecordMoment("七张安全回执拼成了真正走过、打通过的居民巡路图。",
+                    "Seven signed reports now form a walkable, fought-for civilian patrol map.");
+                Notify("七地区巡路全部完成：额外技能点1、碎片3。",
+                    "All seven patrols secured: bonus talent point and 3 shards.");
+            }
+            return true;
         }
         private Enemy CreatePlacedEnemy(int id, int kind, Point proposed, float health, bool boss = false)
         {
