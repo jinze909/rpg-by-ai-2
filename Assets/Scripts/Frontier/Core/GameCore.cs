@@ -4207,7 +4207,8 @@ namespace Starfall
                     "She slides over a blank roadwarden's slip. “There's hot stew at the inn. Take what you need before you go. No one's ordering you out. The roads still need someone.”",
                     C("开始新的远征", "Another expedition", "routes"),
                     C("回顾结局", "Revisit the ending", "epilogue"),
-                    C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); AddLastDirectiveGuildChoice(); return; }
+                    C("再见", "Goodbye", "close")); AddRoadCharterGuildChoice(); AddLastDirectiveGuildChoice();
+                    AddAfterlightGuildChoice(); return; }
                 int next = save.stage + 1;
                 if (save.stage < 3 && Has("core_" + next))
                     Dialog(o.name, o.en, (Has("witness_complete_"+next) ?

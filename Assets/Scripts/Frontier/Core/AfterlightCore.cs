@@ -727,8 +727,61 @@ namespace Starfall
             try { save.room=region; return CanStand(landing); }
             finally { save.room=current; }
         }
+        // Once the core conflict is resolved, Lyra herself can introduce
+        // the optional reconstruction. The old council board remains usable
+        // for historical saves, but is no longer a mandatory handoff.
+        private void AddAfterlightGuildChoice()
+        {
+            if(!AfterlightEligible||conversation==null)return;
+            var choices=new List<Choice>(conversation.choices);
+            choices.Add(C(Has("afterlight_started")?
+                "与莉雅聊聊战后的修复":"听莉雅讲结局之后的事（可选）",
+                Has("afterlight_started")?
+                "Discuss the ongoing reconstruction":"Ask Lyra about life after the ending (optional)",
+                "afterlight_guild"));
+            conversation.choices=choices.ToArray();
+        }
         private bool ChooseAfterlight(string action)
         {
+            if(action=="afterlight_guild"||
+                action=="afterlight_begin_guild"||
+                action=="afterlight_track_guild")
+            {
+                WorldObject guild=pendingDialogueSource;
+                if(save.room!=0||!AfterlightEligible||guild==null||
+                   guild.kind!="guild"||pendingDialogueSourceRoom!=0||
+                   !SourceBelongsToActiveMap(guild)||
+                   !HasPhysicalInteractionReach(guild)||Dying||practicing)
+                    return true;
+                if(action=="afterlight_track_guild")
+                {
+                    TrackQuest("afterlight");return true;
+                }
+                if(action=="afterlight_begin_guild")
+                {
+                    if(Has("afterlight_started")||
+                       FieldWorkPreventsRest||!SafeTravel||racing)
+                        return true;
+                    Flag("afterlight_started");
+                    TrackQuest("afterlight");
+                    RecordMoment("主线终章之后，莉雅交给你一份自愿参与的重建邀请。居民已经开始生活，接下来由他们决定怎么维护三地的灯。",
+                        "After the main finale, Lyra offers an optional rebuilding commission. The residents have begun their new lives and will choose how their three public lights are maintained.");
+                    revision++;sound="quest";
+                    Notify("后日谈 · 余光重建已加入日志；可按自己的节奏完成三地公共设施。",
+                        "Optional afterstory opened: Afterlight Reconstruction. Three public sites await at your pace.");
+                    return true;
+                }
+                Dialog(guild.name,guild.en,
+                    "“你已经救下这片边境，不欠我新的任务。”莉雅把三份居民来信放在桌上。\\n\\n“但莫芽问林道的灯该谁来守，阿菱担心暴潮时码头没电，维恩说矿工自己得握着停机钥匙。愿不愿意帮他们重建？这是结局之后的生活，你不做也不会改变已经作出的星核决定。”",
+                    "“You saved the frontier. You don't owe me another quest,” Lyra says, laying out three letters.\\n\\n“Moya asks who will tend the forest lights, Arin worries about power at the ferry, and Venn wants the workers to keep their own shutdown key. You can help if you wish. This is life after your ending—not another required finale.”",
+                    Has("afterlight_started")?
+                        C("标记正在进行的居民修复","Track current civic work",
+                          "afterlight_track_guild"):
+                        C("自愿加入居民重建","Volunteer for civic reconstruction",
+                          "afterlight_begin_guild"),
+                    C("先去过自己的生活","I'll live my own life first","close"));
+                return true;
+            }
             if(action=="afterlight_track"){TrackQuest("afterlight");return true;}
             if(!action.StartsWith("afterlight_"))return false;
             if(action.StartsWith("afterlight_watch_"))return ChooseAfterlightWatch(action);

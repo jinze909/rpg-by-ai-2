@@ -579,12 +579,12 @@ namespace Starfall
                 case "commons": return StoryChoice("公共信标 · 艾拉的证词", "Citadel Commons Relay · Ayla's testimony", "story_read_commons");
                 case "skywatch": return StoryChoice("霜钟夜空 · 最后一夜的光谱", "Frostchime Skywatch · last night's spectrum", "story_read_skywatch");
                 case "abyss": return StoryChoice("地脉深渊", "The Root Abyss", "story_read_abyss");
-                case "afterlight": return StoryChoice("第五章 · 余光重建", "Chapter Five · Afterlight Reconstruction", "story_read_afterlight");
-                case "storm": return StoryChoice("第六章 · 公约第一夜", "Chapter Six · First Night of the Commons", "story_read_storm");
-                case "hearing": return StoryChoice("第七章 · 众人的晨钟", "Chapter Seven · The People’s Dawn", "story_read_hearing");
-                case "roadcharter": return StoryChoice("第八章 · 共同行路", "Chapter Eight · Roads for Everyone", "story_read_roadcharter");
-                case "supply_inquest": return StoryChoice("第九章 · 送达之后谁守路", "Chapter Nine · Who Keeps the Routes Open", "story_read_supply_inquest");
-                case "lastdirective": return StoryChoice("第十章 · 最后指令", "Chapter Ten · The Last Directive", "story_read_lastdirective");
+                case "afterlight": return StoryChoice("后日谈 · 余光重建", "Afterstory · Afterlight Reconstruction", "story_read_afterlight");
+                case "storm": return StoryChoice("后日谈 · 公约第一夜", "Afterstory · First Night of the Commons", "story_read_storm");
+                case "hearing": return StoryChoice("后日谈 · 众人的晨钟", "Afterstory · The People’s Dawn", "story_read_hearing");
+                case "roadcharter": return StoryChoice("后日谈 · 共同行路", "Afterstory · Roads for Everyone", "story_read_roadcharter");
+                case "supply_inquest": return StoryChoice("后日谈 · 送达之后谁守路", "Afterstory · Who Keeps the Routes Open", "story_read_supply_inquest");
+                case "lastdirective": return StoryChoice("后日谈 · 最后指令", "Afterstory · The Last Directive", "story_read_lastdirective");
                 case "civicconduit": return StoryChoice("第十一章 · 重接公共电网", "Chapter Eleven · Reconnecting the Public Grid", "story_read_civicconduit");
                 case "civic_aftermath": return StoryChoice("第十二章 · 电网之后，谁守着路", "Chapter Twelve · Who Keeps the Road After the Grid", "story_read_civic_aftermath");
                 case "ending": return StoryChoice("你决定的边境", "The frontier you chose", "story_read_ending");

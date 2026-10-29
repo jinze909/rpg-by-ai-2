@@ -124,43 +124,43 @@ namespace Starfall
 
             if(save.ending<=0) return beats;
             AddUnlockedRecap(beats,5,"afterlight",
-                "第五章 · 余光重建","Chapter Five · Afterlight Reconstruction",
+                "后日谈 · 余光重建","Afterstory · Afterlight Reconstruction",
                 "星核事件之后，恢复土地不能只靠一次决定。重连三地公共设施，并让当地居民承担后续维护。",
                 "After the core decision, recovery takes more than one promise. Reconnect three public sites with local residents as their stewards.",
                 "重建公约已经公布，三地居民共同维护设施。",
                 "The reconstruction charter is public and residents maintain the sites.");
             AddUnlockedRecap(beats,6,"storm_commons",
-                "第六章 · 公约第一夜","Chapter Six · First Night of the Commons",
+                "后日谈 · 公约第一夜","Afterstory · First Night of the Commons",
                 "战后第一场星雨考验新公约：公共储备有限，避险与供能必须由各地共同协调。",
                 "The first postwar starstorm tests the new charter. Limited public reserves must balance shelter and essential power.",
                 "第一次公共星雨应对已经完成。",
                 "The first shared starstorm response is complete.");
             AddUnlockedRecap(beats,7,"hearing",
-                "第七章 · 众人的晨钟","Chapter Seven · The People's Dawn",
+                "后日谈 · 众人的晨钟","Afterstory · The People's Dawn",
                 "设施恢复之后，居民仍要决定自己的未来。听取密林、渡口与矿场三位证人的选择，再公布公开公约。",
                 "Restoring infrastructure is not enough: residents must choose its future. Hear the forest, ferry and mining witnesses before publishing the civic verdict.",
                 "居民听证与三地公共公约已经生效。",
                 "The residents' hearing and three-region civic accord are complete.");
             AddUnlockedRecap(beats,8,"roadcharter",
-                "第八章 · 共同行路","Chapter Eight · Roads for Everyone",
+                "后日谈 · 共同行路","Afterstory · Roads for Everyone",
                 "旧地图只记录获准通行的人。重新踏查三地支路，把居民真实走过的路写进公共地图。",
                 "Old maps recorded authorized travelers, not every resident. Survey three lived-in roads and put real civilian routes on the public map.",
                 "三地道路证据已汇总，公共道路公约已经公布。",
                 "Three regions' road evidence has become a public charter.");
             AddUnlockedRecap(beats,9,"civic_supply",
-                "第九章 · 居民补给审计","Chapter Nine · People's Supply Inquest",
+                "后日谈 · 居民补给审计","Afterstory · People's Supply Inquest",
                 "补给不能只记在账本上：先把救援包实际送到居民手中，再让社区选择医疗点或守路岗。",
                 "Relief cannot exist only on paper. Deliver real parcels, then let each community choose between clinics and road lookouts.",
                 "三地补给与服务选择已公开，居民可核对账目。",
                 "Three communities' supply and service choices are on public record.");
             AddUnlockedRecap(beats,10,"last_directive",
-                "第十章 · 最后指令","Chapter Ten · The Last Directive",
+                "后日谈 · 最后指令","Afterstory · The Last Directive",
                 "公开账目之后，还有一道无人署名的旧军令。寻找原始证词，解除封锁，决定哪些权利应该归还居民。",
                 "A final unsigned military order remains after the supply ledger. Recover first-hand testimony, break its locks and restore civilian rights.",
                 "最后指令已经公开，居民获得持续有效的民用权限。",
                 "The last directive is public, with lasting civic rights.");
             AddUnlockedRecap(beats,11,"civic_conduit",
-                "第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit",
+                "后日谈 · 公共电网调谐","Afterstory · The Civic Conduit",
                 "新权利需要真正运行的电网。亲自校准三处阀门，避开电弧，让公共能源送达各地避险棚。",
                 "New civic rights need a working grid. Tune three physical valves, avoid live arcs and restore power to public refuges.",
                 "三个阀门已经校准，公共电网持续服务远岸居民。",
@@ -170,8 +170,8 @@ namespace Starfall
             // Reuse the real road-audit quest for both unlock and next foot,
             // so none of the three regional checks can be fabricated here.
             AddUnlockedRecap(beats,12,"civic_aftercare",
-                "第十二章 · 电网之后，谁守着路",
-                "Chapter Twelve · Who Keeps the Road After the Grid",
+                "后日谈 · 电网之后，谁守着路",
+                "Afterstory · Who Keeps the Road After the Grid",
                 Has("civic_aftercare_started")?
                     "电网重新送来了光。夜行旅人摊开巡路簿，等着引水渠、赤铁矿场和雾港的旧路标留下亲自核验的记号。已确认的路能带人回家，未到过的路仍是空白。":
                     "三道阀门都接通了，但灯亮不代表夜路安全。去炉火旅店找夜行旅人，领走巡路簿，替引水渠、赤铁矿场和雾港重新走一遍旧路标。",

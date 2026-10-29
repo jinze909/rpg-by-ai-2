@@ -64,7 +64,7 @@ namespace Starfall.Tests
             }
             game.save.english=true;
             var english=game.StoryRecap();
-            Check(english.Count==beats.Count && english[4].title.StartsWith("Chapter Five") &&
+            Check(english.Count==beats.Count && english[4].title.StartsWith("Afterstory") &&
                 english[4].next==game.GetQuest("afterlight").next &&
                 !english[4].summary.Contains("星核"),
                 "Already unlocked story pages, explanations and goals switch to English together");
@@ -115,7 +115,7 @@ namespace Starfall.Tests
             List<StoryBeat> opened=game.StoryRecap();
             StoryBeat chapter=opened[opened.Count-1];
             Check(chapter.chapter==12&&chapter.questId=="civic_aftercare"&&
-                chapter.title.Contains("第十二章")&&!chapter.complete&&
+                chapter.title.Contains("后日谈")&&!chapter.complete&&
                 chapter.next==game.GetQuest("civic_aftercare").next&&
                 chapter.summary.Contains("夜行旅人"),
                 "Completing the three real grid valves reveals the previously missing twelfth story and its actionable Inn quest");
@@ -140,7 +140,7 @@ namespace Starfall.Tests
                 "Three visited landmarks are not falsely counted as a published report; the live goal returns to the Inn");
             game.save.english=true;
             StoryBeat english=game.StoryRecap()[game.StoryRecap().Count-1];
-            Check(english.title.StartsWith("Chapter Twelve")&&
+            Check(english.title.StartsWith("Afterstory")&&
                 english.summary.Contains("Hearth Inn")&&
                 !english.summary.Contains("夜行旅人")&&
                 english.next==game.GetQuest("civic_aftercare").next,

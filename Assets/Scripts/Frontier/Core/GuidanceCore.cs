@@ -2162,7 +2162,7 @@ namespace Starfall
 
             if(id=="civic_conduit")
             {
-                q.title=L("第十一章 · 公共电网调谐","Chapter Eleven · The Civic Conduit");
+                q.title=L("后日谈 · 公共电网调谐","Afterstory · The Civic Conduit");
                 q.category=L("战后电路 · 行走、相位与避让","POSTWAR GRID · MOVEMENT, TIMING & DODGING");
                 q.description=L("最后军令公开后，在堡垒西端捐献熔断器，80秒内步行调谐三个阀门。各阀门须等待自己的绿色相位；遇电弧可花20耐力在当前阀门接地一次，导体受损超过15点时可花一枚零件现场抢修35点（每趟一次）。完成后，八地避险棚获得对应服务。",
                     "After the Last Directive, donate a fuse and walk three timed valves within 80s. Wait for each green phase. Ground each active valve once for 20 energy to cancel live arcs, or use one spare part to repair 35 integrity when the conductor is significantly damaged (once per run). All rebuilt refuges gain their civic service.");
@@ -2206,9 +2206,9 @@ namespace Starfall
 
             if(id=="last_directive")
             {
-                q.title=L("第十章 · 最后指令","Chapter Ten · The Last Directive");
-                q.category=L("主线余波 · 原始证词、破译与守卫战",
-                    "STORY AFTERMATH · TESTIMONY, CIPHER & COMBAT");
+                q.title=L("后日谈 · 最后指令","Afterstory · The Last Directive");
+                q.category=L("可选后日谈 · 原始证词与守卫战",
+                    "OPTIONAL AFTERSTORY · TESTIMONY & COMBAT");
                 q.description=L("三地公共服务名册公开后，旧军令调查直接解锁，无需再去告示牌接取。可向公会莉雅询问线索或直接进入堡垒外环搜集原件。亲自前往堡垒外围寻找矿工、船工和巡路队的原始证词，依真实时间顺序解除封锁，击败两波实体守卫，选定居民权利，再回城公布。现有主线与结局不会被覆盖。",
                     "The signed civic service ledger immediately unlocks this optional inquiry. Ask Lyra or go straight to the outer citadel evidence; no noticeboard handoff is needed. Investigate an unsigned order. Read three genuine clues across the far citadel, solve their historical sequence, defeat two real guardian waves, choose civic rights, then publish the final order in town. Original endings remain intact.");
                 // A trace is an optional SECOND pass at each actual evidence
@@ -2452,8 +2452,8 @@ namespace Starfall
 
             if(id=="civic_aftercare")
             {
-                q.title=L("第十二章后续 · 三地巡路复核",
-                    "Chapter Twelve Aftermath · Three-Region Road Audit");
+                q.title=L("后日谈 · 三地巡路复核",
+                    "Afterstory · Three-Region Road Audit");
                 q.category=L("开放世界 · 公共设施维护",
                     "OPEN WORLD · CIVIC MAINTENANCE");
                 q.description=L(
@@ -2515,7 +2515,7 @@ namespace Starfall
 
             if(id=="civic_supply")
             {
-                q.title=L("第九章 · 居民补给审计","Chapter Nine · The People's Supply Inquest");
+                q.title=L("后日谈 · 居民补给审计","Afterstory · The People's Supply Inquest");
                 q.category=L("后日谈 · 分支抉择与持续服务",
                     "AFTERMATH · COMMUNITY CHOICES");
                 q.description=L(
@@ -3119,8 +3119,8 @@ namespace Starfall
 
             if (id == "roadcharter")
             {
-                q.title = L("第八章 · 共同行路", "Chapter Eight · Roads for Everyone");
-                q.category = L("主线 · 战后公共道路", "STORY · CIVILIAN ROADS");
+                q.title = L("后日谈 · 共同行路", "Afterstory · Roads for Everyone");
+                q.category = L("可选后日谈 · 公共道路", "OPTIONAL AFTERSTORY · CIVILIAN ROADS");
                 q.description = L(
                     "公开听证之后，真正的公共道路必须从居民走过的路径里重新绘制。带回密林、遗迹、矿场三份东部支路证据，再与莉雅决定未来的交通优先级。",
                     "After the public hearing, public roads must be charted from paths residents actually use. Survey three eastern branches and bring the field evidence to Lyra for a lasting civic choice.");
@@ -3325,9 +3325,9 @@ namespace Starfall
 
             if(id=="hearing")
             {
-                q.title=L("第七章 · 众人的晨钟","Chapter Seven · The People's Dawn");
-                q.category=L("战后主线 · 公开听证与独立公民誓言",
-                    "POST-FINALE MAIN STORY · PUBLIC HEARING");
+                q.title=L("后日谈 · 众人的晨钟","Afterstory · The People's Dawn");
+                q.category=L("可选后日谈 · 居民听证",
+                    "OPTIONAL AFTERSTORY · PUBLIC HEARING");
                 q.locked=!HearingReady;
                 q.complete=HearingComplete;
                 q.description=L("莉雅准备将城外三地的照明与补给写进公开协议。莫芽要修复林根，阿菱怕涨潮时又有人被拦在渡口，维恩坚持让工人自己保管停机钥匙。去密林、遗迹和矿场听他们亲口说，再回余烬镇决定医疗灯和应急供能该先照顾谁。",
@@ -3375,9 +3375,9 @@ namespace Starfall
 
             if(id=="storm_commons")
             {
-                q.title=L("第六章 · 公约第一夜","Chapter Six · First Night of the Commons");
-                q.category=L("战后主线 · 星雨与公共能源分配",
-                    "POST-FINALE STORY · PUBLIC GRID DURING THE STARSTORM");
+                q.title=L("后日谈 · 公约第一夜","Afterstory · First Night of the Commons");
+                q.category=L("可选后日谈 · 星雨与能源",
+                    "OPTIONAL AFTERSTORY · PUBLIC GRID");
                 q.locked=!StormReady;
                 q.complete=Has("storm_complete");
                 q.description=L("战后第一场星雨迫近，八单位公共储备必须供三个地区分配。庇护优先3单位，基础供能2单位，实际使用木材、月光草、星晶和零件。没稳定的地区会受到可闪避的星雨冲击。三地修复后回镇，依你原先的结局顺序亲自走到三座分散的星灯处完成95秒调谐，再回议事台公布公约。各地区的选择会永久影响疗养、耐力与工房制作成本。",
@@ -3432,8 +3432,8 @@ namespace Starfall
 
             if(id=="afterlight")
             {
-                q.title=L("第五章 · 余光重建","Chapter Five · Afterlight Reconstruction");
-                q.category=L("战后主线 · 三地公共设施","POST-FINALE MAIN STORY · THREE PUBLIC SITES");
+                q.title=L("后日谈 · 余光重建","Afterstory · Afterlight Reconstruction");
+                q.category=L("可选后日谈 · 三地公共设施","OPTIONAL AFTERSTORY · THREE PUBLIC SITES");
                 q.locked=save.ending==0;
                 q.complete=Has("afterlight_complete");
                 q.description=L("星核结局之后，在三地区校准锚点并决定公共用途。可以免费用90秒运输负载，或付1枚星晶购买120秒稳态负载，后者能承受更多真实战斗冲击。必须亲自携带完整载荷前往接收端，支付真实安装材料，三地建设完毕后返回公会公布公约。",
@@ -3461,10 +3461,13 @@ namespace Starfall
                     AfterlightChargeRegion==next?"afterlightoutlet"+next:
                     Has("afterlight_done_"+next) && !Has("afterlight_steward_"+next)?"witnessnpc"+next:
                     "afterlightanchor"+next;
-                q.target=ObjectPoint(q.room,kind,new Point(16,18));
+                q.target=!Has("afterlight_started")&&q.room==0?
+                    ObjectPoint(0,"guild",new Point(18,17)):
+                    ObjectPoint(q.room,kind,new Point(16,18));
                 q.next=q.complete?L("第五章完成 · 重建公约已公开","Chapter Five complete · Charter published"):
                     q.locked?L("先完成厄洛的星核主线结局","Finish the original starcore ending first"):
-                    !Has("afterlight_started")?L("去公会重建议事台接受战后任务","Accept the reconstruction mission at the guild council"):
+                    !Has("afterlight_started")?L("主线已完结；如愿意帮居民重建，可直接找公会莉雅聊聊",
+                        "The main story is over. If you want to help rebuild, talk to Lyra at the guild"):
                     AfterlightChargeRegion!=0?L(
                         "送往远端接收台：剩余"+(int)Math.Ceiling(AfterlightChargeLeft)+
                         "秒 · 载荷"+(int)Math.Ceiling(AfterlightChargeIntegrity)+"%"+
