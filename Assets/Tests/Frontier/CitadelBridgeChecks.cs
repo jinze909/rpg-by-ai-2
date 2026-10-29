@@ -104,14 +104,25 @@ namespace Starfall.Tests
             Point bridgeFoot=new Point(48.5f,38.5f);
             bool currentEscape=(bool)paired.Invoke(g,new object[]{
                 bridgeFoot,bridgeFoot+new Point(2f,0f),.82f});
-            Check(g.CanStand(bridgeFoot)&&
-                currentEscape==((g.CanStand(bridgeFoot+new Point(-2f,0f))&&
-                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(-2f,0f)))||
-                    (g.CanStand(bridgeFoot+new Point(0f,2f))&&
-                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(0f,2f)))||
-                    (g.CanStand(bridgeFoot+new Point(0f,-2f))&&
-                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(0f,-2f)))),
-                "Second pulse can only appear when a REAL original-terrain alternative dodge exit remains");
+            var clearLine=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(clearLine!=null&&g.CanStand(bridgeFoot),
+                "Physical original terrain and protected combat sight helper are available");
+            // The actual combat obstacle trace is deliberately private:
+            // invoke that SAME runtime method instead of inventing a
+            // different path clearance rule in this regression.
+            bool left=g.CanStand(bridgeFoot+new Point(-2f,0f))&&
+                (bool)clearLine.Invoke(g,new object[]{
+                    bridgeFoot,bridgeFoot+new Point(-2f,0f)});
+            bool up=g.CanStand(bridgeFoot+new Point(0f,2f))&&
+                (bool)clearLine.Invoke(g,new object[]{
+                    bridgeFoot,bridgeFoot+new Point(0f,2f)});
+            bool down=g.CanStand(bridgeFoot+new Point(0f,-2f))&&
+                (bool)clearLine.Invoke(g,new object[]{
+                    bridgeFoot,bridgeFoot+new Point(0f,-2f)});
+            Check(currentEscape==(left||up||down),
+                "Paired pulse requires a real unblocked opposite/vertical dodge lane, never the covered east side");
             for(int n=0;n<63;n++)g.Tick(.05f,new Point());
             Check(g.BridgeOfChordsActive&&
                 g.hazards.Exists(h=>object.ReferenceEquals(h.bossOwner,elite)),
