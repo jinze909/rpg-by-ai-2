@@ -13,7 +13,7 @@ namespace Starfall
         private float courierIntegrity;
         private bool courierPatched,courierIntegrityWarning;
         private bool courierGuardSpent,courierRaided;
-        // Earned only when BOTH actual bridge pursuers die through GameCore.Hit.
+        // Earned only after both original bridge pursuers die or are physically restrained.
         // Never persisted until the original parcel reaches the far refuge.
         private int courierResolvedMask,courierCapturedMask;
         // Real encounter bodies outlive GameCore.Hit's removal callback.
@@ -378,10 +378,10 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,FarCourierActive?
                     "救援包正在你身上。沿修好的桥面向南步行，并到远端避险棚亲手交货。你也可以把它留在桥头。":
-                    "桥已经重新开放，可以真正向远端避险棚运送物资。领取后95秒内步行穿过新桥；桥南可能遭遇真正的劫匪拦截。负重会稍微减慢速度，不能使用传送跳过。",
+                    "桥已开放！95秒内背货步行过桥，桥南有真实劫匪。可战斗、迂回，或用绊索活捉两人，让避险棚获得长期救治补给。负重减速，传送不计数。",
                     FarCourierActive?
                     "Carry your relief parcel across the restored bridge to the outer refuge, or leave it safely here.":
-                    "The reopened bridge can finally deliver aid. Carry a real parcel across it to the public refuge within 95 seconds. Real raiders intercept the crossing; fight or evade them. Weight slows walking and fast travel cannot substitute.",
+                    "The reopened bridge carries relief parcels to the public refuge within 95 seconds. Real raiders intercept the crossing: fight, bind both alive with snares for lasting refuge care, or evade. Weight slows walking; fast travel never counts.",
                     C(FarCourierActive?"放回物资":"背起救援包",
                         FarCourierActive?"Set parcel down":"Carry relief parcel",
                         FarCourierActive?"far_courier_cancel":"far_courier_start"),
@@ -394,7 +394,9 @@ namespace Starfall
             Dialog(o.name,o.en,ready?
                 "这桥才刚修好，你就把药背到了门口。封条也在。"+
                     (FarCourierSecuredInFlight?
-                        "你亲自击败了两名劫匪，交接时还能领取一次性安全护送奖金。":
+                        (FarCourierHumaneInFlight?
+                            "两名劫匪都被你用绊索活捉，居民可以留下长期救护资源。":
+                            "两名真实劫匪已被击败或制服，可以领取安全护送奖金。"):
                         "你选择谨慎绕过追兵，仍可正常交付全部物资。")+
                     (courierIntegrity>=90?
                         "药箱仍有至少九成完好，居民能把完整药品留给本地避险棚。":
@@ -403,7 +405,9 @@ namespace Starfall
                 ready?
                 "The bridge is barely repaired, and you've brought the medicine right to our door."+
                     (FarCourierSecuredInFlight?
-                        " You defeated both real raiders; a one-time secure-route bonus is available at delivery.":
+                        (FarCourierHumaneInFlight?
+                            " You captured both real raiders alive with snares, earning local treatment supplies.":
+                            " Both genuine raiders were defeated or restrained; secure-route bonus awaits."):
                         " You avoided the pursuers and can still complete the full delivery.")+
                     (courierIntegrity>=90?
                         " At least 90% of the medicine survived; this refuge can keep its treatment stock.":
@@ -559,11 +563,13 @@ namespace Starfall
             Notify((secured?
                 "救援包与安全护送完成：硬币35、碎片1、经验53！":
                 "救援包已交接：硬币25、碎片1、经验38！")+
-                (pristine?"\n药品完好：本地避险棚添柴休息额外恢复10生命。":""),
+                (pristine?"\n药品完好：本地避险棚添柴休息额外恢复10生命。":"")+
+                (humane?"\n非致命护送：本地添柴休息再额外恢复10生命。":""),
                 (secured?
                 "Secure delivery! +35 coins, +1 shard, +53 XP!":
                 "Parcel delivered: +25 coins, +1 shard, +38 XP!")+
-                (pristine?"\nMedicine intact: +10 HP per timber-fueled rest at this refuge.":""));
+                (pristine?"\nMedicine intact: +10 HP per timber-fueled rest at this refuge.":"")+
+                (humane?"\nBoth taken alive: +10 more HP per timber rest here.":""));
             if(unpaidCoins+unpaidShards+unpaidTalent>0)
                 Notify("救援包已真实交付！部分奖励已入账，装不下的硬币、碎片或技能点保留在本地避险棚，可稍后签领。",
                     "Parcel genuinely delivered! Collected the rewards that fit; any unpaid coins, shards or talent remain on this refuge's claim ledger.");
