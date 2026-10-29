@@ -677,6 +677,12 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            if(RidgeEchoRunActive)
+            {
+                Notify("偏远传令仍在限时运输中。沿真实道路前往第三处补给台，或回第二站取消，不能用快捷通行跳过距离。",
+                    "A live overland relay must be carried on foot. Reach the third original station or cancel at dispatch; shortcuts cannot replace the journey.");
+                return true;
+            }
             if(GhostTrainBattleActive)
             {
                 Notify("矿场第十七趟列车的转辙台仍在实战封锁中。回原转辙台中止，或真正完成战斗后才能离开。",
@@ -4662,7 +4668,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||

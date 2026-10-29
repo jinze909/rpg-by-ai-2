@@ -6953,12 +6953,20 @@ namespace Starfall.Tests
                 g.save.x=sites[1].x;g.save.y=sites[1].y;g.Talk(sites[1]);
                 int start=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="ridge_echo_launch");
-                Check(start>=0&&g.conversation.textEn.Contains("seconds"),
+                Check(start>=0&&g.conversation.textEn.Contains("second"),
                     "Intermediate real field terminal offers an explained timed mission");
                 g.Choose(start);
                 Check(g.RidgeEchoRunActive&&g.RidgeEchoSeconds>=90&&
                     (g.RidgeEchoObjective(room)-new Point(sites[2].x,sites[2].y)).Length<.01f,
                     "Accepted dispatch starts a genuine transient world-clock run to the third real terminal");
+                Check((bool)typeof(GameCore).GetProperty("RidgeEchoRunActive").GetValue(g,null)&&
+                    g.GetQuest("ridge_echo").steps.Count==7,
+                    "Existing native journal and courier state recognize an active field mission");
+                // A live courier cannot cross into Emberfall to bypass the
+                // authored overland route. The original room must remain.
+                g.Enter(0);
+                Check(g.save.room==room&&g.RidgeEchoRunActive,
+                    "Cross-region fast travel is blocked while the physical delivery is in progress");
                 // Timeout is real world simulation, not an action command;
                 // accelerate ONLY the transient timer to exercise expiry.
                 timeField.SetValue(g,.02f);

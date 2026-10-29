@@ -841,7 +841,10 @@ namespace Starfall
                     RidgeEchoSurveyed(room)?
                         C("开始真实限时传令","Start timed overland relay","ridge_echo_launch"):
                         C("返回寻找原件","Return for the evidence","close"),
-                    C("暂不行动","Not now","close"));
+                    RidgeEchoRunActive?
+                        C("中止本次传令","Withdraw this timed delivery","ridge_echo_abort"):
+                        C("暂不行动","Not now","close"),
+                    C("暂时离开","Leave","close"));
                 return true;
             }
             Dialog(title,english,
@@ -886,9 +889,16 @@ namespace Starfall
                     "The false reading contradicts the site. -6 stamina; the evidence remains unresolved.");
                 return true;
             }
+            if(action=="ridge_echo_abort"&&index==1&&RidgeEchoRunActive)
+            {
+                ResetRidgeEcho();revision++;sound="deny";
+                Notify("传令已在原起点明确撤回。原始线索和旧存档的进度保留，材料尚未消耗。",
+                    "This delivery was explicitly withdrawn at its true source. Original evidence is safe; no material was spent.");
+                return true;
+            }
             if(action=="ridge_echo_launch"&&index==1&&RidgeEchoSurveyed(room))
             {
-                if(FieldWorkPreventsRest||!SafeTravel)
+                if((FieldWorkPreventsRest&&!RidgeEchoRunActive)||!SafeTravel)
                 {
                     Notify("周围尚有战斗或受保护现场工作。先完成它们再发信。",
                         "Combat or a protected field mission is active. Finish it before dispatching the relay.");
@@ -908,9 +918,12 @@ namespace Starfall
             if(action=="ridge_echo_finish"&&index==2&&RidgeEchoRunActive&&
                 !RidgeEchoComplete(room))
             {
-                if(!SafeTravel||FieldWorkPreventsRest)
+                // Our OWN live relay is expected. Another field mission
+                // cannot start while the courier is active because the
+                // shared fieldwork gate above now protects this delivery.
+                if(!SafeTravel)
                 {
-                    Notify("补给台周围仍有危险，必须先清理实际威胁。",
+                    Notify("补给台周围仍有危险，必须先清理实际威胁。" ,
                         "Real threats remain at the supply station. Clear them before delivering.");
                     return true;
                 }
