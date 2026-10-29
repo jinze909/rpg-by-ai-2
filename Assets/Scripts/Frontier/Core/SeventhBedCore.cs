@@ -24,6 +24,9 @@ namespace Starfall
         // while a successful completed delivery uses a normal v2 string flag.
         private int seventhSupperPhase; // 0 idle, 1 hot bowls, 2 empty bowls
         private float seventhSupperHeat;
+        private bool seventhSupperWrapped;
+        public bool SeventhSupperWrapped
+        {get{return SeventhSupperActive&&seventhSupperPhase==1&&seventhSupperWrapped;}}
         public bool SeventhSupperDone {get{return Has("seventh_supper_delivered");}}
         public bool SeventhSupperActive
         {get{return SeventhBedComplete&&!SeventhSupperDone&&
@@ -48,7 +51,7 @@ namespace Starfall
             L("趁热将汤放进附楼的隐蔽交接处",
               "CARRY HOT SUPPER TO THE ANNEX RELAY");}}
         private void ResetSeventhSupper()
-        {seventhSupperPhase=0;seventhSupperHeat=0f;}
+        {seventhSupperPhase=0;seventhSupperHeat=0f;seventhSupperWrapped=false;}
 
         public int SeventhBedEvidenceCount
         {get{return (SeventhBedStamp?1:0)+(SeventhBedBlanket?1:0)+
@@ -132,6 +135,26 @@ namespace Starfall
             {
                 // The annex is a REAL distant drop point, never a clickable
                 // reward from the cook, an abstract quest menu or a teleport.
+                if(site.id=="seventh_cot"&&SeventhSupperActive&&
+                   !SeventhSupperReturning)
+                {
+                    Dialog(site.name,site.en,
+                        seventhSupperWrapped?
+                            "七只汤碗已经用床柱边备用的干净麻布包好。潮湿的旧毯子没有被拿来接触食物。":
+                            save.energy<8f?
+                                "床柱上有一块干净麻布，可以替汤碗隔冷，但你还需要8点耐力才能系紧。":
+                                "床柱边挂着备用的干净麻布。花8点耐力把汤碗包紧，剩余路程就能更慢地散热。那条有雨水的旧毯子仍原封不动。",
+                        seventhSupperWrapped?
+                            "The seven bowls are already wrapped in clean spare linen from the bedpost. The old rain-soaked blanket never touched the food.":
+                            save.energy<8f?
+                                "Clean spare linen hangs at the guest cot, but you need 8 stamina to tie an insulating wrap.":
+                                "Clean spare linen hangs from the guest cot. Spend 8 stamina to wrap the bowls; they will cool more slowly on the remaining route. Leave the original rain-soaked blanket untouched.",
+                        !seventhSupperWrapped&&save.energy>=8f?
+                            C("为汤碗保温 · 耐力8","Wrap supper · 8 stamina",
+                              "seventh_supper_wrap"):
+                            C("继续送餐","Continue delivery","close"),
+                        C("离开","Leave","close"));return true;
+                }
                 if(site.id=="seventh_reply"&&SeventhSupperActive&&
                    !SeventhSupperReturning)
                 {
@@ -286,6 +309,7 @@ namespace Starfall
             if(site==null||!SeventhBedSource(site)||
                mode!="world"||Dying||practicing)return true;
             if(action=="seventh_supper_start"||
+               action=="seventh_supper_wrap"||
                action=="seventh_supper_drop"||
                action=="seventh_supper_finish")
             {
@@ -300,6 +324,18 @@ namespace Starfall
                     revision++;sound="quest";
                     Notify("阿茴把七碗热汤交给你。45秒内走到附楼墙缝的交接架；别让汤凉了。",
                         "Ari gives you seven hot bowls. Reach the annex mortar shelf in 45 seconds before the soup cools.");
+                    return true;
+                }
+                if(action=="seventh_supper_wrap")
+                {
+                    if(site.id!="seventh_cot"||site.kind!="seventhcot"||
+                       seventhSupperPhase!=1||!SeventhSupperActive||
+                       seventhSupperWrapped||seventhSupperHeat<=0f||
+                       save.energy<8f)return true;
+                    save.energy-=8f;seventhSupperWrapped=true;
+                    revision++;sound="quest";
+                    Notify("你用干净麻布包好七碗热汤：剩余路程的散热速度降低45%。",
+                        "Clean linen secures the bowls: remaining soup cooling slows by 45%.");
                     return true;
                 }
                 if(action=="seventh_supper_drop")
@@ -437,7 +473,8 @@ namespace Starfall
             if(SeventhSupperActive&&seventhSupperPhase==1&&
                mode=="world"&&dt>0f)
             {
-                seventhSupperHeat=Math.Max(0f,seventhSupperHeat-dt);
+                seventhSupperHeat=Math.Max(0f,seventhSupperHeat-
+                    (seventhSupperWrapped?.55f:1f)*dt);
                 if(seventhSupperHeat<=0f)
                 {
                     ResetSeventhSupper();revision++;sound="alert";

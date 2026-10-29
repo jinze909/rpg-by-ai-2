@@ -312,6 +312,40 @@ namespace Starfall.Tests
                     "An existing completed mystery is not retroactively granted the new sequel");
             }
         }
+        public static void SeventhBedSupperOptionalLinenWrapTradesRealStaminaForHeat(Campaign data)
+        {
+            var g=SeventhSupperReady(data,0);
+            WorldObject cook=SeventhSite(g,"innCook");
+            WorldObject cot=SeventhSite(g,"seventh_cot");
+            Check(PlaceWithinTalkReach(g,cook),
+                "The optional relay starts at original kitchen");
+            g.Talk(cook);
+            Check(SeventhChoice(g,"seventh_supper_start"),
+                "A genuine original cook handoff precedes any linen choice");
+            Check(PlaceWithinTalkReach(g,cot),
+                "Insulation is physically located at the original guest room, not a global menu");
+            g.Talk(cot);
+            float energy=g.save.energy;
+            Check(SeventhChoice(g,"seventh_supper_wrap")&&
+                g.SeventhSupperWrapped&&
+                Math.Abs(g.save.energy-(energy-8f))<.001f,
+                "Actual guest cot grants exactly one optional paid insulation route");
+            g.Talk(cot);
+            Check(!SeventhChoice(g,"seventh_supper_wrap")&&g.SeventhSupperWrapped&&
+                Math.Abs(g.save.energy-(energy-8f))<.001f,
+                "Returning to original cot cannot stack insulation or charge again");
+            for(int i=0;i<40;i++)g.Tick(.05f,new Point());
+            Check(g.SeventhSupperSeconds>43.75f&&
+                g.SeventhSupperSeconds<44f,
+                "Wrapped real two-second walk loses 1.1s of heat rather than unwrapped 2s");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(!restored.SeventhSupperWrapped&&!restored.SeventhSupperActive,
+                "Old v2 saves never persist temporary linen or falsely finished bowls");
+            g.Enter(0);g.Enter(9);
+            Check(!g.SeventhSupperWrapped&&!g.SeventhSupperActive,
+                "Leaving the actual inn retires linen and delivery without inventing completion");
+        }
         public static void SeventhBedMidnightSupperColdCargoAndTravelCannotForgeDelivery(Campaign data)
         {
             var g=SeventhSupperReady(data,1);
