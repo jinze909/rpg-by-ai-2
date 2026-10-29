@@ -42,6 +42,11 @@ namespace Starfall
         public bool UnsentWarningHidden {get{return Has("unsent_warning_hidden");}}
         public bool UnsentWarningComplete
         {get{return UnsentWarningPublic||UnsentWarningHidden;}}
+        // Optional double-fieldcraft challenge: only hand-delivered
+        // receipts can form a durable two-relay mastery.
+        public int UnsentWarningRelayCount
+        {get{return (Has("unsent_warning_relay_2")?1:0)+
+            (Has("unsent_warning_relay_3")?1:0);}}
         public bool UnsentWarningRunActive
         {get{return (warningRunRoom==2||warningRunRoom==3)&&
             save.room==warningRunRoom&&
@@ -300,18 +305,17 @@ namespace Starfall
             if(source==null||source.kind!="unsentrelay")return false;
             if(!WarningRegion(save.room)||WarningRelay(save.room)!=source||
                 !WarningReach(source))return true;
-            string river=save.room==2?
-                L("沉桥救援员留下的油布和旧信号筒。",
-                  "The bridge wardens left oilcloth and an old signal tube."):
-                L("矿工把最后一卷避难警报藏在废轨边。",
-                  "Miners hid a final emergency signal beside the abandoned rails.");
+            string riverZh=save.room==2?
+                "沉桥救援员留下的油布和旧信号筒。":
+                "矿工把最后一卷避难警报藏在废轨边。";
+            string riverEn=save.room==2?
+                "The bridge wardens left oilcloth and an old signal tube.":
+                "Miners hid a final emergency signal beside the abandoned rails.";
             if(!UnsentWarningRunActive)
             {
                 Dialog(source.name,source.en,
-                    river+L("\n\n只有护送密封警报经过此地，才能使用一次接应。已完成的旧路标与地图调查不会改变。",
-                        "\n\nThis relay is usable once only while carrying a sealed warning. Original surveys remain untouched."),
-                    river+L("\n\nOnly an actual warning courier can use this relay once. Existing surveys remain unchanged.",
-                        "\n\nOnly an actual warning courier can use this relay once. Existing surveys remain unchanged."),
+                    riverZh+"\n\n只有护送密封警报经过此地，才能使用一次接应。已完成的旧路标与地图调查不会改变。",
+                    riverEn+"\n\nThis relay is usable once only while carrying a sealed warning. Original surveys remain untouched.",
                     C("继续赶路","Continue onward","close"));
                 return true;
             }
@@ -328,11 +332,8 @@ namespace Starfall
                 return true;
             }
             Dialog(source.name,source.en,
-                river+"\n\n你只能在本次递送中选择一种方案。先用油布封住裂口会耗去8秒，但能修复信封；点燃诱饵烟筒会耗去5秒，并打乱附近真实敌人的行动。",
-                (save.room==2?
-                    "An emergency oilcloth cache by the flooded road.":
-                    "An emergency miners' signal cache by the abandoned tracks.")+
-                "\n\nChoose only one tactic for this crossing: repair the damaged seal at a cost of 8 seconds, or launch a smoke diversion for 5 seconds against genuine nearby raiders.",
+                riverZh+"\n\n你只能在本次递送中选择一种方案。先用油布封住裂口会耗去8秒，但能修复信封；点燃诱饵烟筒会耗去5秒，并打乱附近真实敌人的行动。",
+                riverEn+"\n\nChoose only one tactic for this crossing: repair the damaged seal at a cost of 8 seconds, or launch a smoke diversion for 5 seconds against genuine nearby raiders.",
                 C("重新加固警报 · 草药1、耐力12、8秒 · 信封+45",
                   "Waterproof testimony · 1 herb, 12 energy, 8s · +45 seal",
                   "unsent_relay_repair"),
@@ -560,8 +561,13 @@ namespace Starfall
                 return true;
             }
             bool publish=action=="unsent_publish";
+            bool veteranRelays=UnsentWarningRelayCount==2;
             Flag(publish?"unsent_warning_public":"unsent_warning_hidden");
             CreditCoins(70);CreditShards(2);AddXp(120);
+            // A third progression reward is earned only after using a
+            // REAL relay on both live crossings and delivering both packets.
+            // No bonus from start-only, failed, abandoned or reloaded runs.
+            if(veteranRelays)CreditSkillPoints(1);
             sound="reward";revision++;
             RecordMoment(publish?
                 "两封从未送达的警报终于贴在公会门口。沉桥和矿场的旧路标旁都有人架起急救岗，失名者不再被当成货物。":
@@ -569,12 +575,17 @@ namespace Starfall
                 publish?
                 "Two unsent warnings finally reached the guild wall. Both old waymarks now staff first aid for the publicly named families.":
                 "Trusted wardens keep the witnesses' identities safe. Quiet supply stops now recover travelers' strength at both waymarks.");
-            Notify(publish?
+            if(veteranRelays)RecordMoment(
+                "两处实地接应站都有人留下你的手绘路线：修补破损的纸页或用烟雾骗过追兵，原来都能让证词活着抵达。守路队把这份战术记作一项真正的新专精。",
+                "Both relay keepers retained your field route: waterproofing a torn warning or distracting a live pursuer can each bring real testimony home. The wardens record one earned tactical mastery.");
+            Notify((publish?
                 "公开警报：硬币70、碎片2、经验120；沉桥与矿场旧路标可安全疗伤。":
-                "保护证人：硬币70、碎片2、经验120；两地路标安全恢复耐力+3/秒。",
-                publish?
+                "保护证人：硬币70、碎片2、经验120；两地路标安全恢复耐力+3/秒。")+
+                (veteranRelays?" 双接应站专精：技能点+1。":""),
+                (publish?
                 "Warnings published: +70 coins, 2 shards, 120 XP; safe waymark healing in both regions.":
-                "Witnesses protected: +70 coins, 2 shards, 120 XP; +3 energy/s at both safe waymarks.");
+                "Witnesses protected: +70 coins, 2 shards, 120 XP; +3 energy/s at both safe waymarks.")+
+                (veteranRelays?" Both real relays mastered: +1 skill point.":""));
             return true;
         }
     }

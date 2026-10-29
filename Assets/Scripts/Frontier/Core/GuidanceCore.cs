@@ -1060,8 +1060,8 @@ namespace Starfall
                             "/100 · "+UnsentWarningSeconds.ToString("0")+"s"+
                             L(" · 路程 "," · WALKED ")+UnsentWarningTravel.ToString("0.0")+"/18":
                             "");
-                q.reward=L("两封信真实送达：70硬币、2碎片、120经验与永久两地民间救助",
-                    "Two genuine deliveries: 70 coins, 2 shards, 120 XP and lasting two-region relief");
+                q.reward=L("两封信真实送达：70硬币、2碎片、120经验与永久两地民间救助。任选途中接应站可付费修复破损信封或用烟雾制服附近追兵；两地都实际使用接应并送达可额外获得技能点1。",
+                    "Two delivered letters: 70 coins, 2 shards, 120 XP and lasting relief in both regions. At the optional physical relay, repair a damaged seal or smoke actual pursuers. Use a relay and deliver the letter in BOTH regions for one additional talent point.");
                 return q;
             }
             if(id=="mistport_tidechart")
