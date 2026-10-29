@@ -209,6 +209,42 @@ namespace Starfall.Tests
                 }
             }
         }
+        public static void HumaneForgeJournalRoutesRealUnfinishedWorkAndExclusiveUpgrade(Campaign data)
+        {
+            var g=Fresh(data,0);g.enemies.Clear();
+            QuestGuide guide=g.GetQuest("merciful_warden");
+            Check(!guide.locked&&!guide.complete&&guide.steps.Count==3&&
+                !guide.steps[0].done&&guide.room==0&&
+                guide.next.Contains("Shift+E"),
+                "New humane training is a discoverable journal objective before any alleged capture");
+            g.save.inventory[0]=5;g.save.inventory[4]=5;
+            Point foot=PutRealSnare(g);
+            var raider=new Enemy(79411,0,foot.x,foot.y,80f);
+            raider.hitTime=5f;g.enemies.Add(raider);
+            for(int i=0;i<11;i++)g.Tick(.05f,new Point());
+            Check(g.BindSnaredEnemy(),"Actual living capture earns the first authored journal step");
+            guide=g.GetQuest("merciful_warden");
+            WorldObject smith=Object(g,"forge");
+            Check(guide.steps[0].done&&!guide.steps[1].done&&
+                guide.room==0&&
+                (guide.target-new Point(smith.x,smith.y)).Length<.01f,
+                "After an earned bind the journal points to the original forge, not a fake NPC");
+            g.save.flags.Add("ally_3");
+            guide=g.GetQuest("merciful_warden");
+            Check(guide.steps[1].done&&!guide.complete&&
+                guide.next.Contains("forge"),
+                "Original repaired town pump genuinely unlocks the humane smith handoff");
+            g.save.flags.Add("field_snare_warden_calm");
+            guide=g.GetQuest("merciful_warden");
+            Check(guide.complete&&guide.steps[2].done&&guide.Progress==1f&&
+                guide.next.Contains("0.6"),
+                "Only the paid exclusive discipline closes the tracked journal chapter");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.GetQuest("merciful_warden").complete,
+                "Living-captive journal survives legacy v2 without any new schema");
+        }
         public static void FieldSnareBindExpiresAndIgnoresUnrelatedStuns(Campaign data)
         {
             var g=Fresh(data,0);g.enemies.Clear();

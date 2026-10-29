@@ -212,7 +212,8 @@ namespace Starfall
                 {radius=.85f,variant=0});
             effects.Add(new Effect("number",target.Position,.9f,
                 L("非致命制服","RESTRAINED")));
-            if(!Has("field_snare_mercy_first"))
+            bool firstBind=!Has("field_snare_mercy_first");
+            if(firstBind)
             {
                 Flag("field_snare_mercy_first");
                 AddXp(25);
@@ -221,7 +222,11 @@ namespace Starfall
                     "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
             }
             sound="counter";revision++;
-            Notify("袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",
+            Notify(firstBind?
+                "首次活捉成功！新手帐：诺尔的活口与守护技。没有击杀或战利品。":
+                "袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",
+                firstBind?
+                "First living capture! New journal chapter: Noll's humane techniques. No kill or loot.":
                 "Raider restrained alive. No kill, loot or Boss credit.");
             return true;
         }

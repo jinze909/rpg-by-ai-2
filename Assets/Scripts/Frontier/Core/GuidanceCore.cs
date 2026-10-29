@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1431,6 +1431,44 @@ namespace Starfall
                 return q;
             }
 
+            if(id=="merciful_warden")
+            {
+                q.title=L("诺尔 · 活口与守护技","Noll · Living Captives");
+                q.category=L("非致命战术 · 双路线传承",
+                    "MERCIFUL FIELDCRAFT · EXCLUSIVE BUILD");
+                q.locked=false;
+                q.complete=Has("field_snare_warden_swift")||
+                    Has("field_snare_warden_calm");
+                q.description=L(
+                    "先使用Shift+U在真实地面布下绊索，等普通敌人踩中后，趁1.5秒束缚时间内走到1.5格内，按Shift+E或手柄LB+B花10耐力将其活捉。不能以击杀或普通眩晕代替，也不能制服Boss。活捉一次、完成诺尔的水泵委托后，回余烬镇铁匠铺选择唯一的永久训练：快结把制服耐力降为6；稳索让实际束缚延长0.6秒。两者都要木材1、星晶2和零件1。旧存档使用现有v2标志。",
+                    "Lay a genuine trap with Shift+U, lure a normal enemy onto it, then approach within 1.5 tiles during the 1.5s hold and use Shift+E or LB+B to restrain alive for 10 energy. Neither ordinary stuns nor Bosses qualify. After a true restraint and repairing Noll's town pump, choose ONE permanent smith technique: swift knots reduce the bind cost to 6, or steady lines extend actual holds by 0.6s. Each costs 1 timber, 2 crystals and 1 machine part. Existing v2 flags preserve the choice.");
+                q.steps.Add(new QuestStep(L("在绊索命中后，亲手制服一名活着的袭击者",
+                    "Restrain a living raider after an actual snare contact"),
+                    Has("field_snare_mercy_first")));
+                q.steps.Add(new QuestStep(L("完成诺尔的水泵委托",
+                    "Repair Noll's town pump"),Has("ally_3")));
+                q.steps.Add(new QuestStep(L("到原有铁匠铺支付材料并选择唯一训练",
+                    "Pay and choose ONE discipline at the original forge"),q.complete));
+                q.room=Has("field_snare_mercy_first")?0:save.room;
+                q.target=Has("field_snare_mercy_first")?
+                    ObjectPoint(0,"forge",new Point(18,14)):Position;
+                q.next=q.complete?Has("field_snare_warden_swift")?
+                    L("快结传承已学会：真实制服只需6耐力",
+                        "Swift knots learned: real restraint costs only 6 energy"):
+                    L("稳索传承已学会：实际束缚延长0.6秒",
+                        "Steady lines learned: actual snare holds +0.6s"):
+                    !Has("field_snare_mercy_first")?
+                    L("用绊索实际抓住普通敌人后，近身Shift+E将其活捉",
+                        "After a real snare, approach and use Shift+E to restrain alive"):
+                    !Has("ally_3")?
+                    L("先完成诺尔的水泵零件委托",
+                        "Complete Noll's town-pump commission"):
+                    L("到余烬镇诺尔铁匠铺选择快结或稳索",
+                        "Return to Noll's forge for swift knots or steady lines");
+                q.reward=L("互斥永久训练：制服耐力10→6，或绊索束缚+0.6秒",
+                    "Exclusive upgrade: bind stamina 10→6, or trap hold +0.6s");
+                return q;
+            }
             if(id=="field_snare")
             {
                 q.title=L("实战绊索 · 诺尔的安全防线",
