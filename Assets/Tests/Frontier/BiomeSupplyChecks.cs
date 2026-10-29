@@ -12,6 +12,67 @@ namespace Starfall.Tests
             Check(index>=0,"Missing authentic field supply dialogue choice "+choice);
             g.Choose(index);
         }
+        public static void CivilianSupplyChoicesChangeActualTravelAndCampRest(Campaign data)
+        {
+            GameCore road=new GameCore(data);
+            road.Close();road.enemies.Clear();
+            WorldObject start=Array.Find(data.maps[0].objects,
+                o=>o.id=="biomeSurvey0");
+            WorldObject finish=Array.Find(data.maps[0].objects,
+                o=>o.id=="biomeAnswer0");
+            Check(start!=null&&finish!=null,
+                "Paid road policy must reuse the two real field monuments");
+            road.save.flags.Add("biome_field_done_0");
+            road.save.flags.Add("biome_supply_road_0");
+            road.save.x=start.x;road.save.y=start.y;
+            road.save.coins=65;road.save.energy=80f;
+            road.Talk(start);
+            int beforeCoins=road.save.coins;
+            float beforeEnergy=road.save.energy;
+            // The world control, not a fabricated direct method invocation,
+            // must carry its origin and its new real costs.
+            ChooseFieldOption(road,"biome_relay");
+            Check((road.Position-new Point(finish.x,finish.y)).Length<2f&&
+                road.save.coins==beforeCoins-1&&
+                road.save.energy==beforeEnergy-6f,
+                "Real paid crossing uses the routeworks 1-coin / 6-energy fare, not just a changed label");
+            GameCore stale=new GameCore(data);
+            stale.Close();stale.enemies.Clear();
+            stale.save.flags.Add("biome_field_done_0");
+            stale.save.flags.Add("biome_supply_road_0");
+            stale.save.x=start.x;stale.save.y=start.y;
+            stale.Talk(start);
+            beforeCoins=stale.save.coins;beforeEnergy=stale.save.energy;
+            stale.save.x=finish.x;stale.save.y=finish.y;
+            ChooseFieldOption(stale,"biome_relay");
+            Check(stale.save.coins==beforeCoins&&
+                stale.save.energy==beforeEnergy&&
+                (stale.Position-new Point(finish.x,finish.y)).Length<.001f,
+                "Leaving the spoken source rejects stale transfers without paying or teleporting");
+            WorldObject camp=Array.Find(data.maps[0].objects,
+                o=>o.id=="annex_camp_0");
+            Check(camp!=null,"Medicine must change the original playable public campsite");
+            GameCore medical=new GameCore(data);
+            medical.Close();medical.enemies.Clear();
+            medical.save.flags.Add("biome_supply_medicine_0");
+            medical.save.x=camp.x;medical.save.y=camp.y;
+            medical.save.health=10f;medical.save.energy=20f;
+            medical.save.inventory[0]=5;
+            medical.Talk(camp);ChooseFieldOption(medical,"annex_rest");
+            Check(medical.save.health==70f&&medical.save.energy==100f&&
+                medical.save.inventory[0]==4,
+                "The actual existing paid camp action heals +60 with medicine, versus its original +40");
+            GameCore unchanged=new GameCore(data);
+            unchanged.Close();unchanged.enemies.Clear();
+            unchanged.save.x=camp.x;unchanged.save.y=camp.y;
+            unchanged.save.health=10f;unchanged.save.energy=20f;
+            unchanged.save.inventory[0]=5;
+            unchanged.Talk(camp);ChooseFieldOption(unchanged,"annex_rest");
+            Check(unchanged.save.health==50f&&
+                unchanged.save.inventory[0]==4,
+                "Old saves without field medicine retain their original 40-HP camp rest");
+        }
+
         public static void EightFieldSupplyPoliciesRequireRealDistantHarvestsAndPreserveV2(Campaign data)
         {
             for(int room=0;room<8;room++)
