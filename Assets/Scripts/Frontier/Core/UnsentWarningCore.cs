@@ -232,10 +232,43 @@ namespace Starfall
                     "Warning delivery timed out. Restart from the west waymark.");
             }
         }
+        private string UnsentWarningInnNews(bool english)
+        {
+            if(UnsentWarningPublic)return english?
+                "\n\nTwo soaked warnings are pinned to the inn wall. The ferryman has written the children's names below the river marks; seven miners sign beside them in their own hands. 'Not lost cargo,' the traveler says. 'People who rang the bell and were left waiting.' Both old road markers now offer first aid to strangers.":
+                "\n\n旅店墙上钉着两封浸湿的警报。摆渡人在水位线下补上孩子们的名字，七位矿工亲手签在旁边。守夜旅人说：‘不是丢失的货物，是敲过警钟却被留在路上的人。’两地旧路标如今都为陌生伤者备有药箱。";
+            if(UnsentWarningHidden)return english?
+                "\n\nThe innkeeper leaves a blank space where the witnesses' names might have been. A ferryman and a miner quietly mark two safe road crossings on a menu's back. 'Let them tell their own names when they're ready,' the traveler says. The old markers keep supplies for those walking after dark.":
+                "\n\n店主在公告墙上留出一块空白，没有写下证人的名字。摆渡人和矿工却悄悄把两条安全路线画在菜单背面。守夜旅人说：‘等他们愿意自己说出来，再让人听见。’两地旧路标为夜归人留着补给。";
+            return "";
+        }
+        private string UnsentWarningWaytrailNews(bool english)
+        {
+            if(UnsentWarningPublic)return english?
+                "\n\nThe public warning now staffs first aid at both original waymarks. Stand here safely to recover +1.7 HP/s; combat and solid cover block the service.":
+                "\n\n两地原有路标现已设立公开救护岗。安全时站在此处恢复生命每秒+1.7；战斗或隔墙不能使用。";
+            if(UnsentWarningHidden)return english?
+                "\n\nThe witnesses' quiet crew has left supplies at both original waymarks. Stand here safely for +3 energy/s; combat and solid cover block the service.":
+                "\n\n证人们在两地旧路标旁悄悄存放了补给。安全靠近时恢复耐力每秒+3；战斗或隔墙不能使用。";
+            return "";
+        }
         private void AppendUnsentWarningChoice(WorldObject speaker)
         {
             if(mode!="dialog"||conversation==null||speaker==null||
                !WarningReach(speaker))return;
+            if(UnsentWarningComplete&&speaker.kind=="waytrail"&&
+               WarningRegion(save.room))
+            {
+                conversation.text+=UnsentWarningWaytrailNews(false);
+                conversation.textEn+=UnsentWarningWaytrailNews(true);
+                return;
+            }
+            if(UnsentWarningComplete&&speaker.kind=="guild"&&save.room==0)
+            {
+                conversation.text+=UnsentWarningInnNews(false);
+                conversation.textEn+=UnsentWarningInnNews(true);
+                return;
+            }
             string action=null,zh=null,en=null;
             if(speaker.kind=="guild"&&save.room==0)
             {
