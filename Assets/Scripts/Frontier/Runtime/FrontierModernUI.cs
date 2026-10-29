@@ -1335,6 +1335,40 @@ namespace Starfall
                         (total-gathered)+"/"+total,10,mint,
                         TextAnchor.MiddleCenter);
             }
+            if(completed)
+            {
+                foreach(WorldObject machine in map.objects)
+                {
+                    if(machine==null||machine.kind!="regionalMachine"||
+                        machine.id==null||
+                        !machine.id.StartsWith("regional_machine_"+region+"_",
+                            StringComparison.Ordinal))continue;
+                    int index;
+                    if(!int.TryParse(machine.id.Substring(
+                        ("regional_machine_"+region+"_").Length),out index)||
+                        index<0||index>2)continue;
+                    bool claimed=Game.Has("regional_machine_stage_"+
+                        region+"_"+index);
+                    bool next=Game.RegionalMachineNextIndex(region)==index;
+                    float px=originX+machine.x*tileScale;
+                    float py=originY+machine.y*tileScale;
+                    Color mark=claimed?mint:next?gold:muted;
+                    Frame(px-5,py-5,10,10,mark);
+                    if(claimed)Box(px-2.5f,py-2.5f,5,5,mark);
+                    else if(next)Frame(px-8,py-8,16,16,gold);
+                }
+                Text(originX+3,originY+map.rows.Length*tileScale+36,
+                    300,15,
+                    Game.RegionalMachineDone(region)?
+                        Game.L("公共工程已修复 · 三处现场可安全恢复",
+                            "REPAIRED · THREE REAL FIELD SHELTERS"):
+                        Game.L("公共工程 "+Game.RegionalMachineProgress(region)+
+                            "/3 · 金框为下一处待修装置",
+                            "ENGINEERING "+Game.RegionalMachineProgress(region)+
+                            "/3 · GOLD = NEXT LIVE DEVICE"),
+                    10,Game.RegionalMachineDone(region)?mint:gold,
+                    TextAnchor.MiddleCenter);
+            }
             foreach(WorldObject site in map.objects)
             {
                 if(site==null||(site.kind!="biomeSurvey"&&

@@ -989,6 +989,38 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            // These are NEW real pieces of interactive regional engineering,
+            // rather than recycled foliage or cosmetic map-only symbols.
+            if(kind=="regionalMachine")
+            {
+                int region=Game.save.room;
+                int station=-1;
+                int.TryParse(o.id.Substring(
+                    ("regional_machine_"+region+"_").Length),out station);
+                bool complete=Game.RegionalMachineDone(region);
+                bool commissioned=Game.Has("regional_machine_stage_"+
+                    region+"_"+station);
+                bool next=Game.RegionalMachineNextIndex(region)==station&&
+                    Game.BiomeFieldDone;
+                Color tint=complete?mint:commissioned?
+                    new Color(.5f,.78f,.8f):next?gold:muted;
+                PropImage(station==0?"post":station==1?"barrel":"obelisk",
+                    0,p.x-35,p.y-75,70,75,tint);
+                Ring(new Point(o.x,o.y),.52f,tint,22);
+                if(next||complete)
+                    Diamond(p.x,p.y-84,6,tint);
+                Text(p.x-110,p.y-108,220,18,
+                    complete?
+                        Game.L("公共修复 · 安全休憩","REPAIRED FIELD SHELTER"):
+                        commissioned?
+                        Game.L("装置已调好","MECHANISM ALIGNED"):
+                        next?
+                        Game.L("调试装置 · "+(Game.RegionalMachineProgress(region)+1)+"/3",
+                            "REPAIR DEVICE · "+(Game.RegionalMachineProgress(region)+1)+"/3"):
+                        Game.L("故障的公共装置","DAMAGED PUBLIC DEVICE"),
+                    10,tint,TextAnchor.MiddleCenter);
+                return;
+            }
             // Authored field sites are true walkable WorldObjects, rendered
             // through the production depth queue rather than map-only pins.
             // Their form differs from ordinary random terrain decorations.
