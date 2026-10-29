@@ -1285,8 +1285,20 @@ public static class RuntimeContinuityChecks
             Math.Abs(g.save.energy-94f)<.001f&&g.save.version==2,
             "True world interaction awards real materials and paid stamina once");
         ClearDraw();Call(app,"DrawObject",kit);
-        Check(GUI.commands.Exists(cmd=>cmd.Contains("FIELD KIT RECOVERED")),
-            "Actual field renderer changes the case to its persistent recovered state");
+        Check(GUI.commands.Exists(cmd=>cmd.Contains("KIT RECOVERED")&&
+            cmd.Contains("DEFEND TO BUILD")),
+            "Recovered case now correctly advertises the genuine playable defense");
+        g.save.flags.Add("field_outpost_ward_1");
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(cmd=>cmd.Contains("SAFE OUTPOST")&&
+            cmd.Contains("FIELD AID")),
+            "Permanent first-aid choice changes the real world's original kit artwork cue");
+        g.save.flags.Remove("field_outpost_ward_1");
+        g.save.flags.Add("field_outpost_forge_1");
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(cmd=>cmd.Contains("SAFE OUTPOST")&&
+            cmd.Contains("TRAP WORKSHOP")),
+            "Exclusive workshop has a different visible regional world state");
         Console.WriteLine("PASS actual world field-kit source, visible stock and earned recovered art state");
     }
 
