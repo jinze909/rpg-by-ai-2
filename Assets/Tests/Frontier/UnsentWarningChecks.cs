@@ -276,16 +276,34 @@ namespace Starfall.Tests
             Check(g.UnsentRiverDelivered&&g.UnsentMineDelivered&&
                 g.UnsentWarningRelayCount==2&&!g.UnsentWarningComplete,
                 "Two true letters and two authentic relay receipts alone unlock a final choice, not free talent");
-            int earned=g.save.skillPoints;
             g.Enter(0);g.enemies.Clear();
             WorldObject guild=Object(g,"guild");
             Check(PlaceWithinTalkReach(g,guild),
                 "The actual guild receives hard-earned testimony and dual-relay evidence");
+            // Both endings pay 120 XP, which can CROSS A LEVEL and award
+            // another skill point. Run the very same original guild choice
+            // against a matched v2 control save lacking ONLY the optional
+            // second relay receipt, then isolate the one extra field talent.
+            var controlSave=CloneSave(g.save);
+            controlSave.flags.Remove("unsent_warning_relay_3");
+            var control=new GameCore(data,controlSave);
+            control.Start();control.enemies.Clear();
+            WorldObject controlGuild=Object(control,"guild");
+            Check(PlaceWithinTalkReach(control,controlGuild),
+                "The matched no-relay save also reaches the same original guild");
+            control.Talk(controlGuild);
+            Check(UnsentChoice(control,"unsent_publish")&&
+                control.UnsentWarningComplete&&
+                control.UnsentWarningRelayCount==1,
+                "The matched control earns normal chapter XP but not the two-relay bonus");
+            int ordinarySkills=control.save.skillPoints;
             g.Talk(guild);
             Check(UnsentChoice(g,"unsent_publish")&&
                 g.UnsentWarningComplete&&
-                g.save.skillPoints==Math.Min(99,earned+1),
-                "Both real field relays grant exactly one genuine talent after a source-bound guild decision");
+                g.save.skillPoints==Math.Min(99,ordinarySkills+1)&&
+                g.save.level==control.save.level&&
+                g.save.xp==control.save.xp,
+                "Both true relays grant precisely one additional talent beyond identical chapter and level-up rewards");
             int after=g.save.skillPoints;
             g.Talk(guild);
             Check(!UnsentChoice(g,"unsent_protect")&&
