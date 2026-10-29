@@ -93,7 +93,10 @@ namespace Starfall.Tests
                     g.save.coins==originalMoney&&g.save.shards==originalShards,
                     "Only exact genuine raider defeats secure the route without ordinary loot");
                 Check(PlaceWithinTalkReach(g,nodes[2]),
-                    "Final civilian evidence can only be submitted at its actual authored location");
+                    "Chapter "+chapter+" receiver must be walkable at ("+
+                    nodes[2].x+","+nodes[2].y+"), from ("+
+                    g.Position.x+","+g.Position.y+"), route length "+
+                    g.NavigationPathFrom(g.Position,new Point(nodes[2].x,nodes[2].y),true).Count);
                 for(int k=0;k<240&&!g.SafeTravel;k++)g.Tick(.05f,new Point());
                 Check(g.SafeTravel&&g.ChapterRoadActive,
                     "Hero can safely sign at original survivor receiver after battle");
