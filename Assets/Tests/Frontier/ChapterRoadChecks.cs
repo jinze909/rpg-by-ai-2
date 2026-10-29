@@ -198,5 +198,31 @@ namespace Starfall.Tests
                     "Unfinished live chapter never persists as a fabricated success");
             }
         }
+        public static void CompletedMainStoryArchivesEarlierCivilianEpisodesWithoutFalseObjectives(Campaign data)
+        {
+            GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+            g.save.ending=2;g.save.room=1;g.enemies.Clear();
+            var guide=g.GetQuest("chapter_roads");
+            Check(guide.locked&&!guide.complete&&guide.steps.Count==4&&
+                guide.room==g.save.room&&
+                (guide.target-g.Position).Length<.01f,
+                "Completed-ending v2 save archives unplayed pre-finale episodes without claiming phantom clears");
+            string originalTracked=g.save.trackedQuest;
+            g.TrackQuest("chapter_roads");
+            Check(g.save.trackedQuest==originalTracked&&
+                g.GetQuest("main").complete,
+                "An old finished main story must not acquire a new mandatory chapter target");
+            WorldObject site=Array.Find(g.Map.objects,
+                o=>o.id=="chapterroad_1_0");
+            Check(site!=null&&PlaceWithinTalkReach(g,site),
+                "Original chapter site survives as physical history on an older ending save");
+            int coins=g.save.coins,shards=g.save.shards;
+            g.Talk(site);
+            Check(g.conversation!=null&&g.conversation.choices.Length==1&&
+                g.conversation.choices[0].action=="close"&&
+                !g.ChapterRoadActive&&!g.ChapterRoadDone(1)&&
+                g.save.coins==coins&&g.save.shards==shards,
+                "Completed postgame characters may read old testimonies but never fight an impossible pre-finale quest");
+        }
     }
 }
