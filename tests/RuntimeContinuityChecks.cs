@@ -1215,7 +1215,7 @@ public static class RuntimeContinuityChecks
 
     // Source-level gameplay indicators are drawn by the actual Frontier
     // world object renderer. Reading the marker never modifies the save.
-    static void CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(FrontierRuntime app)
+    public static void CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(FrontierRuntime app)
     {
         Prepare(app);
         GameCore g=app.Game;
@@ -1253,7 +1253,7 @@ public static class RuntimeContinuityChecks
     // This is the production world object renderer, not a fake map pin
     // or merely a JSON presence assertion. Also exercise the original
     // physical source and real resource recovery through GameCore.Talk.
-    static void FieldKitIsVisibleAndCollectibleInLiveWorld(FrontierRuntime app)
+    public static void FieldKitIsVisibleAndCollectibleInLiveWorld(FrontierRuntime app)
     {
         Prepare(app);
         GameCore g=app.Game;

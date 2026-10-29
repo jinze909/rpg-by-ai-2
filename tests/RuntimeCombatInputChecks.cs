@@ -12877,6 +12877,7 @@ public static class RuntimeCombatInputChecks
             RenderStateChecks.VerifyWaytrailCueTracksCivicAudit,
             CivicAftermathChronicleReflectsLiveInfrastructure,
             CivicAftercareRoadAuditIsTrackableAndOneTime,
+            RuntimeContinuityChecks.FieldKitIsVisibleAndCollectibleInLiveWorld, RuntimeContinuityChecks.CapturedPatrolFieldMarkerShowsLiveFareAndOutcome,
             RuntimeContinuityChecks.NavigationRouteGuidance, RuntimeContinuityChecks.OptedInRemoteRouteRendersWithGeneralGuidanceOff, RuntimeContinuityChecks.RemoteJourneyDoesNotPresentSealedPortalAsOpenRoute, RuntimeContinuityChecks.VerifyCombatMusicReversesOnThreatDeparture };
         int failures = 0;
         foreach (var test in cases)
