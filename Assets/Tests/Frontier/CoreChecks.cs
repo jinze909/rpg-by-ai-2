@@ -310,7 +310,11 @@ namespace Starfall.Tests
                     g.GetQuest("field_patrols").steps[room-1].done,
                     "Real kills and actual return grant precisely this district's saved receipt");
                 g.PrepareSave();
-                var restored=new GameCore(data,g.save);
+                // Load() intentionally sanitizes its mutable input slot.
+                // Clone the serialized v2 payload before loading a second
+                // game, or a still-locked region can rewrite the ORIGINAL
+                // live hero's room and break the next survey conversation.
+                var restored=new GameCore(data,CloneSave(g.save));
                 Check(restored.FieldPatrolDone(room)&&
                     !restored.FieldPatrolActive&&restored.save.version==2,
                     "Old v2 save state permanently retains one receipt without reviving ephemeral raiders");
@@ -322,6 +326,71 @@ namespace Starfall.Tests
                     "A signed receipt cannot respawn another paid wave");
                 visited.Add(room);
             }
+            // Missing or forged raiders must never pay a signed report.
+            GameCore interrupted=Fresh(data);
+            interrupted.save.room=1;interrupted.mode="world";
+            interrupted.enemies.Clear();
+            interrupted.save.flags.Add("biome_field_done_1");
+            WorldObject originPost=Array.Find(interrupted.Map.objects,
+                o=>o.id=="biomeSurvey1");
+            Check(originPost!=null&&PlaceWithinTalkReach(interrupted,originPost),
+                "An interruptible patrol starts at the real original post");
+            Point originalFoot=interrupted.Position;
+            interrupted.Talk(originPost);
+            Check(interrupted.conversation!=null,
+                "Interruptible patrol opens a legitimate source dialogue");
+            int index=Array.FindIndex(interrupted.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(index>=0,"Available uncompleted patrol can be accepted");
+            interrupted.Choose(index);
+            Check(interrupted.FieldPatrolActive&&
+                interrupted.FieldPatrolRemaining==2,
+                "Region 1 patrol has two real registered live raiders");
+            int originalCoins=interrupted.save.coins;
+            interrupted.enemies.RemoveAt(0);
+            interrupted.Tick(.02f,new Point());
+            Check(!interrupted.FieldPatrolActive&&
+                !interrupted.FieldPatrolDone(1)&&
+                interrupted.enemies.Count==0&&
+                interrupted.save.coins==originalCoins,
+                "Removing one live raider without a Hit cannot mint a report or leave orphaned companions");
+            interrupted.save.x=originalFoot.x;
+            interrupted.save.y=originalFoot.y;
+            interrupted.Close();interrupted.Talk(originPost);
+            Check(interrupted.conversation!=null,
+                "Original field post remains usable after an interrupted patrol");
+            index=Array.FindIndex(interrupted.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(index>=0,"An incomplete contract is safely retryable");
+            interrupted.Choose(index);
+            Check(interrupted.FieldPatrolActive&&
+                interrupted.FieldPatrolRemaining==2,
+                "Retry creates only one fresh, exact actor-owned wave");
+            interrupted.Talk(originPost);
+            Check(interrupted.conversation!=null,
+                "Active patrol offers a real cancellation at its source");
+            index=Array.FindIndex(interrupted.conversation.choices,
+                c=>c.action=="biome_patrol_abort");
+            Check(index>=0,"The real original post offers voluntary withdrawal");
+            interrupted.save.x=originalFoot.x+20f;
+            interrupted.Choose(index);
+            Check(interrupted.FieldPatrolActive&&
+                !interrupted.FieldPatrolDone(1),
+                "Moving out of range invalidates stale abort without changing the active objective");
+            interrupted.save.x=originalFoot.x;
+            interrupted.save.y=originalFoot.y;
+            interrupted.Close();interrupted.Talk(originPost);
+            Check(interrupted.conversation!=null,
+                "Returning physically to the post restores its real interaction");
+            index=Array.FindIndex(interrupted.conversation.choices,
+                c=>c.action=="biome_patrol_abort");
+            Check(index>=0,"At-source withdrawal is an actual dialogue choice");
+            interrupted.Choose(index);
+            Check(!interrupted.FieldPatrolActive&&
+                !interrupted.FieldPatrolDone(1)&&
+                interrupted.enemies.Count==0,
+                "Legitimate cancellation cleans only contracted raiders without completing the quest");
+
             Check(visited.Count==7,
                 "Seven physically distinct original patrol contracts have been completed");
             var completed=Fresh(data);
