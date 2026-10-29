@@ -6800,6 +6800,90 @@ namespace Starfall.Tests
         // challenge in the identical southeast corner of every biome.
         // This runs the REAL SpawnRidgeWildlife method against all seven
         // shipped maps and exercises actual physical navigation.
+        // Verify the ACTUAL shipped terrain, world collision and physical
+        // routes. These are no longer seven interchangeable wide open maps:
+        // each includes real blockage, local environmental silhouettes and
+        // a deliberate land route to three physically separated field sites.
+        // Old boss/portal/quest objects and dynamic flood seals are retained.
+        public static void SevenRebuiltBiomesHavePhysicalCoverAndReachableOverlandNetworks(Campaign data)
+        {
+            int[,] actualSolid={
+                {102,14},{93,8},{72,14},{62,7},{72,14},{72,17},{91,15}
+            };
+            int[,] newWalkways={
+                {33,15},{23,15},{33,15},{33,15},{44,13},{44,13},{44,13}
+            };
+            int[] baselineDecor={250,261,253,247,235,233,235};
+            var travelSignatures=new HashSet<string>();
+            int totalStages=0,totalNewPhysicalDecor=0;
+            for(int region=1;region<=7;region++)
+            {
+                MapData m=data.maps[region];
+                Check(m.rows.Length==80&&m.rows[0].Length==120,
+                    "Rebuilding must preserve the original 120x80 map and all existing campaign geography");
+                GameCore g=new GameCore(data);
+                g.mode="world";g.save.room=region;
+                g.save.x=m.spawnX;g.save.y=m.spawnY;
+                Check(g.CanStand(new Point(m.spawnX,m.spawnY))&&
+                    g.Blocked(actualSolid[region-1,0]+.5f,actualSolid[region-1,1]+.5f)&&
+                    !g.CanStand(new Point(actualSolid[region-1,0]+.5f,
+                        actualSolid[region-1,1]+.5f)),
+                    "Regional terrain structures must be REAL collision cover and not a visual-only decal");
+                Check(m.rows[newWalkways[region-1,1]][newWalkways[region-1,0]]=='=',
+                    "The new route through each biome is a painted walkable trail, not a fake map line");
+                Check(m.decor.Length>=baselineDecor[region-1]+6,
+                    "Regional tactical sites contain added original runtime environment props");
+                totalNewPhysicalDecor+=m.decor.Length-baselineDecor[region-1];
+                // The six historical bridges and each region's seal are
+                // real dynamical objects. Stenciling must not overwrite them.
+                int bridges=0,seals=0,tides=0;
+                foreach(string row in m.rows)
+                    foreach(char tile in row)
+                    {
+                        if(tile=='?')bridges++;
+                        if(tile=='v'||tile=='w'||tile=='b')seals++;
+                        if(tile=='%')tides++;
+                    }
+                Check(bridges==6&&
+                    (region==4||seals==1)&&
+                    (region!=5||tides==125),
+                    "Old dynamic bridges, seals and Mistport tide cells must survive map redesign unchanged");
+                Point previous=new Point(m.spawnX,m.spawnY);
+                string signature="";
+                for(int stage=0;stage<3;stage++)
+                {
+                    string identity="ridge_echo_"+region+"_"+stage;
+                    WorldObject site=Array.Find(m.objects,o=>o.id==identity&&o.kind=="ridgeEcho");
+                    Check(site!=null&&g.CanStand(new Point(site.x,site.y)),
+                        "All original three-stage field relays still have passable real world feet: "+identity);
+                    var navigable=g.NavigationPathFrom(previous,
+                        new Point(site.x,site.y),true);
+                    Check(navigable.Count>0,
+                        "The rewritten biomes retain a REAL four-neighbor route to every successive remote story site: "+identity);
+                    Check((navigable[navigable.Count-1]-
+                        new Point(site.x,site.y)).Length<1.9f,
+                        "Physical navigation reaches the original site's actual collision side: "+identity);
+                    signature+=site.x+":"+site.y+";";
+                    previous=new Point(site.x,site.y);totalStages++;
+                }
+                Check(travelSignatures.Add(signature),
+                    "Seven rebuilt biome routes must have distinct authored mission geometry");
+                for(int stage=0;stage<3;stage++)
+                {
+                    Point foot=g.RidgeWatchDistrict(region,stage);
+                    Check(g.CanStand(foot)&&
+                        g.NavigationPathFrom(new Point(m.spawnX,m.spawnY),
+                            foot,true).Count>0,
+                        "Regional new collision formations must not entomb three preexisting real patrols");
+                }
+            }
+            Check(totalStages==21&&totalNewPhysicalDecor>=60,
+                "Seven districts each supply all three physical relay objectives and substantial authored scenery");
+            Check(data.maps[0].spawnX==18&&data.maps[0].spawnY==15&&
+                data.maps[8].id==8&&data.maps[9].id==9,
+                "Never silently rewrite the safe town, procedural Abyss or inn while rebuilding outdoor maps");
+        }
+
         public static void SevenRidgeWatchesActuallyOccupyDistinctReachableRegionalDistricts(Campaign data)
         {
             var spawn=typeof(GameCore).GetMethod("SpawnRidgeWildlife",
