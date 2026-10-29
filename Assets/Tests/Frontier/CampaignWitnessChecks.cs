@@ -85,6 +85,37 @@ namespace Starfall.Tests
                 loaded.Has("biome_field_atlas"),
                 "Full regional atlas remains durable in unchanged legacy SaveData v2");
         }
+        public static void RegionalEncounterWakeRangePreservesDistantLocalCombat(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(spawn!=null,"Exact real regional spawn is present");
+            var g=new GameCore(data);
+            g.save.room=1;
+            g.save.x=data.maps[1].spawnX;
+            g.save.y=data.maps[1].spawnY;
+            spawn.Invoke(g,null);
+            Enemy remote=null;
+            foreach(Enemy e in g.enemies)
+                if(e.id<=6&&(e.Position-g.Position).Length>32f)
+                {remote=e;break;}
+            Check(remote!=null&&g.CanStand(remote.Position),
+                "A real authored Thornwood raider is posted far from entry");
+            // Isolate only this exact spawned actor, not a synthetic enemy
+            // whose membership bypasses the region-local AI dormancy.
+            g.enemies.Clear();g.enemies.Add(remote);
+            g.mode="world";g.invulnerable=900f;
+            Point foot=remote.Position;
+            for(int t=0;t<30;t++)g.Tick(.05f,new Point());
+            Check((remote.Position-foot).Length<.001f&&
+                !remote.moving&&remote.state==0,
+                "Unprovoked far region combat sleeps instead of running expensive full-map chasing");
+            g.save.x=foot.x;g.save.y=foot.y;
+            for(int t=0;t<30;t++)g.Tick(.05f,new Point());
+            Check(remote.state!=0||(remote.Position-foot).Length>.01f,
+                "The SAME real enemy resumes live attacks or movement when player comes to its district");
+        }
         public static void ReworkedRegionalEnemiesSpreadAcrossReachableCombatSectors(Campaign data)
         {
             var spawn=typeof(GameCore).GetMethod("SpawnRoom",
