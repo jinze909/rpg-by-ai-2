@@ -15,23 +15,38 @@ namespace Starfall
         private bool courierGuardSpent,courierRaided;
         // Earned only when BOTH actual bridge pursuers die through GameCore.Hit.
         // Never persisted until the original parcel reaches the far refuge.
-        private int courierConfirmedRaiderKills;
+        private int courierResolvedMask,courierCapturedMask;
         // Real encounter bodies outlive GameCore.Hit's removal callback.
         // Never infer this sortie's ownership from the reusable ID range;
         // a same-ID ambient fighter is not cargo security or cleanup.
         private Enemy courierRaiderMelee,courierRaiderArcher;
         public bool FarCourierSecuredInFlight
-        {get{return FarCourierActive&&courierRaided&&courierConfirmedRaiderKills==3;}}
+        {get{return FarCourierActive&&courierRaided&&courierResolvedMask==3;}}
         public bool FarCourierSecured(int room)
         {return room>=0&&room<8&&Has("far_courier_secured_"+room);}
         private void OnFarCourierEnemyDefeated(Enemy enemy)
         {
             if(!FarCourierActive||!IsFarCourierRaider(enemy))return;
             if(System.Object.ReferenceEquals(enemy,courierRaiderMelee))
-                courierConfirmedRaiderKills|=1;
+                courierResolvedMask|=1;
             else if(System.Object.ReferenceEquals(enemy,courierRaiderArcher))
-                courierConfirmedRaiderKills|=2;
+                courierResolvedMask|=2;
         }
+        // The paid field snare must genuinely restrain the EXACT living
+        // original raider. Reused spawn IDs and despawns never count.
+        private bool OnFarCourierEnemyRestrained(Enemy enemy)
+        {
+            if(!FarCourierActive||!courierRaided||enemy==null||enemy.hp<=0||
+                enemies.Contains(enemy)||!IsFarCourierRaider(enemy))return false;
+            int bit=Object.ReferenceEquals(enemy,courierRaiderMelee)?1:2;
+            if((courierResolvedMask&bit)!=0)return false;
+            courierResolvedMask|=bit;courierCapturedMask|=bit;
+            return true;
+        }
+        public bool FarCourierHumaneInFlight
+        {get{return FarCourierSecuredInFlight&&courierCapturedMask==3;}}
+        public bool FarCourierHumane(int room)
+        {return room>=0&&room<8&&Has("far_courier_humane_"+room);}
         // The range is still reserved for authored spawn labels, but
         // neither save exclusions nor combat should trust that label alone.
         private bool IsFarCourierRaider(Enemy foe)
@@ -110,8 +125,8 @@ namespace Starfall
             effects.Add(new Effect("danger",melee,.6f){radius=.55f,courierOwned=true});
             effects.Add(new Effect("danger",archer,.6f){radius=.55f,courierOwned=true});
             revision++;sound="windup";
-            Notify("桥南两名劫匪正在拦截救援包！可战斗或迂回，真正受击会损坏货物。",
-                "Two raiders intercept the parcel south of the bridge! Fight or evade; real hits damage cargo.");
+            Notify("桥南两名劫匪正在拦截救援包！可击败、用绊索活捉或绕行；真正受击会损坏货物。",
+                "Two raiders intercept the parcel south of the bridge! Defeat, bind alive with snares, or evade; real hits damage cargo.");
         }
         private float courierGuardLeft;
         public float FarCourierGuardLeft {get{return FarCourierActive?courierGuardLeft:0;}}
@@ -248,7 +263,7 @@ namespace Starfall
             effects.RemoveAll(effect=>effect.courierOwned);
             courierRaiderMelee=courierRaiderArcher=null;
             courierRoom=-1;courierRaided=false;
-            courierConfirmedRaiderKills=0;
+            courierResolvedMask=courierCapturedMask=0;
             courierWalked=courierElapsed=courierIntegrity=courierGuardLeft=0;
             courierCrossed=courierStamped=courierBridgeEntered=
                 courierPatched=courierIntegrityWarning=courierGuardSpent=false;
@@ -490,7 +505,7 @@ namespace Starfall
                 courierIntegrity=100;
                 courierCrossed=courierStamped=courierBridgeEntered=false;
                 courierPatched=courierIntegrityWarning=courierGuardSpent=courierRaided=false;
-                courierConfirmedRaiderKills=0;
+                courierResolvedMask=courierCapturedMask=0;
                 courierGuardLeft=0;
                 revision++;sound="quest";
                 Notify("救援包已背上：95秒内步行过桥并送到避险棚！",
@@ -504,6 +519,7 @@ namespace Starfall
             if(!SafeTravel)
             {Notify("避险棚附近仍有敌人。","Hostiles threaten the shelter.");return true;}
             bool secured=FarCourierSecuredInFlight;
+            bool humane=FarCourierHumaneInFlight;
             bool pristine=courierIntegrity>=90;
             int earnedCoins=secured?35:25;
             int unpaidCoins=Math.Max(0,earnedCoins-
@@ -513,6 +529,7 @@ namespace Starfall
             ResetFarCourier();
             Flag("far_courier_"+room);
             if(pristine)Flag("far_courier_pristine_"+room);
+            if(humane)Flag("far_courier_humane_"+room);
             CreditCoins(25);CreditShards(1);
             AddXp(38);
             if(secured)
@@ -530,10 +547,12 @@ namespace Starfall
                 Flag(CourierRewardPrefix+room+"_"+unpaidCoins+"_"+
                     unpaidShards+"_"+unpaidTalent);
             RecordMoment("第 "+(room+1)+" 份居民救援包通过真正的山脊步行路线到达公共避险棚。"+
-                    (secured?"两名追兵确实被击败，这条补给路已被护卫清理。":"")+
+                    (humane?"两名追兵真正被活捉，守棚人将补给用于长期救治。":
+                    secured?"两名追兵经过真实战斗被击败或制服，补给路已安全。":"")+
                     (pristine?"药箱保留九成以上药品，供本地避险棚长期使用。":""),
                 "A civilian parcel reached the public refuge on foot."+
-                    (secured?" Both pursuing raiders were truly defeated; the road was secured.":"")+
+                    (humane?" Both real pursuers were captured alive; the refuge retains treatment supplies.":
+                    secured?" Both pursuers were defeated or restrained; the road was secured.":"")+
                     (pristine?" At least 90% of the medicines arrived for local refuge care.":""));
             // Notify replaces the visible toast: keep actual payment AND
             // the newly earned local-care benefit in one receipt.
