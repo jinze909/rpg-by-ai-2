@@ -493,6 +493,51 @@ namespace Starfall
         }
         private void DrawExpansionWorld()
         {
+            // All four new sources are physical objects in the actual inn
+            // world. Journal and live goal marker use the same sources.
+            if(Game.mode=="world"&&Game.save.room==9&&
+                Game.SeventhBedStarted&&!Game.SeventhBedComplete&&!drawingOutline)
+            {
+                Point goal=Game.SeventhBedTarget;
+                Color ink=Game.SeventhBedFalseAccusation?
+                    new Color(.95f,.69f,.51f,1f):mint;
+                if(WorldDrawable(goal.x,goal.y,135f,145f))
+                {
+                    Ring(goal,.63f,ink,24);
+                    Point marker=ScreenPoint(goal);
+                    Text(marker.x-145,marker.y-88,290,20,
+                        Game.SeventhBedObjective,11,ink,
+                        TextAnchor.MiddleCenter);
+                }
+                Text(35,565,550,23,
+                    Game.L("炉火旅店 · 第七张床","HEARTH INN · THE SEVENTH BED"),
+                    12,ink);
+                Text(35,591,610,21,Game.SeventhBedObjective,11,ink);
+                Text(35,615,600,18,
+                    Game.L("已核实线索 ","VERIFIED CLUES ")+
+                    Game.SeventhBedEvidenceCount+"/4 · "+
+                    (Game.SeventhBedFalseAccusation?
+                        Game.L("曾误判 · 继续重查","FALSE CLAIM · RETRY"):
+                        Game.L("清白推理奖励仍可获得","CLEAN DEDUCTION AVAILABLE")),
+                    10,ink);
+            }
+            if(Game.mode=="world"&&Game.save.room==9&&
+                Game.SeventhBedComplete&&!drawingOutline)
+            {
+                Point refuge=Game.SeventhBedPublic?
+                    new Point(26f,15f):new Point(12f,10f);
+                Color comfort=mint;
+                if(WorldDrawable(refuge.x,refuge.y,150f,150f))
+                {
+                    Ring(refuge,.78f,comfort,26);
+                    Point near=ScreenPoint(refuge);
+                    Text(near.x-115,near.y-80,230,20,
+                        Game.SeventhBedPublic?
+                            Game.L("安全住客疗伤","SAFE GUEST CARE"):
+                            Game.L("匿名旅人的热粥","ANONYMOUS GUEST SUPPER"),
+                        10,comfort,TextAnchor.MiddleCenter);
+                }
+            }
             // Real optional Citadel Boss. Its world cue tracks the ACTUAL
             // elite and authored tuning stations; no UI-only enemy clones.
             if(Game.mode=="world"&&Game.save.room==4&&
@@ -1646,6 +1691,32 @@ namespace Starfall
                         Game.L("低频接地音叉","LOW RESONATOR"):
                         Game.L("高频接地桩","HIGH RESONATOR"),
                         10,cue,TextAnchor.MiddleCenter);
+                }
+                return true;
+            }
+            if(o.kind=="seventhnotice"||o.kind=="seventhstamp"||
+               o.kind=="seventhcot"||o.kind=="seventhreply")
+            {
+                Point foot=new Point(o.x,o.y);
+                bool inspected=o.kind=="seventhstamp"?Game.SeventhBedStamp:
+                    o.kind=="seventhcot"?Game.SeventhBedBlanket:
+                    o.kind=="seventhreply"?Game.SeventhBedLetter:
+                    Game.SeventhBedStarted;
+                Color ink=Game.SeventhBedComplete?mint:
+                    inspected?new Color(.73f,.87f,.88f,1f):gold;
+                PropImage("post",0,p.x-23,p.y-59,46,61,ink);
+                Ring(foot,o.kind=="seventhnotice"?.62f:.42f,ink,22);
+                if(Game.SeventhBedStarted&&!Game.SeventhBedComplete)
+                {
+                    string clue=o.kind=="seventhnotice"?
+                        Game.L("失踪住客启事","MISSING GUEST NOTICE"):
+                        o.kind=="seventhstamp"?
+                        Game.L("重盖日期的收据","RESTAMPED RECEIPT"):
+                        o.kind=="seventhcot"?
+                        Game.L("潮湿的空床","WET GUEST BED"):
+                        Game.L("墙缝中的回信","LETTER IN MORTAR");
+                    Text(p.x-104,p.y-83,208,19,clue,10,ink,
+                        TextAnchor.MiddleCenter);
                 }
                 return true;
             }
