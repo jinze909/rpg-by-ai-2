@@ -51,8 +51,8 @@ namespace Starfall
         {
             if(!Has("afterlight_complete"))
             {
-                zh="公会南面的余光工地还在等人把三处公共站接上电";
-                en="three public stations need power at the Afterlight works south of the guild";
+                zh="公会南面的余光工地仍有居民在自愿修灯。你的主线已完结，想帮忙就直接找莉雅";
+                en="residents are repairing the three public stations at the Afterlight works south of the guild. The main story is over; ask Lyra if you want to volunteer";
             }
             else if(!Has("storm_complete"))
             {
@@ -93,8 +93,8 @@ namespace Starfall
             {
                 if(!Has("civic_aftercare_started"))
                 {
-                    zh="旅店的巡路记录尚待登记，三地的旧路标还需要重新核验";
-                    en="the roadwarden log at Hearth Inn needs a new entry before the three old route markers can be verified";
+                    zh="旅店的巡路记录已经备好，三地的旧路标可以直接到现场核验，无须专门回来登记";
+                    en="the roadwarden log at Hearth Inn is ready; the three old markers may be checked directly in the field without a new sign-up";
                 }
                 else if(CivicAftercareWaypointCount<3)
                 {
@@ -111,8 +111,8 @@ namespace Starfall
                 }
                 else
                 {
-                    zh="三地巡路记录的 3/3 处旧路标都核验过了，带回炉火旅店才能公开归档";
-                    en="all 3/3 old route markers are verified; take the roadwarden log back to Hearth Inn for publication";
+                    zh="三地巡路记录的 3/3 处旧路标都核验过了，最后的现场记录已自动公开，无须再回旅店盖章";
+                    en="all three old route markers are verified; the final field record is published on site with no extra inn approval";
                 }
             }
             else if(CivicWaystationCount<3)
@@ -371,11 +371,11 @@ namespace Starfall
             }
             else
             {
-                zh+="\n\n窗外有人在修路，一块石头落地，响得连公会都听见。\n\n“星核的事定了。可你听见外头了吧？那是今天的活，不是庆功。”";
-                en+="\n\nA paving stone drops outside the window, loud enough to hear across the guild.\n\n“The cores have been decided. Hear that out there? That's today's work. No one's celebrating just yet.”";
+                zh+="\n\n窗外有人修路，一块石头落地，声响传进公会。\n\n“星核的事已经结束，你真的救下了边境。”莉雅把结局那页簿子合上。“外面还有人过日子，路坏了仍要修，但那是他们的新生活，不是你欠我的另一段主线。”";
+                en+="\n\nA paving stone lands outside, its sound carrying into the guild.\n\n“The fate of the cores is settled. You saved the frontier,” Lyra says, closing the final ledger. “People still repair roads, because life goes on—not because you owe me another main quest.”";
                 string nextZh,nextEn;
                 if(!Has("afterlight_complete"))
-                {nextZh="公会南面的余光工地还缺人。先让三地的灯和设备通电。";nextEn="The Afterlight site south of the guild needs hands. Start with power to the three public stations.";}
+                {nextZh="公会南面的余光工地正在招志愿者。如果想帮居民修三地的灯，可以直接和我聊。";nextEn="The Afterlight works south of the guild welcome volunteers. If you want to help with the three public stations, ask me here.";}
                 else if(!Has("storm_complete"))
                 {nextZh="第一场星雨就要检验这些新线路。各地得自己定下供能顺序。";nextEn="The first starstorm will test those new lines. The regions need to settle their supply priorities.";}
                 else if(!Has("hearing_complete"))
@@ -387,15 +387,15 @@ namespace Starfall
                 else if(!Has("civic_response_ledger"))
                 {nextZh="账目签好了，医疗点的药包还得有人护送，守路岗也得守住袭击。去完成三地的实地考验，回来公开服务名册。";nextEn="The accounts are signed. Clinics still need medicine escorts and road watches must withstand real raids. Complete the three service trials, then publish their ledger.";}
                 else if(!LastDirectiveComplete)
-                {nextZh="三地服务名册已经公开。堡垒那道没有署名的旧军令还没查清。先去镇上议事台接取调查，把原始证词找齐。";nextEn="The service ledger is public, but the citadel's unsigned order is still sealed. Start the inquiry at the town council, then recover the original testimony.";}
+                {nextZh="三地服务名册已公开，一道没有署名的旧军令浮出水面。想查就直接去堡垒外环找原始证词，或让我帮你在地图上标出来。";nextEn="The civic service ledger has exposed an unsigned citadel order. You may investigate the original outer-ring evidence directly, or ask me to mark the route.";}
                 else if(!CivicConduitComplete)
                 {nextZh="公用电网的阀门还得逐个校准，才能把电送到避险棚。";nextEn="The public grid's valves still need tuning before the shelters can rely on them.";}
                 else if(!Has("civic_aftercare_published"))
                 {
                     string auditZh,auditEn;
                     CurrentPublicStoryWork(out auditZh,out auditEn);
-                    nextZh="去旅店问巡路队的公用路况簿："+auditZh+"。";
-                    nextEn="Check the roadwarden log at Hearth Inn: "+auditEn+".";
+                    nextZh="旧路标可以直接实地核验，无需另找路牌接取。"+auditZh+"。";
+                    nextEn="Check the old field markers directly; there is no new sign-up: "+auditEn+".";
                 }
                 else if(CivicWaystationCount<3)
                 {
