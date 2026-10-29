@@ -108,6 +108,8 @@ namespace Starfall
                 energy=Math.Max(1,energy-2);
             if(FieldPatrolDone(room))
                 energy=Math.Max(1,energy-2);
+            if(FieldPatrolSpared(room))
+                energy=Math.Max(1,energy-3);
             return energy;
         }
         private bool TalkBiomeField(WorldObject o)
@@ -127,11 +129,13 @@ namespace Starfall
                     "你已经把两处现场记录写进公共探路册。"+
                     "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
                     (FieldPatrolDone(region)?"\n巡路安全回执：接驳减免1硬币、2耐力。":"")+
+                    (FieldPatrolSpared(region)?"\n全员活捉证词：再减3耐力，免于无谓伤亡。":"")+
                     BiomeSupplySummary(false,region),
                     "Both original field testimonies are in the public wayfinder journal."+
                     "\n\nThe verified field relay now costs "+fare+
                     " coins and "+energy+" energy."+
                     (FieldPatrolDone(region)?"\nSigned patrol receipt: 1 coin and 2 stamina off travel.":"")+
+                    (FieldPatrolSpared(region)?"\nAll-captive testimony: 3 more stamina off this relay.":"")+
                     BiomeSupplySummary(true,region),
                     C("地区接驳 · 硬币"+fare+" / 耐力"+energy,
                       "Field relay · "+fare+" coins / "+energy+" energy",

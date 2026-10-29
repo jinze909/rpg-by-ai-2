@@ -399,6 +399,14 @@ namespace Starfall
             SourceBelongsToActiveMap(fieldPatrolOrigin);}}
         public bool FieldPatrolDone(int room)
         {return room>=1&&room<=7&&Has("biome_patrol_done_"+room);}
+        // A genuinely all-living resolution is signed only when the same
+        // exact-actor contract is filed at its original field marker.
+        // Old v1/v2 patrol receipts remain ordinary completed receipts.
+        public bool FieldPatrolSpared(int room)
+        {return FieldPatrolDone(room)&&Has("biome_patrol_spared_"+room);}
+        public int FieldPatrolSparedCount
+        {get{int total=0;for(int r=1;r<=7;r++)
+            if(FieldPatrolSpared(r))total++;return total;}}
         public int FieldPatrolWins
         {get{int count=0;for(int i=1;i<=7;i++)
             if(FieldPatrolDone(i))count++;return count;}}
@@ -499,8 +507,11 @@ namespace Starfall
                 return C("返回原调查地标领取巡逻委托",
                     "Visit the original survey post for patrol work","close");
             if(FieldPatrolDone(room))
-                return C("本地巡逻安全回执已登记",
-                    "Patrol safety receipt filed","close");
+                return FieldPatrolSpared(room)?
+                    C("非致命巡护回执已签收 · 供出安全路况",
+                      "Living-captive report filed · safe routes learned","close"):
+                    C("本地巡逻安全回执已登记",
+                      "Patrol safety receipt filed","close");
             if(FieldPatrolActive)
                 return FieldPatrolReportReady?
                     C("提交击退或活捉巡兵的现场回执",
@@ -598,19 +609,45 @@ namespace Starfall
                 return true;
             }
             int cleared=room;
+            // Capture means actual living actors were removed by the paid
+            // grounded snare mechanic. This decision is made BEFORE reset
+            // and before awarding any completed/one-time save flags.
+            bool allLiving=fieldPatrolEnemies.Count>=2&&
+                fieldPatrolCaptures.Count==fieldPatrolEnemies.Count&&
+                fieldPatrolKills.Count==0;
+            bool mixed=fieldPatrolCaptures.Count>0&&!allLiving;
             ResetFieldPatrol();
             if(FieldPatrolDone(cleared))return true;
             Flag("biome_patrol_done_"+cleared);
+            if(allLiving)Flag("biome_patrol_spared_"+cleared);
             CreditCoins(26+cleared*2);CreditShards(1);AddXp(65+cleared*5);
-            RecordMoment(scoutPatrolZh[cleared]+
-                " 巡逻队经过真实交锋被击退，原调查地标收到安全回执。",
-                scoutPatrolEn[cleared]+
-                " The patrol was defeated in actual combat; the signed safety report reached the original survey post.");
+            if(allLiving)
+            {
+                // Prisoners' actual route testimony yields a modest,
+                // persistent public travel benefit in this district.
+                // The second shard is awarded exactly once on signing.
+                CreditShards(1);
+                RecordMoment(scoutPatrolZh[cleared]+
+                    " 巡路人用绊索活捉全队，查明了较安全的回程地面。居民接驳永久再省3耐力。",
+                    scoutPatrolEn[cleared]+
+                    " Every raider was restrained alive. Their testimony revealed safer ground, permanently saving 3 more relay stamina.");
+            }
+            else
+                RecordMoment(scoutPatrolZh[cleared]+
+                    (mixed?" 部分巡兵被活捉，其余经真实战斗击退；居民登记了每名失踪者的去向。":
+                      " 巡逻队经过真实交锋被击退，原调查地标收到安全回执。"),
+                    scoutPatrolEn[cleared]+
+                    (mixed?" Some raiders were restrained alive and others defeated. The signed report accounts for each one.":
+                      " The patrol was defeated in actual combat; the signed safety report reached the original survey post."));
             revision++;sound="reward";
             Notify("巡路委托结算：硬币"+(26+cleared*2)+
-                "、碎片1、经验"+(65+cleared*5)+"。已登记"+FieldPatrolWins+"/7地区。",
-                "Patrol signed: "+(26+cleared*2)+" coins, 1 shard, "+
-                (65+cleared*5)+" XP. Verified districts: "+FieldPatrolWins+"/7.");
+                "、碎片"+(allLiving?2:1)+"、经验"+(65+cleared*5)+
+                (allLiving?"。活捉证词：本区接驳额外省3耐力。":"。")+
+                "已登记"+FieldPatrolWins+"/7地区。",
+                "Patrol signed: "+(26+cleared*2)+" coins, "+
+                (allLiving?2:1)+" shards, "+(65+cleared*5)+
+                " XP."+(allLiving?" Living testimony: 3 extra relay stamina saved.":"")+
+                " Verified districts: "+FieldPatrolWins+"/7.");
             if(FieldPatrolWins==7&&!Has("biome_patrol_seals_complete"))
             {
                 Flag("biome_patrol_seals_complete");

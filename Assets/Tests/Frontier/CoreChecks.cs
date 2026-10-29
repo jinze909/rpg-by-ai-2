@@ -550,6 +550,86 @@ namespace Starfall.Tests
                 "V2 reload saves signed achievement but not live temporary captives");
         }
 
+        // Distinguish the hard-earned all-living route from a mixed report.
+        // Both original posts, real grounded snare contacts and the actual
+        // physical fare/energy transaction participate in the tested loop.
+        public static void AllLivingPatrolTestimonyChangesRealRelayFareAndV2Report(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            WorldObject post=Array.Find(g.Map.objects,o=>
+                o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "The authentic field source is physically reachable");
+            Point origin=g.Position;
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"Original survey dialogue offers the live patrol");
+            g.Choose(begin);
+            Check(g.FieldPatrolActive&&g.enemies.Count==2,
+                "Two individual living raiders are assigned to this patrol");
+            var foes=g.enemies.ToArray();
+            g.save.inventory[0]=12;g.save.inventory[4]=12;
+            g.save.energy=100f;
+            int shards=g.save.shards;
+            for(int i=0;i<foes.Length;i++)
+            {
+                Point foot=PutRealSnare(g);
+                foes[i].x=foot.x;foes[i].y=foot.y;
+                foes[i].hitTime=6f;
+                foreach(Enemy other in g.enemies)other.hitTime=6f;
+                for(int t=0;t<11;t++)g.Tick(.05f,new Point());
+                Check(g.CanBindSnaredEnemy&&
+                    object.ReferenceEquals(g.SnaredBindTarget,foes[i])&&
+                    g.BindSnaredEnemy()&&foes[i].hp>0f,
+                    "Each authentic enemy is physically restrained alive after an armed trap");
+                Check(g.FieldPatrolRemaining==foes.Length-i-1,
+                    "The last captive is not counted again");
+            }
+            Check(g.FieldPatrolReportReady&&!g.FieldPatrolSpared(1),
+                "Provisional all-living success is not yet a signed persistent perk");
+            g.invulnerable=5f;
+            for(int t=0;t<150;t++)g.Tick(.02f,new Point());
+            g.save.x=origin.x;g.save.y=origin.y;
+            Check(PlaceWithinTalkReach(g,post),
+                "Hero physically returns to the original report site");
+            g.Close();g.Talk(post);
+            int report=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_report");
+            Check(report>=0,"Unclaimed authentic all-living receipt is ready");
+            g.Choose(report);
+            Check(g.FieldPatrolSpared(1)&&g.FieldPatrolSparedCount==1&&
+                g.FieldPatrolDone(1)&&g.save.shards==shards+2,
+                "Real all-captive report earns one-time additional shard and persistent safe route");
+            var fare=typeof(GameCore).GetMethod("FieldRelayFare",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            var energy=typeof(GameCore).GetMethod("FieldRelayEnergy",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(fare!=null&&energy!=null,
+                "Production field relay uses common exact fare and stamina rules");
+            Check((int)fare.Invoke(g,new object[]{1})==2&&
+                (int)energy.Invoke(g,new object[]{1})==7,
+                "All-captive evidence improves actual default relay stamina from 10 to 7");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FieldPatrolSpared(1)&&
+                restored.FieldPatrolSparedCount==1&&
+                (int)energy.Invoke(restored,new object[]{1})==7,
+                "V2 load retains earned humanely restored route without transient actors");
+            restored.save.flags.Add("biome_supply_road_1");
+            Check((int)energy.Invoke(restored,new object[]{1})>=1,
+                "Multiple persistent route discounts never produce negative stamina");
+            g.Close();g.Talk(post);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin")<0&&
+                g.save.shards==shards+2,
+                "No paid patrol can be replayed to double-award nonlethal evidence");
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)
