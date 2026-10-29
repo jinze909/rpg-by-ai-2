@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1037,6 +1037,64 @@ namespace Starfall
 
 
 
+            if(id=="chapter_roads")
+            {
+                q.title=L("第一至四章 · 失落的居民救援路线",
+                    "Chapters I–IV · Unfinished Civilian Roads");
+                q.category=L("主线中途的可玩事件 · 实地救援、战斗和证据",
+                    "MAIN-STORY EPISODES · RESCUE, COMBAT & TESTIMONY");
+                q.description=L("每章从原始地图西侧的真实求援标记出发，步行到中途危机处，花费耐力10组织防守。真实击败或绊索活捉所有袭击者后，必须走到第三处居民交接点决定如何保存证词。第二章涨潮与第三章管线救援有现场时限；撤回、超时、传送及伪造敌人均无奖金。旧主线的祭坛和章节门锁不受影响。",
+                    "Start at each chapter's authentic western distress sign, walk to the threatened crossing, spend 10 stamina on defense and defeat or physically restrain the original live raiders. At a third distinct civilian handoff, decide how survivors preserve the evidence. Ruins and mine fieldwork have live deadlines. Retreat, timeout, fast travel or forged enemy IDs never pay; all original main-story gates remain.");
+                q.reward=L("四地真实首通奖励及本地居民服务，全部完成额外技能点1",
+                    "Four first-clear rewards and useful local services; +1 skill point for all four");
+                q.locked=false;
+                for(int i=1;i<=4;i++)
+                {
+                    bool done=ChapterRoadDone(i);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[i].name,data.maps[i].en)+
+                        L(done?" · 居民路线已签收":
+                            Has("core_"+i)?" · 可回访补记":" · 等待本章救援",
+                          done?" · CIVILIAN ROUTE SIGNED":
+                            Has("core_"+i)?" · MAY RETURN":" · AWAITING RESCUE"),
+                        done));
+                }
+                q.complete=ChapterRoadCompleted==4;
+                int next=-1;
+                if(ChapterRoadActive)next=save.room;
+                else if(save.room>=1&&save.room<=4&&
+                    !ChapterRoadDone(save.room))next=save.room;
+                else for(int i=1;i<=4;i++)
+                    if(!ChapterRoadDone(i)&&CanEnter(i))
+                    {next=i;break;}
+                q.room=next>=0?next:Math.Min(4,Math.Max(1,save.stage+1));
+                WorldObject origin=next>=0?ChapterRoadNode(next,0):null;
+                q.target=ChapterRoadActive?ChapterRoadGuideTarget:
+                    origin==null?new Point(data.maps[q.room].spawnX,
+                        data.maps[q.room].spawnY):
+                    new Point(origin.x,origin.y);
+                q.next=ChapterRoadActive?
+                    (ChapterRoadStage==1?
+                        L("沿真实道路前往第二现场，按 E 拦截袭击者",
+                          "Walk to the second original site and intercept the raiders"):
+                        ChapterRoadSecured?
+                        L("全部真实袭击者已清除；前往第三处接收点签署居民记录",
+                          "All real raiders accounted for; file at the third civilian site"):
+                        L("保护现场：剩余"+ChapterRoadRemaining+"名真实袭击者",
+                          "Protect civilians: "+ChapterRoadRemaining+" genuine raiders remain")):
+                    q.complete?
+                        L("四章居民路线已全部签收，原本未被记录的人终于有了姓名",
+                          "All four civilian routes are signed; the uncounted are named"):
+                        L("前往当前可进入章节的求援标记，开始居民实地事件",
+                          "Visit the available chapter's original distress notice");
+                if(!q.complete&&next<0)
+                {
+                    for(int i=1;i<=4;i++)
+                        if(!ChapterRoadDone(i))
+                        {RouteLockedOutdoorSurvey(q,i);break;}
+                }
+                return q;
+            }
             if(id=="vantage_watches")
             {
                 q.title=L("远望之路 · 八地平民观测站",
@@ -4511,6 +4569,10 @@ namespace Starfall
             q.complete = false;
             int chapter = save.stage + 1; q.room = chapter; q.target = new Point(29, 8);
             bool gateOpen = chapter == 4 || chapter == 1 && Has("scout_saved") || Has("gate_" + chapter);
+            q.steps.Add(new QuestStep(
+                L("本章可选剧情 · 居民救援路线",
+                  "Optional chapter story · the civilian rescue road"),
+                ChapterRoadDone(chapter)));
             q.steps.Add(new QuestStep(L(chapter == 1 ? "解救侦察员" : chapter == 2 ? "破解遗迹石碑" : chapter == 3 ? "修复矿场升降机" : "抵达统领所在祭坛", chapter == 1 ? "Rescue the scout" : chapter == 2 ? "Solve the tablets" : chapter == 3 ? "Repair the elevator" : "Reach the warden's altar"), gateOpen));
             if(chapter<=3)
                 q.steps.Add(new QuestStep(L("可选：留下本章居民的真实证词",
@@ -4527,6 +4589,22 @@ namespace Starfall
             }
             else if (Has("core_" + chapter) && chapter < 4) { q.room = 0; q.target = new Point(18, 17); q.next = L("把星核交给莉雅", "Deliver the starcore to Lyra"); }
             else q.next = Has("boss_" + chapter) ? L("与祭坛互动，完成本章", "Interact with the altar to finish this chapter") : L("前往祭坛，准备守护者挑战", "Approach the altar and prepare for the guardian");
+            // The new resident story sits on the same original chapter
+            // roads, but does NOT silently lock existing guardian fights.
+            // An active handoff temporarily guides the real world compass
+            // without overwriting the player's tracked quest.
+            if(ChapterRoadActive && chapter==save.room)
+            {
+                q.target=ChapterRoadGuideTarget;
+                q.next=ChapterRoadStage==1?
+                    L("居民求援已接：到第二处现场组织实际防守",
+                      "Civilian rescue accepted: reach the second real defense site"):
+                    ChapterRoadSecured?
+                    L("袭击者已受控：到末端居民安置点完成亲手签收",
+                      "Raiders contained: sign at the final civilian receiving post"):
+                    L("本章护路战斗中 · 剩余"+ChapterRoadRemaining+"名",
+                      "Chapter road defense · "+ChapterRoadRemaining+" raiders remain");
+            }
             if (chapter == 4 && !Has("boss_4"))
             {
                 q.steps.Insert(0,new QuestStep(L("莉雅的第四章调查 · 三核审计",
@@ -4790,6 +4868,7 @@ namespace Starfall
             // away to an unrelated stale journal waypoint. Original tracked
             // quest selection is left untouched after combat.
             if(VantageWatchActive)return VantageWatchGuideTarget;
+            if(ChapterRoadActive)return ChapterRoadGuideTarget;
             if(OuterPatrolActive)return outerPatrolPost;
             if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
             // While actually carrying civilian aid, the live crossing, seal
