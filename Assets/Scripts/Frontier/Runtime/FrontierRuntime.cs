@@ -1475,6 +1475,25 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),next?.7f:.46f,ink,22);
                 if(next||!done&&slot==0)
                     Diamond(p.x,p.y-82,next?7:5,ink);
+                // This line is the REAL radius of the active regional
+                // danger, not a decorative broad quest ring. The tide ring
+                // disappears at low water and the steam ring ends when the
+                // original attackers are contained.
+                if(live&&Game.ChapterRoadStage==2&&
+                   Game.ChapterRoadRemaining>0&&slot==1&&
+                   (room==3||room==2&&!Game.LowTide))
+                {
+                    Color warning=room==3?
+                        new Color(.96f,.42f,.28f,.75f):
+                        new Color(.49f,.78f,1f,.73f);
+                    Ring(new Point(o.x,o.y),6f,warning,48);
+                    Text(p.x-96,p.y-158,192,18,
+                        room==3?Game.L("蒸汽高温区 · 保持移动",
+                            "STEAM HAZARD · KEEP MOVING"):
+                            Game.L("涨潮寒流区 · 保持移动",
+                            "FLOOD CHILL · KEEP MOVING"),
+                        10,warning,TextAnchor.MiddleCenter);
+                }
                 if(live&&Game.ChapterRoadSeconds>0&&slot==1)
                     Text(p.x-86,p.y-133,172,18,
                         Game.L("潮位 / 热压任务 · "+
