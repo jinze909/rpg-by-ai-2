@@ -5452,8 +5452,8 @@ public static class RenderStateChecks
                 g.save.flags.Remove("civic_aftercare_waytrail_"+room);
                 g.save.flags.Add("waytrail_"+marker.id);
                 Clear();Call(app,"DrawObject",marker);
-                Check(Label("✓")&&!Label("AUDIT ?")&&!Label("复核 ?"),
-                    "The original route-chart check remains independent before the optional audit starts");
+                Check(Label("✓")&&(Label("AUDIT ?")||Label("复核 ?")),
+                    "When the grid is restored the original route marker shows an optional field audit even before an inn signup");
                 g.save.flags.Add("civic_aftercare_started");
                 Clear();Call(app,"DrawObject",marker);
                 Check(Label("✓")&&(Label("AUDIT ?")||Label("复核 ?")),

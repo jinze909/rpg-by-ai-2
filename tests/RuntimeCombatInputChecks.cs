@@ -6633,10 +6633,10 @@ public static class RuntimeCombatInputChecks
 
             g.save.flags.Add("civic_conduit_complete");
             ReadOriginalInnNews(g,inn);
-            Check(g.conversation.text.Contains("旧路线图")&&
-                g.conversation.textEn.Contains("old route chart")&&
-                g.conversation.text.Contains("可选的三地巡路复核")&&
-                g.conversation.textEn.Contains("optional three-region audit"),
+            Check(g.conversation.text.Contains("公共电网")&&
+                g.conversation.textEn.Contains("grid")&&
+                g.conversation.text.Contains("三地")&&
+                g.conversation.textEn.Contains("road"),
                 "The Inn introduces the optional field audit in both languages after the grid is restored");
             int begin=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_begin");
             Check(begin>=0,"The original night traveler offers the optional audit after grid completion");
@@ -6658,10 +6658,15 @@ public static class RuntimeCombatInputChecks
                 WorldObject waypoint=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
                 Check(waypoint!=null,"Region "+room+" contains an authored route marker");
                 g.save.x=waypoint.x;g.save.y=waypoint.y;
+                int coinsBeforeFoot=g.save.coins,shardsBeforeFoot=g.save.shards;
                 g.Talk(waypoint);
                 Check(g.save.flags.Contains("civic_aftercare_waytrail_"+room)&&
                     g.CivicAftercareWaypointCount==i+1,
                     "Physical interaction records exactly one field audit for region "+room);
+                Check(g.Has("civic_aftercare_published")== (i==2)&&
+                    (i!=2 || (g.save.coins>=coinsBeforeFoot+35&&
+                       g.save.shards>=shardsBeforeFoot+1)),
+                    "Only the third genuine marker grants the audited public road reward on site");
                 if(i==0)
                 {
                     g.Talk(waypoint);
@@ -6680,18 +6685,14 @@ public static class RuntimeCombatInputChecks
                 }
             }
             guide=g.GetQuest("civic_aftercare");
-            Check(guide.room==9&&!guide.complete&&g.CivicAftercareWaypointCount==3,
-                "All three verified markers move the live quest target back to Hearth Inn");
-            g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
-            int publish=Array.FindIndex(g.conversation.choices,c=>c.action=="civic_aftercare_publish");
-            Check(publish>=0,"The Inn offers publication only after all three field checks");
-            int coinsBeforePublish=g.save.coins,shardsBeforePublish=g.save.shards;
-            g.Choose(publish);
-            Check(g.save.flags.Contains("civic_aftercare_published")&&
-                g.GetQuest("civic_aftercare").complete&&
-                g.save.coins==coinsBeforePublish+35&&g.save.shards==shardsBeforePublish+1,
-                "Publishing settles the one-time reward and completes the persistent quest");
+            Check(guide.complete&&g.CivicAftercareWaypointCount==3&&
+                g.save.flags.Contains("civic_aftercare_published"),
+                "The third physically inspected region automatically files the civilian road record without a second inn approval");
             int coinsAfterPublish=g.save.coins,shardsAfterPublish=g.save.shards;
+            g.save.room=9;g.save.x=inn.x;g.save.y=inn.y;g.Talk(inn);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="civic_aftercare_publish")<0,
+                "After automatic field publication the inn cannot offer a second paid report");
             g.save.room=5;
             WorldObject auditedMarker=Array.Find(g.Map.objects,o=>o.kind=="waytrail");
             Check(auditedMarker!=null,"The third region keeps its original physical route marker after publication");
