@@ -251,7 +251,19 @@ namespace Starfall
                 if (Input.GetMouseButton(0) && !PointerOverInterface(mouse))
                     Game.Attack(InputAim() ?? Game.aim);
                 if ((Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.JoystickButton2))) Game.Attack(InputAim() ?? Game.aim);
-                if ((Input.GetKeyDown(KeyCode.E) || PadDown(1))) Game.Interact();
+                // Shift+E / LB+B is a deliberate close-range nonlethal
+                // restraint, NOT a replacement for ordinary NPC E / B.
+                // The real snare and still-living enemy are revalidated by
+                // GameCore at commit, including the stamina cost and LOS.
+                bool bindSnaredKeyboard=Input.GetKeyDown(KeyCode.E)&&
+                    (Input.GetKey(KeyCode.LeftShift)||
+                     Input.GetKey(KeyCode.RightShift));
+                bool bindSnaredPad=PadDown(1)&&
+                    Input.GetKey(KeyCode.JoystickButton4);
+                if(bindSnaredKeyboard||bindSnaredPad)
+                    Game.BindSnaredEnemy();
+                else if(Input.GetKeyDown(KeyCode.E)||PadDown(1))
+                    Game.Interact();
                 if (Input.GetKeyDown(KeyCode.F)) Game.Eat();
                 if (Input.GetKeyDown(KeyCode.T)) Game.DrinkTea();
                 if (Input.GetKeyDown(KeyCode.Z)) Game.CommandCompanion();
@@ -281,7 +293,8 @@ namespace Starfall
                 // world action, with the very same cost/range/LOS as E.
                 if (Input.GetKeyDown(KeyCode.L))
                     Game.QuickDrawWayfarerFire();
-                if (PadDown(4)&&!padRecoverChord) Game.Eat();
+                if (PadDown(4)&&!padRecoverChord&&!bindSnaredPad)
+                    Game.Eat();
                 CompanionButtonAction companionPadAction=companionPadGesture.Advance(
                     Input.GetKey(KeyCode.JoystickButton5),frameDelta);
                 if(companionPadAction==CompanionButtonAction.Command)

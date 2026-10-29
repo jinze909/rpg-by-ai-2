@@ -987,6 +987,25 @@ namespace Starfall
                                    "SNARE · "+Math.Ceiling(snare.seconds)+"s"),
                             10,tint,TextAnchor.MiddleCenter);
                 }
+            // A true snared actor is still a full-body SpriteRenderer
+            // enemy; the ground indicator is only the contextual prompt,
+            // never a substitute painted body or an invented NPC.
+            if(Game.mode=="world"&&!drawingOutline)
+            {
+                Enemy captive=Game.SnaredBindTarget;
+                if(captive!=null&&
+                    WorldDrawable(captive.x,captive.y,145f,145f))
+                {
+                    Point p=ScreenPoint(captive.Position);
+                    Ring(captive.Position,.62f,mint,24);
+                    Text(p.x-113,p.y-104,226,22,
+                        Game.L("非致命制服 · Shift+E",
+                               "RESTRAIN ALIVE · SHIFT+E"),
+                        11,mint,TextAnchor.MiddleCenter);
+                    Bar(p.x-39,p.y-80,78,
+                        Math.Min(1f,captive.stun/2.1f),mint,5);
+                }
+            }
             if(Game.mode=="world"&&Game.AfterglowActive&&!drawingOutline)
             {
                 Point fire=Game.AfterglowCampFoot;
