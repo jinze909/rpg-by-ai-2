@@ -40,6 +40,22 @@ namespace Starfall
         public int FieldOutpostRemaining
         {get{int n=0;if(FieldOutpostActive)foreach(Enemy e in outpostFoes)
             if(e!=null&&e.hp>0f&&enemies.Contains(e))n++;return n;}}
+        // The current objective is always the nearest genuine live
+        // attacker. After securing the road, it returns to the exact original
+        // kit for the paid, persistent construction choice.
+        public Point FieldOutpostGuideTarget
+        {get{
+            if(!FieldOutpostActive)return Position;
+            Point best=new Point(outpostOrigin.x,outpostOrigin.y);
+            float distance=float.MaxValue;
+            foreach(Enemy e in outpostFoes)
+                if(e!=null&&e.hp>0f&&enemies.Contains(e))
+                {
+                    float d=(e.Position-Position).Length;
+                    if(d<distance){best=e.Position;distance=d;}
+                }
+            return best;
+        }}
         public bool FieldOutpostReady
         {get{
             if(!FieldOutpostActive||outpostFoes.Count<2)return false;
@@ -115,7 +131,8 @@ namespace Starfall
         {
             if(action!="field_outpost_begin"&&action!="field_outpost_abort"&&
                action!="field_outpost_ward"&&action!="field_outpost_forge"&&
-               action!="field_outpost_rest"&&action!="field_outpost_stock")
+               action!="field_outpost_rest"&&action!="field_outpost_stock"&&
+               action!="field_outpost_return")
                 return false;
             int room=save.room;
             WorldObject source=pendingDialogueSource;
@@ -192,6 +209,63 @@ namespace Starfall
             if(!FieldOutpostBuilt(room)||FieldOutpostActive||
                 FieldWorkPreventsRest||!SafeTravel||
                 BlockTravelForProtectedFieldMission(true))return true;
+            if(action=="field_outpost_return")
+            {
+                const int fare=4,energy=8;
+                if(save.coins<fare||save.energy<energy)
+                {
+                    Notify("返程接驳需要4枚硬币和8点耐力。",
+                        "Road courier requires 4 coins and 8 stamina.");
+                    return true;
+                }
+                // This is a physical route, not an unrestricted teleport.
+                // The ferry's full terrain/tide/gate solver must reach the
+                // actual region entry pad in the current live world.
+                Point depart=Position;
+                Point entry=new Point(Map.spawnX,Map.spawnY);
+                Point[] pads={
+                    new Point(0,0),new Point(1,0),new Point(0,1),
+                    new Point(-1,0),new Point(0,-1),
+                    new Point(1,1),new Point(-1,-1)
+                };
+                Point? arrival=null;
+                foreach(Point offset in pads)
+                {
+                    Point goal=entry+offset;
+                    if(!CanStand(goal)||!CivicShuttleRoadSafe(depart,goal))
+                        continue;
+                    save.x=goal.x;save.y=goal.y;
+                    bool safe=SafeTravel;
+                    save.x=depart.x;save.y=depart.y;
+                    if(safe){arrival=goal;break;}
+                }
+                if(!arrival.HasValue)
+                {
+                    Notify("当前潮水、封门或战斗切断了返程道路。未出发，也没有扣费。",
+                        "The return footpath is blocked by terrain or combat. No charge.");
+                    return true;
+                }
+                save.x=arrival.Value.x;save.y=arrival.Value.y;
+                if(save.companion>=0&&!CompanionHoldingPosition&&
+                   (Position-depart).Length>3f)
+                {
+                    Point follow=CompanionFollowTarget();
+                    if(CanStand(follow))
+                    {
+                        ClearCompanionFollowRoute();
+                        ClearCompanionCornerPlan();
+                        companionAutoTarget=null;
+                        companionPosition=follow;
+                        companionMoveTime=0f;companionMoving=false;
+                        companionPresentationGeneration++;
+                    }
+                }
+                save.coins-=fare;save.energy-=energy;
+                revision++;sound="travel";
+                Notify("沿已守住的居民道路返回本区入口：硬币-4，耐力-8。",
+                    "Returned to the regional entrance by a verified road. -4 coins, -8 stamina.");
+                return true;
+            }
             if(action=="field_outpost_rest"&&FieldOutpostWard(room))
             {
                 if(save.inventory[2]<1||

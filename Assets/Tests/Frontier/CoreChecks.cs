@@ -740,6 +740,61 @@ namespace Starfall.Tests
             }
         }
 
+        // An earned station may send the player back to the region entry
+        // ONLY along the exact live footpath under tides, gates and danger.
+        // A menu click must never act as an unconstrained teleport.
+        public static void FieldOutpostCourierUsesRealTerrainAndChargesOnlyOnArrival(Campaign data)
+        {
+            int authenticatedTrips=0;
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                g.save.flags.Add("field_kit_recovered_"+room);
+                g.save.flags.Add("field_outpost_ward_"+room);
+                WorldObject kit=Array.Find(g.Map.objects,
+                    o=>o.id=="fieldKit"+room&&o.kind=="fieldKit");
+                Check(kit!=null&&PlaceWithinTalkReach(g,kit),
+                    "A signed forward camp retains its actual walkable source");
+                g.save.energy=100f;g.save.coins=0;
+                Point departure=g.Position;
+                g.Talk(kit);
+                int returnOption=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_outpost_return");
+                Check(returnOption>=0,"The installed real field kit offers a road courier");
+                g.Choose(returnOption);
+                Check((g.Position-departure).Length<.01f&&g.save.coins==0&&
+                    Math.Abs(g.save.energy-100f)<.01f,
+                    "A broke traveler cannot ride a free road shuttle");
+                g.save.coins=100;g.Close();g.Talk(kit);
+                returnOption=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_outpost_return");
+                Check(returnOption>=0,"Source still offers the genuine paid journey");
+                g.Choose(returnOption);
+                bool traveled=(g.Position-departure).Length>3f;
+                Point actualEntry=new Point(data.maps[room].spawnX,
+                    data.maps[room].spawnY);
+                if(traveled)
+                {
+                    authenticatedTrips++;
+                    Check((g.Position-actualEntry).Length<=1.5f&&
+                        g.CanStand(g.Position)&&
+                        g.NavigationPathFrom(departure,g.Position,true).Count>0&&
+                        g.save.coins==96&&Math.Abs(g.save.energy-92f)<.01f,
+                        "The road courier charges once and arrives on the same real connected terrain");
+                }
+                else
+                    Check((g.Position-departure).Length<.01f&&
+                        g.save.coins==100&&Math.Abs(g.save.energy-100f)<.01f,
+                        "A sealed or unavailable physical road rejects travel without charging");
+                Check(g.save.room==room&&g.save.version==2,
+                    "Road return stays inside the authenticated existing region and save schema");
+            }
+            Check(authenticatedTrips>=1,
+                "At least one truly reachable forward road offers real paid long-distance transit");
+        }
+
         public static void FailedFieldOutpostDefensesDoNotPayOrResurrectGhosts(Campaign data)
         {
             GameCore g=Fresh(data);

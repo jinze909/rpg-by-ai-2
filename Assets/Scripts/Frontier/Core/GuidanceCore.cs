@@ -1044,9 +1044,9 @@ namespace Starfall
                 q.category=L("可选真实战斗 · 建设与长期使用",
                     "PHYSICAL DEFENSE · PERSISTENT INFRASTRUCTURE");
                 q.description=L("从各地实际工具箱取回材料后，可以回到原址组织防守。真实击败或绊索活捉周围袭击者，再在原地用木材与零件各1份，将工具点改建成医疗避难站或绊索工坊。两种用途只能选择一个，旧存档与主线不受影响。",
-                    "After physically salvaging a regional kit, defend its real site. Defeat or genuinely restrain raiders, return to the same kit and spend 1 timber and 1 part to build either a field aid station or trap workshop. The choice is exclusive and persists independently of the main story.");
+                    "After physically salvaging a regional kit, defend its real site. Defeat or genuinely restrain raiders, return to the same kit and spend 1 timber and 1 part to build either a field aid station or trap workshop. Both open a paid return along an actually walkable road to the region entrance; blocked routes cannot be bypassed.");
                 q.reward=L("每区真实战斗的硬币、碎片和经验；医疗站可用药草恢复，工坊可用硬币购置绊索材料",
-                    "Coins, shards and XP per defense; working aid stations or paid trap-supply workshops");
+                    "Coins, shards and XP per defense; usable field aid, snare supplies and verified road return");
                 q.locked=false;
                 int selected=-1;
                 for(int region=1;region<=7;region++)
@@ -1068,7 +1068,8 @@ namespace Starfall
                 if(FieldOutpostActive)selected=save.room;
                 q.complete=FieldOutpostWins==7;
                 q.room=selected>=0?selected:save.room;
-                q.target=selected>=0?
+                q.target=FieldOutpostActive?FieldOutpostGuideTarget:
+                    selected>=0?
                     ObjectPoint(selected,"fieldKit",
                         new Point(data.maps[selected].spawnX,
                             data.maps[selected].spawnY)):Position;

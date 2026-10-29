@@ -164,6 +164,9 @@ namespace Starfall
                         "Spend 1 Moonherb for 55 HP, 40 stamina and 25 climate relief.",
                         C("使用急救站 · 月光草1","Use aid · 1 Moonherb",
                           "field_outpost_rest"),
+                        C("沿安全道路返回本区入口 · 4硬币/8耐力",
+                          "Return by cleared road · 4 coins / 8 stamina",
+                          "field_outpost_return"),
                         C("继续探索","Continue exploring","close"));
                 else if(FieldOutpostForge(room))
                     Dialog(o.name,o.en,"这里的旧铁环已经变成旅人的绊索材料工坊。"+
@@ -172,6 +175,9 @@ namespace Starfall
                         "Pay 12 coins for 1 timber and 1 mechanical part.",
                         C("补给材料 · 12硬币",
                           "Restock trap materials · 12 coins","field_outpost_stock"),
+                        C("沿安全道路返回本区入口 · 4硬币/8耐力",
+                          "Return by cleared road · 4 coins / 8 stamina",
+                          "field_outpost_return"),
                         C("继续探索","Continue exploring","close"));
                 else
                     Dialog(o.name,o.en,fieldKitStoryZh[room]+
