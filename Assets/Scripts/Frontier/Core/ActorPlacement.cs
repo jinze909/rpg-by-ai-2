@@ -349,6 +349,43 @@ namespace Starfall
                 if(!fieldPatrolKills.Contains(e)&&
                     enemies.Contains(e)&&e.hp>0f)count++;
             return count;}}
+        // The HUD compass follows the nearest genuine surviving opponent.
+        // Once all registered deaths are confirmed it points back to the
+        // original sign, not an old corpse or a fabricated map location.
+        public Point FieldPatrolGuideTarget
+        {
+            get
+            {
+                if(!FieldPatrolActive)return Position;
+                Point best=new Point(fieldPatrolOrigin.x,fieldPatrolOrigin.y);
+                float closest=float.MaxValue;
+                foreach(Enemy e in fieldPatrolEnemies)
+                {
+                    if(e==null||fieldPatrolKills.Contains(e)||
+                       !enemies.Contains(e)||e.hp<=0f)continue;
+                    float dist=(e.Position-Position).Length;
+                    if(dist<closest){closest=dist;best=e.Position;}
+                }
+                return best;
+            }
+        }
+        private void TickFieldPatrol()
+        {
+            if(fieldPatrolRoom<0)return;
+            if(!FieldPatrolActive){ResetFieldPatrol();return;}
+            // A map edit, script cleanup or invalidated opponent may remove
+            // a live actor without a real Hit death. Never turn a missing
+            // enemy into a fraudulent civilian safety certificate.
+            foreach(Enemy e in fieldPatrolEnemies)
+                if(e==null||(!fieldPatrolKills.Contains(e)&&
+                   (!enemies.Contains(e)||e.hp<=0f)))
+                {
+                    ResetFieldPatrol();revision++;
+                    Notify("巡逻目标意外失去联络，现场委托已作废；请从原地标重新接取。",
+                        "A contracted raider vanished without a real defeat. Return to the post to restart.");
+                    return;
+                }
+        }
         public bool FieldPatrolReportReady
         {get{if(!FieldPatrolActive||fieldPatrolEnemies.Count<2)
             return false;

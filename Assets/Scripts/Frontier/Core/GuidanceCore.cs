@@ -1046,10 +1046,11 @@ namespace Starfall
                 }
                 if(FieldPatrolActive)selected=save.room;
                 q.room=selected>=0?selected:save.room;
-                q.target=selected>=0?
-                    ObjectPoint(selected,"biomeSurvey",
-                        new Point(data.maps[selected].spawnX,
-                            data.maps[selected].spawnY)):Position;
+                q.target=FieldPatrolActive?FieldPatrolGuideTarget:
+                    selected>=0?
+                        ObjectPoint(selected,"biomeSurvey",
+                            new Point(data.maps[selected].spawnX,
+                                data.maps[selected].spawnY)):Position;
                 if(FieldPatrolActive)
                 {
                     q.next=FieldPatrolReportReady?

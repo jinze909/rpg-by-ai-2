@@ -256,6 +256,8 @@ namespace Starfall.Tests
                     "Regional patrol "+room+" has a reachable original survey post");
                 Point origin=g.Position;
                 g.Talk(source);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Original field post opens a real patrol dialogue: "+room);
                 int begin=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="biome_patrol_begin");
                 Check(begin>=0,"Patrol can be started in the real survey dialogue: "+room);
@@ -271,10 +273,14 @@ namespace Starfall.Tests
                         "Every contracted enemy must stand on a genuine reachable attack lane");
                 Check(g.GetQuest("field_patrols").id=="field_patrols"&&
                     g.GetQuest("field_patrols").room==room&&
+                    Array.Exists(g.enemies.ToArray(),e=>
+                        (g.GetQuest("field_patrols").target-e.Position).Length<.001f)&&
                     !g.GetQuest("field_patrols").complete,
                     "The playable journal tracks an active region and the true combat");
                 int coins=g.save.coins,shards=g.save.shards;
-                g.save.x=origin.x;g.save.y=origin.y;g.Talk(source);
+                g.save.x=origin.x;g.save.y=origin.y;g.Close();g.Talk(source);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Original post remains a dialogue during live raider combat: "+room);
                 int early=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="biome_patrol_report");
                 Check(early<0&&!g.FieldPatrolReportReady&&
@@ -291,7 +297,9 @@ namespace Starfall.Tests
                 g.save.x=origin.x;g.save.y=origin.y;
                 Check(PlaceWithinTalkReach(g,source),
                     "Hero returns to exactly the original world marker");
-                g.Talk(source);
+                g.Close();g.Talk(source);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Real patrol can reopen its original post after a cleared fight: "+room);
                 int report=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="biome_patrol_report");
                 Check(report>=0,"The signed report is a genuine live dialogue choice");
@@ -306,7 +314,9 @@ namespace Starfall.Tests
                 Check(restored.FieldPatrolDone(room)&&
                     !restored.FieldPatrolActive&&restored.save.version==2,
                     "Old v2 save state permanently retains one receipt without reviving ephemeral raiders");
-                g.Talk(source);
+                g.Close();g.Talk(source);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Already completed patrol site still opens safe world dialogue: "+room);
                 Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="biome_patrol_begin")<0,
                     "A signed receipt cannot respawn another paid wave");

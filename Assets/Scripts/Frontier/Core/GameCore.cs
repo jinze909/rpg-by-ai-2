@@ -1134,6 +1134,7 @@ namespace Starfall
             TickExpansion(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
+            TickFieldPatrol();
             TickGhostTrain(dt);
             TickRidgeEcho(dt);
             TickRegionalMachineShelters(dt);
