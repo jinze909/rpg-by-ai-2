@@ -57,7 +57,7 @@ namespace Starfall.Tests
                     Check(usedPositions.Add(place),
                         "No two regions may reuse the same wilderness gathering coordinate");
                     foreach(WorldObject other in nodes)
-                        if(!Object.ReferenceEquals(node,other))
+                        if(!System.Object.ReferenceEquals(node,other))
                             Check((new Point(node.x-other.x,node.y-other.y)).Length>=15f,
                                 "Field supplies must be genuine separated detours, not a stacked reward cluster");
                     // Use the untouched production E interaction, inventory checks,
