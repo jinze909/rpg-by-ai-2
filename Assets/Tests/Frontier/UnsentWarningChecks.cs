@@ -155,12 +155,30 @@ namespace Starfall.Tests
                     restored.GetQuest("unsent_warning").complete&&
                     (outcome==0?restored.UnsentWarningPublic:restored.UnsentWarningHidden),
                     "Two region receipts and exclusive practical resolution survive unchanged SaveData v2");
+                // A complete player-earned branch changes the ORIGINAL
+                // Hearth Inn traveler, not a newly invented NPC or speaker.
+                SilentLedgerVisitRealInnFromEmberfall(g);
+                ReadInnNews(g,Object(g,"innGuest"));
+                Check(outcome==0?
+                    g.conversation.textEn.Contains("Two soaked warnings")&&
+                    !g.conversation.textEn.Contains("innkeeper leaves a blank space"):
+                    g.conversation.textEn.Contains("innkeeper leaves a blank space")&&
+                    !g.conversation.textEn.Contains("Two soaked warnings"),
+                    "The authentic inn traveler recalls only the earned public/private warning ending");
+                g.Close();
                 for(int room=2;room<=3;room++)
                 {
                     g.Enter(room);g.enemies.Clear();
                     WorldObject post=UnsentPost(g,room,false);
                     Check(PlaceWithinTalkReach(g,post),
                         "Earned civic services are physically tied to each existing road marker");
+                    g.Talk(post);
+                    Check(g.mode=="dialog"&&g.conversation!=null&&
+                        (outcome==0?
+                            g.conversation.textEn.Contains("public warning now staffs first aid"):
+                            g.conversation.textEn.Contains("witnesses' quiet crew")),
+                        "The original accessible waytrail explains the actual earned branch-specific service");
+                    g.Close();
                     var copy=CloneSave(g.save);
                     copy.flags.Remove(outcome==0?
                         "unsent_warning_public":"unsent_warning_hidden");
