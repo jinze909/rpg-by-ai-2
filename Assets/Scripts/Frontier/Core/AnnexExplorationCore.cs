@@ -675,6 +675,12 @@ namespace Starfall
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
                     "/8 · 余烬守望 "+watches+"/8。"+
                     "\n\n居民救援实际签收 "+BiomeCrisisWins+"/8。"+
+                    (GhostTrainComplete?
+                        (GhostTrainPublic?
+                            "\n\n《第十七趟列车》：被抹去的17名夜班工人的姓名已归还公共档案，赤铁矿场的安全医疗补给点恢复增强。":
+                            "\n\n《第十七趟列车》：17名夜班矿工的民用支线优先重开，伤员回家路线畅通，赤铁矿场通行提速。"):
+                        Has("ghost_train_started")?
+                        "\n\n《第十七趟列车》：调查仍在进行，矿场调度桌、夜班名册、转辙台及医护站均须亲自到场。":"")+
                     (Has("biome_crisis_council_shelters")?
                         " 最终公共方案：八地营地+10生命。":
                      Has("biome_crisis_council_roads")?
@@ -712,6 +718,12 @@ namespace Starfall
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+
                     "/8 · Afterglow watches "+watches+"/8."+
                     "\n\nSigned emergency deliveries "+BiomeCrisisWins+"/8."+
+                    (GhostTrainComplete?
+                        (GhostTrainPublic?
+                            "\n\nTrain Seventeen: all seventeen erased miners are now named in the public archive. Original physical mine shelters provide improved medical recovery.":
+                            "\n\nTrain Seventeen: the miners' civilian passenger rail was reopened first. Returning patients can travel safely, and mine movement is faster."):
+                        Has("ghost_train_started")?
+                        "\n\nTrain Seventeen: active investigation. Walk to the original dispatch, roster, sealed switch and infirmary; no map-only signatures.":"")+
                     (Has("biome_crisis_council_shelters")?
                         " Final policy: +10 HP at all outdoor camps.":
                      Has("biome_crisis_council_roads")?
