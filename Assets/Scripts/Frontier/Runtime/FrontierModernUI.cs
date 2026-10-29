@@ -1290,6 +1290,37 @@ namespace Starfall
                !Game.CanEnter(region))return;
             bool started=Game.Has("biome_field_read_"+region);
             bool completed=Game.Has("biome_field_done_"+region);
+            // Once the first *real* field clue is read, the same shipped
+            // regional atlas points to five genuine herb/timber/ore pockets.
+            // A claimed marker turns muted until the existing inn-rest
+            // renewal clears node_*; this draws no synthetic inventory
+            // and never grants field evidence from a map click.
+            if(started||completed)
+            {
+                int gathered=0,total=0;
+                foreach(WorldObject supply in map.objects)
+                {
+                    if(supply==null||supply.id==null||
+                        !(supply.id.StartsWith("trail_forager_"+region+"_",
+                            StringComparison.Ordinal)||
+                          supply.id=="waytrail_supply"+region+"a"||
+                          supply.id=="waytrail_supply"+region+"b"))continue;
+                    total++;
+                    bool claimed=Game.Has("node_"+supply.id);
+                    if(claimed)gathered++;
+                    Color tone=claimed?muted:supply.kind=="ore"?gold:
+                        supply.kind=="wood"?PixelArt.C("#c0a577"):mint;
+                    float px=originX+supply.x*tileScale;
+                    float py=originY+supply.y*tileScale;
+                    Frame(px-3.5f,py-3.5f,7f,7f,tone);
+                    if(!claimed)Box(px-1.5f,py-1.5f,3f,3f,tone);
+                }
+                if(total>0)
+                    Text(originX+172,originY-18,134,14,
+                        Game.L("可采补给 ","FIELD SUPPLIES ")+
+                        (total-gathered)+"/"+total,10,mint,
+                        TextAnchor.MiddleRight);
+            }
             foreach(WorldObject site in map.objects)
             {
                 if(site==null||(site.kind!="biomeSurvey"&&
