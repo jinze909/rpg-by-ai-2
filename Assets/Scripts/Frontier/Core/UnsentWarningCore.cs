@@ -11,6 +11,19 @@ namespace Starfall
     {
         private int warningRunRoom=-1;
         private float warningTime,warningIntegrity,warningMeters;
+        // One mutually exclusive field decision per active crossing:
+        // 0 untouched, 1 waterproof repair, 2 tactical smoke decoy.
+        // These are transient choices until an actual east-waymark handoff.
+        private int warningRelayChoice;
+        public int UnsentWarningRelayChoice
+        {get{return UnsentWarningRunActive?warningRelayChoice:0;}}
+        public bool UnsentWarningRelayAvailable
+        {get{return UnsentWarningRunActive&&warningRelayChoice==0;}}
+        public Point UnsentWarningRelayFoot
+        {get{
+            WorldObject relay=WarningRelay(save.room);
+            return relay==null?new Point():new Point(relay.x,relay.y);
+        }}
         private Point warningLastFoot;
         private MapData warningRunMap;
         private SaveData warningRunSave;
@@ -45,6 +58,14 @@ namespace Starfall
             foreach(WorldObject o in data.maps[room].objects)
                 if(o.kind=="waytrail"&&
                    o.id=="waytrail"+room+(east?"e":"s"))return o;
+            return null;
+        }
+        private WorldObject WarningRelay(int room)
+        {
+            if(!WarningRegion(room))return null;
+            foreach(WorldObject o in data.maps[room].objects)
+                if(o.kind=="unsentrelay"&&o.id=="unsent_relay_"+room)
+                    return o;
             return null;
         }
         private bool WarningReach(WorldObject o)
@@ -108,6 +129,7 @@ namespace Starfall
                 }
             warningRaiders.Clear();
             warningRunRoom=-1;warningTime=warningIntegrity=warningMeters=0f;
+            warningRelayChoice=0;
             warningLastFoot=new Point();warningRunMap=null;warningRunSave=null;
         }
         private bool FindWarningRaiderFoot(Point origin,List<Point> taken,
@@ -155,6 +177,7 @@ namespace Starfall
             save.inventory[2]--;save.energy-=10f;
             warningRunRoom=region;warningRunMap=Map;warningRunSave=save;
             warningTime=105f;warningIntegrity=100f;warningMeters=0f;
+            warningRelayChoice=0;
             warningLastFoot=Position;
             for(int i=0;i<2;i++)
             {
@@ -231,6 +254,109 @@ namespace Starfall
                 Notify("警报已过递送时限。回西侧路标重新出发。",
                     "Warning delivery timed out. Restart from the west waymark.");
             }
+        }
+        // Physical mid-route roadside handoff: two completely different
+        // risk-management tactics, one per run. No dialogue, pause menu,
+        // disconnected terrain or old-source interaction can activate it.
+        private bool TalkUnsentWarningRelay(WorldObject source)
+        {
+            if(source==null||source.kind!="unsentrelay")return false;
+            if(!WarningRegion(save.room)||WarningRelay(save.room)!=source||
+                !WarningReach(source))return true;
+            string river=save.room==2?
+                L("沉桥救援员留下的油布和旧信号筒。",
+                  "The bridge wardens left oilcloth and an old signal tube."):
+                L("矿工把最后一卷避难警报藏在废轨边。",
+                  "Miners hid a final emergency signal beside the abandoned rails.");
+            if(!UnsentWarningRunActive)
+            {
+                Dialog(source.name,source.en,
+                    river+L("\n\n只有护送密封警报经过此地，才能使用一次接应。已完成的旧路标与地图调查不会改变。",
+                        "\n\nThis relay is usable once only while carrying a sealed warning. Original surveys remain untouched."),
+                    river+L("\n\nOnly an actual warning courier can use this relay once. Existing surveys remain unchanged.",
+                        "\n\nOnly an actual warning courier can use this relay once. Existing surveys remain unchanged."),
+                    C("继续赶路","Continue onward","close"));
+                return true;
+            }
+            if(warningRelayChoice!=0)
+            {
+                Dialog(source.name,source.en,
+                    warningRelayChoice==1?
+                    "信封已经用油布加固，剩余时间仍在减少。不要在这里再浪费物资。":
+                    "烟雾掩护已经发出，敌人正在重新组织；现在只能继续赶路。",
+                    warningRelayChoice==1?
+                    "The testimony is waterproofed. Time is still passing; save your supplies for the road.":
+                    "The smoke diversion has fired. The raiders are regrouping; move while they can still be outrun.",
+                    C("继续赶路","Continue","close"));
+                return true;
+            }
+            Dialog(source.name,source.en,
+                river+"\n\n你只能在本次递送中选择一种方案。先用油布封住裂口会耗去8秒，但能修复信封；点燃诱饵烟筒会耗去5秒，并打乱附近真实敌人的行动。",
+                (save.room==2?
+                    "An emergency oilcloth cache by the flooded road.":
+                    "An emergency miners' signal cache by the abandoned tracks.")+
+                "\n\nChoose only one tactic for this crossing: repair the damaged seal at a cost of 8 seconds, or launch a smoke diversion for 5 seconds against genuine nearby raiders.",
+                C("重新加固警报 · 草药1、耐力12、8秒 · 信封+45",
+                  "Waterproof testimony · 1 herb, 12 energy, 8s · +45 seal",
+                  "unsent_relay_repair"),
+                C("释放诱敌烟雾 · 木材1、耐力12、5秒 · 干扰敌人",
+                  "Smoke diversion · 1 timber, 12 energy, 5s · disrupt raiders",
+                  "unsent_relay_smoke"),
+                C("暂时不用","Save supplies","close"));
+            return true;
+        }
+        private bool ChooseUnsentWarningRelay(string action)
+        {
+            if(action!="unsent_relay_repair"&&
+               action!="unsent_relay_smoke")return false;
+            WorldObject site=pendingDialogueSource;
+            if(!UnsentWarningRelayAvailable||site==null||
+               warningRunRoom!=save.room||mode!="world"||Dying||
+               site!=WarningRelay(save.room)||!WarningReach(site)||
+               save.energy<12f)return true;
+            if(action=="unsent_relay_repair")
+            {
+                // An intact packet has nothing to patch. This is a resource
+                // spend only after a truly damaged live seal was inspected.
+                if(warningIntegrity>=100f||warningTime<=8f||
+                   save.inventory[2]<1)return true;
+                save.inventory[2]--;save.energy-=12f;
+                warningIntegrity=Math.Min(100f,warningIntegrity+45f);
+                warningTime-=8f;warningRelayChoice=1;
+                sound="quest";revision++;
+                Notify("原路标中继：信封修复45点，递送时间-8秒。只能选择一次。",
+                    "Road relay: +45 seal, -8 seconds. One field tactic per run.");
+                return true;
+            }
+            if(warningTime<=5f||save.inventory[0]<1)return true;
+            // Only already-spawned living actors on the SAME, reachable
+            // side of the actual site can be disrupted. No off-map stun,
+            // Boss control, unused decoy refund or fabricated kill credit.
+            Point origin=new Point(site.x,site.y);
+            var vulnerable=new List<Enemy>();
+            foreach(Enemy enemy in warningRaiders)
+                if(enemy!=null&&enemy.hp>0f&&!enemy.boss&&
+                   enemies.Contains(enemy)&&CanStand(enemy.Position)&&
+                   (enemy.Position-origin).Length<9f&&
+                   ClearAttackPath(origin,enemy.Position))
+                    vulnerable.Add(enemy);
+            if(vulnerable.Count==0)return true;
+            save.inventory[0]--;save.energy-=12f;
+            warningTime-=5f;warningRelayChoice=2;
+            foreach(Enemy enemy in vulnerable)
+            {
+                ApplyEnemyControl(enemy,2.5f);
+                enemy.timer=Math.Max(enemy.timer,2.5f);
+                effects.Add(new Effect("burst",enemy.Position,.4f)
+                    {radius=.65f,variant=1});
+            }
+            effects.Add(new Effect("burst",origin,.7f)
+                {radius=1.2f,variant=1});
+            sound="counter";revision++;
+            Notify("烟筒引开 "+vulnerable.Count+" 名真实袭击者，夺得2.5秒脱离时间。限时-5秒。",
+                "Smoke interrupted "+vulnerable.Count+
+                " live raiders for 2.5s. The warning clock lost 5s.");
+            return true;
         }
         private string UnsentWarningInnNews(bool english)
         {
@@ -328,6 +454,7 @@ namespace Starfall
         }
         private bool ChooseUnsentWarning(string action)
         {
+            if(ChooseUnsentWarningRelay(action))return true;
             if(action!="unsent_start"&&action!="unsent_publish"&&
                action!="unsent_protect"&&action!="unsent_run_2"&&
                action!="unsent_run_3"&&action!="unsent_deliver_2"&&
@@ -367,8 +494,12 @@ namespace Starfall
                         "This warning needs at least 18 tiles of real traveled footing and an intact seal.");
                     return true;
                 }
+                int relayUsed=warningRelayChoice;
                 ResetUnsentWarning();
                 Flag(room==2?"unsent_warning_river":"unsent_warning_mine");
+                // The choice is durable only if the letter actually reached
+                // the receiving marker; retries never bank fake evidence.
+                if(relayUsed!=0)Flag("unsent_warning_relay_"+room);
                 revision++;sound="reward";
                 RecordMoment(room==2?
                     "湿漉漉的警报抵达沉桥东路标，守路人发现上面还有被抹去的孩子名字。":

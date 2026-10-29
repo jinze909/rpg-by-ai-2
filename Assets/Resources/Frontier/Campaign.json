@@ -3011,6 +3011,14 @@
           "y": 31.5
         },
         {
+          "id": "unsent_relay_2",
+          "name": "沉桥 · 紧急证词接应站",
+          "en": "Drowned Bridge · Warning Relay",
+          "kind": "unsentrelay",
+          "x": 39.5,
+          "y": 26.5
+        },
+        {
           "id": "waytrail2e",
           "name": "退潮观测碑",
           "en": "DROWNED RUINS · Eastern lookout",
@@ -4386,6 +4394,14 @@
           "kind": "waytrail",
           "x": 14.5,
           "y": 31.5
+        },
+        {
+          "id": "unsent_relay_3",
+          "name": "赤铁矿场 · 铁轨警报接应站",
+          "en": "Ironreach · Warning Relay",
+          "kind": "unsentrelay",
+          "x": 39.5,
+          "y": 26.5
         },
         {
           "id": "waytrail3e",
