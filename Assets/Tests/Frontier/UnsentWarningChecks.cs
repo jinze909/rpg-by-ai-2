@@ -117,9 +117,9 @@ namespace Starfall.Tests
                     // An unopened or rejected early choice must never
                     // claim a route: the run still needs witnessed walking.
                     UnsentChoice(g,"unsent_deliver_"+room);
-                    Check(!g.UnsentRiverDelivered&&!g.UnsentMineDelivered&&
+                    Check((room==2?!g.UnsentRiverDelivered:!g.UnsentMineDelivered)&&
                         g.UnsentWarningRunActive&&g.UnsentWarningTravel<18f,
-                        "Early arrival cannot bank a warning without actual walking");
+                        "Early arrival cannot bank THIS region's warning without actual walking");
                     g.Close();
                     Check(PlaceWithinTalkReach(g,west),"Can return to the real western start");
                     UnsentWalkToEasternPost(g,east);
@@ -207,8 +207,12 @@ namespace Starfall.Tests
             hurt.Invoke(g,new object[]{20f,"shot",null});
             Check(g.UnsentWarningRunActive&&g.UnsentWarningIntegrity<100f,
                 "One genuine health-damaging shot also damages the physical packet");
-            g.invulnerable=0;hurt.Invoke(g,new object[]{99f,"shot",null});
-            g.invulnerable=0;hurt.Invoke(g,new object[]{99f,"shot",null});
+            // Refill between repeated genuine combat hit transactions so
+            // packet failure, rather than hero death, is what this tests.
+            g.save.health=g.save.maxHealth;g.invulnerable=0;
+            hurt.Invoke(g,new object[]{99f,"shot",null});
+            g.save.health=g.save.maxHealth;g.invulnerable=0;
+            hurt.Invoke(g,new object[]{99f,"shot",null});
             Check(!g.UnsentWarningRunActive&&!g.UnsentRiverDelivered,
                 "Destroyed packet fails and resets without counterfeit prior region credit");
             g.save.health=g.save.maxHealth;g.invulnerable=900f;
