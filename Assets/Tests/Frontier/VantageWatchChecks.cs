@@ -82,6 +82,12 @@ namespace Starfall.Tests
                 // Actual world-mode ticks, not paused dialogue repaint,
                 // must own the permanent local service.
                 g.Close();
+                // Real combat alert/recovery temporarily suspends public
+                // services. Measure the health and weather effect only
+                // after the simulation confirms a safe ceasefire.
+                for(int f=0;f<240&&!g.SafeTravel;f++)
+                    g.Tick(.05f,new Point());
+                Check(g.SafeTravel,"Public services cannot be tested during active combat");
                 if(care)
                 {
                     g.save.health=30;g.save.heat=20;g.save.cold=15;
@@ -133,16 +139,17 @@ namespace Starfall.Tests
             hit.Invoke(g,new object[]{impostor,9999f,true,null,null});
             Check(!g.VantageWatchReady&&g.VantageWatchRemaining==2,
                 "Killing an impostor with the same ID cannot sign a lookout wave");
-            // One authentic live raider crosses an armed, real paid trap.
-            bool set=false;
-            foreach(Point direction in new[]{new Point(1,0),new Point(0,1),
-                new Point(-1,0),new Point(0,-1)})
-                if(g.LayFieldSnare(direction)){set=true;break;}
-            Check(set&&g.FieldSnares.Count==1,
-                "Actual world allows construction of a resource-paid snare");
-            var foot=g.FieldSnares[0].foot;
-            first.x=foot.x;first.y=foot.y;first.hitTime=5f;
-            second.hitTime=5f;
+            // Real sword hit-stop is not an instant opportunity to
+            // build traps. Wait for released combat contact and deliberately
+            // find a standable original terrain pad for the stake.
+            first.hitTime=second.hitTime=12f;
+            g.invulnerable=12f;
+            for(int f=0;f<25;f++)g.Tick(.05f,new Point());
+            Point foot=PutRealSnare(g);
+            Check(g.FieldSnares.Count==1,
+                "Actual terrain and live inventory allow a paid field snare");
+            first.x=foot.x;first.y=foot.y;first.hitTime=8f;
+            second.hitTime=8f;
             for(int f=0;f<11;f++)g.Tick(.05f,new Point());
             Check(System.Object.ReferenceEquals(g.SnaredBindTarget,first)&&
                 g.BindSnaredEnemy()&&!g.enemies.Contains(first)&&
@@ -152,6 +159,10 @@ namespace Starfall.Tests
             Check(g.VantageWatchReady&&g.VantageWatchRemaining==0,
                 "Mixed authentic live capture and combat clears real defenders");
             int originalCoins=g.save.coins;
+            for(int f=0;f<240&&!g.SafeTravel;f++)
+                g.Tick(.05f,new Point());
+            Check(g.SafeTravel&&PlaceWithinTalkReach(g,lookout),
+                "After real combat hero must return safely to original lookout");
             g.Talk(lookout);
             int aid=Array.FindIndex(g.conversation.choices,
                 x=>x.action=="vantage_aid");
