@@ -2708,23 +2708,23 @@
           "kind": "chapterroad",
           "name": "废弃的巡林铃",
           "en": "Abandoned road bell",
-          "x": 8.5,
-          "y": 16.5
+          "x": 6.5,
+          "y": 12.5
         },
         {
           "id": "chapterroad_1_1",
           "kind": "chapterroad",
           "name": "受伤的苔根渡桥",
           "en": "The broken mossroot crossing",
-          "x": 15.5,
-          "y": 9.5
+          "x": 16.5,
+          "y": 13.5
         },
         {
           "id": "chapterroad_1_2",
           "kind": "chapterroad",
           "name": "树洞里的伤者名单",
           "en": "Patients beneath the roots",
-          "x": 26.5,
+          "x": 27.5,
           "y": 11.5
         }
       ],
@@ -4901,8 +4901,8 @@
           "kind": "chapterroad",
           "name": "渡口的求援布告",
           "en": "Ferry distress notice",
-          "x": 9.5,
-          "y": 13.5
+          "x": 11.5,
+          "y": 14.5
         },
         {
           "id": "chapterroad_2_1",
@@ -4910,7 +4910,7 @@
           "name": "水闸旁的脱险绳",
           "en": "Sluice rescue rope",
           "x": 16.5,
-          "y": 12.5
+          "y": 14.5
         },
         {
           "id": "chapterroad_2_2",
@@ -7263,22 +7263,22 @@
           "name": "矿工的停工联名纸",
           "en": "Miners' stop-work petition",
           "x": 7.5,
-          "y": 11.5
+          "y": 10.5
         },
         {
           "id": "chapterroad_3_1",
           "kind": "chapterroad",
           "name": "冒烟的压力歧管",
           "en": "Smoking pressure manifold",
-          "x": 18.5,
-          "y": 11.5
+          "x": 16.5,
+          "y": 13.5
         },
         {
           "id": "chapterroad_3_2",
           "kind": "chapterroad",
           "name": "矿车伤者接收点",
           "en": "Minecart casualty station",
-          "x": 26.5,
+          "x": 27.5,
           "y": 20.5
         }
       ],
@@ -9562,8 +9562,8 @@
           "kind": "chapterroad",
           "name": "城墙下的撤离灯",
           "en": "Evacuation lantern beneath the wall",
-          "x": 19.5,
-          "y": 16.5
+          "x": 18.5,
+          "y": 15.5
         },
         {
           "id": "chapterroad_4_2",
