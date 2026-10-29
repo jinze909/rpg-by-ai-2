@@ -119,6 +119,25 @@ namespace Starfall
                       "biome_relay"),
                     C("核对远路补给与居民方案","Coordinate remote supplies",
                       "biome_supply"),
+                    BiomeSupplyBuilt(region)?
+                        (BiomeCrisisActive?
+                            (BiomeCrisisStage==2&&o.kind=="biomeAnswer"?
+                                C("交付救援物资 · 药草/木材×1",
+                                    "Deliver relief · 1 herb/timber","biome_crisis_deliver"):
+                             BiomeCrisisStage==3&&o.kind=="biomeSurvey"?
+                                C("提交居民签收单","File the signed relief receipt",
+                                  "biome_crisis_report"):
+                             o.kind=="biomeSurvey"?
+                                C("放弃本次紧急护送","Withdraw relief dispatch",
+                                  "biome_crisis_abort"):
+                                C("护送正在进行 · 前往目标","Emergency dispatch active","close")):
+                         Has("biome_crisis_done_"+region)?
+                            C("本地区居民护送已完成","Relief delivery confirmed","close"):
+                         o.kind=="biomeSurvey"?
+                            C("紧急护送 · 远端实战救援","Emergency relief · real raid",
+                                "biome_crisis_begin"):
+                            C("从初始地标接取紧急护送","Begin relief at the first post","close")):
+                        C("先建居民补给，再开放救援","Build public stock first","close"),
                     C("收起记录","Close the journal","close"));
                 return true;
             }
@@ -151,6 +170,7 @@ namespace Starfall
         }
         private bool ChooseBiomeField(string action)
         {
+            if(ChooseBiomeCrisis(action))return true;
             if(ChooseBiomeSupply(action))return true;
             if(action!="biome_relay"&&action!="biome_note"&&
                !action.StartsWith("biome_pick_",StringComparison.Ordinal))
