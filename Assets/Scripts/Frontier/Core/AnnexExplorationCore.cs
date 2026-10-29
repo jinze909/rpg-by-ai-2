@@ -106,7 +106,9 @@ namespace Starfall
             {
                 Dialog(o.name,o.en,
                     "你已经把这片土地的两份证据写进了公共探路册。路线由后来人自己选择，不再只有一条生硬的地图直线。",
-                    "Both field testimonies are now in the shared wayfinder journal. Future travelers may choose their own safe route.",
+                    "Both field testimonies are now in the shared wayfinder journal. Future travelers may choose their own safe route. The two inspected markers can now ferry you across this region for 3 coins and 12 stamina, but never through a closed road or live danger.",
+                    C("使用地区接驳 · 硬币3 / 耐力12",
+                      "Ride field relay · 3 coins / 12 stamina","biome_relay"),
                     C("收起记录","Close the journal","close"));
                 return true;
             }
@@ -139,7 +141,8 @@ namespace Starfall
         }
         private bool ChooseBiomeField(string action)
         {
-            if(action!="biome_note"&&!action.StartsWith("biome_pick_",StringComparison.Ordinal))
+            if(action!="biome_relay"&&action!="biome_note"&&
+               !action.StartsWith("biome_pick_",StringComparison.Ordinal))
                 return false;
             WorldObject site=pendingDialogueSource;
             if(mode!="world"||Dying||practicing||save.room<0||
@@ -148,6 +151,84 @@ namespace Starfall
                !HasPhysicalInteractionReach(site)||!CanStand(Position))
                 return true;
             int room=save.room;
+            if(action=="biome_relay")
+            {
+                // A completed investigation certifies BOTH actual endpoints.
+                // Never allow a forged or stale dialogue to teleport from a
+                // remote NPC, a different region, or before walking the route.
+                if(!BiomeFieldDone||pendingDialogueSourceRoom!=room||
+                   (site.kind!="biomeSurvey"&&site.kind!="biomeAnswer")||
+                   site.id!="biome"+
+                       (site.kind=="biomeSurvey"?"Survey":"Answer")+room)
+                    return true;
+                WorldObject destination=null;
+                string destinationId="biome"+
+                    (site.kind=="biomeSurvey"?"Answer":"Survey")+room;
+                foreach(WorldObject other in Map.objects)
+                    if(other!=null&&other.id==destinationId)
+                    {destination=other;break;}
+                if(destination==null||!SourceBelongsToActiveMap(destination)||
+                   FieldWorkPreventsRest||!SafeTravel||racing||
+                   BlockTravelForProtectedFieldMission(true))
+                {
+                    Notify("接驳暂停：当前现场行动、战斗或危险尚未结束。",
+                        "Field relay unavailable during a protected mission, combat or live danger.");
+                    return true;
+                }
+                if(save.coins<3||save.energy<12f)
+                {
+                    Notify("地区接驳需要3枚硬币与12点耐力。",
+                        "Field relay requires 3 coins and 12 stamina.");
+                    return true;
+                }
+                // Use an actual nearby standing pad; never land inside a
+                // water tile, cliff, locked seal, house or live enemy.
+                Point marker=new Point(destination.x,destination.y);
+                Point[] pads={
+                    new Point(0f,1f),new Point(1f,0f),
+                    new Point(-1f,0f),new Point(0f,-1f),
+                    new Point(1f,1f),new Point(-1f,-1f),
+                    new Point(1f,-1f),new Point(-1f,1f)
+                };
+                Point? arrival=null;
+                Point departure=Position;
+                foreach(Point pad in pads)
+                {
+                    Point candidate=marker+pad;
+                    if(!CanStand(candidate)||
+                       !CivicShuttleRoadSafe(departure,candidate))continue;
+                    save.x=candidate.x;save.y=candidate.y;
+                    bool safe=SafeTravel&&HasPhysicalInteractionReach(destination);
+                    save.x=departure.x;save.y=departure.y;
+                    if(safe){arrival=candidate;break;}
+                }
+                if(!arrival.HasValue)
+                {
+                    Notify("当前路线受潮汐、封印或敌人阻断。接驳未出发，不扣费。",
+                        "The walking route is cut off by a gate, tide or enemies. No fare charged.");
+                    return true;
+                }
+                save.x=arrival.Value.x;save.y=arrival.Value.y;
+                if(save.companion>=0&&!CompanionHoldingPosition&&
+                   (Position-departure).Length>3f)
+                {
+                    Point follow=CompanionFollowTarget();
+                    if(CanStand(follow))
+                    {
+                        ClearCompanionFollowRoute();
+                        ClearCompanionCornerPlan();
+                        companionAutoTarget=null;
+                        companionPosition=follow;
+                        companionMoveTime=0f;companionMoving=false;
+                        companionPresentationGeneration++;
+                    }
+                }
+                save.coins-=3;save.energy-=12f;
+                revision++;sound="travel";
+                Notify("沿已核实的地区接驳线抵达另一端：硬币-3，耐力-12。",
+                    "Arrived at the other verified field marker. -3 coins, -12 stamina.");
+                return true;
+            }
             if(action=="biome_note")
             {
                 if(site.kind!="biomeSurvey"||site.id!="biomeSurvey"+room||
