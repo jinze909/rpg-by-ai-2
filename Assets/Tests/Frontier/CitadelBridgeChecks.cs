@@ -94,6 +94,24 @@ namespace Starfall.Tests
             Check(restored.save.version==2&&
                 !restored.BridgeOfChordsActive&&!restored.BridgeOfChordsDefeated,
                 "Save/reload never invents transient Boss/hazards in original version-two schema");
+            // The authored old bridge is narrow: second-phase pulses
+            // are forbidden if the extra blast would occupy its final
+            // legal original-world escape lane.
+            var paired=typeof(GameCore).GetMethod("BridgeChordsPairedEscape",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(paired!=null,"Two-stage Boss telegraph owns a paired-exit safety check");
+            Point bridgeFoot=new Point(48.5f,38.5f);
+            bool currentEscape=(bool)paired.Invoke(g,new object[]{
+                bridgeFoot,bridgeFoot+new Point(2f,0f),.82f});
+            Check(g.CanStand(bridgeFoot)&&
+                currentEscape==((g.CanStand(bridgeFoot+new Point(-2f,0f))&&
+                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(-2f,0f)))||
+                    (g.CanStand(bridgeFoot+new Point(0f,2f))&&
+                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(0f,2f)))||
+                    (g.CanStand(bridgeFoot+new Point(0f,-2f))&&
+                    g.ClearAttackPath(bridgeFoot,bridgeFoot+new Point(0f,-2f)))),
+                "Second pulse can only appear when a REAL original-terrain alternative dodge exit remains");
             for(int n=0;n<63;n++)g.Tick(.05f,new Point());
             Check(g.BridgeOfChordsActive&&
                 g.hazards.Exists(h=>object.ReferenceEquals(h.bossOwner,elite)),

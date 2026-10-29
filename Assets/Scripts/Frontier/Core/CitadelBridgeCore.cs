@@ -125,6 +125,24 @@ namespace Starfall
                     return true;
             return false;
         }
+        // A half-health paired pulse can only be scheduled when a genuine
+        // walkable dodge exit remains clear of BOTH danger circles. A cell
+        // that is merely walkable but covered by the second blast is not
+        // an honest escape route on the original narrow Citadel bridge.
+        private bool BridgeChordsPairedEscape(Point target,Point second,
+            float secondaryRadius)
+        {
+            Point[] paths={new Point(2f,0f),new Point(-2f,0f),
+                new Point(0f,2f),new Point(0f,-2f)};
+            foreach(Point delta in paths)
+            {
+                Point exit=target+delta;
+                if(CanStand(exit)&&ClearAttackPath(target,exit)&&
+                   (exit-second).Length>secondaryRadius+.45f)
+                    return true;
+            }
+            return false;
+        }
         private void TickBridgeOfChords(float dt)
         {
             if(bridgeGuardian==null)
@@ -184,7 +202,8 @@ namespace Starfall
                 {
                     Point side=target+new Point(
                         bridgePulseCycle%2==0?2.4f:-2.4f,0f);
-                    if(CanStand(side)&&BridgeChordsEscapeAvailable(side))
+                    if(CanStand(side)&&BridgeChordsEscapeAvailable(side)&&
+                       BridgeChordsPairedEscape(target,side,.82f))
                         hazards.Add(new Hazard {
                             position=side,radius=.82f,timer=1.55f,
                             damage=12,kind="rift",bossOwner=bridgeGuardian
