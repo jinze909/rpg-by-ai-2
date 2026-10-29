@@ -1009,7 +1009,19 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.52f,tint,22);
                 if(next||complete)
                     Diamond(p.x,p.y-84,6,tint);
+                bool vigilTarget=Game.RegionalVigilActive&&
+                    Game.RegionalVigilNextStation==station;
+                if(vigilTarget)
+                {
+                    tint=gold;
+                    Ring(new Point(o.x,o.y),.88f,gold,28);
+                }
                 Text(p.x-110,p.y-108,220,18,
+                    vigilTarget?
+                        Game.L(Game.RegionalVigilStage==3?"归还工程回执":
+                            "紧急巡护目标 · "+(int)Game.RegionalVigilSeconds+"秒",
+                            Game.RegionalVigilStage==3?"RETURN WATCH RECEIPT":
+                            "WATCH TARGET · "+(int)Game.RegionalVigilSeconds+"S"):
                     complete?
                         Game.L("公共修复 · 安全休憩","REPAIRED FIELD SHELTER"):
                         commissioned?

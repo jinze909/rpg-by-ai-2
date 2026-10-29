@@ -666,7 +666,10 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "这是巡路队留在炉火旅店的真正旅行档案。你的步迹必须是实地走过的，而不是地图上凭空出现的标记。"+
                     "\n\n营地 "+camps+"/8  ·  观景点 "+vistas+"/8  ·  隐藏补给 "+cache+"/16。"+
-                    "\n\n公共装置修复 "+RegionalMachineNetworkCount+"/8。"+
+                    "\n\n公共装置修复 "+RegionalMachineNetworkCount+"/8 · 应急巡护"+
+                    RegionalVigilWins+"/8。"+
+                    (Has("regional_vigil_all")?
+                        " 全区真实签收完成，安全设施恢复效率提升。":"")+
                     (Has("regional_machine_all")?
                         " 八区各有三处真正可用的安全补给点，公共技能点已解锁。":"")+
                     "\n\n守火信号 "+signals+"/8 · 来回传讯 "+dispatches+
@@ -700,7 +703,10 @@ namespace Starfall
                         "\n\n继续探索全部八个户外区域，回来归档旧路。"),
                     "The Hearth Inn holds the wardens' actual travel record. Every mark must be made by walking, never conjured on a hidden map."+
                     "\n\nCamps "+camps+"/8 · Lookouts "+vistas+"/8 · Caches "+cache+"/16."+
-                    "\n\nCivilian machinery restored "+RegionalMachineNetworkCount+"/8."+
+                    "\n\nCivilian machinery restored "+RegionalMachineNetworkCount+
+                    "/8 · Verified emergency watches "+RegionalVigilWins+"/8."+
+                    (Has("regional_vigil_all")?
+                        " Every genuine regional safety receipt has been filed.":"")+
                     (Has("regional_machine_all")?
                         " Every district now has three physical field shelters.":"")+
                     "\n\nSignal fires "+signals+"/8 · Return dispatches "+dispatches+

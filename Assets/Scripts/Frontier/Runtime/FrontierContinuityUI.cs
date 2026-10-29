@@ -136,6 +136,7 @@ namespace Starfall
                 // real combat HUD mode. Its distant delivery target must
                 // never vanish merely because an enemy comes on camera.
                 DrawBiomeCrisisHud();
+                DrawRegionalVigilHud();
             }
             finally { drawingHud = false; }
         }
@@ -169,6 +170,39 @@ namespace Starfall
                     seconds+"S LEFT · CARGO "+Game.BiomeCrisisIntegrity+
                     "/3 · TARGET "+(int)distance+
                     " TILES · CHECK MAP"),
+                12,paper,TextAnchor.MiddleCenter);
+        }
+
+        private void DrawRegionalVigilHud()
+        {
+            if(!Game.RegionalVigilActive)return;
+            int seconds=(int)Math.Ceiling(Game.RegionalVigilSeconds);
+            int integrity=Game.RegionalVigilIntegrity;
+            float distance=(Game.RegionalVigilTarget-Game.Position).Length;
+            Color accent=integrity<=1?
+                PixelArt.C("#ec7668"):gold;
+            Panel(380,141,520,63,
+                new Color(.04f,.065f,.11f,.85f),
+                new Color(accent.r,accent.g,accent.b,.74f));
+            string objective=Game.RegionalVigilStage==3?
+                Game.L("返回第一个装置交付真实签收单",
+                    "RETURN ORIGINAL SIGNED RECEIPT"):
+                Game.RegionalVigilEnemyCount>0?
+                Game.L("击退巡护袭击者 · 保护工程物资",
+                    "DEFEAT LIVE RAIDERS · PROTECT CARGO"):
+                Game.RegionalVigilStage==1?
+                Game.L("前往首个指定的工程装置",
+                    "WALK TO FIRST ENGINEERING TARGET"):
+                Game.L("前往第二处工程装置",
+                    "WALK TO SECOND ENGINEERING TARGET");
+            Text(392,143,495,26,
+                Game.L("公共工程巡护 · ","ENGINEERING WATCH · ")+objective,
+                13,accent,TextAnchor.MiddleCenter);
+            Text(392,170,495,23,
+                Game.L("剩余"+seconds+"秒 · 物资"+integrity+
+                    "/3 · 距目标"+(int)distance+"格 · 地图标出实址",
+                    seconds+"S LEFT · CARGO "+integrity+
+                    "/3 · "+(int)distance+" TILES TO TARGET · CHECK MAP"),
                 12,paper,TextAnchor.MiddleCenter);
         }
 

@@ -1381,6 +1381,25 @@ namespace Starfall
                 Frame(x-5.5f,y-5.5f,11f,11f,ink);
                 Box(x-2,y-2,4,4,ink);
             }
+            if(Game.RegionalVigilActive&&Game.save.room==region)
+            {
+                Point target=Game.RegionalVigilTarget;
+                float cx=originX+target.x*tileScale;
+                float cy=originY+target.y*tileScale;
+                Frame(cx-9,cy-9,18,18,gold);
+                Box(cx-3,cy-3,6,6,gold);
+                Text(originX+2,originY+map.rows.Length*tileScale+53,
+                    302,16,
+                    Game.L("工程应急巡护 · 目标装置 "+
+                        Game.RegionalVigilNextStation+
+                        " · "+(int)Game.RegionalVigilSeconds+
+                        "秒 · 完整度"+Game.RegionalVigilIntegrity+"/3",
+                        "LIVE ENGINEERING WATCH · TARGET "+
+                        Game.RegionalVigilNextStation+
+                        " · "+(int)Game.RegionalVigilSeconds+
+                        "S · CARGO "+Game.RegionalVigilIntegrity+"/3"),
+                    10,gold,TextAnchor.MiddleCenter);
+            }
             // Only mark the exact target of the active, source-bound
             // emergency contract, never a remote selected map.
             if(Game.BiomeCrisisActive&&Game.save.room==region)
