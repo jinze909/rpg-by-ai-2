@@ -104,11 +104,21 @@ namespace Starfall
                 return true;
             if(BiomeFieldDone)
             {
+                int fare=BiomeSupplyRoadBuilt(region)?1:3;
+                int energy=BiomeSupplyRoadBuilt(region)?6:12;
                 Dialog(o.name,o.en,
-                    "你已经把这片土地的两份证据写进了公共探路册。路线由后来人自己选择，不再只有一条生硬的地图直线。",
-                    "Both field testimonies are now in the shared wayfinder journal. Future travelers may choose their own safe route. The two inspected markers can now ferry you across this region for 3 coins and 12 stamina, but never through a closed road or live danger.",
-                    C("使用地区接驳 · 硬币3 / 耐力12",
-                      "Ride field relay · 3 coins / 12 stamina","biome_relay"),
+                    "你已经把两处现场记录写进公共探路册。"+
+                    "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
+                    BiomeSupplySummary(false,region),
+                    "Both original field testimonies are in the public wayfinder journal."+
+                    "\n\nThe verified field relay now costs "+fare+
+                    " coins and "+energy+" energy."+
+                    BiomeSupplySummary(true,region),
+                    C("地区接驳 · 硬币"+fare+" / 耐力"+energy,
+                      "Field relay · "+fare+" coins / "+energy+" energy",
+                      "biome_relay"),
+                    C("核对远路补给与居民方案","Coordinate remote supplies",
+                      "biome_supply"),
                     C("收起记录","Close the journal","close"));
                 return true;
             }
@@ -141,6 +151,7 @@ namespace Starfall
         }
         private bool ChooseBiomeField(string action)
         {
+            if(ChooseBiomeSupply(action))return true;
             if(action!="biome_relay"&&action!="biome_note"&&
                !action.StartsWith("biome_pick_",StringComparison.Ordinal))
                 return false;
@@ -175,10 +186,12 @@ namespace Starfall
                         "Field relay unavailable during a protected mission, combat or live danger.");
                     return true;
                 }
-                if(save.coins<3||save.energy<12f)
+                int fare=BiomeSupplyRoadBuilt(room)?1:3;
+                int energy=BiomeSupplyRoadBuilt(room)?6:12;
+                if(save.coins<fare||save.energy<energy)
                 {
-                    Notify("地区接驳需要3枚硬币与12点耐力。",
-                        "Field relay requires 3 coins and 12 stamina.");
+                    Notify("地区接驳需要"+fare+"枚硬币与"+energy+"点耐力。",
+                        "Field relay requires "+fare+" coins and "+energy+" stamina.");
                     return true;
                 }
                 // Use an actual nearby standing pad; never land inside a
@@ -223,10 +236,11 @@ namespace Starfall
                         companionPresentationGeneration++;
                     }
                 }
-                save.coins-=3;save.energy-=12f;
+                save.coins-=fare;save.energy-=energy;
                 revision++;sound="travel";
-                Notify("沿已核实的地区接驳线抵达另一端：硬币-3，耐力-12。",
-                    "Arrived at the other verified field marker. -3 coins, -12 stamina.");
+                Notify("沿实地接驳线抵达另一端：硬币-"+fare+"，耐力-"+energy+"。",
+                    "Arrived at the other verified field marker. -"+
+                    fare+" coins, -"+energy+" stamina.");
                 return true;
             }
             if(action=="biome_note")
@@ -834,7 +848,8 @@ namespace Starfall
                     C("查看传讯记录","Review dispatch record","close");
             Dialog(o.name,o.en,noteZh+
                     "\n\n只有没有敌人追击、没有进行中的现场任务时才能安全生火。消耗木材 ×1，恢复生命 "+
-                    (Has("afterglow_ending_shelter")?60:40)+" 和全部耐力。"+
+                    ((Has("afterglow_ending_shelter")?60:40)+
+                        (BiomeSupplyMedicineBuilt(save.room)?20:0))+" 和全部耐力。"+
                     (SignalRelayActive?"\n\n当前传讯："+SignalRelayStage+"/2段，火种完整度 "+
                         SignalRelayIntegrity+"/3，剩 "+(int)SignalRelaySeconds+" 秒。":
                         Has("annex_relay_done_"+save.room)?
@@ -845,7 +860,8 @@ namespace Starfall
                     (first?"\n\n首次发现营地，硬币 +5。":"")+
                     (Has("annex_camps_complete")?"\n\n八处营地均已记载！技能点 +1。":""),
                     noteEn+"\n\nRest only when no enemies or active field operations remain. 1 timber restores "+
-                    (Has("afterglow_ending_shelter")?60:40)+" HP and full energy."+
+                    ((Has("afterglow_ending_shelter")?60:40)+
+                        (BiomeSupplyMedicineBuilt(save.room)?20:0))+" HP and full energy."+
                     (SignalRelayActive?"\n\nDispatch stage "+SignalRelayStage+"/2 · flame "+
                         SignalRelayIntegrity+"/3 · "+(int)SignalRelaySeconds+"s left.":
                         Has("annex_relay_done_"+save.room)?
@@ -1034,7 +1050,8 @@ namespace Starfall
                 return true;
             }
             if(!Spend(1,0,0,0,0))return true;
-            int healing=Has("afterglow_ending_shelter")?60:40;
+            int healing=(Has("afterglow_ending_shelter")?60:40)+
+                (BiomeSupplyMedicineBuilt(save.room)?20:0);
             save.health=Clamp(save.health+healing,0,save.maxHealth);save.energy=100;
             revision++;sound="reward";
             Notify("营火补给：生命恢复 "+healing+"，耐力全满。",
