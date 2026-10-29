@@ -2208,14 +2208,7 @@
         "########################################################################################################################"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_1",
-          "kind": "ridgeBreach",
-          "name": "破藤隘口 · 民用劈荆台",
-          "en": "Thorn Passage · Civilian Clearance",
-          "x": 96.5,
-          "y": 14.5
-        },
+        {"id":"ridge_breach_1","kind":"ridgeBreach","name":"破藤隘口 · 民用劈荆台","en":"Thorn Passage · Civilian Clearance","x":96.5,"y":14.5},
         {
           "id": "ridge_echo_1_0",
           "kind": "ridgeEcho",
@@ -2729,60 +2722,15 @@
         }
       ],
       "decor": [
-        {
-          "kind": "root",
-          "x": 37.5,
-          "y": 27.5,
-          "variant": 1
-        },
-        {
-          "kind": "tree",
-          "x": 34.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "tree",
-          "x": 40.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "tree",
-          "x": 75.5,
-          "y": 64.5,
-          "variant": 2
-        },
-        {
-          "kind": "tree",
-          "x": 80.5,
-          "y": 64.5,
-          "variant": 2
-        },
-        {
-          "kind": "ruin",
-          "x": 97.5,
-          "y": 20.5,
-          "variant": 0
-        },
-        {
-          "kind": "root",
-          "x": 94.5,
-          "y": 17.5,
-          "variant": 1
-        },
-        {
-          "kind": "ruin",
-          "x": 94.5,
-          "y": 23.5,
-          "variant": 0
-        },
-        {
-          "kind": "root",
-          "x": 100.5,
-          "y": 17.5,
-          "variant": 1
-        },
+        {"kind":"root","x":37.5,"y":27.5,"variant":1},
+        {"kind":"tree","x":34.5,"y":24.5,"variant":2},
+        {"kind":"tree","x":40.5,"y":24.5,"variant":2},
+        {"kind":"tree","x":75.5,"y":64.5,"variant":2},
+        {"kind":"tree","x":80.5,"y":64.5,"variant":2},
+        {"kind":"ruin","x":97.5,"y":20.5,"variant":0},
+        {"kind":"root","x":94.5,"y":17.5,"variant":1},
+        {"kind":"ruin","x":94.5,"y":23.5,"variant":0},
+        {"kind":"root","x":100.5,"y":17.5,"variant":1},
         {
           "kind": "tree",
           "x": 3,
@@ -4377,14 +4325,7 @@
         "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_2",
-          "kind": "ridgeBreach",
-          "name": "低潮踏石 · 遗迹渡路",
-          "en": "Ebb Crossing · Old Stone Footpath",
-          "x": 96.5,
-          "y": 7.5
-        },
+        {"id":"ridge_breach_2","kind":"ridgeBreach","name":"低潮踏石 · 遗迹渡路","en":"Ebb Crossing · Old Stone Footpath","x":96.5,"y":7.5},
         {
           "id": "ridge_echo_2_0",
           "kind": "ridgeEcho",
@@ -4922,78 +4863,18 @@
         }
       ],
       "decor": [
-        {
-          "kind": "ruin",
-          "x": 33.5,
-          "y": 42.5,
-          "variant": 2
-        },
-        {
-          "kind": "ruin",
-          "x": 30.5,
-          "y": 45.5,
-          "variant": 2
-        },
-        {
-          "kind": "column",
-          "x": 36.5,
-          "y": 39.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 33.5,
-          "y": 47.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 74.5,
-          "y": 64.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 71.5,
-          "y": 61.5,
-          "variant": 1
-        },
-        {
-          "kind": "boat",
-          "x": 77.5,
-          "y": 61.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 79.5,
-          "y": 64.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 98.5,
-          "y": 13.5,
-          "variant": 1
-        },
-        {
-          "kind": "ruin",
-          "x": 95.5,
-          "y": 10.5,
-          "variant": 2
-        },
-        {
-          "kind": "column",
-          "x": 101.5,
-          "y": 16.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 95.5,
-          "y": 16.5,
-          "variant": 1
-        },
+        {"kind":"ruin","x":33.5,"y":42.5,"variant":2},
+        {"kind":"ruin","x":30.5,"y":45.5,"variant":2},
+        {"kind":"column","x":36.5,"y":39.5,"variant":0},
+        {"kind":"boat","x":33.5,"y":47.5,"variant":1},
+        {"kind":"column","x":74.5,"y":64.5,"variant":0},
+        {"kind":"boat","x":71.5,"y":61.5,"variant":1},
+        {"kind":"boat","x":77.5,"y":61.5,"variant":1},
+        {"kind":"column","x":79.5,"y":64.5,"variant":0},
+        {"kind":"boat","x":98.5,"y":13.5,"variant":1},
+        {"kind":"ruin","x":95.5,"y":10.5,"variant":2},
+        {"kind":"column","x":101.5,"y":16.5,"variant":0},
+        {"kind":"boat","x":95.5,"y":16.5,"variant":1},
         {
           "kind": "column",
           "x": 3,
@@ -6654,14 +6535,7 @@
         "########################################################################################################################"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_3",
-          "kind": "ridgeBreach",
-          "name": "矿渣通道 · 机械清障台",
-          "en": "Slag Cut · Worker Clearance",
-          "x": 22.5,
-          "y": 24.5
-        },
+        {"id":"ridge_breach_3","kind":"ridgeBreach","name":"矿渣通道 · 机械清障台","en":"Slag Cut · Worker Clearance","x":22.5,"y":24.5},
         {
           "id": "ridge_echo_3_0",
           "kind": "ridgeEcho",
@@ -7283,78 +7157,18 @@
         }
       ],
       "decor": [
-        {
-          "kind": "barrel",
-          "x": 29.5,
-          "y": 28.5,
-          "variant": 0
-        },
-        {
-          "kind": "crystal",
-          "x": 26.5,
-          "y": 25.5,
-          "variant": 1
-        },
-        {
-          "kind": "barrel",
-          "x": 26.5,
-          "y": 31.5,
-          "variant": 0
-        },
-        {
-          "kind": "crystal",
-          "x": 29.5,
-          "y": 23.5,
-          "variant": 1
-        },
-        {
-          "kind": "crystal",
-          "x": 74.5,
-          "y": 19.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 71.5,
-          "y": 16.5,
-          "variant": 2
-        },
-        {
-          "kind": "crystal",
-          "x": 71.5,
-          "y": 22.5,
-          "variant": 1
-        },
-        {
-          "kind": "barrel",
-          "x": 74.5,
-          "y": 24.5,
-          "variant": 0
-        },
-        {
-          "kind": "column",
-          "x": 96.5,
-          "y": 20.5,
-          "variant": 2
-        },
-        {
-          "kind": "barrel",
-          "x": 93.5,
-          "y": 17.5,
-          "variant": 0
-        },
-        {
-          "kind": "column",
-          "x": 93.5,
-          "y": 23.5,
-          "variant": 2
-        },
-        {
-          "kind": "barrel",
-          "x": 99.5,
-          "y": 17.5,
-          "variant": 0
-        },
+        {"kind":"barrel","x":29.5,"y":28.5,"variant":0},
+        {"kind":"crystal","x":26.5,"y":25.5,"variant":1},
+        {"kind":"barrel","x":26.5,"y":31.5,"variant":0},
+        {"kind":"crystal","x":29.5,"y":23.5,"variant":1},
+        {"kind":"crystal","x":74.5,"y":19.5,"variant":1},
+        {"kind":"column","x":71.5,"y":16.5,"variant":2},
+        {"kind":"crystal","x":71.5,"y":22.5,"variant":1},
+        {"kind":"barrel","x":74.5,"y":24.5,"variant":0},
+        {"kind":"column","x":96.5,"y":20.5,"variant":2},
+        {"kind":"barrel","x":93.5,"y":17.5,"variant":0},
+        {"kind":"column","x":93.5,"y":23.5,"variant":2},
+        {"kind":"barrel","x":99.5,"y":17.5,"variant":0},
         {
           "kind": "crystal",
           "x": 3,
@@ -8967,14 +8781,7 @@
         "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_4",
-          "kind": "ridgeBreach",
-          "name": "旧城暗门 · 平民侧门",
-          "en": "Citadel Side Gate · Civilian Entry",
-          "x": 99.5,
-          "y": 14.5
-        },
+        {"id":"ridge_breach_4","kind":"ridgeBreach","name":"旧城暗门 · 平民侧门","en":"Citadel Side Gate · Civilian Entry","x":99.5,"y":14.5},
         {
           "id": "ridge_echo_4_0",
           "kind": "ridgeEcho",
@@ -9575,78 +9382,18 @@
         }
       ],
       "decor": [
-        {
-          "kind": "ruin",
-          "x": 37.5,
-          "y": 27.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 34.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "column",
-          "x": 40.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "ruin",
-          "x": 42.5,
-          "y": 27.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 68.5,
-          "y": 13.5,
-          "variant": 2
-        },
-        {
-          "kind": "ruin",
-          "x": 71.5,
-          "y": 16.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 65.5,
-          "y": 16.5,
-          "variant": 2
-        },
-        {
-          "kind": "obelisk",
-          "x": 71.5,
-          "y": 10.5,
-          "variant": 0
-        },
-        {
-          "kind": "obelisk",
-          "x": 102.5,
-          "y": 21.5,
-          "variant": 0
-        },
-        {
-          "kind": "ruin",
-          "x": 99.5,
-          "y": 18.5,
-          "variant": 1
-        },
-        {
-          "kind": "column",
-          "x": 105.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "obelisk",
-          "x": 107.5,
-          "y": 21.5,
-          "variant": 0
-        },
+        {"kind":"ruin","x":37.5,"y":27.5,"variant":1},
+        {"kind":"column","x":34.5,"y":24.5,"variant":2},
+        {"kind":"column","x":40.5,"y":24.5,"variant":2},
+        {"kind":"ruin","x":42.5,"y":27.5,"variant":1},
+        {"kind":"column","x":68.5,"y":13.5,"variant":2},
+        {"kind":"ruin","x":71.5,"y":16.5,"variant":1},
+        {"kind":"column","x":65.5,"y":16.5,"variant":2},
+        {"kind":"obelisk","x":71.5,"y":10.5,"variant":0},
+        {"kind":"obelisk","x":102.5,"y":21.5,"variant":0},
+        {"kind":"ruin","x":99.5,"y":18.5,"variant":1},
+        {"kind":"column","x":105.5,"y":24.5,"variant":2},
+        {"kind":"obelisk","x":107.5,"y":21.5,"variant":0},
         {
           "kind": "obelisk",
           "x": 3,
@@ -11223,14 +10970,7 @@
         "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_5",
-          "kind": "ridgeBreach",
-          "name": "防浪步桥 · 码头工棚",
-          "en": "Breakwater Walk · Harbor Workshop",
-          "x": 72.5,
-          "y": 13.5
-        },
+        {"id":"ridge_breach_5","kind":"ridgeBreach","name":"防浪步桥 · 码头工棚","en":"Breakwater Walk · Harbor Workshop","x":72.5,"y":13.5},
         {
           "id": "ridge_echo_5_0",
           "kind": "ridgeEcho",
@@ -11800,78 +11540,18 @@
         }
       ],
       "decor": [
-        {
-          "kind": "boat",
-          "x": 31.5,
-          "y": 31.5,
-          "variant": 2
-        },
-        {
-          "kind": "barrel",
-          "x": 28.5,
-          "y": 28.5,
-          "variant": 0
-        },
-        {
-          "kind": "post",
-          "x": 34.5,
-          "y": 34.5,
-          "variant": 1
-        },
-        {
-          "kind": "post",
-          "x": 26.5,
-          "y": 31.5,
-          "variant": 1
-        },
-        {
-          "kind": "barrel",
-          "x": 74.5,
-          "y": 19.5,
-          "variant": 0
-        },
-        {
-          "kind": "post",
-          "x": 71.5,
-          "y": 16.5,
-          "variant": 1
-        },
-        {
-          "kind": "barrel",
-          "x": 71.5,
-          "y": 22.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 74.5,
-          "y": 24.5,
-          "variant": 2
-        },
-        {
-          "kind": "post",
-          "x": 102.5,
-          "y": 22.5,
-          "variant": 1
-        },
-        {
-          "kind": "barrel",
-          "x": 105.5,
-          "y": 25.5,
-          "variant": 0
-        },
-        {
-          "kind": "boat",
-          "x": 105.5,
-          "y": 19.5,
-          "variant": 2
-        },
-        {
-          "kind": "barrel",
-          "x": 102.5,
-          "y": 27.5,
-          "variant": 0
-        },
+        {"kind":"boat","x":31.5,"y":31.5,"variant":2},
+        {"kind":"barrel","x":28.5,"y":28.5,"variant":0},
+        {"kind":"post","x":34.5,"y":34.5,"variant":1},
+        {"kind":"post","x":26.5,"y":31.5,"variant":1},
+        {"kind":"barrel","x":74.5,"y":19.5,"variant":0},
+        {"kind":"post","x":71.5,"y":16.5,"variant":1},
+        {"kind":"barrel","x":71.5,"y":22.5,"variant":0},
+        {"kind":"boat","x":74.5,"y":24.5,"variant":2},
+        {"kind":"post","x":102.5,"y":22.5,"variant":1},
+        {"kind":"barrel","x":105.5,"y":25.5,"variant":0},
+        {"kind":"boat","x":105.5,"y":19.5,"variant":2},
+        {"kind":"barrel","x":102.5,"y":27.5,"variant":0},
         {
           "kind": "boat",
           "x": 6,
@@ -13376,14 +13056,7 @@
         "########################################################################################################################"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_6",
-          "kind": "ridgeBreach",
-          "name": "穿沙裂口 · 商旅标杆",
-          "en": "Dune Breach · Caravan Guidepost",
-          "x": 108.5,
-          "y": 16.5
-        },
+        {"id":"ridge_breach_6","kind":"ridgeBreach","name":"穿沙裂口 · 商旅标杆","en":"Dune Breach · Caravan Guidepost","x":108.5,"y":16.5},
         {
           "id": "ridge_echo_6_0",
           "kind": "ridgeEcho",
@@ -13921,66 +13594,16 @@
         }
       ],
       "decor": [
-        {
-          "kind": "obelisk",
-          "x": 32.5,
-          "y": 28.5,
-          "variant": 0
-        },
-        {
-          "kind": "crystal",
-          "x": 29.5,
-          "y": 25.5,
-          "variant": 1
-        },
-        {
-          "kind": "crystal",
-          "x": 32.5,
-          "y": 23.5,
-          "variant": 1
-        },
-        {
-          "kind": "palm",
-          "x": 27.5,
-          "y": 28.5,
-          "variant": 2
-        },
-        {
-          "kind": "crystal",
-          "x": 72.5,
-          "y": 23.5,
-          "variant": 1
-        },
-        {
-          "kind": "palm",
-          "x": 69.5,
-          "y": 20.5,
-          "variant": 2
-        },
-        {
-          "kind": "palm",
-          "x": 72.5,
-          "y": 18.5,
-          "variant": 2
-        },
-        {
-          "kind": "palm",
-          "x": 109.5,
-          "y": 23.5,
-          "variant": 2
-        },
-        {
-          "kind": "palm",
-          "x": 106.5,
-          "y": 26.5,
-          "variant": 2
-        },
-        {
-          "kind": "crystal",
-          "x": 109.5,
-          "y": 28.5,
-          "variant": 1
-        },
+        {"kind":"obelisk","x":32.5,"y":28.5,"variant":0},
+        {"kind":"crystal","x":29.5,"y":25.5,"variant":1},
+        {"kind":"crystal","x":32.5,"y":23.5,"variant":1},
+        {"kind":"palm","x":27.5,"y":28.5,"variant":2},
+        {"kind":"crystal","x":72.5,"y":23.5,"variant":1},
+        {"kind":"palm","x":69.5,"y":20.5,"variant":2},
+        {"kind":"palm","x":72.5,"y":18.5,"variant":2},
+        {"kind":"palm","x":109.5,"y":23.5,"variant":2},
+        {"kind":"palm","x":106.5,"y":26.5,"variant":2},
+        {"kind":"crystal","x":109.5,"y":28.5,"variant":1},
         {
           "kind": "palm",
           "x": 8,
@@ -15473,14 +15096,7 @@
         "########################################################################################################################"
       ],
       "objects": [
-        {
-          "id": "ridge_breach_7",
-          "kind": "ridgeBreach",
-          "name": "背风雪隘 · 暖棚道路",
-          "en": "Snow Pass · Sheltered Road",
-          "x": 96.5,
-          "y": 14.5
-        },
+        {"id":"ridge_breach_7","kind":"ridgeBreach","name":"背风雪隘 · 暖棚道路","en":"Snow Pass · Sheltered Road","x":96.5,"y":14.5},
         {
           "id": "ridge_echo_7_0",
           "kind": "ridgeEcho",
@@ -15994,78 +15610,18 @@
         }
       ],
       "decor": [
-        {
-          "kind": "snowpine",
-          "x": 33.5,
-          "y": 42.5,
-          "variant": 1
-        },
-        {
-          "kind": "snowpine",
-          "x": 30.5,
-          "y": 45.5,
-          "variant": 1
-        },
-        {
-          "kind": "fire",
-          "x": 33.5,
-          "y": 47.5,
-          "variant": 0
-        },
-        {
-          "kind": "snowpine",
-          "x": 38.5,
-          "y": 42.5,
-          "variant": 1
-        },
-        {
-          "kind": "bell",
-          "x": 75.5,
-          "y": 22.5,
-          "variant": 2
-        },
-        {
-          "kind": "fire",
-          "x": 72.5,
-          "y": 19.5,
-          "variant": 0
-        },
-        {
-          "kind": "bell",
-          "x": 72.5,
-          "y": 25.5,
-          "variant": 2
-        },
-        {
-          "kind": "bell",
-          "x": 80.5,
-          "y": 22.5,
-          "variant": 2
-        },
-        {
-          "kind": "fire",
-          "x": 97.5,
-          "y": 20.5,
-          "variant": 0
-        },
-        {
-          "kind": "snowpine",
-          "x": 94.5,
-          "y": 17.5,
-          "variant": 1
-        },
-        {
-          "kind": "fire",
-          "x": 94.5,
-          "y": 23.5,
-          "variant": 0
-        },
-        {
-          "kind": "bell",
-          "x": 97.5,
-          "y": 25.5,
-          "variant": 2
-        },
+        {"kind":"snowpine","x":33.5,"y":42.5,"variant":1},
+        {"kind":"snowpine","x":30.5,"y":45.5,"variant":1},
+        {"kind":"fire","x":33.5,"y":47.5,"variant":0},
+        {"kind":"snowpine","x":38.5,"y":42.5,"variant":1},
+        {"kind":"bell","x":75.5,"y":22.5,"variant":2},
+        {"kind":"fire","x":72.5,"y":19.5,"variant":0},
+        {"kind":"bell","x":72.5,"y":25.5,"variant":2},
+        {"kind":"bell","x":80.5,"y":22.5,"variant":2},
+        {"kind":"fire","x":97.5,"y":20.5,"variant":0},
+        {"kind":"snowpine","x":94.5,"y":17.5,"variant":1},
+        {"kind":"fire","x":94.5,"y":23.5,"variant":0},
+        {"kind":"bell","x":97.5,"y":25.5,"variant":2},
         {
           "kind": "snowpine",
           "x": 6,
