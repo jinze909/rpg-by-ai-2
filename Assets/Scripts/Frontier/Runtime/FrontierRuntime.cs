@@ -194,6 +194,9 @@ namespace Starfall
                 bool padSnareChord=pressedR3&&
                     Input.GetKey(KeyCode.JoystickButton8)&&
                     Input.GetKey(KeyCode.JoystickButton3);
+                bool padRecoverChord=pressedR3&&
+                    Input.GetKey(KeyCode.JoystickButton8)&&
+                    Input.GetKey(KeyCode.JoystickButton4);
                 if(pressedR3)
                 {
                     // L3+R3 is an intentional controller throw chord.
@@ -202,7 +205,8 @@ namespace Starfall
                     // R3 alone retains every existing original behavior.
                     if(Input.GetKey(KeyCode.JoystickButton8))
                     {
-                        if(padSnareChord)Game.LayFieldSnare(Game.aim);
+                        if(padRecoverChord)Game.RecoverFieldSnare();
+                        else if(padSnareChord)Game.LayFieldSnare(Game.aim);
                         else Game.ThrowPebble(Game.aim);
                     }
                     else
@@ -259,11 +263,14 @@ namespace Starfall
                 // impact, never from a menu or cosmetic button press.
                 if (Input.GetKeyDown(KeyCode.U))
                 {
-                    // Shift+U is a deliberate, paid physical floor trap.
-                    // An ordinary U still throws the original audible stone.
-                    if(Input.GetKey(KeyCode.LeftShift)||
-                       Input.GetKey(KeyCode.RightShift))
-                        Game.LayFieldSnare(InputAim()??Game.aim);
+                    // Ctrl+Shift+U recovers the nearest untriggered
+                    // stake; Shift+U lays; U alone keeps its lure throw.
+                    bool shift=Input.GetKey(KeyCode.LeftShift)||
+                        Input.GetKey(KeyCode.RightShift);
+                    bool ctrl=Input.GetKey(KeyCode.LeftControl)||
+                        Input.GetKey(KeyCode.RightControl);
+                    if(shift&&ctrl)Game.RecoverFieldSnare();
+                    else if(shift)Game.LayFieldSnare(InputAim()??Game.aim);
                     else Game.ThrowPebble(InputAim()??Game.aim);
                 }
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
@@ -274,7 +281,7 @@ namespace Starfall
                 // world action, with the very same cost/range/LOS as E.
                 if (Input.GetKeyDown(KeyCode.L))
                     Game.QuickDrawWayfarerFire();
-                if (PadDown(4)) Game.Eat();
+                if (PadDown(4)&&!padRecoverChord) Game.Eat();
                 CompanionButtonAction companionPadAction=companionPadGesture.Advance(
                     Input.GetKey(KeyCode.JoystickButton5),frameDelta);
                 if(companionPadAction==CompanionButtonAction.Command)

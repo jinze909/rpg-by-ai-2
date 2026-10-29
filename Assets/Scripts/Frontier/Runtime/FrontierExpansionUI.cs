@@ -958,6 +958,10 @@ namespace Starfall
                     Box(p.x+8,p.y-7,3,12,tint);
                     if((foot-Game.Position).Length<4.5f)
                         Text(p.x-70,p.y-48,140,18,
+                            Game.CanRecoverFieldSnare&&
+                            (foot-Game.Position).Length<1.8f?
+                            Game.L("收回木桩 · Ctrl+Shift+U",
+                                "RECLAIM STAKE · CTRL+SHIFT+U"):
                             snare.arming>0f?
                             Game.L("安装中","ARMING"):
                             Game.L("绊索 · "+Math.Ceiling(snare.seconds)+"秒",
