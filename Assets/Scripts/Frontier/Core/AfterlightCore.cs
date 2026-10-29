@@ -772,8 +772,8 @@ namespace Starfall
                     return true;
                 }
                 Dialog(guild.name,guild.en,
-                    "“你已经救下这片边境，不欠我新的任务。”莉雅把三份居民来信放在桌上。\\n\\n“但莫芽问林道的灯该谁来守，阿菱担心暴潮时码头没电，维恩说矿工自己得握着停机钥匙。愿不愿意帮他们重建？这是结局之后的生活，你不做也不会改变已经作出的星核决定。”",
-                    "“You saved the frontier. You don't owe me another quest,” Lyra says, laying out three letters.\\n\\n“Moya asks who will tend the forest lights, Arin worries about power at the ferry, and Venn wants the workers to keep their own shutdown key. You can help if you wish. This is life after your ending—not another required finale.”",
+                    "“你已经救下这片边境，不欠我新的任务。”莉雅把三份居民来信放在桌上。\n\n“但莫芽问林道的灯该谁来守，阿菱担心暴潮时码头没电，维恩说矿工自己得握着停机钥匙。愿不愿意帮他们重建？这是结局之后的生活，你不做也不会改变已经作出的星核决定。”",
+                    "“You saved the frontier. You don't owe me another quest,” Lyra says, laying out three letters.\n\n“Moya asks who will tend the forest lights, Arin worries about power at the ferry, and Venn wants the workers to keep their own shutdown key. You can help if you wish. This is life after your ending—not another required finale.”",
                     Has("afterlight_started")?
                         C("标记正在进行的居民修复","Track current civic work",
                           "afterlight_track_guild"):

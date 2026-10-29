@@ -317,8 +317,8 @@ public sealed partial class GameCore {
                 TrackQuest("last_directive");return true;
             }
             Dialog(source.name,source.en,
-                "“三地居民服务名册公布后，才有人敢寄来这道没有署名的旧军令。”莉雅压低声音。\\n\\n“矿工停机信、渡船名册和巡路队的炉火记录都在堡垒外环。你已经解决了星核危机，这只是可选的后续调查。想查就直接去现场，不需要再去议事路牌领一次任务。”",
-                "“Only after we published the three civic service records did someone dare send this unsigned order,” Lyra says.\\n\\n“The original miners' petition, ferry list and roadwardens' hearth log remain in the citadel's outer ring. The starcore crisis is resolved; this investigation is optional. You can go straight there—no noticeboard assignment required.”",
+                "“三地居民服务名册公布后，才有人敢寄来这道没有署名的旧军令。”莉雅压低声音。\n\n“矿工停机信、渡船名册和巡路队的炉火记录都在堡垒外环。你已经解决了星核危机，这只是可选的后续调查。想查就直接去现场，不需要再去议事路牌领一次任务。”",
+                "“Only after we published the three civic service records did someone dare send this unsigned order,” Lyra says.\n\n“The original miners' petition, ferry list and roadwardens' hearth log remain in the citadel's outer ring. The starcore crisis is resolved; this investigation is optional. You can go straight there—no noticeboard assignment required.”",
                 C("追查堡垒原件 · 标记路线",
                     "Investigate original records · Mark route",
                     "last_directive_guild_track"),
