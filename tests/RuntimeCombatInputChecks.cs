@@ -12034,8 +12034,39 @@ public static class RuntimeCombatInputChecks
         Check(g.BridgeOfChordsResonators==1&&
             Math.Abs(g.save.energy-(energy-12f))<.001f,
             "Source-bound player choice physically interrupts the elite and pays normal stamina");
+        // Feed the GameView an authentic encounter-owned rift while the
+        // underlying core suite independently exercises its real Tick spawn.
+        // Only the living elite's warning, never an unrelated hazard, may be
+        // discharged through the production E -> dialogue -> Choose route.
+        Enemy elite=g.enemies.Find(g.IsBridgeChordsElite);
+        Check(elite!=null,"Actual bridge elite owns the live warning");
+        var warned=new Hazard{kind="rift",bossOwner=elite,
+            position=g.Position,radius=1.06f,damage=18f,timer=1.3f};
+        var foreign=new Hazard{kind="rift",
+            position=g.Position,radius=1.06f,damage=18f,timer=1.3f};
+        g.hazards.Add(warned);g.hazards.Add(foreign);
+        Set(app,"camera",g.Position);
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(g.BridgeOfChordsCanDischarge&&
+            GUI.commands.Exists(t=>t.Contains("SURGE WARNED"))&&
+            GUI.commands.Exists(t=>t.Contains("E · DISCHARGE SURGE")),
+            "Shipped GameView marks the actual grounded fork as a ready physical pulse counter");
+        Input.Clear();Input.keys.Add(KeyCode.E);
+        Update(app);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+            g.conversation.speaker==low.name,
+            "Real keyboard E opens this grounded fork during its warned strike");
+        int discharge=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="bridge_chords_dampen");
+        Check(discharge>=0,
+            "The live warning exposes the real 8-stamina defense action in this source's dialogue");
+        energy=g.save.energy;g.Choose(discharge);
+        Check(g.mode=="world"&&!g.hazards.Contains(warned)&&
+            g.hazards.Contains(foreign)&&
+            Math.Abs(g.save.energy-(energy-8f))<.001f,
+            "Real E counterplay retracts only this Boss warning at exact stamina cost");
         Console.WriteLine(
-            "PASS Live Citadel echo elite, genuine bridge world props, pulse HUD and E tuning");
+            "PASS Live Citadel elite, grounded fork E pulse discharge, source-owned danger and GameView HUD");
     }
 
     private static void LiveHearthInnSeventhBedUsesRealEAndGameViewEvidence(FrontierRuntime app)
