@@ -201,6 +201,61 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
+        // Frontier.unity, not just a helper that returns plausible points.
+        public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",flags);
+            Check(spawn!=null,"The live room-entry battle factory exists");
+            var signatures=new HashSet<string>();
+            int changed=0;
+            for(int region=1;region<=7;region++)
+            {
+                GameCore g=Fresh(data);
+                MapData map=data.maps[region];
+                g.mode="world";g.save.room=region;
+                g.save.x=map.spawnX;g.save.y=map.spawnY;
+                spawn.Invoke(g,null);
+                int needed=region<=2?6:region<=4?8:7;
+                Check(g.enemies.Count>=needed,
+                    "Region "+region+" retains the complete mandatory battle roster");
+                string signature="";
+                Point start=new Point(map.spawnX,map.spawnY);
+                int[,] old={
+                    {11,12},{15,17},{21,15},{24,6},
+                    {9,7},{30,16},{23,19},{14,9}
+                };
+                for(int i=0;i<needed;i++)
+                {
+                    Enemy foe=g.enemies[i];
+                    Check(foe!=null&&!foe.boss&&foe.hp>0&&
+                        g.CanStand(foe.Position)&&
+                        (foe.Position-start).Length>=4.5f,
+                        "Region "+region+" roster starts on legal, fair walking terrain");
+                    Check(g.NavigationPathFrom(start,foe.Position,true).Count>0,
+                        "Region "+region+" enemy "+i+" can be reached on the true foot collision graph");
+                    foreach(WorldObject obj in map.objects)
+                        Check((foe.Position-new Point(obj.x,obj.y)).Length>=1.95f,
+                            "Region "+region+" must not bury an NPC/quest interaction under an enemy");
+                    for(int prev=0;prev<i;prev++)
+                        Check((foe.Position-g.enemies[prev].Position).Length>=2.45f,
+                            "Region "+region+" has legible separate enemy fronts, not stacked patrols");
+                    signature+=(int)Math.Floor(foe.Position.x)+":"+
+                        (int)Math.Floor(foe.Position.y)+";";
+                    if((foe.Position-new Point(old[i,0],old[i,1])).Length>=2f)
+                        changed++;
+                }
+                Check(signatures.Add(signature),
+                    "Seven authored regions must not reuse a clone of one battle formation");
+                Check(g.save.version==2&&g.enemies.Count>=needed,
+                    "Region battle staging preserves the existing v2 save and actor count");
+            }
+            Check(changed>=20,
+                "The seven opening encounters must meaningfully depart from the legacy shared coordinates");
+        }
+
         public static void AuthoredEnemySpawnsAndTideRecoveryAvoidWideGuardianBodies(Campaign data)
         {
             MapData original=data.maps[0];

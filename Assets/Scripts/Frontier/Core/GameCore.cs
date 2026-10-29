@@ -909,12 +909,8 @@ namespace Starfall
             // encounters and saved rescue scripts clear these exact rooms.
             // New regional wilderness patrols arrive only after the
             // player explicitly investigates a remote field landmark.
-            float[,] locations = { { 11, 12 }, { 15, 17 }, { 21, 15 },
-                { 24, 6 }, { 9, 7 }, { 30, 16 }, { 23, 19 }, { 14, 9 } };
-            for(int i=0;i<6+(save.room>2?2:0);i++)
-                enemies.Add(CreatePlacedEnemy(++enemyId,i%3,
-                    new Point(locations[i,0],locations[i,1]),
-                    34+save.room*9));
+            SpawnRegionalBaselineEnemies(6+(save.room>2?2:0),
+                34+save.room*9);
             SpawnRidgeWildlife();
             SpawnCivicCourierGuard();
         }

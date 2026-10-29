@@ -135,6 +135,96 @@ namespace Starfall
             // saved monster or transport it through a closed flood gate.
             return safe;
         }
+        // The opening battle is still a compact story encounter, not a
+        // mandatory hunt across the full 120x80 region. Each region uses its
+        // own authored sightlines, flanks and road shoulders. All recruits
+        // remain on the same real, currently walkable component as the hero.
+        // Anchors are deliberately not saved: SaveData v1/v2 keeps its exact
+        // historical combat serialization and restored enemies take priority.
+        private static readonly int[,,] regionalBattleAnchors = {
+            { {11,10},{14,17},{21,11},{25,18},{28,7},{30,16},{15,7},{26,20} },
+            { {11,12},{15,16},{22,12},{26,10},{28,16},{30,20},{15,20},{24,18} },
+            { {11,10},{15,17},{23,12},{28,8},{26,18},{10,20},{16,7},{30,19} },
+            { {12,9},{15,17},{23,9},{29,15},{27,19},{12,20},{19,7},{30,6} },
+            { {11,11},{16,15},{23,11},{28,10},{19,20},{30,15},{14,6},{28,20} },
+            { {12,11},{15,16},{25,8},{29,12},{25,20},{13,20},{22,6},{30,19} },
+            { {11,12},{14,16},{24,11},{30,10},{28,20},{11,20},{26,7},{30,16} }
+        };
+        private bool[] RegionalBattleReachableTiles()
+        {
+            int width=Map.rows[0].Length,height=Map.rows.Length;
+            var reachable=new bool[width*height];
+            // Use the identical 4-neighbor, full-foot Fits terrain test
+            // used by real movement; no line-of-sight or tile-glyph shortcut.
+            if(!Fits(Position))return reachable;
+            var queue=new int[width*height];
+            int start=(int)Math.Floor(Position.y)*width+
+                (int)Math.Floor(Position.x),head=0,tail=0;
+            reachable[start]=true;queue[tail++]=start;
+            while(head<tail)
+            {
+                int node=queue[head++],x=node%width,y=node/width;
+                for(int d=0;d<4;d++)
+                {
+                    int xx=x+pursuitSteps[d,0],yy=y+pursuitSteps[d,1];
+                    if(xx<0||xx>=width||yy<0||yy>=height)continue;
+                    int next=yy*width+xx;
+                    if(reachable[next]||
+                        !Fits(new Point(xx+.5f,yy+.5f)))continue;
+                    reachable[next]=true;queue[tail++]=next;
+                }
+            }
+            return reachable;
+        }
+        private bool RegionalBattleFootFree(Point foot,bool[] connected)
+        {
+            int x=(int)Math.Floor(foot.x),y=(int)Math.Floor(foot.y);
+            int width=Map.rows[0].Length;
+            if(x<4||x>33||y<3||y>21||
+                x>=width||y>=Map.rows.Length||
+                !connected[y*width+x]||!Fits(foot)||
+                (foot-Position).Length<4.5f)return false;
+            // Leave conversations, resources, exits and quest machinery
+            // readable rather than turning their interaction pads into
+            // unavoidable body-blocking piles.
+            foreach(WorldObject obj in Map.objects)
+                if(obj!=null&&(foot-new Point(obj.x,obj.y)).Length<2f)
+                    return false;
+            foreach(Enemy other in enemies)
+                if(other!=null&&other.hp>0&&
+                    (foot-other.Position).Length<2.5f)return false;
+            return true;
+        }
+        private Point RegionalBattleFoot(int rank,bool[] connected)
+        {
+            int room=save.room;
+            int ax=regionalBattleAnchors[room-1,rank,0],
+                ay=regionalBattleAnchors[room-1,rank,1];
+            for(int radius=0;radius<=6;radius++)
+            for(int dy=-radius;dy<=radius;dy++)
+            for(int dx=-radius;dx<=radius;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point p=new Point(ax+dx+.5f,ay+dy+.5f);
+                if(RegionalBattleFootFree(p,connected))return p;
+            }
+            // A future modded map can remove an entire opening lane. Keep
+            // the legacy repair behavior rather than dropping mandatory
+            // enemy count or mutating the campaign/save format.
+            int[,] original={
+                {11,12},{15,17},{21,15},{24,6},
+                {9,7},{30,16},{23,19},{14,9}
+            };
+            return new Point(original[rank,0],original[rank,1]);
+        }
+        private void SpawnRegionalBaselineEnemies(int count,float health)
+        {
+            bool[] connected=RegionalBattleReachableTiles();
+            for(int i=0;i<count;i++)
+                enemies.Add(CreatePlacedEnemy(++enemyId,i%3,
+                    RegionalBattleFoot(i,connected),health));
+        }
+
         // Only the baseline authored overworld roster sleeps when the
         // player is in a DIFFERENT local encounter district. Special
         // escorts, patrols, Bosses, alert sound searches and event raiders
