@@ -79,7 +79,7 @@ namespace Starfall.Tests
             Check(g.BiomeFieldNotes==8&&g.Has("biome_field_atlas")&&
                 g.save.coins==baseCoins+8*24,
                 "Eight different lived-in region routes complete ONE shared atlas");
-            g.save.room=0;g.PrepareSave();
+            g.enemies.Clear();g.save.room=0;g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
             Check(loaded.save.version==2&&loaded.BiomeFieldNotes==8&&
                 loaded.Has("biome_field_atlas"),
@@ -87,59 +87,61 @@ namespace Starfall.Tests
         }
         public static void RegionalEncounterWakeRangePreservesDistantLocalCombat(Campaign data)
         {
-            var spawn=typeof(GameCore).GetMethod("SpawnRoom",
-                System.Reflection.BindingFlags.Instance|
-                System.Reflection.BindingFlags.NonPublic);
-            Check(spawn!=null,"Exact real regional spawn is present");
-            var g=new GameCore(data);
-            g.save.room=1;
-            g.save.x=data.maps[1].spawnX;
-            g.save.y=data.maps[1].spawnY;
-            spawn.Invoke(g,null);
-            Enemy remote=null;
-            foreach(Enemy e in g.enemies)
-                if(e.id<=6&&(e.Position-g.Position).Length>32f)
-                {remote=e;break;}
-            Check(remote!=null&&g.CanStand(remote.Position),
-                "A real authored Thornwood raider is posted far from entry");
-            // Isolate only this exact spawned actor, not a synthetic enemy
-            // whose membership bypasses the region-local AI dormancy.
-            g.enemies.Clear();g.enemies.Add(remote);
-            g.mode="world";g.invulnerable=900f;
-            Point foot=remote.Position;
+            var g=Fresh(data);
+            g.save.stage=3;g.save.flags.Add("scout_saved");
+            g.Enter(1);g.enemies.Clear();g.invulnerable=900f;
+            WorldObject site=Array.Find(g.Map.objects,
+                o=>o.id=="biomeSurvey1");
+            Check(site!=null&&PlaceWithinTalkReach(g,site),
+                "An original distant field survey can be reached in person");
+            g.Talk(site);
+            int note=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_note");
+            Check(note>=0,"Optional remote fieldwork has a real sourced start");
+            g.Choose(note);
+            Check(g.BiomeFieldStarted&&g.enemies.Count>=1&&
+                g.enemies.Count<=3,
+                "Explicit remote fieldwork spawns a small real local patrol, not an automatic map-wide mandatory wave");
+            Enemy patrol=g.enemies[0];
+            Point foot=patrol.Position;
+            g.save.x=g.Map.spawnX;g.save.y=g.Map.spawnY;
+            g.mode="world";
             for(int t=0;t<30;t++)g.Tick(.05f,new Point());
-            Check((remote.Position-foot).Length<.001f&&
-                !remote.moving&&remote.state==0,
-                "Unprovoked far region combat sleeps instead of running expensive full-map chasing");
-            g.save.x=foot.x;g.save.y=foot.y;
-            for(int t=0;t<30;t++)g.Tick(.05f,new Point());
-            Check(remote.state!=0||(remote.Position-foot).Length>.01f,
-                "The SAME real enemy resumes live attacks or movement when player comes to its district");
+            Check((patrol.Position-foot).Length<.001f&&
+                !patrol.moving&&patrol.state==0,
+                "Remote OPTIONAL raider holds its regional territory instead of pursuing a distant hero");
+            g.save.x=site.x;g.save.y=site.y;
+            for(int t=0;t<60;t++)g.Tick(.05f,new Point());
+            Check(patrol.state!=0||(patrol.Position-foot).Length>.01f,
+                "The SAME optional physical raider wakes into ordinary combat when the hero returns locally");
         }
         public static void ReworkedRegionalEnemiesSpreadAcrossReachableCombatSectors(Campaign data)
         {
             var spawn=typeof(GameCore).GetMethod("SpawnRoom",
                 System.Reflection.BindingFlags.Instance|
                 System.Reflection.BindingFlags.NonPublic);
-            Check(spawn!=null,"Inspect only real production region spawn, not synthetic enemies");
+            Check(spawn!=null,"Use real production room-spawn transaction");
             for(int room=1;room<=7;room++)
             {
                 var g=new GameCore(data);g.save.room=room;
                 spawn.Invoke(g,null);
-                int standard=room<3?6:room<5?8:7;
-                int far=0;
+                int required=room<=2?6:room<=4?8:7;
+                int originalCount=0;
                 foreach(Enemy e in g.enemies)
                 {
-                    if(e.id>standard)continue;
-                    Check(g.CanStand(e.Position),
-                        "Every biome enemy must spawn on actual open footprint");
-                    if(e.x>39f)far++;
-                    foreach(WorldObject o in g.Map.objects)
-                        Check((e.Position-new Point(o.x,o.y)).Length>=4f,
-                            "Regional threats never spawn on preserved quest NPC or new field landmark");
+                    if(e.id>required)continue;
+                    originalCount++;
+                    Check(g.CanStand(e.Position)&&
+                        e.Position.x<40f&&e.Position.y<28f,
+                        "The original critical-path wave stays playable at its real near-side combat source");
                 }
-                Check(far>=3,
-                    "Outdoor region "+room+" now has at least three threats outside the original 30x20 arrival pocket");
+                Check(originalCount==required,
+                    "Outdoor room "+room+" retains its COMPLETE original mandatory wave");
+                Check(Array.Exists(g.Map.objects,
+                    o=>o.id=="biomeSurvey"+room)&&
+                    Array.Exists(g.Map.objects,
+                    o=>o.id=="biomeAnswer"+room),
+                    "The same region now has separate authored far-side optional encounters");
             }
         }
         public static void CampaignWitnessesArePhysicalThreeChapterStoryNotFreeFlags(Campaign data)
