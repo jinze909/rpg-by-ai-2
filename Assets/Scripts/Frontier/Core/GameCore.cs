@@ -265,7 +265,7 @@ namespace Starfall
         }
         public int Allies { get { int n = 0; for (int i = 1; i <= 3; i++) if (Has("ally_" + i)) n++; return n; } }
         public float Damage { get { return (19 + (GlassLoomPublic&&save.room==6&&!Night?3:0) + (ThornwatchSevered&&save.room<8?3:0) + (PressureworksCaravan&&save.room==3?3:0) + save.upgrades * 4 + (save.level - 1) * 2 + save.talents[0] * 3 + MasteryRank(save.weapon) * 2 + (save.relics[0] >= 0 || save.relics[1] >= 0 ? save.relicRank * 2 : 0) + (save.foodUntil > save.totalTime ? 7 : 0) + (Relic(1) && save.health >= save.maxHealth * .8f ? 6 : 0)) * (InAbyss ? 1 + save.boons[0] * .15f : 1); } }
-        public float Speed { get { return 4.5f + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (SilentLedgerRoutes&&save.room==4?.35f:0f) + (MistlightPrivate&&save.room==5?.25f:0f) + (Has("roadcharter_public") ? .25f : 0) +
+        public float Speed { get { return 4.5f + (GhostTrainFreight&&save.room==3?.35f:0f) + (GlassLoomPrivate&&save.room==6&&Night?.5f:0f) + (CountertideRefuge&&save.room==5?.55f:0f) + (WhiteoutGuides&&save.room==7?.35f:0f) + (SilentLedgerRoutes&&save.room==4?.35f:0f) + (MistlightPrivate&&save.room==5?.25f:0f) + (Has("roadcharter_public") ? .25f : 0) +
                 (save.room<8&&BiomeSupplyRoadBuilt(save.room)&&
                  Has("biome_crisis_done_"+save.room)?.18f:0f) +
                 (save.room<8&&Has("biome_crisis_council_roads")?.10f:0f) +
@@ -404,7 +404,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetGhostTrain();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -677,6 +677,12 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            if(GhostTrainBattleActive)
+            {
+                Notify("矿场第十七趟列车的转辙台仍在实战封锁中。回原转辙台中止，或真正完成战斗后才能离开。",
+                    "Train seventeen's switch is under real combat blockade. Finish or abort at the original switch before travel.");
+                return true;
+            }
             if(RegionalVigilActive)
             {
                 Notify("公共工程的巡护签收还未完成。请走到真实装置或回出发点取消。",
@@ -1125,6 +1131,7 @@ namespace Starfall
             TickExpansion(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
+            TickGhostTrain(dt);
             TickRegionalMachineShelters(dt);
             TickGuidance(beforeMove);
             TickPolish(dt);
@@ -1657,6 +1664,7 @@ namespace Starfall
             OnAfterglowEnemyDefeated(e);
             OnBiomeCrisisEnemyDefeated(e);
             OnRegionalVigilEnemyDefeated(e);
+            OnGhostTrainEnemyDefeated(e);
             OnOuterPatrolEnemyDefeated(e);
             OnAfterlightWatchEnemyDefeated(e);
             OnCivicResponseEnemyDefeated(e);
@@ -1679,7 +1687,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -4122,6 +4130,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkGhostTrain(o)) return;
             if (TalkRegionalMachine(o)) return;
             if (TalkBiomeField(o)) return;
             if (TalkSeventhBed(o)) return;
@@ -4651,7 +4660,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4886,6 +4895,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseGhostTrain(action)) return;
             if (ChooseRegionalVigil(action)) return;
             if (ChooseRegionalMachine(action)) return;
             if (ChooseBiomeField(action)) return;

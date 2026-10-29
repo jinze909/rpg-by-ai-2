@@ -6923,6 +6923,42 @@
           "x": 18.5,
           "y": 68.5,
           "lore": -1
+        },
+        {
+          "id": "mine_ghost_dispatch",
+          "name": "沈默的调度桌",
+          "en": "Silent Dispatch Desk",
+          "kind": "mineGhostTrain",
+          "x": 14.5,
+          "y": 37.5,
+          "lore": -1
+        },
+        {
+          "id": "mine_ghost_manifest",
+          "name": "夜班失踪名册",
+          "en": "Missing Nightshift Ledger",
+          "kind": "mineGhostTrain",
+          "x": 90.5,
+          "y": 12.5,
+          "lore": -1
+        },
+        {
+          "id": "mine_ghost_switch",
+          "name": "被封死的货车转辙台",
+          "en": "Sealed Freight Switch",
+          "kind": "mineGhostTrain",
+          "x": 101.5,
+          "y": 68.5,
+          "lore": -1
+        },
+        {
+          "id": "mine_ghost_medbay",
+          "name": "被遗忘的矿医急救站",
+          "en": "Forgotten Mine Infirmary",
+          "kind": "mineGhostTrain",
+          "x": 48.5,
+          "y": 9.5,
+          "lore": -1
         }
       ],
       "decor": [
