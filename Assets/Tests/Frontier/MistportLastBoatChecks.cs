@@ -158,6 +158,12 @@ namespace Starfall.Tests
                 !loaded.MistConvoyActive&&loaded.GetQuest("mistport_lastboat").complete,
                 "New story outcome persists through original v2 records without phantom active boats");
         }
+        private static int BoatLifetimeXp(GameCore g)
+        {
+            // Live quest XP may cross one or more level thresholds.
+            // Compare earned lifetime XP, not the residual level wallet.
+            return 20*g.save.level*(g.save.level-1)+g.save.xp;
+        }
         // The chart can only begin after a truly landed extra passenger,
         // not a synthetic free flag or a dialogue-only boat completion.
         private static GameCore BoatBringDrifterHome(Campaign data)
@@ -222,7 +228,7 @@ namespace Starfall.Tests
                 Check(BoatChoice(g,"mistchart_recover")&&!g.MistChartRecovered,
                     "Chart needs an actual machine part and wooden line, not a free story flag");
                 g.save.inventory[0]=3;g.save.inventory[4]=3;
-                int coins=g.save.coins,xp=g.save.xp;
+                int coins=g.save.coins,xp=BoatLifetimeXp(g);
                 g.Talk(mid);
                 Check(BoatChoice(g,"mistchart_recover")&&g.MistChartRecovered&&
                     g.save.inventory[0]==2&&g.save.inventory[4]==2&&
@@ -235,7 +241,7 @@ namespace Starfall.Tests
                 BoatAt(g,dock);g.Talk(dock);
                 Check(BoatChoice(g,branch==0?"mistchart_public":"mistchart_secret")&&
                     g.MistChartComplete&&g.GetQuest("mistport_tidechart").complete&&
-                    g.save.coins==coins+45&&g.save.xp==xp+90,
+                    g.save.coins==coins+45&&BoatLifetimeXp(g)==xp+90,
                     "Two exclusive chart resolutions award once only after genuine landing and salvage");
                 Check(branch==0?g.MistChartPublic&&!g.MistChartSecret:
                     g.MistChartSecret&&!g.MistChartPublic,
