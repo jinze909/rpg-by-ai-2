@@ -205,7 +205,15 @@ namespace Starfall.Tests
             Check(restored.save.version==2&&
                 !restored.VantageWatchActive&&!restored.VantageWatchBuilt(1),
                 "Loading an old v2 save cannot resume a phantom transient watch");
+            // BeginDeath is the shipped fatal transition: merely writing
+            // zero HP does not create the genuine death animation clock.
+            var beginDeath=typeof(GameCore).GetMethod("BeginDeath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(beginDeath!=null,"Actual lethal transition exists");
             g.save.health=0f;
+            beginDeath.Invoke(g,null);
+            Check(g.Dying&&g.VantageWatchActive,
+                "Real fatal animation begins with a living watched battlefield");
             g.Tick(.05f,new Point());
             Check(!g.VantageWatchActive&&!g.VantageWatchBuilt(1)&&
                 g.VantageWatchWins==0,
