@@ -117,8 +117,8 @@ namespace Starfall.Tests
             Check(chapter.chapter==12&&chapter.questId=="civic_aftercare"&&
                 chapter.title.Contains("后日谈")&&!chapter.complete&&
                 chapter.next==game.GetQuest("civic_aftercare").next&&
-                chapter.summary.Contains("夜行旅人"),
-                "Completing the three real grid valves reveals the previously missing twelfth story and its actionable Inn quest");
+                chapter.summary.Contains("真实路碑"),
+                "The completed public grid reveals a voluntary physical marker survey, not another required tavern chapter");
             game.save.flags.Add("civic_aftercare_started");
             List<StoryBeat> started=game.StoryRecap();
             Check(started[started.Count-1].chapter==12&&
