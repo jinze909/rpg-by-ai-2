@@ -608,6 +608,33 @@
           "x": 99.5,
           "y": 56.5,
           "lore": -1
+        },
+        {
+          "id": "regional_machine_0_0",
+          "name": "外渠分流闸",
+          "en": "Outer Canal Diverter",
+          "kind": "regionalMachine",
+          "x": 84.5,
+          "y": 23.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_0_1",
+          "name": "旧街配给盘",
+          "en": "Old Street Ration Dial",
+          "kind": "regionalMachine",
+          "x": 40.5,
+          "y": 60.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_0_2",
+          "name": "下游溢洪阀",
+          "en": "Downstream Overflow Valve",
+          "kind": "regionalMachine",
+          "x": 69.5,
+          "y": 48.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -2606,6 +2633,33 @@
           "kind": "biomeAnswer",
           "x": 29.5,
           "y": 65.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_1_0",
+          "name": "避猎根桥",
+          "en": "Safe Root Bridge",
+          "kind": "regionalMachine",
+          "x": 84.5,
+          "y": 18.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_1_1",
+          "name": "夹道捕兽绳架",
+          "en": "Hunter's Snare Frame",
+          "kind": "regionalMachine",
+          "x": 55.5,
+          "y": 57.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_1_2",
+          "name": "老树归路枝标",
+          "en": "Return-Path Branch Mark",
+          "kind": "regionalMachine",
+          "x": 17.5,
+          "y": 68.5,
           "lore": -1
         }
       ],
@@ -4653,6 +4707,33 @@
           "kind": "biomeAnswer",
           "x": 102.5,
           "y": 23.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_2_0",
+          "name": "沉桥旁通板",
+          "en": "Broken-Bridge Side Plank",
+          "kind": "regionalMachine",
+          "x": 88.5,
+          "y": 14.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_2_1",
+          "name": "低岸缆索轮",
+          "en": "Low-Bank Cable Winch",
+          "kind": "regionalMachine",
+          "x": 31.5,
+          "y": 73.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_2_2",
+          "name": "高水位渡口栓",
+          "en": "High-Tide Ferry Cleat",
+          "kind": "regionalMachine",
+          "x": 113.5,
+          "y": 55.5,
           "lore": -1
         }
       ],
@@ -6815,6 +6896,33 @@
           "x": 24.5,
           "y": 64.5,
           "lore": -1
+        },
+        {
+          "id": "regional_machine_3_0",
+          "name": "废矿后排气扇",
+          "en": "Rear Mine Vent",
+          "kind": "regionalMachine",
+          "x": 92.5,
+          "y": 56.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_3_1",
+          "name": "矿车撤离闸",
+          "en": "Miner Evacuation Gate",
+          "kind": "regionalMachine",
+          "x": 55.5,
+          "y": 16.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_3_2",
+          "name": "旧炉减压表",
+          "en": "Old Furnace Relief Gauge",
+          "kind": "regionalMachine",
+          "x": 18.5,
+          "y": 68.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -8943,6 +9051,33 @@
           "x": 104.5,
           "y": 33.5,
           "lore": -1
+        },
+        {
+          "id": "regional_machine_4_0",
+          "name": "堡垒侧门铰链",
+          "en": "Citadel Side-Hinge",
+          "kind": "regionalMachine",
+          "x": 105.5,
+          "y": 69.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_4_1",
+          "name": "伤员担架坡",
+          "en": "Stretcher Evacuation Ramp",
+          "kind": "regionalMachine",
+          "x": 76.5,
+          "y": 23.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_4_2",
+          "name": "民用护墙灯",
+          "en": "Civilian Wall Lantern",
+          "kind": "regionalMachine",
+          "x": 42.5,
+          "y": 56.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -11028,6 +11163,33 @@
           "x": 23.5,
           "y": 61.5,
           "lore": -1
+        },
+        {
+          "id": "regional_machine_5_0",
+          "name": "灯湾固定前灯",
+          "en": "Fixed Shore Beacon",
+          "kind": "regionalMachine",
+          "x": 82.5,
+          "y": 57.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_5_1",
+          "name": "礁石潮流锚",
+          "en": "Reef Current Anchor",
+          "kind": "regionalMachine",
+          "x": 47.5,
+          "y": 37.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_5_2",
+          "name": "雾港后岸照明",
+          "en": "Mistport Rear Lantern",
+          "kind": "regionalMachine",
+          "x": 16.5,
+          "y": 52.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -13009,6 +13171,33 @@
           "x": 96.5,
           "y": 49.5,
           "lore": -1
+        },
+        {
+          "id": "regional_machine_6_0",
+          "name": "沙脊遮阳板",
+          "en": "Dune Shade Shutter",
+          "kind": "regionalMachine",
+          "x": 98.5,
+          "y": 21.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_6_1",
+          "name": "绿洲实井水尺",
+          "en": "Real Oasis Water Gauge",
+          "kind": "regionalMachine",
+          "x": 60.5,
+          "y": 60.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_6_2",
+          "name": "山影测向镜",
+          "en": "Mountain Shadow Mirror",
+          "kind": "regionalMachine",
+          "x": 28.5,
+          "y": 73.5,
+          "lore": -1
         }
       ],
       "decor": [
@@ -14953,6 +15142,33 @@
           "kind": "biomeAnswer",
           "x": 27.5,
           "y": 24.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_7_0",
+          "name": "霜钟背风栅",
+          "en": "Leeward Snow Baffle",
+          "kind": "regionalMachine",
+          "x": 103.5,
+          "y": 73.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_7_1",
+          "name": "避雪火盆",
+          "en": "Shelter Ember Basket",
+          "kind": "regionalMachine",
+          "x": 40.5,
+          "y": 27.5,
+          "lore": -1
+        },
+        {
+          "id": "regional_machine_7_2",
+          "name": "雪路低钟绳",
+          "en": "Low-Bell Pull Rope",
+          "kind": "regionalMachine",
+          "x": 85.5,
+          "y": 14.5,
           "lore": -1
         }
       ],

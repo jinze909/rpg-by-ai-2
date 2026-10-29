@@ -1118,6 +1118,7 @@ namespace Starfall
             TickCivicConduit(dt);
             TickExpansion(dt);
             if (Dying) return;
+            TickRegionalMachineShelters(dt);
             TickGuidance(beforeMove);
             TickPolish(dt);
         }
@@ -4112,6 +4113,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkRegionalMachine(o)) return;
             if (TalkBiomeField(o)) return;
             if (TalkSeventhBed(o)) return;
             if (TalkBridgeOfChords(o)) return;
@@ -4875,6 +4877,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseRegionalMachine(action)) return;
             if (ChooseBiomeField(action)) return;
             if (ChooseSeventhBed(action)) return;
             if (ChooseBridgeOfChords(action)) return;
