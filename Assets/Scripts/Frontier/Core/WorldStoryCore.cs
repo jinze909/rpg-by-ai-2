@@ -111,8 +111,8 @@ namespace Starfall
                 }
                 else
                 {
-                    zh="三地巡路记录的 3/3 处旧路标都核验过了，最后的现场记录已自动公开，无须再回旅店盖章";
-                    en="all three old route markers are verified; the final field record is published on site with no extra inn approval";
+                    zh="三地巡路记录已经核验 3/3 处旧路标。这份旧存档还差一次公开签收，去炉火旅店找夜行旅人补签即可；新接取的巡路会在第三处现场直接结算。";
+                    en="all three old route markers are verified, but this legacy roadwarden log still needs its one-time historical signature at Hearth Inn. New field runs publish at their final marker";
                 }
             }
             else if(CivicWaystationCount<3)
