@@ -648,6 +648,12 @@ namespace Starfall.Tests
                 Check(g.CanStand(g.Position)&&
                     g.GetQuest("field_kits").id=="field_kits",
                     "Existing production world and quest registry recognize the new kit");
+                WorldObject far=Array.Find(g.Map.objects,o=>
+                    o.id=="biomeAnswer"+room&&o.kind=="biomeAnswer");
+                Check(far!=null&&g.CanStand(new Point(far.x,far.y))&&
+                    g.NavigationPathFrom(new Point(far.x,far.y),
+                        new Point(box.x,box.y),true).Count>0,
+                    "Each new physical salvage site belongs to the same truly reachable distant field road");
                 int startWood=g.save.inventory[0],
                     startGear=g.save.inventory[4];
                 g.Talk(box);
