@@ -114,9 +114,10 @@ namespace Starfall.Tests
                     Check(PlaceWithinTalkReach(g,east)==true,
                         "East waytrail itself is reachable on original physical ground");
                     g.Talk(east);
-                    Check(!UnsentChoice(g,"unsent_deliver_"+room)&&
-                        !g.UnsentRiverDelivered&&!g.UnsentMineDelivered,
-                        "Early dialogue cannot complete a warning without actually walking the map");
+                    Check(UnsentChoice(g,"unsent_deliver_"+room)&&
+                        !g.UnsentRiverDelivered&&!g.UnsentMineDelivered&&
+                        g.UnsentWarningRunActive&&g.UnsentWarningTravel<18f,
+                        "Early live destination choice is rejected until actual walking earns 18 tiles");
                     g.Close();
                     Check(PlaceWithinTalkReach(g,west),"Can return to the real western start");
                     UnsentWalkToEasternPost(g,east);
