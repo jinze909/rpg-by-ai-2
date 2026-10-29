@@ -29,6 +29,74 @@ namespace Starfall.Tests
 
 
 
+        public static void MainEndingAndNoNoticeboardAfterstoryViaRealLyra(Campaign data)
+        {
+            var g=Fresh(data);g.Close();g.save.stage=3;
+            g.save.ending=1;g.save.trackedQuest="main";
+            g.save.flags.Add("completed");
+            QuestGuide finale=g.GetQuest("main");
+            Check(finale.complete&&finale.steps.Count==4&&
+                finale.steps.TrueForAll(step=>step.done)&&
+                g.Objective().Contains("主线已完结"),
+                "The actual ending closes the four-beat main story and live HUD");
+            Check(g.StoryRecap().Count>=5&&
+                g.StoryRecap()[4].title.StartsWith("后日谈"),
+                "The existing fifth-to-twelfth story material remains optional aftermath");
+            WorldObject lyra=Object(g,"guild");
+            Check(lyra!=null,"Lyra remains the real original quest giver");
+            g.save.x=lyra.x;g.save.y=lyra.y;g.Talk(lyra);
+            Check(StoryChoicePresent(g,"afterlight_guild")&&
+                !g.Has("afterlight_started"),
+                "A valid completed campaign offers but does not auto-enlist afterstory");
+            ChooseStoryChoice(g,"afterlight_guild");
+            Check(StoryChoicePresent(g,"afterlight_begin_guild")&&
+                g.conversation.text.Contains("不欠我新的任务"),
+                "Lyra acknowledges victory before the player volunteers for civic works");
+            ChooseStoryChoice(g,"afterlight_begin_guild");
+            Check(g.Has("afterlight_started")&&
+                g.save.trackedQuest=="afterlight"&&
+                g.GetQuest("afterlight").category.Contains("可选"),
+                "Volunteering begins the genuine playable regional reconstruction");
+            g.Close();g.Talk(lyra);
+            ChooseStoryChoice(g,"afterlight_guild");
+            Check(StoryChoicePresent(g,"afterlight_track_guild")&&
+                !StoryChoicePresent(g,"afterlight_begin_guild"),
+                "Lyra does not issue duplicate afterstory starts");
+            g.Close();
+            Check(!g.LastDirectiveStarted&&
+                g.GetQuest("last_directive").locked,
+                "Secret order stays hidden until the civilian service report is earned");
+            g.save.flags.Add("civic_response_ledger");
+            Check(g.LastDirectiveStarted&&
+                !g.Has("last_directive_started")&&
+                !g.GetQuest("last_directive").locked,
+                "An existing v2 civic ledger immediately unlocks the optional order without board acceptance");
+            g.Talk(lyra);
+            Check(StoryChoicePresent(g,"last_directive_guild"),
+                "Lyra offers a contextual unsent order instead of a signboard");
+            ChooseStoryChoice(g,"last_directive_guild");
+            Check(g.conversation.text.Contains("堡垒外环")&&
+                StoryChoicePresent(g,"last_directive_guild_track"),
+                "Guild story points to physical fortress evidence");
+            ChooseStoryChoice(g,"last_directive_guild_track");
+            Check(g.save.trackedQuest=="last_directive",
+                "The real guild conversation tracks an earned optional investigation");
+            g.Close();g.save.room=4;
+            WorldObject clue=Object(g,"lastdirectiveclue0");
+            Check(clue!=null&&g.CanStand(new Point(clue.x,clue.y)),
+                "The first unchanged fortress witness record occupies standable terrain");
+            g.save.x=clue.x;g.save.y=clue.y;g.Talk(clue);
+            Check(g.Has("last_directive_clue_0")&&
+                g.conversation!=null&&!g.Has("last_directive_started"),
+                "A real first-hand clue is readable with no extraneous signboard flag");
+            g.Close();g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));restored.Start();
+            Check(restored.save.version==2&&restored.save.ending==1&&
+                restored.GetQuest("main").complete&&
+                restored.LastDirectiveStarted&&
+                !restored.Has("last_directive_started"),
+                "Old SaveData v2 contains enough earned flags for the optional story after reload");
+        }
         public static void AuthenticDialogueTranscriptCapturesSpeakersAndOnlyAcceptedChoices(Campaign data)
         {
             var g=Fresh(data);g.Close();g.Enter(0);
