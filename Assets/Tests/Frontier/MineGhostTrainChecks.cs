@@ -130,6 +130,77 @@ namespace Starfall.Tests
                     "Both original narrative endings persist without altering old v2 save structure");
             }
         }
+        public static void FourTrainStorySitesAreWalkableAlongOriginalMineMapWithoutRemovingRidgeWildlife(Campaign data)
+        {
+            GameCore g=PreparedGhostStory(data);
+            MapData map=g.Map;
+            int width=map.rows[0].Length,height=map.rows.Length;
+            var seen=new bool[width*height];
+            var queue=new Queue<int>();
+            int sx=(int)Math.Floor(map.spawnX),sy=(int)Math.Floor(map.spawnY);
+            Check(g.CanStand(new Point(sx+.5f,sy+.5f)),
+                "The original mine entrance must remain walkable");
+            seen[sy*width+sx]=true;queue.Enqueue(sy*width+sx);
+            while(queue.Count>0)
+            {
+                int current=queue.Dequeue(),x=current%width,y=current/width;
+                int[] dx={-1,1,0,0},dy={0,0,-1,1};
+                for(int k=0;k<4;k++)
+                {
+                    int nx=x+dx[k],ny=y+dy[k];
+                    if(nx<2||ny<2||nx>=width-2||ny>=height-2)continue;
+                    int n=ny*width+nx;
+                    if(seen[n]||!g.CanStand(new Point(nx+.5f,ny+.5f)))
+                        continue;
+                    seen[n]=true;queue.Enqueue(n);
+                }
+            }
+            var historical=new Point[]{
+                new Point(101.5f,61.5f),
+                new Point(89.5f,67.5f),
+                new Point(76.5f,66.5f)
+            };
+            foreach(string name in new string[]{"dispatch","manifest","switch","medbay"})
+            {
+                WorldObject site=GhostSite(g,name);
+                int x=(int)site.x,y=(int)site.y;
+                Check(seen[y*width+x],
+                    "Each distant bespoke narrative landmark has a real contiguous walkable route from the original mine entrance: "+name);
+                foreach(Point foot in historical)
+                    Check((new Point(site.x,site.y)-foot).Length>=8f,
+                        "The new chapter cannot suppress a preexisting dangerous-region wildlife patrol anchor");
+            }
+        }
+        public static void SilentTrainDecisionsChangeRealLocalSpeedOrExistingCivilianShelterHealing(Campaign data)
+        {
+            GameCore baseline=PreparedGhostStory(data);
+            GameCore publicMine=PreparedGhostStory(data);
+            GameCore railway=PreparedGhostStory(data);
+            publicMine.save.flags.Add("ghost_train_public");
+            publicMine.save.flags.Add("ghost_train_complete");
+            railway.save.flags.Add("ghost_train_freight");
+            railway.save.flags.Add("ghost_train_complete");
+            Check(Math.Abs((railway.Speed-baseline.Speed)-.35f)<.0001f&&
+                Math.Abs(publicMine.Speed-baseline.Speed)<.0001f,
+                "Original player choice for passenger rail has a tangible mine movement advantage, not a narrative-only promise");
+            WorldObject original=Array.Find(baseline.Map.objects,
+                o=>o.id=="regional_machine_3_0");
+            var shelter=typeof(GameCore).GetMethod("TickRegionalMachineShelters",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(shelter!=null,"Real existing field shelter runs after the original chapter outcome");
+            foreach(GameCore g in new GameCore[]{baseline,publicMine,railway})
+            {
+                g.mode="world";g.enemies.Clear();
+                g.save.x=original.x;g.save.y=original.y;
+                g.save.health=30;g.save.energy=20;
+                shelter.Invoke(g,new object[]{1f});
+            }
+            Check(publicMine.save.health>baseline.save.health+.5f&&
+                Math.Abs(railway.save.health-baseline.save.health)<.01f,
+                "Restoring seventeen workers' public names improves only real local shelter healing; railway instead improves true movement");
+        }
+
         public static void SilentTrainCombatRejectsForgedActionsAndCleansTimeoutAndOwnedActors(Campaign data)
         {
             GameCore g=PreparedGhostStory(data);
