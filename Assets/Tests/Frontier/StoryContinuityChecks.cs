@@ -516,8 +516,9 @@ namespace Starfall.Tests
             g.save.flags.Remove("last_directive_complete");
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
             Check(g.conversation.text.Contains("旧军令")&&
-                g.conversation.textEn.Contains("unsigned order"),
-                "Lyra will not send the player to the grid before the signed Last Directive");
+                g.conversation.textEn.Contains("unsigned citadel order")&&
+                g.conversation.text.Contains("堡垒外环"),
+                "Lyra now points directly to authentic citadel records and avoids an arbitrary noticeboard acceptance");
             g.Close();
             g.save.flags.Add("last_directive_complete");
             WorldObject book=Object(g,"worldchronicle");
@@ -810,9 +811,10 @@ namespace Starfall.Tests
             g.save.flags.Add("last_directive_open");
             g.save.flags.Add("civic_conduit_complete");
             g.Talk(guild);ChooseStoryChoice(g,"story_catchup");
-            Check(g.conversation.text.Contains("旅店") &&
-                g.conversation.text.Contains("巡路队"),
-                "Late-chapter conversation points to the inn log and genuinely remaining roadwarden duties");
+            Check(g.conversation.text.Contains("旧路标")&&
+                g.conversation.text.Contains("无需")&&
+                g.conversation.textEn.Contains("directly"),
+                "Late-chapter story points to physical field evidence rather than requiring another inn sign-up");
             g.PrepareSave();
             var loaded=new GameCore(data,CloneSave(g.save));
             Check(loaded.save.version==2&&loaded.save.ending==1&&
