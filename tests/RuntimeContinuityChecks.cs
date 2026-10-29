@@ -1250,9 +1250,49 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS live field marker shows patrol method and actual charged travel economy");
     }
 
+    // This is the production world object renderer, not a fake map pin
+    // or merely a JSON presence assertion. Also exercise the original
+    // physical source and real resource recovery through GameCore.Talk.
+    static void FieldKitIsVisibleAndCollectibleInLiveWorld(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.stage=3;g.save.flags.Add("scout_saved");
+        g.save.english=true;g.Enter(1);g.mode="world";
+        g.enemies.Clear();g.save.flags.Add("biome_field_done_1");
+        WorldObject kit=Array.Find(g.Map.objects,
+            o=>o.kind=="fieldKit"&&o.id=="fieldKit1");
+        Check(kit!=null,"Campaign really has the new original Thornwood field kit");
+        g.save.x=kit.x;g.save.y=kit.y;
+        Check(g.CanStand(g.Position),
+            "The visible case is on genuinely standable field ground");
+        Set(app,"camera",g.Position);
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(cmd=>cmd.Contains("LOST KIT")&&
+            cmd.Contains("3 TIMBER / 1 PARTS")),
+            "Actual world renderer paints correct region-specific recoverable stock");
+        g.save.inventory[0]=0;g.save.inventory[4]=0;
+        g.save.energy=100f;g.Talk(kit);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+            g.conversation.speaker==kit.name,
+            "Talk is bound to the real nearby kit, never a remote NPC");
+        int choice=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_kit_collect");
+        Check(choice>=0,"Physical kit has an actionable collection choice");
+        g.Choose(choice);
+        Check(g.FieldKitRecovered(1)&&g.save.inventory[0]==3&&
+            g.save.inventory[4]==1&&
+            Math.Abs(g.save.energy-94f)<.001f&&g.save.version==2,
+            "True world interaction awards real materials and paid stamina once");
+        ClearDraw();Call(app,"DrawObject",kit);
+        Check(GUI.commands.Exists(cmd=>cmd.Contains("FIELD KIT RECOVERED")),
+            "Actual field renderer changes the case to its persistent recovered state");
+        Console.WriteLine("PASS actual world field-kit source, visible stock and earned recovered art state");
+    }
+
     public static void Run(FrontierRuntime app,string folder)
     {
-        try{CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(app);InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
+        try{FieldKitIsVisibleAndCollectibleInLiveWorld(app);CapturedPatrolFieldMarkerShowsLiveFareAndOutcome(app);InputDirections(app,folder);WorldAndAudio(app);CombatMusicReversesWhenActualThreatLeaves();GroundedMaterialFootfalls(app,folder);NonheroGroundContactTracking(app);HudReadability(app,folder);NavigationRouteGuidance(app);RidgeWatchIsDrawnOnTheActualWorldMarker(app);RidgePatrolRingUsesActualLivingWorldActor(app);DrawStateContinuity(app,folder);StableSceneOrdering(app);FullAuditPresentation(app,folder);TransitionTimeline(app,folder);CompleteBossFight(app,folder);}
         finally{app.EndVisualReview();Input.Clear();GUI.queuedClick=null;Screen.width=1280;Screen.height=800;Time.unscaledDeltaTime=.02f;ClearDraw();Call(app,"Resize");}
     }
 }
