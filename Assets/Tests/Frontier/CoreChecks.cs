@@ -484,6 +484,72 @@ namespace Starfall.Tests
             finally {map.rows=original;}
         }
 
+        // Nonlethal resolution is a player action, not a flag or removed
+        // enemy. Exercise the original live post, real trap, Hit and report.
+        public static void CivilianPatrolAcceptsActualNonlethalSnareRestraint(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            WorldObject post=Array.Find(g.Map.objects,o=>
+                o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "Real survey post supports this voluntary patrol");
+            Point originalFoot=g.Position;
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"Patrol accepts original live dialogue");
+            g.Choose(begin);
+            Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==2&&
+                g.enemies.Count==2,"Two real exact enemy identities form this patrol");
+            Enemy captive=g.enemies[0],combatant=g.enemies[1];
+            int kills=0;foreach(int n in g.save.kills)kills+=n;
+            g.save.inventory[0]=10;g.save.inventory[4]=10;
+            g.save.energy=100f;
+            Point trap=PutRealSnare(g);
+            captive.x=trap.x;captive.y=trap.y;
+            captive.hitTime=5f;combatant.hitTime=5f;
+            Check(g.FieldSnares.Count==1&&!g.CanBindSnaredEnemy,
+                "Moving enemy into the trap does not forge an armed contact");
+            for(int f=0;f<11;f++)g.Tick(.05f,new Point());
+            Check(g.FieldPatrolActive&&g.CanBindSnaredEnemy&&
+                Object.ReferenceEquals(g.SnaredBindTarget,captive),
+                "Only genuine armed snare contact enables living capture");
+            Check(g.BindSnaredEnemy()&&!g.enemies.Contains(captive)&&
+                g.FieldPatrolRemaining==1&&!g.FieldPatrolReportReady,
+                "One living restraint contributes but cannot pay a premature contract");
+            int after=0;foreach(int n in g.save.kills)after+=n;
+            Check(after==kills&&captive.hp>0f,
+                "Nonlethal patrol restraint does not grant enemy kills");
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var hit=typeof(GameCore).GetMethod("Hit",flags);
+            Check(hit!=null&&g.enemies.Contains(combatant),
+                "Second genuine raider stays for original combat resolution");
+            hit.Invoke(g,new object[]{combatant,9999f,true,null,null});
+            Check(g.FieldPatrolReportReady&&g.FieldPatrolRemaining==0,
+                "Mixed real death and living capture complete an authentic patrol");
+            g.invulnerable=5f;
+            for(int frame=0;frame<150;frame++)g.Tick(.02f,new Point());
+            g.save.x=originalFoot.x;g.save.y=originalFoot.y;
+            Check(PlaceWithinTalkReach(g,post),
+                "Hero genuinely returns to the original survey post");
+            g.Close();g.Talk(post);
+            int report=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_report");
+            Check(report>=0,"Physical post offers a mixed-method signed receipt");
+            g.Choose(report);
+            Check(g.FieldPatrolDone(1)&&!g.FieldPatrolActive&&
+                g.GetQuest("field_patrols").steps[0].done,
+                "Recorded civilian receipt recognizes restraint without changing legacy gates");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.FieldPatrolDone(1)&&
+                !restored.FieldPatrolActive,
+                "V2 reload saves signed achievement but not live temporary captives");
+        }
+
         // Exercise the actual SpawnRoom -> SpawnExpansionRoom route used by
         // Frontier.unity, not just a helper that returns plausible points.
         public static void SevenRegionsStageDistinctReachableStoryBattles(Campaign data)

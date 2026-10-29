@@ -208,6 +208,9 @@ namespace Starfall
             fieldSnarePreviousFeet.Remove(target);
             RemoveEnemyPendingWarning(target);
             enemies.Remove(target);
+            // An actual physical restraint counts for a civilian patrol.
+            // Arbitrary actor removals still invalidate its signed receipt.
+            bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             effects.Add(new Effect("burst",target.Position,.65f)
                 {radius=.85f,variant=0});
             effects.Add(new Effect("number",target.Position,.9f,
@@ -222,6 +225,11 @@ namespace Starfall
                     "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
             }
             sound="counter";revision++;
+            if(patrolRestraint)
+                Notify("巡护委托：已活捉一名真实巡兵，剩余"+
+                    FieldPatrolRemaining+"名。回原地标提交回执。",
+                    "Patrol: one raider restrained alive. "+
+                    FieldPatrolRemaining+" remain; report at the original post.");
             Notify(firstBind?
                 "首次活捉成功！新手帐：诺尔的活口与守护技。没有击杀或战利品。":
                 "袭击者已非致命制服；没有击杀、战利品或 Boss 奖励。",

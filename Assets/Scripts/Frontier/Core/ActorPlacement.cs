@@ -387,6 +387,9 @@ namespace Starfall
         private WorldObject fieldPatrolOrigin;
         private readonly List<Enemy> fieldPatrolEnemies=new List<Enemy>();
         private readonly HashSet<Enemy> fieldPatrolKills=new HashSet<Enemy>();
+        // Actual live snare restraints are distinct from lethal defeats.
+        // Transient exact actors only: no new v2 serialized flag or field.
+        private readonly HashSet<Enemy> fieldPatrolCaptures=new HashSet<Enemy>();
         public bool FieldPatrolActive
         {get{return fieldPatrolRoom>=1&&fieldPatrolRoom<=7&&
             fieldPatrolRoom==save.room&&
@@ -403,6 +406,7 @@ namespace Starfall
         {get{int count=0;if(FieldPatrolActive)
             foreach(Enemy e in fieldPatrolEnemies)
                 if(!fieldPatrolKills.Contains(e)&&
+                    !fieldPatrolCaptures.Contains(e)&&
                     enemies.Contains(e)&&e.hp>0f)count++;
             return count;}}
         // The HUD compass follows the nearest genuine surviving opponent.
@@ -418,6 +422,7 @@ namespace Starfall
                 foreach(Enemy e in fieldPatrolEnemies)
                 {
                     if(e==null||fieldPatrolKills.Contains(e)||
+                       fieldPatrolCaptures.Contains(e)||
                        !enemies.Contains(e)||e.hp<=0f)continue;
                     float dist=(e.Position-Position).Length;
                     if(dist<closest){closest=dist;best=e.Position;}
@@ -434,6 +439,7 @@ namespace Starfall
             // enemy into a fraudulent civilian safety certificate.
             foreach(Enemy e in fieldPatrolEnemies)
                 if(e==null||(!fieldPatrolKills.Contains(e)&&
+                   !fieldPatrolCaptures.Contains(e)&&
                    (!enemies.Contains(e)||e.hp<=0f)))
                 {
                     ResetFieldPatrol();revision++;
@@ -446,7 +452,13 @@ namespace Starfall
         {get{if(!FieldPatrolActive||fieldPatrolEnemies.Count<2)
             return false;
             foreach(Enemy e in fieldPatrolEnemies)
-                if(!fieldPatrolKills.Contains(e)||e.hp>0f)return false;
+            {
+                if(e==null)return false;
+                if(fieldPatrolKills.Contains(e)&&e.hp<=0f)continue;
+                if(fieldPatrolCaptures.Contains(e)&&e.hp>0f&&
+                    !enemies.Contains(e))continue;
+                return false;
+            }
             return true;}}
         private bool IsFieldPatrolEnemy(Enemy e)
         {return e!=null&&fieldPatrolEnemies.Contains(e);}
@@ -454,6 +466,16 @@ namespace Starfall
         {
             if(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))
                 fieldPatrolKills.Add(e);
+        }
+        // Only the paid, validated BindSnaredEnemy() transaction can
+        // register the removed living actor; a missing enemy remains invalid.
+        private bool OnFieldPatrolEnemyRestrained(Enemy e)
+        {
+            if(!FieldPatrolActive||e==null||e.hp<=0f||
+                !fieldPatrolEnemies.Contains(e)||enemies.Contains(e))
+                return false;
+            fieldPatrolCaptures.Add(e);
+            return true;
         }
         private void ResetFieldPatrol()
         {
@@ -468,6 +490,7 @@ namespace Starfall
             fieldPatrolRoom=-1;fieldPatrolMap=null;
             fieldPatrolSave=null;fieldPatrolOrigin=null;
             fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
+                fieldPatrolCaptures.Clear();
         }
         private Choice FieldPatrolChoice(WorldObject site)
         {
@@ -480,14 +503,14 @@ namespace Starfall
                     "Patrol safety receipt filed","close");
             if(FieldPatrolActive)
                 return FieldPatrolReportReady?
-                    C("提交真正击退巡兵的现场回执",
-                      "File verified raider defeat receipt",
+                    C("提交击退或活捉巡兵的现场回执",
+                      "File verified raider defeat or restraint receipt",
                       "biome_patrol_report"):
                     C("巡兵仍在现场 · 尚余"+FieldPatrolRemaining+"名",
                       "Raiders remain · "+FieldPatrolRemaining+" active",
                       "close");
-            return C("巡路实战 · 消除本区盗匪威胁",
-                "Field patrol · clear the genuine raider threat",
+            return C("巡路实战 · 击退或绊索活捉盗匪",
+                "Field patrol · defeat or snare raiders",
                 "biome_patrol_begin");
         }
         private Choice FieldPatrolCancelChoice(WorldObject site)
@@ -550,6 +573,7 @@ namespace Starfall
                 fieldPatrolRoom=room;fieldPatrolMap=Map;
                 fieldPatrolSave=save;fieldPatrolOrigin=site;
                 fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
+                fieldPatrolCaptures.Clear();
                 for(int i=before;i<enemies.Count;i++)
                 {
                     Enemy enemy=enemies[i];
@@ -559,17 +583,18 @@ namespace Starfall
                 }
                 revision++;sound="quest";
                 Notify(scoutPatrolZh[room]+
-                    " 击退"+count+"名真正的巡兵后，回这里交还现场回执。",
+                    " 击退或用真实绊索活捉"+count+"名巡兵后，回这里交还现场回执。",
                     scoutPatrolEn[room]+
-                    " Defeat "+count+" real raiders, then return to this post with the receipt.");
+                    " Defeat or genuinely snare and restrain "+count+
+                    " raiders, then return to file the report.");
                 return true;
             }
             if(!FieldPatrolActive||
                !Object.ReferenceEquals(fieldPatrolOrigin,site))return true;
             if(!FieldPatrolReportReady||!SafeTravel)
             {
-                Notify("只有全部巡兵经真实战斗击倒且周围安全，才能交回委托。",
-                    "Defeat every assigned raider in real combat and clear nearby danger before reporting.");
+                Notify("只有全部巡兵经真实战斗击倒或绊索活捉，且周围安全，才能交回委托。",
+                    "Defeat or genuinely restrain each assigned raider, and clear nearby danger before reporting.");
                 return true;
             }
             int cleared=room;
