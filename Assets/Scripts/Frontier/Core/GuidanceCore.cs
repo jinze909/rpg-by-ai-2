@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1022,6 +1022,35 @@ namespace Starfall
 
 
 
+            if(id=="bridge_chords")
+            {
+                q.title=L("断弦桥 · 余震之声","Broken Chord Bridge · The Echo Engine");
+                q.category=L("精英遭遇 · 实体接地音叉","ELITE ENCOUNTER · PHYSICAL RESONATORS");
+                q.locked=!BridgeOfChordsUnlocked;
+                q.complete=BridgeOfChordsComplete;
+                q.room=4;q.target=BridgeOfChordsTarget;
+                q.description=L(
+                    "完成堡垒的最终指令后，前往旧桥上的余震核心(45.5,37.5)启动独立精英遭遇。精英是真实的320生命Boss级敌人，但击败它不会误判为原第四区域主线Boss。桥面共鸣脉冲在原地真实提示1.3秒，留下可逃离的路径。可以直接战胜精英，也可以穿越有障碍的真实桥面，依次靠近低频音叉(47.5,42.5)与高频接地桩(49.5,45.5)，各花12耐力打断精英并减慢后续落点的频率。精英真实死亡后回余震核心二选一：点亮公共避难灯安全疗伤，或修复道路电网安全回复体力。双音叉在胜利前真正接地额外奖励技能点1。所有永久变化用原SaveData v2标记。",
+                    "After the Last Directive, visit the actual Echo Core on the Citadel's old bridge (45.5,37.5) to summon a true 320-HP optional elite. Its delayed 1.3-second ground surges leave genuine escape routes and never count as the region's original main Boss kill. Defeat it outright or walk the connected terrain under fire to ground the Low Fork (47.5,42.5) then the High Ground (49.5,45.5), spending 12 energy each to interrupt the actor and slow future pulses. After a real lethal victory, return to the core to choose public healing refuge or a safe stamina road grid. Mastering both physical resonators before winning grants one bonus talent. All durable outcomes use existing SaveData v2 flags.");
+                q.steps.Add(new QuestStep(L("前往堡垒旧桥余震核心，启动真实精英战",
+                    "Start a genuine elite at the old bridge Echo Core"),
+                    BridgeOfChordsActive||BridgeOfChordsDefeated));
+                q.steps.Add(new QuestStep(L("击败实体精英 · 可选双音叉接地",
+                    "Defeat the physical elite · optional two tuning forks"),
+                    BridgeOfChordsDefeated));
+                q.steps.Add(new QuestStep(L("回核心决定民间避难还是公共道路供电",
+                    "Return to core: civilian refuge or road-grid power"),q.complete));
+                q.next=q.locked?L("先完成原堡垒最终指令",
+                    "Complete the Citadel's Last Directive first"):
+                    BridgeOfChordsObjective+
+                    (BridgeOfChordsActive?L(" · 时限 "," · TIMER ")+
+                        BridgeOfChordsSeconds.ToString("0")+"s"+
+                        L(" · 接地 "," · GROUNDED ")+
+                        BridgeOfChordsResonators+"/2":"");
+                q.reward=L("精英真实击败：90硬币、2碎片、130经验、永久桥面安全恢复；双音叉额外技能点1",
+                    "Real elite kill: 90 coins, 2 shards, 130 XP, lasting safe bridge recovery; both forks add one skill");
+                return q;
+            }
             if(id=="glassledger")
             {
                 q.title=L("沙海 · 被抹去的水账","Glass Desert · The Erased Water Ledger");

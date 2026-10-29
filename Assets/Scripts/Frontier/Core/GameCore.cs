@@ -401,7 +401,7 @@ namespace Starfall
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
             ResetCampWard();ResetSignalRelay();ResetAfterglow();
-            ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
+            ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
         }
         public void NewGame(int profession)
@@ -1084,6 +1084,7 @@ namespace Starfall
             TickCountertide(dt);
             TickGlassLoom(dt);
             TickGlassLedger(dt);
+            TickBridgeOfChords(dt);
             TickFrostSignal(dt);
             TickWhiteout(dt);
             TickPressureworks(dt);
@@ -1603,6 +1604,7 @@ namespace Starfall
             OnCommonsRelayEnemyDefeated(e);
             OnWitnessEnemyDefeated(e);
             OnSkywatchEnemyDefeated(e);
+            OnBridgeChordsEnemyDefeated(e);
             OnTemperEnemyDefeated(e);
             OnFrostSignalEnemyDefeated(e);
             OnMineConvoyEnemyDefeated(e);
@@ -1646,7 +1648,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -1671,7 +1673,7 @@ namespace Starfall
             // Optional Skywatch's armored elite is NOT a main chapter boss.
             // Its victory is accounted for by TickSkywatch only, never by
             // the original regional boss/core or gate progression flags.
-            if (e.boss && !IsSkywatchEnemy(e))
+            if (e.boss && !IsSkywatchEnemy(e) && !IsBridgeChordsElite(e))
             {
                 Flag("boss_" + save.room);
                 bossVictoryFeedbackRoom=save.room;
@@ -4075,6 +4077,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkBridgeOfChords(o)) return;
             if (TalkGlassLedger(o)) return;
             if (TalkUnsentWarningRelay(o)) return;
             if (TalkGlassLoom(o)) return;
@@ -4830,6 +4833,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseBridgeOfChords(action)) return;
             if (ChooseGlassLedger(action)) return;
             if (ChooseUnsentWarning(action)) return;
             if (ChooseFieldSnareTraining(action)) return;
