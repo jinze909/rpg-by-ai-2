@@ -222,6 +222,83 @@ namespace Starfall.Tests
                 !loaded.UnsentWarningRunActive,
                 "True relay receipt persists on SaveData v2 without resuming stale pursuer actors");
         }
+        public static void TwoPhysicallyBankedRelayTacticsAwardOneNonfarmableWardenTalent(Campaign data)
+        {
+            var g=UnsentReady(data);
+            g.save.inventory[0]=9;
+            UnsentOpenAtRealGuild(g);
+            Check(g.UnsentWarningRelayCount==0,
+                "An old v2 courier save has no imaginary dual-relay talent");
+            for(int room=2;room<=3;room++)
+            {
+                g.Enter(room);g.enemies.Clear();
+                g.invulnerable=900f;g.save.energy=100f;
+                WorldObject west=UnsentPost(g,room,false);
+                WorldObject mid=PhysicalWarningRelay(g,room);
+                WorldObject east=UnsentPost(g,room,true);
+                Check(PlaceWithinTalkReach(g,west),
+                    "Only original reachable west waytrail starts each crossing");
+                g.Talk(west);
+                Check(UnsentChoice(g,"unsent_run_"+room)&&
+                    g.UnsentWarningRunActive,
+                    "A true region-specific mission exists before mastery can be earned");
+                foreach(Enemy foe in g.enemies)
+                {foe.stun=150f;foe.timer=150f;}
+                WalkToWarningRelay(g,mid);
+                Check(g.UnsentWarningRelayPursuerActive&&
+                    g.UnsentWarningRelayChoice==0,
+                    "A REAL overland approach meets a new hunter before choosing a tactic");
+                Check(PlaceWithinTalkReach(g,mid),
+                    "Original relay world object and dialogue can really be reached");
+                g.Talk(mid);
+                Check(UnsentChoice(g,"unsent_relay_smoke")&&
+                    g.UnsentWarningRelayChoice==2,
+                    "Spend one smoke decoy against the actual live pursuer in this region");
+                g.Close();
+                foreach(Enemy foe in g.enemies)
+                {foe.stun=150f;foe.timer=150f;}
+                UnsentWalkToEasternPost(g,east);
+                Check(g.UnsentWarningTravel>=18f&&g.UnsentWarningSeconds>0f,
+                    "The final portion is genuinely traversed before booking any relief receipt");
+                g.Talk(east);
+                Check(UnsentChoice(g,"unsent_deliver_"+room)&&
+                    g.Has("unsent_warning_relay_"+room)&&
+                    g.UnsentWarningRelayCount==room-1&&
+                    !g.UnsentWarningRunActive,
+                    "Only an actual delivered letter permanently banks this region's field mastery");
+                g.PrepareSave();
+                var continuity=new GameCore(data,CloneSave(g.save));
+                Check(continuity.save.version==2&&
+                    continuity.UnsentWarningRelayCount==room-1&&
+                    !continuity.UnsentWarningRunActive,
+                    "The partial two-region field record is durable without saving transient enemies");
+            }
+            Check(g.UnsentRiverDelivered&&g.UnsentMineDelivered&&
+                g.UnsentWarningRelayCount==2&&!g.UnsentWarningComplete,
+                "Two true letters and two authentic relay receipts alone unlock a final choice, not free talent");
+            int earned=g.save.skillPoints;
+            g.Enter(0);g.enemies.Clear();
+            WorldObject guild=Object(g,"guild");
+            Check(PlaceWithinTalkReach(g,guild),
+                "The actual guild receives hard-earned testimony and dual-relay evidence");
+            g.Talk(guild);
+            Check(UnsentChoice(g,"unsent_publish")&&
+                g.UnsentWarningComplete&&
+                g.save.skillPoints==Math.Min(99,earned+1),
+                "Both real field relays grant exactly one genuine talent after a source-bound guild decision");
+            int after=g.save.skillPoints;
+            g.Talk(guild);
+            Check(!UnsentChoice(g,"unsent_protect")&&
+                g.save.skillPoints==after&&g.UnsentWarningRelayCount==2,
+                "A completed guild encounter cannot change outcome or duplicate the bonus talent");
+            g.Close();g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.UnsentWarningRelayCount==2&&
+                restored.UnsentWarningComplete&&
+                restored.save.skillPoints==after,
+                "The first-ever two-relay talent persists through unchanged SaveData v2");
+        }
         public static void UnsentWarningRequiresTwoPriorTrueStoriesAndAuthenticGuild(Campaign data)
         {
             var locked=Fresh(data);locked.save.stage=3;
