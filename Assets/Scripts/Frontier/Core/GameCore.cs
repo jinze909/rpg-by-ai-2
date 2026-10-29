@@ -860,7 +860,7 @@ namespace Starfall
         }
         private void SpawnRoom()
         {
-            enemies.Clear(); enemyId = 0; ResetRidgeWatch();
+            enemies.Clear(); regionalAmbientEnemies.Clear(); enemyId = 0; ResetRidgeWatch();
             if (SpawnExpansionRoom())
             {
                 SpawnRidgeWildlife();
@@ -2240,6 +2240,16 @@ namespace Starfall
             {
                 if (Dying) break;
                 if (!enemies.Contains(e) || mode != "world") continue;
+                // Faraway ambient encounters belong to their own authored
+                // district: no continuous 120x80 full-map pursuit, CPU
+                // path searches or mass convergence on the entry point.
+                // Already-alerted threats and all event actors still run.
+                if(RegionalAmbientEncounterDormant(e))
+                {
+                    e.moveVelocity=new Point();
+                    e.moving=e.backpedaling=false;
+                    continue;
+                }
                 // Sample only actual present-frame movement. An interrupted
                 // windup, stun, collision or blocked alley must immediately
                 // stop contributing phantom velocity to ranged target leads.

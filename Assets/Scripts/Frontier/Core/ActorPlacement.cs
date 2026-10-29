@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     public sealed partial class GameCore
@@ -134,6 +135,22 @@ namespace Starfall
             // saved monster or transport it through a closed flood gate.
             return safe;
         }
+        // Only the baseline authored overworld roster sleeps when the
+        // player is in a DIFFERENT local encounter district. Special
+        // escorts, patrols, Bosses, alert sound searches and event raiders
+        // are never tagged. Exact actor identity is session-only.
+        private readonly HashSet<Enemy> regionalAmbientEnemies=
+            new HashSet<Enemy>();
+        private bool RegionalAmbientEncounterDormant(Enemy e)
+        {
+            return e!=null&&!e.boss&&regionalAmbientEnemies.Contains(e)&&
+                save.room>=1&&save.room<=7&&
+                (e.Position-Position).Length>24f&&
+                e.state==0&&e.hitTime<=0f&&e.stun<=0f&&
+                e.releaseTime<=0f&&
+                !IsEnemyInvestigatingImpact(e)&&
+                !IsEnemyReturningFromImpact(e);
+        }
         // World encounters occupy the authored breadth of each 120x80 region,
         // not eight copies of the same 30x20 opening. A full footprint BFS
         // rejects disconnected islands, sealed gates, high tide and house
@@ -215,7 +232,9 @@ namespace Starfall
                 // Rotate the existing real monster archetypes by biome and
                 // encounter band; never create HUD-only or duplicated foes.
                 int kind=(save.room+i*2+i/3)%3;
-                enemies.Add(CreatePlacedEnemy(++enemyId,kind,candidate,health));
+                Enemy encounter=CreatePlacedEnemy(++enemyId,kind,candidate,health);
+                enemies.Add(encounter);
+                regionalAmbientEnemies.Add(encounter);
                 placed++;
             }
             return placed;
