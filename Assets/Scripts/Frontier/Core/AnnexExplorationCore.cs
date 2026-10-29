@@ -126,12 +126,12 @@ namespace Starfall
                 Dialog(o.name,o.en,
                     "你已经把两处现场记录写进公共探路册。"+
                     "\n\n实地接驳现在需要硬币 "+fare+"、耐力 "+energy+"。"+
-                    (FieldPatrolDone(region)?"\\n巡路安全回执：接驳减免1硬币、2耐力。":"")+
+                    (FieldPatrolDone(region)?"\n巡路安全回执：接驳减免1硬币、2耐力。":"")+
                     BiomeSupplySummary(false,region),
                     "Both original field testimonies are in the public wayfinder journal."+
                     "\n\nThe verified field relay now costs "+fare+
                     " coins and "+energy+" energy."+
-                    (FieldPatrolDone(region)?"\\nSigned patrol receipt: 1 coin and 2 stamina off travel.":"")+
+                    (FieldPatrolDone(region)?"\nSigned patrol receipt: 1 coin and 2 stamina off travel.":"")+
                     BiomeSupplySummary(true,region),
                     C("地区接驳 · 硬币"+fare+" / 耐力"+energy,
                       "Field relay · "+fare+" coins / "+energy+" energy",
