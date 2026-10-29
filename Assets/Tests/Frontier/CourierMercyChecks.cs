@@ -53,7 +53,7 @@ namespace Starfall.Tests
                     "Restraint is impossible until actual armed snare contact");
                 for(int frame=0;frame<11;frame++)
                     g.Tick(.05f,new Point());
-                Check(Object.ReferenceEquals(g.SnaredBindTarget,target)&&
+                Check(System.Object.ReferenceEquals(g.SnaredBindTarget,target)&&
                     g.BindSnaredEnemy()&&!g.enemies.Contains(target),
                     "A real snare triggers on the exact living actor and allows paid nonlethal capture");
                 Check(!g.FarCourierHumane(0)&&!g.FarCourierSecured(0)&&
