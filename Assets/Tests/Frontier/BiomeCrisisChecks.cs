@@ -84,6 +84,93 @@ namespace Starfall.Tests
                     "Old SaveData v2 preserves cleared public receipts but no live enemy roster");
             }
         }
+        public static void FinalEightReliefCouncilHasTwoRealPermanentAndExclusiveEndings(Campaign data)
+        {
+            for(int policy=0;policy<2;policy++)
+            {
+                GameCore g=new GameCore(data);
+                g.Close();g.save.room=9;g.enemies.Clear();
+                for(int room=0;room<8;room++)
+                    g.save.flags.Add("biome_crisis_done_"+room);
+                g.save.flags.Add("biome_crisis_all");
+                Check(g.BiomeCrisisWins==8,
+                    "Final council requires eight actually numbered signed receipts");
+                WorldObject archive=Array.Find(g.Map.objects,
+                    o=>o.kind=="annexinnarchive");
+                Check(archive!=null,
+                    "Final civic policy is debated at the real archived Hearth Inn desk");
+                g.save.x=archive.x;g.save.y=archive.y;
+                int before=g.save.coins,shards=g.save.shards;
+                var spoof=typeof(GameCore).GetMethod("ChooseBiomeCrisisCouncil",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(spoof!=null,"Real in-world relief council handler exists");
+                spoof.Invoke(g,new object[]{"biome_crisis_council_roads"});
+                Check(!g.Has("biome_crisis_council_roads")&&
+                    g.save.coins==before,
+                    "Direct council invocation outside an actual archive conversation cannot select a policy");
+                g.Talk(archive);
+                RealReliefChoice(g,"biome_crisis_council");
+                string action=policy==0?
+                    "biome_crisis_council_shelters":
+                    "biome_crisis_council_roads";
+                RealReliefChoice(g,action);
+                Check(g.Has(action)&&
+                    !g.Has(policy==0?"biome_crisis_council_roads":
+                        "biome_crisis_council_shelters")&&
+                    g.save.coins==before+60&&g.save.shards==shards+2,
+                    "In-person Hearth Inn decision selects exactly one permanent policy and one reward");
+                g.Close();g.save.room=9;
+                g.save.x=archive.x;g.save.y=archive.y;g.Talk(archive);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_crisis_council")<0,
+                    "One-time public council cannot be repeated from the archive");
+                g.PrepareSave();
+                var reloaded=new GameCore(data,g.save);
+                Check(reloaded.save.version==2&&reloaded.Has(action),
+                    "Final branching public policy persists without a SaveData schema change");
+                g.Close();g.Enter(0);g.enemies.Clear();
+                if(policy==0)
+                {
+                    WorldObject camp=Array.Find(g.Map.objects,
+                        o=>o.id=="annex_camp_0");
+                    Check(camp!=null,"Public shelter policy uses the authored original camp");
+                    g.save.x=camp.x;g.save.y=camp.y;
+                    g.save.health=10f;g.save.energy=20f;
+                    g.save.inventory[0]=5;
+                    g.Talk(camp);RealReliefChoice(g,"annex_rest");
+                    Check(g.save.health==60f&&g.save.energy==100f&&
+                        g.save.inventory[0]==4,
+                        "Public shelters truly increase an otherwise ordinary 40-HP paid rest to 50 HP");
+                }
+                else
+                {
+                    g.save.flags.Add("biome_field_done_0");
+                    g.save.flags.Add("biome_supply_road_0");
+                    g.save.flags.Add("biome_crisis_done_0");
+                    WorldObject start=Array.Find(g.Map.objects,
+                        o=>o.id=="biomeSurvey0");
+                    WorldObject dest=Array.Find(g.Map.objects,
+                        o=>o.id=="biomeAnswer0");
+                    Check(start!=null&&dest!=null,
+                        "Public road improvement uses the original two physically authored endpoints");
+                    g.save.x=start.x;g.save.y=start.y;
+                    g.save.energy=50f;g.save.coins=50;
+                    g.Talk(start);RealReliefChoice(g,"biome_relay");
+                    Check((g.Position-new Point(dest.x,dest.y)).Length<2f&&
+                        g.save.energy==49f&&g.save.coins==49,
+                        "Public road council actually reduces a signed route from 3 to 1 energy, still charges a fare");
+                    GameCore baseline=new GameCore(data);
+                    baseline.Close();baseline.save.room=0;
+                    baseline.save.flags.Add("biome_supply_road_0");
+                    baseline.save.flags.Add("biome_crisis_done_0");
+                    float speed=baseline.Speed;
+                    Check(Math.Abs(g.Speed-speed-.10f)<.001f,
+                        "Public road council adds only its explicit permanent +0.10 movement speed");
+                }
+            }
+        }
+
         public static void EmergencyReliefCannotBeSpoofedOrSurviveAbortedCombat(Campaign data)
         {
             var g=new GameCore(data);
