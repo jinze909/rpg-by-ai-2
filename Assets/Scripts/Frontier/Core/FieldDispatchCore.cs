@@ -36,6 +36,10 @@ namespace Starfall
             if(e!=null&&e.hp>0f&&enemies.Contains(e))n++;return n;}}
         private bool IsFieldDispatchEnemy(Enemy e)
         {return e!=null&&FieldDispatchActive&&dispatchRaiders.Contains(e);}
+        // The world actor renderer uses this exact reference, not an enemy
+        // kind or reused numeric ID; fake/retired raiders never get a quest cue.
+        public bool IsLiveFieldDispatchRaider(Enemy e)
+        {return IsFieldDispatchEnemy(e)&&e.hp>0f&&enemies.Contains(e);}
         private int SpawnFieldDispatchAmbush()
         {
             if(!FieldDispatchActive||dispatchStage!=2)return 0;

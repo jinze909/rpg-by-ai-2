@@ -1305,6 +1305,64 @@ public static class RuntimeContinuityChecks
     // This exercises the actual production world renderer for the original
     // relay machinery and survey objects. No fabricated map pin or menu
     // pretending to show game content is accepted.
+    public static void ActualCourierAmbushPaintsOnlyOwnedLivingEnemy(FrontierRuntime app)
+    {
+        Prepare(app);
+        var g=app.Game;
+        g.save.stage=3;g.save.flags.Add("scout_saved");
+        g.save.english=true;g.Enter(1);g.mode="world";g.enemies.Clear();
+        g.save.flags.Add("biome_field_done_1");
+        g.save.flags.Add("field_kit_recovered_1");
+        g.save.flags.Add("field_outpost_ward_1");
+        g.save.energy=100f;g.save.inventory[2]=4;
+        WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+        Check(kit!=null&&g.CanStand(new Point(kit.x,kit.y)),
+            "The original outpost kit exists on actual walkable terrain");
+        g.save.x=kit.x;g.save.y=kit.y;
+        g.Talk(kit);
+        int begin=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_start");
+        Check(begin>=0,"The real built outpost offers a paid courier");
+        g.Choose(begin);
+        Check(g.FieldDispatchStage==1&&g.enemies.Count==0,
+            "No corridor raider exists before actual checkpoint registration");
+        Point point=g.FieldDispatchTarget;
+        WorldObject machine=Array.Find(g.Map.objects,o=>
+            o.kind=="regionalMachine"&&
+            (new Point(o.x,o.y)-point).Length<.01f);
+        Check(machine!=null,"A physical engineering checkpoint is the live target");
+        g.Close();g.save.x=machine.x;g.save.y=machine.y;g.Talk(machine);
+        int sign=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_checkpoint");
+        Check(sign>=0,"The actual machine owns its registered cargo choice");
+        g.Choose(sign);
+        Check(g.FieldDispatchLivingRaiders>0&&g.enemies.Count>0,
+            "An actual enemy appears only after signing the first field checkpoint");
+        Enemy raider=g.enemies[0];
+        Check(g.IsLiveFieldDispatchRaider(raider),
+            "World drawing identifies the same exact live enemy instance");
+        Set(app,"camera",raider.Position);
+        ClearDraw();Call(app,"DrawEnemyActor",raider);
+        Check(GUI.commands.Exists(x=>x.Contains("COURIER AMBUSH"))&&
+            GUI.textureCalls.Exists(x=>x.texture!=Texture2D.whiteTexture),
+            "Production world view displays actual enemy body and authentic cargo-ambush warning");
+        // A transient disappearance must not leave a floating marker
+        // bound only to a reused numeric enemy ID.
+        g.enemies.Remove(raider);
+        ClearDraw();Call(app,"DrawEnemyActor",raider);
+        Check(!GUI.commands.Exists(x=>x.Contains("COURIER AMBUSH")),
+            "Unregistered actor never paints a fake active courier threat");
+        g.enemies.Add(raider);
+        g.Close();g.save.x=kit.x;g.save.y=kit.y;g.Talk(kit);
+        int abort=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="field_dispatch_abort");
+        Check(abort>=0,"Original physical kit owns safe withdrawal");
+        g.Choose(abort);
+        Check(!g.FieldDispatchActive&&!g.IsLiveFieldDispatchRaider(raider)&&
+            g.enemies.Count==0,"Withdrawal safely removes real enemy without leaving a phantom marker");
+        Console.WriteLine("PASS original enemy sprites and actual courier raider warning without ghost ownership");
+    }
+
     public static void PhysicalCivilianCourierRendersEveryLiveObjective(FrontierRuntime app)
     {
         Prepare(app);

@@ -1207,6 +1207,16 @@ namespace Starfall
                         Game.L("搜查交战处","SEARCHING REPORT"),
                         10,patrolTint,TextAnchor.MiddleCenter);
             }
+            if(!drawingOutline&&Game.IsLiveFieldDispatchRaider(e))
+            {
+                // The courier ambush is an ACTUAL enemy body and AI actor.
+                // Keep the accepted original monster sprites unchanged.
+                Color warning=PixelArt.C("#efbd69");
+                Ring(e.Position,.67f,warning,18);
+                Text(p.x-86,p.y-132,172,20,
+                    Game.L("补给路袭击者","COURIER AMBUSH"),
+                    10,warning,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsWayfarerDecoyTarget(e))
             {
                 // A newly sealed tide gate changes actual guard behavior.
