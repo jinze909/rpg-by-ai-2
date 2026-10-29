@@ -1179,13 +1179,17 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),second?.59f:.46f,ink,24);
                 if(finished)
                 {
-                    // The published field marker must quote the SAME
-                    // live fare charged by the real source dialogue. Supply,
-                    // council, patrol and all-living discounts all apply.
-                    string status=Game.L("接驳 · 硬币"+Game.FieldRelayFareHere+
-                            " / 耐力"+Game.FieldRelayEnergyHere,
-                            "RELAY · "+Game.FieldRelayFareHere+
-                            "C / "+Game.FieldRelayEnergyHere+"ST");
+                    // Keep existing supply/medicine information AND quote
+                    // the exact live relay price on a separate line. Replacing
+                    // the supply status with a fare hides real world progress.
+                    string status=medicine?
+                        Game.L("公共药箱 · 营地治疗增强",
+                            "PUBLIC TRIAGE · CAMP HEALING"):
+                        road?
+                        Game.L("居民通路 · 已修复",
+                            "PUBLIC ROAD · OPEN"):
+                        Game.L("远路物资 "+Game.BiomeSupplySampleCount(Game.save.room)+
+                            "/2","SUPPLIES "+Game.BiomeSupplySampleCount(Game.save.room)+"/2");
                     bool crisisHere=Game.BiomeCrisisActive;
                     if(crisisHere)
                     {
@@ -1203,8 +1207,16 @@ namespace Starfall
                             "RELIEF SIGNED · LASTING BONUS");
                     Text(p.x-117,p.y-114,234,18,status,10,
                         crisisHere?gold:ink,TextAnchor.MiddleCenter);
+                    // This figure uses the same calculator as actual
+                    // biome_relay payment; no stale hardcoded road prices.
+                    Text(p.x-117,p.y-95,234,17,
+                        Game.L("接驳：硬币"+Game.FieldRelayFareHere+
+                            " / 耐力"+Game.FieldRelayEnergyHere,
+                            "RELAY · "+Game.FieldRelayFareHere+
+                            "C/"+Game.FieldRelayEnergyHere+"ST"),
+                        9,ink,TextAnchor.MiddleCenter);
                     if(medicine||road)
-                        Diamond(p.x,p.y-91,6,ink);
+                        Diamond(p.x,p.y-79,6,ink);
                     // The physical FIRST survey post owns the patrol.
                     // Distinct persistent marks distinguish captured
                     // testimony from a violent completion without changing

@@ -1228,19 +1228,19 @@ public static class RuntimeContinuityChecks
         g.save.flags.Remove("biome_patrol_done_1");
         g.save.flags.Remove("biome_patrol_spared_1");
         ClearDraw();Call(app,"DrawObject",post);
-        Check(GUI.commands.Exists(c=>c.Contains("3C / 12ST")||
+        Check(GUI.commands.Exists(c=>c.Contains("3C/12ST")||
             c.Contains("硬币3 / 耐力12")),
             "Unclaimed patrol marker quotes live unmodified 3/12 relay fare");
         g.save.flags.Add("biome_patrol_done_1");
         ClearDraw();Call(app,"DrawObject",post);
-        Check(GUI.commands.Exists(c=>c.Contains("2C / 10ST")||
+        Check(GUI.commands.Exists(c=>c.Contains("2C/10ST")||
             c.Contains("硬币2 / 耐力10"))&&
             GUI.commands.Exists(c=>c.Contains("SIGNED PATROL RECEIPT")||
                 c.Contains("巡护安全回执已登记")),
             "Genuine signed patrol changes both the physical price and field notice");
         g.save.flags.Add("biome_patrol_spared_1");
         ClearDraw();Call(app,"DrawObject",post);
-        Check(GUI.commands.Exists(c=>c.Contains("2C / 7ST")||
+        Check(GUI.commands.Exists(c=>c.Contains("2C/7ST")||
             c.Contains("硬币2 / 耐力7"))&&
             GUI.commands.Exists(c=>c.Contains("ALL CAPTURED")||
                 c.Contains("全员活捉")),
