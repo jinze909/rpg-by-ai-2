@@ -4,6 +4,197 @@ namespace Starfall
     // Physical field landmarks, additive to the existing campaign and SaveData v2.
     public sealed partial class GameCore
     {
+        // Two real landmarks per overworld biome form a short field
+        // investigation with region-specific reasoning rather than another
+        // generic chest, fake combat actor or unearned map-menu reward.
+        // All eight outcomes use normal v2 flags. The six-stance choice
+        // costs actual stamina on a mistaken field interpretation.
+        private static readonly string[] biomeOpeningZh={
+            "街角的老邻居没数车轮，只数每天夜里还能亮灯的窗户。货车曾满载，却有几户人家始终没拿到食物。",
+            "枝条朝山谷外侧折断，树皮上留下避开猎人营火的划痕。那些人不是沿最近的路逃走。",
+            "石阶上有三层古老水线；中央深渠冲走了木桥，两侧低台却露出磨亮的踏痕。",
+            "烧黑的工牌写着：炉压失控时，矿工先让风从山体背面流出，才敢重新点火。",
+            "石墙刻下的最后一笔不是攻击阵列，而是一扇有人扶着伤者穿过的旧侧门。",
+            "雾中游动的渔火无法作为航标。岸边两盏固定灯曾在暴风雨后救回一船孩子。",
+            "沙海里远处的高塔一到正午就消失。旧测影石留下的是阴影的方向，而不是光塔的位置。",
+            "霜风越猛，钟声越容易被吹离悬崖外的山道。守钟人把听风孔凿在背风侧。"
+        };
+        private static readonly string[] biomeOpeningEn={
+            "Neighbors counted lit windows, not wagons. A convoy arrived full, yet several homes never received supper.",
+            "Branches snapped toward the far valley. Scratches mark a route away from hunters' fires, not the shortest escape.",
+            "Three old waterlines cross these steps. The central channel swallowed its bridge, but polished footmarks survive on the lower side ledges.",
+            "A scorched workboard says the miners opened the mountain's rear vents before reigniting an unstable furnace.",
+            "The citadel's final carving depicts a side door held open for the injured, not a line of attackers.",
+            "Drifting fishing lights are useless in fog. Two stationary shore lamps once guided a boat of children home.",
+            "A distant tower vanishes at noon. The old gauge records the shadow's direction, not the false tower's location.",
+            "Wind carried the bell's sound off the cliff path. Wardens bored a listening hole on the leeward side."
+        };
+        private static readonly string[] biomeFinalZh={
+            "账册旁压着八户收不到口粮的名单。远街缺的不是车，是亲手把食物送到门口的人。",
+            "两道足印在此交叉。一道靠近猎人陷阱，另一道沿断枝绕过巢穴。",
+            "残桥底下是急流，侧面的旧石阶仍在涨潮时露出最高一层。",
+            "旧阀门留有两种手印：急着点火的人烫伤了手，打开排气口的人救下同伴。",
+            "医护名册被藏在防御图背面。城墙最后一道命令是护送平民。",
+            "远端灯塔的海图标出两盏不会随船漂移的岸灯，风暴夜的航线由此确定。",
+            "这里能看到同一座山的真实背光面。那座正午的光塔只是热浪折出的影。",
+            "三枚钟舌都有划痕，唯独背风面的低钟留下行人用木棒敲击的印记。"
+        };
+        private static readonly string[] biomeFinalEn={
+            "Eight families went hungry despite full wagons. The missing piece was a person to carry food to their doors.",
+            "Two tracks cross here: one leads into hunters' traps, the other follows broken branches clear of the nests.",
+            "The lost bridge hangs above a current. The old side stair still reaches above the tide at its highest step.",
+            "Two handprints mark this valve. One worker burned a hand relighting the forge; the one who opened the vent saved the others.",
+            "A patient list is hidden behind the tactical chart. The garrison's final order was to escort civilians.",
+            "A far harbor chart marks two unmoving coastal lamps. They, not wandering boats, fixed the storm route.",
+            "The true mountain's shadow is visible from here. The tower at noon was nothing but heat shimmer.",
+            "Of three scarred bells, the low leeward bell bears the mark of travelers tapping it with a walking staff."
+        };
+        private static readonly string[,] biomeAnswersZh={
+            {"按抵港车数分配物资","沿街逐户核对并补送口粮","把多余食物锁回仓库"},
+            {"绕开猎人营火，沿折枝安全路走","直穿有陷阱的近道","只追最深的脚印"},
+            {"涉水穿过深渠","等海水冲净所有石阶","利用侧面的高阶而非断桥"},
+            {"先打开排气口再恢复炉火","先加煤压过异响","封死通风口保温"},
+            {"封闭侧门防止平民入城","把药品调去前线阵地","打开侧门，沿旧线转移伤员"},
+            {"跟着海上移动的渔火","用岸边两盏不动的灯定位","熄灭所有岸灯"},
+            {"对准热浪里最亮的高塔","对齐真实山影，避开海市蜃楼","转动镜面对准太阳本身"},
+            {"在背风低钟回应行人","敲迎风高钟让声音散入雪原","不敲钟，原地等到天黑"}
+        };
+        private static readonly string[,] biomeAnswersEn={
+            {"Count incoming wagons","Visit every doorstep and deliver the missing food","Lock surplus rations back in storage"},
+            {"Follow snapped branches away from hunters' fires","Take the trap-lined shortcut","Follow only the deepest footprints"},
+            {"Wade into the deep channel","Wait until the steps wash away","Use the high side stairs, not the broken bridge"},
+            {"Vent the furnace before relighting","Add coal to drown out the warning","Seal all vents to retain heat"},
+            {"Lock the side door against civilians","Move medicine to the front line","Open the side door and evacuate the injured"},
+            {"Follow drifting fishing lights","Navigate by two fixed shore lamps","Extinguish the shore beacons"},
+            {"Aim toward the brightest shimmering tower","Align with the real mountain's shadow","Point the mirror directly at the sun"},
+            {"Answer at the low leeward bell","Ring the high windward bell into the blizzard","Remain still until night"}
+        };
+        private static readonly int[] biomeCorrect={1,0,2,0,2,1,1,0};
+        public int BiomeFieldNotes
+        {
+            get{int total=0;for(int i=0;i<8;i++)
+                if(Has("biome_field_done_"+i))total++;
+                return total;}
+        }
+        public bool BiomeFieldDone
+        {get{return save.room>=0&&save.room<8&&
+            Has("biome_field_done_"+save.room);}}
+        public bool BiomeFieldStarted
+        {get{return save.room>=0&&save.room<8&&
+            Has("biome_field_read_"+save.room);}}
+        public Point BiomeFieldNextTarget
+        {
+            get
+            {
+                if(save.room<0||save.room>=8)return new Point();
+                string id="biome"+(BiomeFieldStarted?"Answer":"Survey")+save.room;
+                foreach(WorldObject o in Map.objects)
+                    if(o.id==id)return new Point(o.x,o.y);
+                return new Point();
+            }
+        }
+        private bool TalkBiomeField(WorldObject o)
+        {
+            if(o==null||(o.kind!="biomeSurvey"&&o.kind!="biomeAnswer"))
+                return false;
+            if(save.room<0||save.room>=8||!SourceBelongsToActiveMap(o)||
+               !HasPhysicalInteractionReach(o)||!CanStand(Position))return true;
+            int region=save.room;
+            if(o.id!="biome"+(o.kind=="biomeSurvey"?"Survey":"Answer")+region)
+                return true;
+            if(BiomeFieldDone)
+            {
+                Dialog(o.name,o.en,
+                    "你已经把这片土地的两份证据写进了公共探路册。路线由后来人自己选择，不再只有一条生硬的地图直线。",
+                    "Both field testimonies are now in the shared wayfinder journal. Future travelers may choose their own safe route.",
+                    C("收起记录","Close the journal","close"));
+                return true;
+            }
+            if(o.kind=="biomeSurvey")
+            {
+                Dialog(o.name,o.en,
+                    biomeOpeningZh[region]+"\\n\\n亲眼看过这处标记后，才能到远端比对真正的答案。",
+                    biomeOpeningEn[region]+"\\n\\nRead this marker in person, then travel across the region to test its meaning.",
+                    BiomeFieldStarted?C("已经记下","Already recorded","close"):
+                        C("抄下当地线索","Copy local field evidence","biome_note"),
+                    C("以后再来","Not yet","close"));
+                return true;
+            }
+            if(!BiomeFieldStarted)
+            {
+                Dialog(o.name,o.en,
+                    "远处的答案不能替代亲眼看过的第一处现场。先找到本地区的旧探路标记。",
+                    "The final answer is no substitute for examining the first landmark in person. Find the original field post.",
+                    C("返回寻找","Search the first site","close"));
+                return true;
+            }
+            Dialog(o.name,o.en,
+                biomeFinalZh[region]+"\\n\\n把前后两处证据放在一起，下一位旅人该怎样行动？答错会消耗6点耐力重新核对现场。",
+                biomeFinalEn[region]+"\\n\\nCompare both original sites. What should the next traveler do? A wrong interpretation costs 6 stamina to reassess.",
+                C(biomeAnswersZh[region,0],biomeAnswersEn[region,0],"biome_pick_0"),
+                C(biomeAnswersZh[region,1],biomeAnswersEn[region,1],"biome_pick_1"),
+                C(biomeAnswersZh[region,2],biomeAnswersEn[region,2],"biome_pick_2"),
+                C("暂时不判断","Consider later","close"));
+            return true;
+        }
+        private bool ChooseBiomeField(string action)
+        {
+            if(action!="biome_note"&&!action.StartsWith("biome_pick_",StringComparison.Ordinal))
+                return false;
+            WorldObject site=pendingDialogueSource;
+            if(mode!="world"||Dying||practicing||save.room<0||
+               save.room>=8||site==null||
+               !SourceBelongsToActiveMap(site)||
+               !HasPhysicalInteractionReach(site)||!CanStand(Position))
+                return true;
+            int room=save.room;
+            if(action=="biome_note")
+            {
+                if(site.kind!="biomeSurvey"||site.id!="biomeSurvey"+room||
+                   BiomeFieldStarted||BiomeFieldDone)return true;
+                Flag("biome_field_read_"+room);
+                RecordMoment(biomeOpeningZh[room],biomeOpeningEn[room]);
+                revision++;sound="quest";
+                Notify("第一份实地线索已记录。去本地区远端寻找对应的证据。",
+                    "First field clue recorded. Explore the distant matching site.");
+                return true;
+            }
+            if(site.kind!="biomeAnswer"||site.id!="biomeAnswer"+room||
+               !BiomeFieldStarted||BiomeFieldDone)return true;
+            int selected;
+            if(!int.TryParse(action.Substring("biome_pick_".Length),out selected)||
+               selected<0||selected>2)return true;
+            if(selected!=biomeCorrect[room])
+            {
+                if(save.energy<6f)
+                {
+                    Notify("现在没有足够的耐力重新核对。休息后再判断。",
+                        "Not enough stamina to reassess. Rest before trying again.");
+                    return true;
+                }
+                save.energy-=6f;revision++;sound="alert";
+                Notify("两处实地记录并不支持这个做法。耗费6耐力重新读一遍。",
+                    "That answer contradicts the two physical records. Spend 6 stamina and reconsider.");
+                return true;
+            }
+            Flag("biome_field_done_"+room);
+            CreditCoins(24);CreditShards(1);AddXp(40);
+            RecordMoment(biomeFinalZh[room]+" "+biomeAnswersZh[room,selected]+"。",
+                biomeFinalEn[room]+" "+biomeAnswersEn[room,selected]+".");
+            revision++;sound="reward";
+            Notify("本地区实地调查完成：硬币24、碎片1、经验40。全部八地区可汇成公共探路册。",
+                "Regional fieldwork complete: 24 coins, 1 shard, 40 XP. All eight regions build the public wayfinder atlas.");
+            if(BiomeFieldNotes==8&&!Has("biome_field_atlas"))
+            {
+                Flag("biome_field_atlas");CreditSkillPoints(1);CreditShards(3);
+                RecordMoment(
+                    "八条不同的道路终于汇成一册共同的地图。每一条线都有人走过、证实过，而不是只用同样的方格复制。",
+                    "Eight distinct, walked and checked routes form a shared public atlas—not eight copies of the same empty grid.");
+                Notify("八地区公共探路册完成！额外技能点1、碎片3。",
+                    "All-region atlas complete! Bonus 1 talent point and 3 shards.");
+            }
+            return true;
+        }
         // A prepared signal fire creates a real, localized protective perimeter
         // around an EXISTING, visited outdoor camp. It cannot be carried
         // across regions or save slots and is not a free global shield.

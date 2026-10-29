@@ -4079,6 +4079,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkBiomeField(o)) return;
             if (TalkSeventhBed(o)) return;
             if (TalkBridgeOfChords(o)) return;
             if (TalkGlassLedger(o)) return;
@@ -4836,6 +4837,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseBiomeField(action)) return;
             if (ChooseSeventhBed(action)) return;
             if (ChooseBridgeOfChords(action)) return;
             if (ChooseGlassLedger(action)) return;
