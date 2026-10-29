@@ -6947,8 +6947,8 @@
           "name": "被封死的货车转辙台",
           "en": "Sealed Freight Switch",
           "kind": "mineGhostTrain",
-          "x": 101.5,
-          "y": 68.5,
+          "x": 103.5,
+          "y": 72.5,
           "lore": -1
         },
         {
