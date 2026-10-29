@@ -176,5 +176,40 @@ namespace Starfall.Tests
                     (x.id==first.id||x.id==second.id))==null,
                 "Live mission raiders never leak into normal serialized world patrols");
         }
+        public static void FatalLookoutWatchNeverSurvivesSlotReloadOrPaysPhantomReward(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;g.enemies.Clear();
+            WorldObject lookout=Array.Find(g.Map.objects,
+                o=>o.kind=="farlookout");
+            Check(lookout!=null&&PlaceWithinTalkReach(g,lookout),
+                "Real map contains the original Thornwood lookout");
+            g.Talk(lookout);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="vantage_begin");
+            Check(begin>=0,"Existing lookout offers a real watch");
+            g.Choose(begin);
+            Check(g.VantageWatchActive&&g.enemies.Count==2,
+                "Live watch creates exactly two original actual enemy actors");
+            var guide=g.GetQuest("vantage_watches");
+            Check(guide.steps.Count==8&&guide.room==g.save.room&&
+                (guide.target-g.enemies[0].Position).Length<.01f&&
+                (g.NavigationTarget().Value-guide.target).Length<.01f,
+                "Real journal and combat compass guide to an original living fighter");
+            var hostile=g.enemies.ToArray();
+            g.PrepareSave();
+            Check(g.save.worldEnemies!=null&&
+                Array.Find(g.save.worldEnemies,
+                    e=>e!=null&&(e.id==hostile[0].id||e.id==hostile[1].id))==null,
+                "An in-flight optional watch cannot be serialized as ordinary enemies");
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                !restored.VantageWatchActive&&!restored.VantageWatchBuilt(1),
+                "Loading an old v2 save cannot resume a phantom transient watch");
+            g.save.health=0f;
+            g.Tick(.05f,new Point());
+            Check(!g.VantageWatchActive&&!g.VantageWatchBuilt(1)&&
+                g.VantageWatchWins==0,
+                "Lethal world interruption destroys all original watch ownership without earning a reward");
+        }
     }
 }
