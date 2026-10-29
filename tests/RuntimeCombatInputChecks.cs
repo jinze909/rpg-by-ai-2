@@ -12107,6 +12107,10 @@ public static class RuntimeCombatInputChecks
         Check(g.BiomeFieldStarted&&g.mode=="world"&&
             !g.BiomeFieldDone,
             "Actual dialogue grants only first-clue progress, no free reward");
+        GUI.commands.Clear();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("FIELD EVIDENCE"))&&
+            GUI.commands.Exists(x=>x.Contains("tiles direct")),
+            "Shipped GameView displays a real long-distance direction and range after the physical first note");
         g.save.x=last.x;g.save.y=last.y;
         Set(app,"camera",g.Position);
         GUI.commands.Clear();Call(app,"OnGUI");
@@ -12125,10 +12129,25 @@ public static class RuntimeCombatInputChecks
         Check(g.BiomeFieldDone&&g.BiomeFieldNotes==1,
             "A correct genuinely sourced choice earns precisely this region's reward");
         GUI.commands.Clear();Call(app,"OnGUI");
-        Check(!GUI.commands.Exists(x=>x.Contains("FIELD INTERPRETATION")),
-            "Resolved original monument retires active choice cue without deleting the real prop");
+        Check(!GUI.commands.Exists(x=>x.Contains("FIELD INTERPRETATION"))&&
+            GUI.commands.Exists(x=>x.Contains("FIELD RELAY · 3C / 12ST")),
+            "Resolved monument becomes a real rendered paid travel station rather than inert scenery");
+        Set(app,"camera",g.Position);
+        Input.Clear();Input.keys.Add(KeyCode.E);
+        Update(app);
+        Check(g.mode=="dialog"&&g.conversation!=null&&
+            g.conversation.speaker==last.name,
+            "Actual E opens the earned remote relay at the same witness");
+        int ferry=Array.FindIndex(g.conversation.choices,
+            c=>c.action=="biome_relay");
+        Check(ferry>=0,"Earned world marker now offers genuine return travel");
+        g.enemies.Clear();g.save.coins=50;g.save.energy=100f;
+        g.Choose(ferry);
+        Check((g.Position-new Point(first.x,first.y)).Length<2f&&
+            g.save.coins==47&&Math.Abs(g.save.energy-88f)<.001f,
+            "E at the finished far field stone actually rides the safe long route and pays once");
         Console.WriteLine(
-            "PASS live Thornwood fieldwork original source, E interactions, remote interpretation and depth GameView");
+            "PASS live Thornwood fieldwork E, directional GameView, earned relay, paid real return");
     }
 
     private static void LiveHearthInnSeventhBedUsesRealEAndGameViewEvidence(FrontierRuntime app)
