@@ -151,93 +151,59 @@ namespace Starfall
                 !IsEnemyInvestigatingImpact(e)&&
                 !IsEnemyReturningFromImpact(e);
         }
-        // World encounters occupy the authored breadth of each 120x80 region,
-        // not eight copies of the same 30x20 opening. A full footprint BFS
-        // rejects disconnected islands, sealed gates, high tide and house
-        // collision; no enemy teleports through a wall to fill a sector.
-        // Fixed sector anchors are rotated per biome, not generated with RNG:
-        // existing v2 encounter IDs and save-slot reproducibility survive.
-        private int SpawnRegionalEncounterRoster(int count,float health)
+        // Distant wilderness patrols are OPTIONAL local challenges invoked
+        // only by the actual field-survey transaction. They must not move
+        // the old campaign's mandatory room roster out of reach, nor turn
+        // a distant core-Boss gate into a whole-map hunting chore.
+        private int SpawnRegionalScoutEncounter(WorldObject site)
         {
-            int w=Map.rows[0].Length,h=Map.rows.Length;
-            if(w<40||h<30)return 0;
-            bool[] reached=new bool[w*h];
-            int[] queue=new int[w*h];
-            int sx=(int)Math.Floor(Map.spawnX);
-            int sy=(int)Math.Floor(Map.spawnY);
-            if(sx<0||sy<0||sx>=w||sy>=h||
-               !CanStand(new Point(sx+.5f,sy+.5f)))return 0;
-            int start=sy*w+sx,front=0,end=0;
-            queue[end++]=start;reached[start]=true;
-            int[] dirX={1,-1,0,0},dirY={0,0,1,-1};
-            while(front<end)
-            {
-                int node=queue[front++],x=node%w,y=node/w;
-                for(int d=0;d<4;d++)
-                {
-                    int xx=x+dirX[d],yy=y+dirY[d];
-                    if(xx<2||yy<2||xx>=w-2||yy>=h-2)continue;
-                    int next=yy*w+xx;
-                    if(reached[next]||!CanStand(new Point(xx+.5f,yy+.5f)))continue;
-                    reached[next]=true;queue[end++]=next;
-                }
-            }
-            int[,] anchors={
-                {11,12},{21,16},{47,16},{79,13},
-                {106,29},{94,57},{56,68},{20,59}
+            if(site==null||site.kind!="biomeSurvey"||save.room<1||
+               save.room>7||!SourceBelongsToActiveMap(site)||
+               !HasPhysicalInteractionReach(site))return 0;
+            int room=save.room;
+            int count=(room==2||room==3||room==6)?3:2;
+            int[,] directions={
+                {1,0},{0,1},{-1,0},{0,-1},
+                {1,1},{-1,1},{-1,-1},{1,-1}
             };
-            int placed=0;
-            for(int i=0;i<count&&i<8;i++)
+            int spawned=0;
+            Point source=new Point(site.x,site.y);
+            for(int i=0;i<count;i++)
             {
-                int ax=anchors[i,0],ay=anchors[i,1];
-                if(i>=2)
-                {
-                    // Different regions get differently placed threat fronts.
-                    ax+=(save.room*7+i*3)%11-5;
-                    ay+=(save.room*5+i*7)%11-5;
-                }
-                Point candidate=new Point();
                 bool found=false;
-                for(int radius=0;radius<=14&&!found;radius++)
-                for(int dy=-radius;dy<=radius&&!found;dy++)
-                for(int dx=-radius;dx<=radius&&!found;dx++)
+                for(int radius=7;radius<=12&&!found;radius++)
+                for(int shift=0;shift<8&&!found;shift++)
                 {
-                    if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
-                    int x=ax+dx,y=ay+dy;
-                    if(x<3||y<3||x>=w-3||y>=h-3||
-                       !reached[y*w+x])continue;
-                    Point foot=new Point(x+.5f,y+.5f);
-                    if((foot-new Point(Map.spawnX,Map.spawnY)).Length<6f||
-                       !CanStand(foot))continue;
-                    // The four adjacent feet must also be traversable,
-                    // giving an actual dodge, flank or escape lane.
-                    int exits=0;
-                    for(int d=0;d<4;d++)
-                        if(CanStand(new Point(x+dirX[d]+.5f,
-                            y+dirY[d]+.5f)))exits++;
-                    if(exits<3)continue;
-                    bool protectedSite=false;
+                    int direction=(room*2+i*3+shift)%8;
+                    float dx=directions[direction,0],dy=directions[direction,1];
+                    Point p=new Point((float)Math.Floor(source.x)+.5f+dx*radius,
+                        (float)Math.Floor(source.y)+.5f+dy*radius);
+                    if(!CanStand(p)||!ClearAttackPath(source,p)||
+                       (p-Position).Length<5f)continue;
+                    bool obstructed=false;
                     foreach(WorldObject o in Map.objects)
-                        if((foot-new Point(o.x,o.y)).Length<5.5f)
-                        {protectedSite=true;break;}
-                    if(protectedSite)continue;
-                    foreach(Enemy other in enemies)
-                        if(other!=null&&other.hp>0&&
-                           (other.Position-foot).Length<7f)
-                        {protectedSite=true;break;}
-                    if(protectedSite)continue;
-                    candidate=foot;found=true;
+                        if((new Point(o.x,o.y)-p).Length<4.5f)
+                        {obstructed=true;break;}
+                    foreach(Enemy e in enemies)
+                        if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
+                        {obstructed=true;break;}
+                    if(obstructed)continue;
+                    Enemy patrol=CreatePlacedEnemy(++enemyId,
+                        (room+i*2)%3,p,30+room*10);
+                    enemies.Add(patrol);
+                    // Only optional physically sourced side patrols can
+                    // sleep outside their local combat district.
+                    regionalAmbientEnemies.Add(patrol);
+                    spawned++;found=true;
                 }
-                if(!found)continue;
-                // Rotate the existing real monster archetypes by biome and
-                // encounter band; never create HUD-only or duplicated foes.
-                int kind=(save.room+i*2+i/3)%3;
-                Enemy encounter=CreatePlacedEnemy(++enemyId,kind,candidate,health);
-                enemies.Add(encounter);
-                regionalAmbientEnemies.Add(encounter);
-                placed++;
             }
-            return placed;
+            if(spawned>0)
+            {
+                revision++;sound="alert";
+                Notify("远端地标的动静惊动了本地巡逻敌人。它们只守这片区域，不会横穿整张地图追击。",
+                    "Your fieldwork draws a local patrol. These raiders hold this district rather than chasing you across the whole region.");
+            }
+            return spawned;
         }
         private Enemy CreatePlacedEnemy(int id, int kind, Point proposed, float health, bool boss = false)
         {

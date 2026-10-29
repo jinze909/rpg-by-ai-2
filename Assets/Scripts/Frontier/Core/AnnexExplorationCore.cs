@@ -154,6 +154,10 @@ namespace Starfall
                    BiomeFieldStarted||BiomeFieldDone)return true;
                 Flag("biome_field_read_"+room);
                 RecordMoment(biomeOpeningZh[room],biomeOpeningEn[room]);
+                // Only visiting a new real field site can awaken its
+                // additional local encounter; passive map browsing or
+                // unrelated story progression never spawns extra monsters.
+                SpawnRegionalScoutEncounter(site);
                 revision++;sound="quest";
                 Notify("第一份实地线索已记录。去本地区远端寻找对应的证据。",
                     "First field clue recorded. Explore the distant matching site.");

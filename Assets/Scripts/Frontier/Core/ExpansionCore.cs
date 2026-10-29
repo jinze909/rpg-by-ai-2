@@ -514,9 +514,15 @@ namespace Starfall
                 PrepareSave();
                 return true;
             }
-            // The distant shores use the same walkable, source-aware
-            // regional sectors as the early regions, not duplicate starts.
-            SpawnRegionalEncounterRoster(7,42+(save.room-5)*12);
+            // Preserve the original seven progression-room enemies.
+            // Outer biome monuments independently host voluntary local
+            // patrols instead of moving these mandatory fights far away.
+            float[,] spots = { { 11, 12 }, { 15, 17 }, { 21, 15 },
+                { 24, 6 }, { 9, 7 }, { 30, 16 }, { 23, 19 } };
+            for(int i=0;i<7;i++)
+                enemies.Add(CreatePlacedEnemy(++enemyId,i%3,
+                    new Point(spots[i,0],spots[i,1]),
+                    42+(save.room-5)*12));
             return true;
         }
         public void PrepareSave()
