@@ -213,6 +213,7 @@ namespace Starfall
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
             bool watchRestraint=OnVantageWatchEnemyRestrained(target);
+            bool chapterRestraint=OnChapterRoadEnemyRestrained(target);
             bool courierRestraint=OnFarCourierEnemyRestrained(target);
             effects.Add(new Effect("burst",target.Position,.65f)
                 {radius=.85f,variant=0});
@@ -228,7 +229,10 @@ namespace Starfall
                     "A field snare stopped a raider. The traveler secured the knot and left a living captive rather than adding another name to the dead.");
             }
             sound="counter";revision++;
-            if(watchRestraint)
+            if(chapterRestraint)
+                Notify("本章居民行动：真实袭击者已被绊索活捉，继续护送并在终点签收。",
+                    "Chapter route: real attacker restrained alive. Continue to the original handoff.");
+            else if(watchRestraint)
                 Notify("远端观测站：一名真实袭击者已被绊索活捉，回原站登记。",
                     "Lookout watch: one original raider captured alive. Return to sign at the original station.");
             else if(courierRestraint)

@@ -404,7 +404,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -678,6 +678,12 @@ namespace Starfall
         // intentionally omitted: leaving cancels their transient progress.
         private bool BlockTravelForProtectedFieldMission(bool fastTravel, bool earlyOnly = false)
         {
+            if(ChapterRoadActive)
+            {
+                Notify("本章的居民现场行动还未结束。请抵达原始签收点，或返回出发路标主动撤回。",
+                    "This chapter's civilian route is live. Reach its original handoff or withdraw at the starting marker.");
+                return true;
+            }
             if(VantageWatchActive)
             {
                 Notify("远端观测站仍有真实守望战斗，先回原站结算或主动撤回。",
@@ -1059,6 +1065,7 @@ namespace Starfall
                 // raiders immediately instead of leaving a dead mission
                 // waiting for a future world tick or slot load.
                 TickVantageWatch(0f);
+                TickChapterRoad(0f);
                 deathTime -= dt;
                 if (deathTime <= 0) CompleteDeath();
                 return;
@@ -1164,6 +1171,7 @@ namespace Starfall
             // raiders before the normal death early-return. Never carry
             // their actor references into a new slot or scene.
             TickVantageWatch(dt);
+            TickChapterRoad(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
             TickFieldPatrol();
@@ -1706,6 +1714,7 @@ namespace Starfall
             OnFieldPatrolEnemyDefeated(e);
             OnFieldOutpostEnemyDefeated(e);
             OnVantageWatchEnemyDefeated(e);
+            OnChapterRoadEnemyDefeated(e);
             OnGhostTrainEnemyDefeated(e);
             OnOuterPatrolEnemyDefeated(e);
             OnAfterlightWatchEnemyDefeated(e);
@@ -1729,7 +1738,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -3870,7 +3879,10 @@ namespace Starfall
                     AppendStoryBridgeChoice();
                 if (mode == "dialog" && conversation != previousConversation &&
                     o.kind == "guild")
+                {
                     AppendGuildSupplyReceiptChoice();
+                    AppendChapterRoadGuildChoice(o);
+                }
                 // This applies regardless of which preexisting shelter
                 // conversation owns the source (civic duties included).
                 if(mode=="dialog"&&conversation!=previousConversation&&
@@ -4176,6 +4188,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkChapterRoad(o)) return;
             if (TalkGhostTrain(o)) return;
             if (TalkRidgeBreach(o)) return;
             if (TalkRidgeEcho(o)) return;
@@ -4711,7 +4724,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return VantageWatchActive || FieldDispatchActive || FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return ChapterRoadActive || VantageWatchActive || FieldDispatchActive || FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4946,6 +4959,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseChapterRoad(action)) return;
             if (ChooseVantageWatch(action)) return;
             if (ChooseGhostTrain(action)) return;
             if (ChooseRidgeBreach(action)) return;

@@ -1459,6 +1459,35 @@ namespace Starfall
                         12,new Color(.97f,.4f,.32f),TextAnchor.MiddleCenter);
                 return;
             }
+            if(kind=="chapterroad")
+            {
+                int room=Game.save.room,slot=Game.ChapterRoadNodeIndex(o);
+                bool done=Game.ChapterRoadDone(room);
+                bool live=Game.ChapterRoadActive;
+                bool next=live&&Game.ChapterRoadStage==slot+1;
+                Color ink=done?mint:next?gold:
+                    live?new Color(.63f,.85f,1f):new Color(.95f,.72f,.39f);
+                PropImage(slot==0?"post":slot==1?
+                    (room==3?"ruin":"obelisk"):
+                    room==1?"barrel":room==2?"post":"bookshelf",
+                    0,p.x-34,p.y-78,68,83,
+                    done?new Color(.72f,.9f,.82f,.9f):Color.white);
+                Ring(new Point(o.x,o.y),next?.7f:.46f,ink,22);
+                if(next||!done&&slot==0)
+                    Diamond(p.x,p.y-82,next?7:5,ink);
+                Text(p.x-107,p.y-109,214,20,
+                    done?Game.L("本章居民行动完成 ✓","CHAPTER ROUTE COMPLETE ✓"):
+                    live?Game.L(Game.ChapterRoadStage==2?
+                        "道路遭袭 · 剩余"+Game.ChapterRoadRemaining+"名":
+                        next?"真实路线目标 · 按 E":"沿路寻找下一证据",
+                        Game.ChapterRoadStage==2?
+                        "AMBUSH · "+Game.ChapterRoadRemaining+" REMAIN":
+                        next?"REAL ROUTE TARGET · E":"FOLLOW THE NEXT CLUE"):
+                    Game.L(slot==0?"主线事件 · 按 E":"实地调查记录",
+                        slot==0?"STORY EVENT · E":"FIELD EVIDENCE"),
+                    11,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="farcheck")
             {
                 bool verified=Game.FarCourierStamped;
