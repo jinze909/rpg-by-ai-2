@@ -10,6 +10,9 @@ namespace Starfall.Tests
             var g=new GameCore(data);g.save.room=0;
             g.enemies.Clear();
             g.save.flags.Add("far_bridge_0");
+            // A built real refuge requires its original dial calibration.
+            // Courier menus work without it, but the normal rest NPC does not.
+            g.save.flags.Add("far_dial_0");
             g.save.flags.Add("far_shelter_0");
             g.save.inventory[0]=12;g.save.inventory[4]=12;
             g.save.energy=100f;
