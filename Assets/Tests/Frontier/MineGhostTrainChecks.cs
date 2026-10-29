@@ -341,8 +341,8 @@ namespace Starfall.Tests
                 "Cannot ride without real coins: no teleport and no hidden fee");
             // Combat safety is source-bound, including a live hostile actor.
             g.save.coins=20;g.save.energy=90;
-            g.enemies.Add(new Enemy{hp=80f,x=dispatch.x+1.5f,
-                y=dispatch.y,kind=0});
+            g.enemies.Add(new Enemy(123456,0,dispatch.x+1.5f,
+                dispatch.y,80f));
             GhostWalk(g,dispatch);
             GhostChoice(g,"ghost_train_ride_switch");
             Check((g.Position-stay).Length<.01f&&g.save.coins==20,

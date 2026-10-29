@@ -1038,7 +1038,11 @@ namespace Starfall
                             "TRUE RAIL BATTLE · "+Game.GhostTrainEnemiesLeft+
                                 " GUARDS":
                             "TRAIN SEVENTEEN · LIVE SITE "+stage+"/4"):
-                        Game.L(o.name,o.en),
+                        Game.GhostTrainFreight&&
+                        o.id!="mine_ghost_manifest"?
+                            Game.L("第十七趟车 · 客运站",
+                                "TRAIN 17 · PASSENGER STOP"):
+                            Game.L(o.name,o.en),
                     10,ink,TextAnchor.MiddleCenter);
                 return;
             }

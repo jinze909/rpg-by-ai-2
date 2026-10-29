@@ -1415,7 +1415,19 @@ namespace Starfall
                         (xy-Game.GhostTrainTarget).Length<.01f;
                     Color shade=current?gold:
                         Game.GhostTrainComplete?mint:muted;
+                    bool railStation=Game.GhostTrainFreight&&
+                        (story.id=="mine_ghost_dispatch"||
+                         story.id=="mine_ghost_switch"||
+                         story.id=="mine_ghost_medbay");
                     Frame(px-5,py-5,10,10,shade);
+                    if(railStation)
+                    {
+                        Frame(px-9,py-9,18,18,gold);
+                        Text(px-12,py-22,24,12,
+                            story.id=="mine_ghost_dispatch"?"1":
+                            story.id=="mine_ghost_medbay"?"2":"3",
+                            10,gold,TextAnchor.MiddleCenter);
+                    }
                     if(current)
                     {
                         Frame(px-10,py-10,20,20,gold);
@@ -1427,10 +1439,10 @@ namespace Starfall
                     Game.GhostTrainComplete?
                         Game.L(Game.GhostTrainPublic?
                             "第十七趟列车 · 17人名册公开":
-                            "第十七趟列车 · 民用铁路已复工",
+                            "第十七趟列车 · 三站客运 · 2币/10耐力",
                             Game.GhostTrainPublic?
                             "TRAIN 17 · WORKER NAMES RESTORED":
-                            "TRAIN 17 · PUBLIC RAIL REOPENED"):
+                            "TRAIN 17 · 3 STOPS · 2C/10 ENERGY"):
                         Game.L("第十七趟列车 · 亲赴目标 "+
                             Game.GhostTrainChapter+"/4",
                             "TRAIN 17 · PHYSICAL OBJECTIVE "+

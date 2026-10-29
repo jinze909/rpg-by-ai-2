@@ -172,8 +172,8 @@ namespace Starfall
                     "\n\n“The inn now keeps a copy of those seventeen names. Noll can no longer call the wagon empty. The mine shelters have more medicine, though I wish the workers had never needed it.”":
                     "\n\n“旅店也抄下了那十七个人的名字。诺尔再不能说那趟车是空的了。矿场补给站多了药，可我宁可他们从未受过那些伤。”";
                 return english?
-                    "\n\n“Train seventeen came home on the repaired passenger siding. The workers will choose when to tell their own story. The mine paths are faster now; that is what a railway ought to do.”":
-                    "\n\n“第十七趟车终于走上了修好的载人侧线。工人们自己决定何时讲出名字。矿区的路变快了——铁路本来就该是送人回家的。”";
+                    "\n\n“Train seventeen came home on the repaired passenger siding. The workers will choose when to tell their own story. You can board at dispatch, the switchyard or the infirmary. The workers themselves decide when to tell their story.”":
+                    "\n\n“第十七趟车终于走上了修好的载人侧线。工人们自己决定何时讲出名字。调度台、转辙台和矿医站都能上车。工人们自己决定何时讲出名字。”";
             }
             if(GhostTrainChapter>=4)return english?
                 "\n\n“The infirmary has the missing workers' testimony. The journey isn't over until the survivors, not the dispatch office, decide what happens to their names.”":

@@ -1059,8 +1059,8 @@ namespace Starfall
                     GhostTrainPublic?
                         L("十七名矿工姓名已公开，矿场公共补给处现在有更好的治疗。",
                             "All seventeen names are public; mine shelters now heal more effectively."):
-                        L("民用载人侧线已恢复，矿区移动速度永久提高。",
-                            "Passenger rail is restored; mine travel is permanently faster."):
+                        L("民用载人侧线已恢复：到西侧调度台、南侧转辙台或北侧医护站乘客车，单程2硬币、10耐力；矿区速度亦永久提高。",
+                            "Passenger rail now runs between dispatch, the switchyard and the infirmary. Board on site for 2 coins and 10 energy; mine movement is also permanently faster."):
                     q.locked?
                         !CanEnter(3)&&save.room!=3?
                             L("先解锁赤铁矿场，再完成三处民用工程。",
@@ -1090,8 +1090,8 @@ namespace Starfall
                         L("带着幸存者证词返回调度台，决定公开名册还是恢复载人线。",
                             "Return to dispatch with testimony; publish the roster or restore passenger rail.");
                 q.reward=L(
-                    "经验125、技能点1、碎片2；公开姓名另得碎片1并强化矿场公共治疗，修复载人线另得25硬币与矿区速度+0.35",
-                    "125 XP, one talent and two shards; publication grants one additional shard and better mine shelter healing, or passenger rail grants 25 extra coins and +0.35 mine movement speed");
+                    "经验125、技能点1、碎片2；公开姓名另得碎片1并强化矿场公共治疗，修复载人线另得25硬币、矿区速度+0.35及三站客运(2币/10耐力)",
+                    "125 XP, one talent and two shards; publication adds one shard and better mine shelter healing, while rail adds 25 coins, +0.35 mine speed and three passenger stops (2 coins/10 energy per ride)");
                 return q;
             }
 
