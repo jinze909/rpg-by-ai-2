@@ -6796,6 +6796,67 @@ namespace Starfall.Tests
                 "Forest and frost maps do not reuse identical material clusters");
         }
 
+        // A world-scale map must not place every optional highland
+        // challenge in the identical southeast corner of every biome.
+        // This runs the REAL SpawnRidgeWildlife method against all seven
+        // shipped maps and exercises actual physical navigation.
+        public static void SevenRidgeWatchesActuallyOccupyDistinctReachableRegionalDistricts(Campaign data)
+        {
+            var spawn=typeof(GameCore).GetMethod("SpawnRidgeWildlife",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(spawn!=null,"Real shipped world patrol spawn hook must exist");
+            string[] signatures=new string[7];
+            for(int room=1;room<=7;room++)
+            {
+                GameCore game=new GameCore(data);
+                game.save.room=room;game.mode="world";
+                game.save.x=data.maps[room].spawnX;
+                game.save.y=data.maps[room].spawnY;
+                game.save.flags.Add("boss_"+room);
+                game.save.flags.Add("ridge_seen_"+room+"_0");
+                game.save.flags.Add("ridge_seen_"+room+"_1");
+                game.enemies.Clear();
+                spawn.Invoke(game,null);
+                var patrols=new List<Enemy>();
+                foreach(Enemy enemy in game.enemies)
+                    if(game.IsActiveRidgeWatchPatrol(enemy))
+                        patrols.Add(enemy);
+                Check(patrols.Count==3,
+                    "Each completed regional ridge must instantiate three real live bodies on reachable ground: region "+room);
+                for(int i=0;i<patrols.Count;i++)
+                {
+                    Point foot=patrols[i].Position;
+                    Check(game.CanStand(foot)&&
+                        (foot-new Point(data.maps[room].spawnX,
+                            data.maps[room].spawnY)).Length>40f,
+                        "Remote highland actors must not spawn in blocked footing or beside the entrance: region "+room);
+                    Check(game.NavigationPathFrom(
+                        new Point(data.maps[room].spawnX,
+                            data.maps[room].spawnY),foot,true).Count>0,
+                        "Original walkable road must reach the authentic remote patrol: region "+room);
+                    foreach(WorldObject site in data.maps[room].objects)
+                        Check((foot-new Point(site.x,site.y)).Length>=7f,
+                            "No live ridge ambush may occupy the interaction reach of an existing story site: region "+room);
+                    for(int j=0;j<i;j++)
+                        Check((foot-patrols[j].Position).Length>=25f,
+                            "One biome must contain THREE geographically distinct combat districts: region "+room);
+                }
+                signatures[room-1]=String.Join(";",
+                    patrols.ConvertAll(p=>p.Position.x.ToString("0")+
+                        ","+p.Position.y.ToString("0")).ToArray());
+                // Completed kills persist on original v2 flag schema.
+                game.save.flags.Add("ridge_watch_"+room+"_0");
+                Check(game.RidgeWatchProgress(room)==1&&
+                    !game.RidgeWatchComplete(room),
+                    "Moving a landmark cannot invalidate previously earned old-save patrol progress");
+            }
+            for(int i=0;i<signatures.Length;i++)
+                for(int j=i+1;j<signatures.Length;j++)
+                    Check(signatures[i]!=signatures[j],
+                        "Two biomes must not reuse the same three patrol places");
+        }
+
         public static void EightRidgeRoutesNeedBothPhysicalLandmarksAndSafeTravel(Campaign data)
         {
             for(int room=0;room<8;room++)

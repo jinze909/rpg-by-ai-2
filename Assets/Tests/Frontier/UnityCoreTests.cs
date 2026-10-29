@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void SevenHighlandWatchesSpreadAcrossDifferentWalkableBiomes() { CoreChecks.SevenRidgeWatchesActuallyOccupyDistinctReachableRegionalDistricts(Data()); }
         [Test] public void RealLocalNpcOffersDifferentActualRegionalJobs() { CoreChecks.RealCompanionLocalJobsOfferDistinctLiveQuestChoices(Data()); }
         [Test] public void GenuineCivicQuestFollowUpFromLocalCompanionHasOneExplicitTrackedDestination() { CoreChecks.PhysicalCompanionCouncilOnlyTracksRealActionableRegionalQuest(Data()); }
         [Test] public void BuiltSheltersChangeAuthenticCompanionConversationWithoutRepeatingRewards() { CoreChecks.FinishedRegionalWorkDoesNotOfferPhantomCompanionAssignment(Data()); }

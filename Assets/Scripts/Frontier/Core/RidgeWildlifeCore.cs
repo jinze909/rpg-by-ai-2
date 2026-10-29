@@ -308,7 +308,7 @@ namespace Starfall
                 !Object.ReferenceEquals(ridgeWatchMap,Map)||
                 RidgeWatchComplete(room))return 0;
             int count=0;
-            for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+            for(int i=0;i<RidgeWatchSiteCount;i++)
                 if(!Has("ridge_watch_"+room+"_"+i)&&
                     !ridgeWatchIds.ContainsValue(i))count++;
             return count;
@@ -317,10 +317,10 @@ namespace Starfall
         {
             if(room!=ridgeWatchRoom||save.room!=room||
                 !Object.ReferenceEquals(ridgeWatchMap,Map))return null;
-            for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+            for(int i=0;i<RidgeWatchSiteCount;i++)
                 if(!Has("ridge_watch_"+room+"_"+i)&&
                     !ridgeWatchIds.ContainsValue(i))
-                    return RidgeWildlifeSpawns[i];
+                    return RidgeWatchSite(room,i);
             return null;
         }
         // World snapshots reconstruct every Enemy object on Load. Retain
@@ -351,14 +351,14 @@ namespace Starfall
                     // A temporarily closed path can move the fallback patrol
                     // and allocate it a different ID. Rebind only a matching
                     // archetype close to its authentic clearing.
-                    for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                    for(int i=0;i<RidgeWatchSiteCount;i++)
                         if(!ridgeWatchIds.ContainsValue(i)&&
                            body.kind==(save.room+i)%3&&
                            Math.Abs(body.maxHp-(30+save.room*7+i*9))<.01f&&
-                           (body.Position-RidgeWildlifeSpawns[i]).Length<=4.25f)
+                           RidgeWatchSavedFootMatches(save.room,i,body.Position))
                         {index=i;break;}
                 }
-                if(index<0||index>=RidgeWildlifeSpawns.Length||
+                if(index<0||index>=RidgeWatchSiteCount||
                     ridgeWatchIds.ContainsValue(index))continue;
                 ridgeWatchIds[body.id]=index;
                 ridgeWatchActors[body.id]=body;
@@ -423,11 +423,41 @@ namespace Starfall
                 "Ridge watch complete: +28 coins, +1 shard, +40 XP; outer high-trail energy +2/sec.");
             sound="reward";revision++;
         }
-        private static readonly Point[] RidgeWildlifeSpawns = {
+        // Seven genuinely different physical patrol routes. The old three
+        // shared southeast coordinates made all outdoor regions repeat the
+        // same formation, leaving their northern and eastern roads empty.
+        // These authored 120x80 clearings are walkable and separated from
+        // existing original story interactions on the shipped maps.
+        private const int RidgeWatchSiteCount=3;
+        private static readonly Point[,] RegionalRidgeWatchSites={
+            {new Point(76.5f,16.5f),new Point(103.5f,67.5f),new Point(73.5f,58.5f)}, // Thornwood canopy, ravine and lower trail
+            {new Point(112.5f,22.5f),new Point(73.5f,58.5f),new Point(103.5f,64.5f)}, // Ruins floodwall, dry ridge and downstream
+            {new Point(79.5f,16.5f),new Point(73.5f,58.5f),new Point(112.5f,31.5f)}, // Ironreach lift, quarry and eastern rail
+            {new Point(67.5f,7.5f),new Point(112.5f,34.5f),new Point(67.5f,67.5f)}, // Citadel north battlement, east road and southern descent
+            {new Point(88.5f,13.5f),new Point(73.5f,58.5f),new Point(103.5f,67.5f)}, // Mistport high light, inland yard and south marsh
+            {new Point(79.5f,16.5f),new Point(112.5f,22.5f),new Point(73.5f,58.5f)}, // Glasswind north dune, east saltbank and basin
+            {new Point(76.5f,16.5f),new Point(103.5f,64.5f),new Point(67.5f,67.5f)} // Frostbell upper shelf, east pass and sheltered descent
+        };
+        private static readonly Point[] LegacyRidgeWatchSites={
             new Point(101.5f,61.5f),
             new Point(89.5f,67.5f),
             new Point(76.5f,66.5f)
         };
+        private static Point RidgeWatchSite(int room,int index)
+        {
+            return room>=1&&room<=7&&index>=0&&index<RidgeWatchSiteCount?
+                RegionalRidgeWatchSites[room-1,index]:
+                LegacyRidgeWatchSites[Math.Max(0,Math.Min(2,index))];
+        }
+        // Saved v2 world snapshots can still hold real living patrols at
+        // the historical shared coordinates. Recognize those bodies by
+        // existing archetype, HP, and physical foot before assigning identity.
+        // Do NOT teleport an ongoing patrol or silently award a kill.
+        private static bool RidgeWatchSavedFootMatches(int room,int index,Point foot)
+        {
+            return (foot-RidgeWatchSite(room,index)).Length<=4.25f||
+                (foot-LegacyRidgeWatchSites[index]).Length<=4.25f;
+        }
         // The last landmark and the guardian's defeat can each unlock this
         // hunt while the hero is STILL in the active scene. An idempotent
         // check avoids duplicating world enemies or replacing a mid-hunt
@@ -483,7 +513,7 @@ namespace Starfall
             {
                 ridgeWatchRespawnCheck=1.5f;
                 if(!RidgeWatchComplete(save.room))
-                    for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+                    for(int i=0;i<RidgeWatchSiteCount;i++)
                         if(!Has("ridge_watch_"+save.room+"_"+i))
                             TrySpawnRidgeWatchPatrol(i);
             }
@@ -499,7 +529,7 @@ namespace Starfall
                     enemy.releaseTime>.0001f||
                     RidgeWatchRespondsToAlarm(enemy)||
                     (Position-enemy.Position).Length<9f)continue;
-                Point anchor=RidgeWildlifeSpawns[index];
+                Point anchor=RidgeWatchSite(save.room,index);
                 // Returning combat enemies cannot be silently dragged across
                 // walls or snapped back to the authored anchor.
                 if((enemy.Position-anchor).Length>2.5f)continue;
@@ -536,11 +566,11 @@ namespace Starfall
         }
         private bool TrySpawnRidgeWatchPatrol(int index)
         {
-            if(index<0||index>=RidgeWildlifeSpawns.Length||
+            if(index<0||index>=RidgeWatchSiteCount||
                 save.room!=ridgeWatchRoom||
                 !Object.ReferenceEquals(Map,ridgeWatchMap)||
                 ridgeWatchIds.ContainsValue(index))return false;
-            Point anchor=RidgeWildlifeSpawns[index];
+            Point anchor=RidgeWatchSite(save.room,index);
             // Patrol sites are deliberately away from historical objectives.
             foreach(WorldObject site in Map.objects)
                 if((new Point(site.x,site.y)-anchor).Length<8f)return false;
@@ -580,7 +610,7 @@ namespace Starfall
             // Late-game patrols require BOTH real surveyed ridge bearings and
             // the original guardian's defeat; no old campaign roster changes.
             ridgeWatchRoom=save.room;ridgeWatchMap=Map;
-            for(int i=0;i<RidgeWildlifeSpawns.Length;i++)
+            for(int i=0;i<RidgeWatchSiteCount;i++)
                 TrySpawnRidgeWatchPatrol(i);
             ridgeWatchRespawnCheck=1.5f;
         }
