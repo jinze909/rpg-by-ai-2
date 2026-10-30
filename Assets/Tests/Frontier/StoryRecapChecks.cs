@@ -118,7 +118,7 @@ namespace Starfall.Tests
                 int slot=room==1?2:room==2?0:4;
                 // First offer a genuine field choice with room for recovery.
                 if(publicAid)g.save.inventory[slot]=9996;
-                else if(room==2)g.save.energy=70f;
+                else if(room==2)g.save.energy=60f;
                 else g.save.health=g.save.maxHealth-30f;
                 g.Talk(site);
                 Check(g.conversation!=null,
@@ -158,13 +158,13 @@ namespace Starfall.Tests
                     "The visit and unclaimed full-capacity aid cannot repeat");
                 g.Close();
                 if(publicAid)g.save.inventory[slot]=9996;
-                else if(room==2)g.save.energy=70f;
+                else if(room==2)g.save.energy=60f;
                 else g.save.health=g.save.maxHealth-30f;
                 NightShiftChoose(g,site,receipt);
                 Check(g.Has(receipt)&&g.save.moments.Count==moments+2&&
                     g.NightShiftReservedAidCount==0&&
                     (publicAid?g.save.inventory[slot]==9996+(room==3?1:2):
-                     room==2?g.save.energy==100f:
+                     room==2?g.save.energy==95f:
                      g.save.health==g.save.maxHealth-(30f-(room==1?24f:18f))),
                     "Returning with real need safely pays the original distinct aid");
                 g.PrepareSave();
@@ -227,6 +227,46 @@ namespace Starfall.Tests
                     c=>c.action=="nightshift_followup_1")<0&&
                     restored.save.moments.Count==claimedMoments,
                     "Deferred aid remains strictly once-only");
+            }
+        }
+
+        // A nearly-full inventory or nearly-full health bar must not silently
+        // discard the unused portion of a one-time reward.
+        public static void NightShiftPartialCapacityPreservesWholeGift(Campaign data)
+        {
+            for(int outcome=0;outcome<2;outcome++)
+            for(int room=1;room<=3;room++)
+            {
+                var g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("nightshift_started");
+                for(int i=1;i<=3;i++)g.save.flags.Add("nightshift_trace_"+i);
+                bool published=outcome==0;
+                g.save.flags.Add(published?"nightshift_public":"nightshift_private");
+                WorldObject site=NightShiftAt(g,room);
+                int slot=room==1?2:room==2?0:4;
+                if(published)g.save.inventory[slot]=room==3?9999:9998;
+                else if(room==2)g.save.energy=80f;
+                else g.save.health=g.save.maxHealth-1f;
+                g.Talk(site);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_followup_"+room)<0&&
+                    Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_visit_"+room)>=0,
+                    "Near-full resources cannot burn any portion of an irreplaceable gift");
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_visit_"+room));
+                Check(g.NightShiftReservedAidCount==1&&
+                    g.GetQuest("night_shift_aftercare").steps[room-1].done,
+                    "Full field receipt remains available with partially insufficient capacity");
+                if(published)g.save.inventory[slot]=room==3?9998:9997;
+                else if(room==2)g.save.energy=65f;
+                else g.save.health=g.save.maxHealth-(room==1?24f:18f);
+                NightShiftChoose(g,site,"nightshift_followup_"+room);
+                Check(g.NightShiftReservedAidCount==0&&
+                    (published?g.save.inventory[slot]==9999:
+                     room==2?g.save.energy==100f:
+                     g.save.health==g.save.maxHealth),
+                    "Returning with exactly enough room recovers every unit of the original gift");
             }
         }
 

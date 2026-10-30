@@ -576,9 +576,14 @@ namespace Starfall
         private bool NightShiftAidAtCapacity(int room)
         {
             if(room<1||room>3||!NightShiftComplete)return false;
+            // Require room for the COMPLETE gift. Claiming a 2-herb
+            // package with one free slot, or 24 HP with only 1 HP missing,
+            // must never throw away the remainder of a one-time reward.
             if(Has("nightshift_public"))
-                return save.inventory[room==1?2:room==2?0:4]>=9999;
-            return room==2?save.energy>=100f:save.health>=save.maxHealth;
+                return save.inventory[room==1?2:room==2?0:4]>
+                    9999-(room==3?1:2);
+            return room==2?save.energy>65f:
+                save.health>save.maxHealth-(room==1?24f:18f);
         }
         // Reporting all three physical field visits is a separate, optional
         // handoff to Lyra. Older completed story flags and v2 saves remain intact.
@@ -722,7 +727,7 @@ namespace Starfall
                             "\n\n回访已登记。一次性补给留在原处，等真正需要时再领取。":
                             "\n\n回访已登记。留存的一次性补给现在可以领取。"):
                     aidFull?
-                        "\n\n当前补给已满。可以先登记真实回访，让援助留在这里，以后再领。":
+                        "\n\n当前空间不足以完整领取援助。可以先登记真实回访，让补给留在这里，以后再领。":
                         "\n\n可领取一次性现场援助，领取时同时登记回访。";
                 string aidEn=delivered?
                     "\n\nThe one-time field aid has been collected. The record remains readable.":
@@ -731,7 +736,7 @@ namespace Starfall
                             "\n\nVisit recorded. Your one-time aid remains here until you need it.":
                             "\n\nVisit recorded. The reserved one-time aid is ready to collect."):
                     aidFull?
-                        "\n\nYour supplies are full. Sign the physical visit now and leave the aid here for later.":
+                        "\n\nNot enough room for the whole gift. Sign your visit now and leave the aid here for later.":
                         "\n\nCollect one-time aid and sign the physical field receipt.";
                 Dialog(o.name,o.en,storyZh+aidZh,storyEn+aidEn,
                     delivered?
@@ -896,15 +901,15 @@ namespace Starfall
                 if(NightShiftAidAtCapacity(station))
                 {
                     Notify(Has("nightshift_public")?
-                        "这类物资已满，援助保留在现场；先使用一些再来领取。":
+                        "背包空间不足以装下整份援助；补给仍在现场，先使用一些再来领取。":
                         station==2?
-                            "耐力已经满了，匿名援助会留到你真正需要时。":
-                            "生命已经满了，匿名援助会留到需要疗伤时。",
+                            "耐力尚不足以容纳整份援助，匿名补给会留到你真正需要时。":
+                            "当前伤势不足以用完整份援助，匿名补给会留到需要疗伤时。",
                         Has("nightshift_public")?
-                            "The matching supply stack is full. Use some and return; the field gift is reserved.":
+                            "The matching stack cannot hold the full gift. Use some and return; the field aid is reserved.":
                         station==2?
-                            "Energy is full. The anonymous gift stays here until needed.":
-                            "Health is full. The anonymous gift stays here until needed.");
+                            "There is not enough fatigue for the whole gift. Anonymous aid stays until needed.":
+                            "There is not enough missing health for the full gift. Anonymous aid stays until needed.");
                     return true;
                 }
                 // Credit only exact visit at the original field record.
