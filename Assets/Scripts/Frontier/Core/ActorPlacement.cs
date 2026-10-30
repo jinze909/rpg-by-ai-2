@@ -176,6 +176,25 @@ namespace Starfall
             }
             return reachable;
         }
+        // Major authored decoration uses a larger visual body than a single
+        // terrain pixel. A legal tile under a column, pine or wreck still
+        // makes a baseline monster appear embedded inside that prop in
+        // GameView. Reserve the prop's visual foot when *staging* enemies;
+        // leave existing player movement, saved actors and landmarks alone.
+        private static float RegionalDecorationEnemyPad(Decoration d)
+        {
+            if(d==null)return 0f;
+            switch(d.kind)
+            {
+                case "tree":case "snowpine":case "column":
+                case "obelisk":case "ruin":case "house":
+                case "lighthouse":case "tent":case "skiff":
+                    return 1.45f;
+                case "crystal":case "palm":case "boat":
+                case "barrel":return 1.1f;
+                default:return 0f;
+            }
+        }
         private bool RegionalBattleFootFree(Point foot,bool[] connected,
             bool expanded=false)
         {
@@ -202,6 +221,16 @@ namespace Starfall
                     float clearance=save.room>=1&&save.room<=4&&
                         obj.kind=="chapterroad"?4.2f:2f;
                     if(distance<clearance)return false;
+                }
+            // Decoration is visual cover, not a new hard wall: never
+            // alter a quest walk or stored enemy foot to fix this.
+            if(Map.decor!=null)
+                foreach(Decoration visual in Map.decor)
+                {
+                    float pad=RegionalDecorationEnemyPad(visual);
+                    if(pad>0f&&
+                        (foot-new Point(visual.x,visual.y)).Length<pad)
+                        return false;
                 }
             foreach(Enemy other in enemies)
                 if(other!=null&&other.hp>0&&

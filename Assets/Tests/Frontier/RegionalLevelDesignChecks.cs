@@ -176,6 +176,49 @@ namespace Starfall.Tests
             }
         }
 
+        // Rendering a monster over a ruin, house, wreck or tall pine
+        // looks like overlapping unfinished map props. The authored
+        // regional battles must keep their unchanged live counts while
+        // reserving the *visual* decoration feet, not block the tiles.
+        public static void RegionalBattleFightersNeverSpawnInsideMajorDecor(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.Enter(room);
+                int count=room<=2?6:room<=4?8:7;
+                Check(g.enemies.Count==count,
+                    "Visual readability cannot remove the existing mandatory actors");
+                foreach(Enemy enemy in g.enemies)
+                {
+                    Check(g.CanStand(enemy.Position)&&
+                        g.NavigationPathFrom(g.Position,enemy.Position,true).Count>0,
+                        "New visual clearance must keep every foe on a genuine accessible road");
+                    foreach(Decoration d in g.Map.decor)
+                    {
+                        float pad=0f;
+                        switch(d.kind)
+                        {
+                            case "tree":case "snowpine":case "column":
+                            case "obelisk":case "ruin":case "house":
+                            case "lighthouse":case "tent":case "skiff":
+                                pad=1.45f;break;
+                            case "crystal":case "palm":case "boat":
+                            case "barrel":pad=1.1f;break;
+                        }
+                        Check(pad==0f||
+                            (enemy.Position-new Point(d.x,d.y)).Length>=pad,
+                            "Room "+room+" battle actor must not appear inside "+d.kind+" at its physical visual foot");
+                    }
+                }
+                Check(g.save.version==2,
+                    "Decoration-aware encounter stage cannot migrate an old save");
+            }
+        }
+
         // The three outer regions are distinct optional battlefields, not
         // decoration pasted into the map. Check real story gates, original
         // seven-actor roster, E interaction and one-time saved mastery.
