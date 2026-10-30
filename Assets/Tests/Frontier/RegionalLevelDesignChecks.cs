@@ -439,6 +439,58 @@ namespace Starfall.Tests
             }
         }
 
+        // A legitimate exposed foe must stop offering a precision bonus
+        // after EIGHT SECONDS OF REAL WORLD TICKS, but the standard field
+        // trial remains solvable. The source can still sign the two kills
+        // without upgrading the report to a precision reward.
+        public static void FieldTacticFollowUpExpiresWithoutBlockingOrdinaryVictory(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Expiry test must use real combat strikes");
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject source=Array.Find(g.Map.objects,
+                o=>o.kind=="fielddevice"&&o.id=="field_tactic_1");
+            Check(source!=null&&PlaceWithinTalkReach(g,source),
+                "True physical device exists on the first chapter battlefield");
+            g.save.energy=100f;g.Talk(source);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(begin>=0,"The existing source offers an actual combat contract");
+            g.Choose(begin);
+            var assigned=g.enemies.ToArray();
+            Check(assigned.Length==2&&g.QuickActivateFieldTactic()&&
+                g.FieldTacticTrialChainSecondsLeft>7.9f,
+                "Real device begins the optional counter window");
+            // Preserve the actual world simulation/AI clock and hit-stop;
+            // do not claim time passes while reading menus.
+            g.save.health=10000f;g.save.maxHealth=10000f;
+            for(int frame=0;frame<200;frame++)
+                g.Tick(.05f,new Point());
+            Check(g.FieldTacticTrialActive&&
+                g.FieldTacticTrialChainSecondsLeft==0f&&
+                !g.FieldTacticTrialChainEarned,
+                "Ten seconds of true world ticks expire an eight-second bonus");
+            foreach(Enemy foe in assigned)
+                Check(!g.IsFieldTacticTrialComboTarget(foe),
+                    "No stale highlighted enemy may advertise an expired follow-up");
+            int before=g.save.shards;
+            foreach(Enemy foe in assigned)
+                hit.Invoke(g,new object[]{foe,600f,false,null,null});
+            Check(g.FieldTacticTrialReady&&!g.FieldTacticTrialChainEarned,
+                "Late physical kills clear the normal trial, but cannot claim a combo");
+            g.Close();g.Talk(source);
+            int report=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_report");
+            Check(report>=0,"A late standard clear still has a valid source receipt");
+            g.Choose(report);
+            Check(g.FieldTacticTrialDone(1)&&
+                g.save.shards==before+1&&!g.FieldTacticTrialActive,
+                "The expired follow-up signs exactly the ordinary first-clear shard");
+        }
+
         public static void FieldTacticTrialWaypointsFollowTheRequiredBattleStage(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
