@@ -6,6 +6,12 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        // Execute the same full production veteran battles under the native
+        // Unity Test Runner as well as the offline Mono CI harness.
+        [Test] public void VeteranPatrolsUseSevenRealRegionalCombatRoutes()
+        { CoreChecks.SevenVeteranFieldPatrolsRequireRealCombatAndPhysicalReports(Data()); }
+        [Test] public void VeteranMercyBadgeNeedsGenuineLiveSnares()
+        { CoreChecks.VeteranPatrolAllLivingRequiresRealSnaresAndPaysOnlyOnce(Data()); }
         [Test] public void NightShiftEndingActuallyChangesAllThreeFieldSites() { CoreChecks.NightShiftConsequencesPersistAtThreeRealFieldSites(Data()); }
         [Test] public void NightShiftMineAllowsPhysicalTimedValveOrOldPartOpening() { CoreChecks.NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Data()); }
         [Test] public void NightShiftTideTellsActualEbbFromBuildableFloodGauge() { CoreChecks.NightShiftRuinsRequiresRealEbbOrPhysicalTimber(Data()); }
