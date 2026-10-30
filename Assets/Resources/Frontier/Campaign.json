@@ -8332,8 +8332,8 @@
           "id": "field_tactic_5",
           "name": "雾港潮哨",
           "en": "Mistport foghorn",
-          "x": 27.5,
-          "y": 12.5,
+          "x": 19.5,
+          "y": 15.5,
           "kind": "fielddevice"
         }
       ],
