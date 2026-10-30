@@ -286,6 +286,13 @@ namespace Starfall
             if(!Finite(requested.x)||!Finite(requested.y)||
                 !Fits(origin))return origin;
             int width=Map.rows[0].Length,height=Map.rows.Length;
+            // Old saves outside the entire map are corrupt coordinates,
+            // not legitimate travelers displaced by one newly blocked tile.
+            // Return them to the original spawn as before: this also
+            // preserves custom small-arena fixtures and invalid-slot repair.
+            if(requested.x<2f||requested.y<2f||
+               requested.x>=width-2f||requested.y>=height-2f)
+                return origin;
             int count=width*height;
             var reachable=new bool[count];
             var queue=new int[count];
