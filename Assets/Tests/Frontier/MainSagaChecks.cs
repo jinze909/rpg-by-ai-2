@@ -801,6 +801,100 @@ namespace Starfall.Tests
                 restored.Has("saga_guard_scarred_5"),
                 "Both signed record condition and story remain v2 save compatible");
         }
+
+        public static void CompanionActuallyPrioritizesLiveEvidenceSabotage(Campaign data)
+        {
+            var flags=BindingFlags.NonPublic|BindingFlags.Instance;
+            var imminent=typeof(GameCore).GetMethod(
+                "CompanionCommittedWitnessStrike",flags);
+            var chosen=typeof(GameCore).GetMethod("NearestCompanionThreat",flags);
+            var flight=typeof(GameCore).GetMethod("CompanionAutoFlightLaneClear",flags);
+            var attackClock=typeof(GameCore).GetField("companionAttack",flags);
+            var tick=typeof(GameCore).GetMethod("TickCompanion",flags);
+            Check(imminent!=null&&chosen!=null&&flight!=null&&
+                attackClock!=null&&tick!=null,
+                "The production companion attack and live objective threat exist");
+            int checkedRooms=0;
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);g.save.flags.Add("saga_outer_"+room);
+                g.save.flags.Add("companion_1");
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "The original named witness is physically reachable");
+                g.Talk(npc);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Real on-map original story account exists");
+                g.Choose(account);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"The original witness launches the real raid");
+                g.Choose(begin);
+                Check(g.SagaGuardActive,"The live original record is in danger");
+                Enemy raider=g.enemies.Find(e=>e.kind!=1);
+                Check(raider!=null,"A real melee saboteur occupies this wave");
+                Point origin=new Point(npc.x,npc.y);
+                Point[] dirs={new Point(1,0),new Point(-1,0),
+                    new Point(0,1),new Point(0,-1),
+                    new Point(.7071f,.7071f),new Point(-.7071f,.7071f),
+                    new Point(.7071f,-.7071f),new Point(-.7071f,-.7071f)};
+                Point raiderFoot=new Point(),allyFoot=new Point(),
+                    heroFoot=new Point();
+                bool found=false;
+                foreach(Point dir in dirs)
+                {
+                    Point a=origin+dir*1.45f;
+                    Point ally=origin+dir*4.2f;
+                    Point hero=origin-dir*4.5f;
+                    if(!g.CanStand(a)||!g.CanStand(ally)||!g.CanStand(hero))
+                        continue;
+                    if(!(bool)flight.Invoke(g,new object[]{ally,1,a}))
+                        continue;
+                    raiderFoot=a;allyFoot=ally;heroFoot=hero;
+                    found=true;break;
+                }
+                if(!found)continue;
+                checkedRooms++;
+                g.save.companion=1;g.companionPosition=allyFoot;
+                g.save.x=heroFoot.x;g.save.y=heroFoot.y;
+                raider.x=raiderFoot.x;raider.y=raiderFoot.y;
+                raider.state=1;raider.timer=.4f;raider.windupDuration=.65f;
+                raider.stun=raider.hitTime=raider.stagger=raider.releaseTime=0f;
+                raider.target=origin;raider.targetingSagaGuardEvidence=true;
+                Check((bool)imminent.Invoke(g,new object[]{raider}),
+                    "Unblocked live attack is identified as an ally-intercept opportunity");
+                Check(Object.ReferenceEquals(chosen.Invoke(g,null),raider),
+                    "The protector prioritizes the actual original-record attacker");
+                raider.stun=2f;
+                Check(!(bool)imminent.Invoke(g,new object[]{raider}),
+                    "Stunned foe is not falsely advertised as imminent");
+                raider.stun=0f;
+                raider.targetingSagaGuardEvidence=false;
+                Check(!(bool)imminent.Invoke(g,new object[]{raider}),
+                    "Ordinary player-facing windup cannot impersonate sabotage");
+                raider.targetingSagaGuardEvidence=true;
+                // The normal auto-attack must actually launch the support
+                // shot before any in-flight shield can be claimed.
+                attackClock.SetValue(g,0f);
+                tick.Invoke(g,new object[]{.01f});
+                tick.Invoke(g,new object[]{.18f});
+                Check(g.projectiles.Exists(p=>p.sagaGuardCoverTarget==raider&&
+                    p.friendly&&p.sagaGuardCoverRoom==room&&
+                    Object.ReferenceEquals(p.sagaGuardCoverSave,g.save)),
+                    "A real ally release, not target selection, owns the evidence-cover missile");
+                Check(!g.Has("saga_guard_"+room)&&!g.Has("saga_voice_"+room),
+                    "Targeting an attacker never awards victory or signs testimony");
+            }
+            Check(checkedRooms>0,
+                "A live regional witness permits a genuinely shootable cover lane");
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;
