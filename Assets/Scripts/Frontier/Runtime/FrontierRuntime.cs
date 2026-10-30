@@ -77,6 +77,10 @@ namespace Starfall
         private static readonly KeyCode[] keyboardControls={KeyCode.Q,KeyCode.Space,KeyCode.E,KeyCode.F,KeyCode.T,KeyCode.Z,KeyCode.P,KeyCode.H,KeyCode.R,KeyCode.V,KeyCode.X,KeyCode.Y,KeyCode.O,KeyCode.U,KeyCode.LeftControl,KeyCode.Escape,KeyCode.Return,KeyCode.Tab,KeyCode.I,KeyCode.K,KeyCode.M,KeyCode.L,KeyCode.B,KeyCode.C,KeyCode.G,KeyCode.N,KeyCode.F1};
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
+        private WorldObject worldLabelOwner,worldLabelNearest;
+        private Point? worldLabelGoal;
+        private readonly List<Rect> occupiedWorldLabels=new List<Rect>(48);
+        private readonly List<WorldObject> occupiedWorldLabelOwners=new List<WorldObject>(48);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -445,6 +449,35 @@ namespace Starfall
             textStyle.fontSize = Game != null && Game.save.largeText && size < 20 ? size + 1 : size; color.a*=worldActorOpacity; textStyle.normal.textColor = color; textStyle.alignment = anchor;
             GUI.Label(new Rect(x, y, w, h), text, textStyle);
         }
+        // The same label system serves all authored props, expansion sites
+        // and polished NPCs. Priority belongs to the actual objective and
+        // interaction winner, not to every point of interest in the atlas.
+        private void WorldObjectLabel(float x,float y,float w,float h,
+            string content,int size,Color color,
+            TextAnchor anchor=TextAnchor.UpperLeft)
+        {
+            if(worldLabelOwner==null||String.IsNullOrEmpty(content))return;
+            Point foot=new Point(worldLabelOwner.x,worldLabelOwner.y);
+            bool target=worldLabelGoal.HasValue&&
+                (foot-worldLabelGoal.Value).Length<1.25f;
+            int priority=WorldLabelPolicy.Priority((foot-Game.Position).Length,
+                target,System.Object.ReferenceEquals(worldLabelNearest,worldLabelOwner));
+            if(priority==0||x+w<16||x>Width-16||y+h<16||y>Height-16)return;
+            int owned=0;
+            for(int i=0;i<occupiedWorldLabels.Count;i++)
+            {
+                if(System.Object.ReferenceEquals(occupiedWorldLabelOwners[i],
+                    worldLabelOwner))
+                {owned++;continue;}
+                Rect other=occupiedWorldLabels[i];
+                if(WorldLabelPolicy.Overlap(x,y,w,h,other.x,other.y,
+                    other.width,other.height))return;
+            }
+            if(owned>=(priority==1?1:2))return;
+            occupiedWorldLabels.Add(new Rect(x,y,w,h));
+            occupiedWorldLabelOwners.Add(worldLabelOwner);
+            Text(x,y,w,h,content,size,color,anchor);
+        }
         private bool Button(float x, float y, float w, float h, string text, bool active = false, bool enabled = true)
         {
             if ((replacePrompt || saveConfirmation != null) && !drawingModal) enabled = false;
@@ -790,6 +823,17 @@ namespace Starfall
             // so a missing chunk never arrives as an opaque block.
             PrewarmTerrain();
             worldOverlayRegions.Clear();
+            occupiedWorldLabels.Clear();
+            occupiedWorldLabelOwners.Clear();
+            worldLabelOwner=null;
+            worldLabelNearest=Game.Nearest();
+            QuestGuide currentObjective=Game.CurrentGuide;
+            worldLabelGoal=currentObjective!=null&&
+                currentObjective.room==Game.save.room&&
+                !currentObjective.complete&&!currentObjective.locked?
+                (Point?)currentObjective.target:null;
+            Point? navigation=Game.NavigationTarget();
+            if(navigation.HasValue)worldLabelGoal=navigation;
             Color ground = PixelArt.C(Game.Map.color);
             Box(0, 0, Width, Height, Color.Lerp(ground, ink, .55f));
             // Screen-bounded terrain work. The old full-map scan needlessly
@@ -1058,6 +1102,7 @@ namespace Starfall
         private void DrawObject(WorldObject o)
         {
             if (!Game.IsObjectPresent(o)) return;
+            worldLabelOwner=o;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
             if(kind=="fielddevice")
             {
@@ -1079,7 +1124,7 @@ namespace Starfall
                 if(!Game.save.reducedMotion&&cd<=0f)
                     Ring(new Point(o.x,o.y),.56f+
                         .05f*Mathf.Sin(clock*2.3f),ink,24);
-                Text(p.x-121,p.y-122,242,22,
+                WorldObjectLabel(p.x-121,p.y-122,242,22,
                     cd>0f?Game.L("装置复位 "+(int)Math.Ceiling(cd)+"秒",
                                     "RESET "+(int)Math.Ceiling(cd)+"s"):
                     known?Game.L("战术装置 · E再次操作","FIELD TACTIC · E REUSE"):
@@ -1125,7 +1170,7 @@ namespace Starfall
                     Game.Has("wilderness_hunt_fought_"+region)?
                     Game.L("两波胜利 · 回来决定处置","BATTLE WON · DECIDE OUTCOME"):
                     Game.L("未知足迹 · 可实地调查","UNKNOWN TRACKS · INVESTIGATE");
-                Text(p.x-143,p.y-114,286,19,state,10,ink,
+                WorldObjectLabel(p.x-143,p.y-114,286,19,state,10,ink,
                     TextAnchor.MiddleCenter);
                 return;
             }
@@ -1143,7 +1188,7 @@ namespace Starfall
                     Box(p.x-31,p.y-42,62,8,tint);
                     Diamond(p.x,p.y-86,8,gold);
                 }
-                Text(p.x-131,p.y-110,262,18,open?
+                WorldObjectLabel(p.x-131,p.y-110,262,18,open?
                     Game.L("居民捷径 · 已实际贯通","CIVILIAN PASSAGE · WALKABLE"):
                     Game.L("实体障碍 · 可修复近路","PHYSICAL BLOCKADE · REPAIR"),
                     10,tint,TextAnchor.MiddleCenter);
@@ -1189,7 +1234,7 @@ namespace Starfall
                 }
                 Ring(new Point(o.x,o.y),goal?.85f:.52f,ink,22);
                 if(goal)Diamond(p.x,p.y-102,7,gold);
-                Text(p.x-145,p.y-120,290,17,
+                WorldObjectLabel(p.x-145,p.y-120,290,17,
                     Game.RidgeEchoRunActive&&stage==2?
                         Game.L("民用传令 · "+Game.RidgeEchoSeconds+"秒",
                             "OVERLAND RELAY · "+Game.RidgeEchoSeconds+"S"):
@@ -1238,7 +1283,7 @@ namespace Starfall
                     Diamond(p.x,p.y-104,9,gold);
                 }
                 else Ring(new Point(o.x,o.y),.51f,ink,22);
-                Text(p.x-122,p.y-118,244,17,
+                WorldObjectLabel(p.x-122,p.y-118,244,17,
                     objective?
                         Game.L(Game.GhostTrainBattleActive?
                             "真实战斗 · "+Game.GhostTrainEnemiesLeft+"名守卫":
@@ -1285,7 +1330,7 @@ namespace Starfall
                 bool courierTarget=Game.FieldDispatchIsTarget(o);
                 if(courierTarget)
                     Ring(new Point(o.x,o.y),.93f,gold,28);
-                Text(p.x-110,p.y-108,220,18,
+                WorldObjectLabel(p.x-110,p.y-108,220,18,
                     courierTarget?
                         Game.L("补给中继站 · 剩余"+
                             (int)Game.FieldDispatchSeconds+"秒",
@@ -1324,7 +1369,7 @@ namespace Starfall
                     p.x-34,p.y-77,68,79,ink);
                 Ring(new Point(o.x,o.y),recovered?.45f:.64f,ink,24);
                 if(!recovered)Diamond(p.x,p.y-87,6,ink);
-                Text(p.x-112,p.y-111,224,18,ward?
+                WorldObjectLabel(p.x-112,p.y-111,224,18,ward?
                     Game.L("安全前线 · 医疗站","SAFE OUTPOST · FIELD AID"):
                     forge?Game.L("安全前线 · 绊索工坊",
                         "SAFE OUTPOST · TRAP WORKSHOP"):
@@ -1346,12 +1391,12 @@ namespace Starfall
                 else if(ward||forge)
                     Diamond(p.x,p.y-92,7,ink);
                 if(Game.FieldDispatchActive)
-                    Text(p.x-112,p.y-139,224,18,
+                    WorldObjectLabel(p.x-112,p.y-139,224,18,
                         Game.L("民间补给 · 正在运送",
                             "CIVILIAN CARGO · IN TRANSIT"),
                         10,gold,TextAnchor.MiddleCenter);
                 else if(Game.FieldDispatchDone(room))
-                    Text(p.x-112,p.y-139,224,18,
+                    WorldObjectLabel(p.x-112,p.y-139,224,18,
                         Game.L("真实运送已签收 · 补给升级",
                             "VERIFIED COURIER · STOCK UPGRADED"),
                         10,mint,TextAnchor.MiddleCenter);
@@ -1398,11 +1443,11 @@ namespace Starfall
                     else if(Game.Has("biome_crisis_done_"+Game.save.room))
                         status=Game.L("居民救援已签收 · 永久增益",
                             "RELIEF SIGNED · LASTING BONUS");
-                    Text(p.x-117,p.y-114,234,18,status,10,
+                    WorldObjectLabel(p.x-117,p.y-114,234,18,status,10,
                         crisisHere?gold:ink,TextAnchor.MiddleCenter);
                     // This figure uses the same calculator as actual
                     // biome_relay payment; no stale hardcoded road prices.
-                    Text(p.x-117,p.y-95,234,17,
+                    WorldObjectLabel(p.x-117,p.y-95,234,17,
                         Game.L("接驳：硬币"+Game.FieldRelayFareHere+
                             " / 耐力"+Game.FieldRelayEnergyHere,
                             "RELAY · "+Game.FieldRelayFareHere+
@@ -1417,7 +1462,7 @@ namespace Starfall
                     if(!second&&Game.FieldPatrolActive)
                     {
                         Ring(new Point(o.x,o.y),.93f,gold,28);
-                        Text(p.x-117,p.y-141,234,18,
+                        WorldObjectLabel(p.x-117,p.y-141,234,18,
                             Game.L("巡兵仍在现场 · "+Game.FieldPatrolRemaining+"名",
                                 "PATROL ACTIVE · "+Game.FieldPatrolRemaining+" LEFT"),
                             10,gold,TextAnchor.MiddleCenter);
@@ -1425,14 +1470,14 @@ namespace Starfall
                     else if(!second&&Game.FieldPatrolSpared(Game.save.room))
                     {
                         Ring(new Point(o.x,o.y),.93f,mint,28);
-                        Text(p.x-117,p.y-141,234,18,
+                        WorldObjectLabel(p.x-117,p.y-141,234,18,
                             Game.L("全员活捉 · 安全路况已公开",
                                 "ALL CAPTURED · SAFE ROUTE KNOWN"),
                             10,mint,TextAnchor.MiddleCenter);
                     }
                     else if(!second&&Game.FieldPatrolDone(Game.save.room))
                     {
-                        Text(p.x-117,p.y-141,234,18,
+                        WorldObjectLabel(p.x-117,p.y-141,234,18,
                             Game.L("巡护安全回执已登记",
                                 "SIGNED PATROL RECEIPT"),
                             10,ink,TextAnchor.MiddleCenter);
@@ -1441,7 +1486,7 @@ namespace Starfall
                 if(!finished&&(!second||ready))
                 {
                     Diamond(p.x,p.y-89,6,ink);
-                    Text(p.x-102,p.y-113,204,18,
+                    WorldObjectLabel(p.x-102,p.y-113,204,18,
                         second?Game.L("远方实地判断","FIELD INTERPRETATION"):
                             Game.L("探查本区线索","READ REGIONAL CLUE"),
                         10,ink,TextAnchor.MiddleCenter);
@@ -1449,7 +1494,7 @@ namespace Starfall
                 if(Game.FieldDispatchIsTarget(o))
                 {
                     Ring(new Point(o.x,o.y),.94f,gold,28);
-                    Text(p.x-115,p.y-155,230,18,
+                    WorldObjectLabel(p.x-115,p.y-155,230,18,
                         Game.L("民间补给终点 · 剩余"+
                             (int)Game.FieldDispatchSeconds+"秒",
                             "CARGO DELIVERY · "+(int)Game.FieldDispatchSeconds+"S"),
@@ -1465,7 +1510,7 @@ namespace Starfall
                 PropImage("post",0,p.x-31,p.y-76,62,78,tint);
                 Ring(new Point(o.x,o.y),.48f,tint,20);
                 if(Game.Has("mistport_tidal_first"))
-                    Text(p.x-66,p.y-91,132,19,Game.L("退潮渔路 ✓","TIDAL ROUTE ✓"),
+                    WorldObjectLabel(p.x-66,p.y-91,132,19,Game.L("退潮渔路 ✓","TIDAL ROUTE ✓"),
                         11,mint,TextAnchor.MiddleCenter);
                 else Diamond(p.x,p.y-68,5,tint);
                 return;
@@ -1493,14 +1538,14 @@ namespace Starfall
                     p.x-33f,p.y-80f,66f,83f,tint);
                 Ring(new Point(o.x,o.y),charged?.72f:.43f,tint,22);
                 if(lens>=0)
-                    Text(p.x-37,p.y-91,74,21,
+                    WorldObjectLabel(p.x-37,p.y-91,74,21,
                         lens==1&&Game.GlassLoomStage==2?
                             Game.L(shuttered?"遮光":"开光",shuttered?"SHUT":"OPEN"):
                             Game.GlassLoomOrientation(lens).ToString()+
                             (aligned?" ✓":""),
                         14,tint,TextAnchor.MiddleCenter);
                 else if(Game.GlassLoomActive||Game.GlassLoomComplete)
-                    Text(p.x-65,p.y-101,130,20,
+                    WorldObjectLabel(p.x-65,p.y-101,130,20,
                         kind=="glassloomsource"?
                         Game.L("归光井","GLASSWELL"):
                         Game.L("接收器","RECEIVER"),11,tint,
@@ -1558,12 +1603,12 @@ namespace Starfall
                 // Static readable phase rings work with reduced-motion enabled.
                 Ring(new Point(o.x,o.y),next?.72f:.5f,pipe,18);
                 if(next)
-                    Text(p.x-68,p.y-111,136,20,
+                    WorldObjectLabel(p.x-68,p.y-111,136,20,
                         Game.L(green?"稳定 · 现在操作":"等待绿色周期",
                             green?"GREEN · TUNE NOW":"WAIT FOR GREEN"),
                         11,pipe,TextAnchor.MiddleCenter);
                 if(active&&master)
-                    Text(p.x-73,p.y-108,146,20,
+                    WorldObjectLabel(p.x-73,p.y-108,146,20,
                         Game.L("线路剩余 "+(int)Game.CivicConduitTimeLeft+"秒",
                             "GRID "+(int)Game.CivicConduitTimeLeft+"s"),
                         11,pipe,TextAnchor.MiddleCenter);
@@ -1591,7 +1636,7 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.56f,tint,16);
                 if(!discovered)Diamond(p.x,p.y-82,6,gold);
                 if(control&&Game.LastDirectiveEnemies>0)
-                    Text(p.x-78,p.y-111,156,20,
+                    WorldObjectLabel(p.x-78,p.y-111,156,20,
                         Game.L("保密卫兵 "+Game.LastDirectiveEnemies,
                             "GUARDIANS "+Game.LastDirectiveEnemies),
                         12,new Color(.97f,.4f,.32f),TextAnchor.MiddleCenter);
@@ -1614,7 +1659,7 @@ namespace Starfall
                 if(next||!done&&slot==0)
                     Diamond(p.x,p.y-82,next?7:5,ink);
                 if(live&&slot==1&&Game.ChapterRoadDeviceUsed)
-                    Text(p.x-103,p.y-127,206,17,
+                    WorldObjectLabel(p.x-103,p.y-127,206,17,
                         Game.L("现场装置已启动","FIELD DEVICE ACTIVATED"),
                         10,mint,TextAnchor.MiddleCenter);
                 // This line is the REAL radius of the active regional
@@ -1630,7 +1675,7 @@ namespace Starfall
                         new Color(.96f,.42f,.28f,.75f):
                         new Color(.49f,.78f,1f,.73f);
                     Ring(new Point(o.x,o.y),6f,warning,48);
-                    Text(p.x-96,p.y-158,192,18,
+                    WorldObjectLabel(p.x-96,p.y-158,192,18,
                         room==3?Game.L("蒸汽高温区 · 保持移动",
                             "STEAM HAZARD · KEEP MOVING"):
                             Game.L("涨潮寒流区 · 保持移动",
@@ -1638,13 +1683,13 @@ namespace Starfall
                         10,warning,TextAnchor.MiddleCenter);
                 }
                 if(live&&Game.ChapterRoadSeconds>0&&slot==1)
-                    Text(p.x-86,p.y-133,172,18,
+                    WorldObjectLabel(p.x-86,p.y-133,172,18,
                         Game.L("潮位 / 热压任务 · "+
                                 (int)Game.ChapterRoadSeconds+"秒",
                             "TIDE / PRESSURE · "+
                                 (int)Game.ChapterRoadSeconds+"S"),
                         10,gold,TextAnchor.MiddleCenter);
-                Text(p.x-107,p.y-109,214,20,
+                WorldObjectLabel(p.x-107,p.y-109,214,20,
                     done?Game.L("本章居民行动完成 ✓","CHAPTER ROUTE COMPLETE ✓"):
                     live?Game.L(Game.ChapterRoadStage==2?
                         "道路遭袭 · 剩余"+Game.ChapterRoadRemaining+"名":
@@ -1698,7 +1743,7 @@ namespace Starfall
                     if(aid||signal||Game.VantageWatchActive)
                         Ring(new Point(o.x,o.y),.78f,ink,22);
                     if(Game.VantageWatchActive||aid||signal)
-                        Text(p.x-99,p.y-110,198,19,
+                        WorldObjectLabel(p.x-99,p.y-110,198,19,
                             Game.VantageWatchActive?
                                 Game.L(Game.VantageWatchReady?"返回登记巡护记录":
                                     "守望 · 敌人 "+Game.VantageWatchRemaining,
@@ -1750,7 +1795,7 @@ namespace Starfall
                         new Color(.54f,.82f,1f):new Color(1f,.78f,.49f);
                     // Outer network ring preserves prior local clinic/watch tints.
                     Ring(new Point(o.x,o.y),.77f,network,18);
-                    Text(p.x-69,p.y-112,138,20,
+                    WorldObjectLabel(p.x-69,p.y-112,138,20,
                         Game.L(Game.LastDirectiveChoice==1?
                             "公共电网 · 补充耐力":"庇护电网 · 基础疗养",
                             Game.LastDirectiveChoice==1?
@@ -1764,7 +1809,7 @@ namespace Starfall
                 {
                     Color supper=new Color(1f,.77f,.41f);
                     Ring(new Point(o.x,o.y),.95f,supper,20);
-                    Text(p.x-73,p.y-136,146,22,
+                    WorldObjectLabel(p.x-73,p.y-136,146,22,
                         Game.L("热汤已送到","HOT STEW DELIVERED"),
                         11,supper,TextAnchor.MiddleCenter);
                 }
@@ -1873,12 +1918,12 @@ namespace Starfall
                             new Color(.56f,.98f,.76f),12);
                 }
                 if(done&&Game.OuterDeliveryDone(Game.save.room))
-                    Text(p.x-98,p.y-129,196,18,
+                    WorldObjectLabel(p.x-98,p.y-129,196,18,
                         Game.L("急送药布已到 · 医疗补给增强",
                             "DELIVERED · IMPROVED MEDICAL CARE"),
                         10,mint,TextAnchor.MiddleCenter);
                 if(Game.OuterPatrolActive)
-                    Text(p.x-79,p.y-107,158,20,
+                    WorldObjectLabel(p.x-79,p.y-107,158,20,
                         Math.Ceiling(Game.OuterPatrolTime)+"s · "+
                         Math.Ceiling(Game.OuterPatrolIntegrity)+"%"+
                         (Game.OuterPatrolVeteranActive?
@@ -1886,11 +1931,11 @@ namespace Starfall
                         11,Game.OuterPatrolIntegrity<=30f?
                             new Color(1,.4f,.34f):gold,TextAnchor.MiddleCenter);
                 else if(Game.OuterDeliveryActive&&Game.OuterDeliveryStage==2)
-                    Text(p.x-87,p.y-112,174,22,
+                    WorldObjectLabel(p.x-87,p.y-112,174,22,
                         Game.L("把药布交给值守员","Deliver dressings here"),
                         11,gold,TextAnchor.MiddleCenter);
                 else if(done)
-                    Text(p.x-79,p.y-104,158,18,
+                    WorldObjectLabel(p.x-79,p.y-104,158,18,
                         flawless?Game.L("无损守卫徽章 · 荣誉补给岗",
                             "FLAWLESS MEDAL · HONOR POST"):
                         Game.OuterPatrolVeteranDone(Game.save.room)?
@@ -1915,7 +1960,7 @@ namespace Starfall
                         Ring(new Point(o.x,o.y-1),.8f,new Color(mint.r,mint.g,mint.b,pulse),18);
                     }
                     if(Game.OuterDeliveryActive)
-                        Text(p.x-106,p.y-111,212,20,
+                        WorldObjectLabel(p.x-106,p.y-111,212,20,
                             Game.L("急送中 · 剩余 ","MEDICINE RUN · ")+
                             Math.Ceiling(Game.OuterDeliverySeconds)+"s",
                             11,gold,TextAnchor.MiddleCenter);
@@ -1926,7 +1971,7 @@ namespace Starfall
                     {
                         Ring(new Point(o.x,o.y),.4f,
                             new Color(mint.r,mint.g,mint.b,.48f),16);
-                        Text(p.x-87,p.y-107,174,19,
+                        WorldObjectLabel(p.x-87,p.y-107,174,19,
                             Game.L("可以在灯下歇脚","Rest beside the light"),
                             11,mint,TextAnchor.MiddleCenter);
                         // This is a material-priced active field choice, not
@@ -1934,7 +1979,7 @@ namespace Starfall
                         // when the hero has wood, a physically reachable lamp
                         // and a genuine combat-safe field moment.
                         if(Game.OuterSignalCampReady)
-                            Text(p.x-95,p.y-147,190,19,
+                            WorldObjectLabel(p.x-95,p.y-147,190,19,
                                 Game.L("可以搭棚短休 · 木材×1",
                                     "Field rest ready · 1 timber"),
                                 10,mint,TextAnchor.MiddleCenter);
@@ -1943,7 +1988,7 @@ namespace Starfall
                         // can be interacted with. Reduced Motion retains
                         // the steady legible label without animated blinking.
                         if(Game.OuterSignalRouteReady)
-                            Text(p.x-100,p.y-126,200,18,
+                            WorldObjectLabel(p.x-100,p.y-126,200,18,
                                 Game.L("巡路队的灯路已连通",
                                     "Warden signal roads connected"),
                                 10,mint,TextAnchor.MiddleCenter);
@@ -1956,7 +2001,7 @@ namespace Starfall
                         recorded?new Color(.68f,.82f,.75f,.82f):Color.white);
                     if(kind=="outercache"&&Game.OuterDeliveryActive&&
                         Game.OuterDeliveryStage==1)
-                        Text(p.x-95,p.y-112,190,20,
+                        WorldObjectLabel(p.x-95,p.y-112,190,20,
                             Game.L("取走待送的药布","Collect the dressings"),
                             11,gold,TextAnchor.MiddleCenter);
                 }
@@ -1974,7 +2019,7 @@ namespace Starfall
                     read?new Color(.6f,.85f,.77f,.85f):Color.white);
                 Ring(new Point(o.x,o.y),.38f,read?mint:
                     stage==progress+1?gold:muted,12);
-                if(!read)Text(p.x-26,p.y-84,52,20,stage.ToString(),16,
+                if(!read)WorldObjectLabel(p.x-26,p.y-84,52,20,stage.ToString(),16,
                     stage==progress+1?gold:muted,TextAnchor.MiddleCenter);
                 return;
             }
@@ -2007,7 +2052,7 @@ namespace Starfall
                 PropImage("obelisk", 0, p.x - 31, p.y - 71, 62, 73,
                     recorded ? new Color(.65f, .87f, .79f, .8f) : Color.white);
                 Ring(new Point(o.x, o.y), .43f, recorded ? mint : gold, 12);
-                Text(p.x - 46, p.y - 83, 92, 21, recorded ? "✓" : "?", 17,
+                WorldObjectLabel(p.x - 46, p.y - 83, 92, 21, recorded ? "✓" : "?", 17,
                     recorded ? mint : gold, TextAnchor.MiddleCenter);
                 bool auditRegion =
                     (Game.CivicAftercareActive ||
@@ -2017,7 +2062,7 @@ namespace Starfall
                 if (auditRegion)
                 {
                     bool audited = Game.Has("civic_aftercare_waytrail_" + Game.save.room);
-                    Text(p.x - 31, p.y - 103, 62, 17,
+                    WorldObjectLabel(p.x - 31, p.y - 103, 62, 17,
                         audited ? Game.L("复核 ✓", "AUDIT ✓") :
                                   Game.L("复核 ?", "AUDIT ?"),
                         9, audited ? mint : gold, TextAnchor.MiddleCenter);
@@ -2029,7 +2074,7 @@ namespace Starfall
                     if(audited && Game.Has("civic_aftercare_published"))
                     {
                         Ring(new Point(o.x,o.y),.59f,mint,16);
-                        Text(p.x-76,p.y-121,152,18,
+                        WorldObjectLabel(p.x-76,p.y-121,152,18,
                             Game.L("居民急救 · 药草1","FIELD KIT · 1 HERB"),
                             10,mint,TextAnchor.MiddleCenter);
                         // Existing illustrated obelisk remains untouched.
@@ -2038,7 +2083,7 @@ namespace Starfall
                         bool supplied=Game.Has("civic_waystation_stocked_"+Game.save.room);
                         if(supplied)Ring(new Point(o.x,o.y),.82f,
                             new Color(.51f,.84f,.9f,.8f),20);
-                        Text(p.x-89,p.y-143,178,19,
+                        WorldObjectLabel(p.x-89,p.y-143,178,19,
                             supplied?Game.L("路站已补给 ✓","WAYSTATION ✓"):
                                 Game.L("补给 · 木材2 药草1",
                                     "SUPPLY · 2 TIMBER 1 HERB"),
@@ -2061,12 +2106,12 @@ namespace Starfall
                                         Game.L("按 E 接徒步送药委托","E · ON-FOOT MEDICINE"):
                                         "";
                             if(courierLabel.Length>0)
-                                Text(p.x-90,p.y-164,180,19,
+                                WorldObjectLabel(p.x-90,p.y-164,180,19,
                                     courierLabel,10,
                                     Game.CivicCourierActive?gold:mint,
                                     TextAnchor.MiddleCenter);
                             if(Game.CivicWaystationCount>=2&&!Game.CivicCourierActive)
-                                Text(p.x-89,p.y-184,178,19,
+                                WorldObjectLabel(p.x-89,p.y-184,178,19,
                                     Game.L("按 E 查看接驳线路",
                                         "E · PUBLIC SHUTTLES"),
                                     10,gold,TextAnchor.MiddleCenter);
@@ -2083,7 +2128,7 @@ namespace Starfall
                     Game.ScoutDefenseUnderAttack?gold:mint;
                 Ring(new Point(o.x,o.y),.84f,safety,28);
                 Bar(p.x-38,p.y-102,76,Game.ScoutDefenseSafety/100f,safety,6);
-                Text(p.x-88,p.y-128,176,19,
+                WorldObjectLabel(p.x-88,p.y-128,176,19,
                     Game.L("侦察员安全度 ","SCOUT SAFETY ")+
                     Game.ScoutDefenseSafety+"%",11,safety,
                     TextAnchor.MiddleCenter);
@@ -2093,7 +2138,7 @@ namespace Starfall
                 int destination = int.Parse(kind.Substring(6)); bool available = Game.CanEnter(destination);
                 Ring(new Point(o.x, o.y), .55f, available ? gold : muted, 16);
                 Box(p.x - 3, p.y - 24, 6, 18, available ? gold : muted);
-                Text(p.x - 90, p.y + 18, 180, 38, Game.L(o.name.Replace("前往", ""), o.en), 13, paper, TextAnchor.MiddleCenter); return;
+                WorldObjectLabel(p.x - 90, p.y + 18, 180, 38, Game.L(o.name.Replace("前往", ""), o.en), 13, paper, TextAnchor.MiddleCenter); return;
             }
             if (kind == "shrine" || kind == "lore" || kind.StartsWith("rune") || kind == "engine")
             {
@@ -2102,7 +2147,7 @@ namespace Starfall
                 Color color = opened ? mint : gold;
                 Box(p.x - 5, p.y - 31, 10, 10, color); Ring(new Point(o.x, o.y), .35f + (Game.save.reducedMotion ? 0 : Mathf.Sin(clock * 2) * .06f), color, 12);
                 string mark = kind.StartsWith("rune") ? new[] { "SUN", "TIDE", "MOON" }[int.Parse(kind.Substring(4))] : kind == "lore" ? "?" : "*";
-                Text(p.x - 45, p.y - 64, 90, 25, mark, 13, paper, TextAnchor.MiddleCenter); return;
+                WorldObjectLabel(p.x - 45, p.y - 64, 90, 25, mark, 13, paper, TextAnchor.MiddleCenter); return;
             }
             if (kind == "herb" || kind == "ore" || kind == "wood")
             { PropImage(kind, 0, p.x - 27, p.y - 55, 54, 63, Game.Has("node_" + o.id) ? new Color(.6f, .6f, .6f, .45f) : Color.white); return; }
@@ -2117,7 +2162,7 @@ namespace Starfall
             try { DrawNpc(kind,new Point(o.x,o.y)); }
             finally { npcRenderSource=priorNpc; }
             bool quest = kind == "guild" || (kind == "scout" && !Game.Has("scout_saved")) || (kind == "garden" && !Game.Has("ally_1")) || (kind == "fish" && !Game.Has("ally_2")) || (kind == "forge" && !Game.Has("ally_3")) || (kind == "innGuest" && Game.CivicConduitComplete && !Game.Has("civic_aftercare_published"));
-            if (quest) Text(p.x - 10, p.y - 77, 20, 26, "!", 22, gold, TextAnchor.MiddleCenter);
+            if (quest) WorldObjectLabel(p.x - 10, p.y - 77, 20, 26, "!", 22, gold, TextAnchor.MiddleCenter);
         }
     }
 }

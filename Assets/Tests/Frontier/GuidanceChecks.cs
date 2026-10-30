@@ -3,6 +3,18 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void WorldLabelsFocusOnNearbyActionsWithoutOverlapping(Campaign data)
+        {
+            Check(WorldLabelPolicy.Priority(60f,false,false)==0&&
+                WorldLabelPolicy.Priority(2.9f,false,false)==1&&
+                WorldLabelPolicy.Priority(45f,false,true)==2&&
+                WorldLabelPolicy.Priority(45f,true,false)==3,
+                "World labels prioritize actual mission and usable interaction, not distant POI floods");
+            Check(WorldLabelPolicy.Overlap(10,10,85,20,80,10,60,20)&&
+                !WorldLabelPolicy.Overlap(10,10,85,20,96,10,60,20),
+                "World label collision respects the real occupied screen rectangle");
+        }
+
         public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
         {
             Check(MapPresentationPolicy.ShowObject("portal1",true,false,true),

@@ -11,6 +11,20 @@ namespace Starfall
     // into tiny unreadable labels. Does not touch any quest or save state.
     // Map Focus suppresses optional catalogue clutter, never actual quest
     // progression, the player's pin or the current mission destination.
+    // Every object still exists in the actual scene. This policy only
+    // decides whether its optional world-space caption earns attention.
+    public static class WorldLabelPolicy
+    {
+        public static int Priority(float distance,bool objective,bool nearest)
+        {
+            if(objective)return 3;
+            if(nearest)return 2;
+            return distance>=0f&&distance<=3.2f?1:0;
+        }
+        public static bool Overlap(float ax,float ay,float aw,float ah,
+            float bx,float by,float bw,float bh)
+        { return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by; }
+    }
     public static class MapPresentationPolicy
     {
         public static bool ShowObject(string kind,bool focus,

@@ -176,7 +176,7 @@ namespace Starfall
                 DrawNpc(o.kind, new Point(o.x, o.y));
                 Color hue = Game.Has("root_harmony_complete") ? mint : gold;
                 Ring(new Point(o.x, o.y), .42f, hue, 16);
-                Text(p.x - 54, p.y - 84, 108, 24,
+                WorldObjectLabel(p.x - 54, p.y - 84, 108, 24,
                     Game.L("星根听纹", "ROOT SONG"), 11, hue, TextAnchor.MiddleCenter);
                 return true;
             }
@@ -189,7 +189,7 @@ namespace Starfall
                 Color color = sealedNode ? mint : inTrial ? PixelArt.C("#f3a57a") : gold;
                 PropImage("column", 0, p.x - 31, p.y - 69, 62, 74);
                 Ring(new Point(o.x, o.y), .48f, color, 20);
-                Text(p.x - 50, p.y - 80, 100, 22,
+                WorldObjectLabel(p.x - 50, p.y - 80, 100, 22,
                     sealedNode ? Game.RootHarmonyRestoring ?
                         Game.L("安全休整", "RESTORING") : Game.L("已归档", "SEALED") :
                         inTrial ? Game.L("守卫 " , "DEFEND ") +
@@ -203,7 +203,7 @@ namespace Starfall
                 PropImage("bookshelf", 0, p.x - 29, p.y - 64, 58, 68, Color.white);
                 // A small persistent location cue, with no large text HUD.
                 Ring(new Point(o.x, o.y), .43f, mint, 16);
-                Text(p.x - 52, p.y - 84, 104, 21,
+                WorldObjectLabel(p.x - 52, p.y - 84, 104, 21,
                     Game.L("世界档案", "WORLD LORE"), 11, mint, TextAnchor.MiddleCenter);
                 return true;
             }
@@ -216,14 +216,14 @@ namespace Starfall
                 DrawNpc(o.kind, new Point(o.x, o.y), 11 + region);
                 Color accent = done ? mint : active ? PixelArt.C("#f3a57a") : gold;
                 Ring(new Point(o.x, o.y), .38f, accent, 16);
-                Text(p.x - 44, p.y - 91, 88, 24, done ? "✓" :
+                WorldObjectLabel(p.x - 44, p.y - 91, 88, 24, done ? "✓" :
                     active ? Game.L("保护！", "DEFEND!") : "!", 15, accent, TextAnchor.MiddleCenter);
                 if (active)
                 {
                     Color safety = Game.WayfarerIntegrity <= 35 ? PixelArt.C("#f27d7d") : mint;
                     // Readable beside the actual NPC, without a full-screen HUD.
                     Bar(p.x - 35, p.y + 11, 70, Game.WayfarerIntegrity / 100f, safety, 6);
-                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
+                    WorldObjectLabel(p.x - 42, p.y + 17, 84, 18, Game.L("安全 ", "SAFE ") +
                         (int)Math.Ceiling(Game.WayfarerIntegrity) + "%", 10, safety, TextAnchor.MiddleCenter);
                     // Actual nearby shout opportunity belongs to the
                     // same real civilian actor. A gold ring is an available
@@ -232,7 +232,7 @@ namespace Starfall
                     {
                         Color decoyTint=PixelArt.C("#efbd69");
                         Ring(new Point(o.x,o.y),.83f,decoyTint,24);
-                        Text(p.x-70,p.y-139,140,19,
+                        WorldObjectLabel(p.x-70,p.y-139,140,19,
                             Game.L("引敌 ","DRAW FIRE ")+
                             Game.WayfarerDecoyTime.ToString("0.0")+"s",
                             11,decoyTint,TextAnchor.MiddleCenter);
@@ -241,7 +241,7 @@ namespace Starfall
                     {
                         Color decoyTint=PixelArt.C("#efbd69");
                         Ring(new Point(o.x,o.y),.68f,decoyTint,20);
-                        Text(p.x-75,p.y-139,150,19,
+                        WorldObjectLabel(p.x-75,p.y-139,150,19,
                             Game.L("L · 引开劫匪 / 交谈",
                                 "L · DRAW FIRE / TALK"),
                             10,decoyTint,TextAnchor.MiddleCenter);
@@ -249,7 +249,7 @@ namespace Starfall
                     if(Game.WayfarerCoverTime>0)
                     {
                         Ring(new Point(o.x,o.y),.73f,mint,24);
-                        Text(p.x - 48,p.y - 116,96,20,
+                        WorldObjectLabel(p.x - 48,p.y - 116,96,20,
                             Game.L("掩护 ","COVER ")+(int)Math.Ceiling(Game.WayfarerCoverTime)+"s",
                             11,mint,TextAnchor.MiddleCenter);
                     }
@@ -272,7 +272,7 @@ namespace Starfall
                 string label = desk ? Game.L("归乡星图", "ROAD CHART") :
                     defending ? Game.L(Game.RoadwardenTrialVeteran ? "精英 " : "守望 ", Game.RoadwardenTrialVeteran ? "ELITE " : "WAVE ") + Game.RoadwardenTrialWave + "/" + Game.RoadwardenTrialTotalWaves :
                     defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
-                Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
+                WorldObjectLabel(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
                 // The newly playable first-chapter rescue actually uses
                 // this SAME existing Mossroot signal. Make the alternate
                 // return route obvious in the live world, not only in an
@@ -285,7 +285,7 @@ namespace Starfall
                     Color routeColor=lit?mint:gold;
                     Ring(new Point(o.x,o.y),lit?.63f:.78f,routeColor,22);
                     if(!lit)Diamond(p.x,p.y-94,7,routeColor);
-                    Text(p.x-116,p.y-117,232,22,
+                    WorldObjectLabel(p.x-116,p.y-117,232,22,
                         lit?Game.L("归乡信号已点亮 ✓","SAFE RETURN LIT ✓"):
                             Game.L("按 E 点亮侦察员回家路","E · LIGHT SCOUT EXIT"),
                         11,routeColor,TextAnchor.MiddleCenter);
@@ -297,7 +297,7 @@ namespace Starfall
                     // Fixed, motion-independent integrity readout at the actual
                     // protected beacon; no extra overlay across the combat arena.
                     Bar(p.x - 35, p.y + 11, 70, Game.RoadwardenWardIntegrity / 100f, wardColor, 6);
-                    Text(p.x - 42, p.y + 17, 84, 18, Game.L("护盾 ", "WARD ") +
+                    WorldObjectLabel(p.x - 42, p.y + 17, 84, 18, Game.L("护盾 ", "WARD ") +
                         (int)Math.Ceiling(Game.RoadwardenWardIntegrity) + "%", 10, wardColor, TextAnchor.MiddleCenter);
                 }
                 return true;
@@ -311,11 +311,11 @@ namespace Starfall
                     Game.Has("scout_rescue_defense")?
                     Game.L("守护归乡","DEFENDED RETURN"):
                     Game.L("已归来","HOME");
-                Text(p.x-66,p.y-89,132,24,label,12,mint,
+                WorldObjectLabel(p.x-66,p.y-89,132,24,label,12,mint,
                     TextAnchor.MiddleCenter);
                 return true;
             }
-            if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); Text(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
+            if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); WorldObjectLabel(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }
             return false;
         }

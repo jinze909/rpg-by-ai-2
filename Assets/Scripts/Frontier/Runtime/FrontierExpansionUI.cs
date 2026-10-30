@@ -1781,18 +1781,18 @@ namespace Starfall
                 PropImage("post",0,p.x-27,p.y-69,54,69,ink);
                 Ring(foot,o.kind=="silentledgerconsole"?.66f:.4f,ink,22);
                 if(shutter&&Game.SilentLedgerActive)
-                    Text(p.x-94,p.y-91,188,19,
+                    WorldObjectLabel(p.x-94,p.y-91,188,19,
                         dim?Game.L("巡灯已暗","LAMPS DIM"):
                             Game.SilentLedgerShutterUsed?
                             Game.L("照明恢复","LIGHT RESTORED"):
                             Game.L("可切断巡灯","DIM PATROL LIGHTS"),
                         10,ink,TextAnchor.MiddleCenter);
                 if(Game.SilentLedgerComplete&&o.kind=="silentledgerconsole")
-                    Text(p.x-73,p.y-91,146,18,
+                    WorldObjectLabel(p.x-73,p.y-91,146,18,
                         Game.L("真实姓名已归档","CIVIC ACCOUNT RESTORED"),
                         10,mint,TextAnchor.MiddleCenter);
                 if(o.kind=="silentledgeraid"&&Game.SilentLedgerFamilyDone)
-                    Text(p.x-93,p.y-91,186,18,
+                    WorldObjectLabel(p.x-93,p.y-91,186,18,
                         Game.SilentLedgerPublic?
                             Game.L("民间伤口救助","CIVILIAN WOUND CARE"):
                             Game.L("安全路途补给","SAFE TRAIL SUPPLIES"),
@@ -1820,7 +1820,7 @@ namespace Starfall
                 Ring(site,heart?.72f:.5f,cue,26);
                 if(Game.BridgeOfChordsUnlocked)
                 {
-                    Text(p.x-109,p.y-91,218,18,
+                    WorldObjectLabel(p.x-109,p.y-91,218,18,
                         canDischarge?
                             Game.L("按 E 引走冲击","E · DISCHARGE SURGE"):
                         heart?Game.L("余震核心","ECHO CORE"):
@@ -1852,7 +1852,7 @@ namespace Starfall
                         o.kind=="seventhcot"?
                         Game.L("潮湿的空床","WET GUEST BED"):
                         Game.L("墙缝中的回信","LETTER IN MORTAR");
-                    Text(p.x-104,p.y-83,208,19,clue,10,ink,
+                    WorldObjectLabel(p.x-104,p.y-83,208,19,clue,10,ink,
                         TextAnchor.MiddleCenter);
                 }
                 return true;
@@ -1872,7 +1872,7 @@ namespace Starfall
                         o.kind=="glassledgerseal"?
                         Game.L("被涂改的配水单","ALTERED WATER SLIP"):
                         Game.L("无名矿工证词","UNLISTED WORKER'S LETTER");
-                    Text(p.x-107,p.y-88,214,20,name,10,shade,
+                    WorldObjectLabel(p.x-107,p.y-88,214,20,name,10,shade,
                         TextAnchor.MiddleCenter);
                 }
                 return true;
@@ -1887,7 +1887,7 @@ namespace Starfall
                 PropImage("post",0,p.x-28,p.y-69,56,70,ink);
                 Ring(relay,Game.UnsentWarningRunActive?.68f:.43f,ink,24);
                 if(Game.UnsentWarningRunActive)
-                    Text(p.x-117,p.y-92,234,19,
+                    WorldObjectLabel(p.x-117,p.y-92,234,19,
                         Game.UnsentWarningRelayChoice==0?
                             Game.L("接应 · 加固 / 烟雾","RELAY · SEAL / SMOKE"):
                             Game.UnsentWarningRelayChoice==1?
@@ -1905,11 +1905,11 @@ namespace Starfall
                 PropImage("post",0,p.x-24,p.y-64,48,64,ink);
                 Ring(foot,o.kind=="mistconvoydock"?.7f:.43f,ink,20);
                 if(o.kind=="mistconvoymid"&&Game.MistConvoyStage==2)
-                    Text(p.x-83,p.y-83,166,18,
+                    WorldObjectLabel(p.x-83,p.y-83,166,18,
                         Game.L("等待实际船身","WAIT FOR REAL BOAT"),10,ink,
                         TextAnchor.MiddleCenter);
                 if(o.kind=="mistconvoydock"&&Game.MistConvoyComplete)
-                    Text(p.x-103,p.y-84,206,19,
+                    WorldObjectLabel(p.x-103,p.y-84,206,19,
                         Game.MistConvoyPublic?
                             Game.L("船员公开避风站","CIVILIAN BOAT REFUGE"):
                             Game.L("秘密引航员接应","NIGHT PILOTS PROTECT"),
@@ -1925,13 +1925,13 @@ namespace Starfall
                 PropImage("post",0,p.x-25,p.y-68,50,68,glow);
                 Ring(site,o.kind=="mistlightlamp"?.68f:.46f,glow,20);
                 if(Game.MistlightActive&&o.kind=="mistlightlamp")
-                    Text(p.x-85,p.y-88,170,17,
+                    WorldObjectLabel(p.x-85,p.y-88,170,17,
                         Game.MistlightShield>0f?
                             Game.L("信标已加固","LAMP BRACED"):
                             Game.L("迎风的最后一盏灯","LAST LIGHT"),
                         10,glow,TextAnchor.MiddleCenter);
                 if(Game.MistlightComplete&&o.kind=="mistlightpier")
-                    Text(p.x-78,p.y-88,156,17,
+                    WorldObjectLabel(p.x-78,p.y-88,156,17,
                         Game.MistlightPublic?
                             Game.L("公共求援航标","PUBLIC RESCUE LIGHT"):
                             Game.L("隐蔽归航信号","HIDDEN HOMEWARD LIGHT"),
@@ -1961,7 +1961,7 @@ namespace Starfall
                     PropImage("post",0,p.x-37,p.y-83,74,85,metal);
                     Ring(site,.79f,metal,30);
                     if(Game.PressureworksComplete)
-                        Text(p.x-70,p.y-91,140,18,
+                        WorldObjectLabel(p.x-70,p.y-91,140,18,
                             Game.L("重启完毕","POWER RESTORED"),
                             10,mint,TextAnchor.MiddleCenter);
                 }
@@ -1974,7 +1974,7 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.42f,
                     Game.WhiteoutComplete?mint:gold,18);
                 if(Game.WhiteoutComplete)
-                    Text(p.x-65,p.y-91,130,18,Game.L("已归家","SAFE RETURN"),
+                    WorldObjectLabel(p.x-65,p.y-91,130,18,Game.L("已归家","SAFE RETURN"),
                         11,mint,TextAnchor.MiddleCenter);
                 else Diamond(p.x,p.y-68,5,gold);
                 return true;
@@ -1997,7 +1997,7 @@ namespace Starfall
                     PropImage("post",0,p.x-24,p.y-59,48,57,
                         new Color(.64f,.75f,.8f,.8f));
                     if(Game.WhiteoutComplete)
-                        Text(p.x-68,p.y-72,136,18,Game.L("已获救","RESCUED"),
+                        WorldObjectLabel(p.x-68,p.y-72,136,18,Game.L("已获救","RESCUED"),
                             11,mint,TextAnchor.MiddleCenter);
                 }
                 return true;
@@ -2017,14 +2017,14 @@ namespace Starfall
                 if (recordState == 2)
                 {
                     Ring(new Point(o.x,o.y),.47f,mint,14);
-                    Text(p.x-53,p.y-84,106,19,
+                    WorldObjectLabel(p.x-53,p.y-84,106,19,
                         Game.L("证词已归档 ✓","ACCOUNT FILED ✓"),
                         10,mint,TextAnchor.MiddleCenter);
                 }
                 else if (recordState == 3)
                 {
                     Ring(new Point(o.x,o.y),.45f,muted,14);
-                    Text(p.x-70,p.y-88,140,19,
+                    WorldObjectLabel(p.x-70,p.y-88,140,19,
                         Game.L("先调查南侧残碑","READ SOUTH TABLET FIRST"),
                         9,muted,TextAnchor.MiddleCenter);
                 }
@@ -2033,7 +2033,7 @@ namespace Starfall
                     Color marker = closest ? gold : muted;
                     Ring(new Point(o.x,o.y),closest?.86f:.58f,
                         marker,closest?20:16);
-                    Text(p.x-66,p.y-97,132,21,
+                    WorldObjectLabel(p.x-66,p.y-97,132,21,
                         selected ? Game.L("追踪证词 · E","TRACKED · E") :
                         closest ? Game.L("证词目标 · E","TESTIMONY · E") :
                             Game.L("待归档证词","UNFILED ACCOUNT"),
@@ -2059,7 +2059,7 @@ namespace Starfall
                 // original physical hearth anchor remain unchanged.
                 if(bright)Ring(new Point(o.x,o.y),.67f,gold,22);
                 Ring(new Point(o.x,o.y),active?.84f:.55f,tint,22);
-                Text(p.x-82,p.y-81,164,20,
+                WorldObjectLabel(p.x-82,p.y-81,164,20,
                     bright?Game.L("公共暖站火势稳定","STEADY PUBLIC FIRE"):
                     complete?Game.L("公共暖站已重燃","PUBLIC FIRE RESTORED"):
                     active&&stage==2?Game.L("警戒 · 解决守卫","ALERT · CLEAR GUARDS"):
@@ -2082,7 +2082,7 @@ namespace Starfall
                 Box(p.x-18,p.y-32,36,28,PixelArt.C("#596a73"));
                 Box(p.x-13,p.y-39,26,8,PixelArt.C("#b79a79"));
                 Ring(new Point(o.x,o.y),next?.73f:.55f,color,23);
-                Text(p.x-82,p.y-77,164,20,
+                WorldObjectLabel(p.x-82,p.y-77,164,20,
                     done?Game.L("矿工安全归来","WORKERS SAFE"):
                     next&&phase==2?Game.L("击退袭击者 · 转轨","DEFEAT RAIDERS · SWITCH"):
                     next&&phase==3?Game.L("矿车已到站 · 登记","CART ARRIVED · REGISTER"):
@@ -2115,7 +2115,7 @@ namespace Starfall
                 Box(p.x-15,p.y-38,30,34,PixelArt.C("#3a6179"));
                 Box(p.x-22,p.y-43,44,8,PixelArt.C("#7d9cae"));
                 Ring(new Point(o.x,o.y),medicine?1.02f:ready?.94f:.63f,tint,24);
-                Text(p.x-79,p.y-77,158,20,
+                WorldObjectLabel(p.x-79,p.y-77,158,20,
                     Game.FloodReliefRewardPending&&stage==3?
                         Game.L("东岸医药奖励 · 待领取","EAST RECEIPT · CLAIM"):
                     medicine?stage==1?
@@ -2136,25 +2136,25 @@ namespace Starfall
                             Game.L("尚未解锁","LOCKED"),11,tint,TextAnchor.MiddleCenter);
                 if(medicine)
                 {
-                    Text(p.x-91,p.y-97,182,19,
+                    WorldObjectLabel(p.x-91,p.y-97,182,19,
                         Game.L("封条 ","CARGO ")+
                         (int)Math.Ceiling(Game.FloodReliefIntegrity)+"% · "+
                         (int)Math.Ceiling(Game.FloodReliefTime)+"s",
                         11,tint,TextAnchor.MiddleCenter);
                     if(stage==3&&Game.FloodReliefWardTime>0)
-                        Text(p.x-91,p.y-115,182,18,
+                        WorldObjectLabel(p.x-91,p.y-115,182,18,
                             Game.L("药品护盾 ","PARCEL WARD ")+
                             (int)Math.Ceiling(Game.FloodReliefWardTime)+"s",
                             10,mint,TextAnchor.MiddleCenter);
                 }
                 else if(complete&&(stage==1||stage==3))
-                    Text(p.x-77,p.y-97,154,18,
+                    WorldObjectLabel(p.x-77,p.y-97,154,18,
                         (Game.LowTide?Game.L("距涨潮 ","HIGH IN "):
                                       Game.L("距退潮 ","LOW IN "))+
                         (int)Math.Ceiling(Game.PublicFerryPhaseSeconds)+"s",
                         11,tint,TextAnchor.MiddleCenter);
                 else if(current&&stage<=2&&!ready)
-                    Text(p.x-38,p.y-96,76,18,wait.ToString("0")+"s",12,gold,TextAnchor.MiddleCenter);
+                    WorldObjectLabel(p.x-38,p.y-96,76,18,wait.ToString("0")+"s",12,gold,TextAnchor.MiddleCenter);
                 return true;
             }
             if(kind=="rootsonestone")
@@ -2168,13 +2168,13 @@ namespace Starfall
                 Box(p.x-8,p.y-39,16,36,PixelArt.C("#395a45"));
                 Box(p.x-14,p.y-46,28,10,PixelArt.C("#718c70"));
                 Ring(new Point(o.x,o.y),green?.91f:.66f,tint,25);
-                Text(p.x-77,p.y-79,154,21,
+                WorldObjectLabel(p.x-77,p.y-79,154,21,
                     done?Game.L("古根 · 已归档","ROOT RESTORED"):
                     green?Game.L("根鸣泛绿 · 现在调谐","GREEN · TUNE NOW"):
                     next?Game.L("等待绿光","WAIT FOR GREEN"):
                          Game.L("沉寂的古根","SILENT ROOT"),11,tint,TextAnchor.MiddleCenter);
                 if(next&&!green)
-                    Text(p.x-39,p.y-99,78,18,
+                    WorldObjectLabel(p.x-39,p.y-99,78,18,
                         Game.RootsongWait(stage).ToString("0.0")+"s",
                         12,gold,TextAnchor.MiddleCenter);
                 return true;
@@ -2186,12 +2186,12 @@ namespace Starfall
                 PropImage("hearingdais",Game.HearingVerdict,p.x-37,p.y-82,74,90,
                     Game.HearingComplete?Color.white:muted);
                 Ring(new Point(o.x,o.y),Game.HearingComplete?.95f:.7f,tint,28);
-                Text(p.x-82,p.y-107,164,21,
+                WorldObjectLabel(p.x-82,p.y-107,164,21,
                     Game.HearingComplete?Game.L("公民公约已公布","CIVIC VERDICT RATIFIED"):
                     Game.L("第七章 · 公开听证","CHAPTER SEVEN · HEARING"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(Game.Has("hearing_started") && !Game.HearingComplete)
-                    Text(p.x-61,p.y-126,122,20,
+                    WorldObjectLabel(p.x-61,p.y-126,122,20,
                         Game.HearingSignatures+"/3 "+Game.L("署名","SIGNED"),
                         12,tint,TextAnchor.MiddleCenter);
                 return true;
@@ -2204,7 +2204,7 @@ namespace Starfall
                 Color tint=Game.HearingVoice(region)==1?mint:gold;
                 PropImage("hearingplaque",region,p.x-28,p.y-71,56,76,Color.white);
                 Ring(new Point(o.x,o.y),.82f,tint,23);
-                Text(p.x-80,p.y-92,160,20,
+                WorldObjectLabel(p.x-80,p.y-92,160,20,
                     Game.L(new[]{"莫芽 · 活根誓言","阿菱 · 河岸誓言","维恩 · 工房誓言"}[region-1],
                         new[]{"MOYA · ROOT OATH","ARIN · RIVER OATH","VENN · FOUNDRY OATH"}[region-1]),
                     11,tint,TextAnchor.MiddleCenter);
@@ -2219,7 +2219,7 @@ namespace Starfall
                     mint:gold;
                 PropImage("stormlamp",0,p.x-30,p.y-76,60,79,Color.white);
                 Ring(new Point(o.x,o.y),.78f,tint,26);
-                Text(p.x-81,p.y-99,162,22,
+                WorldObjectLabel(p.x-81,p.y-99,162,22,
                     Game.HearingOrrinResponsibility==1?
                         Game.L("厄洛 · 公民医护责任","ORRIN · CIVIC MEDICS"):
                     Game.HearingOrrinResponsibility==2?
@@ -2240,12 +2240,12 @@ namespace Starfall
                     Game.Has("storm_started")?gold:muted;
                 PropImage("witnessledger",0,p.x-30,p.y-70,60,73,Color.white);
                 Ring(new Point(o.x,o.y),Game.StormTuning?1.12f:.74f,tint,27);
-                Text(p.x-78,p.y-91,156,20,
+                WorldObjectLabel(p.x-78,p.y-91,156,20,
                     Game.StormChapterComplete?Game.L("星雨公约生效","STORM CHARTER IN EFFECT"):
                     Game.L("第六章 · 星雨议事","FIRST STORM COUNCIL"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(Game.Has("storm_started")&&!Game.StormChapterComplete)
-                    Text(p.x-78,p.y-110,156,19,
+                    WorldObjectLabel(p.x-78,p.y-110,156,19,
                         Game.StormBudgetSpent+"/8 · "+Game.StormAllocations+"/3",
                         12,tint,TextAnchor.MiddleCenter);
                 return true;
@@ -2260,7 +2260,7 @@ namespace Starfall
                     Game.Has("storm_started")?PixelArt.C("#eaa381"):muted;
                 PropImage("stormrelay",region,p.x-30,p.y-73,60,75,Color.white);
                 Ring(new Point(o.x,o.y),policy!=0?.95f:1.17f,tint,23);
-                Text(p.x-76,p.y-94,152,19,
+                WorldObjectLabel(p.x-76,p.y-94,152,19,
                     policy==1?Game.L("公共庇护已通电","SHELTER PROTECTED"):
                     policy==2?Game.L("公共供能已通电","UTILITIES PROTECTED"):
                     Game.L("星雨配电未稳定","STORM GRID UNSTABLE"),
@@ -2276,7 +2276,7 @@ namespace Starfall
                     Game.StormTuning&&Game.StormNextNode==region?gold:muted;
                 PropImage("stormlamp",region,p.x-27,p.y-74,54,78,Color.white);
                 Ring(new Point(o.x,o.y),Game.StormTuning&&Game.StormNextNode==region?1.1f:.65f,tint,23);
-                Text(p.x-74,p.y-94,148,20,
+                WorldObjectLabel(p.x-74,p.y-94,148,20,
                     Game.StormTuning&&Game.StormNextNode==region?
                         Game.L("下一个节点 · 按E","NEXT GRID NODE · E"):
                     Game.StormChapterComplete?
@@ -2292,7 +2292,7 @@ namespace Starfall
                     region<1||region>3)return true;
                 PropImage("afterlightanchor",region,p.x-26,p.y-69,52,69,Color.white);
                 Ring(new Point(o.x,o.y),.67f,mint,26);
-                Text(p.x-78,p.y-91,156,22,
+                WorldObjectLabel(p.x-78,p.y-91,156,22,
                     Game.L(new[]{"密林公共星灯","遗迹公共星灯","矿场公共星灯"}[region-1],
                         new[]{"GROVE STARROAD","RUINS STARROAD","MINE STARROAD"}[region-1]),
                     11,mint,TextAnchor.MiddleCenter);
@@ -2304,7 +2304,7 @@ namespace Starfall
                     Game.Has("afterlight_started")?gold:muted;
                 PropImage("witnessledger",0,p.x-31,p.y-67,62,72,Color.white);
                 Ring(new Point(o.x,o.y),Game.Has("afterlight_complete")?.95f:.65f,tint,27);
-                Text(p.x-78,p.y-90,156,22,
+                WorldObjectLabel(p.x-78,p.y-90,156,22,
                     Game.Has("afterlight_complete")?Game.L("三地重建公约","RECONSTRUCTION CHARTER"):
                     Game.L("战后重建议事台","AFTERLIGHT COUNCIL"),
                     11,tint,TextAnchor.MiddleCenter);
@@ -2328,7 +2328,7 @@ namespace Starfall
                 PropImage(anchor?"afterlightanchor":"afterlightoutlet",region,
                     p.x-32,p.y-78,64,83,complete?Color.white:muted);
                 Ring(new Point(o.x,o.y),complete?.9f:active?1.2f:.62f,tint,22);
-                Text(p.x-79,p.y-104,158,22,
+                WorldObjectLabel(p.x-79,p.y-104,158,22,
                     civicFight?Game.L("公共储备防卫中","CIVIC DEFENSE ACTIVE"):
                     complete?Game.L(anchor?"公共原始锚点":
                             defended?"巡路防卫已完成":reserve?"应急储备已备妥":"公共设施运转中",
@@ -2341,20 +2341,20 @@ namespace Starfall
                         anchor?"OLD STARROOT ANCHOR":"CIVIC RECEIVER"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(active)
-                    Text(p.x-47,p.y-122,94,19,
+                    WorldObjectLabel(p.x-47,p.y-122,94,19,
                         Game.AfterlightChargeLeft.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
                 if(civicFight)
-                    Text(p.x-79,p.y-123,158,18,
+                    WorldObjectLabel(p.x-79,p.y-123,158,18,
                         Game.AfterlightWatchWave+"/2 · "+Math.Ceiling(Game.AfterlightWatchTime)+"s · "+
                             Math.Ceiling(Game.AfterlightWatchStock)+"%",
                         11,tint,TextAnchor.MiddleCenter);
                 else if(complete&&!anchor&&Game.AfterlightComplete&&!reserve)
-                    Text(p.x-79,p.y-123,158,18,
+                    WorldObjectLabel(p.x-79,p.y-123,158,18,
                         Game.L("应急物资待补充 · E","STOCK SUPPLIES · E"),
                         10,gold,TextAnchor.MiddleCenter);
                 else if(complete&&!anchor&&reserve&&!defended)
-                    Text(p.x-79,p.y-123,158,18,
+                    WorldObjectLabel(p.x-79,p.y-123,158,18,
                         Game.L("两波防卫待检验 · E","DEFEND THE RESERVE · E"),
                         10,mint,TextAnchor.MiddleCenter);
                 return true;
@@ -2369,7 +2369,7 @@ namespace Starfall
                 bool helped=Game.Has("storm_relief_"+chapter);
                 Color tint=steward?mint:repaired?gold:filed?mint:Game.Has("witness_started_"+chapter)?gold:muted;
                 DrawNpc("innGuest",new Point(o.x,o.y),11+chapter);
-                Text(p.x-66,p.y-86,132,20,
+                WorldObjectLabel(p.x-66,p.y-86,132,20,
                     stormActive?helped?Game.L("星雨热汤已送达","STORM RELIEF DELIVERED"):
                         Game.L("邻居需要热汤","NEIGHBORS NEED STEW"):
                     repaired?steward?Game.L("维护承诺已署名","STEWARD SIGNED"):
@@ -2391,14 +2391,14 @@ namespace Starfall
                 Color tint=done?mint:active?PixelArt.C("#dd9678"):gold;
                 PropImage("witnessledger",chapter,p.x-28,p.y-65,56,68,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),active?1f:.55f,tint,24);
-                Text(p.x-70,p.y-88,140,20,
+                WorldObjectLabel(p.x-70,p.y-88,140,20,
                     done?Game.L("原始证据已保全","RECORD PRESERVED"):
                     active?Game.L("击退封锁卫兵","DEFEAT SECURITY"):
                     second?Game.L("现场保全印记","FIELD PRESERVATION"):
                     Game.L("证人原始记录","WITNESS LEDGER"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(active)
-                    Text(p.x-48,p.y-108,96,19,
+                    WorldObjectLabel(p.x-48,p.y-108,96,19,
                         Game.WitnessDefenseTime.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
                 return true;
@@ -2409,12 +2409,12 @@ namespace Starfall
                     Game.BlackoutActive?PixelArt.C("#f7c783"):gold;
                 PropImage("blackoutrefuge",0,p.x-38,p.y-75,76,77,Color.white);
                 Ring(new Point(o.x,o.y),Game.BlackoutActive?1.25f:.75f,tint,28);
-                Text(p.x-76,p.y-98,152,23,
+                WorldObjectLabel(p.x-76,p.y-98,152,23,
                     Game.Has("blackout_complete")?Game.L("公开民用避难所","PUBLIC REFUGE"):
                     Game.L("长夜公共避难所","BLACKOUT SHELTER"),
                     12,tint,TextAnchor.MiddleCenter);
                 if(Game.BlackoutActive)
-                    Text(p.x-80,p.y-117,160,20,
+                    WorldObjectLabel(p.x-80,p.y-117,160,20,
                         Game.BlackoutTime.ToString("0")+"s · "+
                         Game.BlackoutCount+"/3",12,tint,TextAnchor.MiddleCenter);
                 return true;
@@ -2428,7 +2428,7 @@ namespace Starfall
                 DrawNpc("innGuest",new Point(o.x,o.y),id+11);
                 Color tint=Game.BlackoutActive?gold:muted;
                 Ring(new Point(o.x,o.y),.56f,tint,22);
-                Text(p.x-72,p.y-80,144,20,
+                WorldObjectLabel(p.x-72,p.y-80,144,20,
                     Game.L(new[]{"莱娜 · 母亲","伊恩 · 孩子","奥姆 · 守灯人"}[id-1],
                         new[]{"LENA · MOTHER","IAN · CHILD","ORME · LAMPKEEPER"}[id-1]),
                     11,tint,TextAnchor.MiddleCenter);
@@ -2443,7 +2443,7 @@ namespace Starfall
                 Color tint=seen?mint:Game.Has("triad_started")?gold:muted;
                 PropImage("column",site%2,p.x-27,p.y-65,54,72,seen?Color.white:muted);
                 Ring(new Point(o.x,o.y),seen?.75f:.5f,tint,24);
-                Text(p.x-67,p.y-85,134,20,
+                WorldObjectLabel(p.x-67,p.y-85,134,20,
                     seen?Game.L("原始星核账已记录","EVIDENCE SECURED"):
                     Game.L(new[]{"森林供能记录","遗迹水闸记录","矿场机器记录"}[site-1],
                         new[]{"FOREST LEDGER","SLUICE LEDGER","MINE LEDGER"}[site-1]),
@@ -2458,14 +2458,14 @@ namespace Starfall
                 PropImage("altar",0,p.x-30,p.y-73,60,80,
                     Game.Has("triad_sealed")?Color.white:muted);
                 Ring(new Point(o.x,o.y),Game.TriadDefenseActive?1.3f:.7f,tint,30);
-                Text(p.x-75,p.y-90,150,20,
+                WorldObjectLabel(p.x-75,p.y-90,150,20,
                     Game.TriadBossInterruptReady?Game.L("按E · 中断屏障","E · INTERRUPT SHIELD"):
                     Game.Has("triad_sealed")?Game.L("真相已保全","AUDIT PRESERVED"):
                     Game.TriadDefenseActive?Game.L("保密防卫启动","SECURITY ACTIVE"):
                     Game.L("三核中央审计","THREE-CORE AUDIT"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(Game.TriadDefenseActive)
-                    Text(p.x-43,p.y-110,86,19,Game.TriadTime.ToString("0")+"s",
+                    WorldObjectLabel(p.x-43,p.y-110,86,19,Game.TriadTime.ToString("0")+"s",
                         12,tint,TextAnchor.MiddleCenter);
                 return true;
             }
@@ -2475,14 +2475,14 @@ namespace Starfall
                 Color tint=done?mint:Game.TemperActive?PixelArt.C("#e3a66b"):gold;
                 PropImage("foundry",0,p.x-35,p.y-74,70,82,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),Game.TemperActive?1.1f:.6f,tint,22);
-                Text(p.x-70,p.y-91,140,22,done?
+                WorldObjectLabel(p.x-70,p.y-91,140,22,done?
                     Game.L("公共回火工房","PUBLIC FOUNDRY"):
                     Game.L("旧矿场锻炉","OLD FOUNDRY"),
                     12,tint,TextAnchor.MiddleCenter);
                 if(Game.TemperActive)
                 {
                     Bar(p.x-42,p.y+10,84,Game.TemperPressure/95f,tint,7);
-                    Text(p.x-70,p.y-112,140,19,
+                    WorldObjectLabel(p.x-70,p.y-112,140,19,
                         Game.TemperTime.ToString("0")+"s · "+
                         Game.TemperPressure.ToString("0")+"/95",11,tint,
                         TextAnchor.MiddleCenter);
@@ -2498,7 +2498,7 @@ namespace Starfall
                 Color tint=done?mint:next?PixelArt.C("#f3ad75"):muted;
                 PropImage("pressurevent",0,p.x-25,p.y-59,50,65,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),next?.85f:.42f,tint,20);
-                Text(p.x-67,p.y-79,134,20,
+                WorldObjectLabel(p.x-67,p.y-79,134,20,
                     done?Game.L("管线已降温","PRESSURE RELEASED"):
                     next?Game.L("击败守卫，手动泄压","CLEAR GUARDS · VENT"):
                     Game.L("封锁的散热管","LOCKED COOLANT"),
@@ -2508,7 +2508,7 @@ namespace Starfall
             if(kind=="glasswindkeeper")
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),9);
-                Text(p.x-30,p.y-85,60,20,
+                WorldObjectLabel(p.x-30,p.y-85,60,20,
                     Game.Has("glasswind_complete")?"✓":Game.Has("desert_report")?"!":"·",
                     17,Game.Has("glasswind_complete")?mint:gold,TextAnchor.MiddleCenter);
                 return true;
@@ -2522,7 +2522,7 @@ namespace Starfall
                 Color tint=done?mint:active?PixelArt.C("#faaf70"):gold;
                 PropImage("column",0,p.x-29,p.y-67,58,76,done?Color.white:muted);
                 Ring(new Point(o.x,o.y),active?2.55f:done?1f:.62f,tint,32);
-                Text(p.x-61,p.y-89,122,20,
+                WorldObjectLabel(p.x-61,p.y-89,122,20,
                     done?Game.L("公共避暑风脉","PUBLIC SHADE"):
                     active?Game.L("风脉正在校准","RELAY CHARGING"):
                     Game.L("旧风压中继","WIND RELAY"),
@@ -2530,7 +2530,7 @@ namespace Starfall
                 if(active)
                 {
                     Bar(p.x-41,p.y+11,82,Game.GlasswindCharge/8f,tint,7);
-                    Text(p.x-45,p.y-109,90,20,
+                    WorldObjectLabel(p.x-45,p.y-109,90,20,
                         Game.GlasswindTime.ToString("0")+"s · "+
                         Game.GlasswindWave+"/2",11,tint,TextAnchor.MiddleCenter);
                 }
@@ -2540,14 +2540,14 @@ namespace Starfall
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),11);
                 Color tint=Game.Has("tide_salvage_complete")?mint:gold;
-                Text(p.x-63,p.y-85,126,20,
+                WorldObjectLabel(p.x-63,p.y-85,126,20,
                     Game.Has("tide_salvage_complete")?Game.L("公共货单已归档","CARGO PUBLIC"):
                     Game.TideSalvageActive?Game.L("等待运回货物","DELIVER CARGO"):
                     Game.L("潮汐打捞码头","TIDAL SALVAGE"),
                     11,tint,TextAnchor.MiddleCenter);
                 if(Game.TideSalvageActive)
                 {
-                    Text(p.x-50,p.y-106,100,20,
+                    WorldObjectLabel(p.x-50,p.y-106,100,20,
                         Game.TideSalvageTime.ToString("0")+"s · "+
                         (Game.TideSalvagePhase-1)+"/3",12,gold,TextAnchor.MiddleCenter);
                 }
@@ -2565,7 +2565,7 @@ namespace Starfall
                 PropImage("cache",0,p.x-22,p.y-41,44,49,
                     done?Color.white:Game.LowTide?Color.white:muted);
                 Ring(new Point(o.x,o.y),next?.78f:.42f,tint,20);
-                Text(p.x-65,p.y-71,130,20,
+                WorldObjectLabel(p.x-65,p.y-71,130,20,
                     done?Game.L("已打捞","RECOVERED"):
                     next?Game.LowTide?Game.L("可收回货单","SALVAGE NOW"):
                     Game.L("等待退潮","WAIT FOR EBB"):
@@ -2576,7 +2576,7 @@ namespace Starfall
             if(kind=="skywatcher")
             {
                 DrawNpc("innGuest",new Point(o.x,o.y),12);
-                Text(p.x-30,p.y-86,60,22,Game.Has("skywatch_complete")?"✓":"!",
+                WorldObjectLabel(p.x-30,p.y-86,60,22,Game.Has("skywatch_complete")?"✓":"!",
                     18,Game.Has("skywatch_complete")?mint:gold,TextAnchor.MiddleCenter);
                 return true;
             }
@@ -2596,7 +2596,7 @@ namespace Starfall
                     Game.Has("skywatch_complete") &&
                         !Game.Has("skywatch_afterglow_"+id)?
                         Game.L("余辉待收集","AFTERGLOW"):Game.L("已校准","ALIGNED");
-                Text(p.x-53,p.y-85,106,21,legend,
+                WorldObjectLabel(p.x-53,p.y-85,106,21,legend,
                     11,light,TextAnchor.MiddleCenter);
                 return true;
             }
@@ -2607,7 +2607,7 @@ namespace Starfall
                 Color tint=active?PixelArt.C("#e8b4ff"):sealedSky?mint:gold;
                 PropImage("column",0,p.x-34,p.y-76,68,82,Color.white);
                 Ring(new Point(o.x,o.y),active?.95f:.65f,tint,24);
-                Text(p.x-70,p.y-104,140,23,
+                WorldObjectLabel(p.x-70,p.y-104,140,23,
                     active?Game.L("古观星守卫","SKYWATCH GUARDIAN"):
                     sealedSky?Game.L("守卫已停止","GUARDIAN DISABLED"):
                     Game.L("古观星台","OBSERVATORY"),12,tint,TextAnchor.MiddleCenter);
@@ -2615,18 +2615,18 @@ namespace Starfall
                 {
                     Enemy boss=Game.enemies.Find(Game.IsSkywatchEnemy);
                     if(boss!=null) Bar(p.x-43,p.y+12,86,boss.hp/Math.Max(1,boss.maxHp),tint,7);
-                    Text(p.x-43,p.y-124,86,18,Game.SkywatchTime.ToString("0")+"s",
+                    WorldObjectLabel(p.x-43,p.y-124,86,18,Game.SkywatchTime.ToString("0")+"s",
                         11,tint,TextAnchor.MiddleCenter);
                     if (Game.SkywatchGroundingTime>0)
                     {
                         Ring(new Point(o.x,o.y),1.2f,mint,24);
-                        Text(p.x-63,p.y-143,126,17,
+                        WorldObjectLabel(p.x-63,p.y-143,126,17,
                             Game.L("接地 ", "GROUNDED ") +
                                 Game.SkywatchGroundingTime.ToString("0.0")+"s",
                             10,mint,TextAnchor.MiddleCenter);
                     }
                     else if (Game.SkywatchGroundingAvailable)
-                        Text(p.x-70,p.y-143,140,18,
+                        WorldObjectLabel(p.x-70,p.y-143,140,18,
                             Game.L("E · 棱镜接地", "E · Ground prism"),
                             10,gold,TextAnchor.MiddleCenter);
                 }
@@ -2635,7 +2635,7 @@ namespace Starfall
             if (kind == "commonswitness")
             {
                 DrawNpc("innGuest", new Point(o.x, o.y), 5);
-                Text(p.x - 35, p.y - 85, 70, 22,
+                WorldObjectLabel(p.x - 35, p.y - 85, 70, 22,
                     Game.Has("commons_relay_complete") ? "✓" :
                     Game.Has("boss_4") ? "!" : "·", 18,
                     Game.Has("commons_relay_complete") ? mint : gold,
@@ -2657,13 +2657,13 @@ namespace Starfall
                     done || next ? Color.white : muted);
                 Ring(new Point(o.x,o.y),done?.8f:.55f,
                     new Color(light.r,light.g,light.b,.75f),20);
-                Text(p.x - 55,p.y - 94,110,23,
+                WorldObjectLabel(p.x - 55,p.y - 94,110,23,
                     done ? Game.L("公共线路在线","PUBLIC CIRCUIT") :
                     next ? Game.L("等待重连","RECONNECT") :
                            Game.L("封闭通道","LOCKED"),
                     11,light,TextAnchor.MiddleCenter);
                 if (next && Game.CommonsRelayRoom == Game.save.room)
-                    Text(p.x - 40,p.y - 113,80,22,
+                    WorldObjectLabel(p.x - 40,p.y - 113,80,22,
                         Game.CommonsRelayTime.ToString("0") + "s",
                         12,gold,TextAnchor.MiddleCenter);
                 return true;
@@ -2674,7 +2674,7 @@ namespace Starfall
                 Color tint = active ? PixelArt.C("#e7b0f2") : completed ? mint : gold;
                 PropImage("column", 0, p.x - 28, p.y - 65, 56, 73, completed ? muted : Color.white);
                 Ring(new Point(o.x, o.y), .55f, tint, 20);
-                Text(p.x - 53, p.y - 92, 106, 22,
+                WorldObjectLabel(p.x - 53, p.y - 92, 106, 22,
                     active ? Game.L("回声激活", "ECHO ACTIVE") :
                     completed ? Game.L("已完成", "CALIBRATED") :
                     Game.L("方位试炼", "COMPASS TRIAL"),
@@ -2692,7 +2692,7 @@ namespace Starfall
                 PropImage(kind == "archivekeeper" ? "post" : "altar", 0,
                     p.x - 26, p.y - 55, 52, 63, collected ? muted : Color.white);
                 Ring(new Point(o.x, o.y), .48f, collected ? mint : gold, 16);
-                Text(p.x - 18, p.y - 69, 36, 25, collected ? "✓" : "!", 19,
+                WorldObjectLabel(p.x - 18, p.y - 69, 36, 25, collected ? "✓" : "!", 19,
                     collected ? mint : gold, TextAnchor.MiddleCenter);
                 return true;
             }
@@ -2706,7 +2706,7 @@ namespace Starfall
                 Color light = reinforced ? PixelArt.C("#a7e8da") : powered ? mint : gold;
                 PropImage("lamp", 0, p.x - 26, p.y - 54, 52, 65, powered ? Color.white : muted);
                 Ring(new Point(o.x, o.y), .55f, light, 16);
-                Text(p.x - 55, p.y - 86, 110, 24,
+                WorldObjectLabel(p.x - 55, p.y - 86, 110, 24,
                     reinforced ? Game.L("民用避难区", "RELIEF REFUGE") :
                     powered ? Game.L("安全观测站", "SHELTER ONLINE") :
                     Game.L("等待维修", "REPAIR STATION"), 11, light, TextAnchor.MiddleCenter);
@@ -2726,7 +2726,7 @@ namespace Starfall
                         Ring(site,radius,
                             new Color(light.r,light.g,light.b,
                                 sheltered?.68f:.28f),36);
-                        Text(p.x-103,p.y-110,206,19,
+                        WorldObjectLabel(p.x-103,p.y-110,206,19,
                             sheltered?
                                 Game.L("气候保护生效","CLIMATE SHELTER ACTIVE"):
                                 Game.L("进入气候避难区","ENTER STATION REFUGE"),
@@ -2735,19 +2735,19 @@ namespace Starfall
                     }
                 }
                 if (reinforced)
-                    Text(p.x - 32, p.y + 13, 64, 21, station == 5 ? "90s" : "6.5", 13,
+                    WorldObjectLabel(p.x - 32, p.y + 13, 64, 21, station == 5 ? "90s" : "6.5", 13,
                         light, TextAnchor.MiddleCenter);
                 return true;
             }
             if (kind.StartsWith("mirror"))
             {
                 int id = int.Parse(kind.Substring(6)); PropImage("mirror", id, p.x - 34, p.y - 68, 68, 79);
-                Text(p.x - 25, p.y - 92, 50, 25, new[] { "N", "E", "S", "W" }[Game.save.mirrors[id]], 17, gold, TextAnchor.MiddleCenter); return true;
+                WorldObjectLabel(p.x - 25, p.y - 92, 50, 25, new[] { "N", "E", "S", "W" }[Game.save.mirrors[id]], 17, gold, TextAnchor.MiddleCenter); return true;
             }
             if (kind.StartsWith("bell"))
             {
                 int id = int.Parse(kind.Substring(4)); PropImage("bell", id, p.x - 36, p.y - 73, 72, 84);
-                Text(p.x - 30, p.y - 94, 60, 25, new[] { "I", "II", "III", "IV" }[Game.save.bells[id]], 17, gold, TextAnchor.MiddleCenter); return true;
+                WorldObjectLabel(p.x - 30, p.y - 94, 60, 25, new[] { "I", "II", "III", "IV" }[Game.save.bells[id]], 17, gold, TextAnchor.MiddleCenter); return true;
             }
             if (kind.StartsWith("relay"))
             { bool lit = Game.Has("relay_" + kind.Substring(5)); PropImage("lamp", 0, p.x - 24, p.y - 54, 48, 56, lit ? Color.white : muted); if (lit) Ring(new Point(o.x, o.y), .4f, mint, 12); return true; }
@@ -2764,7 +2764,7 @@ namespace Starfall
                     Ring(new Point(o.x,o.y),3.5f,
                         sheltered ? mint : PixelArt.C("#af8d58"),28);
                     if (sheltered)
-                        Text(p.x-94,p.y-85,188,21,
+                        WorldObjectLabel(p.x-94,p.y-85,188,21,
                             Game.L("火盆暖圈 · 安全时休整",
                                 "WARM REFUGE · REST WHEN SAFE"),
                             10,mint,TextAnchor.MiddleCenter);
@@ -2779,7 +2779,7 @@ namespace Starfall
                     letter >= 6 && letter <= 8 && Game.Has("survey_complete");
                 bool decoded = cipher && Game.Has("dispatch_" + letter);
                 if (cipher) Ring(new Point(o.x, o.y), .43f, decoded ? mint : gold, 14);
-                Text(p.x - 16, p.y - 51, 32, 23, cipher ? decoded ? "✓" : "!" : "?", 17,
+                WorldObjectLabel(p.x - 16, p.y - 51, 32, 23, cipher ? decoded ? "✓" : "!" : "?", 17,
                     decoded ? mint : gold, TextAnchor.MiddleCenter);
                 return true;
             }
@@ -2800,18 +2800,18 @@ namespace Starfall
                         new Color(mint.r,mint.g,mint.b,.34f),32);
                 Ring(new Point(o.x, o.y),
                     next ? .9f : .48f, light, 16);
-                Text(p.x - 46, p.y - 91, 92, 23,
+                WorldObjectLabel(p.x - 46, p.y - 91, 92, 23,
                     (node == 0 ? "A" : node == 1 ? "B" : "C") +
                     (visited ? " ✓" : next ? " · E" : " · ?"),
                     14, light, TextAnchor.MiddleCenter);
                 if (Game.AbyssCircuitComplete)
                 {
-                    Text(p.x - 82, p.y - 118, 164, 21,
+                    WorldObjectLabel(p.x - 82, p.y - 118, 164, 21,
                         Game.Has("abyss_annex_circuit_ground_" + Game.save.abyssFloor) ?
                             Game.L("E · 光路网络", "E · Route network") :
                             Game.L("E · 接地 / 光路", "E · Ground / routes"),
                         9, mint, TextAnchor.MiddleCenter);
-                    Text(p.x - 82, p.y - 138, 164, 18,
+                    WorldObjectLabel(p.x - 82, p.y - 138, 164, 18,
                         Game.L("附近待探索 ",
                             "Nearby sites left ") + Game.AbyssCircuitUnvisitedSites(node),
                         9, light, TextAnchor.MiddleCenter);
@@ -2828,7 +2828,7 @@ namespace Starfall
                 // The green radius is real shelter geography, not a
                 // decorative light. Communicate entry/exit directly in the
                 // production field-object label for all three professions.
-                Text(p.x - 97, p.y - 95, 194, 24,
+                WorldObjectLabel(p.x - 97, p.y - 95, 194, 24,
                     Game.AbyssWardShelter ?
                         Game.L("镇流庇护 · 已进入", "PYLON SHELTER ACTIVE") :
                     Game.AbyssWardActive ?
@@ -2844,7 +2844,7 @@ namespace Starfall
                 PropImage("root", 0, p.x - 32, p.y - 66, 64, 75,
                     depleted ? muted : Color.white);
                 Ring(new Point(o.x, o.y), depleted ? .45f : .8f, light, 20);
-                Text(p.x - 59, p.y - 93, 118, 22,
+                WorldObjectLabel(p.x - 59, p.y - 93, 118, 22,
                     depleted ? Game.L("本层已使用", "CHARGE SPENT") :
                     Game.L("复苏泉 · E", "ROOTWELL · E"),
                     11, light, TextAnchor.MiddleCenter);
@@ -2867,13 +2867,13 @@ namespace Starfall
                     bool cooling=Game.ShadeCoolsHero(o);
                     Ring(site,3f,cooling?mint:gold,28);
                     if(cooling)
-                        Text(p.x-92,p.y-85,184,20,
+                        WorldObjectLabel(p.x-92,p.y-85,184,20,
                             Game.CanRestInDesertShade ?
                                 Game.L("树荫恢复中","SHADE COOLING · REST") :
                                 Game.L("已进入遮阴区","SHADE COOLING"),
                             10,mint,TextAnchor.MiddleCenter);
                     else if((Game.Position-site).Length<6f)
-                        Text(p.x-92,p.y-85,184,20,
+                        WorldObjectLabel(p.x-92,p.y-85,184,20,
                             Game.L("前往树荫避暑","ENTER SHADE"),
                             10,gold,TextAnchor.MiddleCenter);
                 }
@@ -2881,12 +2881,12 @@ namespace Starfall
             }
             if (kind == "skiff") return true;
             if (kind == "townboard" || kind == "contract")
-            { PropImage("post", 0, p.x - 30, p.y - 66, 60, 70); Text(p.x - 14, p.y - 55, 28, 26, kind == "contract" ? "N" : "B", 16, gold, TextAnchor.MiddleCenter); return true; }
+            { PropImage("post", 0, p.x - 30, p.y - 66, 60, 70); WorldObjectLabel(p.x - 14, p.y - 55, 28, 26, kind == "contract" ? "N" : "B", 16, gold, TextAnchor.MiddleCenter); return true; }
             if (kind == "envoy" || kind == "captain" || kind == "tinker" || kind == "keeper" || kind == "council" || kind.StartsWith("castaway"))
             {
                 DrawNpc(kind, new Point(o.x, o.y));
                 bool complete = kind == "captain" ? Game.Has("harbor_report") : kind == "tinker" ? Game.Has("desert_report") : kind == "keeper" ? Game.Has("mountain_report") : false;
-                Text(p.x - 12, p.y - 86, 24, 25, complete ? "+" : "!", 22, complete ? mint : gold, TextAnchor.MiddleCenter); return true;
+                WorldObjectLabel(p.x - 12, p.y - 86, 24, 25, complete ? "+" : "!", 22, complete ? mint : gold, TextAnchor.MiddleCenter); return true;
             }
             return false;
         }
