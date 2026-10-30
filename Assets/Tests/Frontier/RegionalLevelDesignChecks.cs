@@ -1401,6 +1401,41 @@ namespace Starfall.Tests
                 "Nonlethal field outcome persists as a completed v2 road without ghost enemies");
         }
 
+
+        // Mid-ambush saves must not turn its two transient raiders into
+        // ordinary persistent killers when RestoreWorld reconstructs a
+        // generic EnemyRecord. The legitimate uncompleted crossing can be
+        // revisited later on foot, without laundering main-story kills.
+        public static void UnfinishedFarRoadSaveNeverRestoresGhostOrdinaryEnemies(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";
+            g.save.room=1;g.save.stage=3;g.enemies.Clear();
+            WorldObject site=Array.Find(g.Map.objects,o=>
+                o.kind=="ridgemarker"&&o.id=="ridge_route_1_0");
+            Check(site!=null,"Original forest outer-road crossing exists");
+            g.save.x=site.x;g.save.y=site.y;
+            int oldKills=g.save.kills[1];
+            g.Tick(.02f,new Point());
+            Check(g.RemoteRoadEncounterActive&&g.RemoteRoadRemaining==2,
+                "A real, unfinished two-actor encounter is live before saving");
+            g.PrepareSave();
+            Check(g.save.snapshotRoom==1&&
+                g.save.worldEnemies!=null&&g.save.worldEnemies.Length==0,
+                "Both active encounter actors are omitted from the persistent ordinary-world roster");
+            var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&
+                !saved.RemoteRoadEncounterActive&&
+                !saved.RemoteRoadCleared(1,0)&&
+                saved.enemies.Count==0&&saved.save.kills[1]==oldKills,
+                "Loading an unfinished ambush neither restores ghost raiders nor grants chapter kills");
+            saved.mode="world";
+            saved.Tick(.02f,new Point());
+            Check(saved.RemoteRoadEncounterActive&&
+                saved.RemoteRoadRemaining==2&&
+                saved.save.kills[1]==oldKills,
+                "Returning to the actual crossing retries a fresh physical fight, not stale saved enemy references");
+        }
+
         public static void FarRoadDistrictsHavePlayableOptionalAmbushes(Campaign data)
         {
             var flags=System.Reflection.BindingFlags.Instance|

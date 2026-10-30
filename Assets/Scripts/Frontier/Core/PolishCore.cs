@@ -574,7 +574,12 @@ namespace Starfall
                     // The contract itself is transient. Never write its
                     // reference-owned raiders into an ordinary v2 world
                     // snapshot that would resurrect them without a mission.
-                    IsFieldPatrolEnemy(e) || IsVantageWatchEnemy(e) ||
+                    // A remote road ambush is a temporary TWO-actor live
+                    // contract too. Persisting either actor as an ordinary
+                    // EnemyRecord after save would resurrect it without
+                    // its actual encounter owner and grant false chapter loot.
+                    IsFieldPatrolEnemy(e) || IsRemoteRoadEnemy(e) ||
+                    IsVantageWatchEnemy(e) ||
                     IsChapterRoadEnemy(e) || IsNightShiftRaider(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
