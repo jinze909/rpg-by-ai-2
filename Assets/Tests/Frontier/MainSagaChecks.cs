@@ -544,6 +544,12 @@ namespace Starfall.Tests
                 Enemy archer=Array.Find(live,e=>e.kind==1);
                 if(archer!=null)
                 {
+                    // A live melee raider inside the perimeter can be more
+                    // urgent than a nearby bow. Isolate the distinct case:
+                    // a stunned raider cannot damage evidence while a newly
+                    // arrived archer can, and guidance must switch.
+                    foreach(Enemy e in live)
+                        if(e.kind!=1){e.stun=8f;e.stagger=0f;e.hitTime=0f;}
                     archer.x=g.Position.x;archer.y=g.Position.y;
                     archer.stun=0f;archer.stagger=0f;archer.hitTime=0f;
                     Check((archer.Position-witness).Length<7.5f,
