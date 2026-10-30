@@ -273,6 +273,23 @@ namespace Starfall
                     defending ? Game.L(Game.RoadwardenTrialVeteran ? "精英 " : "守望 ", Game.RoadwardenTrialVeteran ? "ELITE " : "WAVE ") + Game.RoadwardenTrialWave + "/" + Game.RoadwardenTrialTotalWaves :
                     defended ? Game.L("已守住", "GUARDED") : found ? "✓" : o.kind.Substring(6);
                 Text(p.x - 46, p.y - 72, 92, 24, label, 12, accent, TextAnchor.MiddleCenter);
+                // The newly playable first-chapter rescue actually uses
+                // this SAME existing Mossroot signal. Make the alternate
+                // return route obvious in the live world, not only in an
+                // off-screen quest checklist. Do not hide the original
+                // Roadwarden defense artwork when its later mission begins.
+                if(!defending&&Game.save.room==1&&o.kind=="survey1"&&
+                    Game.Has("scout_aid_prepared")&&!Game.Has("scout_saved"))
+                {
+                    bool lit=Game.Has("scout_beacon_lit");
+                    Color routeColor=lit?mint:gold;
+                    Ring(new Point(o.x,o.y),lit?.63f:.78f,routeColor,22);
+                    if(!lit)Diamond(p.x,p.y-94,7,routeColor);
+                    Text(p.x-116,p.y-117,232,22,
+                        lit?Game.L("归乡信号已点亮 ✓","SAFE RETURN LIT ✓"):
+                            Game.L("按 E 点亮侦察员回家路","E · LIGHT SCOUT EXIT"),
+                        11,routeColor,TextAnchor.MiddleCenter);
+                }
                 if (defending)
                 {
                     Color wardColor = Game.RoadwardenWardIntegrity < 30 ? PixelArt.C("#f27d7d") :
@@ -285,7 +302,19 @@ namespace Starfall
                 }
                 return true;
             }
-            if (o.kind == "mentor" || o.kind == "returnscout") { DrawNpc(o.kind, new Point(o.x, o.y)); Text(p.x - 55, p.y - 89, 110, 24, o.kind == "mentor" ? Game.L("训练场", "PRACTICE") : Game.L("已归来", "HOME"), 12, mint, TextAnchor.MiddleCenter); return true; }
+            if(o.kind=="mentor"||o.kind=="returnscout")
+            {
+                DrawNpc(o.kind,new Point(o.x,o.y));
+                string label=o.kind=="mentor"?Game.L("训练场","PRACTICE"):
+                    Game.Has("scout_rescue_aid")?
+                    Game.L("信标归乡","BEACON RETURN"):
+                    Game.Has("scout_rescue_defense")?
+                    Game.L("守护归乡","DEFENDED RETURN"):
+                    Game.L("已归来","HOME");
+                Text(p.x-66,p.y-89,132,24,label,12,mint,
+                    TextAnchor.MiddleCenter);
+                return true;
+            }
             if (o.kind.StartsWith("seal")) { bool open = Game.Has("seal_" + Game.save.room); Ring(new Point(o.x, o.y), .4f, open ? mint : gold, 16); if (!open) { Icon("relic", p.x - 18, p.y - 38, 36); Text(p.x - 44, p.y + 14, 88, 23, ControlKey("R / E", "B"), 12, gold, TextAnchor.MiddleCenter); } return true; }
             if (o.kind.StartsWith("cache")) { bool found = Game.Has("cache_" + Game.save.room); PropImage("cache", 0, p.x - 26, p.y - 42, 52, 61, found ? muted : Color.white); return true; }
             return false;
