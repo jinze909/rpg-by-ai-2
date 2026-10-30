@@ -181,6 +181,11 @@ namespace Starfall.Tests
             {
                 GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
                 g.save.room=room;g.enemies.Clear();g.invulnerable=200f;
+                // Live farshore progression, not an impossible save with
+                // privileged room coordinates but missing portal credentials.
+                g.save.flags.Add("exp_intro");
+                if(room>=6)g.save.flags.Add("harbor_report");
+                if(room>=7)g.save.flags.Add("desert_report");
                 WorldObject source=Array.Find(g.Map.objects,o=>
                     o.id=="wilderness_hunt_"+room);
                 Check(source!=null&&source.kind=="wildernessHunt"&&
