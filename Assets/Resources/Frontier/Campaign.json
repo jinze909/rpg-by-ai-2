@@ -4403,6 +4403,14 @@
       ],
       "objects": [
         {
+          "id": "nightshift_vent_3",
+          "kind": "nightvent",
+          "name": "废轨的手动泄压站",
+          "en": "Abandoned Rail Pressure Relief",
+          "x": 37.5,
+          "y": 51.5
+        },
+        {
           "id": "nightledger3",
           "kind": "nightledger",
           "name": "矿场密封的停机记录",

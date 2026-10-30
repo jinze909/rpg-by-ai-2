@@ -304,8 +304,8 @@ namespace Starfall
                           "Verify the forest night watch"):
                     r==2?L("以退潮钟印纠正官方渡口时间",
                           "Cross-check the low-tide clock"):
-                         L("用一个真实零件打开矿场停机封条",
-                           "Spend one real part to open the furnace shutdown record"),
+                         L("用零件开封，或步行启动废轨泄压站再限时返回",
+                           "Open with a part, or vent the rail machinery and return before cooling expires"),
                     Has("nightshift_trace_"+r)));
             q.steps.Add(new QuestStep(L("回余烬镇决定证词如何保存",
                 "Return to town and choose what to protect"),q.complete));
@@ -351,13 +351,25 @@ namespace Starfall
                       "Low tide is open. Inspect the original clock mark on the ruin stairs."):
                     L("沉没遗迹正在涨潮：等真正退潮，或带木材1搭支架测量。",
                       "The ruins are flooded. Wait for ebb or bring one timber for a real gauge.")):
+                NightShiftVentSeconds>0f?
+                L("泄压还有"+(int)NightShiftVentSeconds+"秒：沿原路赶回矿场卷轴，免费开封。",
+                  "Vent open for "+(int)NightShiftVentSeconds+"s: return to the original spool and recover it without a part."):
+                NightShiftVentSeeking?
+                L("沿废轨前往手动泄压站，花耐力启动冷却再返回卷轴。",
+                  "Find the remote rail pressure relief, spend energy to cool the seal, then return."):
                 save.inventory[4]<1?
-                L("矿场封条缺一枚零件：先从本区真实矿点收集零件。",
-                  "The sealed mine spool needs one part. Collect one from real ore."):
-                L("到赤铁矿场打开停机卷轴，看看是谁签了最后一次关机令。",
-                  "Open the Ironreach stop-work spool and identify the final signature.");
+                L("无零件：可去矿点采集，或在卷轴处选择废轨泄压路线。",
+                  "No parts: collect a real mine part, or choose the physical relief-route alternative at the spool."):
+                L("矿场卷轴：消耗零件直接开封，或挑战废轨泄压折返路线。",
+                  "Mine spool: spend a part to open immediately or attempt the remote pressure-relief run.");
             if(next==1&&NightShiftRaidActive)q.target=NightShiftRaidTarget;
-            if(next==3&&save.room==3&&save.inventory[4]<1)
+            if(next==3&&save.room==3&&NightShiftVentSeeking)
+            {
+                WorldObject station=NightShiftVentSite();
+                if(station!=null)q.target=new Point(station.x,station.y);
+            }
+            else if(next==3&&save.room==3&&save.inventory[4]<1&&
+                    NightShiftVentSeconds<=0f)
                 q.target=ResourcePoint(3,"ore");
             if(!CanEnter(next))
             {
@@ -489,6 +501,49 @@ namespace Starfall
                 "Two real road trackers answer the disturbed roll. Defeat both and return to verify the evidence.");
             return true;
         }
+
+        // A genuinely separate, navigable mine solution to the sealed
+        // evidence spool. Optional 85-second cooling run: the existing
+        // direct 1-part opening remains available to legacy players.
+        // Session-local only. No save migration, teleport or fake machine.
+        private bool nightShiftSeekingVent;
+        private float nightShiftVentUntil;
+        private SaveData nightShiftVentSave;
+        private MapData nightShiftVentMap;
+        private void ResetNightShiftVent()
+        {
+            nightShiftSeekingVent=false;nightShiftVentUntil=0f;
+            nightShiftVentSave=null;nightShiftVentMap=null;
+        }
+        public float NightShiftVentSeconds
+        {
+            get
+            {
+                if(save.room!=3||!System.Object.ReferenceEquals(nightShiftVentSave,save)||
+                   !System.Object.ReferenceEquals(nightShiftVentMap,Map)||
+                   !Has("nightshift_started")||Has("nightshift_trace_3"))
+                    return 0f;
+                return Math.Max(0f,nightShiftVentUntil-save.totalTime);
+            }
+        }
+        public bool NightShiftVentSeeking
+        {get{return nightShiftSeekingVent&&save.room==3&&
+            !Has("nightshift_trace_3")&&NightShiftVentSeconds<=0f;}}
+        private WorldObject NightShiftVentSite()
+        {
+            if(data.maps.Length<=3)return null;
+            foreach(WorldObject o in data.maps[3].objects)
+                if(o!=null&&o.kind=="nightvent"&&o.id=="nightshift_vent_3")
+                    return o;
+            return null;
+        }
+        private bool NightShiftVentSource(WorldObject o)
+        {
+            return o!=null&&save.room==3&&o.kind=="nightvent"&&
+                System.Object.ReferenceEquals(o,NightShiftVentSite())&&
+                SourceBelongsToActiveMap(o)&&IsObjectPresent(o)&&
+                HasPhysicalInteractionReach(o);
+        }
         private bool NightShiftSource(WorldObject o,int region)
         {
             return o!=null&&o.kind=="nightledger"&&
@@ -499,7 +554,32 @@ namespace Starfall
         }
         private bool TalkNightShift(WorldObject o)
         {
-            if(o==null||o.kind!="nightledger")return false;
+            if(o==null)return false;
+            if(o.kind=="nightvent")
+            {
+                if(!NightShiftVentSource(o))return true;
+                if(!Has("nightshift_started")||NightShiftEvidenceCount!=2||
+                   NightShiftComplete)
+                    Dialog(o.name,o.en,
+                        "旧手轮的铭牌还在，油压早已离开规定区间。这里连着下方的停机记录。",
+                        "The old handwheel is rusted. Its pipe still links to the sealed shutdown roll.",
+                        C("暂不操作","Leave machinery","close"));
+                else if(NightShiftVentSeconds>0f)
+                    Dialog(o.name,o.en,
+                        "泄压阀已经打开。冷却气正在沿旧轨向封存卷轴流动，还剩"+(int)NightShiftVentSeconds+"秒。必须亲自返回现场。",
+                        "The physical valve is open, cooling the old spool for "+(int)NightShiftVentSeconds+" seconds. Return to the original record on foot.",
+                        C("赶回卷轴","Return to the spool","close"));
+                else
+                    Dialog(o.name,o.en,
+                        "手轮后的老管线还通着卷轴铁筒。启动它要消耗18点耐力：冷却只能坚持85秒。"
+                        +"如果中途离开矿场或超时，就得重新打开阀门。",
+                        "The old pipe reaches the sealed spool. Turning it costs 18 energy and cools the lock for 85 seconds."
+                        +" If you leave the region or miss the window, this physical reset must be repeated.",
+                        C("耐力18 · 启动85秒泄压","18 energy · activate 85s relief","nightshift_vent_start"),
+                        C("先准备好再回来","Prepare first","close"));
+                return true;
+            }
+            if(o.kind!="nightledger")return false;
             int room=save.room;
             if(!NightShiftSource(o,room))return true;
             if(room==0)
@@ -613,10 +693,17 @@ namespace Starfall
                     C("暂不取证","Wait for better conditions","close"));
             else
                 Dialog(o.name,o.en,
-                    "最后一页被装进带螺丝的铁筒。筒盖上写着“未获批准不得停炉”，底下却有工人按下的停机手印。\n\n你需要一枚真实的矿场零件撬开生锈的锁环，不能凭猜测宣告谁签了字。",
-                    "The last page is sealed in a screwed iron spool. “No shutdown without authorization,” says the lid, beside a worker's stop-work thumbprint.\n\nOne genuine mine part can loosen the corroded collar. You cannot invent the last signature.",
-                    C("耗费零件1 · 打开卷轴",
+                    "最后一页被装进带螺丝的铁筒。筒盖上写着“未获批准不得停炉”，底下却有工人按下的停机手印。\n\n你可以耗费零件直接撬开锁环；也可以步行到旧轨深处的手动泄压站，启动冷却再在85秒内赶回来。",
+                    "The last page is sealed in a screwed iron spool. “No shutdown without authorization,” says the lid, beside a worker's stop-work thumbprint.\n\nSpend a real part to loosen the collar, or hike to the abandoned rail pressure relief and return within its 85-second cooling window.",
+                    C("耗费零件1 · 直接打开卷轴",
                       "Spend 1 part · open the spool","nightshift_trace_3"),
+                    NightShiftVentSeconds>0f?
+                        C("泄压尚有"+(int)NightShiftVentSeconds+"秒 · 免费取证",
+                          "Cooling "+(int)NightShiftVentSeconds+"s · open free",
+                          "nightshift_vent_open"):
+                        C("前往废轨泄压站 · 步行往返",
+                          "Find the rail relief · physical route",
+                          "nightshift_vent_route"),
                     C("暂不拆封","Leave the seal intact","close"));
             return true;
         }
@@ -626,8 +713,41 @@ namespace Starfall
                 return false;
             WorldObject source=pendingDialogueSource;
             int room=pendingDialogueSourceRoom;
-            if(room<0||room>3||!NightShiftSource(source,room))
+            if(room<0||room>3||
+               !NightShiftSource(source,room)&&!NightShiftVentSource(source))
                 return true;
+            if(action=="nightshift_vent_route")
+            {
+                if(!NightShiftSource(source,3)||NightShiftComplete||
+                   !Has("nightshift_started")||NightShiftEvidenceCount!=2)
+                    return true;
+                nightShiftSeekingVent=true;revision++;sound="quest";
+                Notify("目标更新：沿真实矿道前往废轨泄压站；不会传送或自动打开卷轴。",
+                    "Objective updated: walk to the rail relief. No teleport or free spool opening.");
+                return true;
+            }
+            if(action=="nightshift_vent_start")
+            {
+                if(!NightShiftVentSource(source)||NightShiftComplete||
+                   !Has("nightshift_started")||NightShiftEvidenceCount!=2)
+                    return true;
+                if(!SafeTravel||Dying||practicing||save.energy<18f)
+                {
+                    Notify("泄压手轮需要18点耐力，并且周围必须安全。",
+                        "The pressure wheel needs 18 energy and a safe area.");
+                    return true;
+                }
+                save.energy-=18f;
+                nightShiftVentUntil=save.totalTime+85f;
+                nightShiftVentSave=save;nightShiftVentMap=Map;
+                nightShiftSeekingVent=false;
+                revision++;sound="quest";
+                effects.Add(new Effect("burst",new Point(source.x,source.y),.6f)
+                    {radius=1.6f,variant=2});
+                Notify("冷却阀已开！85秒内步行返回矿场卷轴可免零件开封。",
+                    "Relief valve open. Walk back to the original spool within 85s to save a part.");
+                return true;
+            }
             if(action=="nightshift_fight")
             {
                 if(!BeginNightShiftRaid(source))
@@ -682,7 +802,8 @@ namespace Starfall
             if(action=="nightshift_trace_1")stage=1;
             if(action=="nightshift_trace_2"||
                action=="nightshift_tidebrace")stage=2;
-            if(action=="nightshift_trace_3")stage=3;
+            if(action=="nightshift_trace_3"||
+               action=="nightshift_vent_open")stage=3;
             if(stage>=1)
             {
                 if(room!=stage||NightShiftComplete||
@@ -711,13 +832,26 @@ namespace Starfall
                 }
                 if(stage==3)
                 {
-                    if(save.inventory[4]<1)
+                    if(action=="nightshift_vent_open")
                     {
-                        Notify("矿场铁筒缺一枚零件，不能凭空开锁。",
-                            "The mine spool needs one real part. It cannot open for free.");
-                        return true;
+                        if(NightShiftVentSeconds<=0f)
+                        {
+                            Notify("管道已经重新升温。请回废轨泄压站再次冷却，或用零件开封。",
+                                "The pipe has reheated. Revisit the rail wheel or spend one part.");
+                            return true;
+                        }
                     }
-                    save.inventory[4]--;
+                    else
+                    {
+                        if(save.inventory[4]<1)
+                        {
+                            Notify("矿场铁筒缺一枚零件：或尝试远处的泄压站。",
+                                "The mine spool needs one real part or the remote pressure relief.");
+                            return true;
+                        }
+                        save.inventory[4]--;
+                    }
+                    ResetNightShiftVent();
                 }
                 Flag("nightshift_trace_"+stage);
                 if(stage==1)ResetNightShiftRaid();
@@ -728,6 +862,8 @@ namespace Starfall
                         action=="nightshift_tidebrace"?
                         "夜班名册 · 涨潮时耗费一块木材搭设临时支架，测得真正的退潮钟印，推翻堡垒抄本。":
                         "夜班名册 · 沉没遗迹真正的退潮钟印否定了堡垒抄本中的日出时间。":
+                        action=="nightshift_vent_open"?
+                        "夜班名册 · 穿过废轨启动真实泄压手轮，在85秒内赶回矿场并无损打开停机卷轴，保全了工人的手印。":
                         "夜班名册 · 在赤铁矿场消耗一枚零件，打开封存的停机卷轴并保全工人的手印。",
                     stage==1?
                         "Night-Shift Roll: the torn forest card confirms three workers reached the ferry before dawn.":
@@ -735,6 +871,8 @@ namespace Starfall
                         action=="nightshift_tidebrace"?
                         "Night-Shift Roll: spent one timber on a real tide gauge during floodwater and disproved the citadel's sunrise timestamp.":
                         "Night-Shift Roll: the real low-tide mark disproves the citadel's sunrise crossing time.":
+                        action=="nightshift_vent_open"?
+                        "Night-Shift Roll: activated the remote rail pressure wheel and returned within the real cooling window, opening the spool without a part.":
                         "Night-Shift Roll: spent one genuine part to open the mine spool and preserve the stop-work signature.");
                 sound="quest";revision++;
                 Notify(stage==1?"巡林班表已收录：下一处到沉没遗迹核对退潮钟印。":

@@ -1231,6 +1231,22 @@ namespace Starfall
             worldLabelOwner=o;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
 
+            if(kind=="nightvent")
+            {
+                bool available=Game.Has("nightshift_started")&&
+                    Game.NightShiftEvidenceCount==2&&!Game.NightShiftComplete;
+                bool cooling=Game.NightShiftVentSeconds>0f;
+                Color ink=cooling?mint:available?gold:muted;
+                PropImage("barrel",0,p.x-38,p.y-77,76,84,ink);
+                Ring(new Point(o.x,o.y),cooling?.75f:.5f,ink,22);
+                if(available)
+                    WorldObjectLabel(p.x-112,p.y-116,224,19,
+                        cooling?Game.L("泄压中 · "+(int)Game.NightShiftVentSeconds+"秒",
+                            "COOLING · "+(int)Game.NightShiftVentSeconds+"S"):
+                        Game.L("废轨手轮 · 体力18","RAIL VALVE · 18 ENERGY"),
+                        10,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="nightledger")
             {
                 bool finished=Game.NightShiftComplete;
@@ -1257,6 +1273,11 @@ namespace Starfall
                             Game.L("涨潮 · 等待 / 木材1搭架",
                                 "HIGH TIDE · WAIT / 1 TIMBER"),
                         10,Game.LowTide?mint:gold,TextAnchor.MiddleCenter);
+                if(station==3&&Game.NightShiftVentSeconds>0f)
+                    WorldObjectLabel(p.x-111,p.y-140,222,19,
+                        Game.L("泄压开封 · 倒计时"+(int)Game.NightShiftVentSeconds+"秒",
+                            "COOLING SPOOL · "+(int)Game.NightShiftVentSeconds+"S"),
+                        10,mint,TextAnchor.MiddleCenter);
                 if(station==1&&Game.NightShiftRaidActive)
                 {
                     Ring(new Point(o.x,o.y),.90f,gold,28);
