@@ -1727,24 +1727,33 @@ namespace Starfall
                     {
                         Ring(new Point(o.x,o.y),.93f,gold,28);
                         WorldObjectLabel(p.x-117,p.y-141,234,18,
-                            Game.L("巡兵仍在现场 · "+Game.FieldPatrolRemaining+"名",
-                                "PATROL ACTIVE · "+Game.FieldPatrolRemaining+" LEFT"),
+                            Game.FieldPatrolVeteranActive?
+                                Game.L("进阶巡护战斗 · 尚余"+Game.FieldPatrolRemaining+"名",
+                                    "ELITE PATROL · "+Game.FieldPatrolRemaining+" LEFT"):
+                                Game.L("巡兵仍在现场 · "+Game.FieldPatrolRemaining+"名",
+                                    "PATROL ACTIVE · "+Game.FieldPatrolRemaining+" LEFT"),
                             10,gold,TextAnchor.MiddleCenter);
                     }
-                    else if(!second&&Game.FieldPatrolSpared(Game.save.room))
+                    else if(!second&&
+                            Game.FieldPatrolVeteranDone(Game.save.room))
                     {
+                        bool humane=Game.FieldPatrolVeteranAllLiving(Game.save.room);
                         Ring(new Point(o.x,o.y),.93f,mint,28);
                         WorldObjectLabel(p.x-117,p.y-141,234,18,
-                            Game.L("全员活捉 · 安全路况已公开",
-                                "ALL CAPTURED · SAFE ROUTE KNOWN"),
+                            humane?
+                                Game.L("进阶巡护 · 精锐全员活捉",
+                                    "ELITE DEFENSE · ALL RESTRAINED"):
+                                Game.L("进阶巡护 · 精锐回执已签",
+                                    "ELITE DEFENSE · SIGNED"),
                             10,mint,TextAnchor.MiddleCenter);
                     }
                     else if(!second&&Game.FieldPatrolDone(Game.save.room))
                     {
+                        Ring(new Point(o.x,o.y),.93f,gold,28);
                         WorldObjectLabel(p.x-117,p.y-141,234,18,
-                            Game.L("巡护安全回执已登记",
-                                "SIGNED PATROL RECEIPT"),
-                            10,ink,TextAnchor.MiddleCenter);
+                            Game.L("精锐巡护可挑战 · 按 E",
+                                "ELITE PATROL AVAILABLE · E"),
+                            10,gold,TextAnchor.MiddleCenter);
                     }
                 }
                 if(!finished&&(!second||ready))
