@@ -1112,6 +1112,39 @@ namespace Starfall
                 }
             }
             worldLabelCullingActive=false;
+            DrawCrowdedInteractionChoices();
+        }
+        private void DrawCrowdedInteractionChoices()
+        {
+            if(Game==null||Game.mode!="world"||!Game.SafeTravel)return;
+            List<WorldObject> options=Game.NearbyInteractionChoices();
+            if(options.Count<2)return;
+            WorldObject current=Game.Nearest();
+            bool civilian=Game.ReliefCivilianIsInteractionTarget(current);
+            int at=civilian?options.IndexOf(null):options.IndexOf(current);
+            if(at<0)at=0;
+            int displayed=Math.Min(4,options.Count);
+            float x=56f,y=516f,width=366f;
+            Panel(x,y,width,49f+displayed*25f,
+                new Color(.045f,.08f,.13f,.92f),PixelArt.C("#637d82"));
+            Text(x+12,y+7,width-24,25,
+                Game.L("附近交互 · O / R3 切换","NEARBY · O / R3 TO SWITCH")+
+                    "  "+(at+1)+"/"+options.Count,
+                12,gold);
+            for(int row=0;row<displayed;row++)
+            {
+                int index=(at+row)%options.Count;
+                WorldObject target=options[index];
+                bool chosen=row==0;
+                if(chosen)Box(x+8,y+33+row*25,3,22,mint);
+                string label=target==null?
+                    Game.L("移动中的获救居民","Moving rescued civilian"):
+                    Game.L(target.name,target.en);
+                Text(x+18,y+34+row*25,width-30,23,
+                    (chosen?"◆  ":"   ")+label,12,chosen?paper:muted);
+            }
+            if(options.Count>displayed)
+                Text(x+width-54,y+10,45,20,"…",12,muted);
         }
         private void DrawHero() { DrawPlayerActor(); }
         private void DrawLegacyHero()

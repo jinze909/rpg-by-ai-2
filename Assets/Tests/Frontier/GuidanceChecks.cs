@@ -3,6 +3,29 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void CrowdedTownInteractionsHaveRankedVisibleCycling(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.save.room=0;
+            g.save.x=18f;g.save.y=15f;g.SetAim(new Point(0,1));
+            var first=g.NearbyInteractionChoices();
+            Check(first.Count>=2&&first.Count==g.NearbyInteractionCount(),
+                "The crowded starting plaza exposes each physically usable actor");
+            foreach(WorldObject entry in first)
+                Check(entry!=null&&g.IsObjectPresent(entry)&&g.CanStand(g.Position),
+                    "Every map candidate is an actual present source");
+            WorldObject selected=g.Nearest();
+            Check(selected!=null&&g.CycleNearbyInteraction()&&
+                g.Nearest()!=selected,
+                "O/R3 switches away from the currently focused speaker");
+            WorldObject next=g.Nearest();
+            Check(first.Contains(next),
+                "The selected speaker belongs to the original interaction ring");
+            for(int i=1;i<first.Count;i++)g.CycleNearbyInteraction();
+            Check(g.Nearest()==selected&&g.save.version==2,
+                "Full ring rotation preserves the initial E target and v2 save");
+        }
+
         public static void FinishedTrackedStoryRecommendsAnActualPlayableNextStep(Campaign data)
         {
             var g=Fresh(data);

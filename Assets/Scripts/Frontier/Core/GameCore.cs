@@ -3725,19 +3725,34 @@ namespace Starfall
                     count++;
             return count;
         }
-        public bool CycleNearbyInteraction()
+        // The SAME accessible, stable source ring drives both selection
+        // and the on-screen list. A null entry is a moving rescue civilian.
+        public List<WorldObject> NearbyInteractionChoices()
         {
-            if(mode!="world"||Dying||Map==null||Map.objects==null||
-               !CanStand(Position))return false;
             var nearby=new List<WorldObject>();
+            if(Map==null||Map.objects==null||!CanStand(Position))
+                return nearby;
             foreach(WorldObject entry in Map.objects)
                 if(IsObjectPresent(entry)&&
                    HasPhysicalInteractionReach(new Point(entry.x,entry.y)))
                     nearby.Add(entry);
-            // The transient physically present civilian competes in the
-            // SAME E target cycle as resident NPCs and map landmarks.
-            bool hasCivilian=ReliefCivilianIsInteractionTarget(null);
-            if(hasCivilian)nearby.Add(null);
+            Point facing=aim.Normalized;
+            nearby.Sort((a,b)=>
+            {
+                float sa=InteractionTargetScore(new Point(a.x,a.y),facing);
+                float sb=InteractionTargetScore(new Point(b.x,b.y),facing);
+                int order=sa.CompareTo(sb);
+                return order!=0?order:String.CompareOrdinal(a.id,b.id);
+            });
+            if(ReliefCivilianIsInteractionTarget(null))nearby.Add(null);
+            return nearby;
+        }
+        public bool CycleNearbyInteraction()
+        {
+            if(mode!="world"||Dying||Map==null||Map.objects==null||
+               !CanStand(Position))return false;
+            var nearby=NearbyInteractionChoices();
+            bool hasCivilian=nearby.Contains(null);
             if(nearby.Count<2)
             {
                 ClearInteractionFocus();
