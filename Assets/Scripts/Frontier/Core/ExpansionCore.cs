@@ -4076,7 +4076,7 @@ namespace Starfall
             List<Choice> choices = new List<Choice> { C("共同水渠 · 优先供水", "Shared canals · water first", "covenant1"), C("轮值灯网 · 优先航路", "Rotating lightwatch · routes first", "covenant2") };
             if (CouncilPactReady) choices.Add(C("开放星路 · 三方共同治理", "Open starroads · shared governance", "covenant3"));
             choices.Add(C("先建设与争取支持", "Build and earn more support", "close"));
-            Dialog("露恩 · 最后一封信", "Lune · The final letter", "来自雾港的水位原稿、玻璃沙海的调度账和霜钟高原的名单终于放在同一张桌上。守灯会承认航路所需的能源不能无底线抽取；摆渡盟承认熄灭灯网也会让远海船只遇险；山野议会承认修复土地同样需要可靠的运输与工程。\n\n共同水渠会增加粮食和药材供给；轮值灯网能维持更短距离的安全旅行。只有建设达到3级、招募两名同伴，并让三方声望至少达到2，才足以支撑真正的开放星路。\n\n议会决定谁一起管理基础设施。最终星核属于谁，则仍要在堡垒面对厄洛决定。", "The original Mistport tide log, desert allocation ledger and Frostchime names finally share one table. Lamplighters acknowledge their lights cannot draw unlimited power; ferrymen acknowledge that extinguishing every light also kills those at sea; villagers acknowledge that land restoration needs routes and engineering.\n\nShared canals increase food and herb yields; rotating lightwatch keeps travel routes open. Open starroads require three project tiers, two companions and at least two trust with each faction.\n\nThe council decides who governs infrastructure together. The starcores' final destination still awaits your decision at Orrin's citadel.", choices.ToArray());
+            Dialog("露恩 · 最后一封信", "Lune · The final letter", "来自雾港的水位原稿、玻璃沙海的调度账和霜钟高原的名单终于放在同一张桌上。守灯会承认航路所需的能源不能无底线抽取；摆渡盟承认熄灭灯网也会让远海船只遇险；山野议会承认修复土地同样需要可靠的运输与工程。\n\n共同水渠会增加粮食和药材供给；轮值灯网能维持更短距离的安全旅行。只有建设达到3级、招募两名同伴，并让三方声望至少达到2，才足以支撑真正的开放星路。\n\n议会决定谁一起管理基础设施。最终星核属于谁，则仍要在堡垒面对厄洛决定。"+MainSagaCouncilHearing(false), "The original Mistport tide log, desert allocation ledger and Frostchime names finally share one table. Lamplighters acknowledge their lights cannot draw unlimited power; ferrymen acknowledge that extinguishing every light also kills those at sea; villagers acknowledge that land restoration needs routes and engineering.\n\nShared canals increase food and herb yields; rotating lightwatch keeps travel routes open. Open starroads require three project tiers, two companions and at least two trust with each faction.\n\nThe council decides who governs infrastructure together. The starcores' final destination still awaits your decision at Orrin's citadel."+MainSagaCouncilHearing(true), choices.ToArray());
         }
         private void ResolveCouncil(int ending)
         {
@@ -4100,9 +4100,9 @@ namespace Starfall
             if(MainSagaActive&&save.ending==0)
             {
                 Dialog("第二幕 · 三方誓约","Act Two · The Shared Covenant",
-                    "这张桌上终于有六种手迹：三份地区报告和三份当事者的亲笔证词。露恩依次把新的供能协定交给各地代表。\n\n"+zh[id]+
+                    "这张桌上终于有六种手迹：三份地区报告和三份当事者的亲笔证词。露恩依次把新的供能协定交给各地代表。\n\n"+zh[id]+MainSagaCouncilVoteResult(id,false)+
                     "\n\n“现在把这个共同决定带回堡垒。厄洛必须听见的不只是你的答案。”",
-                    "Six different hands now fill the council table: three regional reports and three signed first-hand accounts. Lune asks every delegation to ratify the energy covenant.\n\n"+en[id]+
+                    "Six different hands now fill the council table: three regional reports and three signed first-hand accounts. Lune asks every delegation to ratify the energy covenant.\n\n"+en[id]+MainSagaCouncilVoteResult(id,true)+
                     "\n\n“Take this shared decision to the citadel. Orrin must hear more than your answer.”",
                     C("返回堡垒 · 推进终章","Return to citadel · final chapter","goto4"),
                     C("继续探索","Keep exploring","close"));

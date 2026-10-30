@@ -375,6 +375,48 @@ namespace Starfall
                     (publicVoice?.7f:1.5f)*dt);
             }
         }
+        private string MainSagaCouncilHearing(bool english)
+        {
+            if(!MainSagaActive||MainSagaVoices<3)return "";
+            bool mira=Has("saga_choice_5_a"),ivo=Has("saga_choice_6_a"),
+                sen=Has("saga_choice_7_a");
+            return english?
+                "\n\nMira speaks first. "+(mira?
+                    "“My name is on the complete public manifest. The missing families may challenge me, even if I cannot bring their loved ones home.”":
+                    "“The missing families read the original manifest first. Children still hiding across the water must not have their shelter exposed.”")+
+                "\n\nIvo answers. "+(ivo?
+                    "“I signed the order that drained the outer wells. The date and the pipe I changed are now public.”":
+                    "“Every well has the plans to undo my diversion. Nobody needs to trust my signature alone to get water.”")+
+                "\n\nSen sets down the broken chime. "+(sen?
+                    "“I'll tell the public hearing why I silenced the alarm. Those who arrived too late deserve to hear it from me.”":
+                    "“The rescued children and late evacuees will speak together. No one should erase either account.”")+
+                "\n\nThe lamplighters object: “Public names may expose hidden children.” The ferrymen answer: “Hidden lists can erase families forever.” The mountain delegates ask who may stop the next dangerous machine. Nobody gets a veto. Each region must vote on a system it is willing to maintain.":
+                "\n\n米拉先开口。"+(mira?
+                    "“完整的乘客名册上有我的签名。失踪者家属可以质问我，即使我永远没法把他们要的人还回来。”":
+                    "“原件先交给失踪者家属。那些还躲在外岸的孩子不能因为公开名单就暴露安置地点。”")+
+                "\n\n伊沃接着说。"+(ivo?
+                    "“九年前抽干外环水井的命令是我签的。日期、管道和手印都已经公开。”":
+                    "“每座井站都拿到了恢复供水的图纸。以后谁要开阀，不必再指望我一个人的勇气。”")+
+                "\n\n森把旧钟牌放在桌上。"+(sen?
+                    "“当年是我捂住的警报。来迟的人有权亲耳听我解释。”":
+                    "“被救下的孩子和没能进门的人应该一起作证，谁也不能抹去另一边的经历。”")+
+                "\n\n守灯会质疑：“公开的名册会暴露躲起来的孩子。”摆渡盟反驳：“封存的名册也能让家属永远找不到人。”山野议会问：下一台机器失控时，究竟谁能下令停机？没有谁的供词自动成为否决票。三地必须选择自己愿意维护的制度。";
+        }
+        private string MainSagaCouncilVoteResult(int covenant,bool english)
+        {
+            if(!MainSagaActive||MainSagaVoices<3||covenant<1||covenant>3)return "";
+            return english?
+                covenant==1?
+                    "\n\nThe shared water order reserves a measured share for outer settlements. Mira's ferries publish actual shortages; Ivo must deliver daily flow readings to each local well committee.":
+                covenant==2?
+                    "\n\nEvery lantern shift now has two named civilian keepers, one from the port and one from the highlands. Sen insists that even a deliberately silent bell be recorded as a failure.":
+                    "\n\nNo settlement may secretly alter the root network. Each change must show a public route, named witnesses and time for residents to challenge it.":
+                covenant==1?
+                    "\n\n第一份共同供水令为外环村庄留出明确配额。米拉的渡船必须公布真正的缺水情况，伊沃每天要将实测水量交给各井的居民委员会。":
+                covenant==2?
+                    "\n\n每次换灯都必须有两位平民负责人，一位来自港口、一位来自高原。森坚持：即使是主动按住的警钟，也必须如实记录为没能发出的警报。":
+                    "\n\n任何城镇都不能私自改动星根网络。每次调度都需要公开路线、署名见证与居民提出异议的期限。";
+        }
         private void MainSagaDebrief(WorldObject guild)
         {
             Dialog(guild.name,guild.en,

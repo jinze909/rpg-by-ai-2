@@ -91,6 +91,21 @@ namespace Starfall.Tests
             Check(council!=null&&PlaceWithinTalkReach(g,council),
                 "The existing Mistport council is physically accessible");
             g.Talk(council);
+            Check(g.conversation!=null&&
+                g.conversation.textEn.Contains("Mira speaks first")&&
+                g.conversation.textEn.Contains("Ivo answers")&&
+                g.conversation.textEn.Contains("Sen sets down"),
+                "Live council hearing debates all three genuine first-hand choices");
+            string publicDebate=g.conversation.textEn;
+            g.save.flags.Remove("saga_choice_5_a");
+            g.save.flags.Add("saga_choice_5_b");
+            g.Talk(council);
+            Check(g.conversation.textEn!=publicDebate&&
+                g.conversation.textEn.Contains("families read the original manifest"),
+                "Same real council speaker responds differently to the protected original record");
+            g.save.flags.Remove("saga_choice_5_b");
+            g.save.flags.Add("saga_choice_5_a");
+            g.Talk(council);
             int covenant=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="covenant1");
             Check(covenant>=0,"Original three-party council can sign after all voices");
@@ -99,6 +114,8 @@ namespace Starfall.Tests
                 !g.MainSagaCanConclude&&g.conversation!=null&&
                 g.conversation.speaker.Contains("第二幕"),
                 "The covenant opens a playable citadel finale, not instant credits");
+            Check(g.conversation.textEn.Contains("The shared water order reserves"),
+                "Ratified council policy changes the physical supply agreement");
             g.Close();g.save.room=4;g.mode="world";g.enemies.Clear();
             string[] gateActions={"saga_lastgate_1","saga_lastgate_2",
                 "saga_lastgate_public"};
