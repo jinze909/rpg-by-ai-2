@@ -12,7 +12,7 @@ namespace Starfall
         private SaveData scoutDefenseSave;
         private WorldObject scoutDefenseSource;
         private float scoutDefensePressure;
-        private bool scoutDefenseWarning,scoutDefenseHeroCover;
+        private bool scoutDefenseWarning,scoutDefenseHeroCover,scoutDefenseThreatening;
         private readonly List<Enemy> scoutDefenseFoes=new List<Enemy>();
         private readonly HashSet<Enemy> scoutDefenseDefeated=new HashSet<Enemy>();
         public bool ScoutDefenseActive
@@ -36,8 +36,7 @@ namespace Starfall
         { get { return ScoutDefenseActive?
             Math.Max(0,100-(int)Math.Ceiling(scoutDefensePressure)):100; } }
         public bool ScoutDefenseUnderAttack
-        { get { return ScoutDefenseActive&&scoutDefensePressure>0f&&
-            !scoutDefenseHeroCover; } }
+        { get { return ScoutDefenseActive&&scoutDefenseThreatening; } }
         public bool ScoutDefenseHeroCover
         { get { return ScoutDefenseActive&&scoutDefenseHeroCover; } }
         public Point ScoutDefenseGuideTarget
@@ -59,6 +58,7 @@ namespace Starfall
             scoutDefenseFoes.Clear();scoutDefenseDefeated.Clear();
             scoutDefenseSource=null;scoutDefenseMap=null;scoutDefenseSave=null;
             scoutDefensePressure=0f;scoutDefenseWarning=false;scoutDefenseHeroCover=false;
+            scoutDefenseThreatening=false;
         }
         private bool ScoutAttackFootSafe(Point foot,List<Point> placed)
         {
@@ -90,6 +90,7 @@ namespace Starfall
             if(feet.Count!=2)return false;
             scoutDefenseSource=scout;scoutDefenseMap=Map;scoutDefenseSave=save;
             scoutDefensePressure=0f;scoutDefenseWarning=false;scoutDefenseHeroCover=false;
+            scoutDefenseThreatening=false;
             for(int i=0;i<feet.Count;i++)
             {
                 Enemy foe=CreatePlacedEnemy(++enemyId,i==0?0:1,
@@ -169,6 +170,7 @@ namespace Starfall
                 revision++;sound="guard";
             }
             scoutDefenseHeroCover=covered;
+            scoutDefenseThreatening=threatening>0;
             // Only genuine world time degrades the route. Bound frame spikes
             // so a dropped frame cannot erase an entire rescue instantly.
             float slice=Math.Min(.1f,dt);

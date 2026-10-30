@@ -103,6 +103,76 @@ namespace Starfall.Tests
                 "Completed aid outcome survives v2 save round-trip");
         }
 
+        public static void ScoutDefensePressureRequiresLiveReachAndAllowsBodyguard(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.room=1;g.mode="world";
+            g.enemies.Clear();
+            WorldObject scout=Array.Find(g.Map.objects,o=>o.kind=="scout");
+            Check(scout!=null&&PlaceWithinTalkReach(g,scout),
+                "Live scout exists on the authored Thornwood path");
+            g.Talk(scout);
+            int defend=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="scout_defend");
+            Check(defend>=0,"Rescue's real combat approach is offered");
+            g.Choose(defend);
+            Check(g.ScoutDefenseActive&&g.ScoutDefenseRemaining==2&&
+                g.ScoutDefenseSafety==100,"The scout starts safely behind a real battle");
+            var flags=BindingFlags.NonPublic|BindingFlags.Instance;
+            var tick=typeof(GameCore).GetMethod("TickScoutDefense",flags);
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            var block=typeof(GameCore).GetMethod("SagaGuardHeroInterposes",flags);
+            Check(tick!=null&&clear!=null&&block!=null,
+                "Source-owned pressure uses actual world collision and bodyguard geometry");
+            Enemy attacker=g.enemies[0],other=g.enemies[1];
+            // Set up a reachable threat with a real interposing hero foot,
+            // instead of faking the private safety meter or world reward.
+            Point witness=new Point(scout.x,scout.y);
+            bool found=false;
+            for(int y=3;y<=14&&!found;y++)
+            for(int x=15;x<=31&&!found;x++)
+            {
+                Point enemyFoot=new Point(x+.5f,y+.5f);
+                float distance=(enemyFoot-witness).Length;
+                Point midpoint=new Point((enemyFoot.x+witness.x)*.5f,
+                    (enemyFoot.y+witness.y)*.5f);
+                if(distance<2.3f||distance>5f||
+                    !g.CanStand(enemyFoot)||!g.CanStand(midpoint)||
+                    !(bool)clear.Invoke(g,new object[]{enemyFoot,witness}))
+                    continue;
+                attacker.x=enemyFoot.x;attacker.y=enemyFoot.y;
+                g.save.x=midpoint.x;g.save.y=midpoint.y;
+                if((bool)block.Invoke(g,new object[]{attacker,witness}))
+                    found=true;
+            }
+            Check(found,"Real Citadel-style bodyguard geometry exists beside the scout");
+            attacker.stun=attacker.stagger=attacker.hitTime=0f;
+            other.stun=100f;other.stagger=0f;other.hitTime=0f;
+            for(int i=0;i<30;i++)tick.Invoke(g,new object[]{.1f});
+            Check(g.ScoutDefenseActive&&g.ScoutDefenseHeroCover&&
+                g.ScoutDefenseSafety==100&&!g.Has("scout_defense_cleared"),
+                "Actual bodyguard interception prevents nearby threat pressure");
+            // Move the hero out of the genuine attack lane. The same living
+            // attacker now threatens the original protected NPC.
+            g.save.x=attacker.x;g.save.y=attacker.y;
+            for(int i=0;i<26;i++)tick.Invoke(g,new object[]{.1f});
+            Check(g.ScoutDefenseSafety<100&&g.ScoutDefenseUnderAttack&&
+                !g.ScoutDefenseHeroCover&&
+                g.GetQuest("main").next.Contains("安全度"),
+                "Only uncovered, sight-connected living enemies erode scout safety");
+            int unsafeScore=g.ScoutDefenseSafety;
+            attacker.stun=10f;
+            for(int i=0;i<15;i++)tick.Invoke(g,new object[]{.1f});
+            Check(g.ScoutDefenseSafety>unsafeScore&&
+                !g.ScoutDefenseUnderAttack,
+                "Stunned attackers stop pressure and scout safety recovers");
+            attacker.stun=0f;
+            for(int i=0;i<120&&g.ScoutDefenseActive;i++)
+                tick.Invoke(g,new object[]{.1f});
+            Check(!g.ScoutDefenseActive&&!g.Has("scout_defense_cleared")&&
+                !g.Has("scout_saved")&&g.ScoutDefenseSafety==100,
+                "A real overrun resets the optional battle without minting rescue progress");
+        }
+
         public static void MainSagaRequiresRealEvidenceWitnessAndCouncilBeforeFinale(Campaign data)
         {
             GameCore g=Fresh(data);
