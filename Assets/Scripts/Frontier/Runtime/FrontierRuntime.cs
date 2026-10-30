@@ -836,6 +836,34 @@ namespace Starfall
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // Show the repaired PUBLIC signal as an actual nearby world
+            // interaction, not an invisible menu-only perk. Its outline
+            // follows the existing authored station's real physical foot.
+            // Only ONE of the widely separated devices appears nearby.
+            if(Game.mode=="world"&&Game.save.room>=0&&
+                Game.save.room<8&&Game.RegionalMachineDone(Game.save.room))
+            {
+                foreach(WorldObject station in Game.Map.objects)
+                {
+                    if(station==null||station.kind!="regionalMachine")
+                        continue;
+                    Point foot=new Point(station.x,station.y);
+                    if((foot-Game.Position).Length>5.4f)continue;
+                    float cooldown=Game.RegionalSignalSecondsLeft(station);
+                    if(cooldown<0f)continue;
+                    Color tone=cooldown>.01f?
+                        new Color(.60f,.72f,.81f,.7f):mint;
+                    Ring(foot,.72f,tone,20);
+                    Point loc=ScreenPoint(foot);
+                    string cue=cooldown>.01f?
+                        Game.L("警号复位 "+(int)Math.Ceiling(cooldown)+"秒",
+                            "SIGNAL RESET "+(int)Math.Ceiling(cooldown)+"s"):
+                        ControlKey("E","B")+"  "+
+                        Game.L("启动公共警号","SOUND PUBLIC SIGNAL");
+                    Text(loc.x-98,loc.y-88,196,18,cue,10,tone,
+                        TextAnchor.MiddleCenter);
+                }
+            }
             // World-space, read-only record defense overlay. This uses the
             // exact same witness foot and transient safety as the live
             // mission, never an invented Sprite or unrelated journal flag.

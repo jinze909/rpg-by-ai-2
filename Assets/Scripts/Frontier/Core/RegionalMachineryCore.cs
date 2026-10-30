@@ -87,6 +87,15 @@ namespace Starfall
                 regionalSignalMap=Map;
             }
         }
+        // Read-only presentation contract for a genuine commissioned world
+        // object, never a new quest flag or an abstract cross-room waypoint.
+        public float RegionalSignalSecondsLeft(WorldObject source)
+        {
+            if(!RegionalMachineDone(save.room)||
+                !RegionalMachineSite(source)||
+                !SourceBelongsToActiveMap(source))return -1f;
+            return RegionalSignalCooldown(source);
+        }
         private float RegionalSignalCooldown(WorldObject source)
         {
             EnsureRegionalSignalSession();
