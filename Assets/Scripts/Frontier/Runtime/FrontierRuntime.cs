@@ -1128,7 +1128,8 @@ namespace Starfall
             Panel(x,y,width,49f+displayed*25f,
                 new Color(.045f,.08f,.13f,.92f),PixelArt.C("#637d82"));
             Text(x+12,y+7,width-24,25,
-                Game.L("附近交互 · O / R3 切换","NEARBY · O / R3 TO SWITCH")+
+                Game.L("附近交互 · 点击选择 / O / R3 切换",
+                    "NEARBY · CLICK / O / R3 TO SELECT")+
                     "  "+(at+1)+"/"+options.Count,
                 12,gold);
             for(int row=0;row<displayed;row++)
@@ -1140,8 +1141,9 @@ namespace Starfall
                 string label=target==null?
                     Game.L("移动中的获救居民","Moving rescued civilian"):
                     Game.L(target.name,target.en);
-                Text(x+18,y+34+row*25,width-30,23,
-                    (chosen?"◆  ":"   ")+label,12,chosen?paper:muted);
+                if(Button(x+18,y+34+row*25,width-32,23,
+                    (chosen?"◆  ":"   ")+label,chosen))
+                    Game.FocusNearbyInteraction(index);
             }
             if(options.Count>displayed)
                 Text(x+width-54,y+10,45,20,"…",12,muted);

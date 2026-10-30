@@ -42,8 +42,16 @@ namespace Starfall.Tests
                     g.CanStand(g.Position),
                     "Three overlapping visible objects remain independently reachable");
                 WorldObject selected=g.Nearest();
-                Check(selected!=null&&g.CycleNearbyInteraction()&&
-                    g.Nearest()!=selected,
+                Check(selected!=null&&g.FocusNearbyInteraction(2)&&
+                    g.Nearest()==g.NearbyInteractionChoices()[2],
+                    "Direct target-row selection opens the exact physically reachable source");
+                Check(!g.FocusNearbyInteraction(-1)&&
+                    !g.FocusNearbyInteraction(99),
+                    "An invalid UI row never changes the chosen actor");
+                g.CycleNearbyInteraction();
+                // Reset to the original source before testing cyclic input.
+                g.FocusNearbyInteraction(g.NearbyInteractionChoices().IndexOf(selected));
+                Check(g.CycleNearbyInteraction()&&g.Nearest()!=selected,
                     "O/R3 selects an alternate source, never reopening the original NPC");
                 for(int i=1;i<options.Count;i++)g.CycleNearbyInteraction();
                 Check(g.Nearest()==selected&&g.save.version==2,

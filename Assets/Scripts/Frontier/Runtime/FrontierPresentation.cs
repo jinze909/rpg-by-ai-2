@@ -110,6 +110,12 @@ namespace Starfall
         {
             if (mouse.x < 0 || mouse.x >= Width || mouse.y < 0 || mouse.y >= Height) return true;
             foreach (Rect rect in HudPointerRegions()) if (Contains(rect, mouse)) return true;
+            // Treat the source-selection panel as real UI, not an attack or
+            // equipment-scroll area. Evaluate overlap only while the pointer
+            // lies in the panel region to avoid extra collision work.
+            if(Game!=null&&Game.mode=="world"&&
+                Contains(new Rect(56,516,366,150),mouse)&&
+                Game.NearbyInteractionCount()>1)return true;
             return Game.practicing && Contains(new Rect(785,246,130,34), mouse);
         }
         private bool TideBlocksGuide { get { return Game.save.room == 5 && !Game.LowTide && routeGoal.HasValue && (routeGoal.Value - Game.Position).Length > 1.8f && route.Count == 0; } }

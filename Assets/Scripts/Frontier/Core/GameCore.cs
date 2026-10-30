@@ -3767,6 +3767,20 @@ namespace Starfall
                 current=null;
             int at=nearby.IndexOf(current);
             WorldObject selected=nearby[(at+1)%nearby.Count];
+            return SetNearbyInteractionChoice(selected);
+        }
+        // An actual click on the nearby list focuses exactly that living
+        // scene source. Recompute source eligibility at click time so a
+        // closed door, moved civilian or retired NPC cannot be selected.
+        public bool FocusNearbyInteraction(int index)
+        {
+            if(mode!="world"||Dying)return false;
+            var options=NearbyInteractionChoices();
+            if(index<0||index>=options.Count)return false;
+            return SetNearbyInteractionChoice(options[index]);
+        }
+        private bool SetNearbyInteractionChoice(WorldObject selected)
+        {
             interactionFocus=selected;
             interactionFocusRelief=selected==null;
             interactionFocusMap=Map;
