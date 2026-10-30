@@ -186,9 +186,28 @@ namespace Starfall.Tests
             for(int room=0;room<8;room++)
             {
                 MapData map=data.maps[room];
+                // Field evidence and original terrain are preserved, while
+                // repeated scenery no longer crowds the playable foreground.
+                int minDecor=room==0?80:130,maxDecor=room==0?110:180;
                 Check(map.rows.Length==80&&map.rows[0].Length==120&&
-                    map.decor.Length>=200,
-                    "Each giant biome has actual substantial authored furnishings and unique terrain");
+                    map.decor.Length>=minDecor&&map.decor.Length<=maxDecor,
+                    "Each regional silhouette is populated but has deliberately curated visual density");
+                bool clearSpawn=true,clearSites=true;
+                for(int di=9;di<map.decor.Length;di++)
+                {
+                    Decoration d=map.decor[di];
+                    // Protect retained houses and manually authored
+                    // landmarks; they have fixed visual/collision roots.
+                    if(d.kind=="house"||d.kind=="lighthouse"||
+                        d.kind=="tent"||d.kind=="skiff")continue;
+                    if(Math.Abs(d.x-map.spawnX)<5&&
+                        Math.Abs(d.y-map.spawnY)<5)clearSpawn=false;
+                    foreach(WorldObject o in map.objects)
+                        if((new Point(d.x,d.y)-new Point(o.x,o.y)).Length<2.35f)
+                            clearSites=false;
+                }
+                Check(clearSpawn&&clearSites,
+                    "Non-landmark scenery leaves the entry and original quest interactions readable");
                 WorldObject a=Array.Find(map.objects,
                     o=>o.id=="biomeSurvey"+room);
                 WorldObject b=Array.Find(map.objects,
