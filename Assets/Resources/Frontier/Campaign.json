@@ -132,7 +132,7 @@
           "name": "阿茴 · 旅店厨师",
           "en": "Ari · Innkeeper",
           "x": 8.5,
-          "y": 15.5,
+          "y": 20.5,
           "kind": "cook"
         },
         {
@@ -8015,8 +8015,8 @@
           "name": "西侧药箱残片",
           "en": "Western Medicine Crate",
           "kind": "tidecargo1",
-          "x": 5.5,
-          "y": 6.5
+          "x": 8.5,
+          "y": 8.5
         },
         {
           "id": "tidecargo2",
@@ -8159,8 +8159,8 @@
           "name": "雾港旧灯湾临时营地",
           "en": "Mistport Lantern Bay · Field camp",
           "kind": "annexcamp",
-          "x": 59.5,
-          "y": 34.5
+          "x": 61.5,
+          "y": 36.5
         },
         {
           "id": "trailcircuit_5_1",
