@@ -1288,5 +1288,66 @@ namespace Starfall.Tests
                 }
             }
         }
+
+        // Public courier ambushers must stand on the genuine walkable road
+        // WITHOUT occupying the same painted feet as mission signs or large
+        // scenic cover. Exercise the real spawn validator against a shipped
+        // outdoor MapData and restore every temporary actor/prop afterwards.
+        public static void CivicCourierGuardAvoidsLivingRoadMarkersAndScenery(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.room=5;g.mode="world";
+            g.save.x=g.Map.spawnX;g.save.y=g.Map.spawnY;
+            g.enemies.Clear();
+            MapData map=g.Map;
+            WorldObject[] originalObjects=map.objects;
+            Decoration[] originalDecor=map.decor;
+            var inspect=typeof(GameCore).GetMethod(
+                "CivicCourierAmbushFootFree",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(inspect!=null&&g.CanStand(g.Position),
+                "Real harbor map provides a legal hero foot and live courier validator");
+            try
+            {
+                Point chosen=new Point();bool found=false;
+                for(int y=4;y<map.rows.Length-4&&!found;y++)
+                for(int x=4;x<map.rows[0].Length-4&&!found;x++)
+                {
+                    Point p=new Point(x+.5f,y+.5f);
+                    if((bool)inspect.Invoke(g,new object[]{p}))
+                    {chosen=p;found=true;}
+                }
+                Check(found,"Real harbor contains a walkable, unoccupied courier ambush pad");
+                // Add a living mission marker, not a made-up collision wall.
+                WorldObject[] crowded=new WorldObject[originalObjects.Length+1];
+                Array.Copy(originalObjects,crowded,originalObjects.Length);
+                crowded[crowded.Length-1]=new WorldObject{
+                    id="courier_clearance_probe",name="Medical route marker",
+                    en="Medical route marker",kind="waytrail",
+                    x=chosen.x,y=chosen.y};
+                map.objects=crowded;
+                Check(!(bool)inspect.Invoke(g,new object[]{chosen})&&
+                    g.CanStand(chosen),
+                    "The real courier guard cannot materialize on a valid civilian E target");
+                map.objects=originalObjects;
+                Decoration[] covered=new Decoration[originalDecor.Length+1];
+                Array.Copy(originalDecor,covered,originalDecor.Length);
+                covered[covered.Length-1]=new Decoration{
+                    kind="tree",x=chosen.x,y=chosen.y};
+                map.decor=covered;
+                Check(!(bool)inspect.Invoke(g,new object[]{chosen})&&
+                    g.CanStand(chosen),
+                    "The same ground remains walkable but the guard avoids a large painted tree");
+                map.decor=originalDecor;
+                Check((bool)inspect.Invoke(g,new object[]{chosen})&&
+                    g.save.version==2,
+                    "Removing temporary cover restores the exact battle pad without changing saves");
+            }
+            finally
+            {
+                map.objects=originalObjects;map.decor=originalDecor;
+            }
+        }
     }
 }

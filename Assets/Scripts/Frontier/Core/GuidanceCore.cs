@@ -283,9 +283,26 @@ namespace Starfall
         // on that SAME genuine surveyed route; never shift through a wall.
         private bool CivicCourierAmbushFootFree(Point foot)
         {
-            if((foot-Position).Length<1.3f)return false;
+            // The parcel raid happens ON a public road, not on a quest sign
+            // or inside the silhouette of a house, trunk or market stall.
+            // Check actual active footing first; decoration remains visual
+            // and must not become a new solid wall for the player.
+            if(!Finite(foot.x)||!Finite(foot.y)||!CanStand(foot)||
+                (foot-Position).Length<1.3f)return false;
             if(save.companion>=0&&
                 (foot-companionPosition).Length<1.25f)return false;
+            foreach(WorldObject landmark in Map.objects)
+                if(landmark!=null&&IsObjectPresent(landmark)&&
+                    (foot-new Point(landmark.x,landmark.y)).Length<2.25f)
+                    return false;
+            if(Map.decor!=null)
+                foreach(Decoration cover in Map.decor)
+                {
+                    float radius=RegionalDecorationEnemyPad(cover);
+                    if(radius>0f&&
+                        (foot-new Point(cover.x,cover.y)).Length<radius+.25f)
+                        return false;
+                }
             foreach(Enemy occupant in enemies)
             {
                 if(occupant==null||occupant.hp<=0f||
