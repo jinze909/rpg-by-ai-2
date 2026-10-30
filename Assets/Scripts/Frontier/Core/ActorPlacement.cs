@@ -256,6 +256,20 @@ namespace Starfall
             // not throw from Enter() during a valid closed-gate scenario.
             return null;
         }
+        // Chapter I–IV enemy compositions follow their REAL level design.
+        // Forest: charging stalkers and a pair of flank archers.
+        // Ruins: bow pressure along the tidal causeways.
+        // Mine: armored foremen with two genuine ranged threats.
+        // Citadel: staggered combined-arms defensive lines.
+        // Do NOT change the old 6/8 required roster, enemy hit points or
+        // any mature postgame/remote area (rooms 5–7).
+        // This data is transient spawn content, not SaveData v2 state.
+        private static readonly int[,] chapterBattleKinds={
+            {0,0,1,0,1,0,0,1},
+            {1,0,1,2,1,0,1,2},
+            {2,0,2,1,2,0,2,1},
+            {2,1,0,2,1,0,2,1}
+        };
         private void SpawnRegionalBaselineEnemies(int count,float health)
         {
             bool[] connected=RegionalBattleReachableTiles();
@@ -263,7 +277,9 @@ namespace Starfall
             {
                 Point? foot=RegionalBattleFoot(i,connected);
                 if(!foot.HasValue)break;
-                enemies.Add(CreatePlacedEnemy(++enemyId,i%3,
+                int kind=save.room>=1&&save.room<=4?
+                    chapterBattleKinds[save.room-1,i]:i%3;
+                enemies.Add(CreatePlacedEnemy(++enemyId,kind,
                     foot.Value,health));
             }
         }

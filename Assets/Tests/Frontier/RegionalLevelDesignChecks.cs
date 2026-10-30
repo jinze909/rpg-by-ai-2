@@ -35,6 +35,24 @@ namespace Starfall.Tests
                     "Every original chapter still enters its authored 120 by 80 game world");
                 Check(g.enemies.Count==(room<=2?6:8),
                     "Original mandatory live combat roster survives authored level redesign");
+                // Distinct original map geography now supports distinct
+                // real combat roles, instead of the same 0/1/2 pattern.
+                int[][] chapterKinds={
+                    new[]{0,0,1,0,1,0},
+                    new[]{1,0,1,2,1,0},
+                    new[]{2,0,2,1,2,0,2,1},
+                    new[]{2,1,0,2,1,0,2,1}
+                };
+                int rosterIndex=0;
+                foreach(Enemy foe in g.enemies)
+                {
+                    Check(rosterIndex<chapterKinds[room-1].Length&&
+                        foe.kind==chapterKinds[room-1][rosterIndex],
+                        "Different terrain now produces a deliberately distinct live chapter battle composition");
+                    rosterIndex++;
+                }
+                Check(rosterIndex==chapterKinds[room-1].Length,
+                    "Biome-specific tactical variety preserves the mandatory six/eight-actor campaign roster");
                 Point regionSpawn=g.Position;
                 foreach(Enemy enemy in g.enemies)
                 {
