@@ -62,7 +62,7 @@ namespace Starfall
                 QuestGuide current=GetQuest(beat.questId);
                 return current.locked||current.complete?null:beat.questId;
             }
-            if(beat.chapter==12&&beat.questId=="civic_aftercare")
+            if((beat.chapter==12||beat.chapter==16)&&beat.questId=="civic_aftercare")
             {
                 QuestGuide next=GetQuest("civic_waystations");
                 if(!next.locked&&!next.complete)
@@ -122,6 +122,60 @@ namespace Starfall
                     "你已作出星核抉择；世界将继续回应这项决定。",
                     "You chose the cores' future; the world continues to respond.");
 
+            // This is the SAME campaign's middle and late acts on saves
+            // that really entered the expanded main narrative. Do not leak
+            // the remote witnesses to a fresh chapter-one player, and do
+            // not reclassify old finished saves as unfinished campaigns.
+            if(MainSagaActive&&Has("boss_4"))
+            {
+                AddRecapBeat(beats,5,"第五章 · 失踪的船名",
+                    "Chapter Five · Names Missing at Sea",
+                    Has("saga_trace_5")?
+                        "北岸的第二份名单揭开了米拉不敢讲的救援抉择。现在只有她自己能决定怎样将完整真相交给失踪者家属。":
+                        "港口调查不只是修好灯塔：乘客名册的原件还保留一条失踪的救援航路，找到它再问米拉。",
+                    Has("saga_trace_5")?
+                        "The hidden rescue manifest reveals Mira's burden. Only she can say how to give families the full truth.":
+                        "The harbor crisis is more than a broken lighthouse. Inspect the original manifest to uncover a hidden rescue route.",
+                    "main",Has("saga_voice_5"),
+                    "米拉亲口留下了有关救援船与失踪者的证词。",
+                    "Mira signed her account of the rescue boat and those still missing.");
+                if(Has("saga_voice_5")||Has("desert_report"))
+                    AddRecapBeat(beats,6,"第六章 · 九年前的水",
+                        "Chapter Six · Nine Years Without Water",
+                        Has("saga_trace_6")?
+                            "蓄光池的散热铭牌还留着被刮掉的儿童避暑棚指令。听伊沃解释他做过的选择。":
+                            "沙海的供水命令比当前危机更早。到原蓄光接收台查找是谁改写了配给顺序。",
+                        Has("saga_trace_6")?
+                            "The scraped reservoir plate still bears the old shade-shelter order. Hear Ivo's decision firsthand.":
+                            "The desert rationing predates the present crisis. Inspect the original receiver for the altered priorities.",
+                        "main",Has("saga_voice_6"),
+                        "伊沃在自己的改线图旁签下了九年前的供水供词。",
+                        "Ivo signed the account of his nine-year-old diversion.");
+                if(Has("saga_voice_6")||Has("mountain_report"))
+                    AddRecapBeat(beats,7,"第七章 · 没有敲响的钟",
+                        "Chapter Seven · The Bell That Never Rang",
+                        Has("saga_trace_7")?
+                            "第三座旧钟上不是机械损伤，而是有人捂住警报留下的绳痕。森必须自己解释那一夜。":
+                            "高原的撤离记录只留下死者姓名。去第三座旧钟调查，找回没有被写进报告的声音。",
+                        Has("saga_trace_7")?
+                            "The third chime shows a deliberately muffled warning. Sen must explain that night himself.":
+                            "The mountain record lists the dead but hides the silenced alarm. Inspect the third chime.",
+                        "main",Has("saga_voice_7"),
+                        "森的证词让获救的人和失去归途的人同时留在记录里。",
+                        "Sen's account names both the rescued and those who never made it back.");
+                if(MainSagaVoices==3||save.frontierEnding>0)
+                    AddRecapBeat(beats,8,"第八章 · 人人有权作证",
+                        "Chapter Eight · Everyone Has a Voice",
+                        save.frontierEnding>0?
+                            "三方协定已由各方签署。带着所有人的供词回到堡垒，星核最终归属才真正有意义。":
+                            "三份当事人亲签的证词终于齐全。到雾港议事厅讨论各地愿意共同承担的供能风险。",
+                        save.frontierEnding>0?
+                            "Each delegation signed the covenant. Return to the citadel with their accounts before deciding the fate of the cores.":
+                            "All three accounts are signed. At Mistport the council must decide who can govern the supply lines together.",
+                        "main",save.ending>0,
+                        "决定已经作出，各地继续依自己签署的共同协定生活。",
+                        "The final decision was made; the communities live with their signed covenant.");
+            }
             if(save.ending<=0) return beats;
             AddUnlockedRecap(beats,5,"afterlight",
                 "后日谈 · 余光重建","Afterstory · Afterlight Reconstruction",
@@ -189,7 +243,7 @@ namespace Starfall
                 int last=beats.Count-1;
                 StoryBeat page=beats[last];
                 string nextId=StoryRecapTrackableQuestId(page);
-                if(page.chapter==12&&page.complete&&
+                if((page.chapter==12||page.chapter==16)&&page.complete&&
                    nextId=="civic_waystations")
                 {
                     QuestGuide nextQuest=GetQuest(nextId);
@@ -208,7 +262,11 @@ namespace Starfall
         {
             QuestGuide quest=GetQuest(questId);
             if(quest.locked)return;
-            beats.Add(new StoryBeat(chapter,L(nameZh,nameEn),L(summaryZh,summaryEn),
+            // Legacy finished campaigns retain the historical 5–12 index.
+            // Expanded campaigns have four additional main-story chapters,
+            // so their true postcredits aftermath begins at Chapter Nine.
+            int displayed=MainSagaActive?chapter+4:chapter;
+            beats.Add(new StoryBeat(displayed,L(nameZh,nameEn),L(summaryZh,summaryEn),
                 quest.complete?L(finishedZh,finishedEn):quest.next,
                 questId,quest.complete));
         }

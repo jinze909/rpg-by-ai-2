@@ -98,6 +98,38 @@ namespace Starfall.Tests
                 g.GetQuest("main").category.Contains("ACT TWO"),
                 "Real main journal, not a detached afterstory, tracks Act Two");
         }
+        public static void ExpandedSagaChronicleRevealsOnlyRealReachedActs(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;
+            g.save.flags.Add("saga_act_two");
+            Check(g.StoryRecap().Count==4,
+                "An unfinished citadel battle does not spoil the remote story");
+            g.save.flags.Add("boss_4");
+            Check(g.StoryRecap().Count==5&&
+                g.StoryRecap()[4].chapter==5&&
+                g.StoryRecap()[4].questId=="main",
+                "True citadel transition opens Chapter Five on the real main tracker");
+            g.save.flags.Add("saga_voice_5");
+            Check(g.StoryRecap().Count==6&&
+                g.StoryRecap()[5].chapter==6,
+                "The first signed remote witness unlocks the desert chapter");
+            g.save.flags.Add("saga_voice_6");
+            Check(g.StoryRecap().Count==7&&
+                g.StoryRecap()[6].chapter==7,
+                "The second signed remote witness unlocks Frostchime");
+            g.save.flags.Add("saga_voice_7");
+            Check(g.StoryRecap().Count==8&&
+                g.StoryRecap()[7].chapter==8,
+                "All three witnesses unlock the genuine council chapter");
+            g.save.frontierEnding=1;g.save.ending=2;
+            g.save.flags.Add("afterlight_started");
+            var completed=g.StoryRecap();
+            Check(completed[7].complete&&
+                completed[7].chapter==8&&
+                !completed.Exists(beat=>beat.chapter==5&&
+                    beat.questId=="afterlight"),
+                "Extended main chapters remain historical and postcredits work cannot impersonate them");
+        }
         public static void CompletedLegacyFinaleRemainsCompletedWithoutActTwo(Campaign data)
         {
             GameCore g=Fresh(data);
