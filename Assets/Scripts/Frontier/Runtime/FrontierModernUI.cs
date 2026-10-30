@@ -1139,6 +1139,51 @@ namespace Starfall
             else for (int i = 0; i < 3; i++) { int id = (Game.save.bountyCycle + i) % 6; float y = 179 + i * 118; Card(279, y, 938, 101); Icon(id == 1 ? "crystal" : id == 2 ? "fish" : "sword", 298, y + 24, 45); Text(366, y + 15, 609, 41, Game.L(GameCore.BountyNames[id], GameCore.BountyNamesEn[id]), 18, paper); Text(366, y + 60, 585, 27, Game.L("目标 ", "Target ") + GameCore.BountyTargets[id] + "  ·  " + Game.L("35硬币 / 30经验 / 碎片", "35 coins / 30 XP / shards"), 13, muted); if (Button(999, y + 28, 192, 43, Game.L("接取悬赏", "Accept"), false, id != 5 || Game.CanEnter(8))) Game.AcceptBounty(id); }
             Card(279, 572, 938, 118); Text(302, 590, 889, 32, Game.L("旅途纪录", "Journey records"), 20, gold); Text(302, 641, 889, 32, Game.L("最深结算层数 ", "Deepest banked floor ") + Game.save.bestFloor + "/6  ·  " + Game.L("沙舟纪录 ", "Sand-skiff record ") + (Game.save.bestRace == 0 ? "—" : (Game.save.bestRace / 10f).ToString("0.0") + "s"), 17, muted);
         }
+
+        // The complete historical catalogue remains in authored order.
+        // Only AVAILABLE work is organized as a practical travel board:
+        // the next suggested action, then this region's open errands, then
+        // other regions' open errands. No costly BFS runs during IMGUI.
+        // Preserve each original quest index for selection and save identity.
+        private List<int> JournalActionableQuestOrder(string recommendedId)
+        {
+            var ordered=new List<int>();
+            QuestGuide[] guides=new QuestGuide[GameCore.QuestIds.Length];
+            for(int i=0;i<GameCore.QuestIds.Length;i++)
+            {
+                QuestGuide quest=Game.GetQuest(GameCore.QuestIds[i]);
+                if(quest.locked||quest.complete)continue;
+                guides[i]=quest;
+                ordered.Add(i);
+            }
+            int recommendation=Array.IndexOf(GameCore.QuestIds,recommendedId);
+            Point hero=Game.Position;
+            ordered.Sort((a,b)=>
+            {
+                if(a==recommendation)return -1;
+                if(b==recommendation)return 1;
+                bool localA=guides[a].room==Game.save.room;
+                bool localB=guides[b].room==Game.save.room;
+                if(localA!=localB)return localA?-1:1;
+                if(localA)
+                {
+                    // An approximate on-map proximity order is ONLY for
+                    // browsing; the Follow button separately validates
+                    // the real walking route and closed obstacles.
+                    Point da=guides[a].target-hero;
+                    Point db=guides[b].target-hero;
+                    float distA=da.x*da.x+da.y*da.y;
+                    float distB=db.x*db.x+db.y*db.y;
+                    if(!float.IsNaN(distA)&&!float.IsNaN(distB))
+                    {
+                        int byDistance=distA.CompareTo(distB);
+                        if(byDistance!=0)return byDistance;
+                    }
+                }
+                return a.CompareTo(b);
+            });
+            return ordered;
+        }
         private void DrawJournal()
         {
             // A real NPC's direct journal handoff focuses the exact saved
@@ -1257,26 +1302,13 @@ namespace Starfall
                 selectedQuest=0;questPage=0;
             }
             const int questsPerPage=14;
-            var visibleQuestIndices=new List<int>();
-            for(int i=0;i<GameCore.QuestIds.Length;i++)
-            {
-                if(!journalOnlyActionable)
-                {visibleQuestIndices.Add(i);continue;}
-                QuestGuide candidate=Game.GetQuest(GameCore.QuestIds[i]);
-                if(!candidate.locked&&!candidate.complete)
-                    visibleQuestIndices.Add(i);
-            }
-            // Present ONE next action first, without deleting any of the
-            // original quest catalogue or changing the player's chosen
-            // tracked objective. The full, historical list remains under
-            // SHOW ALL. A completed quest can never sit at the top of the
-            // default actionable list simply because of its original index.
             string recommendedQuestId=Game.RecommendedContinuationGuide.id;
-            int recommendedIndex=Array.IndexOf(GameCore.QuestIds,
-                recommendedQuestId);
-            if(journalOnlyActionable&&
-                visibleQuestIndices.Remove(recommendedIndex))
-                visibleQuestIndices.Insert(0,recommendedIndex);
+            var visibleQuestIndices=journalOnlyActionable?
+                JournalActionableQuestOrder(recommendedQuestId):
+                new List<int>();
+            if(!journalOnlyActionable)
+                for(int i=0;i<GameCore.QuestIds.Length;i++)
+                    visibleQuestIndices.Add(i);
             if(visibleQuestIndices.Count==0)
             {
                 Text(300,284,295,140,
@@ -1301,7 +1333,11 @@ namespace Starfall
                 if(Button(279,y,321,26,
                     (quest.complete?"✓ ":
                         Game.save.trackedQuest==quest.id?"◆ ":
-                        quest.id==recommendedQuestId?"→ ":"")+quest.title,
+                        quest.id==recommendedQuestId?"→ ":"")+
+                    (journalOnlyActionable?
+                        (quest.room==Game.save.room?
+                            Game.L("本区·","HERE · "):
+                            Game.L("跨区·","AWAY · ")):"")+quest.title,
                     selectedQuest==originalIndex))
                     selectedQuest=originalIndex;
             }
@@ -1312,7 +1348,11 @@ namespace Starfall
             if(Button(515,644,85,32,Game.L("下页","Next"),false,
                 questPage<questPages-1))
             {questPage++;selectedQuest=visibleQuestIndices[questPage*questsPerPage];}
-            QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 510); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
+            QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 510); Text(650, 244, 541, 27, q.category +
+                (q.room>=0&&q.room<Game.data.maps.Length?
+                    " · "+Game.L(Game.data.maps[q.room].name,
+                        Game.data.maps[q.room].en):"")+
+                (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
             // Each page has four full-height objectives. Prior pages stay
             // accessible; new selections open at the first incomplete step.
             if(journalStepQuestId!=q.id)
