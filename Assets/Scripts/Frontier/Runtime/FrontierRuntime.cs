@@ -263,8 +263,17 @@ namespace Starfall
                 // Ignore scroll over buttons/inventory to preserve IMGUI's
                 // own focus and browsing. This remains a standard Equip().
                 float wheel=Input.GetAxisRaw("Mouse ScrollWheel");
+                // Shift+wheel over the actual crowded world selects the
+                // next visible E source without accidentally changing
+                // weapons. An UNMODIFIED wheel outside the nearby list
+                // retains all original weapon switching controls.
+                bool worldInteractionWheel=Game.SafeTravel&&
+                    (Input.GetKey(KeyCode.LeftShift)||
+                     Input.GetKey(KeyCode.RightShift))&&
+                    Game.NearbyInteractionCount()>1&&
+                    !PointerOverInterface(mouse);
                 if(Math.Abs(wheel)>.001f&&Game.SafeTravel&&
-                   PointerOverNearbyChoices(mouse))
+                   (PointerOverNearbyChoices(mouse)||worldInteractionWheel))
                 {
                     // Down selects the next real candidate, up the previous.
                     // The wheel already belonged to this panel; it must not
@@ -1148,8 +1157,8 @@ namespace Starfall
                     TextAnchor.MiddleCenter);
                 if(crowded)
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("右键点选 · O / R3 · 切换交互对象",
-                               "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
+                        Game.L("右键 / Shift+滚轮 / O/R3 切换",
+                               "R-CLICK / SHIFT+WHEEL / O/R3 CYCLE"),
                         11,muted,TextAnchor.MiddleCenter);
             }
             else if (near != null && Game.mode == "world" && Game.SafeTravel)
@@ -1163,8 +1172,8 @@ namespace Starfall
                     Text(s.x-147,s.y+17,294,26,label,14,paper,
                         TextAnchor.MiddleCenter);
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("右键点选 · O / R3 · 切换交互对象",
-                               "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
+                        Game.L("右键 / Shift+滚轮 / O/R3 切换",
+                               "R-CLICK / SHIFT+WHEEL / O/R3 CYCLE"),
                         11,muted,TextAnchor.MiddleCenter);
                 }
                 else
@@ -1218,8 +1227,8 @@ namespace Starfall
             Panel(x,y,width,49f+displayed*25f,
                 new Color(.045f,.08f,.13f,.92f),PixelArt.C("#637d82"));
             Text(x+12,y+7,width-24,25,
-                Game.L("附近交互 · 点击选择 / 滚轮切换 / O / R3",
-                    "NEARBY · CLICK / WHEEL / O / R3 TO SELECT")+
+                Game.L("附近交互 · 点击 / 面板滚轮 / 世界Shift+滚轮 / O/R3",
+                    "NEARBY · CLICK / PANEL WHEEL / SHIFT+WHEEL / O/R3")+
                     "  "+(at+1)+"/"+options.Count,
                 12,gold);
             for(int row=0;row<displayed;row++)
