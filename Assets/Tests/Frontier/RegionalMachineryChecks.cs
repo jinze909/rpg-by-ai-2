@@ -132,6 +132,7 @@ namespace Starfall.Tests
             {
                 GameCore g=new GameCore(data);g.Close();
                 g.save.room=room;g.mode="world";g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
                 g.save.flags.Add("regional_machine_done_"+room);
                 int material=supplied[room];
                 g.save.inventory[material]=3;
@@ -204,6 +205,7 @@ namespace Starfall.Tests
         {
             GameCore g=new GameCore(data);g.Close();g.save.room=0;
             g.mode="world";g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_0");
             g.save.flags.Add("regional_machine_done_0");
             WorldObject station=Array.Find(g.Map.objects,o=>
                 o.id=="regional_machine_0_0");
