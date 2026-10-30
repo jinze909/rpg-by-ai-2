@@ -62,7 +62,8 @@ namespace Starfall
         {return SilentLedgerActive&&index>=0&&index<2&&
             silentLedgerSearchSeconds[index]>0f&&silentLedgerSoundSearch[index];}
         public Point SilentLedgerTarget
-        {get{return silentLedgerStage==1?new Point(60.5f,36.5f):
+        {get{return silentLedgerStage==1?
+            ObjectPoint(4,"silentledgerrecord",new Point(58.5f,33.5f)):
             silentLedgerStage==2?new Point(63.5f,43.5f):
             silentLedgerStage>=3?new Point(66.5f,38.5f):
             new Point(54.5f,38.5f);}}

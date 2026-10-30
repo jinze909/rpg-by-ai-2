@@ -142,6 +142,54 @@ namespace Starfall.Tests
             }
         }
 
+
+        // Moving a live quest source without its guidance arrow creates a
+        // false objective and can fail a timed rescue. Both first stages
+        // must use the map's REAL authored object, not historical constants.
+        public static void RelocatedTimedQuestTargetsMatchRealPhysicalObjects(Campaign data)
+        {
+            for(int caseId=0;caseId<2;caseId++)
+            {
+                int room=caseId==0?4:5;
+                string noticeId=caseId==0?"silentledger_notice":"mistlight_notice";
+                string targetId=caseId==0?"silentledger_record":"mistlight_lamp";
+                string questId=caseId==0?"silent_ledger":"mistport_lastlight";
+                string begin=caseId==0?"silentledger_start":"mistlight_start";
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();
+                g.save.flags.Add("boss_3");
+                WorldObject notice=Array.Find(g.Map.objects,o=>o.id==noticeId);
+                WorldObject target=Array.Find(g.Map.objects,o=>o.id==targetId);
+                Check(notice!=null&&target!=null&&
+                    g.CanStand(new Point(target.x,target.y)),
+                    "Timed-story target retains its authentic map object and legal footing");
+                g.save.x=notice.x;g.save.y=notice.y;
+                g.Talk(notice);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "Starting each actual timed story first opens its real notice");
+                int option=Array.FindIndex(g.conversation.choices,o=>o.action==begin);
+                Check(option>=0,"The physical story notice still offers its original mission");
+                g.Choose(option);
+                QuestGuide guide=g.GetQuest(questId);
+                Point actual=new Point(target.x,target.y);
+                Check((guide.target-actual).Length<.001f&&
+                    (caseId==0?(g.SilentLedgerTarget-actual).Length:
+                        (g.MistlightTarget-actual).Length)<.001f,
+                    "Active journal and world guidance both point to the moved real object");
+                string coords=target.x.ToString("0.0",
+                    System.Globalization.CultureInfo.InvariantCulture)+","+
+                    target.y.ToString("0.0",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                Check(guide.description.Contains(coords),
+                    "The player-facing mission description names the REAL current coordinates");
+                Check(g.NavigationPathFrom(new Point(notice.x,notice.y),
+                    actual,true).Count>0,
+                    "The timed route remains physically traversable from the authentic notice");
+                Check(g.save.version==2,
+                    "Correcting mission navigation does not change the old save schema");
+            }
+        }
+
         public static void LiveFieldContractsDoNotFreezeWhileOrdinaryDistrictsSleep(Campaign data)
         {
             var g=Fresh(data);

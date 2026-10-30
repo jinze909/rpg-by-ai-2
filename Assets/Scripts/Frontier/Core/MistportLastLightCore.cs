@@ -21,7 +21,7 @@ namespace Starfall
         public float MistlightShield {get{return MistlightActive?mistlightShield:0f;}}
         public bool MistlightRepairUsed {get{return MistlightActive&&mistlightRepairUsed;}}
         public Point MistlightTarget {get{return mistlightStage==1?
-            new Point(60.5f,37.5f):mistlightStage==2?
+            ObjectPoint(5,"mistlightlamp",new Point(58.5f,35.5f)):mistlightStage==2?
             new Point(65.5f,38.5f):mistlightStage==3?
             new Point(66.5f,43.5f):new Point(54.5f,38.5f);}}
         public string MistlightObjective {get{return mistlightStage==1?
