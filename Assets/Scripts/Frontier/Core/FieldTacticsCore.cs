@@ -103,8 +103,13 @@ namespace Starfall
                 Point p=new Point((float)Math.Floor(center.x)+dx+.5f,
                                   (float)Math.Floor(center.y)+dy+.5f);
                 float distance=(p-center).Length;
+                // A voluntary two-person drill starts at arm's length
+                // from its signed device, not at the remote regional gate.
+                // Keep true 1.45-unit hero/enemy body clearance even in
+                // the mine's narrow legal shelf; the warning effect cues
+                // both spawned actors before they can attack.
                 if(distance<2.8f||distance>5.7f||!CanStand(p)||
-                   (p-Position).Length<2.5f||
+                   (p-Position).Length<1.45f||
                    !ClearAttackPath(center,p)||
                    NavigationPathFrom(Position,p,true).Count==0)continue;
                 bool clear=true;
