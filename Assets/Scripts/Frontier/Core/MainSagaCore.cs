@@ -233,12 +233,8 @@ namespace Starfall
                     "Preserve the nine-year-old flow record for future repair teams",
                     "Protect both distress notes and leave a clear call for medicine"};
                 Dialog(o.name,o.en,
-                    outerZh[room]+"
-
-你已经知道了真相，但现场仍有人需要帮助。留下实际物资可以先处理眼前的危险；保全原始记录则能让家属与下一班救援者真正查清发生了什么。两条路都不能抹去没有被救到的人。",
-                    outerEn[room]+"
-
-Knowing what happened does not settle what you do here. Real supplies can help those still waiting, while the originals may be lost to the next storm or false report. Either choice carries both testimonies forward; neither erases the people left behind.",
+                    outerZh[room]+"\n\n你已经知道了真相，但现场仍有人需要帮助。留下实际物资可以先处理眼前的危险；保全原始记录则能让家属与下一班救援者真正查清发生了什么。两条路都不能抹去没有被救到的人。",
+                    outerEn[room]+"\n\nKnowing what happened does not settle what you do here. Real supplies can help those still waiting, while the originals may be lost to the next storm or false report. Either choice carries both testimonies forward; neither erases the people left behind.",
                     C(aidZh[room],aidEn[room],"saga_field_aid_"+room),
                     C(recordZh[room],recordEn[room],"saga_field_record_"+room),
                     C("我先准备一下","I need to prepare","close"));
