@@ -213,12 +213,35 @@ namespace Starfall
                     "Two hands fill the old wreck log beyond the harbor. A rescued child writes: Mira hid us on her brother's boat. A ferryman left ashore writes: we waited until night, and nobody returned.\n\nBoth are true. Saving one boat did not mean the other arrived. Rescue must be counted with the people left behind.",
                     "The desert diversion journal bears no hero's name, only neighbors recording water by the cup. Outer-ring residents split their last half bucket among children, then drew return-flow arrows on the pipes. Ivo later claimed the design as his own.\n\nWhat kept people alive was not only his apology or blueprint, but those who quietly repaired the wells.",
                     "A snowbound distress note carries two voices. A child thanks the bell keeper for shelter. On its reverse an evacuee writes: we could not hear the bell, so we thought you had already left.\n\nSen saved some and stranded others. You now carry both voices back."};
-                Flag("saga_outer_"+room);
-                RecordMoment("第二幕 · 深处手记：在真正的远端路线上找回了与官方记录矛盾的另一位当事者。",
-                    "Act Two: recovered a second, conflicting first-hand account at the far end of the real regional road.");
-                revision++;sound="quest";
-                Dialog(o.name,o.en,outerZh[room],outerEn[room],
-                    C("带回两面的证词","Bring both voices back","close"));
+                // A second account is a human problem, not a free quest flag.
+                // Both outcomes preserve the testimony, but helping people
+                // still at the site requires a genuine inventory item.
+                string[] aidZh={"","","","","",
+                    "用一份木材修补登船跳板：让仍在岸上的渡工今天就能靠船。",
+                    "用一块矿石固定回流阀：让等水的居民先接到半桶水。",
+                    "留下一份药草救治避难棚中的伤者：先让他撑过这个雪夜。"};
+                string[] aidEn={"","","","","",
+                    "Spend 1 wood repairing the rescue plank for people stranded ashore",
+                    "Spend 1 ore bracing the return-flow valve for thirsty families",
+                    "Spend 1 herb treating the injured evacuee in the snow shelter"};
+                string[] recordZh={"","","","","",
+                    "封存两面的原始船难手记，不能再让失踪者的名字从账上消失。",
+                    "先保全九年前的原始供水记录，让后来修井的人能追究责任。",
+                    "先保护互相矛盾的求救纸条，让下一个巡山人知道哪里还需要药。"};
+                string[] recordEn={"","","","","",
+                    "Secure both original wreck accounts before more names disappear",
+                    "Preserve the nine-year-old flow record for future repair teams",
+                    "Protect both distress notes and leave a clear call for medicine"};
+                Dialog(o.name,o.en,
+                    outerZh[room]+"
+
+你已经知道了真相，但现场仍有人需要帮助。留下实际物资可以先处理眼前的危险；保全原始记录则能让家属与下一班救援者真正查清发生了什么。两条路都不能抹去没有被救到的人。",
+                    outerEn[room]+"
+
+Knowing what happened does not settle what you do here. Real supplies can help those still waiting, while the originals may be lost to the next storm or false report. Either choice carries both testimonies forward; neither erases the people left behind.",
+                    C(aidZh[room],aidEn[room],"saga_field_aid_"+room),
+                    C(recordZh[room],recordEn[room],"saga_field_record_"+room),
+                    C("我先准备一下","I need to prepare","close"));
                 return true;
             }
             string[] zh={
@@ -641,6 +664,33 @@ namespace Starfall
                     "矿场学徒带来你当年卡住的压力表。伊沃摸着玻璃上的伤痕：“他没等我的签字，自己把机器停了。”\n\n":
                     "从堡垒赶来的运货车夫走到高原，告诉森那个认出妹妹围巾、最终放下长矛的守卫。森听完许久没说话。\n\n";
         }
+        // The later witness has a different answer to what the player did,
+        // not simply a different color of completion notification.
+        private string MainSagaFieldConsequence(int room,bool english)
+        {
+            if(room<5||room>7)return "";
+            bool aid=Has("saga_field_aid_done_"+room);
+            if(!aid&&!Has("saga_field_record_done_"+room))return ""; // older v2
+            if(english)
+                return room==5?(aid?
+                    "“You rebuilt the boarding plank,” Mira says. “The next boat brought two people ashore. Their names weren't in my official roll. I'll add them in my own hand.”\n\n":
+                    "“You protected both originals,” Mira says. “My brother is still gathering wood for that broken plank. I'll go there when we finish speaking.”\n\n"):
+                    room==6?(aid?
+                    "“The old valve flows again,” Ivo says. “The families at that well made the first repairs. I took their drawings and called them mine. Not again.”\n\n":
+                    "“You kept the original measurements,” Ivo says. “The pipe is still broken, and I owe those neighbors the repair myself.”\n\n"):
+                    aid?
+                    "“Someone at the shelter is still breathing because you stopped with medicine,” Sen says. “That matters more than a bell I could not bring myself to ring.”\n\n":
+                    "“You kept both distress letters,” Sen says. “I sent medicine up the pass after reading them. I should have asked sooner.”\n\n";
+            return room==5?(aid?
+                "“你补了登船跳板。”米拉说，“下一艘船又接上来两个人。官方的名册没有他们，我要亲手补上。”\n\n":
+                "“你保存了两份原件。”米拉说，“弟弟还在给坏跳板找木材。等我们谈完，我会自己过去。”\n\n"):
+                room==6?(aid?
+                "“旧阀重新流水了。”伊沃说，“原本就是井边居民先找到修法，我却把图纸写成自己的功劳。这次不会了。”\n\n":
+                "“你保住了当年的水量。”伊沃说，“可破管还在那里。我欠居民一回自己动手的修复。”\n\n"):
+                aid?
+                "“那个暖棚里的人还在呼吸，因为你带了药。”森说，“这比我当年没敢敲的钟重要。”\n\n":
+                "“你保住了两封求救信。”森说，“我看完已经派人送药上去了。我本应该更早问一声。”\n\n";
+        }
         private void MainSagaAccount(WorldObject host,int room)
         {
             if(!Has("saga_trace_"+room))
@@ -706,12 +756,12 @@ namespace Starfall
                 "Hear survivors and late evacuees together first"};
             if(!Has("saga_guard_"+room))
             {
-                Dialog(host.name,host.en,EarlyRescueVoice(room,false)+zh[room]+
+                Dialog(host.name,host.en,EarlyRescueVoice(room,false)+MainSagaFieldConsequence(room,false)+zh[room]+
                     "\n\n有人试图截走原始证据。"+(room==5?
                         "先守住渡口上的名册，直到第二批追兵撤退。":
                         room==6?"先守住井站的供水图和签字人，直到两波破坏者落败。":
                         "先守住高原钟牌和幸存者，击退两波封口的追兵。"),
-                    EarlyRescueVoice(room,true)+en[room]+
+                    EarlyRescueVoice(room,true)+MainSagaFieldConsequence(room,true)+en[room]+
                     "\n\nSomeone is trying to seize this original evidence. Defend the genuine witness and records against two separate attacks before signing.",
                     SagaGuardActive?
                         C("守住防线 · 剩余"+SagaGuardRemaining+"名敌人",
@@ -726,8 +776,8 @@ namespace Starfall
                         C("先备好物资","Prepare supplies","close"));
                 return;
             }
-            Dialog(host.name,host.en,EarlyRescueVoice(room,false)+zh[room],
-                EarlyRescueVoice(room,true)+en[room],
+            Dialog(host.name,host.en,EarlyRescueVoice(room,false)+MainSagaFieldConsequence(room,false)+zh[room],
+                EarlyRescueVoice(room,true)+MainSagaFieldConsequence(room,true)+en[room],
                 C(first[room],firstEn[room],"saga_sign_"+room+"_a"),
                 C(second[room],secondEn[room],"saga_sign_"+room+"_b"),
                 C("再想一想","I need to think","close"));
@@ -864,6 +914,64 @@ namespace Starfall
                 sound="alert";revision++;
                 Notify("两波敌人正在逼近证人。守住原件，击退全部真实袭击者！",
                     "Two real waves are closing on the witness. Defend the original records!");
+                return true;
+            }
+            if(action.StartsWith("saga_field_aid_",StringComparison.Ordinal)||
+               action.StartsWith("saga_field_record_",StringComparison.Ordinal))
+            {
+                bool aid=action.StartsWith("saga_field_aid_",StringComparison.Ordinal);
+                string prefix=aid?"saga_field_aid_":"saga_field_record_";
+                int room;
+                if(!int.TryParse(action.Substring(prefix.Length),out room)||
+                    room<5||room>7||!MainSagaActive||save.ending>0||
+                    !Has("boss_4")||save.room!=room||
+                    !Has(SagaReport(room))||!Has("saga_trace_"+room)||
+                    Has("saga_outer_"+room)||Dying||practicing||
+                    mode!="world"||host==null||
+                    host.id!=SagaOuterId(room)||
+                    pendingDialogueSourceRoom!=room||
+                    !SourceBelongsToActiveMap(host)||
+                    !HasPhysicalInteractionReach(host)||!CanStand(Position))
+                    return true;
+                int resource=room==5?0:room==6?4:2;
+                if(aid&&save.inventory[resource]<1)
+                {
+                    Notify("缺少对应补给。可以返回补充，也可以先封存原始记录。",
+                        "You lack the supply. Return with it, or preserve the original record.");
+                    return true;
+                }
+                if(aid)save.inventory[resource]--;
+                Flag("saga_outer_"+room);
+                Flag((aid?"saga_field_aid_done_":"saga_field_record_done_")+room);
+                RecordMoment(aid?
+                    "第二幕 · 在边远证词现场留下真正的救援补给，并保留了双方的笔迹。":
+                    "第二幕 · 保存了原始证词，也明确留下了尚未解决的现场求援。",
+                    aid?
+                    "Act Two: supplied concrete help to those at the remote scene and kept both sides of the account.":
+                    "Act Two: secured the original testimony and left a clear request for further relief.");
+                revision++;sound="quest";
+                string[] aidZh={"","","","","",
+                    "木板终于搭上船舷。一个孩子悄悄把自己弟弟的木牌塞进你的手里：“不要再把他算成货物。”",
+                    "半桶回流水先递给了孩子。拄拐的老人指着自己的手：“这里每道疤，都是我们先修井留下的。”",
+                    "伤者服药后才敢合眼。门框背后还有一列名字，写的都是没能听到钟声的人。"};
+                string[] recordZh={"","","","","",
+                    "你把两份笔迹展平，记下那些没有上船的人。坏跳板仍在响，旁边的渡工只能等下一趟。",
+                    "你把九年前的数字抄在防水纸上。回流管仍旧漏着，身后的居民没有假装已经得救。",
+                    "你包好两封求救信，给后来的人留下醒目的求药路标。伤者仍在咳嗽，等待下一位赶路者。"};
+                string[] aidEn={"","","","","",
+                    "The plank reaches the boat. A child presses his brother's wooden token into your hand: “Don't count him as cargo again.”",
+                    "Half a bucket goes to the children first. An elder points to scarred hands: “We repaired these wells long before he claimed the plan.”",
+                    "The patient closes their eyes after the medicine. Another list is carved behind the door: names of those who never heard the bell."};
+                string[] recordEn={"","","","","",
+                    "You flatten both sets of names. The plank still rattles, and a ferryman watches the water for the next boat.",
+                    "You copy the old figures on waterproof paper. The return pipe still leaks. The waiting people do not pretend otherwise.",
+                    "You wrap both distress notes and leave a clear medicine request on the trail. Someone in the shelter is still coughing."};
+                Dialog(host.name,host.en,
+                    (aid?aidZh[room]:recordZh[room])+
+                    "\n\n将两种声音带回去。证人必须听见你在这里做出的选择。",
+                    (aid?aidEn[room]:recordEn[room])+
+                    "\n\nCarry both voices back. The witness deserves to hear what you chose.",
+                    C("回去找当事人","Return to the witness","close"));
                 return true;
             }
             if(action=="saga_begin"||action=="saga_debrief")

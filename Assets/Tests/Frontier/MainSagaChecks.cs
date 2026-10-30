@@ -63,9 +63,22 @@ namespace Starfall.Tests
                 Check(PlaceWithinTalkReach(g,outer),
                     "Original farshore journal can be physically reached");
                 g.Talk(outer);
-                Check(g.save.flags.Contains("saga_outer_"+room)&&
+                Check(!g.save.flags.Contains("saga_outer_"+room)&&
                     g.conversation!=null,
-                    "Only the actual outlying evidence interaction completes the second investigation");
+                    "Reading an eyewitness account cannot silently complete a human rescue");
+                int help=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_field_aid_"+room);
+                int preserve=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_field_record_"+room);
+                Check(help>=0&&preserve>=0,
+                    "The second physical evidence site offers two meaningful responses");
+                int material=room==5?0:room==6?4:2;
+                g.save.inventory[material]=2;
+                g.Choose(help);
+                Check(g.save.flags.Contains("saga_outer_"+room)&&
+                    g.save.flags.Contains("saga_field_aid_done_"+room)&&
+                    g.save.inventory[material]==1,
+                    "The actual live aid choice spends correct real inventory and retains both accounts");
                 g.Close();
                 Check(PlaceWithinTalkReach(g,npc),"Return to the genuine witness");
                 g.Talk(npc);
@@ -261,6 +274,47 @@ namespace Starfall.Tests
                     restored.Has("chapter_road_diverted_"+(room-3)),
                     "Cross-chapter consequences survive old-format v2 save roundtrip");
             }
+        }
+        public static void FieldEvidencePreservationIsARealNonPurchaseAlternative(Campaign data)
+        {
+            GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+            g.save.room=5;g.enemies.Clear();
+            g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+            g.save.flags.Add("harbor_report");g.save.flags.Add("saga_trace_5");
+            WorldObject log=Array.Find(g.Map.objects,o=>o.id=="outer_5_0");
+            Check(log!=null&&PlaceWithinTalkReach(g,log),
+                "Real remote wreck journal is an accessible world object");
+            g.save.inventory[0]=0;
+            g.Talk(log);
+            int aid=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_field_aid_5");
+            Check(aid>=0,"Live rescue choice exists");
+            g.Choose(aid);
+            Check(!g.Has("saga_outer_5")&&g.save.inventory[0]==0,
+                "No timber cannot fabricate a completed rescue");
+            g.Close();Check(PlaceWithinTalkReach(g,log));g.Talk(log);
+            int record=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_field_record_5");
+            Check(record>=0,"Securing originals is an equally valid story response");
+            g.Choose(record);
+            Check(g.Has("saga_outer_5")&&g.Has("saga_field_record_done_5")&&
+                !g.Has("saga_field_aid_done_5")&&g.save.inventory[0]==0,
+                "Physical preservation completes evidence without consuming fictional supplies");
+            g.Close();
+            WorldObject mira=Array.Find(g.Map.objects,o=>o.id=="mira");
+            Check(mira!=null&&PlaceWithinTalkReach(g,mira),
+                "Return to Mira's original physical NPC position");
+            g.Talk(mira);
+            int account=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_account_5");
+            Check(account>=0,"Original witness dialogue remains available");
+            g.Choose(account);
+            Check(g.conversation.textEn.Contains("gathering wood"),
+                "Mira responds to the real repair that remains unfinished");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("saga_field_record_done_5"),
+                "Persistent field response requires no SaveData schema migration");
         }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
