@@ -292,7 +292,8 @@ namespace Starfall.Tests
             g.Choose(aid);
             Check(!g.Has("saga_outer_5")&&g.save.inventory[0]==0,
                 "No timber cannot fabricate a completed rescue");
-            g.Close();Check(PlaceWithinTalkReach(g,log));g.Talk(log);
+            g.Close();Check(PlaceWithinTalkReach(g,log),
+                "Original log remains physically reachable after declined aid");g.Talk(log);
             int record=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="saga_field_record_5");
             Check(record>=0,"Securing originals is an equally valid story response");
