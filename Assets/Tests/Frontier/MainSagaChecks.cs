@@ -221,10 +221,46 @@ namespace Starfall.Tests
                 if(step==2)g.save.energy=100f;
                 float energy=g.save.energy;
                 g.Choose(choice);
+                if(step==2)
+                {
+                    Check(g.save.energy==energy-22f&&g.MainSagaRelayActive&&
+                        g.MainSagaRelayRemaining==2&&
+                        g.MainSagaLastGateStep==2&&
+                        !g.Has("saga_lastgate_relay"),
+                        "22 stamina starts real combat; starting is NOT a free relay completion");
+                    g.Close();
+                    // An enemy erased outside combat must cancel the relay.
+                    Enemy erased=g.enemies[0];g.enemies.Remove(erased);
+                    Advance(g,.12f);
+                    Check(!g.MainSagaRelayActive&&
+                        !g.Has("saga_lastgate_relay")&&
+                        g.MainSagaLastGateStep==2,
+                        "Vanished saboteur never grants a signed bypass");
+                    Check(PlaceWithinTalkReach(g,station),
+                        "The real switch can be retried after a broken defense");
+                    g.Talk(station);
+                    int retry=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="saga_lastgate_2");
+                    Check(retry>=0,"Unfinished bypass offers another physical attempt");
+                    g.save.energy=100f;
+                    g.Choose(retry);g.Close();
+                    Check(g.MainSagaRelayActive&&g.MainSagaRelayRemaining==2,
+                        "Fresh attempt creates two real hostile enemies");
+                    var relayHit=typeof(GameCore).GetMethod("Hit",
+                        BindingFlags.NonPublic|BindingFlags.Instance);
+                    Check(relayHit!=null,"Use actual production combat contact");
+                    foreach(Enemy foe in g.enemies.ToArray())
+                    {
+                        Check(g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                            "Both saboteurs enter on traversable real Citadel ground");
+                        relayHit.Invoke(g,new object[]{foe,9999f,true,null,null});
+                    }
+                    Advance(g,.7f);
+                    Check(!g.MainSagaRelayActive&&g.Has("saga_lastgate_relay"),
+                        "Only two verified combat defeats stabilize the bypass");
+                }
                 Check(g.MainSagaLastGateStep==step+1,
                     "Only the correct physical station advances the last chapter");
-                if(step==2)Check(g.save.energy==energy-22f,
-                    "Reconnecting the real circuit spends the advertised stamina");
                 g.Close();
             }
             Check(g.MainSagaCanConclude&&

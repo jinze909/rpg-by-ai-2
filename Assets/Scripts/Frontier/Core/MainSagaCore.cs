@@ -44,6 +44,12 @@ namespace Starfall
             get {
                 int next=Math.Min(3,Math.Max(1,MainSagaLastGateStep));
                 WorldObject node=MainSagaLastGateNode(next);
+                if(MainSagaRelayActive)
+                {
+                    foreach(Enemy foe in sagaRelayFoes)
+                        if(foe!=null&&foe.hp>0&&enemies.Contains(foe))
+                            return foe.Position;
+                }
                 return node!=null?new Point(node.x,node.y):Position;
             }
         }
@@ -55,6 +61,146 @@ namespace Starfall
                     o.kind=="triadmemory"+index)return o;
             return null;
         }
+
+        // The last bypass is a live battle, not an instant stamina receipt.
+        // This encounter is session-only: an interrupted fight never writes
+        // progress, while a previously earned v2 relay flag remains valid.
+        private int sagaRelayRoom=-1;
+        private SaveData sagaRelaySave;
+        private MapData sagaRelayMap;
+        private WorldObject sagaRelayStation;
+        private float sagaRelayClock;
+        private readonly List<Enemy> sagaRelayFoes=new List<Enemy>();
+        private readonly HashSet<Enemy> sagaRelayDefeated=new HashSet<Enemy>();
+        public bool MainSagaRelayActive
+        {
+            get { return sagaRelayRoom==4&&save.room==4&&
+                Object.ReferenceEquals(sagaRelaySave,save)&&
+                Object.ReferenceEquals(sagaRelayMap,Map)&&
+                Object.ReferenceEquals(sagaRelayStation,MainSagaLastGateNode(2))&&
+                SourceBelongsToActiveMap(sagaRelayStation); }
+        }
+        public int MainSagaRelayRemaining
+        {
+            get { int total=0;
+                if(MainSagaRelayActive)foreach(Enemy e in sagaRelayFoes)
+                    if(e!=null&&e.hp>0&&enemies.Contains(e))total++;
+                return total;
+            }
+        }
+        public float MainSagaRelaySeconds
+        { get { return MainSagaRelayActive?sagaRelayClock:0f; } }
+        private void ResetMainSagaRelay()
+        {
+            foreach(Enemy e in sagaRelayFoes)
+            {
+                RemoveEnemyPendingWarning(e);
+                enemies.Remove(e);
+                regionalAmbientEnemies.Remove(e);
+                projectiles.RemoveAll(p=>Object.ReferenceEquals(p.hostileShooter,e));
+            }
+            sagaRelayRoom=-1;sagaRelaySave=null;sagaRelayMap=null;
+            sagaRelayStation=null;sagaRelayClock=0f;
+            sagaRelayFoes.Clear();sagaRelayDefeated.Clear();
+        }
+        private bool MainSagaRelayFootFree(Point foot,List<Point> placed)
+        {
+            if(!CanStand(foot)||(foot-Position).Length<4f||
+                NavigationPathFrom(Position,foot,true).Count==0)return false;
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&(foot-new Point(o.x,o.y)).Length<2.3f)return false;
+            foreach(Enemy e in enemies)
+                if(e!=null&&e.hp>0&&(e.Position-foot).Length<2.8f)return false;
+            foreach(Point p in placed)
+                if((p-foot).Length<4.5f)return false;
+            return true;
+        }
+        private bool StartMainSagaRelay(WorldObject station)
+        {
+            if(MainSagaRelayActive||station==null)return false;
+            var feet=new List<Point>();
+            int cx=(int)Math.Floor(station.x),cy=(int)Math.Floor(station.y);
+            // Deterministically choose TWO actual walkable approaches in the
+            // shipped Citadel; no teleported kills or fabricated casualties.
+            for(int radius=6;radius<=19&&feet.Count<2;radius++)
+            for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
+            for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point foot=new Point(cx+dx+.5f,cy+dy+.5f);
+                if(MainSagaRelayFootFree(foot,feet))feet.Add(foot);
+            }
+            if(feet.Count!=2)return false;
+            sagaRelayRoom=4;sagaRelayMap=Map;sagaRelaySave=save;
+            sagaRelayStation=station;sagaRelayClock=100f;
+            for(int i=0;i<feet.Count;i++)
+            {
+                int kind=i==0?1:2;
+                Enemy foe=CreatePlacedEnemy(++enemyId,kind,feet[i],78f+i*24f);
+                foe.stun=Math.Max(foe.stun,.65f);
+                sagaRelayFoes.Add(foe);enemies.Add(foe);
+                effects.Add(new Effect("enemyRelease",foe.Position,.6f)
+                    {variant=kind});
+            }
+            return true;
+        }
+        private void OnMainSagaRelayEnemyDefeated(Enemy enemy)
+        {
+            if(MainSagaRelayActive&&sagaRelayFoes.Contains(enemy))
+                sagaRelayDefeated.Add(enemy);
+        }
+        private void TickMainSagaRelay(float dt)
+        {
+            if(sagaRelayRoom<0)return;
+            if(!MainSagaRelayActive||Dying||practicing||
+                !MainSagaCouncilReady||save.ending>0||
+                Has("saga_lastgate_relay"))
+            { ResetMainSagaRelay();return; }
+            // The defeat hook belongs to real Hit() combat. Removing enemies,
+            // reducing HP outside combat, or crossing a scene is not victory.
+            foreach(Enemy e in sagaRelayFoes)
+                if(e==null||(!sagaRelayDefeated.Contains(e)&&
+                    (!enemies.Contains(e)||e.hp<=0)))
+                {
+                    ResetMainSagaRelay();revision++;
+                    Notify("破坏者异常离场，旁路未能稳定。重新调谐后再守住线路。",
+                        "An unverified saboteur vanished. Restart the bypass defense.");
+                    return;
+                }
+            bool clear=sagaRelayFoes.Count==2;
+            foreach(Enemy e in sagaRelayFoes)
+                if(!sagaRelayDefeated.Contains(e)||e.hp>0||
+                    enemies.Contains(e)){clear=false;break;}
+            if(clear)
+            {
+                ResetMainSagaRelay();
+                Flag("saga_lastgate_relay");
+                RecordMoment("终章 · 亲自重接堡垒应急旁路，并在真实战斗中击退了两名破坏供能的追兵。",
+                    "Finale: retuned the citadel bypass and defeated two real saboteurs before the civilian circuit held.");
+                effects.Add(new Effect("burst",new Point(23.5f,6.5f),.7f)
+                    {radius=3f,variant=2});
+                revision++;sound="quest";
+                Notify("两名破坏者已被击退，旁路稳定！前往最后的居民签名台。",
+                    "Both saboteurs defeated. The bypass holds! Reach the final signing station.");
+                return;
+            }
+            if(dt<=0f||mode!="world")return;
+            if((Position-new Point(sagaRelayStation.x,sagaRelayStation.y)).Length>28f)
+            {
+                ResetMainSagaRelay();revision++;
+                Notify("你离开了供能防线，旁路保护已撤销。可返回重新启动。",
+                    "You left the bypass perimeter. Return to restart the defense.");
+                return;
+            }
+            sagaRelayClock=Math.Max(0f,sagaRelayClock-dt);
+            if(sagaRelayClock<=0f)
+            {
+                ResetMainSagaRelay();revision++;
+                Notify("线圈过热，旁路未能保持稳定。冷却后可重新挑战。",
+                    "The coils overheated. Restart the bypass defense when ready.");
+            }
+        }
+
         private bool TryTalkMainSagaLastGate(WorldObject o)
         {
             if(!MainSagaCouncilReady||save.ending>0||save.room!=4||
@@ -71,11 +217,22 @@ namespace Starfall
                     C("核对三份供词并封存旧命令","Verify the accounts and secure the order","saga_lastgate_1"),
                     C("返回查看","Return later","close"));
             else if(stage==2)
-                Dialog(o.name,o.en,
-                    "损坏的分流台仍把星核能量优先送往军用屏障。要让三方议会有权审核线路，必须在导流板发热时亲自重接紧急旁路。\n\n你得消耗22耐力稳住阀门。热流会影响周围环境，但不会凭空完成战斗或救援。\n\n诺尔提醒你：“公开一纸命令容易。让它在断电的夜里也执行，才算真的改变。”",
-                    "The battered diverter still routes power first to the military shield. To let the council inspect the actual circuit, the emergency bypass must be reset while its conductors are hot.\n\nHolding the valve costs 22 stamina. This is a physical repair, not a free quest tick.\n\nNoll says, “Publishing an order is easy. Making the machine obey in a blackout is the real change.”",
-                    C("亲自调谐应急旁路 · 耐力22","Tune the emergency bypass · 22 stamina","saga_lastgate_2"),
-                    C("稍后再试","Return when ready","close"));
+                if(MainSagaRelayActive)
+                    Dialog(o.name,o.en,
+                        "旁路调谐中！仍有"+MainSagaRelayRemaining+
+                        "名破坏者，线圈可维持"+(int)Math.Ceiling(MainSagaRelaySeconds)+
+                        "秒。亲自击退敌人才可让居民供能线路稳定。",
+                        "Bypass under attack! "+MainSagaRelayRemaining+
+                        " saboteurs remain. The coils can hold "+
+                        (int)Math.Ceiling(MainSagaRelaySeconds)+
+                        " seconds. Defeat the real attackers to complete the circuit.",
+                        C("继续守住旁路","Hold the bypass","close"));
+                else
+                    Dialog(o.name,o.en,
+                        "损坏的分流台仍把星核能量优先送往军用屏障。你必须消耗22耐力启动紧急旁路，再亲自击退两名破坏者；100秒内守住线路，居民议会才真正拥有供能权。\n\n诺尔说：“别让新的命令只停留在纸上。”",
+                        "The broken diverter still prioritizes the military shield. Spend 22 stamina to start the bypass, then defeat two real saboteurs within 100 seconds. Only then can the residents control the emergency circuit.\n\nNoll says, “Don't let the new order remain on paper.”",
+                        C("启动旁路并守卫 · 耐力22","Start and defend bypass · 22 stamina","saga_lastgate_2"),
+                        C("稍后再试","Return when ready","close"));
             else
                 Dialog(o.name,o.en,
                     "第三份空白命令只剩两个不完美的方案：公开所有调度记录，让每一笔能源消耗都能被质疑；或让受难家属先核对身份，把敏感的安置地点从公开名册中遮住。\n\n公开可以防止新的秘密配额，却可能暴露正在躲避追捕的人。保护隐私能让幸存者安心，却要求议会承担监督责任。\n\n你不会替所有人决定如何生活，但必须决定这张新的表格如何开始。",
@@ -109,12 +266,14 @@ namespace Starfall
                         "The bypass needs 22 stamina. Recover safely and return.");
                     return true;
                 }
+                if(MainSagaRelayActive)return true;
+                if(!StartMainSagaRelay(source))
+                {
+                    Notify("附近找不到安全且可到达的破坏者进路。请清理道路后重试，不消耗耐力。",
+                        "No safe reachable saboteur route. Clear the approach and retry; no stamina spent.");
+                    return true;
+                }
                 save.energy-=22f;
-                effects.Add(new Effect("burst",new Point(source.x,source.y),.7f)
-                    {radius=3f,variant=2});
-                Flag("saga_lastgate_relay");
-                RecordMoment("终章 · 堡垒旧分流台已由居民代表的证词重新校准。军用命令不能再自动覆盖公共供能。",
-                    "Finale: the old citadel diverter was retuned against resident testimony; military orders no longer silently override public power.");
             }
             else if(stage==1)
             {
@@ -138,10 +297,10 @@ namespace Starfall
             revision++;sound="reward";
             Dialog(source.name,source.en,
                 stage==1?"三份记录已核对。走向堡垒东面的旧分流台，让新协定真正接管供能线路。":
-                stage==2?"旁路成功接通，阀门不再只听军令。去最后的签名台决定如何保存幸存者的记录。":
+                stage==2?"旁路已启动，破坏者逼近！只有亲自击退两名敌人，才可前往最后的签名台。":
                 "最后一道命令已由居民共同见证。回到厄洛所在的祭坛，决定星核的最终归宿。",
                 stage==1?"The accounts are verified. Reach the eastern diverter to make the covenant physically enforceable.":
-                stage==2?"The bypass is live. Go to the final signing station and decide how survivors will be recorded.":
+                stage==2?"The bypass is charging and saboteurs are closing in! Defeat both attackers before visiting the final signing station.":
                 "The last order has been witnessed by the residents. Return to Orrin's shrine and choose the cores' fate.",
                 C("继续主线","Continue the main story","close"));
             return true;
