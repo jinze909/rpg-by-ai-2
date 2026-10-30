@@ -4097,6 +4097,17 @@ namespace Starfall
                 zh[id] += "\n\n" + coreZh[save.ending];
                 en[id] += "\n\n" + coreEn[save.ending];
             }
+            if(MainSagaActive&&save.ending==0)
+            {
+                Dialog("第二幕 · 三方誓约","Act Two · The Shared Covenant",
+                    "这张桌上终于有六种手迹：三份地区报告和三份当事者的亲笔证词。露恩依次把新的供能协定交给各地代表。\n\n"+zh[id]+
+                    "\n\n“现在把这个共同决定带回堡垒。厄洛必须听见的不只是你的答案。”",
+                    "Six different hands now fill the council table: three regional reports and three signed first-hand accounts. Lune asks every delegation to ratify the energy covenant.\n\n"+en[id]+
+                    "\n\n“Take this shared decision to the citadel. Orrin must hear more than your answer.”",
+                    C("返回堡垒 · 推进终章","Return to citadel · final chapter","goto4"),
+                    C("继续探索","Keep exploring","close"));
+                sound="reward";return;
+            }
             Dialog("远岸来信 · 终章", "Letters from Afar · Epilogue", zh[id] + "\n\n地下的星根开始回应你。地脉深渊现已开放。", en[id] + "\n\nThe roots beneath the land answer. The Root Abyss is now open.", C("继续探索", "Keep exploring", "close"), C("回到余烬镇", "Return to Emberfall", "goto0")); sound = "reward";
         }
         private void ReadHistory(int id)

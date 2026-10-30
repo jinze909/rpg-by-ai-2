@@ -187,6 +187,28 @@ namespace Starfall
                 C(second[room],secondEn[room],"saga_sign_"+room+"_b"),
                 C("再想一想","I need to think","close"));
         }
+        private string MainSagaFinalReveal(bool english)
+        {
+            if(!MainSagaCanConclude)return "";
+            return english?
+                "\n\nOrrin unfolds the old supply order beside the new covenant. Under the scraped-off military heading lie three older civilian routing stamps. The first outer-ring diversion predates his command by nine years.\n\n“I signed orders that hurt people,” he says. “But the machine I inherited made every bad choice look like nobody's choice. Mira hid names to save one boat. Ivo diverted water to save his child. Sen silenced a bell to protect children at a gate. Others paid for each act. None is a monster; none may vanish from the record.”\n\nLyra lays down the witnesses' own signatures. The question now is not who rules three cores, but which risks the people themselves will agree to carry.":
+                "\n\n厄洛把旧供能令摊在新的协定旁。刮去的军方标题下，有三个更早的民用调度印。外环第一次被牺牲，比他接管堡垒早九年。\n\n“伤人的命令，我确实签过。但我继承的也是一部把每个坏决定变成‘没人负责’的机器。米拉为了救一艘船藏起名字，伊沃为了儿子改了供水，森为了保住孩子捂住警钟。代价却落在另一群人身上。他们谁都不是怪物，也谁都不能从记录里消失。”\n\n莉雅放下三份当事者亲签的证词。现在决定的不再是三枚星核归哪个统治者，而是这些居民愿意共同承担怎样的风险。";
+        }
+        private string MainSagaEndingAfterword(bool english)
+        {
+            if(!MainSagaActive||MainSagaVoices<3||MainSagaTraces<3)return "";
+            return english?
+                "\n\nA second volume of first-hand accounts enters the public archive. "+
+                (Has("saga_choice_5_a")?"Mira signs the open manifest. ":"Mira lets families read it first. ")+
+                (Has("saga_choice_6_a")?"Ivo publishes his old ration decision. ":"Every well receives Ivo's repair plan. ")+
+                (Has("saga_choice_7_a")?"Sen names his choice at the public hearing. ":"Rescued children and late evacuees tell their story together. ")+
+                "No signature erases a death, but people can now challenge the next secret order before it takes effect.":
+                "\n\n边境公共档案终于添上第二册。"+
+                (Has("saga_choice_5_a")?"米拉在公开的名册上亲笔署名。":"米拉先让失踪者家属读完原件。")+
+                (Has("saga_choice_6_a")?"伊沃公开了自己九年前改写的配额。":"每座井站都收到了伊沃的维修图。")+
+                (Has("saga_choice_7_a")?"森在听证会上说出自己的选择。":"获救的孩子与错过撤离的人一起讲完那夜。")+
+                "任何签名都无法抹平伤亡，但居民终于能在下一道秘密命令生效前提出质疑。";
+        }
         private void MainSagaGate()
         {
             string state=MainSagaVoices<3?

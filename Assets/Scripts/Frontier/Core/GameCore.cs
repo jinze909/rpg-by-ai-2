@@ -5405,12 +5405,23 @@ namespace Starfall
                         "You led Lena, Ian and Orme home during the blackout. Orrin knows someone else is willing to carry the risk of a safer transition.\n\n") : "") +
                 (AllWitnessesFiled ? "Moya, Arin and Venn signed their own testimony. Their lives can no longer be erased as blank numbers in the energy accounts.\n\n" : "") +
                 (Has("triad_complete") ? "Lyra’s public three-core audit stands between you. Protecting children inside the wall can no longer erase people beyond it.\n\n" : "") + "Orrin lowers his weapon. Three cores once balanced the roots between rivers, fields and lights. Now the shield's safety is drawn from lives beyond its wall.\n\nReturning the cores may heal the land, though its people must face danger together. Keeping the shield protects those inside but continues to exact a price outside." + "\n\n" + (Allies < 3 ? "With An, Old Tide and Noll on your side, a third path might become practical. You may return to town first." : "An brings medicine, Old Tide brings ferry supplies and Noll has prepared public pumps. The alternative already has people willing to build it."), choices.ToArray());
+            if(MainSagaCanConclude)
+            {
+                string zh=MainSagaFinalReveal(false),en=MainSagaFinalReveal(true);
+                conversation.text+=zh;conversation.textEn+=en;
+                RememberDialogue("厄洛 · 星卫统领","Orrin · Starwarden",zh,en,false);
+            }
         }
         public void Epilogue()
         {
             string[] zh = { "", "《重新生长》\n\n你把星核重新接回森林、河流和矿脉的调谐锚点。堡垒屏障熄灭，夜空不再只有一道由别人支付代价的光。河水缓缓复流，荆棘间长出第一条新路。\n\n危机并未一夜消失。莉雅在公会地图上标出公共避难所，杏带药箱走访每个村庄。厄洛离开城墙，第一次和居民一起种下防风树。\n\n边境学会了带着风险生活，而不是把风险推给看不见的人。", "《高墙之内》\n\n你保留屏障，也迫使堡垒向那些曾被算作“外围损失”的人打开城门。更多孩子有屋顶过夜，更多老人能在灯下安心休息。\n\n但城外的河水继续变浅，村庄还在等待下一批救援。莉雅开始公布每次屏障加压的真实资源账目，老潮继续摆渡不愿离开故土的人。\n\n这份安全是真实的，却仍有未结清的代价。改变的第一步，是承认谁在付钱。", "《我们的边境》\n\n杏把药物送到不在地图上的村庄，老潮把渡船改成补给船，诺尔将一部分堡垒装置改成公共水泵。星核的力量逐渐回到居民共同维护的道路上。\n\n厄洛拆下第一段城墙，和昔日的守卫一道修桥。他没有忘记那些被屏障救下的人，也不再独自替城外人决定命运。\n\n世界没有突然完美，但每个人终于有机会在地图上画出自己的归途。\n\n冒险者，欢迎回家。" };
             string[] en = { "", "GROWING AGAIN\n\nYou return the cores to the forest, river and mine anchors. The citadel shield fades; the sky no longer belongs to a single light paid for by others. Rivers start to flow, and a new road grows through the thorns.\n\nThe crisis does not disappear overnight. Lyra marks shared shelters on the guild maps. An carries medicine between villages. Orrin walks beyond his wall and helps plant windbreak trees.\n\nThe frontier learns to face danger without passing its cost to people it cannot see.", "WITHIN THE WALLS\n\nYou preserve the shield and force the citadel to open its gates to people once counted as losses outside. More children sleep under shelter; more elders can rest beneath its lights.\n\nBut the outer rivers still fall, and villages continue waiting for aid. Lyra publishes the price of every shield surge. Old Tide keeps ferrying those who refuse to abandon their homes.\n\nThis protection is real. So is the unsettled debt. The first change is admitting who pays.", "OUR FRONTIER\n\nAn carries medicine to villages missing from official maps. Old Tide turns his ferry into a supply boat. Noll rebuilds part of the citadel's machinery as public pumps. The power of the cores returns gradually to roads maintained by the people who use them.\n\nOrrin takes down the first section of wall and joins the former guards in repairing bridges. He has not forgotten those he saved, but no longer decides the future of everyone outside.\n\nThe world is not suddenly perfect. Everyone finally has a chance to draw a road home.\n\nWelcome home, traveler." };
             int ending = (int)Clamp(save.ending, 1, 3);
+            if(MainSagaActive&&MainSagaCanConclude)
+            {
+                zh[ending]+=MainSagaEndingAfterword(false);
+                en[ending]+=MainSagaEndingAfterword(true);
+            }
             // The farshore covenant governs infrastructure; the main ending
             // independently decides how the cores power the region.
             if (save.frontierEnding > 0)
