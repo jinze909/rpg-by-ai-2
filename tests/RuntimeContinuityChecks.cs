@@ -1245,7 +1245,20 @@ public static class RuntimeContinuityChecks
             GUI.commands.Exists(c=>c.Contains("ALL CAPTURED")||
                 c.Contains("全员活捉")),
             "Living-captive receipt draws a distinct map-world mark and charged 2/7 route");
-        Check(g.FieldRelayEnergyHere==7&&g.save.version==2,
+        Check(GUI.commands.Exists(c=>c.Contains("ELITE PATROL AVAILABLE")||
+            c.Contains("进阶巡护可挑战")),
+            "Old living testimony remains visible while a new elite challenge can also be selected");
+        g.save.flags.Add("biome_patrol_veteran_1");
+        g.save.flags.Add("biome_patrol_veteran_spared_1");
+        ClearDraw();Call(app,"DrawObject",post);
+        Check(GUI.commands.Exists(c=>c.Contains("ALL CAPTURED")||
+            c.Contains("全员活捉"))&&
+            GUI.commands.Exists(c=>c.Contains("ELITE DEFENSE")||
+                c.Contains("进阶精锐"))&&
+            !GUI.commands.Exists(c=>c.Contains("ELITE PATROL AVAILABLE")||
+                c.Contains("进阶巡护可挑战")),
+            "Original nonlethal travel perk stays visible beside earned veteran status, with no phantom replay prompt");
+                Check(g.FieldRelayEnergyHere==7&&g.save.version==2,
             "World draw uses the exact production price with no schema change");
         Console.WriteLine("PASS live field marker shows patrol method and actual charged travel economy");
     }

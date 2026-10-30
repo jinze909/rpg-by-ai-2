@@ -1734,26 +1734,40 @@ namespace Starfall
                                     "PATROL ACTIVE · "+Game.FieldPatrolRemaining+" LEFT"),
                             10,gold,TextAnchor.MiddleCenter);
                     }
-                    else if(!second&&
-                            Game.FieldPatrolVeteranDone(Game.save.room))
+                    else if(!second)
                     {
-                        bool humane=Game.FieldPatrolVeteranAllLiving(Game.save.room);
-                        Ring(new Point(o.x,o.y),.93f,mint,28);
-                        WorldObjectLabel(p.x-117,p.y-141,234,18,
-                            humane?
-                                Game.L("进阶巡护 · 精锐全员活捉",
-                                    "ELITE DEFENSE · ALL RESTRAINED"):
-                                Game.L("进阶巡护 · 精锐回执已签",
-                                    "ELITE DEFENSE · SIGNED"),
-                            10,mint,TextAnchor.MiddleCenter);
-                    }
-                    else if(!second&&Game.FieldPatrolDone(Game.save.room))
-                    {
-                        Ring(new Point(o.x,o.y),.93f,gold,28);
-                        WorldObjectLabel(p.x-117,p.y-141,234,18,
-                            Game.L("精锐巡护可挑战 · 按 E",
-                                "ELITE PATROL AVAILABLE · E"),
-                            10,gold,TextAnchor.MiddleCenter);
+                        // Keep the earned first-clear and all-living route
+                        // status visible. Elite availability is an ADDITIONAL
+                        // prompt, never a replacement for the old travel perk.
+                        bool signed=Game.FieldPatrolDone(Game.save.room);
+                        bool spared=Game.FieldPatrolSpared(Game.save.room);
+                        bool veteranSigned=Game.FieldPatrolVeteranDone(Game.save.room);
+                        if(spared)
+                            Ring(new Point(o.x,o.y),.93f,mint,28);
+                        if(signed)
+                            WorldObjectLabel(p.x-117,p.y-141,234,18,
+                                spared?
+                                    Game.L("全员活捉 · 安全路况已公开",
+                                        "ALL CAPTURED · SAFE ROUTE KNOWN"):
+                                    Game.L("巡护安全回执已登记",
+                                        "SIGNED PATROL RECEIPT"),
+                                10,spared?mint:ink,TextAnchor.MiddleCenter);
+                        if(veteranSigned)
+                            WorldObjectLabel(p.x-117,p.y-162,234,18,
+                                Game.FieldPatrolVeteranAllLiving(Game.save.room)?
+                                    Game.L("进阶精锐 · 全员活捉",
+                                        "ELITE DEFENSE · ALL RESTRAINED"):
+                                    Game.L("进阶精锐 · 回执已签",
+                                        "ELITE DEFENSE · SIGNED"),
+                                10,mint,TextAnchor.MiddleCenter);
+                        else if(signed)
+                        {
+                            Ring(new Point(o.x,o.y),1.03f,gold,28);
+                            WorldObjectLabel(p.x-117,p.y-162,234,18,
+                                Game.L("进阶巡护可挑战 · 按 E",
+                                    "ELITE PATROL AVAILABLE · E"),
+                                10,gold,TextAnchor.MiddleCenter);
+                        }
                     }
                 }
                 if(!finished&&(!second||ready))
