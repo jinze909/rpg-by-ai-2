@@ -132,6 +132,50 @@ namespace Starfall.Tests
             }
         }
 
+        // Different farshore climates must change live roles, not only
+        // background colors. Retain exactly seven correctly placed combatants.
+        public static void FarshoreOpeningBattlesHaveDistinctBiomeRoles(Campaign data)
+        {
+            int[][] roles={
+                new[]{1,0,1,0,2,1,0},
+                new[]{2,1,2,0,1,2,0},
+                new[]{0,0,2,0,1,2,0}
+            };
+            var signatures=new HashSet<string>();
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.Enter(room);
+                Check(g.enemies.Count==7,
+                    "Distinct outer biome compositions never alter required seven-enemy roster");
+                string identity="";
+                for(int slot=0;slot<7;slot++)
+                {
+                    Enemy foe=g.enemies[slot];
+                    Check(foe.kind==roles[room-5][slot]&&
+                        foe.hp>0&&!foe.boss&&g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                        "Real room "+room+" role "+slot+" must occupy walkable old progression lane");
+                    identity+=foe.kind.ToString();
+                    for(int prev=0;prev<slot;prev++)
+                        Check((foe.Position-g.enemies[prev].Position).Length>=2.45f,
+                            "Distinct biome fighters cannot collapse onto each other");
+                }
+                Check(signatures.Add(identity),
+                    "Three expedition terrains should produce three different combat role profiles");
+                WorldObject device=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(device!=null&&g.FieldTacticLiveThreatCount(device)>0,
+                    "Distinct biome formations leave real enemies in reach of their unique tactical device");
+                g.PrepareSave();
+                Check(g.save.version==2,
+                    "Authored combat variety does not introduce a new save format");
+            }
+        }
+
         // The three outer regions are distinct optional battlefields, not
         // decoration pasted into the map. Check real story gates, original
         // seven-actor roster, E interaction and one-time saved mastery.

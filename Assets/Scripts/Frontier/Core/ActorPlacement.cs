@@ -261,14 +261,28 @@ namespace Starfall
         // Ruins: bow pressure along the tidal causeways.
         // Mine: armored foremen with two genuine ranged threats.
         // Citadel: staggered combined-arms defensive lines.
-        // Do NOT change the old 6/8 required roster, enemy hit points or
-        // any mature postgame/remote area (rooms 5–7).
+        // Do NOT change the old 6/8 required roster or enemy hit points.
+        // The three later chapters keep their seven actors, gate flow and
+        // actual placement, but now present DIFFERENT opening enemy roles.
         // This data is transient spawn content, not SaveData v2 state.
         private static readonly int[,] chapterBattleKinds={
             {0,0,1,0,1,0,0,1},
             {1,0,1,2,1,0,1,2},
             {2,0,2,1,2,0,2,1},
             {2,1,0,2,1,0,2,1}
+        };
+        // Farshore's required encounters used to cycle 0,1,2 in every
+        // single region, producing three indistinguishable approaches.
+        // Roles now follow the actual biome counterplay and authoring:
+        // Mistport: bowmen press the causeway and foghorn catches arrows;
+        // Glass Desert: plated sentries make the prism armor-break useful;
+        // Frostchime: melee rushers force use of the stillbell's long stun.
+        // Slot counts, historic map spawn anchors, enemy HP and all save
+        // fields stay untouched; voluntary patrols and Boss fights differ.
+        private static readonly int[,] farshoreBattleKinds={
+            {1,0,1,0,2,1,0},
+            {2,1,2,0,1,2,0},
+            {0,0,2,0,1,2,0}
         };
         private void SpawnRegionalBaselineEnemies(int count,float health)
         {
@@ -278,7 +292,9 @@ namespace Starfall
                 Point? foot=RegionalBattleFoot(i,connected);
                 if(!foot.HasValue)break;
                 int kind=save.room>=1&&save.room<=4?
-                    chapterBattleKinds[save.room-1,i]:i%3;
+                    chapterBattleKinds[save.room-1,i]:
+                    save.room>=5&&save.room<=7?
+                    farshoreBattleKinds[save.room-5,i]:i%3;
                 Enemy staged=CreatePlacedEnemy(++enemyId,kind,
                     foot.Value,health);
                 enemies.Add(staged);
