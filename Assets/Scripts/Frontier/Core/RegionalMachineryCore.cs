@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 namespace Starfall
 {
     // Twenty-four authentic field devices in eight terrain districts.
@@ -51,6 +52,139 @@ namespace Starfall
             {"A shade shutter is real even when the tower in the heat is not.","Measure the real water below, not the mirage on the ridge.","Pointing into the sun would guide people toward a false tower."},
             {"Wind drives snow into the road; angle the baffle toward shelter.","Someone reaches this stop with frozen hands. Leave warm coals.","The high bell's voice blows away. The low one reaches home."}
         };
+        // Repaired public sites can be sounded to draw nearby UNALERTED
+        // patrols to the actual machine. No teleport, stun, stock damage,
+        // persistent save fields or override of a live civilian objective.
+        private SaveData regionalSignalSave;
+        private MapData regionalSignalMap;
+        private readonly Dictionary<WorldObject,float> regionalSignalReadyAt=
+            new Dictionary<WorldObject,float>();
+        private static readonly float[] regionalSignalRanges={
+            8f,7.5f,9f,9.5f,8f,10f,7.5f,8.5f
+        };
+        private static readonly string[] regionalSignalNameZh={
+            "渠闸警锣","断枝路铃","旧岸回声铃","排气警笛",
+            "城墙民用警钟","雾港固定雾笛","井站金属回声器","背风低钟"
+        };
+        private static readonly string[] regionalSignalNameEn={
+            "canal warning gong","forest branch bell","flood-bank echo bell",
+            "vent whistle","public wall bell","fixed harbor foghorn",
+            "wellhead sound reflector","leeward low bell"
+        };
+        private int RegionalSignalMaterial(int room)
+        {return room==6?4:room==7?2:0;}
+        private string RegionalSignalMaterialZh(int room)
+        {return room==6?"零件":room==7?"月光草":"木材";}
+        private string RegionalSignalMaterialEn(int room)
+        {return room==6?"gear":room==7?"Moonherb":"timber";}
+        private void EnsureRegionalSignalSession()
+        {
+            if(!Object.ReferenceEquals(regionalSignalSave,save)||
+               !Object.ReferenceEquals(regionalSignalMap,Map))
+            {
+                regionalSignalReadyAt.Clear();
+                regionalSignalSave=save;
+                regionalSignalMap=Map;
+            }
+        }
+        private float RegionalSignalCooldown(WorldObject source)
+        {
+            EnsureRegionalSignalSession();
+            float ready;
+            return source!=null&&regionalSignalReadyAt.TryGetValue(source,out ready)?
+                Math.Max(0f,ready-save.totalTime):0f;
+        }
+        // Real acoustic corridors only, including corners but never across
+        // closed walls. The snapshot avoids charging when nobody can respond.
+        private List<Enemy> RegionalSignalListeners(Point foot,float radius)
+        {
+            var listeners=new List<Enemy>();
+            EnsureEnemyHitAlertSession();
+            foreach(Enemy guard in enemies)
+            {
+                if(guard==null||guard.hp<=0||guard.boss||
+                    guard.state==1||guard.stun>0f||
+                    IsSagaGuardEnemy(guard)||
+                    ArrowSoundCannotOverrideObjective(guard)||
+                    !CanStand(guard.Position)||
+                    (guard.Position-foot).Length>radius||
+                    !AudibleAlongWorld(foot,guard.Position,radius)||
+                    patrolsThatSawHero.Contains(guard)||
+                    ImpactSearchGuardSeesHero(guard))continue;
+                EnemyHitAlert old;
+                if(enemyHitAlert.TryGetValue(guard,out old))
+                {
+                    if(!old.impactOnly&&!old.returning)continue;
+                    if(!old.returning&&
+                       (old.lastKnown-foot).Length<1.25f)continue;
+                }
+                listeners.Add(guard);
+            }
+            return listeners;
+        }
+        private bool ChooseRegionalMachineSignal(string action)
+        {
+            if(action!="regional_machine_signal")return false;
+            WorldObject source=pendingDialogueSource;
+            int room=save.room,station=RegionalMachineIndex(source);
+            if(station<0||room<0||room>=8||
+                pendingDialogueSourceRoom!=room||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||!CanStand(Position)||
+                !RegionalMachineDone(room)||Dying||practicing||
+                mode!="world")return true;
+            if(RegionalSignalCooldown(source)>.001f)
+            {
+                Notify("装置还在复位，等实际冷却结束再操作。",
+                    "The field signal is resetting. Let its real cooldown finish.");
+                return true;
+            }
+            int material=RegionalSignalMaterial(room);
+            if(save.inventory[material]<1)
+            {
+                Notify("没有足够的"+RegionalSignalMaterialZh(room)+"来启动真正的声响装置。",
+                    "Not enough "+RegionalSignalMaterialEn(room)+" to operate the signal.");
+                return true;
+            }
+            Point foot=new Point(source.x,source.y);
+            var listeners=RegionalSignalListeners(foot,regionalSignalRanges[room]);
+            if(listeners.Count==0)
+            {
+                Notify("没有尚未警觉、而且能沿真实通路听见警号的巡逻者。没有扣除物资。",
+                    "No unaware patrol can physically hear this signal. No supplies spent.");
+                return true;
+            }
+            save.inventory[material]--;
+            EnsureRegionalSignalSession();
+            regionalSignalReadyAt[source]=save.totalTime+26f;
+            foreach(Enemy guard in listeners)
+            {
+                EnemyHitAlert old;
+                if(enemyHitAlert.TryGetValue(guard,out old))
+                {
+                    old.returning=false;old.impactOnly=true;
+                    old.runningFootsteps=false;
+                    old.lastKnown=foot;old.remaining=4.6f;
+                    old.searchStep=-1;old.whistleRemaining=0f;
+                }
+                else
+                    enemyHitAlert[guard]=new EnemyHitAlert(
+                        4.6f,foot,true,guard.Position);
+                effects.Add(new Effect("number",guard.Position,.85f,
+                    L("听见公共警号","HEARD PUBLIC SIGNAL")));
+            }
+            effects.Add(new Effect("burst",foot,.65f)
+                {radius=3.4f,variant=room});
+            effects.Add(new Effect("number",foot+new Point(0,-1f),1.1f,
+                L(regionalSignalNameZh[room],regionalSignalNameEn[room])));
+            sound="alert";revision++;
+            Notify(regionalSignalNameZh[room]+"响起：确实引开"+listeners.Count+
+                "名未发现你的巡逻者；消耗"+RegionalSignalMaterialZh(room)+"×1，需冷却26秒。",
+                regionalSignalNameEn[room]+" drew "+listeners.Count+
+                " genuinely unaware patrols. -1 "+RegionalSignalMaterialEn(room)+
+                "; 26-second recovery.");
+            return true;
+        }
         private bool RegionalMachineSite(WorldObject o)
         {
             if(o==null||o.kind!="regionalMachine"||save.room<0||
@@ -127,7 +261,10 @@ namespace Starfall
                      "；错误调试耗费6耐力。":
                  "\n\n先沿地面走到记录要求的下一处装置。")+
                 (RegionalMachineDone(room)?
-                    "\n\n三处装置如今成为安全补给点：附近无敌人时可缓慢恢复生命、耐力并缓解冷热。":""),
+                    "\n\n三处装置如今成为安全补给点：附近无敌人时可缓慢恢复生命、耐力并缓解冷热。"+
+                    " 装置的公共警号也能让尚未发现你的巡逻者沿真实通路赶来调查；每次耗费补给，不能打断已发动的袭击。"+
+                    (RegionalSignalCooldown(o)>0f?
+                        " 当前还需复位约"+(int)Math.Ceiling(RegionalSignalCooldown(o))+"秒。":""):""),
                 regionalMachineClueEn[room,station]+
                 "\n\nEvery district follows its own original accident record. "+
                 (RegionalMachineDone(room)?"All three local devices are operational.":
@@ -137,7 +274,10 @@ namespace Starfall
                      ". Wrong calibration costs 6 energy.":
                  "\n\nWalk to the next physically recorded device first.")+
                 (RegionalMachineDone(room)?
-                    "\n\nAll three sites are now safe civilian shelters. When threats are clear, they slowly restore health and energy and ease exposure.":""),
+                    "\n\nAll three sites are now safe civilian shelters. When threats are clear, they slowly restore health and energy and ease exposure."+
+                    " Sound the public warning to lure unaware patrols along REAL sound paths; supply costs and committed enemy attacks are respected."+
+                    (RegionalSignalCooldown(o)>0f?
+                        " Resetting for "+(int)Math.Ceiling(RegionalSignalCooldown(o))+" more seconds.":""):""),
                 !tuned&&station==expected?
                     C(regionalMachineChoiceZh[room,0],
                       regionalMachineChoiceEn[room,0],"regional_machine_pick_0"):
@@ -152,11 +292,17 @@ namespace Starfall
                     C("继续记录","Read the inscription","close"),
                 RegionalVigilChoice(o),
                 RegionalVigilRushChoice(o),
+                RegionalMachineDone(room)?
+                    C("启动"+regionalSignalNameZh[room]+" · "+RegionalSignalMaterialZh(room)+"×1",
+                      "Sound "+regionalSignalNameEn[room]+" · 1 "+RegionalSignalMaterialEn(room),
+                      "regional_machine_signal"):
+                    C("查看其他设备","Inspect other devices","close"),
                 C("继续行走","Continue","close"));
             return true;
         }
         private bool ChooseRegionalMachine(string action)
         {
+            if(ChooseRegionalMachineSignal(action))return true;
             if(action==null||!action.StartsWith(
                 "regional_machine_pick_",StringComparison.Ordinal))return false;
             WorldObject o=pendingDialogueSource;
