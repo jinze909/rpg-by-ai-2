@@ -42,8 +42,11 @@ namespace Starfall.Tests
             Check(SilentLedgerChoice(g,"silentledger_start")&&
                 g.SilentLedgerStage==1&&g.SilentLedgerTime>150f,
                 "Original physical notice starts a fully timed stealth infiltration");
-            Check((g.GetQuest("silent_ledger").target-new Point(60.5f,36.5f)).Length<.01f,
-                "Journal correctly targets the genuine northern register");
+            WorldObject actualRegister=SilentLedgerPost(g,"silentledger_record");
+            Check(actualRegister!=null&&
+                (g.GetQuest("silent_ledger").target-
+                    new Point(actualRegister.x,actualRegister.y)).Length<.01f,
+                "Journal correctly targets the actual northern register regardless of map re-layout");
             g.Enter(0);
             Check(g.save.room==4&&g.SilentLedgerStage==1,
                 "Active infiltration cannot silently warp and lose live sentries");

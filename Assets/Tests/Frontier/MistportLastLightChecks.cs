@@ -54,10 +54,13 @@ namespace Starfall.Tests
             g.ReturnToTown();
             Check(g.save.room==5&&g.MistlightActive,
                 "Fast return to Emberfall cannot bypass active beacon storm or cancel paid progress");
-            Check(g.save.trackedQuest=="mistport_lastlight"&&
+            WorldObject originalLamp=Array.Find(g.Map.objects,
+                o=>o.id=="mistlight_lamp");
+            Check(originalLamp!=null&&g.save.trackedQuest=="mistport_lastlight"&&
                 g.GetQuest("mistport_lastlight").room==5&&
-                (g.GetQuest("mistport_lastlight").target-new Point(60.5f,37.5f)).Length<.01f,
-                "Journal really routes to the physical northern beacon");
+                (g.GetQuest("mistport_lastlight").target-
+                 new Point(originalLamp.x,originalLamp.y)).Length<.01f,
+                "Journal really routes to the physical northern beacon, not a stale map coordinate");
             return g;
         }
         public static void MistportLastLightTimedStormAndPhysicalWindWindow(Campaign data)
