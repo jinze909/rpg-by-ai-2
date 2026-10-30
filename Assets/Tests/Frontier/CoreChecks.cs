@@ -237,6 +237,173 @@ namespace Starfall.Tests
                 "The fixed physical landing needs no new serialized tide state");
         }
 
+        // The second-clear challenge is an actual local combat contract, not
+        // a forged completion flag. Exercise seven real regional approach
+        // routes, distinct elite kinds, live kills, original post turn-ins,
+        // exact-once rewards, and v2 persistence without temporary raiders.
+        public static void SevenVeteranFieldPatrolsRequireRealCombatAndPhysicalReports(Campaign data)
+        {
+            int[,] roles={
+                {1,2,0},{2,0,1},{1,2,0},{1,2,0},
+                {2,1,0},{1,0,2},{2,0,1}
+            };
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Real veteran encounters use the shipped Hit damage path");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                g.save.flags.Add("biome_patrol_done_"+room);
+                WorldObject post=Array.Find(g.Map.objects,
+                    o=>o.kind=="biomeSurvey"&&o.id=="biomeSurvey"+room);
+                Check(post!=null&&PlaceWithinTalkReach(g,post),
+                    "Veteran district "+room+" uses the actual walkable survey post");
+                Point origin=g.Position;
+                int beforeCoin=g.save.coins,beforeShard=g.save.shards;
+                g.Talk(post);
+                Check(g.conversation!=null,"Original post opens for veteran defense");
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin")<0,
+                    "Paid first-clear cannot be restarted after its saved receipt");
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_veteran");
+                Check(start>=0,"Signed first-clear unlocks an actual veteran battle");
+                g.Choose(start);
+                int count=room==2||room==3||room==6?3:2;
+                Check(g.FieldPatrolVeteranActive&&g.FieldPatrolRemaining==count&&
+                    g.enemies.Count==count&&
+                    g.save.trackedQuest=="veteran_patrols",
+                    "Veteran accepts a full exact-actor wave and tracks it in the live journal");
+                var guide=g.GetQuest("veteran_patrols");
+                Check(guide.id=="veteran_patrols"&&guide.room==room&&
+                    guide.steps.Count==7&&!guide.complete,
+                    "Quest compass follows this real elite challenge, not a fake distant waypoint");
+                for(int i=0;i<count;i++)
+                {
+                    Enemy foe=g.enemies[i];
+                    Check(foe.kind==roles[room-1,i]&&
+                        foe.maxHp>=50+room*12&&
+                        g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(origin,foe.Position,true).Count>0,
+                        "Each veteran role is stronger and walks real authored region "+room);
+                }
+                g.Close();g.Talk(post);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="biome_patrol_report")<0,
+                    "Elite battle cannot be reported while attackers are still present");
+                g.Close();
+                foreach(Enemy foe in g.enemies.ToArray())
+                    hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+                Check(g.FieldPatrolReportReady&&g.FieldPatrolRemaining==0&&
+                    !g.FieldPatrolVeteranDone(room),
+                    "Real combat is complete but award requires returning to the original post");
+                g.invulnerable=5f;
+                for(int tick=0;tick<150;tick++)g.Tick(.02f,new Point());
+                g.save.x=origin.x;g.save.y=origin.y;
+                Check(PlaceWithinTalkReach(g,post),
+                    "Player returns on foot to exactly the originating post");
+                g.Close();g.Talk(post);
+                int report=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_report");
+                Check(report>=0,"Post offers an actual signed veteran combat report");
+                g.Choose(report);
+                Check(g.FieldPatrolVeteranDone(room)&&
+                    !g.FieldPatrolVeteranActive&&
+                    g.save.coins>=beforeCoin+40+room*5&&
+                    g.save.shards>=beforeShard+2&&
+                    g.GetQuest("veteran_patrols").steps[room-1].done&&
+                    g.FieldPatrolDone(room),
+                    "Distinct veteran rewards pay once without mutating first-clear");
+                int paidCoin=g.save.coins,paidShard=g.save.shards;
+                g.Close();g.Talk(post);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="biome_patrol_veteran"||
+                           c.action=="biome_patrol_report")<0,
+                    "Signed elite clear never respawns another paid squad");
+                Check(g.save.coins==paidCoin&&g.save.shards==paidShard,
+                    "Reopening finished dialogue cannot duplicate earned resources");
+                g.Close();g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.FieldPatrolDone(room)&&
+                    restored.FieldPatrolVeteranDone(room)&&
+                    !restored.FieldPatrolVeteranActive,
+                    "Existing v2 save keeps elite receipts but no transient active raiders");
+            }
+            GameCore completed=Fresh(data);
+            int before=completed.save.skillPoints;
+            for(int room=1;room<=7;room++)
+            {
+                completed.save.flags.Add("biome_patrol_done_"+room);
+                completed.save.flags.Add("biome_patrol_veteran_"+room);
+            }
+            Check(completed.FieldPatrolVeteranWins==7&&
+                completed.GetQuest("veteran_patrols").complete&&
+                completed.GetQuest("veteran_patrols").steps.Count==7,
+                "All seven authentic veteran receipts complete their own campaign quest");
+        }
+
+        public static void VeteranPatrolAllLivingRequiresRealSnaresAndPaysOnlyOnce(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("biome_patrol_done_1");
+            WorldObject post=Array.Find(g.Map.objects,
+                o=>o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "Veteran mercy route starts at a genuine regional post");
+            Point origin=g.Position;
+            g.Talk(post);
+            int idx=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_veteran");
+            Check(idx>=0,"Real post exposes advanced humane alternative");
+            g.Choose(idx);
+            Enemy[] foes=g.enemies.ToArray();
+            Check(g.FieldPatrolVeteranActive&&foes.Length==2,
+                "Real elite actors exist before the nonlethal encounter");
+            g.save.inventory[0]=12;g.save.inventory[4]=12;
+            g.save.energy=100f;
+            int shards=g.save.shards;
+            for(int i=0;i<foes.Length;i++)
+            {
+                Point trap=PutRealSnare(g);
+                foes[i].x=trap.x;foes[i].y=trap.y;
+                foreach(Enemy foe in g.enemies)foe.hitTime=6f;
+                for(int frame=0;frame<11;frame++)g.Tick(.05f,new Point());
+                Check(g.CanBindSnaredEnemy&&
+                    object.ReferenceEquals(g.SnaredBindTarget,foes[i])&&
+                    g.BindSnaredEnemy()&&foes[i].hp>0f,
+                    "Genuine armed snare and bind is required for each living captive");
+            }
+            Check(g.FieldPatrolReportReady&&
+                !g.FieldPatrolVeteranAllLiving(1),
+                "Live all-captive state cannot persist before a physical signed report");
+            g.invulnerable=5f;
+            for(int i=0;i<150;i++)g.Tick(.02f,new Point());
+            g.save.x=origin.x;g.save.y=origin.y;
+            Check(PlaceWithinTalkReach(g,post),
+                "Returning to the real field post is mandatory for mercy medal");
+            g.Close();g.Talk(post);
+            int report=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_report");
+            Check(report>=0,"Merciful veteran result has a real report choice");
+            g.Choose(report);
+            Check(g.FieldPatrolVeteranAllLiving(1)&&
+                g.save.shards>=shards+3,
+                "All-captive veteran report yields distinct one-time bonus shards");
+            g.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&loaded.FieldPatrolVeteranAllLiving(1)&&
+                !loaded.FieldPatrolVeteranActive,
+                "Humane veteran outcome survives the unchanged v2 slot");
+        }
+
         public static void SevenSurveyPatrolContractsRequireRealKillsAndSignedReports(Campaign data)
         {
             var flags=System.Reflection.BindingFlags.Instance|
