@@ -119,5 +119,37 @@ namespace Starfall.Tests
                 data.maps[4].rows[20][30]=='#',
                 "Forest roots, Ruins flood, Mine slag and Citadel barricades have physically authored distinct topology");
         }
+        public static void LegacyV2SavesInsideNewAuthoringCoverRecoverWithoutLosingCampaign(Campaign data)
+        {
+            // These four tiles were originally walkable empty ground. They
+            // now form real roots, water, slag and an outer wall. A veteran's
+            // saved character may stand on any of them: repair safely rather
+            // than deleting the world, resetting the plot or moving to town.
+            int[,] covers={{25,4},{24,5},{24,5},{30,20}};
+            char[] terrain={'#','~','#','#'};
+            for(int room=1;room<=4;room++)
+            {
+                GameCore old=Fresh(data);old.save.stage=3;
+                old.save.version=2;old.save.room=room;
+                old.save.x=covers[room-1,0]+.5f;
+                old.save.y=covers[room-1,1]+.5f;
+                old.save.health=52f;old.save.inventory[0]=5;
+                old.save.flags.Add("chapter_road_done_"+room);
+                old.save.snapshotRoom=-1;old.save.worldEnemies=null;
+                Check(data.maps[room].rows[covers[room-1,1]][covers[room-1,0]]==
+                    terrain[room-1],
+                    "The deliberately authored new local cover is genuinely impassable");
+                GameCore recovered=new GameCore(data,CloneSave(old.save));
+                Check(recovered.save.version==2&&recovered.save.room==room&&
+                    recovered.CanStand(recovered.Position),
+                    "Old v2 world spawn inside newly sculpted terrain recovers to authentic walkable ground");
+                Check(recovered.Has("chapter_road_done_"+room)&&
+                    recovered.save.stage==3&&recovered.save.inventory[0]==5&&
+                    recovered.save.health==52f,
+                    "Level remodeling does not erase earned civilian records, supply, health or stage from an old save");
+                Check((recovered.Position-new Point(old.save.x,old.save.y)).Length<8f,
+                    "One newly blocked tile relocates the returning traveler nearby, never across the 120x80 world");
+            }
+        }
     }
 }
