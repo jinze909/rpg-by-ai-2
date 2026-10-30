@@ -5,6 +5,133 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        private static WorldObject NightShiftAt(GameCore game,int room)
+        {
+            game.mode="world";game.save.room=room;
+            game.enemies.Clear();
+            WorldObject site=Array.Find(game.Map.objects,
+                o=>o!=null&&o.id=="nightledger"+room&&o.kind=="nightledger");
+            Check(site!=null,"A real night-shift source exists in room "+room);
+            game.save.x=site.x;game.save.y=site.y;
+            Check(game.CanStand(game.Position),
+                "Night-shift actor stands on authentic walkable ground in region "+room);
+            return site;
+        }
+        private static void NightShiftChoose(GameCore game,WorldObject site,
+            string action)
+        {
+            game.Close();game.mode="world";
+            game.Talk(site);
+            Check(game.conversation!=null,
+                "The real local night-shift source opens a dialog");
+            int option=Array.FindIndex(game.conversation.choices,
+                choice=>choice.action==action);
+            Check(option>=0,"The current genuine source offers "+action);
+            game.Choose(option);
+        }
+        public static void NightShiftFourRealPlacesBranchAndRetainOldSaveV2(Campaign data)
+        {
+            var g=Fresh(data);
+            int originalCoin=g.save.coins;
+            Check(!g.NightShiftComplete&&g.NightShiftEvidenceCount==0&&
+                g.GetQuest("night_shift").room==0,
+                "An untouched older save discovers a voluntary original town story");
+            for(int room=0;room<=3;room++)
+            {
+                WorldObject site=NightShiftAt(g,room);
+                Point spawn=new Point(g.Map.spawnX,g.Map.spawnY);
+                Check(g.NavigationPathFrom(spawn,new Point(site.x,site.y),true).Count>0,
+                    "Night-shift prop is accessible along authentic map collision in room "+room);
+            }
+            WorldObject town=NightShiftAt(g,0);
+            NightShiftChoose(g,town,"nightshift_begin");
+            Check(g.Has("nightshift_started")&&
+                g.save.trackedQuest=="night_shift"&&
+                g.GetQuest("night_shift").steps[0].done,
+                "A conscious local acceptance begins the actual four-stop quest");
+            // Jumping directly to the final mine spool before reading the
+            // other sources can never forge a seal or spend inventory.
+            WorldObject mine=NightShiftAt(g,3);
+            int held=g.save.inventory[4];
+            g.Talk(mine);
+            Check(g.conversation!=null&&
+                Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_trace_3")<0&&
+                g.save.inventory[4]==held,
+                "The final physical record cannot skip the first two timestamps");
+            WorldObject forest=NightShiftAt(g,1);
+            float baselineSpeed=g.Speed;
+            NightShiftChoose(g,forest,"nightshift_trace_1");
+            Check(g.NightShiftEvidenceCount==1&&
+                g.GetQuest("night_shift").steps[1].done,
+                "The original forest evidence updates the read-only quest steps");
+            WorldObject ruin=NightShiftAt(g,2);
+            NightShiftChoose(g,ruin,"nightshift_false");
+            Check(g.NightShiftEvidenceCount==1&&
+                !g.Has("nightshift_trace_2"),
+                "Copying an impossible official tide time cannot win a false clue");
+            NightShiftChoose(g,ruin,"nightshift_trace_2");
+            Check(g.NightShiftEvidenceCount==2,
+                "The authentic low-tide timestamp advances the second clue");
+            mine=NightShiftAt(g,3);
+            g.save.inventory[4]=0;
+            NightShiftChoose(g,mine,"nightshift_trace_3");
+            Check(g.NightShiftEvidenceCount==2&&
+                !g.Has("nightshift_trace_3"),
+                "A physical sealed spool refuses to open without the real part");
+            g.save.inventory[4]=1;
+            NightShiftChoose(g,mine,"nightshift_trace_3");
+            Check(g.NightShiftEvidenceCount==3&&
+                g.save.inventory[4]==0&&
+                g.GetQuest("night_shift").steps[3].done,
+                "The mine costs exactly one real part and completes the field investigation");
+            town=NightShiftAt(g,0);
+            NightShiftChoose(g,town,"nightshift_public");
+            Check(g.NightShiftComplete&&g.Has("nightshift_public")&&
+                !g.Has("nightshift_private")&&
+                g.save.coins==originalCoin+40&&
+                g.GetQuest("night_shift").complete,
+                "The town publication requires all three signatures and pays once");
+            g.Close();g.mode="world";
+            // A repeat conversation gives only the archived account, not
+            // another publish button or duplicate money.
+            g.Talk(town);
+            Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_public")<0&&
+                g.save.coins==originalCoin+40,
+                "Reopening the completed town roll never duplicates rewards");
+            g.Close();g.save.room=1;
+            Check(g.Speed>=baselineSpeed+.20f&&g.save.version==2,
+                "Publicly restoring the old road has an actual measurable field travel benefit");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.NightShiftComplete&&
+                restored.GetQuest("night_shift").complete&&
+                restored.save.version==2&&
+                restored.save.trackedQuest=="night_shift",
+                "The optional outcome survives an unchanged SaveData v2 reload");
+            var privateRun=Fresh(data);
+            privateRun.save.flags.Add("nightshift_started");
+            for(int r=1;r<=3;r++)
+                privateRun.save.flags.Add("nightshift_trace_"+r);
+            WorldObject desk=NightShiftAt(privateRun,0);
+            float oldMax=privateRun.save.maxHealth;
+            int oldPrivateCoins=privateRun.save.coins;
+            NightShiftChoose(privateRun,desk,"nightshift_private");
+            Check(privateRun.Has("nightshift_private")&&
+                !privateRun.Has("nightshift_public")&&
+                privateRun.save.maxHealth==oldMax+8&&
+                privateRun.save.coins==oldPrivateCoins+40&&
+                privateRun.save.version==2,
+                "The distinct witness-protection resolution grants real one-time max health");
+            privateRun.Close();privateRun.Talk(desk);
+            Check(Array.FindIndex(privateRun.conversation.choices,
+                c=>c.action=="nightshift_private")<0&&
+                privateRun.save.maxHealth==oldMax+8,
+                "An old save can revisit the protected records without farming health");
+        }
+
         public static void StoryRecapOnlyRevealsChaptersPlayerReached(Campaign data)
         {
             var game=Fresh(data);

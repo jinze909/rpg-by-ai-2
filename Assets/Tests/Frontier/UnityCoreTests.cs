@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void NightShiftStoryHasRealSitesTideChoicesPartsAndPersistentOutcomes() { CoreChecks.NightShiftFourRealPlacesBranchAndRetainOldSaveV2(Data()); }
         [Test] public void PaidPatrolActorsKeepRealCooldownsWhileOffscreen() { CoreChecks.LiveFieldContractsDoNotFreezeWhileOrdinaryDistrictsSleep(Data()); }
         [Test] public void RegionalEnemiesUseReadableMixedAttackLanes() { CoreChecks.RegionalOverworldGroupsAttackInReadableMixedLanes(Data()); }
         [Test] public void PaidForestPatrolCompassTargetsLiveContract() { CoreChecks.PaidForestPatrolHudCompassTracksLiveEnemiesWithoutRewritingStory(Data()); }
