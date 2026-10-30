@@ -713,16 +713,28 @@ namespace Starfall
                     return;
                 }
                 int room=sagaGuardRoom;
+                // The integrity actually defended across BOTH hostile waves
+                // matters to what the speaker can credibly certify later.
+                // These are ordinary v2 mission flags, not a save migration.
+                bool unscarred=SagaGuardEvidenceSafety>=80;
                 ResetSagaGuard();
                 Flag("saga_guard_"+room);
-                CreditCoins(16+room*3);
-                AddXp(24+room*7);
+                Flag((unscarred?"saga_guard_pristine_":"saga_guard_scarred_")+room);
+                CreditCoins(16+room*3+(unscarred?6:0));
+                AddXp(24+room*7+(unscarred?8:0));
                 revision++;sound="quest";
                 RecordMoment("第二幕 · "+new[]{"","","","","","雾港名册","沙海配额图","高原警钟"}[room]+
-                    "：在两波真实袭击中守住证人和原始证据。",
-                    "Act Two: defended the original witness and evidence against two real on-map enemy assaults.");
-                Notify("证人和原件得以保全。现在回到本人面前，决定如何签署证词。",
-                    "The witness and records are secure. Return to choose how they will sign the account.");
+                    (unscarred?"：两波袭击后原件仍清晰完整，可由当事者直接核对。":
+                        "：原件虽在，边角在袭击中受损；签名时必须注明破损。"),
+                    unscarred?
+                        "Act Two: the original remained legible across two real assaults; the witness may check it directly.":
+                        "Act Two: the original survived two real assaults with visible battle damage; its condition must be annotated.");
+                Notify(unscarred?
+                    "两波追兵已被击退，原件清晰完整！回到证人处核对签名。":
+                    "两波追兵已被击退，但原件留下损伤。回到证人处注明破损再签名。",
+                    unscarred?
+                    "Both waves are defeated. The originals remain fully legible; return for the signature.":
+                    "Both waves are defeated, but the originals are battle-scarred. Annotate their condition before signing.");
                 return;
             }
             if(dt<=0f||mode!="world")return;
@@ -849,6 +861,19 @@ namespace Starfall
                 "“那个暖棚里的人还在呼吸，因为你带了药。”森说，“这比我当年没敢敲的钟重要。”\n\n":
                 "“你保住了两封求救信。”森说，“我看完已经派人送药上去了。我本应该更早问一声。”\n\n";
         }
+        private string MainSagaBattleRecordCondition(int room,bool english)
+        {
+            if(!Has("saga_guard_"+room))return "";
+            if(Has("saga_guard_scarred_"+room))
+                return english?
+                    "The original survived, but its edges bear fresh battle damage. The speaker marks those damaged margins before making any claim about what the page proves.\n\n":
+                    "原件保住了，但页边留下刚才的伤痕。证人先在受损处做标记，再说明哪些内容仍可辨认，绝不把破损处当作完整记录。\n\n";
+            if(Has("saga_guard_pristine_"+room))
+                return english?
+                    "The original remains legible after both assaults. The speaker verifies every surviving line against the earlier copy before signing.\n\n":
+                    "原件经过两波袭击仍字迹清晰。证人逐行拿旧副本核对，确认未被替换，才重新拿起笔。\n\n";
+            return ""; // Older completed v1/v2 saves had no integrity grade.
+        }
         private void MainSagaAccount(WorldObject host,int room)
         {
             if(!Has("saga_trace_"+room))
@@ -934,8 +959,10 @@ namespace Starfall
                         C("先备好物资","Prepare supplies","close"));
                 return;
             }
-            Dialog(host.name,host.en,EarlyRescueVoice(room,false)+MainSagaFieldConsequence(room,false)+zh[room],
-                EarlyRescueVoice(room,true)+MainSagaFieldConsequence(room,true)+en[room],
+            Dialog(host.name,host.en,EarlyRescueVoice(room,false)+MainSagaFieldConsequence(room,false)+
+                    MainSagaBattleRecordCondition(room,false)+zh[room],
+                EarlyRescueVoice(room,true)+MainSagaFieldConsequence(room,true)+
+                    MainSagaBattleRecordCondition(room,true)+en[room],
                 C(first[room],firstEn[room],"saga_sign_"+room+"_a"),
                 C(second[room],secondEn[room],"saga_sign_"+room+"_b"),
                 C("再想一想","I need to think","close"));
