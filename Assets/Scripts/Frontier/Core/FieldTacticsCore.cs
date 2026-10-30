@@ -124,8 +124,14 @@ namespace Starfall
                         (p-enemy.Position).Length<2.5f)
                     {clear=false;break;}
                 if(!clear)continue;
+                // The sealed Ironreach upper shelf has two safe, exposed
+                // ranged pads exactly two whole tiles apart. Keep both
+                // genuine feet rather than demanding the much wider 3-tile
+                // baseline-army spacing from this TWO-actor local drill.
+                // Each actor still has an independent non-overlapping body,
+                // real line of sight, and a collision-tested walk to hero.
                 foreach(Point old in pads)
-                    if((p-old).Length<3f){clear=false;break;}
+                    if((p-old).Length<1.95f){clear=false;break;}
                 if(clear)pads.Add(p);
             }
             if(pads.Count!=2)return false;
