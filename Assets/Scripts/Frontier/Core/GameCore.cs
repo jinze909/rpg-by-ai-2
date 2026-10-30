@@ -462,7 +462,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -1240,6 +1240,7 @@ namespace Starfall
             TickFieldDispatch(dt);
             TickGhostTrain(dt);
             TickRidgeEcho(dt);
+            TickWildernessHunt(dt);
             TickRegionalMachineShelters(dt);
             TickGuidance(beforeMove);
             TickPolish(dt);
@@ -1783,6 +1784,7 @@ namespace Starfall
             OnCivicResponseEnemyDefeated(e);
             OnLastDirectiveEnemyDefeated(e);
             OnRidgeWatchEnemyDefeated(e);
+            OnWildernessHuntEnemyDefeated(e);
             OnCivicCourierGuardDefeated(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
                 hazards.RemoveAll(h => h.rootHarmonyOwned);
@@ -1800,7 +1802,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -4290,6 +4292,7 @@ namespace Starfall
             if (TalkGhostTrain(o)) return;
             if (TalkRidgeBreach(o)) return;
             if (TalkRidgeEcho(o)) return;
+            if (TalkWildernessHunt(o)) return;
             if (TalkFieldDispatch(o)) return;
             if (TalkRegionalMachine(o)) return;
             if (TalkFieldKit(o)) return;
@@ -5067,6 +5070,7 @@ namespace Starfall
             if (ChooseGhostTrain(action)) return;
             if (ChooseRidgeBreach(action)) return;
             if (ChooseRidgeEcho(action)) return;
+            if (ChooseWildernessHunt(action)) return;
             if (ChooseRegionalVigil(action)) return;
             if (ChooseFieldDispatch(action)) return;
             if (ChooseRegionalMachine(action)) return;

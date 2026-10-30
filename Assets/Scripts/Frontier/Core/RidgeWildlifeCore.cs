@@ -1078,5 +1078,320 @@ namespace Starfall
                 ", gain 8 coins and 24 XP. You can now walk directly through the cleared passage.");
             return true;
         }
+        // Farshore wilderness hunts are discoverable by walking to three
+        // ORIGINAL authored map clearings. Their two-wave fights have genuine
+        // live enemies, threat footprints and an explicit civilian resolution.
+        // Transient battle actors are NEVER serialized into SaveData v2.
+        private int wildernessHuntRoom=-1,wildernessHuntWave;
+        private float wildernessHuntClock;
+        private bool wildernessHuntQuiet;
+        private SaveData wildernessHuntSave;
+        private MapData wildernessHuntMap;
+        private WorldObject wildernessHuntHost;
+        private readonly List<Enemy> wildernessHuntFoes=new List<Enemy>();
+        private readonly HashSet<Enemy> wildernessHuntDefeated=new HashSet<Enemy>();
+        private static readonly string[] wildernessHuntNamesZh={
+            "","", "", "", "", "折帆湾 · 失踪的引航绳",
+            "镜井台 · 假水源的脚印","背风谷 · 没响的求救钟"
+        };
+        private static readonly string[] wildernessHuntNamesEn={
+            "","", "", "", "", "Broken-Sail Cove · The Missing Pilot Rope",
+            "Mirror Well · Tracks to a False Spring",
+            "Leeward Hollow · The Unrung Rescue Bell"
+        };
+        private static readonly string[] wildernessHuntOriginsZh={
+            "码头工留下最后一根引航绳。有人沿夜潮拉着它出湾，却再没人回来。绳上裹着掠夺者撕下的船布，不是海怪的鳞。",
+            "旅人追着会移动的井影失踪。真正的井沿上，石灰里留下搬水者和抢水者两种脚印。",
+            "背风谷里的低钟断了绳。雪上有两列脚印：一列向暖棚求救，另一列堵住回去的窄路。"
+        };
+        private static readonly string[] wildernessHuntOriginsEn={
+            "The dockworkers kept one pilot rope. People hauled it out on the night tide and never returned. The knots hold stolen sailcloth, not monster scales.",
+            "Travelers vanished chasing a well that shifts in the heat. At the real stone rim, two sets of footprints remain: water carriers and water thieves.",
+            "The sheltered rescue bell has lost its cord. Two trails cross the snow: people seeking the warming hut, and raiders blocking their return."
+        };
+        public bool WildernessHuntActive
+        {
+            get{return wildernessHuntRoom>=5&&wildernessHuntRoom<=7&&
+                wildernessHuntWave>=1&&wildernessHuntWave<=2&&
+                wildernessHuntRoom==save.room&&
+                Object.ReferenceEquals(wildernessHuntSave,save)&&
+                Object.ReferenceEquals(wildernessHuntMap,Map);}
+        }
+        public int WildernessHuntWave
+        {get{return WildernessHuntActive?wildernessHuntWave:0;}}
+        public float WildernessHuntSecondsLeft
+        {get{return WildernessHuntActive?wildernessHuntClock:0f;}}
+        public int WildernessHuntRemaining
+        {get{int n=0;if(WildernessHuntActive)
+             foreach(Enemy e in wildernessHuntFoes)
+                 if(e!=null&&e.hp>0&&enemies.Contains(e))n++;
+             return n;}}
+        public bool IsWildernessHuntEnemy(Enemy e)
+        {return e!=null&&WildernessHuntActive&&wildernessHuntFoes.Contains(e);}
+        private void ResetWildernessHunt()
+        {
+            wildernessHuntRoom=-1;wildernessHuntWave=0;
+            wildernessHuntClock=0f;wildernessHuntQuiet=false;
+            wildernessHuntSave=null;wildernessHuntMap=null;
+            wildernessHuntHost=null;
+            wildernessHuntFoes.Clear();wildernessHuntDefeated.Clear();
+        }
+        private bool WildernessHuntSite(WorldObject o)
+        {
+            return o!=null&&save.room>=5&&save.room<=7&&
+                o.kind=="wildernessHunt"&&
+                o.id=="wilderness_hunt_"+save.room&&
+                SourceBelongsToActiveMap(o);
+        }
+        public bool WildernessHuntFinished(int room)
+        {return room>=5&&room<=7&&Has("wilderness_hunt_done_"+room);}
+        private bool WildernessHuntSpawnFoot(Point source,Point foot,
+            List<Point> selected)
+        {
+            if(!CanStand(foot)||(foot-Position).Length<3.2f||
+                (foot-source).Length<5.5f||
+                NavigationPathFrom(source,foot,true).Count==0)return false;
+            foreach(WorldObject site in Map.objects)
+                if(site!=null&&(foot-new Point(site.x,site.y)).Length<2.5f)
+                    return false;
+            foreach(Enemy foe in enemies)
+                if(foe!=null&&foe.hp>0&&(foot-foe.Position).Length<2f)
+                    return false;
+            foreach(Point previous in selected)
+                if((foot-previous).Length<4f)return false;
+            if(save.companion>=0&&(foot-companionPosition).Length<2f)
+                return false;
+            return true;
+        }
+        private bool SpawnWildernessHuntWave(int wave)
+        {
+            if(!WildernessHuntActive||wave<1||wave>2)return false;
+            Point center=new Point(wildernessHuntHost.x,wildernessHuntHost.y);
+            var feet=new List<Point>();
+            // Distinct terrains and attacks: harbor flank, desert ridge,
+            // highland approach. Search actual connected collision ground.
+            int[,] rosters={{1,0,2,0},{2,1,1,2},{0,2,2,1}};
+            for(int pass=0;pass<2&&feet.Count<2;pass++)
+            for(int radius=7;radius<=16&&feet.Count<2;radius++)
+            for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
+            for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                    Math.Abs(dx)+Math.Abs(dy)>23)continue;
+                // Wave 2 approaches from the opposite side where walkable;
+                // blocked terrain uses genuine alternatives, not teleport.
+                if(pass==0&&((wave==1&&dx<0)||(wave==2&&dx>0)))continue;
+                Point foot=new Point((int)Math.Floor(center.x)+dx+.5f,
+                    (int)Math.Floor(center.y)+dy+.5f);
+                if(WildernessHuntSpawnFoot(center,foot,feet))feet.Add(foot);
+            }
+            if(feet.Count!=2)return false;
+            wildernessHuntFoes.Clear();wildernessHuntDefeated.Clear();
+            for(int i=0;i<2;i++)
+            {
+                int kind=rosters[wildernessHuntRoom-5,(wave-1)*2+i];
+                Enemy foe=CreatePlacedEnemy(++enemyId,kind,feet[i],
+                    52f+(wildernessHuntRoom-5)*12f+(wave-1)*15f);
+                if(wildernessHuntQuiet)
+                {
+                    foe.stun=Math.Max(foe.stun,1.4f);
+                    foe.armorOpenTime=Math.Max(foe.armorOpenTime,1.1f);
+                }
+                wildernessHuntFoes.Add(foe);enemies.Add(foe);
+                effects.Add(new Effect("enemyRelease",foe.Position,.85f)
+                    {variant=kind});
+            }
+            wildernessHuntWave=wave;revision++;sound="alert";
+            return true;
+        }
+        private void OnWildernessHuntEnemyDefeated(Enemy foe)
+        {
+            if(IsWildernessHuntEnemy(foe))
+                wildernessHuntDefeated.Add(foe);
+        }
+        private void TickWildernessHunt(float dt)
+        {
+            if(wildernessHuntRoom<0)return;
+            if(!WildernessHuntActive||Dying||practicing)
+            {ResetWildernessHunt();return;}
+            // Enemy-list manipulation never counts as combat progress.
+            foreach(Enemy foe in wildernessHuntFoes)
+                if(foe==null||(!wildernessHuntDefeated.Contains(foe)&&
+                    (!enemies.Contains(foe)||foe.hp<=0)))
+                {
+                    ResetWildernessHunt();revision++;
+                    Notify("狩猎敌人未经确认就消失，现场已撤回。重新寻找原始线索。",
+                        "An unconfirmed hunter vanished. Return to the original track and restart.");
+                    return;
+                }
+            wildernessHuntClock=Math.Max(0f,wildernessHuntClock-dt);
+            if(wildernessHuntClock<=0f)
+            {
+                ResetWildernessHunt();revision++;
+                Notify("敌群退回荒野。沿原来的脚印重新追踪，不会凭空获得奖励。",
+                    "The raiders slipped back into the wild. Trace the real tracks again; no reward was claimed.");
+                return;
+            }
+            bool cleared=wildernessHuntFoes.Count==2;
+            foreach(Enemy foe in wildernessHuntFoes)
+                if(!wildernessHuntDefeated.Contains(foe)||foe.hp>0||
+                    enemies.Contains(foe)){cleared=false;break;}
+            if(!cleared)return;
+            int room=wildernessHuntRoom;
+            if(wildernessHuntWave==1)
+            {
+                if(!SpawnWildernessHuntWave(2))
+                {
+                    ResetWildernessHunt();revision++;
+                    Notify("第二批敌人找不到合法道路，战斗撤回；回现场再试。",
+                        "The second party has no safe route. Regroup at the real clearing.");
+                    return;
+                }
+                Notify("先头敌人已败，追来的主力从另一条真正能走的路线出现！",
+                    "The advance patrol has fallen; the main force arrives along another walkable approach!");
+                return;
+            }
+            ResetWildernessHunt();
+            Flag("wilderness_hunt_fought_"+room);
+            RecordMoment("荒野追踪 · "+wildernessHuntNamesZh[room]+
+                "：两批敌人真正被击败。留下的居民路标还需要你决定如何处理。",
+                "Wilderness Hunt · "+wildernessHuntNamesEn[room]+
+                ": both waves were defeated in actual combat. Return to the marker to choose who controls the route.");
+            Notify("两批追兵已败。回调查点决定公开居民路线，还是登记巡守赏金。",
+                "Both hostile waves defeated. Return to the marker to publish a safe civilian route or claim the watch bounty.");
+        }
+        private bool TalkWildernessHunt(WorldObject source)
+        {
+            if(source==null||source.kind!="wildernessHunt")return false;
+            if(!WildernessHuntSite(source)||!HasPhysicalInteractionReach(source))
+                return true;
+            int room=save.room;
+            if(WildernessHuntFinished(room))
+            {
+                Dialog(source.name,source.en,
+                    "旧路牌上已经留下你的处置结果；来往旅人可以从这里读到真实的遭遇记录。",
+                    "Your decision is written on the old sign. Travelers can read what actually happened here.",
+                    C("查看现场","Inspect the clearing","close"));
+                return true;
+            }
+            if(Has("wilderness_hunt_fought_"+room))
+            {
+                Dialog(source.name,source.en,
+                    "敌人已经真的被赶走。这里原本属于居民，路口今后该怎样使用？",
+                    "The attackers have been defeated. This crossing belonged to residents: how should it be used now?",
+                    C("公布安全归路 · 经验和补给",
+                      "Publish the civilian route · XP and supplies","wilderness_hunt_refuge"),
+                    C("登记守路赏金 · 更多硬币",
+                      "File a watch bounty · more coins","wilderness_hunt_bounty"),
+                    C("先留着决定","Decide later","close"));
+                return true;
+            }
+            Dialog(source.name,source.en,
+                wildernessHuntOriginsZh[room]+
+                (WildernessHuntActive?
+                    "\n\n现场追踪中：第"+wildernessHuntWave+"/2波，剩余"+
+                    WildernessHuntRemaining+"名，时间"+(int)Math.Ceiling(wildernessHuntClock)+"秒。":
+                    "\n\n可以先布置埋伏消耗当地一份物资，让两波敌人短暂露出弱点；或直接追击，不消耗材料，事后有额外赏金。"),
+                wildernessHuntOriginsEn[room]+
+                (WildernessHuntActive?
+                    "\n\nLive hunt: wave "+wildernessHuntWave+"/2, "+
+                    WildernessHuntRemaining+" enemies; "+
+                    (int)Math.Ceiling(wildernessHuntClock)+"s left.":
+                    "\n\nSet an ambush using one local supply for a brief opening on each wave, or pursue openly without materials for an extra bounty."),
+                WildernessHuntActive?
+                    C("正在追踪","Hunt underway","close"):
+                    C("布置埋伏 · 消耗当地物资","Prepare a real ambush · 1 supply","wilderness_hunt_quiet"),
+                WildernessHuntActive?
+                    C("守住阵地","Hold position","close"):
+                    C("直接追击 · 不消耗材料","Pursue openly · no supply","wilderness_hunt_bold"),
+                WildernessHuntActive?
+                    C("主动撤回狩猎","Withdraw this hunt","wilderness_hunt_abort"):
+                    C("先观察地形","Study the terrain","close"));
+            return true;
+        }
+        private bool ChooseWildernessHunt(string action)
+        {
+            if(action!="wilderness_hunt_quiet"&&action!="wilderness_hunt_bold"&&
+                action!="wilderness_hunt_abort"&&
+                action!="wilderness_hunt_refuge"&&action!="wilderness_hunt_bounty")
+                return false;
+            WorldObject source=pendingDialogueSource;
+            int room=save.room;
+            if(room<5||room>7||!WildernessHuntSite(source)||
+                pendingDialogueSourceRoom!=room||
+                !HasPhysicalInteractionReach(source)||!CanStand(Position)||
+                Dying||practicing||mode!="world")return true;
+            if(action=="wilderness_hunt_abort")
+            {
+                if(WildernessHuntActive&&
+                    Object.ReferenceEquals(wildernessHuntHost,source))
+                {
+                    foreach(Enemy foe in wildernessHuntFoes)
+                        enemies.Remove(foe);
+                    ResetWildernessHunt();revision++;
+                    Notify("已撤回原址的狩猎；不会发放战利品。",
+                        "Hunt withdrawn at its real source; no combat rewards granted.");
+                }
+                return true;
+            }
+            if(action=="wilderness_hunt_refuge"||action=="wilderness_hunt_bounty")
+            {
+                if(!Has("wilderness_hunt_fought_"+room)||
+                    WildernessHuntFinished(room))return true;
+                bool refuge=action=="wilderness_hunt_refuge";
+                Flag("wilderness_hunt_done_"+room);
+                Flag((refuge?"wilderness_hunt_refuge_":
+                    "wilderness_hunt_bounty_")+room);
+                CreditCoins(refuge?32:70);
+                AddXp(refuge?100:65);
+                if(refuge)
+                {
+                    save.inventory[2]=Math.Min(9999,save.inventory[2]+2);
+                    save.health=Math.Min(save.maxHealth,save.health+20f);
+                }
+                RecordMoment(wildernessHuntNamesZh[room]+
+                    (refuge?"：居民归路被公开；伤药留给后来者。":
+                        "：守路队登记战斗现场，公开出资巡查。"),
+                    wildernessHuntNamesEn[room]+
+                    (refuge?": civilian passage published and field medicine shared.":
+                        ": the watch paid for verified protection of the crossing."));
+                revision++;sound="quest";
+                Notify(refuge?"归路公开，居民留下医药并为你疗伤。":
+                    "守路队按真实两波战绩支付赏金。",
+                    refuge?"Civilian route published. The locals share medicine and treatment.":
+                    "The watch pays its bounty for two genuine hostile waves.");
+                return true;
+            }
+            if(WildernessHuntActive||WildernessHuntFinished(room)||
+                Has("wilderness_hunt_fought_"+room)||
+                FieldWorkPreventsRest||!SafeTravel)return true;
+            bool quiet=action=="wilderness_hunt_quiet";
+            int material=room==5?0:room==6?4:2;
+            if(quiet&&save.inventory[material]<1)
+            {
+                Notify("缺少布置伏击所需的本地物资。",
+                    "You need one local supply to set the ambush.");
+                return true;
+            }
+            wildernessHuntRoom=room;wildernessHuntWave=1;
+            wildernessHuntSave=save;wildernessHuntMap=Map;
+            wildernessHuntHost=source;wildernessHuntQuiet=quiet;
+            wildernessHuntClock=160f;
+            if(!SpawnWildernessHuntWave(1))
+            {
+                ResetWildernessHunt();
+                Notify("敌人的实际进路没有两个合法落脚点；换个站位后重试。",
+                    "The live enemy approach has no two legal actor feet. Reposition and retry.");
+                return true;
+            }
+            if(quiet)save.inventory[material]--;
+            revision++;sound="alert";
+            Notify(quiet?"埋伏布好。两批敌人会从真实路径进入，先手短暂暴露。":
+                "公开追击开始。两波敌人沿实际路线逼近；取胜可领取更多赏金。",
+                quiet?"Ambush set. Both parties have a short opening on their real approach.":
+                "Open pursuit begins. Two waves close in across actual ground for a larger bounty.");
+            return true;
+        }
+
     }
 }
