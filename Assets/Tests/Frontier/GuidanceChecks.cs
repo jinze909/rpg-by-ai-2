@@ -111,7 +111,7 @@ namespace Starfall.Tests
             WorldObject ordinary=data.maps[0].objects[0];
             WorldObject objective=data.maps[0].objects[1];
             Check(ordinary!=null&&objective!=null&&
-                !Object.ReferenceEquals(ordinary,objective),
+                !System.Object.ReferenceEquals(ordinary,objective),
                 "Production world has independent mission and ambient sources");
             var candidates=new System.Collections.Generic.List<WorldLabelSlot>{
                 new WorldLabelSlot{owner=ordinary,x=90,y=120,
