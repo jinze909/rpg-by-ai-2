@@ -233,6 +233,52 @@ namespace Starfall.Tests
                 "Existing v2 save flags persist expedition rewards without new fields");
         }
 
+        // This is an actual gameplay action: Shift+G shares the E choice's
+        // physical LOS, energy and cooldown transaction without a modal.
+        public static void TacticalQuickUseSharesRealBattleCostsWithoutStealingOtherInteractions(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            WorldObject device=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(device!=null&&PlaceWithinTalkReach(g,device),
+                "Quick tactic needs a real walkable reachable map object");
+            g.enemies.Clear();g.save.energy=100f;
+            Check(g.QuickActivateFieldTactic()&&g.mode=="world"&&
+                g.save.energy==100f&&!g.Has("field_tactic_used_1"),
+                "Quick use with no genuine foe costs nothing and cannot forge a first-use reward");
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(clear!=null,"Quick use shares the production LOS sampler");
+            Point source=new Point(device.x,device.y),foot=new Point();
+            bool found=false;
+            for(int dy=-5;dy<=5&&!found;dy++)
+            for(int dx=-5;dx<=5&&!found;dx++)
+            {
+                Point p=source+new Point(dx,dy);
+                float length=(p-source).Length;
+                if(length<2.5f||length>5.7f||!g.CanStand(p)||
+                    !(bool)clear.Invoke(g,new object[]{source,p}))continue;
+                foot=p;found=true;
+            }
+            Check(found,"Battlefield quick use can reach actual legal enemy feet");
+            Enemy foe=new Enemy(99671,0,foot.x,foot.y,100f);
+            g.enemies.Add(foe);
+            Check(g.FieldTacticLiveThreatCount(device)==1,
+                "The world prompt and quick-use target share the same real attacker");
+            Check(g.QuickActivateFieldTactic()&&g.mode=="world"&&
+                g.conversation==null&&g.save.energy==86f&&
+                foe.stun>=2.29f&&g.FieldTacticCooldown(device)>23f&&
+                g.Has("field_tactic_used_1"),
+                "Quick activation genuinely ensnares the enemy without switching out of live gameplay");
+            Check(g.QuickActivateFieldTactic()&&g.save.energy==86f&&
+                g.FieldTacticMasteryCount==1,
+                "Cooldown never double-charges or duplicates first use");
+            g.save.x=source.x+12f;g.save.y=source.y;
+            Check(!g.QuickActivateFieldTactic()&&g.save.energy==86f,
+                "Distant input cannot operate a mechanism through a false remote target");
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={

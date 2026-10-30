@@ -128,11 +128,26 @@ namespace Starfall
                 C("查看其他路线","Inspect other paths","close"));
             return true;
         }
+        // Shift+G uses the same authenticated mechanism as the ordinary E
+        // dialogue but leaves the world running: one deliberate input, no
+        // separate damage/energy/target pipeline and no hidden auto-target.
+        public bool QuickActivateFieldTactic()
+        {
+            if(mode!="world"||Dying||practicing||Map==null||
+                Map.objects==null||!CanStand(Position))return false;
+            WorldObject source=Nearest();
+            if(!FieldTacticSource(source))return false;
+            return ActivateFieldTactic(source,false);
+        }
         private bool ChooseFieldTactics(string action)
         {
             if(action!="field_tactic_trigger")return false;
-            WorldObject o=pendingDialogueSource;
-            if(!FieldTacticSource(o)||pendingDialogueSourceRoom!=save.room||
+            return ActivateFieldTactic(pendingDialogueSource,true);
+        }
+        private bool ActivateFieldTactic(WorldObject o,bool dialogueChoice)
+        {
+            if(!FieldTacticSource(o)||
+                (dialogueChoice&&pendingDialogueSourceRoom!=save.room)||
                 !HasPhysicalInteractionReach(o)||!CanStand(Position)||
                 Dying||practicing||mode!="world")return true;
             float remain=FieldTacticCooldown(o);

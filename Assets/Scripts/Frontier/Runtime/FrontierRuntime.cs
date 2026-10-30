@@ -290,6 +290,13 @@ namespace Starfall
                     else if(shift)Game.LayFieldSnare(InputAim()??Game.aim);
                     else Game.ThrowPebble(InputAim()??Game.aim);
                 }
+                // A live nearby contraption may be fired without freezing a
+                // dangerous encounter in a dialogue modal. G alone retains
+                // the loadout menu, and E retains all existing conversations.
+                if (Input.GetKeyDown(KeyCode.G)&&
+                    (Input.GetKey(KeyCode.LeftShift)||
+                     Input.GetKey(KeyCode.RightShift)))
+                    Game.QuickActivateFieldTactic();
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
@@ -337,6 +344,11 @@ namespace Starfall
             if (replacePrompt || saveConfirmation != null || key == KeyCode.Tab && Game.mode != "world") return;
             if (settingsParent == "title" && (Game.mode == "pause" || Game.mode == "saves")) return;
             if (!Input.GetKeyDown(key) || Game.mode == "dialog" || Game.mode == "fish" || Game.mode == "title") return;
+            // Shift+G is consumed by the live battlefield contraption, not
+            // a second click that accidentally opens the loadout modal.
+            if(key==KeyCode.G&&
+                (Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift)))
+                return;
             if (Game.mode == mode) Game.Close(); else OpenMenu(mode);
         }
         private void Resize()
@@ -1197,8 +1209,8 @@ namespace Starfall
                 WorldObjectLabel(p.x-121,p.y-122,242,22,
                     cd>0f?Game.L("装置复位 "+(int)Math.Ceiling(cd)+"秒",
                                     "RESET "+(int)Math.Ceiling(cd)+"s"):
-                    threats>0?Game.L("敌情 "+threats+" · E启动反制",
-                                      "THREATS "+threats+" · E COUNTER"):
+                    threats>0?Game.L("敌情 "+threats+" · Shift+G 快捷反制 / E查看",
+                                      "THREATS "+threats+" · SHIFT+G QUICK / E INSPECT"):
                     known?Game.L("战术装置 · 暂无目标","FIELD TACTIC · NO TARGET"):
                         Game.L("战术装置 · 等敌接近","FIELD DEVICE · AWAIT FOES"),
                     11,ink,TextAnchor.MiddleCenter);
