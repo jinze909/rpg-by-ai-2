@@ -322,6 +322,21 @@ namespace Starfall
             return requireFull?ActorHasLocalRoute(Position,p,16):
                 ClearAttackPath(source,p);
         }
+        // Different field contracts should play differently on the actual
+        // regional ground, rather than reusing a rotating generic roster.
+        // Kind 0 closes on foot, 1 creates genuine arrow lanes, and 2
+        // threatens slower armored area contacts. Rank determines which
+        // real traversable approach pad receives each role; no extra
+        // mandatory story enemies and no saved enemy-schema changes.
+        private static readonly int[,] fieldPatrolKinds={
+            {0,0,0}, // Forest: two aggressive hunters through root cover
+            {1,1,0}, // Flooded ruins: twin bows screened by a close raider
+            {2,0,2}, // Mine: heavy foremen guarding a mobile skirmisher
+            {2,1,0}, // Citadel: armored front and long-range sentry
+            {0,1,0}, // Harbor: melee pressure with a shore archer
+            {0,2,1}, // Desert: fast pursuit, heavy slam and bow fire
+            {1,2,0}  // Highlands: elevated bow and armor cross-pressure
+        };
         private int SpawnRegionalScoutEncounter(WorldObject site,bool requireFull=false)
         {
             if(site==null||site.kind!="biomeSurvey"||save.room<1||
@@ -375,7 +390,7 @@ namespace Starfall
             {
                 int slot=pads.IndexOf(p);
                 Enemy patrol=CreatePlacedEnemy(++enemyId,
-                    (room+slot*2)%3,p,30+room*10);
+                    fieldPatrolKinds[room-1,slot],p,30+room*10);
                 enemies.Add(patrol);
                 regionalAmbientEnemies.Add(patrol);
             }

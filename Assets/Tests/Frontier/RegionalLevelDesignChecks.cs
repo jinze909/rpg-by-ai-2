@@ -119,6 +119,55 @@ namespace Starfall.Tests
                 data.maps[4].rows[20][30]=='#',
                 "Forest roots, Ruins flood, Mine slag and Citadel barricades have physically authored distinct topology");
         }
+        // These are real signed, optional world contracts: spawn via
+        // physical dialogue and check every living actor's actual class.
+        // A static table-only assertion would not catch a disconnected
+        // placement path, an unspawned third foe, or a dead world hook.
+        public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
+        {
+            int[][] expected={
+                new[]{0,0}, new[]{1,1,0}, new[]{2,0,2},
+                new[]{2,1}, new[]{0,1}, new[]{0,2,1},
+                new[]{1,2}
+            };
+            var signatures=new HashSet<string>();
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);
+                g.save.room=room;g.mode="world";g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                WorldObject post=Array.Find(g.Map.objects,o=>
+                    o.kind=="biomeSurvey"&&o.id=="biomeSurvey"+room);
+                Check(post!=null&&PlaceWithinTalkReach(g,post),
+                    "Every district retains its physically accessible survey post");
+                Point hero=g.Position;
+                g.Talk(post);
+                Check(g.mode=="dialog"&&g.conversation!=null,
+                    "The live regional post actually opens the contract");
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin");
+                Check(begin>=0,"Every original field contract is playable");
+                g.Choose(begin);
+                Check(g.FieldPatrolActive&&
+                    g.FieldPatrolRemaining==expected[room-1].Length&&
+                    g.enemies.Count==expected[room-1].Length,
+                    "The complete authored tactical wave enters the live world");
+                string signature="";
+                for(int slot=0;slot<g.enemies.Count;slot++)
+                {
+                    Enemy e=g.enemies[slot];
+                    Check(e.kind==expected[room-1][slot]&&
+                        !e.boss&&e.hp>0f&&g.CanStand(e.Position)&&
+                        g.NavigationPathFrom(hero,e.Position,true).Count>0,
+                        "A district's actual combat role must occupy walkable connected ground");
+                    signature+=e.kind.ToString();
+                }
+                Check(signatures.Add(signature),
+                    "All seven contracts must present distinct tactical role sequences");
+                Check(g.save.version==2&&!g.FieldPatrolDone(room),
+                    "Starting optional combat does not alter legacy saves or sign rewards");
+            }
+        }
         public static void LegacyV2SavesInsideNewAuthoringCoverRecoverWithoutLosingCampaign(Campaign data)
         {
             // These four tiles were originally walkable empty ground. They
