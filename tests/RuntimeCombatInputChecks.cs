@@ -8367,8 +8367,9 @@ public static class RuntimeCombatInputChecks
         string previous=g.save.trackedQuest;
         QuestGuide suggested=g.RecommendedContinuationGuide;
         Check(suggested!=null&&!suggested.locked&&!suggested.complete&&
-              suggested.room==0&&g.SafeTravel,
-            "Original first town chapter is a genuine currently playable local recommendation");
+              suggested.room>=0&&suggested.room<g.data.maps.Length&&
+              g.CanEnter(suggested.room)&&g.SafeTravel,
+            "The live town presents a genuine unlocked next objective, local or in another region");
         g.mode="map";
         Check(g.PlaceLocalWaymark(g.Position)&&g.HasLocalWaymark,
             "A genuine manual pin exists before explicit Next Adventure acceptance");
@@ -8386,9 +8387,11 @@ public static class RuntimeCombatInputChecks
         GUI.queuedClick=new Rect(1015,488,234,30);
         Call(app,"OnGUI");GUI.queuedClick=null;
         Check(g.save.trackedQuest==suggested.id&&
-              g.QuestApproachNavigationActive&&g.HasLocalWaymark&&
-              g.InspectLocalWaymark(g.LocalWaymark.Value)==WaymarkRouteStatus.Available,
-            "A real HUD click follows the next objective through the validated local walking route");
+              (suggested.room==g.save.room?
+                  g.QuestApproachNavigationActive&&g.HasLocalWaymark&&
+                  g.InspectLocalWaymark(g.LocalWaymark.Value)==WaymarkRouteStatus.Available:
+                  g.QuestApproachTravelHandoffPending&&!g.HasLocalWaymark),
+            "A real HUD click starts only a verified local walking route or a genuine remote crossing handoff");
         Check(g.save.version==2&&g.save.coins==coins&&
               g.save.shards==shards&&g.save.flags.Count==flags,
             "Starting next-adventure travel grants no story or inventory progress");
