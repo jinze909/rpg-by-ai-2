@@ -543,10 +543,10 @@ namespace Starfall
                 // crossing has been verified by GameCore.
                 if(!Game.practicing&&Button(1015,488,234,30,
                     Game.HasLocalWaymark||Game.QuestApproachTravelHandoffPending?
-                        Game.L("跟随下一步 · 替换旧路线",
-                            "FOLLOW NEXT · REPLACE ROUTE"):
-                        Game.L("跟随下一段冒险",
-                            "FOLLOW NEXT ADVENTURE"),
+                        Game.L("Shift+Tab · 替换旧路线",
+                            "SHIFT+TAB · REPLACE ROUTE"):
+                        Game.L("Shift+Tab · 跟随下一段",
+                            "SHIFT+TAB · FOLLOW NEXT"),
                     false,Game.SafeTravel&&!q.locked&&!q.complete))
                     Game.FollowRecommendedAdventure();
                 if (Game.save.room >= 5 || Game.CivicCourierActive || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.MineConvoyActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }

@@ -226,6 +226,14 @@ namespace Starfall
                 }
                 if(Input.GetKeyDown(KeyCode.O))
                     Game.CycleNearbyInteraction();
+                // Explicit field continuation shortcut. Shift+Tab is
+                // consumed HERE in world mode; plain Tab still opens the
+                // complete journal. The same GameCore physical preflight
+                // as the mouse HUD decides whether a route is valid.
+                if(Input.GetKeyDown(KeyCode.Tab)&&
+                   (Input.GetKey(KeyCode.LeftShift)||
+                    Input.GetKey(KeyCode.RightShift)))
+                    Game.FollowRecommendedAdventure();
                 // Right-click an actual nearby actor in the WORLD, not an
                 // obstructed prop or UI button. It selects a speaker only;
                 // ordinary E / B remains the sole dialogue/quest action.
@@ -357,6 +365,11 @@ namespace Starfall
         private void Toggle(KeyCode key, string mode)
         {
             if (replacePrompt || saveConfirmation != null || key == KeyCode.Tab && Game.mode != "world") return;
+            // World Shift+Tab is a single physical Follow action, not a
+            // simultaneous click opening the journal on the same frame.
+            if(key==KeyCode.Tab&&
+               (Input.GetKey(KeyCode.LeftShift)||
+                Input.GetKey(KeyCode.RightShift)))return;
             if (settingsParent == "title" && (Game.mode == "pause" || Game.mode == "saves")) return;
             if (!Input.GetKeyDown(key) || Game.mode == "dialog" || Game.mode == "fish" || Game.mode == "title") return;
             // Shift+G is consumed by the live battlefield contraption, not
