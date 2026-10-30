@@ -561,6 +561,18 @@ namespace Starfall
                 return save.inventory[room==1?2:room==2?0:4]>=9999;
             return room==2?save.energy>=100f:save.health>=save.maxHealth;
         }
+        // Reporting all three physical field visits is a separate, optional
+        // handoff to Lyra. Older completed story flags and v2 saves remain intact.
+        private bool NightShiftAftercareReady
+        {
+            get
+            {
+                return NightShiftComplete&&
+                    Has("nightshift_followup_1")&&
+                    Has("nightshift_followup_2")&&
+                    Has("nightshift_followup_3");
+            }
+        }
         private bool TalkNightShift(WorldObject o)
         {
             if(o==null)return false;
@@ -595,6 +607,24 @@ namespace Starfall
             {
                 if(NightShiftComplete)
                 {
+                    if(NightShiftAftercareReady&&!Has("nightshift_reported"))
+                    {
+                        Dialog(o.name,o.en,
+                            Has("nightshift_public")?
+                                "莉雅将三处重开的巡路记录铺在桌上。\n\n“树洞的药草、石阶的木料、矿场的零件都送到了真实行路人手里。路已经开放；接下来谁负责守住它？”":
+                                "莉雅把三张匿名收条放入上锁的抽屉。\n\n“三处援助都已交到当事人手中，没有一个姓名泄露。我们不能代替他们发言，但可以帮他们安全地继续上路。”",
+                            Has("nightshift_public")?
+                                "Lyra spreads three restored road reports across the desk.\n\n“The forest herbs, stair timber and mine parts reached actual travelers. The roads are open. Who will keep them safe?”":
+                                "Lyra locks three unsigned receipts away.\n\n“Every gift reached its traveler without exposing a single name. We cannot speak for the witnesses, but we can protect their return.”",
+                            C("领巡路经费 · 金币75",
+                              "Take route maintenance pay · 75 coins",
+                              "nightshift_report_pay"),
+                            C("学习证人急救法 · 永久生命上限+4",
+                              "Learn witness fieldcraft · +4 max health",
+                              "nightshift_report_guard"),
+                            C("暂缓交接","Report later","close"));
+                        return true;
+                    }
                     Dialog(o.name,o.en,
                         Has("nightshift_public")?
                             "公会没有替那三个人发言。名单在墙上，名字后面还有一块空白，留给他们自己补完。":
@@ -781,6 +811,34 @@ namespace Starfall
             if(room<0||room>3||
                !NightShiftSource(source,room)&&!NightShiftVentSource(source))
                 return true;
+            if(action=="nightshift_report_pay"||action=="nightshift_report_guard")
+            {
+                // A stale choice or a dialogue forged at another object may
+                // never sign the guild's final report or duplicate its reward.
+                if(room!=0||!NightShiftSource(source,0)||
+                   !NightShiftAftercareReady||Has("nightshift_reported"))
+                    return true;
+                bool wage=action=="nightshift_report_pay";
+                if(wage)
+                    save.coins=Math.Min(999999,save.coins+75);
+                else
+                {
+                    save.maxHealth=Math.Min(9999f,save.maxHealth+4f);
+                    save.health=Math.Min(save.maxHealth,save.health+4f);
+                }
+                Flag("nightshift_reported");
+                RecordMoment(
+                    wage?
+                        "夜班名册 · 三地回访后，你回余烬镇向莉雅交接真实行路记录，并领取75枚巡路维护经费。公开的道路继续开放；封存的姓名仍由证人自己决定。":
+                        "夜班名册 · 三地回访后，你回余烬镇向莉雅交接真实行路记录，向证人学习急救与野外自护，永久生命上限提升4。姓名公开与否仍由原先的证人选择决定。",
+                    wage?
+                        "Night-Shift Roll: returned all three field receipts to Lyra in Emberfall and accepted 75 coins for continued road maintenance. Witness privacy remains decided by the original ending.":
+                        "Night-Shift Roll: returned all three field receipts to Lyra in Emberfall and learned the witnesses' fieldcraft (+4 permanent max health). The original privacy decision stands.");
+                revision++;sound="quest";
+                Notify("三地回访已经交接，夜班名册的后续故事结束。",
+                    "All three field reports delivered. Night-Shift aftercare is complete.");
+                return true;
+            }
             if(action.StartsWith("nightshift_followup_",StringComparison.Ordinal))
             {
                 int station;
@@ -1059,10 +1117,10 @@ namespace Starfall
                 L("证人只愿意私下支援仍在路上的人。不要公布姓名；亲自重访三处旧记录点，接收他们留下的无名援助。",
                   "The living witnesses choose private support, not public names. Revisit each original site to receive the anonymous provisions they left.");
             q.reward=Has("nightshift_public")?
-                L("真实物资 · 密林药草2、遗迹木材2、矿场零件1",
-                  "Real supplies: forest herbs x2, ruins timber x2, mine part x1"):
-                L("无名援助 · 密林生命24、遗迹耐力35、矿场生命18",
-                  "Anonymous support: forest +24 health, ruins +35 energy, mine +18 health");
+                L("巡路物资 · 药草2、木材2、零件1；交接可选金币75或永久生命上限+4",
+                  "Road supplies: herbs x2, timber x2, part x1; final report: 75 coins or +4 max HP"):
+                L("匿名援助 · 生命24、耐力35、生命18；交接可选金币75或永久生命上限+4",
+                  "Anonymous aid: +24 HP, +35 energy, +18 HP; final report: 75 coins or +4 max HP");
             q.locked=!NightShiftComplete;
             int next=0;
             for(int room=1;room<=3;room++)
@@ -1077,7 +1135,11 @@ namespace Starfall
                               "Return to the mine spool for worker aid"),done));
                 if(next==0&&!done)next=room;
             }
-            q.complete=!q.locked&&next==0;
+            q.steps.Add(new QuestStep(
+                L("带三份现场回执回余烬镇，向莉雅交接",
+                  "Return all three field receipts to Lyra in Emberfall"),
+                Has("nightshift_reported")));
+            q.complete=!q.locked&&next==0&&Has("nightshift_reported");
             if(q.locked)
             {
                 q.room=0;
@@ -1088,14 +1150,17 @@ namespace Starfall
                     "First resolve the original Night-Shift Roll and its witness-privacy choice.");
                 return q;
             }
-            if(q.complete)
+            if(next==0)
             {
                 q.room=0;
                 WorldObject desk=NightShiftSite(0);
                 q.target=desk==null?new Point(25.5f,24.5f):
                     new Point(desk.x,desk.y);
-                q.next=L("三处实际回访都完成；这条路如今属于愿意维护它的人。",
-                    "All three real field revisits are signed. The road belongs to those who keep it open.");
+                q.next=q.complete?
+                    L("三份回执已经交给莉雅；夜班名册的后续故事完整收束。",
+                      "All three reports are with Lyra. The Night-Shift story is resolved."):
+                    L("三地回访完成！返回余烬镇原公会名册，与莉雅交接并选择后续支援。",
+                      "All three revisits are done. Return to the original Emberfall guild desk, report to Lyra, and choose a lasting reward.");
                 return q;
             }
             q.room=next;

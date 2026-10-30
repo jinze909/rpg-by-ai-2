@@ -34,9 +34,10 @@ namespace Starfall.Tests
                     Check(game.Has(receipt),
                         "Only an actual physical source signs its own field aid once");
                     var next=game.GetQuest("night_shift_aftercare");
-                    Check(next.steps.Count==3&&next.steps[room-1].done&&
-                        (room==3?next.complete:next.room==room+1&&!next.complete),
-                        "Player-facing quest and compass advance to the next actual field receipt");
+                    Check(next.steps.Count==4&&next.steps[room-1].done&&
+                        !next.complete&&
+                        (room==3?next.room==0:next.room==room+1),
+                        "Player-facing compass follows three real field receipts, then routes to the original town ledger");
                     if(published)
                         Check(game.save.inventory[target]==
                             Math.Min(9999,oldMaterial+(room==3?1:2)),
@@ -62,11 +63,38 @@ namespace Starfall.Tests
                 Check(game.save.moments.Count==firstChronicle+3&&
                     game.NightShiftComplete&&game.GetQuest("night_shift").complete,
                     "Three real aftercare scenes add authored continuity without reopening the finished story");
-                game.save.room=0;game.save.x=game.Map.spawnX;game.save.y=game.Map.spawnY;
+                WorldObject guildDesk=NightShiftAt(game,0);
+                Check(game.GetQuest("night_shift_aftercare").room==0&&
+                    !game.GetQuest("night_shift_aftercare").complete,
+                    "Aftercare requires a physical town handoff rather than completing from the third distant region");
+                int beforeCoins=game.save.coins;
+                float beforeMaxHealth=game.save.maxHealth;
+                string reportAction=published?
+                    "nightshift_report_pay":"nightshift_report_guard";
+                NightShiftChoose(game,guildDesk,reportAction);
+                Check(game.Has("nightshift_reported")&&
+                    game.GetQuest("night_shift_aftercare").complete&&
+                    game.save.moments.Count==firstChronicle+4,
+                    "Real town dialogue signs the last narrative beat and closes the fourth quest step");
+                Check(published?
+                        game.save.coins==Math.Min(999999,beforeCoins+75)&&
+                        game.save.maxHealth==beforeMaxHealth:
+                        game.save.coins==beforeCoins&&
+                        game.save.maxHealth==Math.Min(9999f,beforeMaxHealth+4f),
+                    "Two genuine town choices pay different one-time rewards");
+                game.Close();game.Talk(guildDesk);
+                Check(game.conversation!=null&&
+                    Array.FindIndex(game.conversation.choices,
+                        c=>c.action=="nightshift_report_pay"||
+                           c.action=="nightshift_report_guard")<0,
+                    "The original town desk cannot repay a signed epilogue");
+                game.Close();
                 game.PrepareSave();
                 var restored=new GameCore(data,CloneSave(game.save));
-                Check(restored.save.version==2&&restored.NightShiftComplete,
-                    "Both branching postgame consequences survive the existing schema");
+                Check(restored.save.version==2&&restored.NightShiftComplete&&
+                    restored.Has("nightshift_reported")&&
+                    restored.GetQuest("night_shift_aftercare").complete,
+                    "Both branching four-step epilogues persist in the unchanged v2 save");
                 for(int r=1;r<=3;r++)
                     Check(restored.Has("nightshift_followup_"+r),
                         "Every original field receipt persists and cannot refresh after reload");
