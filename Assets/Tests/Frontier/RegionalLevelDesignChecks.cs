@@ -5,6 +5,54 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        // End-to-end map composition regression. Relocations preserve the
+        // original interacting instance and all source IDs. Large world-map
+        // silhouettes are visuals; only real terrain determines reachability.
+        public static void TenWorldLocationsRetainAccessibleSeparatedQuestSources(Campaign data)
+        {
+            Check(data.maps.Length==10,
+                "All eight campaign zones, the Abyss seed and the Inn are present");
+            string[][] relocated={
+                new[]{"chef","stormnode2"},
+                new string[0],
+                new[]{"witnesssite22"},
+                new[]{"witnesssite23","stormrelay3","annex_camp_3"},
+                new string[0],
+                new[]{"tidecargo1","seal5","mistlight_mirror","annex_camp_5"},
+                new[]{"glassherb"},
+                new[]{"skyprism1","frostwood","annex_vista_7"},
+                new string[0],new string[0]
+            };
+            for(int room=0;room<10;room++)
+            {
+                MapData map=data.maps[room];
+                Check(map!=null&&map.rows!=null&&map.rows.Length>0&&
+                    map.objects!=null&&map.decor!=null,
+                    "Each shipped map retains its authored terrain and sources");
+                var ids=new HashSet<string>();
+                foreach(WorldObject o in map.objects)
+                    Check(o!=null&&!String.IsNullOrEmpty(o.id)&&ids.Add(o.id),
+                        "No quest identity is lost or duplicated in map "+room);
+                foreach(Decoration d in map.decor)
+                    Check(d!=null&&d.x>=0&&d.y>=0&&
+                        d.y<map.rows.Length&&d.x<map.rows[0].Length,
+                        "Every visual footprint remains inside its own map");
+                if(room==8)continue; // The live Abyss has a generated map.
+                GameCore g=new GameCore(data);
+                g.save.room=room;g.mode="world";
+                foreach(string id in relocated[room])
+                {
+                    WorldObject o=Array.Find(map.objects,p=>p.id==id);
+                    Check(o!=null&&g.CanStand(new Point(o.x,o.y)),
+                        "Moved quest source must retain real legal footing: "+id);
+                    foreach(WorldObject other in map.objects)
+                        if(other!=o)
+                            Check((new Point(o.x-other.x,o.y-other.y)).Length>=2.15f,
+                                "No overlapping E target for "+id+"/"+other.id);
+                }
+            }
+        }
+
 
         public static void LiveFieldContractsDoNotFreezeWhileOrdinaryDistrictsSleep(Campaign data)
         {
