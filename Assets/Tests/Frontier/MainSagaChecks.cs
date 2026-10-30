@@ -228,6 +228,13 @@ namespace Starfall.Tests
                         g.MainSagaLastGateStep==2&&
                         !g.Has("saga_lastgate_relay"),
                         "22 stamina starts real combat; starting is NOT a free relay completion");
+                    var liveGuide=g.GetQuest("main");
+                    Check(liveGuide.room==4&&
+                        liveGuide.next.Contains("2")&&
+                        liveGuide.next.Contains("100")&&
+                        Array.Exists(g.enemies.ToArray(),
+                            foe=>(foe.Position-liveGuide.target).Length<.1f),
+                        "Active finale quest visibly tracks real attackers and its 100-second deadline");
                     g.Close();
                     // An enemy erased outside combat must cancel the relay.
                     Enemy erased=g.enemies[0];g.enemies.Remove(erased);

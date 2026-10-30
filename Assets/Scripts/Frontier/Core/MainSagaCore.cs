@@ -70,6 +70,7 @@ namespace Starfall
         private MapData sagaRelayMap;
         private WorldObject sagaRelayStation;
         private float sagaRelayClock;
+        private bool sagaRelayLowTimeWarned;
         private readonly List<Enemy> sagaRelayFoes=new List<Enemy>();
         private readonly HashSet<Enemy> sagaRelayDefeated=new HashSet<Enemy>();
         public bool MainSagaRelayActive
@@ -101,6 +102,7 @@ namespace Starfall
             }
             sagaRelayRoom=-1;sagaRelaySave=null;sagaRelayMap=null;
             sagaRelayStation=null;sagaRelayClock=0f;
+            sagaRelayLowTimeWarned=false;
             sagaRelayFoes.Clear();sagaRelayDefeated.Clear();
         }
         private bool MainSagaRelayFootFree(Point foot,List<Point> placed)
@@ -198,6 +200,17 @@ namespace Starfall
                 ResetMainSagaRelay();revision++;
                 Notify("线圈过热，旁路未能保持稳定。冷却后可重新挑战。",
                     "The coils overheated. Restart the bypass defense when ready.");
+                return;
+            }
+            if(sagaRelayClock<=30f&&!sagaRelayLowTimeWarned)
+            {
+                sagaRelayLowTimeWarned=true;
+                effects.Add(new Effect("number",
+                    new Point(sagaRelayStation.x,sagaRelayStation.y),1.2f,
+                    L("旁路即将过热！","BYPASS OVERHEATING!")));
+                revision++;sound="alert";
+                Notify("应急旁路只剩30秒！立即击退破坏者。",
+                    "Bypass has only 30 seconds left! Defeat the saboteurs now.");
             }
         }
 
