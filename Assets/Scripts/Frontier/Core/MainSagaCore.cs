@@ -526,15 +526,31 @@ namespace Starfall
                 room==6?"Open the desert heat vent · 18 stamina, cool the field and interrupt attackers":
                 "Light the alpine rescue brazier · 1 herb, warm the line and interrupt attackers";
         }
+        public Point SagaGuardWitnessPosition
+        {get{return SagaGuardWitnessFoot;}}
         public Point SagaGuardGuideTarget
         {
             get {
-                if(SagaGuardActive)
-                    foreach(Enemy e in sagaGuardFoes)
-                        if(e!=null&&e.hp>0&&enemies.Contains(e))
-                            return e.Position;
-                return sagaGuardWitness!=null&&SagaGuardActive?
-                    new Point(sagaGuardWitness.x,sagaGuardWitness.y):Position;
+                if(!SagaGuardActive)return Position;
+                Point speaker=SagaGuardWitnessFoot;
+                Enemy priority=null;
+                float score=float.MaxValue;
+                foreach(Enemy e in sagaGuardFoes)
+                {
+                    if(e==null||e.hp<=0||!enemies.Contains(e))continue;
+                    float distance=(e.Position-speaker).Length;
+                    // Guide to the immediate breach before the backline.
+                    // Otherwise prioritize the raider storming the records
+                    // over the archer harassing the player from afar.
+                    bool breaching=e.stun<=0f&&e.stagger<=0f&&e.hitTime<=0f&&
+                        distance<=7.5f&&CanStand(e.Position)&&
+                        ClearAttackPath(e.Position,speaker);
+                    float urgency=distance+(e.kind==1?10f:0f)-
+                        (breaching?25f:0f);
+                    if(urgency>=score)continue;
+                    priority=e;score=urgency;
+                }
+                return priority!=null?priority.Position:speaker;
             }
         }
         private bool IsSagaGuardEnemy(Enemy e)

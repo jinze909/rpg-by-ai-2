@@ -506,6 +506,55 @@ namespace Starfall.Tests
                     "Moving toward evidence cannot forge victory or signature");
             }
         }
+
+        public static void WitnessGuideTargetsTheThreatInsteadOfArbitraryRangedRaiders(Campaign data)
+        {
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);g.save.flags.Add("saga_outer_"+room);
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Live named witness remains at original map location");
+                g.Talk(npc);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Live witness offers original mission");
+                g.Choose(account);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"Actual two-wave defense begins");
+                g.Choose(begin);
+                Check(g.SagaGuardActive&&g.SagaGuardRemaining==2,
+                    "Witness has two real live defenders");
+                Enemy[] live=g.enemies.ToArray();
+                Enemy melee=Array.Find(live,e=>e.kind!=1);
+                Check(melee!=null,"Actual field wave includes a melee objective threat");
+                Point originalTarget=g.SagaGuardGuideTarget;
+                Check(g.CanStand(originalTarget),
+                    "The tracked target belongs to a live walkable enemy foot");
+                Point witness=new Point(npc.x,npc.y);
+                // Archers arriving at the speaker should outrank distant
+                // melee, but a merely ranged attacker should not distract.
+                Enemy archer=Array.Find(live,e=>e.kind==1);
+                if(archer!=null)
+                {
+                    archer.x=g.Position.x;archer.y=g.Position.y;
+                    archer.stun=0f;archer.stagger=0f;archer.hitTime=0f;
+                    Check((archer.Position-witness).Length<7.5f,
+                        "Test archer is physically inside the real evidence perimeter");
+                    Check((g.SagaGuardGuideTarget-archer.Position).Length<.01f,
+                        "Immediate evidence trespass overrides generic ranged-chase order");
+                }
+                Check(g.SagaGuardActive&&!g.Has("saga_voice_"+room),
+                    "Guidance itself cannot award signed testimony");
+            }
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;

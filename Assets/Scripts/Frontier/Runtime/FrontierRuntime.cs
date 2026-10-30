@@ -836,6 +836,27 @@ namespace Starfall
             // Sort scenery and actors by their ground position, for proper overlap.
             foreach (Effect floorEffect in Game.effects) if (IsGroundEffect(floorEffect)) DrawCombatEffect(floorEffect);
             DrawOrderedWorld();
+            // World-space, read-only record defense overlay. This uses the
+            // exact same witness foot and transient safety as the live
+            // mission, never an invented Sprite or unrelated journal flag.
+            // The wide faint outline is an evidence-interception perimeter,
+            // NOT a hostile damage telegraph.
+            if(Game.mode=="world"&&Game.SagaGuardActive)
+            {
+                Point site=Game.SagaGuardWitnessPosition;
+                int safety=Game.SagaGuardEvidenceSafety;
+                Color safetyTint=safety<=40?
+                    new Color(1f,.4f,.36f,.9f):
+                    safety<=75?gold:new Color(.59f,.85f,1f,.78f);
+                Ring(site,7.5f,new Color(safetyTint.r,safetyTint.g,
+                    safetyTint.b,.16f),48);
+                Ring(site,.95f,safetyTint,24);
+                Point labelFoot=ScreenPoint(site);
+                Text(labelFoot.x-98,labelFoot.y-105,196,19,
+                    Game.L("证据安全 "+safety+"%",
+                        "EVIDENCE SAFE "+safety+"%"),
+                    11,safetyTint,TextAnchor.MiddleCenter);
+            }
             // Persistent real-foot recovery cue for an authentic hit-spilled
             // 90-second medical parcel. The original E, collision and
             // delivery reward code remains the only transaction authority.
