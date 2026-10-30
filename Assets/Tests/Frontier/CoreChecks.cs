@@ -1196,6 +1196,43 @@ namespace Starfall.Tests
                 "The seven opening encounters must meaningfully depart from the legacy shared coordinates");
         }
 
+        public static void DistantBaselineSquadsDoNotSwarmTheEntrance(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var spawn=typeof(GameCore).GetMethod("SpawnRoom",flags);
+            var dormant=typeof(GameCore).GetMethod(
+                "RegionalAmbientEncounterDormant",flags);
+            Check(spawn!=null&&dormant!=null,
+                "The real regional encounter planner and dormancy gate are present");
+            for(int region=1;region<=7;region++)
+            {
+                var g=Fresh(data);
+                g.save.room=region;g.mode="world";
+                g.save.x=data.maps[region].spawnX;
+                g.save.y=data.maps[region].spawnY;
+                spawn.Invoke(g,null);
+                int count=region<=2?6:region<=4?8:7;
+                Check(g.enemies.Count>=count,
+                    "Reworked arrival does not erase required battle actors");
+                int sleeping=0;
+                for(int i=0;i<count;i++)
+                {
+                    Enemy foe=g.enemies[i];
+                    if((foe.Position-g.Position).Length>13f)
+                    {
+                        Check((bool)dormant.Invoke(g,new object[]{foe}),
+                            "Unalerted remote squads remain in their own encounter pocket");
+                        sleeping++;
+                    }
+                }
+                Check(sleeping>=2,
+                    "Each region preserves an actual opening breathing space before later fronts");
+                Check(g.save.version==2,
+                    "Encounter staggering does not extend the saved data format");
+            }
+        }
+
         public static void RegionalBattleFallbackNeverSpawnsBehindBlockedTerrain(Campaign data)
         {
             MapData map=data.maps[1];

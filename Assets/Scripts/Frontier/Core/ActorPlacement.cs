@@ -141,14 +141,17 @@ namespace Starfall
         // remain on the same real, currently walkable component as the hero.
         // Anchors are deliberately not saved: SaveData v1/v2 keeps its exact
         // historical combat serialization and restored enemies take priority.
+        // Three recognizable encounter fronts per region: entrance scouting,
+        // mid-route challenge, and distant defended ground. Do not form one
+        // eight-enemy ring around the entrance or across a quest dialogue.
         private static readonly int[,,] regionalBattleAnchors = {
-            { {11,10},{14,17},{21,11},{25,18},{28,7},{30,16},{15,7},{26,20} },
-            { {11,12},{15,16},{22,12},{26,10},{28,16},{30,20},{15,20},{24,18} },
-            { {11,10},{15,17},{23,12},{28,8},{26,18},{10,20},{16,7},{30,19} },
-            { {12,9},{15,17},{23,9},{29,15},{27,19},{12,20},{19,7},{30,6} },
-            { {11,11},{16,15},{23,11},{28,10},{19,20},{30,15},{14,6},{28,20} },
-            { {12,11},{15,16},{25,8},{29,12},{25,20},{13,20},{22,6},{30,19} },
-            { {11,12},{14,16},{24,11},{30,10},{28,20},{11,20},{26,7},{30,16} }
+            { {12,9},{19,15},{25,24},{32,28},{40,14},{43,29},{28,40},{49,36} },
+            { {13,15},{20,10},{25,28},{34,16},{41,33},{48,25},{34,42},{50,39} },
+            { {13,10},{20,18},{25,28},{34,13},{42,21},{47,33},{32,40},{50,43} },
+            { {14,11},{20,20},{27,30},{35,12},{42,19},{46,31},{36,42},{50,40} },
+            { {13,12},{20,24},{28,15},{34,31},{43,14},{48,27},{37,43},{52,38} },
+            { {13,13},{21,20},{28,10},{35,28},{43,18},{49,36},{36,44},{55,31} },
+            { {14,11},{21,19},{26,29},{36,15},{43,26},{50,35},{38,42},{54,47} }
         };
         private bool[] RegionalBattleReachableTiles()
         {
@@ -182,9 +185,9 @@ namespace Starfall
             int x=(int)Math.Floor(foot.x),y=(int)Math.Floor(foot.y);
             int width=Map.rows[0].Length;
             if(x<0||y<0||x>=width||y>=Map.rows.Length||
-                (!expanded&&(x<4||x>33||y<3||y>21))||
+                (x<3||x>=width-3||y<3||y>=Map.rows.Length-3)||
                 !connected[y*width+x]||!Fits(foot)||
-                (foot-Position).Length<4.5f)return false;
+                (foot-Position).Length<7f)return false;
             // Leave conversations, resources, exits and quest machinery
             // readable rather than turning their interaction pads into
             // unavoidable body-blocking piles.
@@ -200,12 +203,12 @@ namespace Starfall
                     // Boss and other late-world objectives retain their
                     // existing 2-unit collision clearance.
                     float clearance=save.room>=1&&save.room<=4&&
-                        obj.kind=="chapterroad"?4.2f:2f;
+                        obj.kind=="chapterroad"?4.2f:2.8f;
                     if(distance<clearance)return false;
                 }
             foreach(Enemy other in enemies)
                 if(other!=null&&other.hp>0&&
-                    (foot-other.Position).Length<2.5f)return false;
+                    (foot-other.Position).Length<4f)return false;
             return true;
         }
         private Point? RegionalBattleFoot(int rank,bool[] connected)
@@ -279,8 +282,13 @@ namespace Starfall
                 if(!foot.HasValue)break;
                 int kind=save.room>=1&&save.room<=4?
                     chapterBattleKinds[save.room-1,i]:i%3;
-                enemies.Add(CreatePlacedEnemy(++enemyId,kind,
-                    foot.Value,health));
+                Enemy staged=CreatePlacedEnemy(++enemyId,kind,
+                    foot.Value,health);
+                enemies.Add(staged);
+                // The mandatory historical roster still exists in full,
+                // but a distant unalerted squad must not all wake and
+                // converge on the player the moment the region loads.
+                regionalAmbientEnemies.Add(staged);
             }
         }
 
@@ -294,7 +302,7 @@ namespace Starfall
         {
             return e!=null&&!e.boss&&regionalAmbientEnemies.Contains(e)&&
                 save.room>=1&&save.room<=7&&
-                (e.Position-Position).Length>24f&&
+                (e.Position-Position).Length>13f&&
                 e.state==0&&e.hitTime<=0f&&e.stun<=0f&&
                 e.releaseTime<=0f&&
                 !IsEnemyInvestigatingImpact(e)&&
