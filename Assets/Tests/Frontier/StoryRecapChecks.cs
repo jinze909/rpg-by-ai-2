@@ -6,6 +6,99 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.save.room=3;g.enemies.Clear();
+            g.save.flags.Add("nightshift_started");
+            g.save.flags.Add("nightshift_trace_1");
+            g.save.flags.Add("nightshift_trace_2");
+            g.save.inventory[4]=0;
+            WorldObject spool=NightShiftAt(g,3);
+            WorldObject valve=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="nightvent"&&
+                o.id=="nightshift_vent_3");
+            Check(valve!=null&&g.Map.rows[(int)valve.y][(int)valve.x]!='#'&&
+                g.CanStand(new Point(valve.x,valve.y)),
+                "The original mine contains a truly physical, walkable remote pressure wheel");
+            var path=g.NavigationPathFrom(new Point(spool.x,spool.y),
+                new Point(valve.x,valve.y),true);
+            Check(path.Count>0&&
+                (new Point(spool.x,spool.y)-new Point(valve.x,valve.y)).Length>12f,
+                "Mine pressure relief is a substantive physical cross-map route, not overlapping the source");
+            int initial=g.save.moments.Count;
+            NightShiftChoose(g,spool,"nightshift_vent_route");
+            Check(g.NightShiftVentSeeking&&
+                (g.GetQuest("night_shift").target-
+                 new Point(valve.x,valve.y)).Length<.01f,
+                "Opting into the alternative points actual quest navigation toward the distant machine");
+            g.save.x=valve.x;g.save.y=valve.y;
+            Check(g.CanStand(g.Position),"Physical pressure wheel admits real player feet");
+            g.save.energy=10f;
+            NightShiftChoose(g,valve,"nightshift_vent_start");
+            Check(g.NightShiftVentSeconds==0f&&g.save.energy==10f&&
+                !g.Has("nightshift_trace_3"),
+                "Exhaustion does not remotely switch on an unpaid valve");
+            g.save.energy=48f;
+            NightShiftChoose(g,valve,"nightshift_vent_start");
+            Check(g.NightShiftVentSeconds>84f&&
+                g.save.energy==30f&&!g.NightShiftVentSeeking&&
+                (g.GetQuest("night_shift").target-
+                 new Point(spool.x,spool.y)).Length<.01f,
+                "Paying 18 energy at the actual valve starts the 85-second cooling route home");
+            g.save.x=spool.x;g.save.y=spool.y;
+            int originalParts=g.save.inventory[4];
+            NightShiftChoose(g,spool,"nightshift_vent_open");
+            Check(g.NightShiftEvidenceCount==3&&
+                g.save.inventory[4]==originalParts&&
+                g.NightShiftVentSeconds==0f&&
+                g.save.moments.Count==initial+1&&
+                g.save.moments[initial].en.Contains("rail pressure wheel"),
+                "Returning during real cooldown preserves all parts and records the actual hard route");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.Has("nightshift_trace_3")&&
+                restored.NightShiftVentSeconds==0f&&
+                restored.save.version==2,
+                "Genuine cooling-route progress persists via existing signed v2 evidence, not runtime clocks");
+
+            var expired=Fresh(data);
+            expired.mode="world";expired.save.room=3;expired.enemies.Clear();
+            expired.save.flags.Add("nightshift_started");
+            expired.save.flags.Add("nightshift_trace_1");
+            expired.save.flags.Add("nightshift_trace_2");
+            WorldObject start=NightShiftAt(expired,3);
+            WorldObject remote=Array.Find(expired.Map.objects,
+                o=>o!=null&&o.id=="nightshift_vent_3");
+            expired.save.x=remote.x;expired.save.y=remote.y;
+            expired.save.energy=100;
+            NightShiftChoose(expired,remote,"nightshift_vent_start");
+            Check(expired.NightShiftVentSeconds>84f,
+                "Independent run opens the same real cooldown window");
+            expired.save.totalTime+=86f;
+            expired.save.x=start.x;expired.save.y=start.y;
+            Check(expired.NightShiftVentSeconds==0f,
+                "Cooling truly expires on the existing world-time clock");
+            expired.Talk(start);
+            Check(expired.conversation!=null&&
+                Array.FindIndex(expired.conversation.choices,
+                    c=>c.action=="nightshift_vent_open")<0&&
+                !expired.Has("nightshift_trace_3"),
+                "Expired cooling cannot be claimed from a stale dialogue or by remaining next to the spool");
+            expired.Close();expired.PrepareSave();
+            var interrupted=new GameCore(data,CloneSave(expired.save));
+            Check(interrupted.NightShiftVentSeconds==0f&&
+                !interrupted.NightShiftVentSeeking&&
+                !interrupted.Has("nightshift_trace_3"),
+                "Reload does not smuggle transient machinery credit into another slot");
+            expired.save.inventory[4]=1;
+            NightShiftChoose(expired,start,"nightshift_trace_3");
+            Check(expired.NightShiftEvidenceCount==3&&
+                expired.save.inventory[4]==0,
+                "The original one-part opening remains fully playable when the cooling route times out");
+        }
+
+
         public static void NightShiftRuinsRequiresRealEbbOrPhysicalTimber(Campaign data)
         {
             var game=Fresh(data);
