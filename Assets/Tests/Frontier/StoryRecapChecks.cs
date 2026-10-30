@@ -6,6 +6,70 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void NightShiftConsequencesPersistAtThreeRealFieldSites(Campaign data)
+        {
+            for(int outcome=0;outcome<2;outcome++)
+            {
+                var game=Fresh(data);
+                game.save.stage=3;
+                game.save.flags.Add("nightshift_started");
+                for(int r=1;r<=3;r++)
+                    game.save.flags.Add("nightshift_trace_"+r);
+                bool published=outcome==0;
+                game.save.flags.Add(published?"nightshift_public":"nightshift_private");
+                int firstChronicle=game.save.moments.Count;
+                for(int room=1;room<=3;room++)
+                {
+                    WorldObject site=NightShiftAt(game,room);
+                    string receipt="nightshift_followup_"+room;
+                    Check(!game.Has(receipt),"The field cache has not been claimed by a different region");
+                    int target=room==1?2:room==2?0:4;
+                    int oldMaterial=game.save.inventory[target];
+                    if(!published)
+                    {
+                        if(room==2)game.save.energy=21f;
+                        else game.save.health=18f;
+                    }
+                    NightShiftChoose(game,site,receipt);
+                    Check(game.Has(receipt),
+                        "Only an actual physical source signs its own field aid once");
+                    if(published)
+                        Check(game.save.inventory[target]==
+                            Math.Min(9999,oldMaterial+(room==3?1:2)),
+                            "Public roads give tangible and geographically distinct herb, timber and repair stock");
+                    else if(room==2)
+                        Check(game.save.energy==56f,
+                            "Anonymous ferry survivors grant actual on-site fatigue relief");
+                    else
+                        Check(game.save.health==18f+(room==1?24f:18f),
+                            "Confidential survivors grant real region-specific field healing");
+                    int afterItem=game.save.inventory[target];
+                    float afterHp=game.save.health,afterEnergy=game.save.energy;
+                    game.Close();game.Talk(site);
+                    Check(game.conversation!=null&&
+                        Array.FindIndex(game.conversation.choices,
+                            c=>c.action==receipt)<0,
+                        "A signed region cannot reoffer farmable aid");
+                    game.Close();
+                    Check(game.save.inventory[target]==afterItem&&
+                        game.save.health==afterHp&&game.save.energy==afterEnergy,
+                        "Revisiting the authentic source preserves past rewards exactly once");
+                }
+                Check(game.save.moments.Count==firstChronicle+3&&
+                    game.NightShiftComplete&&game.GetQuest("night_shift").complete,
+                    "Three real aftercare scenes add authored continuity without reopening the finished story");
+                game.save.room=0;game.save.x=game.Map.spawnX;game.save.y=game.Map.spawnY;
+                game.PrepareSave();
+                var restored=new GameCore(data,CloneSave(game.save));
+                Check(restored.save.version==2&&restored.NightShiftComplete,
+                    "Both branching postgame consequences survive the existing schema");
+                for(int r=1;r<=3;r++)
+                    Check(restored.Has("nightshift_followup_"+r),
+                        "Every original field receipt persists and cannot refresh after reload");
+            }
+        }
+
+
         public static void NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Campaign data)
         {
             var g=Fresh(data);

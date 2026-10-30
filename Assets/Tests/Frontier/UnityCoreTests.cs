@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void NightShiftEndingActuallyChangesAllThreeFieldSites() { CoreChecks.NightShiftConsequencesPersistAtThreeRealFieldSites(Data()); }
         [Test] public void NightShiftMineAllowsPhysicalTimedValveOrOldPartOpening() { CoreChecks.NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Data()); }
         [Test] public void NightShiftTideTellsActualEbbFromBuildableFloodGauge() { CoreChecks.NightShiftRuinsRequiresRealEbbOrPhysicalTimber(Data()); }
         [Test] public void NightShiftForestBattleOrQuietEvidenceRequiresRealCostsAndKills() { CoreChecks.NightShiftForestGuardHasRealChoiceCombatAndNoFakeEvidence(Data()); }
