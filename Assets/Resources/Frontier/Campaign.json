@@ -2258,6 +2258,14 @@
           "y": 10.5
         },
         {
+          "id": "field_tactic_1",
+          "name": "枯根诱捕铃",
+          "en": "Rootsnare bell",
+          "x": 17.5,
+          "y": 7.5,
+          "kind": "fielddevice"
+        },
+        {
           "id": "shrine1",
           "name": "星核祭坛",
           "en": "Starcore altar",
@@ -4373,6 +4381,14 @@
           "en": "Tidemark road beacon",
           "x": 8.5,
           "y": 12.5
+        },
+        {
+          "id": "field_tactic_2",
+          "name": "遗迹退潮闸",
+          "en": "Tidebreak sluice",
+          "x": 18.5,
+          "y": 9.5,
+          "kind": "fielddevice"
         },
         {
           "id": "shrine2",
@@ -6583,6 +6599,14 @@
           "en": "Minelight road beacon",
           "x": 15.5,
           "y": 19.5
+        },
+        {
+          "id": "field_tactic_3",
+          "name": "矿场排渣阀",
+          "en": "Slag relief valve",
+          "x": 23.5,
+          "y": 7.5,
+          "kind": "fielddevice"
         },
         {
           "id": "shrine3",
@@ -8877,6 +8901,14 @@
           "x": 3,
           "y": 14,
           "kind": "portal0"
+        },
+        {
+          "id": "field_tactic_4",
+          "name": "堡垒断弧器",
+          "en": "Citadel arc-breaker",
+          "x": 21.5,
+          "y": 13.5,
+          "kind": "fielddevice"
         },
         {
           "id": "shrine4",

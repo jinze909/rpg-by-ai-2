@@ -1059,6 +1059,34 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            if(kind=="fielddevice")
+            {
+                int room=Game.save.room;
+                float cd=Game.FieldTacticCooldown(o);
+                bool known=Game.Has("field_tactic_used_"+room);
+                Color ink=cd>0f?muted:known?mint:gold;
+                PropImage(room==1?"post":room==2?"column":
+                    room==3?"barrel":"crystal",0,
+                    p.x-36,p.y-75,72,78,ink);
+                if(room==1)
+                {Box(p.x-27,p.y-75,54,5,ink);Diamond(p.x,p.y-87,8,ink);}
+                else if(room==2)
+                {Box(p.x-25,p.y-48,50,6,ink);Ring(new Point(o.x,o.y),.62f,ink,20);}
+                else if(room==3)
+                {Box(p.x-4,p.y-89,8,22,ink);Diamond(p.x,p.y-96,6,gold);}
+                else
+                {Diamond(p.x,p.y-96,11,ink);Box(p.x-28,p.y-69,56,3,ink);}
+                if(!Game.save.reducedMotion&&cd<=0f)
+                    Ring(new Point(o.x,o.y),.56f+
+                        .05f*Mathf.Sin(clock*2.3f),ink,24);
+                Text(p.x-121,p.y-122,242,22,
+                    cd>0f?Game.L("装置复位 "+(int)Math.Ceiling(cd)+"秒",
+                                    "RESET "+(int)Math.Ceiling(cd)+"s"):
+                    known?Game.L("战术装置 · E再次操作","FIELD TACTIC · E REUSE"):
+                        Game.L("发现战术装置 · E","FIELD DEVICE · E"),
+                    11,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="wildernessHunt")
             {
                 int region=Game.save.room;

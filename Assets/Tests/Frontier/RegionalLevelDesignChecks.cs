@@ -7,6 +7,77 @@ namespace Starfall.Tests
     {
         // Runs against the real Campaign.json and production collision,
         // traversal, actor placement and original chapter sources.
+        public static void RegionalCombatDevicesChangeRealEncountersAndPreserveSaves(Campaign data)
+        {
+            var g=Fresh(data);g.save.stage=3;
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(clear!=null,"Original world collision is used for battlefield counterplay");
+            for(int room=1;room<=4;room++)
+            {
+                g.Enter(room);g.enemies.Clear();
+                WorldObject site=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(site!=null&&PlaceWithinTalkReach(g,site),
+                    "Each real chapter has a reachable, unique environmental device");
+                Point origin=new Point(site.x,site.y),foot=new Point();
+                bool found=false;
+                for(int dy=-5;dy<=5&&!found;dy++)
+                for(int dx=-5;dx<=5&&!found;dx++)
+                {
+                    Point candidate=new Point(origin.x+dx,origin.y+dy);
+                    float dist=(candidate-origin).Length;
+                    if(dist<2.5f||dist>5.7f||!g.CanStand(candidate)||
+                        !(bool)clear.Invoke(g,new object[]{origin,candidate}))continue;
+                    foot=candidate;found=true;
+                }
+                Check(found,"The placed device has real visible, legal attacker feet in the original level");
+                g.save.energy=90f;
+                g.Talk(site);
+                int action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                Check(action>=0,"The genuine map object offers a playable interaction");
+                g.Choose(action);
+                Check(g.save.energy==90f&&g.FieldTacticCooldown(site)==0f&&
+                    !g.Has("field_tactic_used_"+room),
+                    "No enemy means no phantom cost or mastery reward");
+                Enemy enemy=new Enemy(93000+room,room==3?2:room==4?1:0,
+                    foot.x,foot.y,100f);
+                g.enemies.Add(enemy);g.Talk(site);
+                action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                g.Choose(action);
+                Check(g.save.energy==76f&&g.FieldTacticCooldown(site)>23f&&
+                    g.Has("field_tactic_used_"+room)&&enemy.hp==100f,
+                    "Actual line-of-sight contact spends 14 energy and persists only genuine first use");
+                if(room==1)Check(enemy.stun>=2f&&enemy.stagger>=1f,
+                    "Root bell provides a real long snare");
+                if(room==2)Check(enemy.stun>=.9f&&g.CanStand(enemy.Position),
+                    "Tidal push cannot throw enemies into blocked world");
+                if(room==3)Check(enemy.armorOpenTime>=3f,
+                    "Mining vent opens actual armor, not a UI label");
+                if(room==4)Check(enemy.stun>=2f,
+                    "Citadel breaker interrupts the living archer");
+                g.Talk(site);
+                action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                g.Choose(action);
+                Check(g.save.energy==76f,
+                    "Cooldown rejects duplicate charge without extra costs");
+            }
+            Check(g.FieldTacticMasteryCount==4&&
+                g.Has("field_tactics_mastered"),
+                "Four distinct physical combats earn one total four-region milestone");
+            int talent=g.save.skillPoints;
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.FieldTacticMasteryCount==4&&
+                restored.Has("field_tactics_mastered")&&
+                restored.save.skillPoints==talent,
+                "Authored combat consequences persist in ordinary v2 save flags");
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={

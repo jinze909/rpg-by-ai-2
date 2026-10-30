@@ -462,7 +462,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
+            ResetFieldTactics();ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -4293,6 +4293,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkFieldTactics(o)) return;
             if (TalkScoutRescue(o)) return;
             if (TryReadMainSagaTrace(o)) return;
             if (TryTalkMainSagaLastGate(o)) return;
@@ -4887,7 +4888,8 @@ namespace Starfall
             // Choices whose handlers do not independently validate their target.
             if (action.StartsWith("goto") || action == "routes" ||
                 action == "rest" || action == "scout" ||
-                action.StartsWith("scout_",StringComparison.Ordinal) || action == "engine" ||
+                action.StartsWith("scout_",StringComparison.Ordinal) ||
+                action == "field_tactic_trigger" || action == "engine" ||
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
@@ -5107,6 +5109,7 @@ namespace Starfall
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
+            if (ChooseFieldTactics(action)) return;
             if (ChooseScoutRescue(action)) return;
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
