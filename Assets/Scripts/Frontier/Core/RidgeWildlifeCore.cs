@@ -1287,12 +1287,12 @@ namespace Starfall
                 return true;
             }
             Dialog(source.name,source.en,
-                wildernessHuntOriginsZh[room]+
+                wildernessHuntOriginsZh[room-5]+
                 (WildernessHuntActive?
                     "\n\n现场追踪中：第"+wildernessHuntWave+"/2波，剩余"+
                     WildernessHuntRemaining+"名，时间"+(int)Math.Ceiling(wildernessHuntClock)+"秒。":
                     "\n\n可以先布置埋伏消耗当地一份物资，让两波敌人短暂露出弱点；或直接追击，不消耗材料，事后有额外赏金。"),
-                wildernessHuntOriginsEn[room]+
+                wildernessHuntOriginsEn[room-5]+
                 (WildernessHuntActive?
                     "\n\nLive hunt: wave "+wildernessHuntWave+"/2, "+
                     WildernessHuntRemaining+" enemies; "+
