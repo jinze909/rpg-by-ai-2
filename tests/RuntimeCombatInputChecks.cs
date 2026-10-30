@@ -8399,29 +8399,34 @@ public static class RuntimeCombatInputChecks
         Prepare(app);
         GameCore g=app.Game;
         g.save.flags.Add("intro");
-        g.mode="world";g.save.room=0;g.save.x=12;g.save.y=14;
+        g.mode="world";
+        // The shipped, previously unlocked Mistport field station has a
+        // genuine 90-second out-and-back survey. Use its actual region,
+        // not an impossible town-owned survey cleared by the next tick.
+        g.Enter(5);g.mode="world";
+        g.save.x=g.Map.spawnX;g.save.y=g.Map.spawnY;
         g.enemies.Clear();g.projectiles.Clear();g.hazards.Clear();
         Set(app,"camera",g.Position);
         Check(g.SafeTravel&&g.CanFollowRecommendedAdventure,
-            "A genuinely peaceful town permits explicit next-adventure routing");
+            "A genuinely peaceful unlocked region permits explicit next-adventure routing");
         string oldQuest=g.save.trackedQuest;
         int coins=g.save.coins,flags=g.save.flags.Count;
-        // This existing unsaved survey owner also blocks time-skipping
-        // rests during an actual enemy-free exploration phase.
-        var field=typeof(GameCore).GetField("fieldSurveyRoom",Private);
-        Check(field!=null,"The shipped fieldwork system owns a transient survey room");
-        field.SetValue(g,1);
+        // These public transient fields are owned by the original
+        // FarshoreStationsCore. Ticking the real survey must preserve it
+        // until its timer expires or the player finishes/abandons it.
+        g.fieldSurveyRoom=5;g.fieldSurveyPhase=1;g.fieldSurveyTime=90f;
         Check(g.SafeTravel&&!g.CanFollowRecommendedAdventure&&
               !g.FollowRecommendedAdventure()&&g.save.trackedQuest==oldQuest,
             "Enemy-free fieldwork still forbids unrelated quest handoff");
         Input.Clear();Input.held.Add(KeyCode.LeftShift);
         Input.keys.Add(KeyCode.Tab);Update(app);
-        Check(g.mode=="world"&&g.save.trackedQuest==oldQuest&&
+        Check(g.fieldSurveyRoom==5&&g.fieldSurveyTime>0f&&
+              g.mode=="world"&&g.save.trackedQuest==oldQuest&&
               g.save.coins==coins&&g.save.flags.Count==flags&&
               g.save.version==2,
-            "Real Shift+Tab cannot abandon the active task, award progress or open the journal");
-        field.SetValue(g,0);Input.Clear();
-        Console.WriteLine("PASS Quiet active fieldwork cannot be stolen by the actual quest shortcut");
+            "Real Shift+Tab cannot abandon a live Mistport survey, award progress or open the journal");
+        g.fieldSurveyRoom=0;g.fieldSurveyPhase=0;Input.Clear();
+        Console.WriteLine("PASS Quiet active Mistport survey retains navigation ownership during real shortcut input");
     }
 
     private static void LiveWorldFollowNextAdventureIsPhysicalAndExplicit(FrontierRuntime app)
