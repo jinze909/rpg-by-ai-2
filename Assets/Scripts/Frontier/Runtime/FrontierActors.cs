@@ -1193,10 +1193,15 @@ namespace Starfall
                 // An amber ground ring and quiet fixed label supplement the
                 // published whole-body art; no costume, rig, hitbox or
                 // legacy protagonist sprite is substituted or duplicated.
-                Color trialTint=PixelArt.C("#e6b46e");
-                Ring(e.Position,.72f,trialTint,18);
+                // Cyan identifies the ACTUAL exposed fighter for the
+                // optional follow-up, amber continues to identify every
+                // legitimate contracted foe. No new body or animation.
+                bool exposed=Game.IsFieldTacticTrialComboTarget(e);
+                Color trialTint=PixelArt.C(exposed?"#7fe4dc":"#e6b46e");
+                Ring(e.Position,exposed?.85f:.72f,trialTint,18);
                 Text(p.x-82,p.y-132,164,20,
-                    Game.L("演练指定敌人","TRIAL TARGET"),
+                    exposed?Game.L("趁破绽追击！","EXPOSED · FOLLOW UP!"):
+                        Game.L("演练指定敌人","TRIAL TARGET"),
                     10,trialTint,TextAnchor.MiddleCenter);
             }
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))

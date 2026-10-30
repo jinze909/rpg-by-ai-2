@@ -1138,8 +1138,8 @@ namespace Starfall
                 q.description=L(
                     "到每区战场装置按 E 接取本地实战演练。用真实装置反制至少一名指定敌人，击败两名演练袭击者，回到原装置签收。逃离、撤回、敌人凭空消失以及未用装置都不会结算。",
                     "Press E at each actual battlefield mechanism to start a local drill. Counter at least one assigned raider, defeat both genuine enemies, and return to the same device to sign. Quitting, missing actors or unused counters never earn a receipt.");
-                q.reward=L("每区首次回执：硬币、碎片和经验；七地完成另奖技能点1",
-                    "First signed report: coins, shards and XP; all seven grant +1 talent point");
+                q.reward=L("各区签收奖励；装置命中后8秒内击败被反制的指定敌人可额外获得碎片1、经验24。七区通关额外技能点1",
+                    "Each signed clear pays; defeat a truly countered trial foe within 8 seconds for +1 shard and 24 XP. All seven clears earn +1 talent point.");
                 q.locked=false;q.complete=FieldTacticTrialWins==7;
                 int next=-1,locked=-1;
                 for(int r=1;r<=7;r++)
@@ -1158,11 +1158,20 @@ namespace Starfall
                 {
                     q.room=save.room;q.target=FieldTacticTrialGuideTarget;
                     if(FieldTacticTrialRemaining>0)
-                        q.next=L("本地演练：还有"+FieldTacticTrialRemaining+
-                            "名指定敌人。"+(FieldTacticTrialUsed?
-                                "装置已用，击退敌人。":"先用 Shift+G 影响指定敌人。"),
-                            "Live drill: "+FieldTacticTrialRemaining+" raiders. "+
-                            (FieldTacticTrialUsed?"Counter used; defeat them.":"Use Shift+G on a trial raider."));
+                        q.next=L("本地演练：剩余"+FieldTacticTrialRemaining+"名敌人。"+
+                            (!FieldTacticTrialUsed?"先用 Shift+G 反制真实敌人。":
+                             FieldTacticTrialChainEarned?"战术追击加分已获得，继续战斗。":
+                             FieldTacticTrialChainSecondsLeft>0f?
+                                 "限时追击被反制敌人，剩余"+
+                                 (int)Math.Ceiling(FieldTacticTrialChainSecondsLeft)+"秒。":
+                                 "破绽窗口已过，仍可正常完成演练。"),
+                            "Live trial: "+FieldTacticTrialRemaining+" foes. "+
+                            (!FieldTacticTrialUsed?"Counter a real foe using Shift+G.":
+                             FieldTacticTrialChainEarned?"Follow-up bonus earned; finish the fight.":
+                             FieldTacticTrialChainSecondsLeft>0f?
+                                 "Finish an exposed foe in "+
+                                 (int)Math.Ceiling(FieldTacticTrialChainSecondsLeft)+"s.":
+                                 "Precision window expired; normal clear still counts."));
                     else
                         q.next=FieldTacticTrialReady?
                             L("两名敌人已击退。返回原装置按 E 交回回执。",

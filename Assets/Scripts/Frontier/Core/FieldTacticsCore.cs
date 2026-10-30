@@ -304,8 +304,8 @@ namespace Starfall
             {Notify("装置附近不足两条安全可步行的敌人进路，清理现场再试。",
                 "No complete two-raider walkable lane here. Clear the area and retry.");
              return true;}
-            Notify("实战演练开始：用现场装置命中至少一名指定敌人，击败两人后回这里交回回执。",
-                "Trial started: counter at least one assigned enemy, defeat both and return here.");
+            Notify("演练开始：装置命中指定敌人后，8秒内真实击败被反制的目标可获额外碎片和经验；正常击退两人仍可完成，最后回装置签收。",
+                "Trial started: after a device hit, defeat the exposed raider within 8 seconds for a bonus. Normal two-foe victory still counts; sign at the original device.");
             return true;
         }
         private void ResetFieldTactics()

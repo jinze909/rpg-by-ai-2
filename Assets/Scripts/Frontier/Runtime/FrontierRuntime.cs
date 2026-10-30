@@ -1222,6 +1222,14 @@ namespace Starfall
                                " · Shift+G 使用装置",
                                "DRILL "+Game.FieldTacticTrialRemaining+
                                " · SHIFT+G COUNTER"):
+                    trial&&Game.FieldTacticTrialChainSecondsLeft>0f?
+                        Game.L("追击破绽 · 剩余"+
+                               (int)Math.Ceiling(Game.FieldTacticTrialChainSecondsLeft)+"秒",
+                               "FOLLOW UP · "+
+                               (int)Math.Ceiling(Game.FieldTacticTrialChainSecondsLeft)+"s"):
+                    trial&&Game.FieldTacticTrialChainEarned?
+                        Game.L("限时反击成功！· 继续击退敌人",
+                               "BONUS EARNED · DEFEAT REMAINING"):
                     trial?
                         Game.L("演练剩余 "+Game.FieldTacticTrialRemaining+" 名 · 击退敌人",
                                "DRILL "+Game.FieldTacticTrialRemaining+" LEFT · DEFEAT"):
