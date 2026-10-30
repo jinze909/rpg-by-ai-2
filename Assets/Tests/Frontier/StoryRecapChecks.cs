@@ -139,14 +139,30 @@ namespace Starfall.Tests
                 g.Close();g.Talk(site);
                 Check(g.conversation!=null&&
                     Array.FindIndex(g.conversation.choices,
+                        c=>c.action==receipt)<0&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="nightshift_visit_"+room)>=0,
+                    "A full-capacity visit can progress without wasting its aid");
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="nightshift_visit_"+room));
+                Check(g.Has("nightshift_visit_"+room)&&!g.Has(receipt)&&
+                    g.GetQuest("night_shift_aftercare").steps[room-1].done&&
+                    g.NightShiftReservedAidCount==1&&
+                    g.save.moments.Count==moments+1,
+                    "A true field receipt advances the story and preserves aid");
+                g.Close();g.Talk(site);
+                Check(Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="nightshift_visit_"+room)<0&&
+                    Array.FindIndex(g.conversation.choices,
                         c=>c.action==receipt)<0,
-                    "Player-facing choices explain capacity rather than inviting a wasted pickup");
+                    "The visit and unclaimed full-capacity aid cannot repeat");
                 g.Close();
                 if(publicAid)g.save.inventory[slot]=9996;
                 else if(room==2)g.save.energy=70f;
                 else g.save.health=g.save.maxHealth-30f;
                 NightShiftChoose(g,site,receipt);
-                Check(g.Has(receipt)&&g.save.moments.Count==moments+1&&
+                Check(g.Has(receipt)&&g.save.moments.Count==moments+2&&
+                    g.NightShiftReservedAidCount==0&&
                     (publicAid?g.save.inventory[slot]==9996+(room==3?1:2):
                      room==2?g.save.energy==100f:
                      g.save.health==g.save.maxHealth-(30f-(room==1?24f:18f))),
@@ -155,6 +171,62 @@ namespace Starfall.Tests
                 var restored=new GameCore(data,CloneSave(g.save));
                 Check(restored.Has(receipt)&&restored.save.version==2,
                     "Claimed field aid stays once-only in the unchanged SaveData v2 schema");
+            }
+        }
+
+        // No self-damage or wasted inventory is required to complete the
+        // actual three-stop story. Deferred aid survives saves and is one-use.
+        public static void NightShiftFullCapacityVisitsStillFinishAftercare(Campaign data)
+        {
+            for(int outcome=0;outcome<2;outcome++)
+            {
+                var g=Fresh(data);
+                g.save.stage=3;g.save.flags.Add("nightshift_started");
+                for(int r=1;r<=3;r++)g.save.flags.Add("nightshift_trace_"+r);
+                bool published=outcome==0;
+                g.save.flags.Add(published?"nightshift_public":"nightshift_private");
+                int moments=g.save.moments.Count;
+                for(int room=1;room<=3;room++)
+                {
+                    WorldObject site=NightShiftAt(g,room);
+                    if(published)g.save.inventory[room==1?2:room==2?0:4]=9999;
+                    else if(room==2)g.save.energy=100f;
+                    else g.save.health=g.save.maxHealth;
+                    NightShiftChoose(g,site,"nightshift_visit_"+room);
+                    Check(g.GetQuest("night_shift_aftercare").steps[room-1].done&&
+                        !g.Has("nightshift_followup_"+room)&&
+                        g.NightShiftReservedAidCount==room,
+                        "Actual full-capacity visit advances only the receipt");
+                }
+                Check(g.GetQuest("night_shift_aftercare").room==0&&
+                    g.save.moments.Count==moments+3,
+                    "Three visited field sites point to the real town handoff");
+                WorldObject desk=NightShiftAt(g,0);
+                NightShiftChoose(g,desk,"nightshift_report_guard");
+                Check(g.Has("nightshift_reported")&&
+                    g.GetQuest("night_shift_aftercare").complete&&
+                    g.NightShiftReservedAidCount==3,
+                    "Town handoff remains available with unclaimed aid");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.GetQuest("night_shift_aftercare").complete&&
+                    restored.NightShiftReservedAidCount==3,
+                    "Report and three aid reservations survive unchanged v2 save");
+                WorldObject forest=NightShiftAt(restored,1);
+                if(published)restored.save.inventory[2]=9996;
+                else restored.save.health=restored.save.maxHealth-30f;
+                NightShiftChoose(restored,forest,"nightshift_followup_1");
+                int claimedMoments=restored.save.moments.Count;
+                Check(restored.NightShiftReservedAidCount==2&&
+                    restored.Has("nightshift_followup_1")&&
+                    restored.GetQuest("night_shift_aftercare").complete,
+                    "Deferred aid is claimable after the quest was signed");
+                restored.Close();restored.Talk(forest);
+                Check(Array.FindIndex(restored.conversation.choices,
+                    c=>c.action=="nightshift_followup_1")<0&&
+                    restored.save.moments.Count==claimedMoments,
+                    "Deferred aid remains strictly once-only");
             }
         }
 

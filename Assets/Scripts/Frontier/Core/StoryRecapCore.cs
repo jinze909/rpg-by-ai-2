@@ -552,6 +552,25 @@ namespace Starfall
                 SourceBelongsToActiveMap(o)&&IsObjectPresent(o)&&
                 HasPhysicalInteractionReach(o);
         }
+        // A full inventory should not prevent signing a physical visit.
+        // Older v2 saves with only a followup flag already count as visited.
+        private bool NightShiftVisited(int room)
+        {
+            return room>=1&&room<=3&&
+                (Has("nightshift_visit_"+room)||Has("nightshift_followup_"+room));
+        }
+        public int NightShiftReservedAidCount
+        {
+            get
+            {
+                int count=0;
+                if(NightShiftComplete)
+                    for(int room=1;room<=3;room++)
+                        if(Has("nightshift_visit_"+room)&&
+                           !Has("nightshift_followup_"+room))count++;
+                return count;
+            }
+        }
         // Field aid is a claim-once survivor gift. Do not sign away a finite
         // receipt when the player has no room for its actual recovery.
         private bool NightShiftAidAtCapacity(int room)
@@ -568,9 +587,8 @@ namespace Starfall
             get
             {
                 return NightShiftComplete&&
-                    Has("nightshift_followup_1")&&
-                    Has("nightshift_followup_2")&&
-                    Has("nightshift_followup_3");
+                    NightShiftVisited(1)&&NightShiftVisited(2)&&
+                    NightShiftVisited(3);
             }
         }
         private bool TalkNightShift(WorldObject o)
@@ -611,11 +629,11 @@ namespace Starfall
                     {
                         Dialog(o.name,o.en,
                             Has("nightshift_public")?
-                                "莉雅将三处重开的巡路记录铺在桌上。\n\n“树洞的药草、石阶的木料、矿场的零件都送到了真实行路人手里。路已经开放；接下来谁负责守住它？”":
-                                "莉雅把三张匿名收条放入上锁的抽屉。\n\n“三处援助都已交到当事人手中，没有一个姓名泄露。我们不能代替他们发言，但可以帮他们安全地继续上路。”",
+                                "莉雅将三地实地回访记录摊在桌上。\n\n“道路重新有人走过了。带不走的补给仍留在原处；接下来谁负责守住这条路？”":
+                                "莉雅把三张匿名回访单放入上锁的抽屉。\n\n“没有一个证人的名字被泄露。暂时领不了的援助仍在现场，留给真正需要的时候。”",
                             Has("nightshift_public")?
-                                "Lyra spreads three restored road reports across the desk.\n\n“The forest herbs, stair timber and mine parts reached actual travelers. The roads are open. Who will keep them safe?”":
-                                "Lyra locks three unsigned receipts away.\n\n“Every gift reached its traveler without exposing a single name. We cannot speak for the witnesses, but we can protect their return.”",
+                                "Lyra lays three real field receipts on the desk.\n\n“People walk these roads again. Aid you could not carry is still at its original site. Who will keep the roads safe?”":
+                                "Lyra locks three unsigned visit slips away.\n\n“No witness names were exposed. Aid that could not be carried remains on site until it is needed.”",
                             C("领巡路经费 · 金币75",
                               "Take route maintenance pay · 75 coins",
                               "nightshift_report_pay"),
@@ -672,6 +690,7 @@ namespace Starfall
             if(NightShiftComplete)
             {
                 bool delivered=Has("nightshift_followup_"+room);
+                bool visited=NightShiftVisited(room);
                 bool published=Has("nightshift_public");
                 string storyZh=published?
                     room==1?
@@ -697,31 +716,35 @@ namespace Starfall
                         "No miners have signed this gift, but a heat cloth and herbs wait beside the original spool for the next witness.";
                 bool aidFull=NightShiftAidAtCapacity(room);
                 string aidZh=delivered?
-                    "\n\n这处现场的补给已领取；原始证词仍可供查验。":
+                    "\n\n这处一次性援助已领取，原始证词仍可查验。":
+                    visited?
+                        (aidFull?
+                            "\n\n回访已登记。一次性补给留在原处，等真正需要时再领取。":
+                            "\n\n回访已登记。留存的一次性补给现在可以领取。"):
                     aidFull?
-                        (published?
-                            "\n\n对应物资已经装满。先使用一些，再来领取这份仅有一次的援助。":
-                            room==2?
-                                "\n\n耐力已经恢复到上限。先上路，再回来领取这份仅有一次的援助。":
-                                "\n\n生命已经恢复到上限。需要疗伤时再回来，不会失去援助。"):
-                        "\n\n他们留下的一次性现场援助仍在。";
+                        "\n\n当前补给已满。可以先登记真实回访，让援助留在这里，以后再领。":
+                        "\n\n可领取一次性现场援助，领取时同时登记回访。";
                 string aidEn=delivered?
-                    "\n\nThe field cache has been collected. The original evidence remains readable.":
+                    "\n\nThe one-time field aid has been collected. The record remains readable.":
+                    visited?
+                        (aidFull?
+                            "\n\nVisit recorded. Your one-time aid remains here until you need it.":
+                            "\n\nVisit recorded. The reserved one-time aid is ready to collect."):
                     aidFull?
-                        (published?
-                            "\n\nYour matching supply stack is full. Use some first; this one-time gift will wait.":
-                            room==2?
-                                "\n\nYour energy is full. Return after the road tires you; the gift will wait.":
-                                "\n\nYour health is full. Return when you need healing; the gift will wait."):
-                        "\n\nA one-time on-site aid package is still available.";
+                        "\n\nYour supplies are full. Sign the physical visit now and leave the aid here for later.":
+                        "\n\nCollect one-time aid and sign the physical field receipt.";
                 Dialog(o.name,o.en,storyZh+aidZh,storyEn+aidEn,
                     delivered?
                         C("合上现场记录","Close field record","close"):
-                        aidFull?
-                            C("援助保留 · 以后再来","Leave aid for later","close"):
-                            C(published?"领取公共巡路物资":"领取匿名现场援助",
-                              published?"Collect public route supplies":"Receive anonymous field aid",
-                              "nightshift_followup_"+room),
+                    aidFull?
+                        visited?
+                            C("补给仍在原处","Leave aid reserved","close"):
+                            C("登记回访 · 补给留待需要时",
+                              "Record visit · reserve aid",
+                              "nightshift_visit_"+room):
+                        C(published?"领取公共巡路物资":"领取匿名现场援助",
+                          published?"Collect public route supplies":"Receive anonymous field aid",
+                          "nightshift_followup_"+room),
                     C("以后再来","Return later","close"));
                 return true;
             }
@@ -837,6 +860,28 @@ namespace Starfall
                 revision++;sound="quest";
                 Notify("三地回访已经交接，夜班名册的后续故事结束。",
                     "All three field reports delivered. Night-Shift aftercare is complete.");
+                return true;
+            }
+            if(action.StartsWith("nightshift_visit_",StringComparison.Ordinal))
+            {
+                int station;
+                if(room<1||room>3||
+                   !int.TryParse(action.Substring("nightshift_visit_".Length),out station)||
+                   station!=room||!NightShiftSource(source,station)||
+                   !NightShiftComplete||!Has("nightshift_trace_"+station)||
+                   NightShiftVisited(station))return true;
+                // The visit is real even when the player is fully healed.
+                // A separate followup flag guards one-time aid collection.
+                Flag("nightshift_visit_"+station);
+                RecordMoment(
+                    "夜班名册 · 亲自复核了"+new[]{"","密林","沉没遗迹","赤铁矿场"}[station]+
+                    "的归途记录。现场援助保留在原地，待真正需要时领取。",
+                    "Night-Shift Roll: signed the original "+
+                    new[]{"","forest","ruins","mine"}[station]+
+                    " field visit. One-time aid remains at the site for a later need.");
+                revision++;sound="quest";
+                Notify("回访已登记，补给仍在原处，可继续向莉雅汇报。",
+                    "Visit recorded; aid stays here and you can report to Lyra.");
                 return true;
             }
             if(action.StartsWith("nightshift_followup_",StringComparison.Ordinal))
@@ -1125,7 +1170,7 @@ namespace Starfall
             int next=0;
             for(int room=1;room<=3;room++)
             {
-                bool done=Has("nightshift_followup_"+room);
+                bool done=NightShiftVisited(room);
                 q.steps.Add(new QuestStep(
                     room==1?L("回密林原始班表处核对巡路援助",
                               "Revisit the original forest card for field aid"):
@@ -1157,8 +1202,11 @@ namespace Starfall
                 q.target=desk==null?new Point(25.5f,24.5f):
                     new Point(desk.x,desk.y);
                 q.next=q.complete?
-                    L("三份回执已经交给莉雅；夜班名册的后续故事完整收束。",
-                      "All three reports are with Lyra. The Night-Shift story is resolved."):
+                    L("三份回执已交给莉雅；夜班名册的后续故事完整收束。",
+                      "All three field receipts are with Lyra. The Night-Shift story is resolved.")+
+                    (NightShiftReservedAidCount>0?
+                        L(" 仍有"+NightShiftReservedAidCount+"份补给留在原现场。",
+                          " "+NightShiftReservedAidCount+" aid caches remain at their original sites."):""):
                     L("三地回访完成！返回余烬镇原公会名册，与莉雅交接并选择后续支援。",
                       "All three revisits are done. Return to the original Emberfall guild desk, report to Lyra, and choose a lasting reward.");
                 return q;
