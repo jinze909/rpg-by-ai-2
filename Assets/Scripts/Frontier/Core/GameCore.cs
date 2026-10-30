@@ -2717,6 +2717,19 @@ namespace Starfall
                             DamageOuterPatrolStock(e);
                         if(travelerAttacker&&e.targetingWayfarer&&objectiveLaneClear)
                             DamageWayfarer(e);
+                        // A live warning only becomes real document damage
+                        // after its owner completes the existing combat windup.
+                        bool heroCoveredWitness=witnessRaider&&
+                            e.targetingSagaGuardEvidence&&
+                            SagaGuardHeroInterposes(e,SagaGuardWitnessPosition);
+                        bool witnessLaneClear=witnessRaider&&
+                            e.targetingSagaGuardEvidence&&
+                            EnemyObjectiveContactLaneClear(e,e.target)&&
+                            !heroCoveredWitness;
+                        if(witnessLaneClear)
+                            StrikeSagaGuardEvidence(e,e.target);
+                        else if(witnessRaider&&e.targetingSagaGuardEvidence)
+                            stoppedByLivingCover=true;
                         bool rescueThreat=reliefMissionRoom!=0 &&
                             (IsReliefMissionEnemy(e)||escortPatrol) &&
                             e.targetingReliefCivilian && e.kind!=1;
@@ -2734,7 +2747,7 @@ namespace Starfall
                         if(stoppedByLivingCover)
                         {
                             var blocked=new Effect("number",e.Position,.65f,
-                                heroCoveredReceiver?
+                                heroCoveredReceiver||heroCoveredWitness?
                                     L("舍身拦截！","HERO BODYGUARD!"):
                                     L("队友挡路","ALLY BLOCK")) ;
                             TagEnemyCombatEffect(blocked,e,
@@ -2745,6 +2758,7 @@ namespace Starfall
                         // arrow actually flies. No hitscan at the windup release.
                         e.targetingWayfarer = e.targetingReliefCivilian =
                             e.targetingAfterlightStock = e.targetingOuterPatrolStock = false;
+                        e.targetingSagaGuardEvidence=false;
                         rescueWindupEffects.Remove(e);
                         e.state = 0; e.timer = e.boss ? 2.2f - e.BossPhase * .3f : 1.4f;
                     }
@@ -2956,18 +2970,27 @@ namespace Starfall
                     ClearAttackPath(e.Position,pursuit)&&
                     (e.kind!=0||e.boss||EnemyMeleeLaneClear(e,pursuit));
                 bool strikePatrolStock=nearPatrolStock&&(!heroInRange||distance>2.2f);
+                // Close raiders must telegraph a genuine physical attempt to
+                // seize the original, not just stand inside an abstract circle.
+                bool nearWitness=witnessRaider&&
+                    (pursuit-e.Position).Length<2.15f&&
+                    EnemyObjectiveContactLaneClear(e,pursuit);
+                bool strikeWitness=nearWitness&&(!heroInRange||distance>2.2f);
                 // A still-buried enemy may recover its footing when the
                 // world opens again, but must not start a new windup from an
                 // invalid tile while waiting for that transition.
                 if (e.timer <= 0 && CanStand(e.Position) &&
-                    (heroInRange || strikeTraveler || strikeCivilian || strikeStock || strikePatrolStock))
+                    (heroInRange || strikeTraveler || strikeCivilian || strikeStock ||
+                     strikePatrolStock || strikeWitness))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
                     e.targetingWayfarer = strikeTraveler;
                     e.targetingReliefCivilian = strikeCivilian;
                     e.targetingAfterlightStock = strikeStock;
                     e.targetingOuterPatrolStock = strikePatrolStock;
-                    e.target = strikeTraveler || strikeCivilian || strikeStock || strikePatrolStock ? pursuit : Position;
+                    e.targetingSagaGuardEvidence = strikeWitness;
+                    e.target = strikeTraveler || strikeCivilian || strikeStock ||
+                        strikePatrolStock || strikeWitness ? pursuit : Position;
                     // A committed, telegraphed shot can modestly anticipate
                     // real player foot travel, never a civilian's motion.
                     // Reuse the exact target and direction for the warning
@@ -2975,7 +2998,7 @@ namespace Starfall
                     e.archerLeading=false;
                     if(e.kind==1&&!e.boss&&
                        !strikeTraveler&&!strikeCivilian&&
-                       !strikeStock&&!strikePatrolStock)
+                       !strikeStock&&!strikePatrolStock&&!strikeWitness)
                     {
                         Point current=e.target;
                         e.target=ArcherCommittedLead(e,current,e.timer);
@@ -3000,7 +3023,8 @@ namespace Starfall
                     if (areaAttack || (strikeTraveler && e.kind != 1) ||
                         (strikeCivilian && e.kind != 1) ||
                         (strikeStock && e.kind != 1) ||
-                        (strikePatrolStock && e.kind != 1))
+                        (strikePatrolStock && e.kind != 1) ||
+                        (strikeWitness && e.kind != 1))
                     {
                         var telegraph = new Effect("danger", e.target, e.timer)
                         {
@@ -3013,7 +3037,8 @@ namespace Starfall
                         rescueWindupEffects.Add(e, telegraph);
                     }
                     if (e.boss || distance < 6 || strikeTraveler ||
-                        strikeCivilian || strikeStock || strikePatrolStock)
+                        strikeCivilian || strikeStock || strikePatrolStock ||
+                        strikeWitness)
                         sound = "windup";
                     if(e.boss && enemies.Count<9 &&
                         (e.BossPhase==3||(save.room==4&&e.BossPhase>=2)) &&

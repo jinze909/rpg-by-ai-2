@@ -632,6 +632,32 @@ namespace Starfall
             sagaGuardBodyBlocking=false;
             return true;
         }
+        // Only a real committed enemy contact may deliver the EXTRA
+        // documents hit. Existing ordinary siege pressure still applies,
+        // but the 17/25 integrity loss is tied to a telegraphed attack.
+        private void StrikeSagaGuardEvidence(Enemy e,Point lockedTarget)
+        {
+            if(!IsSagaGuardEnemy(e)||e.hp<=0||!enemies.Contains(e)||
+                !CanStand(e.Position)||
+                (lockedTarget-SagaGuardWitnessFoot).Length>.6f||
+                (e.Position-lockedTarget).Length>2.3f||
+                !EnemyObjectiveContactLaneClear(e,lockedTarget)||
+                SagaGuardHeroInterposes(e,lockedTarget))return;
+            int loss=e.kind==2?25:17;
+            sagaGuardBreach=Math.Min(100f,sagaGuardBreach+loss);
+            Point site=SagaGuardWitnessFoot;
+            effects.Add(new Effect("burst",site,.28f)
+                {radius=e.kind==2?1.1f:.65f,variant=save.room});
+            effects.Add(new Effect("number",site+new Point(0,-.85f),
+                .9f,L("原件受损 -"+loss,"RECORDS HIT -"+loss)));
+            sound="alert";revision++;
+            if(sagaGuardBreach>=100f)
+            {
+                ResetSagaGuard();
+                Notify("追兵冲破防线，原始证据被夺走！重组护卫后才能继续签署。",
+                    "Raiders breached the line and seized the originals! Regroup before countersigning.");
+            }
+        }
         // A bodyguard must physically stand IN the lane from an acting
         // raider to the witness, not simply idle anywhere in the radius.
         // World collision and true contact geometry apply on both sides.

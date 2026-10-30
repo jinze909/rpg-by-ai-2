@@ -100,6 +100,8 @@ namespace Starfall
         public bool archerLeading;
         // Ephemeral combat intent: roadside raiders may target the protected traveler.
         public bool targetingWayfarer, targetingReliefCivilian, targetingAfterlightStock, targetingOuterPatrolStock;
+        // Actual interruptible Act Two document windup, never saved in EnemyRecord.
+        public bool targetingSagaGuardEvidence;
         public float x, y, hp, maxHp, timer, stun, flash, stagger, staggerRecovery;
         public Point target, attackOrigin, attackDestination;
         public Point facing = new Point(1, 0);
