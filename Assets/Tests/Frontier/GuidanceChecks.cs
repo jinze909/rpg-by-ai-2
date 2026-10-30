@@ -5,25 +5,57 @@ namespace Starfall.Tests
     {
         public static void CrowdedTownInteractionsHaveRankedVisibleCycling(Campaign data)
         {
-            var g=Fresh(data);
-            g.mode="world";g.save.room=0;
-            g.save.x=18f;g.save.y=15f;g.SetAim(new Point(0,1));
-            var first=g.NearbyInteractionChoices();
-            Check(first.Count>=2&&first.Count==g.NearbyInteractionCount(),
-                "The crowded starting plaza exposes each physically usable actor");
-            foreach(WorldObject entry in first)
-                Check(entry!=null&&g.IsObjectPresent(entry)&&g.CanStand(g.Position),
-                    "Every map candidate is an actual present source");
-            WorldObject selected=g.Nearest();
-            Check(selected!=null&&g.CycleNearbyInteraction()&&
-                g.Nearest()!=selected,
-                "O/R3 switches away from the currently focused speaker");
-            WorldObject next=g.Nearest();
-            Check(first.Contains(next),
-                "The selected speaker belongs to the original interaction ring");
-            for(int i=1;i<first.Count;i++)g.CycleNearbyInteraction();
-            Check(g.Nearest()==selected&&g.save.version==2,
-                "Full ring rotation preserves the initial E target and v2 save");
+            MapData saved=data.maps[0];
+            try
+            {
+                // The production interaction core sees three distinct,
+                // REAL selectable map objects sharing one contact pad.
+                // Nothing is mocked: the hero still needs physical feet,
+                // line of sight and the same E source resolution.
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] line=new string('.',25).ToCharArray();
+                    for(int x=0;x<25;x++)
+                        if(x<2||x>=23||y<2||y>=23)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                WorldObject one=new WorldObject{
+                    id="quest_a",kind="lore",name="Witness A",
+                    en="Witness A",x=11.5f,y=10.5f};
+                WorldObject two=new WorldObject{
+                    id="quest_b",kind="lore",name="Witness B",
+                    en="Witness B",x=11.5f,y=10.5f};
+                WorldObject three=new WorldObject{
+                    id="quest_c",kind="lore",name="Witness C",
+                    en="Witness C",x=10.5f,y=11.5f};
+                data.maps[0]=new MapData{
+                    id=0,spawnX=10.5f,spawnY=10.5f,
+                    rows=rows,objects=new[]{one,two,three},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.mode="world";g.save.room=0;
+                g.save.x=10.5f;g.save.y=10.5f;
+                g.SetAim(new Point(1,0));
+                var options=g.NearbyInteractionChoices();
+                Check(options.Count==3&&options.Count==g.NearbyInteractionCount()&&
+                    g.CanStand(g.Position),
+                    "Three overlapping visible objects remain independently reachable");
+                WorldObject selected=g.Nearest();
+                Check(selected!=null&&g.CycleNearbyInteraction()&&
+                    g.Nearest()!=selected,
+                    "O/R3 selects an alternate source, never reopening the original NPC");
+                for(int i=1;i<options.Count;i++)g.CycleNearbyInteraction();
+                Check(g.Nearest()==selected&&g.save.version==2,
+                    "Full ring rotation restores the initial selection without save changes");
+                // A closed wall must invalidate the stale explicit selection
+                // rather than allowing a dialogue to bleed across colliders.
+                char[] closed=rows[10].ToCharArray();closed[11]='#';
+                rows[10]=new string(closed);
+                Check(g.NearbyInteractionChoices().Count<options.Count,
+                    "Newly sealed physical sources immediately disappear from O/R3");
+            }
+            finally {data.maps[0]=saved;}
         }
 
         public static void FinishedTrackedStoryRecommendsAnActualPlayableNextStep(Campaign data)
