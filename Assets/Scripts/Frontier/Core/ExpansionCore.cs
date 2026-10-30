@@ -4065,6 +4065,14 @@ namespace Starfall
         {
             if (save.frontierEnding > 0) { CouncilEpilogue(); return; }
             if (Proofs < 3) { Dialog("三方议事厅", "The three-party council", "港口的水位、沙海的调度、高原的名字：三份记录必须同时摆在桌上，否则每一方都会说代价是别人的事。\n\n已提交 " + Proofs + "/3。完成各地调查后回来。", "The tide log, allocation log and mountain record must share one table. Otherwise each faction will call the cost someone else's problem.\n\nReports filed: " + Proofs + "/3. Return after the investigations.", C("继续调查", "Continue investigating", "close")); return; }
+            if(MainSagaActive&&save.ending==0&&MainSagaVoices<3)
+            {
+                Dialog("露恩 · 三方议事厅","Lune · Three-Party Council",
+                    "三份公开调查已经到齐，露恩却把印章收了起来。\n\n“这些报告里没有米拉自己的涂改、伊沃的手工改线，也没有森在钟前那晚的决定。要我签下共同协定，就先把三个人真正说过的话带回来。议会不能只换一套更好看的数字。”\n\n已取得亲历证词："+MainSagaVoices+"/3。",
+                    "The three public reports have arrived, but Lune withdraws the seal.\n\n“None tells us why Mira altered a manifest, Ivo rerouted the water, or Sen silenced a bell. We cannot sign a shared future on cleaner-looking numbers. Hear all three people and bring their actual words.”\n\nFirst-hand accounts: "+MainSagaVoices+"/3.",
+                    C("返回证词现场","Return to the witnesses","close"));
+                return;
+            }
             List<Choice> choices = new List<Choice> { C("共同水渠 · 优先供水", "Shared canals · water first", "covenant1"), C("轮值灯网 · 优先航路", "Rotating lightwatch · routes first", "covenant2") };
             if (CouncilPactReady) choices.Add(C("开放星路 · 三方共同治理", "Open starroads · shared governance", "covenant3"));
             choices.Add(C("先建设与争取支持", "Build and earn more support", "close"));
@@ -4072,7 +4080,8 @@ namespace Starfall
         }
         private void ResolveCouncil(int ending)
         {
-            if (Proofs < 3 || save.frontierEnding > 0 || ending < 1 || ending > 3 || (ending == 3 && !CouncilPactReady)) return;
+            if (Proofs < 3 || save.frontierEnding > 0 || ending < 1 || ending > 3 || (ending == 3 && !CouncilPactReady) ||
+                (MainSagaActive&&save.ending==0&&MainSagaVoices<3)) return;
             save.frontierEnding = ending; Flag("frontier_settled"); CreditShards(10); CreditSkillPoints(2); CreditCoins(100); revision++; CouncilEpilogue();
         }
         private void CouncilEpilogue()

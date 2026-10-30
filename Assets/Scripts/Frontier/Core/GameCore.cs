@@ -3959,6 +3959,7 @@ namespace Starfall
                 // Append the new courier chapter to their actual source.
                 if(mode=="dialog"&&conversation!=previousConversation)
                 {
+                    AppendMainSagaChoice(o);
                     AppendUnsentWarningChoice(o);
                     if(o.kind=="tinker")AppendGlassLedgerTinkerChoice(o);
                     if(o.kind=="cook"||o.kind=="innGuest")
@@ -4246,6 +4247,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TryReadMainSagaTrace(o)) return;
             if (TalkChapterRoad(o)) return;
             if (TalkGhostTrain(o)) return;
             if (TalkRidgeBreach(o)) return;
@@ -4843,6 +4845,7 @@ namespace Starfall
                  action=="soup_route_track" || action=="soup_route_deliver") || action == "deliver" ||
                 action.StartsWith("ally") || action == "boss" ||
                 action.StartsWith("ending") || action == "epilogue" ||
+                action.StartsWith("saga_",StringComparison.Ordinal) ||
                 action == "continue" || action == "swordlesson_start" ||
                 action == "swordlesson_veteran_start" || action == "specialist_drill_start" ||
                 action == "specialist_drill_abort" || action == "practice" ||
@@ -4977,6 +4980,7 @@ namespace Starfall
 
         private void ChooseCore(string action)
         {
+            if(ChooseMainSaga(action))return;
             // The topic menu must remain bound to the actual inn traveler,
             // not an unrelated NPC or a previously removed world actor.
             if(action=="inn_routelead"||action=="inn_news"||
@@ -5191,6 +5195,14 @@ namespace Starfall
                 int missingWood=Math.Max(0,3-Math.Max(0,9999-save.inventory[0]));
                 int missingCrystal=Math.Max(0,2-Math.Max(0,9999-save.inventory[1]));
                 save.stage++;
+                // New campaigns continue into the farshore second act by
+                // default. Already-completed old saves never reach here;
+                // existing stage-three slots can also opt in at Lyra.
+                if(save.stage==3&&!MainSagaActive&&save.ending==0)
+                {
+                    Flag("saga_act_two");
+                    TrackQuest("main");
+                }
                 CreditCoins(40);CreditInventory(6,1);
                 CreditInventory(0,3);CreditInventory(1,2);
                 if(missingCoins+missingStew+missingWood+missingCrystal>0)
@@ -5239,6 +5251,11 @@ namespace Starfall
             }
             if (action.StartsWith("ending"))
             {
+                if(MainSagaActive&&!MainSagaCanConclude)
+                {
+                    MainSagaGate();
+                    return;
+                }
                 int ending = int.Parse(action.Substring(6));
                 if (ending == 3 && Allies < 3) { FinalConversation(); return; }
                 save.ending = ending; Flag("completed");
@@ -5368,6 +5385,11 @@ namespace Starfall
         }
         private void FinalConversation()
         {
+            if(MainSagaActive&&!MainSagaCanConclude)
+            {
+                MainSagaGate();
+                return;
+            }
             List<Choice> choices = new List<Choice> { C("归还星核 · 让大地恢复", "Return the cores · restore the land", "ending1"), C("保留屏障 · 守住堡垒", "Keep the shield · secure the citadel", "ending2") };
             if (Allies == 3) choices.Add(C("重建边境 · 与居民一起改变", "Rebuild the frontier · unite the towns", "ending3"));
             choices.Add(C("先完成镇民的委托", "Finish the town commissions first", "goto0"));
@@ -5501,6 +5523,8 @@ namespace Starfall
                     (ChapterRoadDeviceReady?
                         L(" · 中途装置可按 E 启用"," · press E at the field device"):"")+window;
             }
+            if(MainSagaActive&&save.ending==0&&save.trackedQuest=="main")
+                return GetQuest("main").next;
             string extra = ExpansionObjective(); if (extra != null) return extra;
             if (save.ending > 0) return L("边境迎来了新的日子。继续冒险与生活。", "A new day on the frontier. Keep exploring.");
             if (save.room == 0)

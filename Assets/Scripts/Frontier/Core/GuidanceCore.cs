@@ -4531,6 +4531,86 @@ namespace Starfall
                 }
                 return q;
             }
+            // Expanded story is now the SAME tracked main quest, not an
+            // unrelated checklist after credits. The original farshore
+            // reports, physical evidence, first-person testimony and council
+            // determine the second-act route. No extra SaveData schema.
+            if(MainSagaActive&&save.stage>=3&&save.ending==0)
+            {
+                q.title=L("星陨主线 · 失落的外环","The Fallen Star · The Forgotten Outer Ring");
+                q.category=L("主线 · 第二幕","MAIN STORY · ACT TWO");
+                q.description=L(
+                    "堡垒不是终点。供能命令早在厄洛掌权前就牺牲了远岸。追查雾港消失的乘客、沙海九年前的用水决定与高原无人敲响的警钟。在真实现场核对证据，让当事者选择如何说明真相，召集三方议会，然后带着共同决定返回堡垒。",
+                    "The citadel is not the end. An older energy order sacrificed the farshore long before Orrin ruled. Investigate the missing Mistport passengers, the nine-year-old desert ration decision and the silenced Frostchime chime. Inspect physical evidence, hear the people who made difficult choices, secure a shared covenant, then return to the citadel.");
+                q.locked=false;q.complete=false;
+                for(int i=1;i<=3;i++)
+                    q.steps.Add(new QuestStep(L("已交付星核 "+i,"Delivered starcore "+i),save.stage>=i));
+                q.steps.Add(new QuestStep(L("第四章 · 面对星卫统领",
+                    "Chapter Four · Confront the Starwarden"),Has("boss_4")));
+                string[] placesZh={"","","","","","第五章 · 雾港","第六章 · 玻璃沙海","第七章 · 霜钟高原"};
+                string[] placesEn={"","","","","","Chapter Five · Mistport","Chapter Six · Glass Desert","Chapter Seven · Frostchime"};
+                string[] reports={"","","","","","harbor_report","desert_report","mountain_report"};
+                for(int i=5;i<=7;i++)
+                {
+                    q.steps.Add(new QuestStep(L(placesZh[i]+"：完成真实区域调查",
+                        placesEn[i]+": finish the live regional investigation"),Has(reports[i])));
+                    q.steps.Add(new QuestStep(L("现场原始证据 · "+placesZh[i],
+                        "Inspect original evidence · "+placesEn[i]),Has("saga_trace_"+i)));
+                    q.steps.Add(new QuestStep(L("由当事人亲自签下证词 · "+placesZh[i],
+                        "First-hand signed account · "+placesEn[i]),Has("saga_voice_"+i)));
+                }
+                q.steps.Add(new QuestStep(L("第八章 · 三方议会签订共同协定",
+                    "Chapter Eight · Ratify the three-party covenant"),save.frontierEnding>0));
+                q.steps.Add(new QuestStep(L("终章 · 与厄洛决定星核归宿",
+                    "Finale · Decide the starcores' fate with Orrin"),false));
+                if(!Has("boss_4"))
+                {
+                    q.room=4;q.target=ObjectPoint(4,"shrine",new Point(29,8));
+                    q.next=L("第四章不是结局。前往堡垒面对厄洛，揭开星核的来源。",
+                        "Chapter Four is not the finale. Confront Orrin at the citadel and uncover where the cores came from.");
+                    return q;
+                }
+                for(int i=5;i<=7;i++)
+                {
+                    if(!Has(reports[i]))
+                    {
+                        QuestGuide far=GetQuest("shore");
+                        q.room=far.room;q.target=far.target;
+                        q.next=L(placesZh[i]+"："+far.next,
+                            placesEn[i]+": "+far.next);
+                        return q;
+                    }
+                    if(!Has("saga_trace_"+i))
+                    {
+                        q.room=i;q.target=MainSagaEvidencePoint(i);
+                        q.next=L(placesZh[i]+"：去原有现场查看遗失证据（航海名册 / 蓄光接收台 / 第三座钟）。",
+                            placesEn[i]+": inspect the real manifest, light receiver or third chime.");
+                        return q;
+                    }
+                    if(!Has("saga_voice_"+i))
+                    {
+                        q.room=i;
+                        q.target=ObjectPoint(i,i==5?"captain":i==6?"tinker":"keeper",
+                            MainSagaEvidencePoint(i));
+                        q.next=L(placesZh[i]+"：回到当事者面前，决定如何留下他的真实证词。",
+                            placesEn[i]+": return to the witness and decide how their testimony will be remembered.");
+                        return q;
+                    }
+                }
+                if(save.frontierEnding==0)
+                {
+                    q.room=5;q.target=ObjectPoint(5,"council",new Point(18,10));
+                    q.next=L("第八章：所有证词已到齐。到雾港三方议事厅签订供能协定。",
+                        "Chapter Eight: all accounts secured. Ratify an energy covenant at the Mistport council.");
+                }
+                else
+                {
+                    q.room=4;q.target=ObjectPoint(4,"shrine",new Point(29,8));
+                    q.next=L("终章：从雾港议会返回星陨堡垒，与厄洛共同决定星核的归宿。",
+                        "Finale: return from the farshore council to Orrin at the citadel and decide the starcores' fate.");
+                }
+                return q;
+            }
             q.title = L("星陨主线", "The Fallen Star"); q.description = L(
                 save.stage == 0 ? "星陨第七天，巡路队失踪，密林里的侦察员仍在等待救援。救回他，找到第一枚星核，同时查清森林为何开始封路。" :
                 save.stage == 1 ? "第一枚星核已由公会保管，森林的伤口却没有愈合。遗迹水闸被旧命令困住，解开日、月、潮的机关，寻找下一份供能真相。" :
