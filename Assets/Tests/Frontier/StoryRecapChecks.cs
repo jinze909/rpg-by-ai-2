@@ -487,7 +487,7 @@ namespace Starfall.Tests
             town=NightShiftAt(g,0);
             NightShiftChoose(g,town,"nightshift_public");
             Check(g.save.trackedQuest=="night_shift_aftercare"&&
-                g.GetQuest("night_shift_aftercare").steps.Count==3&&
+                g.GetQuest("night_shift_aftercare").steps.Count==4&&
                 g.GetQuest("night_shift_aftercare").room==1,
                 "Choosing the town ending automatically hands off to the next physically available quest instead of a completed marker");
             Check(g.save.moments.Count==initialChronicle+5&&
