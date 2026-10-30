@@ -36,6 +36,24 @@ namespace Starfall
         private readonly List<Enemy> tacticTrialEnemies=new List<Enemy>();
         private readonly HashSet<Enemy> tacticTrialKills=new HashSet<Enemy>();
         private bool tacticTrialUsed;
+        // Optional precision reward: the same registered target must be
+        // interrupted by the physical device and then genuinely defeated
+        // in eight seconds of SIMULATED world time. No damage magic, auto
+        // damage, separate actor IDs or new SaveData fields.
+        private readonly HashSet<Enemy> tacticTrialCountered=
+            new HashSet<Enemy>();
+        private float tacticTrialCounterUntil;
+        private bool tacticTrialChainEarned;
+        public bool FieldTacticTrialChainEarned
+        {get{return FieldTacticTrialActive&&tacticTrialChainEarned;}}
+        public float FieldTacticTrialChainSecondsLeft
+        {get{return FieldTacticTrialActive&&tacticTrialUsed&&
+                    !tacticTrialChainEarned?
+                    Math.Max(0f,tacticTrialCounterUntil-save.totalTime):0f;}}
+        public bool IsFieldTacticTrialComboTarget(Enemy e)
+        {return IsFieldTacticTrialTarget(e)&&
+                tacticTrialCountered.Contains(e)&&
+                FieldTacticTrialChainSecondsLeft>0f;}
         private static readonly int[,] tacticTrialRoles={
             {0,1},{1,0},{2,0},{2,1},{1,1},{2,2},{0,0}
         };
@@ -94,7 +112,22 @@ namespace Starfall
         {return IsFieldTacticTrialEnemy(e)&&e.hp>0f&&
             enemies.Contains(e)&&!tacticTrialKills.Contains(e);}
         private void OnFieldTacticTrialEnemyDefeated(Enemy e)
-        {if(IsFieldTacticTrialEnemy(e)&&e.hp<=0)tacticTrialKills.Add(e);}
+        {
+            if(!IsFieldTacticTrialEnemy(e)||e.hp>0)return;
+            if(!tacticTrialChainEarned&&tacticTrialCountered.Contains(e)&&
+                save.totalTime<=tacticTrialCounterUntil&&
+                tacticTrialCounterUntil>0f)
+            {
+                tacticTrialChainEarned=true;
+                effects.Add(new Effect("number",e.Position,1.15f,
+                    L("战术追击！","TACTICAL FOLLOW-UP!")));
+                Notify("漂亮的环境连携！签收时额外获得碎片1、经验24。",
+                    "Tactical follow-up! Sign the report for +1 shard and +24 XP.");
+                revision++;sound="reward";
+            }
+            tacticTrialCountered.Remove(e);
+            tacticTrialKills.Add(e);
+        }
         private void ResetFieldTacticTrial()
         {
             foreach(Enemy e in tacticTrialEnemies)
@@ -102,6 +135,8 @@ namespace Starfall
             projectiles.RemoveAll(p=>p!=null&&p.hostileShooter!=null&&
                 tacticTrialEnemies.Contains(p.hostileShooter));
             tacticTrialEnemies.Clear();tacticTrialKills.Clear();
+            tacticTrialCountered.Clear();tacticTrialCounterUntil=0f;
+            tacticTrialChainEarned=false;
             tacticTrialRoom=-1;tacticTrialSource=null;
             tacticTrialMap=null;tacticTrialSave=null;tacticTrialUsed=false;
         }
@@ -180,7 +215,9 @@ namespace Starfall
             tacticTrialRoom=save.room;tacticTrialSource=source;
             tacticTrialMap=Map;tacticTrialSave=save;tacticTrialUsed=false;
             tacticTrialEnemies.Clear();tacticTrialKills.Clear();
-            for(int i=0;i<2;i++)
+            tacticTrialCountered.Clear();tacticTrialCounterUntil=0f;
+            tacticTrialChainEarned=false;
+            for(int i=0;i<2;i++
             {
                 Enemy e=new Enemy(++enemyId,tacticTrialRoles[save.room-1,i],
                     pads[i].x,pads[i].y,40+save.room*8);
@@ -213,15 +250,24 @@ namespace Starfall
                 if(!FieldTacticTrialReady||
                    !Object.ReferenceEquals(tacticTrialSource,source)||
                    !SafeTravel)return true;
+                bool chain=tacticTrialChainEarned;
                 ResetFieldTacticTrial();
                 if(FieldTacticTrialDone(room))return true;
                 Flag("tactic_trial_done_"+room);
-                CreditCoins(22+room*4);CreditShards(1);AddXp(48+room*8);
+                CreditCoins(22+room*4);CreditShards(chain?2:1);
+                AddXp(48+room*8+(chain?24:0));
                 RecordMoment("第"+room+"区 · 用本地战术装置反制袭击，并亲自击退两名敌人。",
                     "Region "+room+": used the actual field counter and defeated two real trial raiders.");
                 revision++;sound="reward";
-                Notify("演练回执已签收：硬币"+(22+room*4)+"、碎片1、经验"+(48+room*8)+"。",
-                    "Signed trial: "+(22+room*4)+" coins, 1 shard, "+(48+room*8)+" XP.");
+                Notify("演练回执已签收：硬币"+(22+room*4)+
+                    "、碎片"+(chain?2:1)+"、经验"+(48+room*8+(chain?24:0))+
+                    (chain?"（包含真实限时追击奖励）":"")+"。",
+                    "Trial signed: "+(22+room*4)+" coins, "+
+                    (chain?2:1)+" shards, "+(48+room*8+(chain?24:0))+
+                    " XP"+(chain?" (tactical follow-up bonus).":"."));
+                if(chain)RecordMoment(
+                    "第"+room+"区的战术装置创造了真实破绽，冒险者及时追击了被打断的敌人。",
+                    "The field mechanism opened a real window, and the defender followed up against the interrupted foe.");
                 if(FieldTacticTrialWins==7&&!Has("tactic_trials_mastered"))
                 {
                     Flag("tactic_trials_mastered");CreditSkillPoints(1);
@@ -439,9 +485,19 @@ namespace Starfall
             fieldTacticReady[o]=save.totalTime+24f;
             if(FieldTacticTrialActive&&
                Object.ReferenceEquals(tacticTrialSource,o))
+            {
+                // Exact-actor handoff: enemies outside this live contract
+                // cannot qualify, even if a reused numeric ID matches.
+                tacticTrialCountered.Clear();
                 foreach(Enemy enemy in targets)
                     if(tacticTrialEnemies.Contains(enemy))
-                    {tacticTrialUsed=true;break;}
+                        tacticTrialCountered.Add(enemy);
+                if(tacticTrialCountered.Count>0)
+                {
+                    tacticTrialUsed=true;
+                    tacticTrialCounterUntil=save.totalTime+8f;
+                }
+            }
             foreach(Enemy e in targets)
             {
                 if(room==1)

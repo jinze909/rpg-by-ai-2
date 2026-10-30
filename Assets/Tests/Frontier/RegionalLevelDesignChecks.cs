@@ -364,6 +364,75 @@ namespace Starfall.Tests
                 "Cooldown prevents an unwinnable ambush without spending energy or signing completion");
         }
 
+        public static void FieldTacticFollowUpRequiresRealExposedActorAndSignedReceipt(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Real combat damage owns tactical follow-up success");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("exp_intro");g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");g.Enter(room);g.enemies.Clear();
+                WorldObject source=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(source!=null&&PlaceWithinTalkReach(g,source),
+                    "Follow-up must originate from the actual original field device");
+                g.save.energy=100f;g.Talk(source);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trial_begin");
+                Check(begin>=0,"Every region owns a real optional drill");
+                g.Choose(begin);
+                var assigned=g.enemies.ToArray();
+                Check(assigned.Length==2&&g.FieldTacticTrialActive&&
+                    !g.FieldTacticTrialChainEarned,
+                    "Only authentic assigned actors belong to the combat window");
+                Check(g.QuickActivateFieldTactic()&&
+                    g.FieldTacticTrialChainSecondsLeft>7.9f,
+                    "Device creates a genuine eight-second physics-time counter window");
+                Enemy exposed=Array.Find(assigned,e=>
+                    g.IsFieldTacticTrialComboTarget(e));
+                Check(exposed!=null,
+                    "The exposed bonus target is an actual attacked live raider");
+                Enemy other=assigned[0]==exposed?assigned[1]:assigned[0];
+                Enemy impostor=new Enemy(exposed.id,exposed.kind,
+                    exposed.x,exposed.y,exposed.hp);
+                Check(!g.IsFieldTacticTrialComboTarget(impostor),
+                    "Matching numeric ID cannot fake the exact actor bonus");
+                int beforeCoins=g.save.coins, beforeShards=g.save.shards;
+                int beforeXp=g.save.xp;
+                hit.Invoke(g,new object[]{exposed,600f,false,null,null});
+                Check(g.FieldTacticTrialChainEarned&&
+                    g.FieldTacticTrialChainSecondsLeft==0f&&
+                    g.save.shards==beforeShards,
+                    "Only live exposed combat death arms bonus; never pay before signing");
+                hit.Invoke(g,new object[]{other,600f,false,null,null});
+                Check(g.FieldTacticTrialReady&&
+                    g.save.shards==beforeShards&&g.save.coins==beforeCoins,
+                    "Even complete battle cannot auto-credit a claimed precision bonus");
+                g.Close();g.Talk(source);
+                int report=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trial_report");
+                Check(report>=0,"The physical source signs a real cleared counter");
+                g.Choose(report);
+                Check(g.FieldTacticTrialDone(room)&&
+                    g.save.shards>=beforeShards+2&&
+                    g.save.xp>=beforeXp+48+room*8+24&&
+                    !g.FieldTacticTrialChainEarned,
+                    "A first real signed exposed-combat kill awards exactly the optional supplement");
+                int paid=g.save.shards;
+                g.Close();g.Talk(source);
+                Check(g.save.shards==paid&&!g.FieldTacticTrialActive,
+                    "Repeated interaction cannot farm exposure reward");
+                g.PrepareSave();
+                GameCore reload=new GameCore(data,CloneSave(g.save));
+                Check(reload.save.version==2&&reload.FieldTacticTrialDone(room)&&
+                    !reload.FieldTacticTrialChainEarned,
+                    "Save v2 stores the signed milestone, never temporary exposure");
+            }
+        }
+
         public static void FieldTacticTrialWaypointsFollowTheRequiredBattleStage(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
