@@ -688,6 +688,14 @@ namespace Starfall
                 Text(1024,178,166,12,
                     Game.L("下一任务阶段无法抵达","NEXT QUEST STEP BLOCKED"),
                     9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
+            // A blocked personal pin is deliberately withheld from the
+            // world compass, but remains on the map. Keep its obstruction
+            // warning visible instead of reverting to a misleading blank HUD.
+            // Live rescues and emergency targets above keep their priority.
+            else if(Game.HasLocalWaymark&&Game.LocalWaymarkRouteBlocked&&
+                !objective.HasValue)
+                Text(1024,178,166,12,Game.L("路线受阻","ROUTE BLOCKED"),
+                    9,PixelArt.C("#ff6961"),TextAnchor.MiddleCenter);
             else if (objective.HasValue && HasBlockedNavigationRoute(objective.Value))
                 Text(1024, 178, 166, 12, Game.L("路线受阻", "ROUTE BLOCKED"),
                     9, PixelArt.C("#ff6961"), TextAnchor.MiddleCenter);
