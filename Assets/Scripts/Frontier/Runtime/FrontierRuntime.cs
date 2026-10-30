@@ -1157,8 +1157,8 @@ namespace Starfall
                     TextAnchor.MiddleCenter);
                 if(crowded)
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("右键 / Shift+滚轮 / O/R3 切换",
-                               "R-CLICK / SHIFT+WHEEL / O/R3 CYCLE"),
+                        Game.L("右键点选 · O / R3 · 切换交互对象",
+                               "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
                         11,muted,TextAnchor.MiddleCenter);
             }
             else if (near != null && Game.mode == "world" && Game.SafeTravel)
@@ -1172,8 +1172,8 @@ namespace Starfall
                     Text(s.x-147,s.y+17,294,26,label,14,paper,
                         TextAnchor.MiddleCenter);
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("右键 / Shift+滚轮 / O/R3 切换",
-                               "R-CLICK / SHIFT+WHEEL / O/R3 CYCLE"),
+                        Game.L("右键点选 · O / R3 · 切换交互对象",
+                               "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
                         11,muted,TextAnchor.MiddleCenter);
                 }
                 else

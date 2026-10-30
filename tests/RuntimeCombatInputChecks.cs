@@ -8343,6 +8343,26 @@ public static class RuntimeCombatInputChecks
         Check(System.Object.ReferenceEquals(g.Nearest(),first)&&
               g.save.weapon==weapon,
             "Wheel up reverses the same real interaction ring and leaves equipment untouched");
+        // Shift+wheel over an actual nearby NPC, but AWAY from the
+        // overlay panel, is a deliberate alternate world selection.
+        // Ordinary world scroll still equips weapons; this chord must
+        // never steal materials, launch combat or switch held equipment.
+        Input.axes["Mouse ScrollWheel"]=0f;
+        Mouse(app,g.Position+new Point(4,4));
+        Update(app);
+        List<WorldObject> liveRing=g.NearbyInteractionChoices();
+        WorldObject beforeWorldWheel=g.Nearest();
+        int liveIndex=liveRing.IndexOf(beforeWorldWheel);
+        Check(liveIndex>=0&&liveRing.Count>1&&g.SafeTravel,
+            "The actual world source cluster stays eligible outside the overlay panel");
+        Input.held.Add(KeyCode.LeftShift);
+        Input.axes["Mouse ScrollWheel"]=-.20f;
+        Update(app);
+        Check(System.Object.ReferenceEquals(g.Nearest(),
+              liveRing[(liveIndex+1)%liveRing.Count])&&
+              g.save.weapon==weapon&&g.mode=="world",
+            "Shift+wheel over world cycles real nearby speakers without switching weapons");
+        Input.held.Clear();
         g.mode="inventory";
         Input.axes["Mouse ScrollWheel"]=-.20f;
         Update(app);
