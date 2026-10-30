@@ -451,7 +451,13 @@ namespace Starfall
             {0,2,1}, // Desert: fast pursuit, heavy slam and bow fire
             {1,2,0}  // Highlands: elevated bow and armor cross-pressure
         };
-        private int SpawnRegionalScoutEncounter(WorldObject site,bool requireFull=false)
+        // Elite patrols retain the original reachable physical pads and actors.
+        private static readonly int[,] veteranPatrolKinds={
+            {1,2,0},{2,0,1},{1,2,0},{1,2,0},
+            {2,1,0},{1,0,2},{2,0,1}
+        };
+        private int SpawnRegionalScoutEncounter(WorldObject site,
+            bool requireFull=false,bool veteran=false)
         {
             if(site==null||site.kind!="biomeSurvey"||save.room<1||
                save.room>7||!SourceBelongsToActiveMap(site)||
@@ -506,7 +512,10 @@ namespace Starfall
             {
                 int slot=pads.IndexOf(p);
                 Enemy patrol=CreatePlacedEnemy(++enemyId,
-                    fieldPatrolKinds[room-1,slot],p,30+room*10);
+                    veteran?veteranPatrolKinds[room-1,slot]:
+                        fieldPatrolKinds[room-1,slot],p,
+                    veteran?50+room*12:30+room*10);
+                if(veteran)patrol.stun=.5f;
                 enemies.Add(patrol);
                 regionalAmbientEnemies.Add(patrol);
             }
@@ -549,6 +558,18 @@ namespace Starfall
         // Actual live snare restraints are distinct from lethal defeats.
         // Transient exact actors only: no new v2 serialized flag or field.
         private readonly HashSet<Enemy> fieldPatrolCaptures=new HashSet<Enemy>();
+        private bool fieldPatrolVeteranActive;
+        public bool FieldPatrolVeteranActive
+        {get{return FieldPatrolActive&&fieldPatrolVeteranActive;}}
+        public bool FieldPatrolVeteranDone(int room)
+        {return room>=1&&room<=7&&Has("biome_patrol_veteran_"+room);}
+        public bool FieldPatrolVeteranAllLiving(int room)
+        {return FieldPatrolVeteranDone(room)&&
+            Has("biome_patrol_veteran_spared_"+room);}
+        public int FieldPatrolVeteranWins
+        {get{int n=0;for(int r=1;r<=7;r++)
+            if(FieldPatrolVeteranDone(r))n++;return n;}}
+
         public bool FieldPatrolActive
         {get{return fieldPatrolRoom>=1&&fieldPatrolRoom<=7&&
             fieldPatrolRoom==save.room&&
@@ -654,6 +675,7 @@ namespace Starfall
                 regionalAmbientEnemies.Remove(e);
                 enemies.Remove(e);
             }
+            fieldPatrolVeteranActive=false;
             fieldPatrolRoom=-1;fieldPatrolMap=null;
             fieldPatrolSave=null;fieldPatrolOrigin=null;
             fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
@@ -665,20 +687,20 @@ namespace Starfall
             if(room<1||room>7||site.kind!="biomeSurvey")
                 return C("返回原调查地标领取巡逻委托",
                     "Visit the original survey post for patrol work","close");
-            if(FieldPatrolDone(room))
-                return FieldPatrolSpared(room)?
-                    C("非致命巡护回执已签收 · 供出安全路况",
-                      "Living-captive report filed · safe routes learned","close"):
-                    C("本地巡逻安全回执已登记",
-                      "Patrol safety receipt filed","close");
             if(FieldPatrolActive)
                 return FieldPatrolReportReady?
-                    C("提交击退或活捉巡兵的现场回执",
-                      "File verified raider defeat or restraint receipt",
+                    C(fieldPatrolVeteranActive?"提交进阶巡护回执":"提交击退或活捉巡兵的现场回执",
+                      fieldPatrolVeteranActive?"File veteran patrol report":"File verified raider defeat or restraint receipt",
                       "biome_patrol_report"):
                     C("巡兵仍在现场 · 尚余"+FieldPatrolRemaining+"名",
-                      "Raiders remain · "+FieldPatrolRemaining+" active",
-                      "close");
+                      "Raiders remain · "+FieldPatrolRemaining+" active","close");
+            if(FieldPatrolVeteranDone(room))
+                return C("进阶巡护回执已登记 · 安全线守住了",
+                    "Veteran defense filed · route secured","close");
+            if(FieldPatrolDone(room))
+                return C("进阶巡护 · 精锐混合编队（可活捉）",
+                    "Veteran patrol · elite mixed-arms challenge",
+                    "biome_patrol_veteran");
             return C("巡路实战 · 击退或绊索活捉盗匪",
                 "Field patrol · defeat or snare raiders",
                 "biome_patrol_begin");
@@ -694,6 +716,7 @@ namespace Starfall
         private bool ChooseFieldPatrol(string action)
         {
             if(action!="biome_patrol_begin"&&
+               action!="biome_patrol_veteran"&&
                action!="biome_patrol_report"&&
                action!="biome_patrol_abort"&&
                action!="biome_patrol_journal")return false;
@@ -708,7 +731,9 @@ namespace Starfall
                !BiomeFieldDone)return true;
             if(action=="biome_patrol_journal")
             {
-                journalFocusRequest="field_patrols";revision++;
+                journalFocusRequest=FieldPatrolVeteranActive||
+                    FieldPatrolDone(room)?"veteran_patrols":"field_patrols";
+                revision++;
                 return true;
             }
             if(action=="biome_patrol_abort")
@@ -721,8 +746,11 @@ namespace Starfall
                     "Patrol withdrawn; no unearned safety reward granted.");
                 return true;
             }
-            if(FieldPatrolDone(room))return true;
-            if(action=="biome_patrol_begin")
+            bool veteran=action=="biome_patrol_veteran";
+            if((action=="biome_patrol_begin"&&FieldPatrolDone(room))||
+               (veteran&&(!FieldPatrolDone(room)||
+                           FieldPatrolVeteranDone(room))))return true;
+            if(action=="biome_patrol_begin"||veteran)
             {
                 if(FieldPatrolActive||FieldWorkPreventsRest||!SafeTravel||
                    racing||BlockTravelForProtectedFieldMission(true))
@@ -732,7 +760,7 @@ namespace Starfall
                     return true;
                 }
                 int before=enemies.Count;
-                int count=SpawnRegionalScoutEncounter(site,true);
+                int count=SpawnRegionalScoutEncounter(site,true,veteran);
                 int expected=room==2||room==3||room==6?3:2;
                 if(count!=expected)
                 {
@@ -740,6 +768,7 @@ namespace Starfall
                         "No complete walkable raider approach remains. Clear the site and retry.");
                     return true;
                 }
+                fieldPatrolVeteranActive=veteran;
                 fieldPatrolRoom=room;fieldPatrolMap=Map;
                 fieldPatrolSave=save;fieldPatrolOrigin=site;
                 fieldPatrolEnemies.Clear();fieldPatrolKills.Clear();
@@ -751,7 +780,14 @@ namespace Starfall
                     effects.Add(new Effect("enemyRelease",enemy.Position,.6f)
                         {variant=enemy.kind});
                 }
+                if(veteran)TrackQuest("veteran_patrols");
                 revision++;sound="quest";
+                if(veteran)
+                {
+                    Notify("进阶巡护：精锐混合编队在真实道路上就位。击退或绊索活捉整队，返回原地标签领一次性回执。",
+                        "Veteran patrol: a stronger mixed-arms squad holds the real road. Defeat or restrain every raider, then report at this post.");
+                    return true;
+                }
                 Notify(scoutPatrolZh[room]+
                     " 击退或用真实绊索活捉"+count+"名巡兵后，回这里交还现场回执。",
                     scoutPatrolEn[room]+
@@ -775,7 +811,44 @@ namespace Starfall
                 fieldPatrolCaptures.Count==fieldPatrolEnemies.Count&&
                 fieldPatrolKills.Count==0;
             bool mixed=fieldPatrolCaptures.Count>0&&!allLiving;
+            bool veteranReport=fieldPatrolVeteranActive;
             ResetFieldPatrol();
+            if(veteranReport)
+            {
+                if(!FieldPatrolDone(cleared)||
+                   FieldPatrolVeteranDone(cleared))return true;
+                Flag("biome_patrol_veteran_"+cleared);
+                if(allLiving)Flag("biome_patrol_veteran_spared_"+cleared);
+                CreditCoins(40+cleared*5);
+                CreditShards(allLiving?3:2);
+                AddXp(100+cleared*12);
+                RecordMoment(
+                    "进阶巡护 · 在"+data.maps[cleared].name+
+                    "的原勘察地标签收精锐巡兵"+
+                    (allLiving?"全员活捉的安全证词。":"真实战斗回执。"),
+                    "Veteran patrol: filed an elite squad report at the original "+
+                    data.maps[cleared].en+" survey post, "+
+                    (allLiving?"with every raider restrained alive.":
+                        "after a genuine field battle."));
+                revision++;sound="reward";
+                Notify("进阶巡护已登记 "+FieldPatrolVeteranWins+
+                    "/7区：硬币"+(40+cleared*5)+"、碎片"+
+                    (allLiving?3:2)+"、经验"+(100+cleared*12)+"。",
+                    "Veteran defense signed "+FieldPatrolVeteranWins+
+                    "/7: "+(40+cleared*5)+" coins, "+
+                    (allLiving?3:2)+" shards, "+(100+cleared*12)+" XP.");
+                if(FieldPatrolVeteranWins==7&&
+                   !Has("biome_patrol_veteran_complete"))
+                {
+                    Flag("biome_patrol_veteran_complete");
+                    CreditSkillPoints(1);
+                    RecordMoment("七处进阶巡护全部完成；危险路口重新有了可信的守路人。",
+                        "All seven veteran patrols secured; reliable guards now hold the dangerous roads.");
+                    Notify("七区进阶巡护完成：额外技能点1。",
+                        "Seven veteran routes defended: +1 talent point.");
+                }
+                return true;
+            }
             if(FieldPatrolDone(cleared))return true;
             Flag("biome_patrol_done_"+cleared);
             if(allLiving)Flag("biome_patrol_spared_"+cleared);

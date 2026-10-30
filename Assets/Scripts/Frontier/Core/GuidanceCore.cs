@@ -134,7 +134,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "veteran_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1168,7 +1168,7 @@ namespace Starfall
         private static readonly string[] ContinuationPriority = {
             "main", "shore", "chapter_roads", "last_directive",
             "civic_aftercare", "afterlight", "civic_services",
-            "wayfarers", "stations", "archive_trail", "field_patrols",
+            "wayfarers", "stations", "archive_trail", "field_patrols", "veteran_patrols",
             "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare", "sword_lesson", "secrets"
         };
         public QuestGuide RecommendedContinuationGuide
@@ -1605,6 +1605,56 @@ namespace Starfall
                       "All seven real kit locations recovered; road supplies are replenished."):
                     L("到本区远端工具箱取回物资；若调查未完成，先核对本区两处地标。",
                       "Go to the distant physical field kit; complete both survey clues before collecting.");
+                return q;
+            }
+            if(id=="veteran_patrols")
+            {
+                q.title=L("七地进阶巡护 · 重守居民安全线",
+                    "Seven Veteran Patrols · Hold the Civilian Roads");
+                q.category=L("巡路后续 · 真实精锐战斗",
+                    "PATROL AFTERMATH · ELITE FIELD BATTLES");
+                q.description=L(
+                    "原勘察地标签完本区普通回执后，可挑战精锐混编巡兵。必须实际击败或用绊索活捉整队，并返回同一地标签领一次性奖励。全员活捉多得碎片；撤回、逃离或敌人无故消失不能结算。",
+                    "After signing the local first-clear, challenge an elite mixed-arms squad at the SAME survey post. Defeat or physically restrain every raider, then return for a one-time reward. All-living yields extra shards. Withdrawal or vanished enemies never count.");
+                q.reward=L("每区额外金币、经验、碎片；全员活捉再多1碎片；七区进阶巡护额外1技能点",
+                    "Regional bonus coins, XP and shards; all-living +1 shard, seven veteran clears +1 talent");
+                q.locked=FieldPatrolWins==0;
+                q.complete=FieldPatrolVeteranWins==7;
+                int selected=-1;
+                for(int region=1;region<=7;region++)
+                {
+                    bool done=FieldPatrolVeteranDone(region);
+                    bool unlocked=FieldPatrolDone(region)&&CanEnter(region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?(FieldPatrolVeteranAllLiving(region)?
+                            " · 全员活捉":" · 进阶回执已签"):
+                            unlocked?" · 精锐待击退":" · 先完成普通巡护",
+                          done?(FieldPatrolVeteranAllLiving(region)?
+                            " · ALL RESTRAINED":" · VETERAN FILED"):
+                            unlocked?" · ELITE SQUAD AVAILABLE":" · FIRST PATROL NEEDED"),done));
+                    if(!done&&unlocked&&
+                       (selected<0||region==save.room))selected=region;
+                }
+                if(FieldPatrolVeteranActive)selected=save.room;
+                q.room=selected>=0?selected:save.room;
+                q.target=FieldPatrolVeteranActive?FieldPatrolGuideTarget:
+                    selected>=0?ObjectPoint(selected,"biomeSurvey",
+                        new Point(data.maps[selected].spawnX,
+                            data.maps[selected].spawnY)):Position;
+                if(FieldPatrolVeteranActive)
+                    q.next=FieldPatrolReportReady?
+                        L("精锐全队已击退或活捉，回原勘察地标签收进阶回执。",
+                          "Elite squad defeated or restrained. Return to the original post to sign."):
+                        L("进阶巡护进行中，剩余"+FieldPatrolRemaining+"名敌人；可以战斗或真实绊索活捉。",
+                          "Veteran patrol: "+FieldPatrolRemaining+
+                          " raiders remain. Fight or physically restrain them.");
+                else if(q.complete)
+                    q.next=L("七区进阶巡护已全部完成。居民的危险道路有了守路人。",
+                        "All seven veteran patrols signed. The dangerous roads are defended.");
+                else
+                    q.next=L("先完成各区普通巡路，再到原调查地标接取精锐挑战。",
+                        "Sign the original patrol first, then return to its survey post for the elite challenge.");
                 return q;
             }
             if(id=="field_patrols")
