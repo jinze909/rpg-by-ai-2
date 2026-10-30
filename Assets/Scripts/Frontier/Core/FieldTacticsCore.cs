@@ -54,6 +54,11 @@ namespace Starfall
             foreach(Enemy e in tacticTrialEnemies)
                 if(!tacticTrialKills.Contains(e)&&enemies.Contains(e)&&e.hp>0)n++;
             return n;}}
+        // Source identity, not matching display name or reusable numeric ID:
+        // used by the GameView to label only THIS active physical device.
+        public bool FieldTacticTrialAt(WorldObject device)
+        {return FieldTacticTrialActive&&
+            Object.ReferenceEquals(tacticTrialSource,device);}
         public bool FieldTacticTrialUsed
         {get{return FieldTacticTrialActive&&tacticTrialUsed;}}
         public bool FieldTacticTrialReady

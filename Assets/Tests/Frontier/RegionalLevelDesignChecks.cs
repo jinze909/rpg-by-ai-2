@@ -246,6 +246,10 @@ namespace Starfall.Tests
                 Check(begin>=0,"Region "+room+" genuinely offers its optional live combat drill");
                 int coins=g.save.coins,shards=g.save.shards;
                 g.Choose(begin);
+                Check(g.FieldTacticTrialAt(source)&&
+                    !g.FieldTacticTrialAt(new WorldObject{
+                        id=source.id,kind=source.kind,x=source.x,y=source.y}),
+                    "Only exact source-bound active mechanism can claim a live trial GameView status");
                 Check(g.FieldTacticTrialActive&&
                     g.FieldTacticTrialRemaining==2&&g.enemies.Count==2&&
                     !g.FieldTacticTrialReady&&!g.FieldTacticTrialUsed,
@@ -277,6 +281,8 @@ namespace Starfall.Tests
                     c=>c.action=="field_tactic_trial_report");
                 Check(report>=0,"The same physical source offers only its earned report");
                 g.Choose(report);
+                Check(!g.FieldTacticTrialAt(source),
+                    "Source-bound GameView trial status clears immediately on signing");
                 Check(g.FieldTacticTrialDone(room)&&
                     !g.FieldTacticTrialActive&&
                     g.save.coins>=coins+22+room*4&&

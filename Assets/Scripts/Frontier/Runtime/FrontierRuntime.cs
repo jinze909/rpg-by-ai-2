@@ -1184,7 +1184,14 @@ namespace Starfall
                 float cd=Game.FieldTacticCooldown(o);
                 bool known=Game.Has("field_tactic_used_"+room);
                 int threats=Game.FieldTacticLiveThreatCount(o);
-                Color ink=cd>0f?muted:threats>0?gold:known?mint:muted;
+                bool trial=Game.FieldTacticTrialAt(o);
+                bool trialReady=trial&&Game.FieldTacticTrialReady;
+                bool trialSigned=Game.FieldTacticTrialDone(room);
+                // Signing an earned battle report outranks an ordinary
+                // cooldown label. Otherwise GameView can say "RESET 18s"
+                // exactly when the player should press E to finish a quest.
+                Color ink=trialReady||trialSigned?mint:trial?gold:
+                    cd>0f?muted:threats>0?gold:known?mint:muted;
                 PropImage(room==1||room==5?"post":
                     room==2||room==7?"column":
                     room==3?"barrel":"crystal",0,
@@ -1207,6 +1214,20 @@ namespace Starfall
                     Ring(new Point(o.x,o.y),.56f+
                         .05f*Mathf.Sin(clock*2.3f),ink,24);
                 WorldObjectLabel(p.x-121,p.y-122,242,22,
+                    trialReady?
+                        Game.L("演练已完成 · 按 E 签回执",
+                               "DRILL CLEARED · E SIGN REPORT"):
+                    trial&&!Game.FieldTacticTrialUsed?
+                        Game.L("演练敌人 "+Game.FieldTacticTrialRemaining+
+                               " · Shift+G 使用装置",
+                               "DRILL "+Game.FieldTacticTrialRemaining+
+                               " · SHIFT+G COUNTER"):
+                    trial?
+                        Game.L("演练剩余 "+Game.FieldTacticTrialRemaining+" 名 · 击退敌人",
+                               "DRILL "+Game.FieldTacticTrialRemaining+" LEFT · DEFEAT"):
+                    trialSigned?
+                        Game.L("本地实战已签收 · 按 E 查看",
+                               "TRIAL SIGNED · E INSPECT"):
                     cd>0f?Game.L("装置复位 "+(int)Math.Ceiling(cd)+"秒",
                                     "RESET "+(int)Math.Ceiling(cd)+"s"):
                     threats>0?Game.L("敌情 "+threats+" · Shift+G 快捷反制 / E查看",
