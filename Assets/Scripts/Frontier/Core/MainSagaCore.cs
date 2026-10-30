@@ -431,6 +431,7 @@ namespace Starfall
         // Already signed v2/v1-origin saves keep their existing milestone.
         private int sagaGuardRoom=-1,sagaGuardWave;
         private float sagaGuardClock;
+        private bool sagaGuardDeviceUsed;
         private MapData sagaGuardMap;
         private SaveData sagaGuardSave;
         private WorldObject sagaGuardWitness;
@@ -450,6 +451,21 @@ namespace Starfall
                 if(e!=null&&e.hp>0&&enemies.Contains(e))n++;
             return n; } }
         public float SagaGuardClock {get{return SagaGuardActive?sagaGuardClock:0f;}}
+        public bool SagaGuardDeviceUsed {get{return SagaGuardActive&&sagaGuardDeviceUsed;}}
+        public bool SagaGuardDeviceReady
+        {get{return SagaGuardActive&&!sagaGuardDeviceUsed&&SagaGuardRemaining>0;}}
+        private static string SagaGuardDeviceZh(int room)
+        {
+            return room==5?"拉响雾港雾笛 · 消耗木材1，驱散追兵并恢复耐力":
+                room==6?"打开沙海散热阀 · 耐力18，散热并打断攻势":
+                "点燃高原急救篝火 · 消耗药草1，驱寒疗伤并打断攻势";
+        }
+        private static string SagaGuardDeviceEn(int room)
+        {
+            return room==5?"Sound the harbor foghorn · 1 timber, stagger raiders and restore stamina":
+                room==6?"Open the desert heat vent · 18 stamina, cool the field and interrupt attackers":
+                "Light the alpine rescue brazier · 1 herb, warm the line and interrupt attackers";
+        }
         public Point SagaGuardGuideTarget
         {
             get {
@@ -474,6 +490,7 @@ namespace Starfall
                 projectiles.RemoveAll(p=>Object.ReferenceEquals(p.hostileShooter,e));
             }
             sagaGuardRoom=-1;sagaGuardWave=0;sagaGuardClock=0f;
+            sagaGuardDeviceUsed=false;
             sagaGuardMap=null;sagaGuardSave=null;sagaGuardWitness=null;
             sagaGuardFoes.Clear();sagaGuardDefeated.Clear();
         }
@@ -683,6 +700,9 @@ namespace Starfall
                             "Defend the line · "+SagaGuardRemaining+" attackers left","close"):
                         C("守护证人与证据 · 两波实际战斗",
                             "Defend witness and evidence · two live waves","saga_guard_begin"),
+                    SagaGuardActive&&SagaGuardDeviceReady?
+                        C(SagaGuardDeviceZh(room),SagaGuardDeviceEn(room),"saga_guard_device"):
+                        C("继续保护证人","Keep defending the witness","close"),
                     SagaGuardActive?
                         C("撤回护卫 · 重新组织","Withdraw the defense","saga_guard_abort"):
                         C("先备好物资","Prepare supplies","close"));
@@ -757,7 +777,8 @@ namespace Starfall
                 return true;
             }
             if(ChooseMainSagaLastGate(action))return true;
-            if(action=="saga_guard_begin"||action=="saga_guard_abort")
+            if(action=="saga_guard_begin"||action=="saga_guard_abort"||
+                action=="saga_guard_device")
             {
                 int room=save.room;
                 if(!MainSagaActive||save.ending>0||
@@ -769,6 +790,45 @@ namespace Starfall
                 {
                     if(SagaGuardActive)ResetSagaGuard();
                     revision++;sound="ui";return true;
+                }
+                if(action=="saga_guard_device")
+                {
+                    if(!SagaGuardDeviceReady)return true;
+                    int timber=room==5?1:0,herb=room==7?1:0;
+                    int stamina=room==6?18:0;
+                    if(save.inventory[0]<timber||save.inventory[2]<herb||
+                        save.energy<stamina)
+                    {
+                        Notify("发动这个实际现场装置，还缺少木材、药草或耐力。",
+                            "The live regional mechanism needs its actual timber, herb or stamina cost.");
+                        return true;
+                    }
+                    save.inventory[0]-=timber;
+                    save.inventory[2]-=herb;save.energy-=stamina;
+                    sagaGuardDeviceUsed=true;
+                    Point center=new Point(host.x,host.y);
+                    int interrupted=0;
+                    foreach(Enemy e in sagaGuardFoes)
+                        if(e!=null&&e.hp>0&&enemies.Contains(e)&&
+                            (e.Position-center).Length<=20f)
+                        {
+                            ApplyEnemyControl(e,1.35f);
+                            e.armorOpenTime=Math.Max(e.armorOpenTime,.9f);
+                            interrupted++;
+                        }
+                    if(room==5)save.energy=Math.Min(100f,save.energy+8f);
+                    if(room==6)save.heat=Math.Max(0f,save.heat-18f);
+                    if(room==7)
+                    {
+                        save.cold=Math.Max(0f,save.cold-18f);
+                        save.health=Math.Min(save.maxHealth,save.health+10f);
+                    }
+                    effects.Add(new Effect("burst",center,.7f)
+                        {radius=3.2f,variant=room-5});
+                    sound="reward";revision++;
+                    Notify("现场装置已启动：真实打断"+interrupted+"名袭击者，本轮无法再用。",
+                        "The real device interrupts "+interrupted+" raiders; it cannot be reused during this defense.");
+                    return true;
                 }
                 if(SagaGuardActive||FieldWorkPreventsRest||!SafeTravel)return true;
                 sagaGuardRoom=room;sagaGuardWave=0;

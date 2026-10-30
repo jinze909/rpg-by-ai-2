@@ -83,6 +83,25 @@ namespace Starfall.Tests
                 Check(g.SagaGuardActive&&g.SagaGuardWave==1&&
                     g.SagaGuardRemaining==2,
                     "First defender wave exists as genuine game enemies");
+                Check(PlaceWithinTalkReach(g,npc),"The original speaker can operate the local defense");
+                g.Talk(npc);
+                account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Actual NPC remains available during the encounter");
+                g.Choose(account);
+                int device=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_device");
+                Check(device>=0&&g.SagaGuardDeviceReady,
+                    "Each region exposes its own physically operated combat mechanism");
+                g.save.inventory[0]=5;g.save.inventory[2]=5;g.save.energy=100f;
+                int woodBefore=g.save.inventory[0],herbBefore=g.save.inventory[2];
+                float staminaBefore=g.save.energy;
+                g.Choose(device);
+                Check(g.SagaGuardDeviceUsed&&!g.SagaGuardDeviceReady&&
+                    g.save.inventory[0]==woodBefore-(room==5?1:0)&&
+                    g.save.inventory[2]==herbBefore-(room==7?1:0)&&
+                    (room!=6||g.save.energy==staminaBefore-18f),
+                    "Real regional mechanism consumes the correct resources exactly once");
                 var hit=typeof(GameCore).GetMethod("Hit",
                     BindingFlags.NonPublic|BindingFlags.Instance);
                 Check(hit!=null,"Combat must use production damage and defeat hooks");
