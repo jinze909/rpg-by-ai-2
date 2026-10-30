@@ -1173,7 +1173,8 @@ namespace Starfall
                 bool known=Game.Has("field_tactic_used_"+room);
                 int threats=Game.FieldTacticLiveThreatCount(o);
                 Color ink=cd>0f?muted:threats>0?gold:known?mint:muted;
-                PropImage(room==1?"post":room==2?"column":
+                PropImage(room==1||room==5?"post":
+                    room==2||room==7?"column":
                     room==3?"barrel":"crystal",0,
                     p.x-36,p.y-75,72,78,ink);
                 if(room==1)
@@ -1182,8 +1183,14 @@ namespace Starfall
                 {Box(p.x-25,p.y-48,50,6,ink);Ring(new Point(o.x,o.y),.62f,ink,20);}
                 else if(room==3)
                 {Box(p.x-4,p.y-89,8,22,ink);Diamond(p.x,p.y-96,6,gold);}
-                else
+                else if(room==4)
                 {Diamond(p.x,p.y-96,11,ink);Box(p.x-28,p.y-69,56,3,ink);}
+                else if(room==5)
+                {Box(p.x-27,p.y-84,54,5,ink);Ring(new Point(o.x,o.y),.75f,ink,24);}
+                else if(room==6)
+                {Diamond(p.x,p.y-96,12,ink);Box(p.x-22,p.y-49,44,5,gold);}
+                else
+                {Box(p.x-25,p.y-82,50,5,ink);Diamond(p.x-15,p.y-94,6,ink);Diamond(p.x+15,p.y-94,6,ink);}
                 if(!Game.save.reducedMotion&&cd<=0f)
                     Ring(new Point(o.x,o.y),.56f+
                         .05f*Mathf.Sin(clock*2.3f),ink,24);

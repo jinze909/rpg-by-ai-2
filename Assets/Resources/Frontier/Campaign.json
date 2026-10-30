@@ -8327,6 +8327,14 @@
           "x": 29.5,
           "y": 60.5,
           "lore": -1
+        },
+        {
+          "id": "field_tactic_5",
+          "name": "雾港潮哨",
+          "en": "Mistport foghorn",
+          "x": 27.5,
+          "y": 12.5,
+          "kind": "fielddevice"
         }
       ],
       "decor": [
@@ -9832,6 +9840,14 @@
           "x": 92.5,
           "y": 57.5,
           "lore": -1
+        },
+        {
+          "id": "field_tactic_6",
+          "name": "沙海折光棱镜",
+          "en": "Glasswind prism",
+          "x": 11.5,
+          "y": 15.5,
+          "kind": "fielddevice"
         }
       ],
       "decor": [
@@ -11421,6 +11437,14 @@
           "x": 21.5,
           "y": 25.5,
           "lore": -1
+        },
+        {
+          "id": "field_tactic_7",
+          "name": "霜钟静风铃",
+          "en": "Frostchime stillbell",
+          "x": 28.5,
+          "y": 15.5,
+          "kind": "fielddevice"
         }
       ],
       "decor": [

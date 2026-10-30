@@ -132,6 +132,99 @@ namespace Starfall.Tests
             }
         }
 
+        // The three outer regions are distinct optional battlefields, not
+        // decoration pasted into the map. Check real story gates, original
+        // seven-actor roster, E interaction and one-time saved mastery.
+        public static void OuterExpeditionFieldDevicesControlRealBattleAndSaveReward(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.mode="world";
+            g.save.flags.Add("exp_intro");
+            g.save.flags.Add("harbor_report");
+            g.save.flags.Add("desert_report");
+            for(int room=5;room<=7;room++)
+            {
+                g.Enter(room);
+                WorldObject device=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(device!=null&&g.enemies.Count==7&&
+                    g.CanStand(new Point(device.x,device.y)),
+                    "Outer device integrates with original mandatory seven-fighter region");
+                Check(g.NavigationPathFrom(g.Position,
+                    new Point(device.x,device.y),true).Count>0,
+                    "Outer battlefield has real walkable approach from the story entrance");
+                foreach(WorldObject other in g.Map.objects)
+                    if(!System.Object.ReferenceEquals(device,other))
+                        Check((new Point(other.x,other.y)-
+                            new Point(device.x,device.y)).Length>=3f,
+                            "Outer devices must not steal crowded NPC E interaction pads");
+                Check(g.FieldTacticLiveThreatCount(device)>=1,
+                    "Natural regional attackers can be genuinely caught by the device");
+                g.enemies.Clear();
+                Check(g.FieldTacticLiveThreatCount(device)==0&&
+                    PlaceWithinTalkReach(g,device),
+                    "An empty combat site stays reachable but reports no ghost threats");
+                float energy=90f;g.save.energy=energy;
+                g.Talk(device);
+                int action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                Check(action>=0,"The in-world outer device opens a real action");
+                g.Choose(action);
+                Check(g.save.energy==energy&&g.FieldTacticCooldown(device)==0f&&
+                    !g.Has("field_tactic_used_"+room),
+                    "Empty activation never consumes energy, cooldown or mastery");
+                Point center=new Point(device.x,device.y),enemyFoot=new Point();
+                bool found=false;
+                for(int dy=-5;dy<=5&&!found;dy++)
+                for(int dx=-5;dx<=5&&!found;dx++)
+                {
+                    Point foot=center+new Point(dx,dy);
+                    float distance=(foot-center).Length;
+                    if(distance<2.5f||distance>5.7f||
+                        !g.CanStand(foot))continue;
+                    enemyFoot=foot;found=true;
+                }
+                Check(found,"Each outer device has an actual nearby walkable enemy pad");
+                Enemy target=new Enemy(98000+room,room==5?1:room==6?2:0,
+                    enemyFoot.x,enemyFoot.y,100f);
+                g.enemies.Add(target);
+                Check(g.FieldTacticLiveThreatCount(device)==1,
+                    "Outer tactic only counts live physically visible attacker");
+                g.Talk(device);
+                action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                Check(action>=0,"Combat use offers the same real source-bound choice");
+                g.Choose(action);
+                Check(g.save.energy==energy-14f&&g.FieldTacticCooldown(device)>23f&&
+                    g.Has("field_tactic_used_"+room)&&target.hp==100f,
+                    "Physical outer counter spends energy and marks exactly one genuine use");
+                if(room==5)Check(target.stun>=2.7f,
+                    "Fog horn must genuinely interrupt a bowman");
+                if(room==6)Check(target.armorOpenTime>=3.9f,
+                    "Prism must genuinely expose armored combatants");
+                if(room==7)Check(target.stun>=2.6f&&target.stagger>=1.6f,
+                    "Cold bell must genuinely stop an advancing melee raider");
+                g.Talk(device);
+                action=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trigger");
+                g.Choose(action);
+                Check(g.save.energy==energy-14f,
+                    "An outer device cannot charge twice during cooldown");
+                g.Close();
+            }
+            Check(g.OuterTacticMasteryCount==3&&
+                g.Has("outer_field_tactics_mastered")&&
+                g.save.skillPoints==1&&g.FieldTacticMasteryCount==0&&
+                !g.Has("field_tactics_mastered"),
+                "Separate three-region mastery never invents original chapter progress");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.OuterTacticMasteryCount==3&&
+                restored.Has("outer_field_tactics_mastered")&&
+                restored.save.skillPoints==1,
+                "Existing v2 save flags persist expedition rewards without new fields");
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={
