@@ -79,6 +79,25 @@ namespace Starfall.Tests
                 restored.MainSagaTraces==3&&restored.save.version==2,
                 "All authored story choices survive an ordinary v2 save round-trip");
         }
+        public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
+        {
+            GameCore g=Fresh(data);g.mode="world";g.save.room=0;
+            g.save.stage=2;g.save.flags.Add("core_3");
+            WorldObject guild=Array.Find(g.Map.objects,o=>o.kind=="guild");
+            Check(guild!=null&&PlaceWithinTalkReach(g,guild),
+                "Third core must be delivered to the actual living guild NPC");
+            g.Talk(guild);
+            int deliver=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="deliver");
+            Check(deliver>=0,"Original chapter-three guild scene offers a real core handoff");
+            g.Choose(deliver);
+            Check(g.save.stage==3&&g.MainSagaActive&&
+                g.save.trackedQuest=="main"&&g.save.version==2,
+                "Third original starcore automatically starts expanded main story");
+            Check(g.GetQuest("main").category.Contains("第二幕")||
+                g.GetQuest("main").category.Contains("ACT TWO"),
+                "Real main journal, not a detached afterstory, tracks Act Two");
+        }
         public static void CompletedLegacyFinaleRemainsCompletedWithoutActTwo(Campaign data)
         {
             GameCore g=Fresh(data);

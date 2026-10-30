@@ -3968,7 +3968,17 @@ namespace Starfall.Tests
                     " mode=" + g.mode + " health=" + g.save.health +
                     " enemies=" + g.enemies.Count + " state=" +
                     (g.enemies.Count > 0 ? g.enemies[0].id.ToString() : "empty"));
-                if (room < 4) { Action(g, "shrine", "goto0"); Action(g, "guild", "deliver"); Check(g.save.stage == room, "Core delivered"); }
+                if (room < 4)
+                {
+                    Action(g, "shrine", "goto0");
+                    Action(g, "guild", "deliver");
+                    Check(g.save.stage == room, "Core delivered");
+                    // This original campaign regression explicitly runs the
+                    // legacy four-chapter saved-game contract. Fresh player
+                    // campaigns now automatically enter the longer Act Two;
+                    // its actual path is covered by MainSagaChecks.
+                    if(room==3)g.save.flags.Remove("saga_act_two");
+                }
             }
             for (int frame=0; frame<200 && g.mode=="world"; frame++) g.Tick(.02f,new Point());
             Check(g.mode == "dialog" && !g.fallen.Exists(f=>f.actor.boss), "Final conversation follows the completed Boss death clock, including hit stop");
