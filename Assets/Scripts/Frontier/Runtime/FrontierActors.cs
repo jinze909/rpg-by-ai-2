@@ -1240,6 +1240,20 @@ namespace Starfall
                         Game.L("夜班巡路追兵","SHIFT TRACKER · MELEE"),
                     10,evidenceTint,TextAnchor.MiddleCenter);
             }
+            if(!drawingOutline&&Game.IsRemoteRoadThreat(e))
+            {
+                // The player should recognize the two REAL local foes
+                // rather than chasing a marker off-screen. Reuse original
+                // accepted painted monsters and their feet; only apply a
+                // readable amber ring with the correct combat role.
+                Color roadside=PixelArt.C("#eab66c");
+                Ring(e.Position,.72f,roadside,18);
+                Text(p.x-82,p.y-132,164,20,
+                    e.kind==1?Game.L("远路伏击 · 弓手","ROAD AMBUSH · BOW"):
+                    e.kind==2?Game.L("远路伏击 · 重卫","ROAD AMBUSH · GUARD"):
+                        Game.L("远路伏击 · 突袭","ROAD AMBUSH · RAIDER"),
+                    10,roadside,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsLiveFieldDispatchRaider(e))
             {
                 // The courier ambush is an ACTUAL enemy body and AI actor.

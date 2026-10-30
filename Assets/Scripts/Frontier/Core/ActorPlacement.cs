@@ -386,6 +386,10 @@ namespace Starfall
             Has("remote_road_clear_"+region+"_"+district); }
         private bool IsRemoteRoadEnemy(Enemy e)
         { return e!=null&&RemoteRoadEncounterActive&&remoteRoadFoes.Contains(e); }
+        // Presentation reads only EXACT live actors: duplicate numeric IDs
+        // cannot paint an unrelated main-story monster as a road ambusher.
+        public bool IsRemoteRoadThreat(Enemy e)
+        { return IsRemoteRoadEnemy(e)&&e.hp>0f&&enemies.Contains(e); }
         private void OnRemoteRoadEnemyDefeated(Enemy e)
         {
             if(IsRemoteRoadEnemy(e))remoteRoadDefeated.Add(e);

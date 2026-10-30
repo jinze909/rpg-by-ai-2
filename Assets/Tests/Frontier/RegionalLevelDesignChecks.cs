@@ -1439,6 +1439,34 @@ namespace Starfall.Tests
 
         // Existing maps, actual sight, and the 8-tile enemy perception
         // contract must agree: an announced ambush is playable on screen.
+
+        // Player-facing highlights must be bound to physical enemy
+        // references, never to reused serialized IDs or dead opponents.
+        public static void RoadsideEnemyCuesBelongOnlyToActualLiveAmbushers(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.stage=3;
+            g.save.room=2;g.enemies.Clear();
+            WorldObject site=Array.Find(g.Map.objects,o=>
+                o.id=="ridge_route_2_0");
+            Check(site!=null,"Existing drowned-road marker is present");
+            g.save.x=site.x;g.save.y=site.y;
+            g.Tick(.02f,new Point());
+            Check(g.RemoteRoadEncounterActive&&g.enemies.Count==2,
+                "Actual first encounter begins with two live enemy bodies");
+            Enemy first=g.enemies[0],second=g.enemies[1];
+            var fake=new Enemy(first.id,first.kind,first.x,first.y,first.hp);
+            Check(g.IsRemoteRoadThreat(first)&&g.IsRemoteRoadThreat(second)&&
+                !g.IsRemoteRoadThreat(fake),
+                "Exact living actor identity, not shared spawn IDs, owns danger labels");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Original actual combat defeat pipeline remains present");
+            hit.Invoke(g,new object[]{first,800f,false,null,null});
+            Check(!g.IsRemoteRoadThreat(first)&&g.IsRemoteRoadThreat(second),
+                "A dead actor loses its label immediately without hiding the surviving foe");
+        }
+
         public static void RemoteRoadOpeningAmbushesEnterPhysicalAwarenessRange(Campaign data)
         {
             var sight=typeof(GameCore).GetMethod("ClearAttackPath",
