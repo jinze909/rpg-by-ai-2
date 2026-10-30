@@ -421,6 +421,38 @@ namespace Starfall
                     "“被救下的孩子和没能进门的人应该一起作证，谁也不能抹去另一边的经历。”")+
                 "\n\n守灯会质疑：“公开的名册会暴露躲起来的孩子。”摆渡盟反驳：“封存的名册也能让家属永远找不到人。”山野议会问：下一台机器失控时，究竟谁能下令停机？没有谁的供词自动成为否决票。三地必须选择自己愿意维护的制度。";
         }
+        private string MainSagaFieldHearing(bool english)
+        {
+            if(!MainSagaActive||MainSagaVoices<3)return "";
+            string result="";
+            for(int room=5;room<=7;room++)
+            {
+                bool aid=Has("saga_field_aid_done_"+room);
+                bool record=Has("saga_field_record_done_"+room);
+                if(!aid&&!record)continue; // old v1/v2 route, don't fabricate
+                if(english)
+                    result+=room==5?(aid?
+                        "\n\nA ferryman reports that the repaired boarding plank carried stranded families to the next boat. The old manifest still names those who never boarded.":
+                        "\n\nThe unaltered wreck ledger is safe, the harbor delegation says, but the boarding plank still awaits carpenters."):
+                        room==6?(aid?
+                        "\n\nThe desert delegates bring a cup of water from the repaired return valve. Its original stolen allocation is entered beside the names of the well workers.":
+                        "\n\nThe original water readings have survived. Ivo accepts responsibility for sending workers to repair the leaking valve."):
+                        aid?
+                        "\n\nA survivor from the warming shelter is well enough to send a letter. The mountain delegation refuses to hide the other stranded names.":
+                        "\n\nThe two snowbound distress letters have been preserved. Sen confirms a new medicine run, but cannot claim the patients were already safe.";
+                else
+                    result+=room==5?(aid?
+                        "\n\n摆渡盟带来登船跳板修复的报告：有人得以登船，旧名册上未曾登船的人也没有被划掉。":
+                        "\n\n摆渡盟宣布船难原件已经安全封存，但损坏的跳板仍在等待木匠。"):
+                        room==6?(aid?
+                        "\n\n沙海代表捧来一小杯从回流阀接出的水，居民维修者的名字和被挪用的旧配额一起写进账本。":
+                        "\n\n九年前的真实水量已经留存，伊沃承担派人修复漏水阀的责任。"):
+                        aid?
+                        "\n\n暖棚的一名幸存者已经能写信，可山野议会坚持把没能找到棚子的人一同记下。":
+                        "\n\n两份雪原求救信已被保存。森安排了新的送药路线，却不敢称那些伤者已经安全。";
+            }
+            return result;
+        }
         private string MainSagaCouncilVoteResult(int covenant,bool english)
         {
             if(!MainSagaActive||MainSagaVoices<3||covenant<1||covenant>3)return "";
@@ -558,6 +590,13 @@ namespace Starfall
                 int kind=styles[sagaGuardRoom-5,(wave-1)*2+i];
                 Enemy e=CreatePlacedEnemy(++enemyId,kind,feet[i],
                     49f+6f*(sagaGuardRoom-5)+8f*(wave-1));
+                // A preserved original gives civilians an actual warning of
+                // the attackers' approach; both waves still fight for real.
+                if(Has("saga_field_record_done_"+sagaGuardRoom))
+                {
+                    e.stun=Math.Max(e.stun,1.05f);
+                    e.armorOpenTime=Math.Max(e.armorOpenTime,.85f);
+                }
                 sagaGuardFoes.Add(e);enemies.Add(e);
                 effects.Add(new Effect("enemyRelease",e.Position,.6f)
                     {variant=kind});
@@ -635,11 +674,14 @@ namespace Starfall
             if((Position-new Point(sagaGuardWitness.x,sagaGuardWitness.y)).Length<17f)
             {
                 if(sagaGuardRoom==5&&!LowTide)
-                    save.energy=Math.Max(0f,save.energy-dt*.45f);
+                    save.energy=Math.Max(0f,save.energy-dt*
+                        (Has("saga_field_aid_done_5")?.28f:.45f));
                 if(sagaGuardRoom==6)
-                    save.heat=Math.Min(100f,save.heat+dt*1.7f);
+                    save.heat=Math.Min(100f,save.heat+dt*
+                        (Has("saga_field_aid_done_6")?1.1f:1.7f));
                 if(sagaGuardRoom==7)
-                    save.cold=Math.Min(100f,save.cold+dt*1.7f);
+                    save.cold=Math.Min(100f,save.cold+dt*
+                        (Has("saga_field_aid_done_7")?1.1f:1.7f));
             }
         }
         // Reuse durable civilian rescue choices as farshore witness support.
@@ -899,7 +941,10 @@ namespace Starfall
                 sagaGuardRoom=room;sagaGuardWave=0;
                 sagaGuardMap=Map;sagaGuardSave=save;
                 sagaGuardWitness=host;sagaGuardClock=(room==5?175f:room==6?185f:200f)+
-                    (EarlyRescueEcho(room)?25f:0f);
+                    (EarlyRescueEcho(room)?25f:0f)+
+                    // Residents helped on the distant route return and give
+                    // the defender twenty more real-world seconds.
+                    (Has("saga_field_aid_done_"+room)?20f:0f);
                 if(!SpawnSagaGuardWave(1))
                 {
                     ResetSagaGuard();

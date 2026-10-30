@@ -93,6 +93,9 @@ namespace Starfall.Tests
                     c=>c.action=="saga_guard_begin");
                 Check(begin>=0,"Real witness offers a playable defense before signing");
                 g.Choose(begin);
+                Check(g.SagaGuardClock>=
+                    (room==5?195f:room==6?205f:220f)-.01f,
+                    "Genuine remote civilian aid buys twenty more seconds of two-wave defense");
                 Check(g.SagaGuardActive&&g.SagaGuardWave==1&&
                     g.SagaGuardRemaining==2,
                     "First defender wave exists as genuine game enemies");
@@ -195,6 +198,10 @@ namespace Starfall.Tests
                 "The covenant opens a playable citadel finale, not instant credits");
             Check(g.conversation.textEn.Contains("The shared water order reserves"),
                 "Ratified council policy changes the physical supply agreement");
+            Check(g.conversation.textEn.Contains("repaired boarding plank")&&
+                g.conversation.textEn.Contains("repaired return valve")&&
+                g.conversation.textEn.Contains("warming shelter"),
+                "All three authentic field aid actions reach the real later council hearing");
             g.Close();g.save.room=4;g.mode="world";g.enemies.Clear();
             string[] gateActions={"saga_lastgate_1","saga_lastgate_2",
                 "saga_lastgate_public"};
@@ -316,6 +323,42 @@ namespace Starfall.Tests
             GameCore restored=new GameCore(data,CloneSave(g.save));
             Check(restored.save.version==2&&restored.Has("saga_field_record_done_5"),
                 "Persistent field response requires no SaveData schema migration");
+        }
+        public static void PreservedFarshoreEvidenceGivesRealTwoWaveCombatWarning(Campaign data)
+        {
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);
+                g.save.flags.Add("saga_outer_"+room);
+                g.save.flags.Add("saga_field_record_done_"+room);
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Original signed-witness position still exists");
+                g.Talk(npc);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"The existing investigation interview remains");
+                g.Choose(account);
+                int fight=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(fight>=0,"Preserved evidence never auto-completes real combat");
+                g.Choose(fight);
+                Check(g.SagaGuardActive&&g.SagaGuardRemaining==2&&
+                    g.enemies.Count==2,
+                    "Two real raider actors start on each physical regional map");
+                foreach(Enemy enemy in g.enemies)
+                    Check(enemy.stun>=1.04f&&enemy.armorOpenTime>=.84f,
+                        "Original field evidence lets the witness prepare actual combat defenses");
+                Check(g.SagaGuardClock<=
+                    (room==5?175f:room==6?185f:200f)+.01f,
+                    "Preserving records does not fabricate the separate aid-route time bonus");
+            }
         }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
