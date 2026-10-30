@@ -1683,14 +1683,14 @@ namespace Starfall
                     if(!done&&CanEnter(region)&&
                         (selected<0||region==save.room))selected=region;
                 }
-                if(FieldPatrolActive)selected=save.room;
+                if((FieldPatrolActive&&!FieldPatrolVeteranActive))selected=save.room;
                 q.room=selected>=0?selected:save.room;
-                q.target=FieldPatrolActive?FieldPatrolGuideTarget:
+                q.target=(FieldPatrolActive&&!FieldPatrolVeteranActive)?FieldPatrolGuideTarget:
                     selected>=0?
                         ObjectPoint(selected,"biomeSurvey",
                             new Point(data.maps[selected].spawnX,
                                 data.maps[selected].spawnY)):Position;
-                if(FieldPatrolActive)
+                if((FieldPatrolActive&&!FieldPatrolVeteranActive))
                 {
                     q.next=FieldPatrolReportReady?
                         L("全部巡兵已被击退或活捉，返回原地标提交真实回执。",

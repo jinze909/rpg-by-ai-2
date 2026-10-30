@@ -277,6 +277,11 @@ namespace Starfall.Tests
                     g.enemies.Count==count&&
                     g.save.trackedQuest=="veteran_patrols",
                     "Veteran accepts a full exact-actor wave and tracks it in the live journal");
+                var ordinary=g.GetQuest("field_patrols");
+                Check(ordinary.id=="field_patrols"&&
+                    ordinary.next.IndexOf("巡路委托进行中",StringComparison.Ordinal)<0&&
+                    ordinary.next.IndexOf("Active patrol",StringComparison.Ordinal)<0,
+                    "Veteran battle never hijacks the old first-clear's player-facing objective");
                 var guide=g.GetQuest("veteran_patrols");
                 Check(guide.id=="veteran_patrols"&&guide.room==room&&
                     guide.steps.Count==7&&!guide.complete,
