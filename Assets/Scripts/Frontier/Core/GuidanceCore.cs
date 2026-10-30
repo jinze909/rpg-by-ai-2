@@ -25,6 +25,75 @@ namespace Starfall
             float bx,float by,float bw,float bh)
         { return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by; }
     }
+
+    // A pure, source-identity-based layout that arbitrates ALL candidate
+    // captions after the depth-sorted world pass, rather than giving the
+    // first map-array entry an irreversible claim on scarce screen space.
+    // No quest flags, player input or Sprite assets are modified here.
+    public sealed class WorldLabelSlot
+    {
+        public WorldObject owner;
+        public float x,y,width,height,distance;
+        public int priority;
+        public bool urgent;
+    }
+    public static partial class WorldLabelPolicyExtensions
+    {
+        public static void Select(IList<WorldLabelSlot> pending,
+            List<int> accepted,List<int> scratch)
+        {
+            accepted.Clear();scratch.Clear();
+            if(pending==null)return;
+            for(int i=0;i<pending.Count;i++)
+            {
+                WorldLabelSlot slot=pending[i];
+                if(slot==null||slot.owner==null||slot.priority<=0||
+                   slot.width<=0f||slot.height<=0f||
+                   float.IsNaN(slot.x)||float.IsInfinity(slot.x)||
+                   float.IsNaN(slot.y)||float.IsInfinity(slot.y)||
+                   float.IsNaN(slot.width)||float.IsInfinity(slot.width)||
+                   float.IsNaN(slot.height)||float.IsInfinity(slot.height))
+                    continue;
+                scratch.Add(i);
+            }
+            // Higher-priority mission/urgent/selected labels claim space
+            // BEFORE ambient markers regardless of map insertion order.
+            // Tie-break by physical distance and object identity so two
+            // otherwise equal captions do not flicker across repaints.
+            scratch.Sort((ia,ib)=>
+            {
+                WorldLabelSlot a=pending[ia],b=pending[ib];
+                int order=b.priority.CompareTo(a.priority);
+                if(order!=0)return order;
+                order=a.distance.CompareTo(b.distance);
+                if(order!=0)return order;
+                order=String.CompareOrdinal(a.owner.id,b.owner.id);
+                if(order!=0)return order;
+                order=a.x.CompareTo(b.x);
+                if(order!=0)return order;
+                order=a.y.CompareTo(b.y);
+                return order!=0?order:ia.CompareTo(ib);
+            });
+            foreach(int i in scratch)
+            {
+                WorldLabelSlot candidate=pending[i];
+                bool collides=false;
+                int own=0;
+                foreach(int previous in accepted)
+                {
+                    WorldLabelSlot prior=pending[previous];
+                    if(Object.ReferenceEquals(prior.owner,candidate.owner))
+                        {own++;continue;}
+                    if(WorldLabelPolicy.Overlap(candidate.x,candidate.y,
+                        candidate.width,candidate.height,
+                        prior.x,prior.y,prior.width,prior.height))
+                        {collides=true;break;}
+                }
+                int cap=candidate.urgent?4:candidate.priority==1?1:2;
+                if(!collides&&own<cap)accepted.Add(i);
+            }
+        }
+    }
     public static class MapPresentationPolicy
     {
         public static bool ShowObject(string kind,bool focus,

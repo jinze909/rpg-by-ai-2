@@ -80,8 +80,25 @@ namespace Starfall
         private WorldObject worldLabelOwner,worldLabelNearest;
         private bool worldLabelCullingActive;
         private Point? worldLabelGoal;
-        private readonly List<Rect> occupiedWorldLabels=new List<Rect>(48);
-        private readonly List<WorldObject> occupiedWorldLabelOwners=new List<WorldObject>(48);
+        // World props are still depth-sorted, but captions are queued and
+        // resolved after all visible actors have proposed their screen-space
+        // rectangles. Recycle tickets on each IMGUI pass to avoid GC spikes.
+        private sealed class QueuedWorldLabel
+        {
+            public readonly WorldLabelSlot slot=new WorldLabelSlot();
+            public string content;
+            public int fontSize;
+            public Color color;
+            public TextAnchor align;
+            public float opacity;
+        }
+        private readonly List<QueuedWorldLabel> worldLabelTickets=
+            new List<QueuedWorldLabel>(80);
+        private readonly List<WorldLabelSlot> worldLabelSlots=
+            new List<WorldLabelSlot>(80);
+        private readonly List<int> worldLabelSelection=new List<int>(80);
+        private readonly List<int> worldLabelScratch=new List<int>(80);
+        private int queuedWorldLabelCount;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -498,25 +515,17 @@ namespace Starfall
             TextAnchor anchor=TextAnchor.UpperLeft)
         {
             if(worldLabelOwner==null||String.IsNullOrEmpty(content))return;
-            // Individual world objects are also rendered outside DrawWorld
-            // by preview/inspection capture. Its per-frame visibility and
-            // collision caches are invalid in that context: always paint
-            // the real dynamic source cue rather than silently dropping it.
+            // Editor review/preview draws the actual source directly: only
+            // the live world pass has the complete candidates for sorting.
             if(!worldLabelCullingActive)
             {Text(x,y,w,h,content,size,color,anchor);return;}
             Point foot=new Point(worldLabelOwner.x,worldLabelOwner.y);
             float distance=(foot-Game.Position).Length;
-            bool target=worldLabelGoal.HasValue&&
+            bool objective=worldLabelGoal.HasValue&&
                 (foot-worldLabelGoal.Value).Length<1.25f;
-            int priority=WorldLabelPolicy.Priority(distance,target,
+            int priority=WorldLabelPolicy.Priority(distance,objective,
                 System.Object.ReferenceEquals(worldLabelNearest,worldLabelOwner));
-            // The 3-tile interaction cutoff was too narrow for physical
-            // shelters, rescues and their live resource/cost indicators.
             if(priority==0&&distance<=5.5f)priority=1;
-            // Contextual live mission cues must remain on the object that
-            // actually owns the rescue, shelter or public service. These are
-            // not ambient POI names: their conditions disappear when the
-            // mission, service or physical reach is revoked.
             string kind=worldLabelOwner.kind;
             bool urgent=(kind=="unsentrelay"&&Game.UnsentWarningRunActive)||
                 (kind.StartsWith("wayfarer")&&
@@ -526,22 +535,37 @@ namespace Starfall
                 (kind=="outerrelay"&&Game.OuterSignalRouteReady)||
                 (kind=="waytrail"&&Game.Has("civic_aftercare_published")&&
                     Game.Has("civic_aftercare_waytrail_"+Game.save.room));
-            if(urgent)priority=3;
+            if(urgent)priority=4;
             if(priority==0||x+w<16||x>Width-16||y+h<16||y>Height-16)return;
-            int owned=0;
-            for(int i=0;i<occupiedWorldLabels.Count;i++)
+            if(queuedWorldLabelCount==worldLabelTickets.Count)
+                worldLabelTickets.Add(new QueuedWorldLabel());
+            QueuedWorldLabel entry=worldLabelTickets[queuedWorldLabelCount++];
+            entry.slot.owner=worldLabelOwner;
+            entry.slot.x=x;entry.slot.y=y;
+            entry.slot.width=w;entry.slot.height=h;
+            entry.slot.distance=distance;
+            entry.slot.priority=priority;entry.slot.urgent=urgent;
+            entry.content=content;entry.fontSize=size;
+            entry.color=color;entry.align=anchor;
+            entry.opacity=worldActorOpacity;
+            worldLabelSlots.Add(entry.slot);
+        }
+        private void FlushWorldLabels()
+        {
+            // Reserve the highest-value captions in screen space before
+            // rendering a single line. An ordinary sign can never cover a
+            // live quest objective merely because it had a lower map index.
+            WorldLabelPolicyExtensions.Select(worldLabelSlots,
+                worldLabelSelection,worldLabelScratch);
+            foreach(int index in worldLabelSelection)
             {
-                if(System.Object.ReferenceEquals(occupiedWorldLabelOwners[i],
-                    worldLabelOwner))
-                {owned++;continue;}
-                Rect other=occupiedWorldLabels[i];
-                if(!urgent&&WorldLabelPolicy.Overlap(x,y,w,h,other.x,other.y,
-                    other.width,other.height))return;
+                QueuedWorldLabel entry=worldLabelTickets[index];
+                Color tint=entry.color;
+                tint.a*=entry.opacity;
+                Text(entry.slot.x,entry.slot.y,
+                    entry.slot.width,entry.slot.height,
+                    entry.content,entry.fontSize,tint,entry.align);
             }
-            if(owned>=(urgent?4:priority==1?1:2))return;
-            occupiedWorldLabels.Add(new Rect(x,y,w,h));
-            occupiedWorldLabelOwners.Add(worldLabelOwner);
-            Text(x,y,w,h,content,size,color,anchor);
         }
         private bool Button(float x, float y, float w, float h, string text, bool active = false, bool enabled = true)
         {
@@ -889,8 +913,8 @@ namespace Starfall
             PrewarmTerrain();
             worldOverlayRegions.Clear();
             worldLabelCullingActive=true;
-            occupiedWorldLabels.Clear();
-            occupiedWorldLabelOwners.Clear();
+            worldLabelSlots.Clear();
+            queuedWorldLabelCount=0;
             worldLabelOwner=null;
             worldLabelNearest=Game.Nearest();
             QuestGuide currentObjective=Game.RecommendedContinuationGuide;

@@ -105,6 +105,51 @@ namespace Starfall.Tests
                 "World label collision respects the real occupied screen rectangle");
         }
 
+
+        public static void MissionLabelsActuallyWinCrowdedWorldSpace(Campaign data)
+        {
+            WorldObject ordinary=data.maps[0].objects[0];
+            WorldObject objective=data.maps[0].objects[1];
+            Check(ordinary!=null&&objective!=null&&
+                !Object.ReferenceEquals(ordinary,objective),
+                "Production world has independent mission and ambient sources");
+            var candidates=new System.Collections.Generic.List<WorldLabelSlot>{
+                new WorldLabelSlot{owner=ordinary,x=90,y=120,
+                    width=180,height=24,distance=1.5f,priority=1},
+                new WorldLabelSlot{owner=objective,x=110,y=120,
+                    width=180,height=24,distance=3f,priority=3}
+            };
+            var kept=new System.Collections.Generic.List<int>();
+            var scratch=new System.Collections.Generic.List<int>();
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==1&&kept[0]==1,
+                "An objective is readable even if ordinary scenery was authored first");
+            candidates.Reverse();
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==1&&kept[0]==0,
+                "Priorities remain stable when source-array draw order reverses");
+            candidates.Clear();
+            for(int i=0;i<5;i++)
+                candidates.Add(new WorldLabelSlot{owner=objective,
+                    x=110,y=100,width=180,height=22,
+                    distance=2f,priority=4,urgent=true});
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==4,
+                "Urgent rescue services keep four authentic stacked status lines");
+            candidates.Add(new WorldLabelSlot{owner=ordinary,
+                x=120,y=100,width=180,height=22,
+                distance=.2f,priority=1});
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==4&&!kept.Contains(5),
+                "A nearby ambient sign cannot erase urgent mission status");
+            candidates.Clear();
+            candidates.Add(new WorldLabelSlot{owner=ordinary,
+                x=float.NaN,y=100,width=50,height=22,distance=1f,priority=3});
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==0,
+                "Invalid render coordinates cannot poison the live label layout");
+        }
+
         public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
         {
             Check(MapPresentationPolicy.ShowObject("portal1",true,false,true),

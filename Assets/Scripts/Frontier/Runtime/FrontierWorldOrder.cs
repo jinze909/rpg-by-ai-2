@@ -174,6 +174,10 @@ namespace Starfall
                 worldActorOpacity=1f;
                 worldDrawEntries.Clear();
             }
+            // Resolve label conflicts only AFTER collecting every live
+            // object. Paint real incoming attack warnings afterward so
+            // important combat telegraphs cannot be covered by captions.
+            FlushWorldLabels();
             DrawVisibleEnemyWarnings();
         }
         // Combat preview outlines are gameplay signals, not scenery. Draw
