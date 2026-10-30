@@ -845,7 +845,7 @@ namespace Starfall
             {
                 Point site=Game.SagaGuardWitnessPosition;
                 int safety=Game.SagaGuardEvidenceSafety;
-                Color safetyTint=safety<=40?
+                Color safetyTint=Game.SagaGuardBodyBlocking?mint:safety<=40?
                     new Color(1f,.4f,.36f,.9f):
                     safety<=75?gold:new Color(.59f,.85f,1f,.78f);
                 Ring(site,7.5f,new Color(safetyTint.r,safetyTint.g,

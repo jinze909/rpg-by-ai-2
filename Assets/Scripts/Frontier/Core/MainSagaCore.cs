@@ -485,7 +485,7 @@ namespace Starfall
         // Transient contested-evidence pressure: owned raiders must actually
         // reach the original speaker while able to fight. No v2 save fields.
         private float sagaGuardBreach;
-        private bool sagaGuardBreachWarned;
+        private bool sagaGuardBreachWarned, sagaGuardBodyBlocking;
         private bool sagaGuardDeviceUsed;
         private MapData sagaGuardMap;
         private SaveData sagaGuardSave;
@@ -511,6 +511,7 @@ namespace Starfall
         private Point SagaGuardWitnessFoot
         {get{return SagaGuardActive?
             new Point(sagaGuardWitness.x,sagaGuardWitness.y):Position;}}
+        public bool SagaGuardBodyBlocking {get{return SagaGuardActive&&sagaGuardBodyBlocking;}}
         public bool SagaGuardDeviceUsed {get{return SagaGuardActive&&sagaGuardDeviceUsed;}}
         public bool SagaGuardDeviceReady
         {get{return SagaGuardActive&&!sagaGuardDeviceUsed&&SagaGuardRemaining>0;}}
@@ -567,7 +568,7 @@ namespace Starfall
             }
             sagaGuardRoom=-1;sagaGuardWave=0;sagaGuardClock=0f;
             sagaGuardBreach=0f;sagaGuardBreachWarned=false;
-            sagaGuardDeviceUsed=false;
+            sagaGuardBodyBlocking=false;sagaGuardDeviceUsed=false;
             sagaGuardMap=null;sagaGuardSave=null;sagaGuardWitness=null;
             sagaGuardFoes.Clear();sagaGuardDefeated.Clear();
         }
@@ -628,7 +629,25 @@ namespace Starfall
                     {variant=kind});
             }
             sagaGuardWave=wave;
+            sagaGuardBodyBlocking=false;
             return true;
+        }
+        // A bodyguard must physically stand IN the lane from an acting
+        // raider to the witness, not simply idle anywhere in the radius.
+        // World collision and true contact geometry apply on both sides.
+        private bool SagaGuardHeroInterposes(Enemy attacker,Point witness)
+        {
+            if(attacker==null||!CanStand(Position))return false;
+            Point lane=witness-attacker.Position;
+            float len2=lane.x*lane.x+lane.y*lane.y;
+            if(len2<.25f)return false;
+            Point relative=Position-attacker.Position;
+            float t=(relative.x*lane.x+relative.y*lane.y)/len2;
+            if(t<=.12f||t>=.88f)return false;
+            Point closest=attacker.Position+lane*t;
+            return (closest-Position).Length<=.72f&&
+                ClearAttackPath(attacker.Position,Position)&&
+                ClearAttackPath(Position,witness);
         }
         private void TickSagaGuard(float dt)
         {
@@ -705,13 +724,26 @@ namespace Starfall
             float slice=Math.Min(.1f,dt);
             int raidersAtWitness=0;
             Point witnessFoot=new Point(sagaGuardWitness.x,sagaGuardWitness.y);
+            bool previouslyBlocked=sagaGuardBodyBlocking;
+            sagaGuardBodyBlocking=false;
             foreach(Enemy e in sagaGuardFoes)
-                if(e!=null&&e.hp>0&&enemies.Contains(e)&&
-                    e.stun<=0f&&e.stagger<=0f&&e.hitTime<=0f&&
-                    CanStand(e.Position)&&
-                    (e.Position-witnessFoot).Length<=7.5f&&
-                    ClearAttackPath(e.Position,witnessFoot))
+            {
+                if(e==null||e.hp<=0||!enemies.Contains(e)||
+                    e.stun>0f||e.stagger>0f||e.hitTime>0f||
+                    !CanStand(e.Position)||
+                    (e.Position-witnessFoot).Length>7.5f||
+                    !ClearAttackPath(e.Position,witnessFoot))continue;
+                if(SagaGuardHeroInterposes(e,witnessFoot))
+                    sagaGuardBodyBlocking=true;
+                else
                     raidersAtWitness++;
+            }
+            if(sagaGuardBodyBlocking&&!previouslyBlocked)
+            {
+                effects.Add(new Effect("number",Position+new Point(0,-.6f),
+                    .8f,L("舍身拦截！","BODYGUARD!")));
+                sound="guard";revision++;
+            }
             sagaGuardBreach=Math.Max(0f,Math.Min(100f,
                 sagaGuardBreach+slice*(raidersAtWitness>0?
                     raidersAtWitness*10f:-6f)));

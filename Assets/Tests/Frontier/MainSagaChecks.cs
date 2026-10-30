@@ -561,6 +561,84 @@ namespace Starfall.Tests
                     "Guidance itself cannot award signed testimony");
             }
         }
+
+        public static void LiveHeroBodyguardActuallyBlocksEvidenceSeizure(Campaign data)
+        {
+            var tick=typeof(GameCore).GetMethod("TickSagaGuard",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(tick!=null&&clear!=null,
+                "The bodyguard test uses actual mission and world collision");
+            bool verified=false;
+            for(int room=5;room<=7&&!verified;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);g.save.flags.Add("saga_outer_"+room);
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Original witness is physically present");
+                g.Talk(npc);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Original interview is live");
+                g.Choose(account);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"Physical mission starts");
+                g.Choose(begin);
+                Check(g.SagaGuardActive&&g.enemies.Count==2,
+                    "Real two-wave witness defense owns the two actors");
+                Point witness=new Point(npc.x,npc.y),hero=new Point(),
+                    attacker=new Point(),retreat=new Point();
+                bool found=false;
+                Point[] directions={new Point(1,0),new Point(-1,0),
+                    new Point(0,1),new Point(0,-1),
+                    new Point(.7071f,.7071f),new Point(-.7071f,.7071f),
+                    new Point(.7071f,-.7071f),new Point(-.7071f,-.7071f)};
+                foreach(Point direction in directions)
+                {
+                    for(float distance=1.1f;distance<=2.2f;distance+=.35f)
+                    {
+                        Point h=witness+direction*distance;
+                        Point a=witness+direction*(distance+1.45f);
+                        Point away=witness-direction*distance;
+                        if(!g.CanStand(h)||!g.CanStand(a)||!g.CanStand(away))
+                            continue;
+                        if(!(bool)clear.Invoke(g,new object[]{a,h})||
+                           !(bool)clear.Invoke(g,new object[]{h,witness})||
+                           !(bool)clear.Invoke(g,new object[]{a,witness}))
+                            continue;
+                        hero=h;attacker=a;retreat=away;found=true;break;
+                    }
+                    if(found)break;
+                }
+                if(!found)continue;
+                verified=true;
+                Enemy[] guards=g.enemies.ToArray();
+                guards[0].x=attacker.x;guards[0].y=attacker.y;
+                guards[0].stun=0f;guards[0].stagger=0f;guards[0].hitTime=0f;
+                guards[1].stun=20f;
+                g.save.x=hero.x;g.save.y=hero.y;
+                for(int k=0;k<12;k++)tick.Invoke(g,new object[]{.08f});
+                Check(g.SagaGuardBodyBlocking&&g.SagaGuardEvidenceSafety==100,
+                    "Actual hero feet in a clear raider-to-witness lane block seizure");
+                g.save.x=retreat.x;g.save.y=retreat.y;
+                for(int k=0;k<12;k++)tick.Invoke(g,new object[]{.08f});
+                Check(!g.SagaGuardBodyBlocking&&
+                    g.SagaGuardEvidenceSafety<100&&g.SagaGuardActive,
+                    "Stepping out of the physical lane restores real evidence pressure");
+                Check(!g.Has("saga_guard_"+room)&&!g.Has("saga_voice_"+room),
+                    "Bodyguard status never fabricates quest reward or testimony");
+            }
+            Check(verified,
+                "At least one authored regional speaker has a physically open bodyguard lane");
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;
