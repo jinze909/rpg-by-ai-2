@@ -43,6 +43,25 @@ namespace Starfall
             return fieldTacticReady.TryGetValue(o,out time)?
                 Math.Max(0f,time-save.totalTime):0f;
         }
+        // The exact live, line-of-sight target count used by the real device
+        // also drives its world prompt. Never advertise a free-use battlefield
+        // counter when the current fight is physically out of range.
+        public int FieldTacticLiveThreatCount(WorldObject o)
+        {
+            if(!FieldTacticSource(o))return 0;
+            Point origin=new Point(o.x,o.y);
+            int count=0;
+            foreach(Enemy e in enemies)
+                if(FieldTacticCanAffect(e,origin))count++;
+            if(save.room==4)
+                foreach(Projectile shot in projectiles)
+                    if(shot!=null&&!shot.friendly&&
+                        shot.hostileShooter!=null&&
+                        enemies.Contains(shot.hostileShooter)&&
+                        (shot.position-origin).Length<=5.8f&&
+                        ClearAttackPath(origin,shot.position))count++;
+            return count;
+        }
         private bool FieldTacticCanAffect(Enemy e,Point source)
         {
             return e!=null&&!e.boss&&e.hp>0&&e.kind>=0&&e.kind<=2&&

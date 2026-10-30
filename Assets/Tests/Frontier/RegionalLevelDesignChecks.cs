@@ -78,6 +78,34 @@ namespace Starfall.Tests
                 "Authored combat consequences persist in ordinary v2 save flags");
         }
 
+        // A mechanism can be reachable yet useless if every actual campaign
+        // soldier spawns in a different encounter district. Exercise the
+        // unchanged 6/8-enemy rosters, not a hand-placed test enemy.
+        public static void FourChapterTacticsOccupyLiveBattleLanes(Campaign data)
+        {
+            for(int room=1;room<=4;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;g.Enter(room);
+                WorldObject device=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(device!=null&&g.CanStand(new Point(device.x,device.y)),
+                    "Each chapter tactical device stands on actual walkable ground");
+                Check(g.NavigationPathFrom(g.Position,
+                    new Point(device.x,device.y),true).Count>0,
+                    "The original chapter entrance has a real route to its combat mechanism");
+                foreach(WorldObject prop in g.Map.objects)
+                    if(!Object.ReferenceEquals(prop,device))
+                        Check((new Point(prop.x,prop.y)-
+                            new Point(device.x,device.y)).Length>=3f,
+                            "A usable device needs its own interaction clearing");
+                Check(g.FieldTacticLiveThreatCount(device)>=1,
+                    "The natural required chapter roster must provide real visible targets for the placed mechanism");
+                g.enemies.Clear();
+                Check(g.FieldTacticLiveThreatCount(device)==0,
+                    "An empty battlefield cannot display phantom viable targets");
+            }
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={

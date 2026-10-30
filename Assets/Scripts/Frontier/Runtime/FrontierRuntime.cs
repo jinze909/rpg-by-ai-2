@@ -1171,7 +1171,8 @@ namespace Starfall
                 int room=Game.save.room;
                 float cd=Game.FieldTacticCooldown(o);
                 bool known=Game.Has("field_tactic_used_"+room);
-                Color ink=cd>0f?muted:known?mint:gold;
+                int threats=Game.FieldTacticLiveThreatCount(o);
+                Color ink=cd>0f?muted:threats>0?gold:known?mint:muted;
                 PropImage(room==1?"post":room==2?"column":
                     room==3?"barrel":"crystal",0,
                     p.x-36,p.y-75,72,78,ink);
@@ -1189,8 +1190,10 @@ namespace Starfall
                 WorldObjectLabel(p.x-121,p.y-122,242,22,
                     cd>0f?Game.L("装置复位 "+(int)Math.Ceiling(cd)+"秒",
                                     "RESET "+(int)Math.Ceiling(cd)+"s"):
-                    known?Game.L("战术装置 · E再次操作","FIELD TACTIC · E REUSE"):
-                        Game.L("发现战术装置 · E","FIELD DEVICE · E"),
+                    threats>0?Game.L("敌情 "+threats+" · E启动反制",
+                                      "THREATS "+threats+" · E COUNTER"):
+                    known?Game.L("战术装置 · 暂无目标","FIELD TACTIC · NO TARGET"):
+                        Game.L("战术装置 · 等敌接近","FIELD DEVICE · AWAIT FOES"),
                     11,ink,TextAnchor.MiddleCenter);
                 return;
             }
