@@ -4556,6 +4556,9 @@ namespace Starfall
                         placesEn[i]+": finish the live regional investigation"),Has(reports[i])));
                     q.steps.Add(new QuestStep(L("现场原始证据 · "+placesZh[i],
                         "Inspect original evidence · "+placesEn[i]),Has("saga_trace_"+i)));
+                    q.steps.Add(new QuestStep(L("走访远端原始记录 · "+placesZh[i],
+                        "Inspect conflicting outlying account · "+placesEn[i]),
+                        Has("saga_outer_"+i)||Has("saga_voice_"+i)));
                     q.steps.Add(new QuestStep(L("由当事人亲自签下证词 · "+placesZh[i],
                         "First-hand signed account · "+placesEn[i]),Has("saga_voice_"+i)));
                 }
@@ -4585,6 +4588,13 @@ namespace Starfall
                         q.room=i;q.target=MainSagaEvidencePoint(i);
                         q.next=L(placesZh[i]+"：去原有现场查看遗失证据（航海名册 / 蓄光接收台 / 第三座钟）。",
                             placesEn[i]+": inspect the real manifest, light receiver or third chime.");
+                        return q;
+                    }
+                    if(!Has("saga_outer_"+i)&&!Has("saga_voice_"+i))
+                    {
+                        q.room=i;q.target=MainSagaOuterPoint(i);
+                        q.next=L(placesZh[i]+"：前往地图深处的原始手记。只有比较两个人的说法，才能签下真实证词。",
+                            placesEn[i]+": follow the real regional road to the outlying journal and compare conflicting witnesses.");
                         return q;
                     }
                     if(!Has("saga_voice_"+i))

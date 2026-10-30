@@ -53,6 +53,20 @@ namespace Starfall.Tests
                     g.conversation!=null,
                     "Only interacting at the real evidence object earns the trace");
                 g.Close();
+                WorldObject outer=Array.Find(g.Map.objects,o=>o.id==
+                    "outer_"+room+"_0");
+                Check(outer!=null&&
+                    (new Point(outer.x,outer.y)-new Point(evidence.x,evidence.y)).Length>25f&&
+                    g.NavigationPathFrom(new Point(evidence.x,evidence.y),
+                        new Point(outer.x,outer.y),true).Count>0,
+                    "The second testimony is a distinct, genuinely walkable distant site");
+                Check(PlaceWithinTalkReach(g,outer),
+                    "Original farshore journal can be physically reached");
+                g.Talk(outer);
+                Check(g.save.flags.Contains("saga_outer_"+room)&&
+                    g.conversation!=null,
+                    "Only the actual outlying evidence interaction completes the second investigation");
+                g.Close();
                 Check(PlaceWithinTalkReach(g,npc),"Return to the genuine witness");
                 g.Talk(npc);
                 account=Array.FindIndex(g.conversation.choices,

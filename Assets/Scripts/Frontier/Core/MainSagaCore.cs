@@ -43,6 +43,16 @@ namespace Starfall
                     return new Point(objectAt.x,objectAt.y);
             return new Point(data.maps[room].spawnX,data.maps[room].spawnY);
         }
+        private static string SagaOuterId(int room)
+        { return room>=5&&room<=7?"outer_"+room+"_0":""; }
+        public Point MainSagaOuterPoint(int room)
+        {
+            if(room<5||room>7)return Position;
+            foreach(WorldObject o in data.maps[room].objects)
+                if(o!=null&&o.id==SagaOuterId(room))
+                    return new Point(o.x,o.y);
+            return new Point(data.maps[room].spawnX,data.maps[room].spawnY);
+        }
         private bool SagaValidSpeaker(WorldObject source,int room)
         {
             return room>=5&&room<=7&&source!=null&&
@@ -60,13 +70,35 @@ namespace Starfall
         {
             if(!MainSagaActive||save.ending>0||save.stage<3||
                 !Has("boss_4")||save.room<5||save.room>7||
-                !Has(SagaReport(save.room))||
-                Has("saga_trace_"+save.room)||o==null||
-                o.id!=SagaEvidenceId(save.room)||
+                !Has(SagaReport(save.room))||o==null||
                 !SourceBelongsToActiveMap(o)||
                 !HasPhysicalInteractionReach(o)||!CanStand(Position)||
                 Dying||practicing)return false;
             int room=save.room;
+            bool first=!Has("saga_trace_"+room)&&
+                o.id==SagaEvidenceId(room);
+            bool distant=Has("saga_trace_"+room)&&
+                !Has("saga_outer_"+room)&&!Has("saga_voice_"+room)&&
+                o.id==SagaOuterId(room);
+            if(!first&&!distant)return false;
+            if(distant)
+            {
+                string[] outerZh={"","","","","",
+                    "港口外侧的旧船难手记有两种笔迹。一名获救的孩子写下：米拉让我们躲在她弟弟的船里。另一名没有登船的渡工则写：我们等到天黑，也没人再来。\n\n两份笔迹都是真的。保护一艘船并没有让另一艘船自动靠岸；救援从来不该只记被救到的那批人。",
+                    "沙海分水笔记没有英雄的署名，只有挨个抄写水量的人。外环居民把剩余的半桶水先分给了孩子，又偷偷在管道上画了回流箭头。伊沃后来声称那是自己的发明。\n\n真正让人活下来的，不只有他当年犯错后画出的改线图，还有那些默默修井的人。",
+                    "雪原求救纸条被寒气粘在木架上。一面是孩子写给守钟人的感谢，另一面是未能入门者的求援：“我们听不见钟，便以为你们已经走了。”\n\n森那一夜救了人，也误了人。现在这两种声音都被你带回去。"};
+                string[] outerEn={"","","","","",
+                    "Two hands fill the old wreck log beyond the harbor. A rescued child writes: Mira hid us on her brother's boat. A ferryman left ashore writes: we waited until night, and nobody returned.\n\nBoth are true. Saving one boat did not mean the other arrived. Rescue must be counted with the people left behind.",
+                    "The desert diversion journal bears no hero's name, only neighbors recording water by the cup. Outer-ring residents split their last half bucket among children, then drew return-flow arrows on the pipes. Ivo later claimed the design as his own.\n\nWhat kept people alive was not only his apology or blueprint, but those who quietly repaired the wells.",
+                    "A snowbound distress note carries two voices. A child thanks the bell keeper for shelter. On its reverse an evacuee writes: we could not hear the bell, so we thought you had already left.\n\nSen saved some and stranded others. You now carry both voices back."};
+                Flag("saga_outer_"+room);
+                RecordMoment("第二幕 · 深处手记：在真正的远端路线上找回了与官方记录矛盾的另一位当事者。",
+                    "Act Two: recovered a second, conflicting first-hand account at the far end of the real regional road.");
+                revision++;sound="quest";
+                Dialog(o.name,o.en,outerZh[room],outerEn[room],
+                    C("带回两面的证词","Bring both voices back","close"));
+                return true;
+            }
             string[] zh={
                 "","", "", "", "",
                 "名册的最后一页压着两层不同颜色的墨。上层是港务处的“事故损失”，下层却写着米拉亲笔抄下的救援船号。她没有向任何人说过这第二份名单。\n\n北岸不是所有乘客的归途：有人没有等到船。现在你知道为何米拉每次说“全员”都会突然停下来。",
@@ -144,6 +176,20 @@ namespace Starfall
                     "“You've read the public report. There is something I left out. First go see "+
                     sitesEn[room]+". Without that evidence, everything I say will sound like an excuse.”",
                     C("亲自去调查","Investigate in person","close"));
+                return;
+            }
+            if(!Has("saga_outer_"+room)&&!Has("saga_voice_"+room))
+            {
+                string[] places={"","","","","",
+                    "外海的船难手记","远处的沙海分水笔记","雪原深处的求救纸条"};
+                string[] placesEn={"","","","","",
+                    "the outlying wreck journal","the distant desert diversion journal",
+                    "the snowfield distress note"};
+                Dialog(host.name,host.en,
+                    "“你找到了我想隐瞒的第一份证据。但那里还有一个人写过另一种结局。去找"+places[room]+"。你回来时，我会把两种声音放在同一份供词里。”",
+                    "“You found the first evidence I hid. Someone farther away wrote a different ending. Find "+
+                    placesEn[room]+". When you return, I'll put both voices in my account.”",
+                    C("沿原道路继续追查","Follow the original road","close"));
                 return;
             }
             if(Has("saga_voice_"+room))
@@ -278,6 +324,7 @@ namespace Starfall
                     !MainSagaActive||save.ending>0||
                     !Has("boss_4")||!SagaValidSpeaker(host,room)||
                     !Has(SagaReport(room))||!Has("saga_trace_"+room)||
+                    !Has("saga_outer_"+room)||
                     Has("saga_voice_"+room))return true;
                 Flag("saga_voice_"+room);
                 Flag("saga_choice_"+room+"_"+bits[1]);
