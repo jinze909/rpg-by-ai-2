@@ -33,6 +33,10 @@ namespace Starfall.Tests
                     NightShiftChoose(game,site,receipt);
                     Check(game.Has(receipt),
                         "Only an actual physical source signs its own field aid once");
+                    var next=game.GetQuest("night_shift_aftercare");
+                    Check(next.steps.Count==3&&next.steps[room-1].done&&
+                        (room==3?next.complete:next.room==room+1&&!next.complete),
+                        "Player-facing quest and compass advance to the next actual field receipt");
                     if(published)
                         Check(game.save.inventory[target]==
                             Math.Min(9999,oldMaterial+(room==3?1:2)),
@@ -398,6 +402,10 @@ namespace Starfall.Tests
                 "The mine costs exactly one real part and completes the field investigation");
             town=NightShiftAt(g,0);
             NightShiftChoose(g,town,"nightshift_public");
+            Check(g.save.trackedQuest=="night_shift_aftercare"&&
+                g.GetQuest("night_shift_aftercare").steps.Count==3&&
+                g.GetQuest("night_shift_aftercare").room==1,
+                "Choosing the town ending automatically hands off to the next physically available quest instead of a completed marker");
             Check(g.save.moments.Count==initialChronicle+5&&
                 g.save.moments[g.save.moments.Count-1].en.Contains("restored the erased road"),
                 "All three real clues and the public decision appear once in the persistent player chronicle");
@@ -424,8 +432,9 @@ namespace Starfall.Tests
                 restored.GetQuest("night_shift").complete&&
                 restored.save.version==2&&
                 restored.save.moments.Count==initialChronicle+5&&
-                restored.save.trackedQuest=="night_shift",
-                "The optional outcome survives an unchanged SaveData v2 reload");
+                restored.save.trackedQuest=="night_shift_aftercare"&&
+                restored.GetQuest("night_shift_aftercare").room==1,
+                "The original outcome survives v2 reload and hands navigation to the first unsupplied real region");
             var privateRun=Fresh(data);
             privateRun.save.flags.Add("nightshift_started");
             for(int r=1;r<=3;r++)

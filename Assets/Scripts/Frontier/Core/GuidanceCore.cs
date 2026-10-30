@@ -134,7 +134,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1169,7 +1169,7 @@ namespace Starfall
             "main", "shore", "chapter_roads", "last_directive",
             "civic_aftercare", "afterlight", "civic_services",
             "wayfarers", "stations", "archive_trail", "field_patrols",
-            "outer_tactics", "tactic_trials", "night_shift", "sword_lesson", "secrets"
+            "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare", "sword_lesson", "secrets"
         };
         public QuestGuide RecommendedContinuationGuide
         {
@@ -1211,6 +1211,7 @@ namespace Starfall
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
             QuestGuide q = new QuestGuide { id = id, room = 0, target = new Point(18, 17), category = L("主线", "STORY"), reward = L("硬币、经验与新的路线", "Coins, experience and new routes") };
             if(id=="night_shift")return BuildNightShiftGuide(q);
+            if(id=="night_shift_aftercare")return BuildNightShiftAftercareGuide(q);
 
 
 

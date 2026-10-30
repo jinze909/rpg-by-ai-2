@@ -984,6 +984,11 @@ namespace Starfall
                     save.maxHealth=Math.Min(9999,save.maxHealth+8);
                     save.health=Math.Min(save.maxHealth,save.health+8);
                 }
+                // The original story is genuinely complete. Hand the
+                // tracked objective to the separate, optional, physical
+                // civilian aftercare instead of leaving a finished
+                // quest compass on an already-signed desk.
+                TrackQuest("night_shift_aftercare");
                 sound="quest";revision++;
                 Dialog(source.name,source.en,
                     publish?
@@ -996,6 +1001,85 @@ namespace Starfall
                 return true;
             }
             return true;
+        }
+
+
+        // Chapter epilogue is a real separate three-stop task, not an
+        // invisible aftercredit cache: the journal, compass and map point
+        // to whichever distinct original field site still owes its actual
+        // survivor handoff. Existing completed main-story flags stay put.
+        public QuestGuide BuildNightShiftAftercareGuide(QuestGuide q)
+        {
+            q.title=L("夜班名册 · 归途上的三处回响",
+                "Night-Shift Roll · Three Roads Home");
+            q.category=L("居民故事后续 · 实地回访",
+                "STORY AFTERCARE · FIELD REVISITS");
+            q.description=Has("nightshift_public")?
+                L("公民在三地把被删去的路线恢复为公共道路。亲自重访原来查过的记录点，确认真实物资能送到路人手中。",
+                  "Residents have reopened three erased civilian roads. Return to the actual evidence sites and verify that supplies reach travelers on foot."):
+                L("证人只愿意私下支援仍在路上的人。不要公布姓名；亲自重访三处旧记录点，接收他们留下的无名援助。",
+                  "The living witnesses choose private support, not public names. Revisit each original site to receive the anonymous provisions they left.");
+            q.reward=Has("nightshift_public")?
+                L("真实物资 · 密林药草2、遗迹木材2、矿场零件1",
+                  "Real supplies: forest herbs x2, ruins timber x2, mine part x1"):
+                L("无名援助 · 密林生命24、遗迹耐力35、矿场生命18",
+                  "Anonymous support: forest +24 health, ruins +35 energy, mine +18 health");
+            q.locked=!NightShiftComplete;
+            int next=0;
+            for(int room=1;room<=3;room++)
+            {
+                bool done=Has("nightshift_followup_"+room);
+                q.steps.Add(new QuestStep(
+                    room==1?L("回密林原始班表处核对巡路援助",
+                              "Revisit the original forest card for field aid"):
+                    room==2?L("回沉没遗迹石阶领受渡工补给",
+                              "Return to the tidal stair record for aid"):
+                            L("回赤铁矿场停机卷轴领受矿工援助",
+                              "Return to the mine spool for worker aid"),done));
+                if(next==0&&!done)next=room;
+            }
+            q.complete=!q.locked&&next==0;
+            if(q.locked)
+            {
+                q.room=0;
+                WorldObject start=NightShiftSite(0);
+                q.target=start==null?new Point(25.5f,24.5f):
+                    new Point(start.x,start.y);
+                q.next=L("先完成《夜班名册》，并决定是否公开居民姓名。",
+                    "First resolve the original Night-Shift Roll and its witness-privacy choice.");
+                return q;
+            }
+            if(q.complete)
+            {
+                q.room=0;
+                WorldObject desk=NightShiftSite(0);
+                q.target=desk==null?new Point(25.5f,24.5f):
+                    new Point(desk.x,desk.y);
+                q.next=L("三处实际回访都完成；这条路如今属于愿意维护它的人。",
+                    "All three real field revisits are signed. The road belongs to those who keep it open.");
+                return q;
+            }
+            q.room=next;
+            WorldObject site=NightShiftSite(next);
+            q.target=site==null?new Point(18.5f,15.5f):
+                new Point(site.x,site.y);
+            q.next=(next==1?
+                L("到密林树洞，找回被遗忘的巡路补给。",
+                  "Return to the original forest hollow for the roadwarden's supplies."):
+                next==2?
+                L("到沉没遗迹旧石阶，查收渡工留下的现场援助。",
+                  "Return to the actual tidal stairs for the ferryman's field aid."):
+                L("到矿场停机卷轴，接收工人留下的无名援助。",
+                  "Return to the mine spool for the workers' aid."));
+            if(!CanEnter(next))
+            {
+                QuestGuide unlock=GetQuest("main");
+                q.room=unlock.room;q.target=unlock.target;
+                q.next=L("先解锁原有矿道，再回访旧证据：",
+                    "Unlock the actual chapter route before revisiting the old evidence: ")+
+                    unlock.next;
+            }
+            return q;
         }
 
         private void AddUnlockedRecap(List<StoryBeat> beats,int chapter,string questId,
