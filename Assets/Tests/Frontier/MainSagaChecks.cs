@@ -897,12 +897,15 @@ namespace Starfall.Tests
                 // production projectile sampler until that already released
                 // missile reaches the actual living raider. A warning or
                 // ownership tag by itself earns no safety or stun.
-                var fly=typeof(GameCore).GetMethod("UpdateProjectiles",flags);
-                Check(fly!=null,"The live swept projectile flight is available");
+                // The production world snapshots eligible missiles at
+                // frame start, so direct UpdateProjectiles would *correctly*
+                // refuse to advance a shot without that ownership clock.
+                // Exercise the real world Tick, enemy AI and projectile
+                // sampler together rather than fabricating flight eligibility.
                 for(int flightFrame=0;flightFrame<45&&
                     g.projectiles.Exists(p=>p.sagaGuardCoverTarget==raider);
                     flightFrame++)
-                    fly.Invoke(g,new object[]{.05f});
+                    g.Tick(.05f,new Point());
                 Check(g.effects.Exists(effect=>effect.kind=="number"&&
                     effect.text.Contains(g.save.english?
                         "ALLY SAVED RECORDS!":"援护截住原件"))&&
