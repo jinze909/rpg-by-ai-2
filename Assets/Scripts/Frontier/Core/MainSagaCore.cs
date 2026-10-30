@@ -623,6 +623,24 @@ namespace Starfall
                     save.cold=Math.Min(100f,save.cold+dt*1.7f);
             }
         }
+        // Reuse durable civilian rescue choices as farshore witness support.
+        private bool EarlyRescueEcho(int room)
+        { return room>=5&&room<=7&&Has("chapter_road_diverted_"+(room-3)); }
+        private string EarlyRescueVoice(int room,bool english)
+        {
+            if(!EarlyRescueEcho(room))return "";
+            return english?
+                room==5?
+                    "Arin's younger brother recognizes your old empty raft. He carried the missing night ledger over the flood. “There still had to be someone carrying the names,” he tells Mira.\n\n":
+                    room==6?
+                    "The mine apprentice brings the pressure gauge you once jammed. Ivo runs a finger over its scratched glass. “He shut down the engine without waiting for my signature,” he says.\n\n":
+                    "The refugee cart driver from the citadel has reached this mountain road. Sen listens to how a guard recognized his sister's scarf and lowered his spear rather than stop the wagon.\n\n":
+                room==5?
+                    "阿菱的弟弟认出了你曾放出的空木筏。他带着漏报的值夜簿过了潮线：“终究还得有人把那些名字送过来。”\n\n":
+                    room==6?
+                    "矿场学徒带来你当年卡住的压力表。伊沃摸着玻璃上的伤痕：“他没等我的签字，自己把机器停了。”\n\n":
+                    "从堡垒赶来的运货车夫走到高原，告诉森那个认出妹妹围巾、最终放下长矛的守卫。森听完许久没说话。\n\n";
+        }
         private void MainSagaAccount(WorldObject host,int room)
         {
             if(!Has("saga_trace_"+room))
@@ -688,12 +706,12 @@ namespace Starfall
                 "Hear survivors and late evacuees together first"};
             if(!Has("saga_guard_"+room))
             {
-                Dialog(host.name,host.en,zh[room]+
+                Dialog(host.name,host.en,EarlyRescueVoice(room,false)+zh[room]+
                     "\n\n有人试图截走原始证据。"+(room==5?
                         "先守住渡口上的名册，直到第二批追兵撤退。":
                         room==6?"先守住井站的供水图和签字人，直到两波破坏者落败。":
                         "先守住高原钟牌和幸存者，击退两波封口的追兵。"),
-                    en[room]+
+                    EarlyRescueVoice(room,true)+en[room]+
                     "\n\nSomeone is trying to seize this original evidence. Defend the genuine witness and records against two separate attacks before signing.",
                     SagaGuardActive?
                         C("守住防线 · 剩余"+SagaGuardRemaining+"名敌人",
@@ -708,7 +726,8 @@ namespace Starfall
                         C("先备好物资","Prepare supplies","close"));
                 return;
             }
-            Dialog(host.name,host.en,zh[room],en[room],
+            Dialog(host.name,host.en,EarlyRescueVoice(room,false)+zh[room],
+                EarlyRescueVoice(room,true)+en[room],
                 C(first[room],firstEn[room],"saga_sign_"+room+"_a"),
                 C(second[room],secondEn[room],"saga_sign_"+room+"_b"),
                 C("再想一想","I need to think","close"));
@@ -833,7 +852,8 @@ namespace Starfall
                 if(SagaGuardActive||FieldWorkPreventsRest||!SafeTravel)return true;
                 sagaGuardRoom=room;sagaGuardWave=0;
                 sagaGuardMap=Map;sagaGuardSave=save;
-                sagaGuardWitness=host;sagaGuardClock=room==5?175f:room==6?185f:200f;
+                sagaGuardWitness=host;sagaGuardClock=(room==5?175f:room==6?185f:200f)+
+                    (EarlyRescueEcho(room)?25f:0f);
                 if(!SpawnSagaGuardWave(1))
                 {
                     ResetSagaGuard();

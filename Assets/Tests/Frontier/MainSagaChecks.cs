@@ -224,6 +224,44 @@ namespace Starfall.Tests
                 restored.MainSagaTraces==3&&restored.save.version==2,
                 "All authored story choices survive an ordinary v2 save round-trip");
         }
+        public static void EarlyRescueTacticsPayOffWithRealLaterWitnessDefenseSupport(Campaign data)
+        {
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);
+                g.save.flags.Add("saga_outer_"+room);
+                g.save.flags.Add("chapter_road_diverted_"+(room-3));
+                WorldObject host=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(host!=null&&PlaceWithinTalkReach(g,host),
+                    "The live named regional witness is physically reachable");
+                g.Talk(host);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Original witness interview is preserved");
+                g.Choose(account);
+                Check(g.conversation.textEn.Contains(room==5?"empty raft":
+                    room==6?"mine apprentice":"refugee cart driver"),
+                    "Later character remembers the early chapter's specific costly diversion");
+                int defend=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(defend>=0,"Earlier rescue cannot skip real two-wave defense");
+                g.Choose(defend);
+                float clock=room==5?200f:room==6?210f:225f;
+                Check(g.SagaGuardActive&&g.SagaGuardClock>=clock-.1f,
+                    "Saved civilian support grants a genuine 25-second defense advantage");
+                g.PrepareSave();
+                GameCore restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.Has("chapter_road_diverted_"+(room-3)),
+                    "Cross-chapter consequences survive old-format v2 save roundtrip");
+            }
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;
