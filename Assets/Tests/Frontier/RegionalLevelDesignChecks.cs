@@ -299,6 +299,83 @@ namespace Starfall.Tests
             }
         }
 
+        // A signed field result is not a disposable modal. Protect the
+        // LIVE contract during both a portal Enter and the quick town route;
+        // after real settlement, normal travel remains possible.
+        public static void FieldTacticTrialsCannotBeLostToUnsignedTravel(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject site=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(site!=null&&PlaceWithinTalkReach(g,site),
+                "Travel lock uses a genuine walkable device, not a synthetic flag");
+            g.Talk(site);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(begin>=0,"A chapter's real drill starts at its own station");
+            g.Choose(begin);
+            Check(g.FieldTacticTrialActive&&g.enemies.Count==2,
+                "Travel test has living assigned opponents");
+            g.Enter(0);
+            Check(g.save.room==1&&g.FieldTacticTrialActive&&
+                g.enemies.Count==2,
+                "Direct region switch cannot delete live trial actors silently");
+            g.ReturnToTown();
+            Check(g.save.room==1&&g.FieldTacticTrialActive&&
+                g.enemies.Count==2,
+                "Fast-return path is equally protected from live-trial bypass");
+            g.Close();g.Talk(site);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_abort");
+            Check(abort>=0,"Physical device offers a voluntary release");
+            g.Choose(abort);
+            Check(!g.FieldTacticTrialActive&&g.enemies.Count==0,
+                "Explicit withdrawal truly retires both designated actors");
+            g.Enter(0);
+            Check(g.save.room==0&&g.save.version==2,
+                "Region travel works normally after explicit cancellation");
+        }
+
+        public static void FieldTacticTrialWithoutCounterFailsCleanlyAndRestarts(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Failure test uses actual physical combat deaths");
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject site=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1");
+            Check(site!=null&&PlaceWithinTalkReach(g,site),
+                "Failure route starts at a real device");
+            g.Talk(site);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            g.Choose(begin);
+            Check(g.FieldTacticTrialActive&&g.enemies.Count==2,
+                "Original source spawns a genuine two-foe trial");
+            int coins=g.save.coins,shards=g.save.shards,xp=g.save.xp;
+            foreach(Enemy e in g.enemies.ToArray())
+                hit.Invoke(g,new object[]{e,600f,false,null,null});
+            Check(!g.FieldTacticTrialUsed&&g.FieldTacticTrialRemaining==0&&
+                !g.FieldTacticTrialReady,
+                "Killing without using the field mechanism cannot earn a receipt");
+            g.Tick(.02f,new Point());
+            Check(!g.FieldTacticTrialActive&&g.enemies.Count==0&&
+                !g.FieldTacticTrialDone(1)&&
+                g.save.coins==coins&&g.save.shards==shards&&
+                g.save.xp==xp,
+                "Invalid no-counter victory retires the exact trial and grants no reward");
+            g.Close();g.Talk(site);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(begin>=0,"After clear failure, the same real trial can be restarted");
+            g.Choose(begin);
+            Check(g.FieldTacticTrialActive&&g.enemies.Count==2,
+                "Restart produces exactly two fresh live combat opponents");
+        }
+
         public static void FieldTacticTrialDisappearanceAndWithdrawalCannotClaimReward(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);

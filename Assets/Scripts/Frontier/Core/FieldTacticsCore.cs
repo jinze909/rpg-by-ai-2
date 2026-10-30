@@ -96,6 +96,17 @@ namespace Starfall
                  Notify("演练敌人未经真实战斗便消失。委托作废。",
                      "A trial fighter vanished without a true defeat. Contract void.");
                  return;}
+            // A no-counter victory cannot be completed after every live
+            // target has already died. Close this dead end immediately,
+            // instead of leaving the hero chasing an impossible objective.
+            // Never grant XP, flags or loot for the failed contract.
+            if(tacticTrialEnemies.Count==2&&tacticTrialKills.Count==2&&
+               !tacticTrialUsed)
+            {
+                ResetFieldTacticTrial();revision++;
+                Notify("两名敌人虽已击退，但没有使用现场装置。演练未通过；可在本装置重试。",
+                    "Both raiders fell before the counter was used. Trial failed; retry at the same device.");
+            }
         }
         private bool StageFieldTacticTrial(WorldObject source)
         {

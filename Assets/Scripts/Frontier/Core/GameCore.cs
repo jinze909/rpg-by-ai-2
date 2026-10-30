@@ -808,6 +808,16 @@ namespace Starfall
                 return true;
             }
             if (CivilianFieldMissionBlocksTravel()) return true;
+            // These live, source-owned fighters and their unsigned result
+            // cannot survive ResetTransient() when Enter() or ReturnToTown()
+            // switches regions. Require the real receipt or explicit abort,
+            // including during the lull after BOTH enemies were defeated.
+            if (FieldTacticTrialActive)
+            {
+                Notify("战术实战演练尚未交回原装置。请先签收回执或在现场明确撤回，才能换地区。",
+                    "Field trial still open. Sign at its original mechanism or explicitly withdraw before traveling.");
+                return true;
+            }
             if (CivicConduitActive || LastDirectiveWave > 0)
             {
                 if (fastTravel)
