@@ -168,6 +168,138 @@ namespace Starfall.Tests
                     "Starting optional combat does not alter legacy saves or sign rewards");
             }
         }
+
+        public static void ThreeOriginalFarshoreHuntsHaveRealTwoWaveCombatAndMoralOutcomes(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Live combat HP/death owns farshore hunt victories");
+            int[,] expected={{1,0,2,0},{2,1,1,2},{0,2,2,1}};
+            var coordinates=new HashSet<string>();
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();g.invulnerable=200f;
+                WorldObject source=Array.Find(g.Map.objects,o=>
+                    o.id=="wilderness_hunt_"+room);
+                Check(source!=null&&source.kind=="wildernessHunt"&&
+                    coordinates.Add(source.x+","+source.y),
+                    "Each farshore map has its own newly authored physical hunt site");
+                Check(g.CanStand(new Point(source.x,source.y))&&
+                    g.NavigationPathFrom(new Point(g.Map.spawnX,g.Map.spawnY),
+                        new Point(source.x,source.y),true).Count>0,
+                    "Original playable map actually connects its distant hunt clearing");
+                foreach(WorldObject old in g.Map.objects)
+                    if(old!=source)
+                        Check((new Point(old.x-source.x,old.y-source.y)).Length>=10f,
+                            "Hunts occupy remote unused level ground, not existing quest kiosks");
+                Check(PlaceWithinTalkReach(g,source),
+                    "The real distant marker has a physically reachable interaction foot");
+                g.Talk(source);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="wilderness_hunt_bold");
+                Check(begin>=0&&!g.WildernessHuntActive&&
+                    !g.Has("wilderness_hunt_fought_"+room),
+                    "Resident evidence offers a voluntary hunt, not auto-completion on discovery");
+                int supply=room==5?0:room==6?4:2;
+                g.save.inventory[supply]=2;
+                int before=g.save.inventory[supply];
+                g.Choose(begin);
+                Check(g.WildernessHuntActive&&g.WildernessHuntWave==1&&
+                    g.WildernessHuntRemaining==2&&
+                    g.save.inventory[supply]==before&&
+                    !g.Has("wilderness_hunt_fought_"+room),
+                    "Open pursuit spawns two real raiders without charging ambush materials or awarding unearned progress");
+                for(int wave=1;wave<=2;wave++)
+                {
+                    Enemy[] attackers=g.enemies.ToArray();
+                    Check(attackers.Length==2,
+                        "Each of the three authored regional encounters has two live foes");
+                    for(int i=0;i<2;i++)
+                    {
+                        Enemy e=attackers[i];
+                        Check(e.kind==expected[room-5,(wave-1)*2+i]&&
+                            !e.boss&&e.hp>0&&g.CanStand(e.Position)&&
+                            g.NavigationPathFrom(new Point(source.x,source.y),
+                                e.Position,true).Count>0,
+                            "Biome-specific combat rosters occupy real actor-sized connected terrain");
+                        hit.Invoke(g,new object[]{e,9999f,true,null,null});
+                    }
+                    Advance(g,.65f);
+                    if(wave==1)
+                        Check(g.WildernessHuntActive&&g.WildernessHuntWave==2&&
+                            g.WildernessHuntRemaining==2&&
+                            !g.Has("wilderness_hunt_fought_"+room),
+                            "Only both real contact deaths open the second regional hunting wave");
+                }
+                Check(!g.WildernessHuntActive&&
+                    g.Has("wilderness_hunt_fought_"+room)&&
+                    !g.WildernessHuntFinished(room),
+                    "Defeating four genuine attackers still requires the civilian decision at source");
+                Check(PlaceWithinTalkReach(g,source),
+                    "Return on walkable terrain to the same original marker to publish the aftermath");
+                g.Talk(source);
+                int resolve=Array.FindIndex(g.conversation.choices,
+                    c=>c.action== (room==6?
+                        "wilderness_hunt_bounty":"wilderness_hunt_refuge"));
+                Check(resolve>=0,"Real authored post-hunt choices are reachable");
+                int oldCoins=g.save.coins,oldHerbs=g.save.inventory[2];
+                g.Choose(resolve);
+                bool refuge=room!=6;
+                Check(g.WildernessHuntFinished(room)&&
+                    g.Has((refuge?"wilderness_hunt_refuge_":
+                        "wilderness_hunt_bounty_")+room)&&
+                    g.save.coins>=oldCoins+(refuge?32:70)&&
+                    (!refuge||g.save.inventory[2]==oldHerbs+2),
+                    "One chosen outcome grants the correct permanent civilian or watch benefit");
+                g.PrepareSave();
+                GameCore restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.WildernessHuntFinished(room)&&
+                    !restored.WildernessHuntActive,
+                    "Original SaveData v2 round-trip keeps decisions but never resurrects encounter actors");
+                Check(PlaceWithinTalkReach(restored,source),
+                    "The old marker remains discoverable after a completed hunt");
+                restored.Talk(source);
+                Check(Array.FindIndex(restored.conversation.choices,
+                    c=>c.action=="wilderness_hunt_bold")<0&&
+                    Array.FindIndex(restored.conversation.choices,
+                    c=>c.action=="wilderness_hunt_refuge")<0,
+                    "Veteran saves cannot claim a second hunt or duplicate one-time rewards");
+            }
+            Check(coordinates.Count==3,"Three real distinct geography-specific hunt locations exist");
+        }
+        public static void FarshoreHuntAmbushRequiresSupplyAndRejectsPhantomDefeats(Campaign data)
+        {
+            GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+            g.save.room=6;g.enemies.Clear();g.invulnerable=200f;
+            WorldObject site=Array.Find(g.Map.objects,o=>o.id=="wilderness_hunt_6");
+            Check(site!=null&&PlaceWithinTalkReach(g,site),
+                "The original desert hunt can be reached");
+            g.save.inventory[4]=0;g.Talk(site);
+            int ambush=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="wilderness_hunt_quiet");
+            Check(ambush>=0,"Real hunt offers player a tactical paid ambush");
+            g.Choose(ambush);
+            Check(!g.WildernessHuntActive&&g.enemies.Count==0,
+                "No local supply prevents both ghost enemy spawn and free opening");
+            g.save.inventory[4]=2;g.Talk(site);
+            ambush=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="wilderness_hunt_quiet");
+            g.Choose(ambush);
+            Check(g.WildernessHuntActive&&g.save.inventory[4]==1&&
+                g.WildernessHuntRemaining==2&&
+                g.enemies.TrueForAll(e=>e.stun>=1.39f&&e.armorOpenTime>=1.09f),
+                "Paying real desert gears gives a real temporary advantage to the first wave");
+            // Removal without authentic hit-death hook is never a victory.
+            g.enemies.RemoveAt(0);
+            Advance(g,.2f);
+            Check(!g.WildernessHuntActive&&
+                !g.Has("wilderness_hunt_fought_6")&&
+                !g.WildernessHuntFinished(6),
+                "Vanished opponents cannot forge progress or advance the original quest");
+        }
         public static void LegacyV2SavesInsideNewAuthoringCoverRecoverWithoutLosingCampaign(Campaign data)
         {
             // These four tiles were originally walkable empty ground. They
