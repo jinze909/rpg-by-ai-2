@@ -1075,8 +1075,47 @@ namespace Starfall
                 " "+prerequisite.next;
         }
         public QuestGuide CurrentGuide { get { return GetQuest(save.trackedQuest); } }
+        // A finished tracked story should never leave the player staring
+        // at a completed objective or an empty world compass. This is a
+        // read-only recommendation: manual tracking, personal pins and
+        // SaveData v2 are never rewritten.
+        private static readonly string[] ContinuationPriority = {
+            "main", "shore", "chapter_roads", "last_directive",
+            "civic_aftercare", "afterlight", "civic_services",
+            "wayfarers", "stations", "archive_trail", "field_patrols",
+            "sword_lesson", "secrets"
+        };
+        public QuestGuide RecommendedContinuationGuide
+        {
+            get
+            {
+                QuestGuide current=CurrentGuide;
+                if(!current.complete&&!current.locked)return current;
+                QuestGuide firstRemote=null;
+                foreach(string id in ContinuationPriority)
+                {
+                    if(id==save.trackedQuest)continue;
+                    QuestGuide candidate=GetQuest(id);
+                    if(candidate.complete||candidate.locked||
+                        candidate.room<0||candidate.room>=data.maps.Length||
+                        !CanEnter(candidate.room))continue;
+                    if(candidate.room==save.room)return candidate;
+                    if(firstRemote==null)firstRemote=candidate;
+                }
+                return firstRemote??current;
+            }
+        }
         public string GuidanceHint()
-        { QuestGuide q = CurrentGuide; return q.room != save.room && !q.complete && !q.locked ? L("前往", "Travel to ") + L(data.maps[q.room].name, data.maps[q.room].en) + " · " + q.next : q.next; }
+        {
+            QuestGuide q=RecommendedContinuationGuide;
+            if(q.complete||q.locked)
+                return L("当前任务已结束。打开 TAB 任务手帐选择新的冒险。",
+                    "This quest is done. Open TAB to choose another adventure.");
+            string step=q.room!=save.room?
+                L("前往", "Travel to ")+L(data.maps[q.room].name,data.maps[q.room].en)+" · "+q.next:
+                q.next;
+            return q.id==save.trackedQuest?step:L("接下来：","NEXT: ")+step;
+        }
         public QuestGuide GetQuest(string id)
         {
             if (Array.IndexOf(QuestIds, id) < 0) id = "main";
@@ -5188,7 +5227,8 @@ namespace Starfall
                 return null;
             Point? personal=LocalWaymark;
             if(personal.HasValue&&!FieldWorkPreventsRest)return personal;
-            QuestGuide q = CurrentGuide; if (q.complete || q.locked) return null;
+            QuestGuide q = RecommendedContinuationGuide;
+            if (q.complete || q.locked) return null;
             if(q.room==save.room)return q.target;
             return QuestRegionExitTarget(q);
         }

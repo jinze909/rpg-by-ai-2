@@ -3,6 +3,33 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FinishedTrackedStoryRecommendsAnActualPlayableNextStep(Campaign data)
+        {
+            var g=Fresh(data);
+            g.save.trackedQuest="main";
+            Check(g.RecommendedContinuationGuide.id=="main",
+                "An unfinished explicitly tracked quest is never silently replaced");
+            g.Close();
+            g.save.stage=3;g.save.ending=2;
+            QuestGuide finished=g.GetQuest("main");
+            QuestGuide next=g.RecommendedContinuationGuide;
+            Check(finished.complete&&next.id!="main"&&
+                !next.complete&&!next.locked&&
+                next.room>=0&&next.room<data.maps.Length&&
+                g.CanEnter(next.room)&&g.save.trackedQuest=="main",
+                "Post-finale recommendation finds accessible work without reopening or altering the completed story");
+            Check(g.GuidanceHint().Contains(g.L("接下来：","NEXT: ")),
+                "The player receives an explicit next-step handoff");
+            g.TrackQuest(next.id);
+            Check(g.RecommendedContinuationGuide.id==next.id&&
+                g.save.trackedQuest==next.id,
+                "Explicit player choice overrides the recommendation");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.save.trackedQuest==next.id,
+                "Suggestion preserves the original v2 quest tracking schema");
+        }
+
         public static void WorldLabelsFocusOnNearbyActionsWithoutOverlapping(Campaign data)
         {
             Check(WorldLabelPolicy.Priority(60f,false,false)==0&&

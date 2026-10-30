@@ -511,8 +511,8 @@ namespace Starfall
                     Game.WitnessDefenseRoom!=0 ? Game.GetQuest("campaign_witness") :
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
                     Game.FrostSignalActive ? Game.GetQuest("frost_signal") :
-                    Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
-                Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
+                    Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.RecommendedContinuationGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
+                Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
                     urgentMain ? q.next :
                     Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
@@ -1810,7 +1810,7 @@ namespace Starfall
                 // optional background supply dots in Focus.
                 DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
-                QuestGuide q=inspected??Game.CurrentGuide;
+                QuestGuide q=inspected??Game.RecommendedContinuationGuide;
                 if(q.room==selectedRegion&&!q.locked)
                 {
                     Color marker=inspected!=null?PixelArt.C("#dcb1ff"):gold;
