@@ -391,6 +391,16 @@ namespace Starfall.Tests
                 Check(g.SagaGuardActive&&g.SagaGuardRemaining==2&&
                     g.SagaGuardEvidenceSafety==100,
                     "Every region starts with intact actual evidence");
+                // Emergency objectives override stale side-quest trackers
+                // while leaving the saved quest selection untouched.
+                string originalTracked=g.save.trackedQuest;
+                g.save.trackedQuest="explore";
+                string initialObjective=g.Objective();
+                Check(initialObjective.Contains(g.save.english?
+                    "evidence safety 100%":"证据安全度100%")&&
+                    g.save.trackedQuest=="explore",
+                    "Live HUD exposes evidence safety without rewriting quest tracking");
+                g.save.trackedQuest=originalTracked;
 
                 Enemy[] owned=g.enemies.ToArray();
                 // Keep the real spawned objects in the live combat list,
@@ -410,6 +420,10 @@ namespace Starfall.Tests
                 int endangered=g.SagaGuardEvidenceSafety;
                 Check(endangered<100&&endangered>0,
                     "Only live unrestrained raiders near the witness erode records");
+                Check(g.Objective().Contains(g.save.english?
+                    "evidence safety "+endangered+"%":
+                    "证据安全度"+endangered+"%"),
+                    "The actual objective reacts immediately to nearby raider pressure");
 
                 // The original physical NPC device is a tactical recovery,
                 // not a quest flag, free heal, or infinite repeatable action.

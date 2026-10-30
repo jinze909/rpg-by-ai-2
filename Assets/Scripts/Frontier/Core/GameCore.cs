@@ -5521,6 +5521,16 @@ namespace Starfall
             if(save.ending>0&&save.trackedQuest=="main")
                 return L("主线已完结。边境有了新的生活；可以自愿探索后日谈。",
                     "Main story complete. Live freely or choose optional afterstory.");
+            // A witness defense has an actual loss condition even when
+            // the player tracks a side quest. Keep evidence safety visible
+            // in the production objective HUD until the encounter ends.
+            if(SagaGuardActive)
+                return L("证词护卫 · 第"+SagaGuardWave+"波 · "+SagaGuardRemaining+
+                        "名追兵 · 证据安全度"+SagaGuardEvidenceSafety+"% · 剩余"+
+                        (int)Math.Ceiling(SagaGuardClock)+"秒",
+                    "Witness defense · wave "+SagaGuardWave+" · "+SagaGuardRemaining+
+                        " raiders · evidence safety "+SagaGuardEvidenceSafety+
+                        "% · "+(int)Math.Ceiling(SagaGuardClock)+"s left");
             // Real chapter fieldwork temporarily owns the HUD objective,
             // instead of leaving the player staring at a stale boss marker.
             // Original story objectives return unchanged on completion or withdrawal.
