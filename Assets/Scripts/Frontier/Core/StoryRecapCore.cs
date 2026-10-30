@@ -630,6 +630,46 @@ namespace Starfall
                     C("记下地址","Remember the return address","close"));
                 return true;
             }
+            if(NightShiftComplete)
+            {
+                bool delivered=Has("nightshift_followup_"+room);
+                bool published=Has("nightshift_public");
+                string storyZh=published?
+                    room==1?
+                        "巡林人把重新绘出的归乡路挂到树上。原来被藏起的路不再只供军队使用，药草箱也留给了路过的伤者。":
+                    room==2?
+                        "渡工重新标出石阶退潮时刻，把修桥木料留在公共记录柱旁：船不再只听堡垒的时钟。":
+                        "矿工用旧卷轴做成公开的停机证明。工会把多余机械零件放在这里，供后来者修理路牌。":
+                    room==1?
+                        "树洞里留着一只没有署名的小药包。纸条写着：别替我们说姓名，先让仍受伤的人安全离开树林。":
+                    room==2?
+                        "退潮钟印下藏着一份不署名的歇脚指引。有人清理了石阶上的碎玻璃，留下一处安全补给角。":
+                        "矿场工人没有留下姓名，但在停机卷轴旁放了防热布和一小包草药；他们希望后来的证人都能平安离开。";
+                string storyEn=published?
+                    room==1?
+                        "Roadwardens have put the restored route back on the trees. Anyone may follow it home now; public herbs wait for injured travelers.":
+                    room==2?
+                        "Ferrymen rebuilt the tidal stair timetable and left repair timber by the public record. Boats no longer obey only a citadel clock.":
+                        "The workers turned the shutdown roll into a public stop-work record. Spare repair parts are left for those keeping the old road open.":
+                    room==1?
+                        "An unsigned satchel rests inside the tree hollow: let wounded travelers leave safely before you tell the world our names.":
+                    room==2?
+                        "The old tide mark conceals an unsigned shelter guide. Someone cleared the glass from the stairs and left a place to recover.":
+                        "No miners have signed this gift, but a heat cloth and herbs wait beside the original spool for the next witness.";
+                Dialog(o.name,o.en,storyZh+(
+                    delivered?"\n\n这处现场的补给已领取；原始证词仍可供查验。":
+                    "\n\n他们留下的一次性现场援助仍在。"),
+                    storyEn+(delivered?
+                        "\n\nThe field cache has been collected. The original evidence remains readable.":
+                        "\n\nA one-time on-site aid package is still available."),
+                    delivered?
+                        C("合上现场记录","Close field record","close"):
+                        C(published?"领取公共巡路物资":"领取匿名现场援助",
+                          published?"Collect public route supplies":"Receive anonymous field aid",
+                          "nightshift_followup_"+room),
+                    C("以后再来","Return later","close"));
+                return true;
+            }
             if(Has("nightshift_trace_"+room))
             {
                 Dialog(o.name,o.en,
@@ -716,6 +756,48 @@ namespace Starfall
             if(room<0||room>3||
                !NightShiftSource(source,room)&&!NightShiftVentSource(source))
                 return true;
+            if(action.StartsWith("nightshift_followup_",StringComparison.Ordinal))
+            {
+                int station;
+                if(room<1||room>3||
+                   !int.TryParse(action.Substring("nightshift_followup_".Length),out station)||
+                   station!=room||!NightShiftSource(source,station)||
+                   !NightShiftComplete||!Has("nightshift_trace_"+station)||
+                   Has("nightshift_followup_"+station))
+                    return true;
+                // Credit only exact visit at the original field record.
+                // The outcome changes the type of service, but never
+                // creates permanent respawning loot or new SaveData fields.
+                if(Has("nightshift_public"))
+                {
+                    int resource=station==1?2:station==2?0:4;
+                    save.inventory[resource]=Math.Min(9999,
+                        save.inventory[resource]+(station==3?1:2));
+                }
+                else
+                {
+                    if(station==2)
+                        save.energy=Math.Min(100f,save.energy+35f);
+                    else
+                        save.health=Math.Min(save.maxHealth,
+                            save.health+(station==1?24f:18f));
+                }
+                Flag("nightshift_followup_"+station);
+                RecordMoment(Has("nightshift_public")?
+                    "夜班名册 · 你亲自重访了"+new[]{"","密林","沉没遗迹","赤铁矿场"}[station]+
+                        "的归乡路标；居民已将修路补给交给实际赶路者。":
+                    "夜班名册 · 你亲自重访了"+new[]{"","密林","沉没遗迹","赤铁矿场"}[station]+
+                        "的无名记录点；证人留下一份不必公开身份的实地援助。",
+                    Has("nightshift_public")?
+                        "Night-Shift Roll: revisited "+new[]{"","the forest","the ruins","the mine"}[station]+
+                        " to recover public supplies for the restored civilian road.":
+                        "Night-Shift Roll: revisited "+new[]{"","the forest","the ruins","the mine"}[station]+
+                        " and received anonymous aid without revealing witness names.");
+                revision++;sound="quest";
+                Notify("现场援助已领取，原始证词仍留在此处。",
+                    "Field aid collected. The original evidence remains in place.");
+                return true;
+            }
             if(action=="nightshift_vent_route")
             {
                 if(!NightShiftSource(source,3)||NightShiftComplete||

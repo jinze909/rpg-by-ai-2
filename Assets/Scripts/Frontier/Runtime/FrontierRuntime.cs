@@ -1264,6 +1264,18 @@ namespace Starfall
                     p.x-34,p.y-76,68,80,ink);
                 Ring(new Point(o.x,o.y),actionable?.65f:.40f,ink,22);
                 if(actionable)Diamond(p.x,p.y-87,6,ink);
+                if(finished&&station>=1&&station<=3&&
+                   !Game.Has("nightshift_followup_"+station))
+                {
+                    Ring(new Point(o.x,o.y),.77f,mint,26);
+                    WorldObjectLabel(p.x-110,p.y-143,220,19,
+                        Game.Has("nightshift_public")?
+                            Game.L("公共巡路物资 · 按 E",
+                                "PUBLIC ROAD SUPPLIES · E"):
+                            Game.L("匿名现场援助 · 按 E",
+                                "ANONYMOUS FIELD AID · E"),
+                        10,mint,TextAnchor.MiddleCenter);
+                }
                 if(station==2&&Game.Has("nightshift_started")&&
                    Game.NightShiftEvidenceCount==1&&!reviewed&&!finished)
                     WorldObjectLabel(p.x-115,p.y-140,230,19,
