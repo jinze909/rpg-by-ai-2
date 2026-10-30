@@ -4705,11 +4705,14 @@ namespace Starfall
                         q.next=MainSagaRelayActive&&save.room==4?
                             L("终章 · 应急供能保卫战：还有"+MainSagaRelayRemaining+
                                 "名破坏者，剩余"+(int)Math.Ceiling(MainSagaRelaySeconds)+
-                                "秒。击败真正的敌人，不能让旁路过热。",
+                                "秒，线路稳定度"+MainSagaRelayIntegrity+
+                                "%。击败真正的敌人，不能让旁路过热。",
                               "Finale · Emergency bypass defense: "+
                                 MainSagaRelayRemaining+" saboteurs remain, "+
                                 (int)Math.Ceiling(MainSagaRelaySeconds)+
-                                " seconds left. Defeat the attackers before the coils overheat."):
+                                " seconds left, circuit integrity "+
+                                MainSagaRelayIntegrity+
+                                "%. Defeat the attackers before the coils overheat."):
                             L("终章：在堡垒的三处真实记忆台核对旧命令、重新接通供能线路，并让居民确认最后的处理方式。",
                               "Finale: inspect the three physical memory stations, reconnect the supply bypass and ratify the residents' records.");
                     }

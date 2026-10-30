@@ -70,7 +70,8 @@ namespace Starfall
         private MapData sagaRelayMap;
         private WorldObject sagaRelayStation;
         private float sagaRelayClock;
-        private bool sagaRelayLowTimeWarned;
+        private bool sagaRelayLowTimeWarned,sagaRelayVentUsed;
+        private float sagaRelayHeat;
         private readonly List<Enemy> sagaRelayFoes=new List<Enemy>();
         private readonly HashSet<Enemy> sagaRelayDefeated=new HashSet<Enemy>();
         public bool MainSagaRelayActive
@@ -91,6 +92,11 @@ namespace Starfall
         }
         public float MainSagaRelaySeconds
         { get { return MainSagaRelayActive?sagaRelayClock:0f; } }
+        public int MainSagaRelayIntegrity
+        { get { return MainSagaRelayActive?Math.Max(0,100-(int)Math.Ceiling(sagaRelayHeat)):100; } }
+        public bool MainSagaRelayVentReady
+        { get { return MainSagaRelayActive&&!sagaRelayVentUsed&&
+            sagaRelayHeat>=8f; } }
         private void ResetMainSagaRelay()
         {
             foreach(Enemy e in sagaRelayFoes)
@@ -102,7 +108,8 @@ namespace Starfall
             }
             sagaRelayRoom=-1;sagaRelaySave=null;sagaRelayMap=null;
             sagaRelayStation=null;sagaRelayClock=0f;
-            sagaRelayLowTimeWarned=false;
+            sagaRelayLowTimeWarned=false;sagaRelayVentUsed=false;
+            sagaRelayHeat=0f;
             sagaRelayFoes.Clear();sagaRelayDefeated.Clear();
         }
         private bool MainSagaRelayFootFree(Point foot,List<Point> placed)
@@ -135,6 +142,7 @@ namespace Starfall
             if(feet.Count!=2)return false;
             sagaRelayRoom=4;sagaRelayMap=Map;sagaRelaySave=save;
             sagaRelayStation=station;sagaRelayClock=100f;
+            sagaRelayHeat=0f;sagaRelayVentUsed=false;sagaRelayLowTimeWarned=false;
             for(int i=0;i<feet.Count;i++)
             {
                 int kind=i==0?1:2;
@@ -194,6 +202,29 @@ namespace Starfall
                     "You left the bypass perimeter. Return to restart the defense.");
                 return;
             }
+            // Saboteurs must physically contest the circuit. An attacker
+            // that is dead, stunned, walled off or too far away cannot heat it.
+            // Threat pressure changes only in actual world time. The small
+            // slice also bounds a dropped frame instead of instantly wiping
+            // out a player's entire relay defense.
+            int nearby=0;
+            Point circuit=new Point(sagaRelayStation.x,sagaRelayStation.y);
+            foreach(Enemy e in sagaRelayFoes)
+                if(e!=null&&e.hp>0&&enemies.Contains(e)&&
+                    e.stun<=0f&&e.stagger<=0f&&e.hitTime<=0f&&
+                    CanStand(e.Position)&&
+                    (e.Position-circuit).Length<=5.5f&&
+                    ClearAttackPath(e.Position,circuit))nearby++;
+            float slice=Math.Min(.1f,dt);
+            sagaRelayHeat=Math.Max(0f,Math.Min(100f,sagaRelayHeat+
+                slice*(nearby>0?nearby*8f:-3.5f)));
+            if(sagaRelayHeat>=100f)
+            {
+                ResetMainSagaRelay();revision++;sound="alert";
+                Notify("破坏者逼近供能线圈，旁路过热中断！重新启动后可以再次防守。",
+                    "The saboteurs overloaded the coils! Restart the bypass defense.");
+                return;
+            }
             sagaRelayClock=Math.Max(0f,sagaRelayClock-dt);
             if(sagaRelayClock<=0f)
             {
@@ -234,16 +265,21 @@ namespace Starfall
                     Dialog(o.name,o.en,
                         "旁路调谐中！仍有"+MainSagaRelayRemaining+
                         "名破坏者，线圈可维持"+(int)Math.Ceiling(MainSagaRelaySeconds)+
-                        "秒。亲自击退敌人才可让居民供能线路稳定。",
+                        "秒，稳定度"+MainSagaRelayIntegrity+
+                        "%。敌人靠近线路会使线圈过热。"+(sagaRelayVentUsed?"应急泄压已用过。":"可在危险时手动泄压一次。"),
                         "Bypass under attack! "+MainSagaRelayRemaining+
-                        " saboteurs remain. The coils can hold "+
-                        (int)Math.Ceiling(MainSagaRelaySeconds)+
-                        " seconds. Defeat the real attackers to complete the circuit.",
-                        C("继续守住旁路","Hold the bypass","close"));
+                        " saboteurs remain, "+(int)Math.Ceiling(MainSagaRelaySeconds)+
+                        " seconds, integrity "+MainSagaRelayIntegrity+
+                        "%. Raiders beside the circuit overheat the coils."+
+                        (sagaRelayVentUsed?" The emergency vent has been used.":" You may vent once."),
+                        MainSagaRelayVentReady?
+                            C("应急泄压 · 耐力12，降低过热","Vent coils · 12 stamina, reduce heat","saga_lastgate_vent"):
+                            C("继续守住旁路","Hold the bypass","close"),
+                        C("继续战斗","Return to battle","close"));
                 else
                     Dialog(o.name,o.en,
-                        "损坏的分流台仍把星核能量优先送往军用屏障。你必须消耗22耐力启动紧急旁路，再亲自击退两名破坏者；100秒内守住线路，居民议会才真正拥有供能权。\n\n诺尔说：“别让新的命令只停留在纸上。”",
-                        "The broken diverter still prioritizes the military shield. Spend 22 stamina to start the bypass, then defeat two real saboteurs within 100 seconds. Only then can the residents control the emergency circuit.\n\nNoll says, “Don't let the new order remain on paper.”",
+                        "损坏的分流台仍把星核能量优先送往军用屏障。你必须消耗22耐力启动紧急旁路，再亲自击退两名破坏者；100秒内守住线路。敌人靠近装置会使供能线圈过热，你可以消耗12耐力应急泄压一次。\n\n诺尔说：“别让新的命令只停留在纸上。”",
+                        "The broken diverter still prioritizes the military shield. Spend 22 stamina to start the bypass, then defeat two real saboteurs within 100 seconds. Enemies near the circuit overheat the coils; you may spend 12 stamina to vent them once.\n\nNoll says, “Don't let the new order remain on paper.”",
                         C("启动旁路并守卫 · 耐力22","Start and defend bypass · 22 stamina","saga_lastgate_2"),
                         C("稍后再试","Return when ready","close"));
             else
@@ -261,7 +297,7 @@ namespace Starfall
                 return false;
             WorldObject source=pendingDialogueSource;
             int stage=action=="saga_lastgate_1"?1:
-                action=="saga_lastgate_2"?2:
+                action=="saga_lastgate_2"||action=="saga_lastgate_vent"?2:
                 action=="saga_lastgate_public"||action=="saga_lastgate_private"?3:0;
             if(stage==0||!MainSagaCouncilReady||save.ending>0||Dying||
                 practicing||save.room!=4||mode!="world"||
@@ -273,6 +309,27 @@ namespace Starfall
                 return true;
             if(stage==2)
             {
+                if(action=="saga_lastgate_vent")
+                {
+                    if(!MainSagaRelayVentReady)return true;
+                    if(save.energy<12f)
+                    {
+                        Notify("应急泄压需要12耐力。当前能量不足，仍可直接击退敌人。",
+                            "Emergency vent needs 12 stamina. Defeat attackers instead.");
+                        return true;
+                    }
+                    save.energy-=12f;
+                    sagaRelayHeat=Math.Max(0f,sagaRelayHeat-45f);
+                    sagaRelayVentUsed=true;
+                    effects.Add(new Effect("burst",
+                        new Point(source.x,source.y),.6f){radius=2f,variant=2});
+                    revision++;sound="guard";
+                    Dialog(source.name,source.en,
+                        "你用自己的力量扳动泄压阀。线圈降温，备用阀门已锁死；这次保卫战不能再重复泄压。",
+                        "You force open the emergency vent. The coils cool, but the backup valve locks. You cannot vent again this attempt.",
+                        C("返回守卫","Return to defense","close"));
+                    return true;
+                }
                 if(save.energy<22f)
                 {
                     Notify("旁路阀门需要22耐力。先安全恢复，再回来操作。",

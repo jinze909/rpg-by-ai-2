@@ -253,6 +253,37 @@ namespace Starfall.Tests
                     g.Choose(retry);g.Close();
                     Check(g.MainSagaRelayActive&&g.MainSagaRelayRemaining==2,
                         "Fresh attempt creates two real hostile enemies");
+                    // The circuit has a meaningful nearby-enemy pressure
+                    // condition, not a kill-only progress counter.
+                    var relayTick=typeof(GameCore).GetMethod("TickMainSagaRelay",
+                        BindingFlags.NonPublic|BindingFlags.Instance);
+                    Check(relayTick!=null,"Physical coil integrity is wired to the real mission tick");
+                    Enemy saboteur=g.enemies[0];
+                    float oldX=saboteur.x,oldY=saboteur.y;
+                    saboteur.x=station.x+2f;saboteur.y=station.y;
+                    saboteur.stun=0f;saboteur.stagger=0f;saboteur.hitTime=0f;
+                    Check(g.CanStand(saboteur.Position),
+                        "Tested sabotage pressure comes from real walkable citadel ground");
+                    for(int i=0;i<70;i++)
+                        relayTick.Invoke(g,new object[]{.1f});
+                    Check(g.MainSagaRelayActive&&g.MainSagaRelayIntegrity<100&&
+                        g.MainSagaRelayVentReady,
+                        "Only a live, nearby raider overheats the defended circuit");
+                    Check(PlaceWithinTalkReach(g,station),
+                        "Player can operate the real bypass while fighting");
+                    g.Talk(station);
+                    int vent=Array.FindIndex(g.conversation.choices,
+                        c=>c.action=="saga_lastgate_vent");
+                    Check(vent>=0,"Heat opens a once-per-battle tactical vent choice");
+                    int stableBefore=g.MainSagaRelayIntegrity;
+                    float ventEnergy=g.save.energy;
+                    g.Choose(vent);
+                    Check(g.MainSagaRelayIntegrity>stableBefore&&
+                        g.save.energy==ventEnergy-12f&&
+                        !g.MainSagaRelayVentReady,
+                        "Real station operation consumes stamina and reduces actual heat once");
+                    g.Close();
+                    saboteur.x=oldX;saboteur.y=oldY;
                     var relayHit=typeof(GameCore).GetMethod("Hit",
                         BindingFlags.NonPublic|BindingFlags.Instance);
                     Check(relayHit!=null,"Use actual production combat contact");
