@@ -34,6 +34,7 @@ namespace Starfall.Tests
         {
             var g=Fresh(data);
             int originalCoin=g.save.coins;
+            int initialChronicle=g.save.moments.Count;
             Check(!g.NightShiftComplete&&g.NightShiftEvidenceCount==0&&
                 g.GetQuest("night_shift").room==0,
                 "An untouched older save discovers a voluntary original town story");
@@ -88,6 +89,9 @@ namespace Starfall.Tests
                 "The mine costs exactly one real part and completes the field investigation");
             town=NightShiftAt(g,0);
             NightShiftChoose(g,town,"nightshift_public");
+            Check(g.save.moments.Count==initialChronicle+5&&
+                g.save.moments[g.save.moments.Count-1].en.Contains("restored the erased road"),
+                "All three real clues and the public decision appear once in the persistent player chronicle");
             Check(g.NightShiftComplete&&g.Has("nightshift_public")&&
                 !g.Has("nightshift_private")&&
                 g.save.coins==originalCoin+40&&
@@ -99,8 +103,9 @@ namespace Starfall.Tests
             g.Talk(town);
             Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="nightshift_public")<0&&
-                g.save.coins==originalCoin+40,
-                "Reopening the completed town roll never duplicates rewards");
+                g.save.coins==originalCoin+40&&
+                g.save.moments.Count==initialChronicle+5,
+                "Reopening the completed town roll never duplicates rewards or chronicle entries");
             g.Close();g.save.room=1;
             Check(g.Speed>=baselineSpeed+.20f&&g.save.version==2,
                 "Publicly restoring the old road has an actual measurable field travel benefit");
@@ -109,6 +114,7 @@ namespace Starfall.Tests
             Check(restored.NightShiftComplete&&
                 restored.GetQuest("night_shift").complete&&
                 restored.save.version==2&&
+                restored.save.moments.Count==initialChronicle+5&&
                 restored.save.trackedQuest=="night_shift",
                 "The optional outcome survives an unchanged SaveData v2 reload");
             var privateRun=Fresh(data);
@@ -118,11 +124,13 @@ namespace Starfall.Tests
             WorldObject desk=NightShiftAt(privateRun,0);
             float oldMax=privateRun.save.maxHealth;
             int oldPrivateCoins=privateRun.save.coins;
+            int oldMoments=privateRun.save.moments.Count;
             NightShiftChoose(privateRun,desk,"nightshift_private");
             Check(privateRun.Has("nightshift_private")&&
                 !privateRun.Has("nightshift_public")&&
                 privateRun.save.maxHealth==oldMax+8&&
                 privateRun.save.coins==oldPrivateCoins+40&&
+                privateRun.save.moments.Count==oldMoments+1&&
                 privateRun.save.version==2,
                 "The distinct witness-protection resolution grants real one-time max health");
             privateRun.Close();privateRun.Talk(desk);

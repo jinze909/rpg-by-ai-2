@@ -488,6 +488,9 @@ namespace Starfall
                 !Has("nightshift_started")&&!NightShiftComplete)
             {
                 Flag("nightshift_started");
+                RecordMoment(
+                    "夜班名册 · 从余烬镇接过未寄出的名单。巡林人、渡工和矿工写下的时间不一致；不能仅凭堡垒的交接记录断定他们失踪。",
+                    "Night-Shift Roll: accepted the unsent list in Emberfall. The roadwarden, ferryman and miner gave conflicting hours; the citadel handover cannot be trusted alone.");
                 TrackQuest("night_shift");
                 Notify("名册已接下：先去密林中路查看真正的夜班记录。",
                     "Roll accepted. Find the real night-watch card in Thornwood.");
@@ -514,6 +517,17 @@ namespace Starfall
                     save.inventory[4]--;
                 }
                 Flag("nightshift_trace_"+stage);
+                RecordMoment(
+                    stage==1?
+                        "夜班名册 · 密林半张班表证实三名工人在天亮前被巡路人护送至渡口。":
+                        stage==2?
+                        "夜班名册 · 沉没遗迹真正的退潮钟印否定了堡垒抄本中的日出时间。":
+                        "夜班名册 · 在赤铁矿场消耗一枚零件，打开封存的停机卷轴并保全工人的手印。",
+                    stage==1?
+                        "Night-Shift Roll: the torn forest card confirms three workers reached the ferry before dawn.":
+                        stage==2?
+                        "Night-Shift Roll: the real low-tide mark disproves the citadel's sunrise crossing time.":
+                        "Night-Shift Roll: spent one genuine part to open the mine spool and preserve the stop-work signature.");
                 sound="quest";revision++;
                 Notify(stage==1?"巡林班表已收录：下一处到沉没遗迹核对退潮钟印。":
                     stage==2?"退潮钟印已核实：前往赤铁矿场找最后的停机记录。":
@@ -529,6 +543,12 @@ namespace Starfall
             {
                 bool publish=action=="nightshift_public";
                 Flag(publish?"nightshift_public":"nightshift_private");
+                RecordMoment(publish?
+                    "夜班名册 · 余烬镇公开补正三地被删去的回家道路；当事者仍保有自己说明姓名的权利。密林、遗迹与矿场的公共巡路速度提升。":
+                    "夜班名册 · 余烬镇将原始名册交由当事者保管，而不是强迫仍在工作的证人公开身份。你获得了他们留给守护者的长久保护。",
+                    publish?
+                    "Night-Shift Roll: the town restored the erased road to its public chart without claiming ownership of the workers' names. Travel improves across the three regions.":
+                    "Night-Shift Roll: the original record stays with its living owners rather than exposing employed witnesses. Their protection permanently bolsters your health.");
                 save.coins=Math.Min(999999,save.coins+40);
                 GrantXp(35,true);
                 if(!publish)
