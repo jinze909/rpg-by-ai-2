@@ -78,6 +78,7 @@ namespace Starfall
         private string bootError;
         private readonly Color ink = PixelArt.C("#101a2b"), panel = PixelArt.C("#19283c"), paper = PixelArt.C("#f2ead7"), muted = PixelArt.C("#a4b4c5"), gold = PixelArt.C("#ebc58b"), mint = PixelArt.C("#7acabb");
         private WorldObject worldLabelOwner,worldLabelNearest;
+        private bool worldLabelCullingActive;
         private Point? worldLabelGoal;
         private readonly List<Rect> occupiedWorldLabels=new List<Rect>(48);
         private readonly List<WorldObject> occupiedWorldLabelOwners=new List<WorldObject>(48);
@@ -457,11 +458,25 @@ namespace Starfall
             TextAnchor anchor=TextAnchor.UpperLeft)
         {
             if(worldLabelOwner==null||String.IsNullOrEmpty(content))return;
+            // Individual world objects are also rendered outside DrawWorld
+            // by preview/inspection capture. Its per-frame visibility and
+            // collision caches are invalid in that context: always paint
+            // the real dynamic source cue rather than silently dropping it.
+            if(!worldLabelCullingActive)
+            {Text(x,y,w,h,content,size,color,anchor);return;}
             Point foot=new Point(worldLabelOwner.x,worldLabelOwner.y);
+            float distance=(foot-Game.Position).Length;
             bool target=worldLabelGoal.HasValue&&
                 (foot-worldLabelGoal.Value).Length<1.25f;
-            int priority=WorldLabelPolicy.Priority((foot-Game.Position).Length,
-                target,System.Object.ReferenceEquals(worldLabelNearest,worldLabelOwner));
+            int priority=WorldLabelPolicy.Priority(distance,target,
+                System.Object.ReferenceEquals(worldLabelNearest,worldLabelOwner));
+            // The 3-tile interaction cutoff was too narrow for physical
+            // shelters, rescues and their live resource/cost indicators.
+            if(priority==0&&distance<=5.5f)priority=1;
+            // A time-limited distant relay must remain readable when the
+            // player pans to its actual remote field marker.
+            if(priority==0&&worldLabelOwner.kind=="unsentrelay"&&
+                Game.UnsentWarningRunActive)priority=2;
             if(priority==0||x+w<16||x>Width-16||y+h<16||y>Height-16)return;
             int owned=0;
             for(int i=0;i<occupiedWorldLabels.Count;i++)
@@ -823,11 +838,12 @@ namespace Starfall
             // so a missing chunk never arrives as an opaque block.
             PrewarmTerrain();
             worldOverlayRegions.Clear();
+            worldLabelCullingActive=true;
             occupiedWorldLabels.Clear();
             occupiedWorldLabelOwners.Clear();
             worldLabelOwner=null;
             worldLabelNearest=Game.Nearest();
-            QuestGuide currentObjective=Game.CurrentGuide;
+            QuestGuide currentObjective=Game.RecommendedContinuationGuide;
             worldLabelGoal=currentObjective!=null&&
                 currentObjective.room==Game.save.room&&
                 !currentObjective.complete&&!currentObjective.locked?
@@ -1085,6 +1101,7 @@ namespace Starfall
                         TextAnchor.MiddleCenter);
                 }
             }
+            worldLabelCullingActive=false;
         }
         private void DrawHero() { DrawPlayerActor(); }
         private void DrawLegacyHero()
