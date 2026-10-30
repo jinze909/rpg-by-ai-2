@@ -462,6 +462,50 @@ namespace Starfall.Tests
                     "Old SaveData v2 cannot persist a fabricated defense victory or breach meter");
             }
         }
+
+        public static void ActTwoRaidersPhysicallyAdvanceOnOriginalWitnesses(Campaign data)
+        {
+            var update=typeof(GameCore).GetMethod("UpdateEnemies",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(update!=null,"Actual production enemy AI is used");
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);
+                g.save.flags.Add("saga_outer_"+room);
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Original physical witness is reachable");
+                g.Talk(npc);
+                int interview=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(interview>=0,"Original speaker has an actual interview");
+                g.Choose(interview);
+                int start=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(start>=0,"Speaker launches actual enemy defense");
+                g.Choose(start);
+                Check(g.SagaGuardActive&&g.SagaGuardRemaining==2,
+                    "Real spawned enemy pair is present");
+                Enemy attacker=Array.Find(g.enemies.ToArray(),e=>e.kind!=1);
+                Check(attacker!=null,"A real close-combat raider attacks the evidence");
+                Point witness=new Point(npc.x,npc.y);
+                float original=(attacker.Position-witness).Length;
+                for(int i=0;i<65;i++)update.Invoke(g,new object[]{.05f});
+                float now=(attacker.Position-witness).Length;
+                Check(now<original-.8f,
+                    "Raider moves toward the witness on real map "+room+
+                    ": "+original+" -> "+now);
+                Check(g.SagaGuardActive&&!g.Has("saga_guard_"+room)&&
+                    !g.Has("saga_voice_"+room),
+                    "Moving toward evidence cannot forge victory or signature");
+            }
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;

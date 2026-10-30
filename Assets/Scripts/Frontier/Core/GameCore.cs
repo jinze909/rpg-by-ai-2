@@ -2461,7 +2461,11 @@ namespace Starfall
                 // pressure the hero with ordinary traveling projectiles.
                 bool stockRaider=IsAfterlightWatchEnemy(e)&&e.kind!=1;
                 bool patrolSaboteur=IsOuterPatrolEnemy(e)&&e.kind!=1;
-                Point pursuit = patrolSaboteur ? outerPatrolPost : stockRaider ? AfterlightPoint(save.room,"outlet") :
+                // Real second-act objective AI: melee/breakers threaten the
+                // original witness; archers keep the hero pinned at range.
+                bool witnessRaider=IsSagaGuardEnemy(e)&&e.kind!=1;
+                Point pursuit = witnessRaider ? SagaGuardWitnessFoot :
+                    patrolSaboteur ? outerPatrolPost : stockRaider ? AfterlightPoint(save.room,"outlet") :
                     wardAttacker ? (wardBow ? Position :
                         ObjectPoint(roadTrialRoom, "survey" + roadTrialRoom, Position)) :
                     travelerAttacker ? (IsWayfarerDecoyTarget(e)?
@@ -2478,7 +2482,7 @@ namespace Starfall
                 // Bosses, wardens and civilian duties keep original AI.
                 if(playerHitProvoked&&!e.boss&&
                    !wardAttacker&&!travelerAttacker&&!reliefAttacker&&
-                   !escortPatrol&&!stockRaider&&!patrolSaboteur&&
+                   !escortPatrol&&!stockRaider&&!patrolSaboteur&&!witnessRaider&&
                    (IsEnemyInvestigatingImpact(e)||
                     IsEnemyReturningFromImpact(e)||
                     !ClearAttackPath(e.Position,Position)))
@@ -2755,7 +2759,7 @@ namespace Starfall
                 // and previously alerted guards keep their real intent.
                 bool ordinaryPatrol=!e.boss&&!wardAttacker&&
                     !travelerAttacker&&!reliefAttacker&&!escortPatrol&&
-                    !stockRaider&&!patrolSaboteur;
+                    !stockRaider&&!patrolSaboteur&&!witnessRaider;
                 bool trackingOrdinaryFoot=false;
                 if(ordinaryPatrol)
                 {
@@ -2804,7 +2808,7 @@ namespace Starfall
                         continue;
                 }
                 if (!wardAttacker && !travelerAttacker && !reliefAttacker &&
-                    !escortPatrol && !stockRaider && !patrolSaboteur &&
+                    !escortPatrol && !stockRaider && !patrolSaboteur && !witnessRaider &&
                     distance > (e.boss ? 18 : 8) &&
                     !(RidgeWatchRespondsToAlarm(e)&&distance<=18f) &&
                     !(playerHitProvoked&&distance<=18f)) continue;
@@ -2823,7 +2827,8 @@ namespace Starfall
                      IsEnemyReturningFromImpact(e)) ? .22f :
                     wardBow ? 4.5f :
                     (reliefAttacker || escortPatrol) && e.kind == 1 ? 4.3f :
-                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol || stockRaider || patrolSaboteur ? 1.05f :
+                    wardAttacker || travelerAttacker || reliefAttacker || escortPatrol ||
+                     stockRaider || patrolSaboteur || witnessRaider ? 1.05f :
                     e.boss ? 3.5f : e.kind == 1 ? 4.5f : 1.05f;
                 bool visible = ClearAttackPath(e.Position, pursuit);
                 if(visible&&!e.boss&&e.kind==1)

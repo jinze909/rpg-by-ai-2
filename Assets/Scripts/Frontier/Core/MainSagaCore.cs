@@ -508,6 +508,9 @@ namespace Starfall
         public float SagaGuardClock {get{return SagaGuardActive?sagaGuardClock:0f;}}
         public int SagaGuardEvidenceSafety
         {get{return SagaGuardActive?Math.Max(0,100-(int)Math.Ceiling(sagaGuardBreach)):100;}}
+        private Point SagaGuardWitnessFoot
+        {get{return SagaGuardActive?
+            new Point(sagaGuardWitness.x,sagaGuardWitness.y):Position;}}
         public bool SagaGuardDeviceUsed {get{return SagaGuardActive&&sagaGuardDeviceUsed;}}
         public bool SagaGuardDeviceReady
         {get{return SagaGuardActive&&!sagaGuardDeviceUsed&&SagaGuardRemaining>0;}}
@@ -688,8 +691,10 @@ namespace Starfall
             Point witnessFoot=new Point(sagaGuardWitness.x,sagaGuardWitness.y);
             foreach(Enemy e in sagaGuardFoes)
                 if(e!=null&&e.hp>0&&enemies.Contains(e)&&
-                    e.stun<=0f&&e.stagger<=0f&&
-                    (e.Position-witnessFoot).Length<=7.5f)
+                    e.stun<=0f&&e.stagger<=0f&&e.hitTime<=0f&&
+                    CanStand(e.Position)&&
+                    (e.Position-witnessFoot).Length<=7.5f&&
+                    ClearAttackPath(e.Position,witnessFoot))
                     raidersAtWitness++;
             sagaGuardBreach=Math.Max(0f,Math.Min(100f,
                 sagaGuardBreach+slice*(raidersAtWitness>0?
@@ -705,6 +710,8 @@ namespace Starfall
             if(sagaGuardBreach>=55f&&!sagaGuardBreachWarned)
             {
                 sagaGuardBreachWarned=true;revision++;sound="alert";
+                effects.Add(new Effect("number",witnessFoot+new Point(0,-1f),
+                    1.35f,L("原件正在被抢夺！","EVIDENCE UNDER ATTACK!")));
                 Notify("证据正受到围攻！冲向证人击退追兵，或启用当地机关缓解危机。",
                     "The records are under attack! Intercept raiders near the witness or operate the local device.");
             }
