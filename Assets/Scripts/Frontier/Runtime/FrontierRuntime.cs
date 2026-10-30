@@ -1257,13 +1257,31 @@ namespace Starfall
                      Game.NightShiftEvidenceCount==3&&!finished):
                     Game.Has("nightshift_started")&&!reviewed&&
                     Game.NightShiftEvidenceCount==station-1;
-                Color ink=finished?mint:reviewed?muted:
+                // Unlike the resolved original case, the final guild handoff
+                // is still a live interaction once all three physical field
+                // receipts are signed. Give that actual world source a clear
+                // cue, not the misleading 'roll filed' label.
+                bool reportReady=finished&&station==0&&
+                    !Game.Has("nightshift_reported")&&
+                    Game.Has("nightshift_followup_1")&&
+                    Game.Has("nightshift_followup_2")&&
+                    Game.Has("nightshift_followup_3");
+                Color ink=reportReady?gold:finished?mint:reviewed?muted:
                     actionable?gold:new Color(.60f,.77f,.86f);
                 PropImage(station==0?"bookshelf":
                     station==3?"barrel":"post",0,
                     p.x-34,p.y-76,68,80,ink);
-                Ring(new Point(o.x,o.y),actionable?.65f:.40f,ink,22);
-                if(actionable)Diamond(p.x,p.y-87,6,ink);
+                Ring(new Point(o.x,o.y),
+                    reportReady?.77f:actionable?.65f:.40f,ink,22);
+                if(actionable||reportReady)Diamond(p.x,p.y-87,6,ink);
+                if(reportReady)
+                {
+                    Ring(new Point(o.x,o.y),.88f,gold,26);
+                    WorldObjectLabel(p.x-115,p.y-143,230,19,
+                        Game.L("三地回执待交接 · 按 E",
+                            "THREE REPORTS READY · E"),
+                        10,gold,TextAnchor.MiddleCenter);
+                }
                 if(finished&&station>=1&&station<=3&&
                    !Game.Has("nightshift_followup_"+station))
                 {
@@ -1303,6 +1321,7 @@ namespace Starfall
                 }
                 if(actionable||reviewed||finished)
                     WorldObjectLabel(p.x-98,p.y-113,196,19,
+                        reportReady?Game.L("终章交接","FINAL DEBRIEF"):
                         finished?Game.L("名册结案","ROLL FILED"):
                         reviewed?Game.L("现场已核验","EVIDENCE CHECKED"):
                         station==0?Game.L("夜班名册 · 按 E","NIGHT ROLL · E"):
