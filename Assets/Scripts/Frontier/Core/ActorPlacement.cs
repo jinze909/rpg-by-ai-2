@@ -334,6 +334,207 @@ namespace Starfall
             }
         }
 
+
+        // Remote roads occupy most of the actual 120x80 map, while the
+        // mandatory story roster stays near the western entrance. Two
+        // optional, non-quest ambushes at existing outer ridge markers give
+        // those long walks genuine biome-specific combat. They only wake
+        // when a real player reaches their district, without multiplying
+        // the mandatory story kill counter or demanding extra boss clears.
+        // Only the once-cleared district flag persists in SaveData v2.
+        private readonly HashSet<int> remoteRoadVisited=new HashSet<int>();
+        private readonly List<Enemy> remoteRoadFoes=new List<Enemy>();
+        private readonly HashSet<Enemy> remoteRoadDefeated=new HashSet<Enemy>();
+        private readonly HashSet<Enemy> remoteRoadCaptured=new HashSet<Enemy>();
+        private int remoteRoadRoom=-1,remoteRoadDistrict=-1;
+        private MapData remoteRoadMap;
+        private SaveData remoteRoadSave;
+        private static readonly int[,] remoteRoadKinds={
+            {0,1, 2,0}, // Forest: root stalker and bow hunter; heavy deep-wood scout
+            {1,1, 0,2}, // Ruins: exposed longbow crossing; armored flood guard
+            {2,0, 1,2}, // Mine: heavy linebreakers; remote sentry at the rails
+            {2,1, 0,2}, // Citadel: shield/bow screen; outrider in the far ring
+            {1,0, 1,2}, // Harbor: long-range fog shots and armored pier guard
+            {2,1, 0,2}, // Desert: plated heatwatch with distant bow pressure
+            {0,2, 1,0}  // Frost: fast flank and weighty bellwatch
+        };
+        public bool RemoteRoadEncounterActive
+        { get { return remoteRoadRoom==save.room&&
+            remoteRoadDistrict>=0&&
+            Object.ReferenceEquals(remoteRoadMap,Map)&&
+            Object.ReferenceEquals(remoteRoadSave,save)&&
+            remoteRoadFoes.Count==2; } }
+        public int RemoteRoadRemaining
+        { get {
+            int count=0;
+            if(RemoteRoadEncounterActive)
+                foreach(Enemy e in remoteRoadFoes)
+                    if(e!=null&&!remoteRoadDefeated.Contains(e)&&
+                       !remoteRoadCaptured.Contains(e)&&
+                       e.hp>0f&&enemies.Contains(e))count++;
+            return count;
+        }}
+        public bool RemoteRoadCleared(int region,int district)
+        { return region>=1&&region<=7&&district>=0&&district<2&&
+            Has("remote_road_clear_"+region+"_"+district); }
+        private bool IsRemoteRoadEnemy(Enemy e)
+        { return e!=null&&RemoteRoadEncounterActive&&remoteRoadFoes.Contains(e); }
+        private void OnRemoteRoadEnemyDefeated(Enemy e)
+        {
+            if(IsRemoteRoadEnemy(e))remoteRoadDefeated.Add(e);
+        }
+        private bool OnRemoteRoadEnemyRestrained(Enemy e)
+        {
+            if(!IsRemoteRoadEnemy(e)||e.hp<=0f||enemies.Contains(e))
+                return false;
+            remoteRoadCaptured.Add(e);
+            return true;
+        }
+        private void ResetRemoteRoadEncounter(bool resetDistricts=false)
+        {
+            projectiles.RemoveAll(p=>p!=null&&p.hostileShooter!=null&&
+                remoteRoadFoes.Contains(p.hostileShooter));
+            foreach(Enemy e in remoteRoadFoes)
+            {
+                RemoveEnemyPendingWarning(e);
+                regionalAmbientEnemies.Remove(e);
+                enemies.Remove(e);
+            }
+            remoteRoadFoes.Clear();
+            remoteRoadDefeated.Clear();
+            remoteRoadCaptured.Clear();
+            remoteRoadRoom=-1;remoteRoadDistrict=-1;
+            remoteRoadMap=null;remoteRoadSave=null;
+            if(resetDistricts)remoteRoadVisited.Clear();
+        }
+        // These are authentic map objects, not fabricated markers or an
+        // automatic world teleport. A whole two-enemy wave must fit BEFORE
+        // either opponent is created. Both candidates must have a complete
+        // walking route, avoid active allies/quest props and retain spacing.
+        private bool BeginRemoteRoadEncounter(WorldObject marker,int district)
+        {
+            if(marker==null||save.room<1||save.room>7||
+               !SourceBelongsToActiveMap(marker)||district<0||district>1)
+                return false;
+            Point center=new Point(marker.x,marker.y);
+            var pads=new List<Point>();
+            int[,] dirs={{1,0},{0,1},{-1,0},{0,-1},
+                         {1,1},{-1,1},{-1,-1},{1,-1}};
+            for(int slot=0;slot<2;slot++)
+            {
+                bool found=false;
+                for(int radius=7;radius<=12&&!found;radius++)
+                for(int offset=0;offset<8&&!found;offset++)
+                {
+                    int d=(save.room*3+district*5+slot*4+offset)%8;
+                    Point foot=new Point(
+                        (float)Math.Floor(marker.x)+.5f+
+                            dirs[d,0]*radius,
+                        (float)Math.Floor(marker.y)+.5f+
+                            dirs[d,1]*radius);
+                    if(RegionalScoutFootClear(foot,center,true,pads))
+                    { pads.Add(foot);found=true; }
+                }
+            }
+            if(pads.Count!=2)
+            {
+                int sx=(int)Math.Floor(marker.x),sy=(int)Math.Floor(marker.y);
+                for(int radius=6;radius<=13&&pads.Count<2;radius++)
+                for(int dy=-radius;dy<=radius&&pads.Count<2;dy++)
+                for(int dx=-radius;dx<=radius&&pads.Count<2;dx++)
+                {
+                    if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                       Math.Abs(dx)+Math.Abs(dy)>18)continue;
+                    Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
+                    if(RegionalScoutFootClear(foot,center,true,pads))
+                        pads.Add(foot);
+                }
+            }
+            if(pads.Count!=2)return false;
+            remoteRoadRoom=save.room;remoteRoadDistrict=district;
+            remoteRoadMap=Map;remoteRoadSave=save;
+            for(int slot=0;slot<2;slot++)
+            {
+                Enemy e=CreatePlacedEnemy(++enemyId,
+                    remoteRoadKinds[save.room-1,district*2+slot],
+                    pads[slot],40+save.room*11+district*8);
+                remoteRoadFoes.Add(e);
+                enemies.Add(e);
+                regionalAmbientEnemies.Add(e);
+                effects.Add(new Effect("enemyRelease",e.Position,.6f)
+                    {variant=e.kind});
+            }
+            revision++;sound="alert";
+            Notify(district==0?
+                "外环巡路：前方出现两名拦路者。战斗或活捉均可解除威胁。":
+                "高地旧路：另一队巡哨发现了你，守住这条实际通路。",
+                district==0?
+                "Outer road: two raiders hold this crossing. Defeat or restrain them.":
+                "Far ridge: another patrol has spotted you. Hold the real crossing.");
+            return true;
+        }
+        private void TickRemoteRoadEncounters()
+        {
+            if(remoteRoadDistrict>=0)
+            {
+                if(!RemoteRoadEncounterActive||Dying)
+                { ResetRemoteRoadEncounter();return; }
+                // Disappeared enemies and scripted removals are not earned
+                // victories; only the actual death / snare transaction signs.
+                foreach(Enemy e in remoteRoadFoes)
+                    if(e==null||(!remoteRoadDefeated.Contains(e)&&
+                        !remoteRoadCaptured.Contains(e)&&
+                        (!enemies.Contains(e)||e.hp<=0f)))
+                    { ResetRemoteRoadEncounter();return; }
+                if(remoteRoadDefeated.Count+remoteRoadCaptured.Count<2)
+                    return;
+                int district=remoteRoadDistrict,region=remoteRoadRoom;
+                bool humane=remoteRoadCaptured.Count==2;
+                ResetRemoteRoadEncounter();
+                if(RemoteRoadCleared(region,district))return;
+                Flag("remote_road_clear_"+region+"_"+district);
+                CreditCoins(18+region*3);
+                GrantXp(32+region*5,true);
+                if(humane)CreditShards(1);
+                RecordMoment("远路巡护 · 在"+data.maps[region].name+
+                    "徒步清理第"+(district+1)+"处真实外环伏击"+
+                    (humane?"，两名袭击者都被活捉。":"。"),
+                    "Far-road watch: cleared the "+(district+1)+
+                    " real outer crossing in "+data.maps[region].en+
+                    (humane?", with both raiders alive.":"."));
+                revision++;sound="quest";
+                Notify("远路安全 "+(district+1)+"/2 · 获得硬币"+
+                    (18+region*3)+"、经验"+(32+region*5)+
+                    (humane?"、非致命巡护碎片1。":"。"),
+                    "Remote crossing secured "+(district+1)+"/2: "+
+                    (18+region*3)+" coins, "+(32+region*5)+
+                    " XP"+(humane?", +1 mercy shard.":"."));
+                return;
+            }
+            if(mode!="world"||Dying||practicing||racing||
+               save.room<1||save.room>7||Map.objects==null||
+               !CanStand(Position)||!SafeTravel||
+               FieldWorkPreventsRest||ActionTransitionBlocked||
+               RemoteRoadCleared(save.room,0)&&RemoteRoadCleared(save.room,1))
+                return;
+            for(int district=0;district<2;district++)
+            {
+                if(remoteRoadVisited.Contains(district)||
+                   RemoteRoadCleared(save.room,district))continue;
+                WorldObject marker=null;
+                string id="ridge_route_"+save.room+"_"+district;
+                foreach(WorldObject o in Map.objects)
+                    if(o!=null&&o.kind=="ridgemarker"&&o.id==id)
+                    {marker=o;break;}
+                if(marker==null||!IsObjectPresent(marker)||
+                   (Position-new Point(marker.x,marker.y)).Length>8.5f)
+                    continue;
+                if(BeginRemoteRoadEncounter(marker,district))
+                    remoteRoadVisited.Add(district);
+                break;
+            }
+        }
+
         // Only the baseline authored overworld roster sleeps when the
         // player is in a DIFFERENT local encounter district. Special
         // escorts, patrols, Bosses, alert sound searches and event raiders

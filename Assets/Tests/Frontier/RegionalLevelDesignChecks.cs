@@ -1315,6 +1315,70 @@ namespace Starfall.Tests
         // physical dialogue and check every living actor's actual class.
         // A static table-only assertion would not catch a disconnected
         // placement path, an unspawned third foe, or a dead world hook.
+
+        // A remote wilderness encounter is not a story gate, a duplicate
+        // static patrol, or an instant quest reward. It wakes only at the
+        // player's physical crossing with two actual reachable combatants.
+        public static void FarRoadDistrictsHavePlayableOptionalAmbushes(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var hit=typeof(GameCore).GetMethod("Hit",flags);
+            Check(hit!=null,"Real HP/death drives remote clearing");
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);
+                g.mode="world";g.save.stage=3;g.save.room=room;
+                g.enemies.Clear();
+                int previousKills=g.save.kills[room];
+                for(int district=0;district<2;district++)
+                {
+                    WorldObject post=Array.Find(g.Map.objects,o=>
+                        o.kind=="ridgemarker"&&
+                        o.id=="ridge_route_"+room+"_"+district);
+                    Check(post!=null&&g.CanStand(new Point(post.x,post.y)),
+                        "Each outer crossing has an existing reachable landmark");
+                    g.save.x=post.x;g.save.y=post.y;
+                    int oldMoney=g.save.coins;
+                    int oldMoments=g.save.moments.Count;
+                    var before=new HashSet<Enemy>(g.enemies);
+                    g.Tick(.02f,new Point());
+                    var foes=g.enemies.FindAll(e=>!before.Contains(e));
+                    Check(g.RemoteRoadEncounterActive&&
+                        g.RemoteRoadRemaining==2&&foes.Count==2,
+                        "Two full real foes awaken only at the crossed remote landmark");
+                    foreach(Enemy e in foes)
+                    {
+                        Check(e.hp>0f&&!e.boss&&g.CanStand(e.Position)&&
+                            g.NavigationPathFrom(g.Position,e.Position,true).Count>0,
+                            "Remote combat actors have walkable hero-side routes, not phantom foes");
+                        foreach(WorldObject obj in g.Map.objects)
+                            Check((e.Position-new Point(obj.x,obj.y)).Length>=4.4f,
+                                "The new ambush does not stand on an interactive story site");
+                        hit.Invoke(g,new object[]{e,1000f,false,null,null});
+                    }
+                    for(int i=0;i<16&&g.RemoteRoadEncounterActive;i++)
+                        g.Tick(.05f,new Point());
+                    Check(!g.RemoteRoadEncounterActive&&
+                        g.RemoteRoadCleared(room,district)&&
+                        g.save.kills[room]==previousKills&&
+                        g.save.coins==oldMoney+18+room*3&&
+                        g.save.moments.Count==oldMoments+1,
+                        "Only two actual combat deaths sign the reward; main kills remain untouched");
+                    g.Tick(.02f,new Point());
+                    Check(!g.RemoteRoadEncounterActive,
+                        "Completed crossing never spawns another farming wave");
+                }
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.RemoteRoadCleared(room,0)&&
+                    restored.RemoteRoadCleared(room,1)&&
+                    !restored.RemoteRoadEncounterActive,
+                    "Both earned remote battle receipts persist in original v2 saves without actor ghosts");
+            }
+        }
+
         public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
         {
             int[][] expected={

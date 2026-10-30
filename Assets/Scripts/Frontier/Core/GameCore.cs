@@ -467,6 +467,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
+            ResetRemoteRoadEncounter(true);
             ResetFieldTactics();ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetNightShiftRaid();ResetNightShiftVent();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
@@ -1256,6 +1257,7 @@ namespace Starfall
             TickMainSagaRelay(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
+            TickRemoteRoadEncounters();
             TickFieldPatrol();
             TickFieldOutpost();
             TickFieldDispatch(dt);
@@ -1796,6 +1798,7 @@ namespace Starfall
             OnBiomeCrisisEnemyDefeated(e);
             OnRegionalVigilEnemyDefeated(e);
             OnFieldPatrolEnemyDefeated(e);
+            OnRemoteRoadEnemyDefeated(e);
             OnFieldOutpostEnemyDefeated(e);
             OnVantageWatchEnemyDefeated(e);
             OnChapterRoadEnemyDefeated(e);
@@ -1829,7 +1832,7 @@ namespace Starfall
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
                 IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsNightShiftRaider(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e) ||
-                IsFieldTacticTrialEnemy(e);
+                IsFieldTacticTrialEnemy(e) || IsRemoteRoadEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)

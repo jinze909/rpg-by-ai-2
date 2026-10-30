@@ -211,6 +211,7 @@ namespace Starfall
             // An actual physical restraint counts for a civilian patrol.
             // Arbitrary actor removals still invalidate its signed receipt.
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
+            bool roadRestraint=OnRemoteRoadEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
             bool watchRestraint=OnVantageWatchEnemyRestrained(target);
             bool chapterRestraint=OnChapterRoadEnemyRestrained(target);
@@ -238,6 +239,9 @@ namespace Starfall
             else if(courierRestraint)
                 Notify("真实劫匪已被绊索活捉。必须亲手将救援包交给守棚人，才能登记安全与治疗奖励。",
                     "Original parcel raider restrained alive. Complete the real delivery to earn security and care rewards.");
+            else if(roadRestraint)
+                Notify("远路巡护：已非致命制服一名真实拦路者。",
+                    "Far-road watch: one actual raider restrained alive.");
             else if(patrolRestraint)
                 Notify("巡护委托：已活捉一名真实巡兵，剩余"+
                     FieldPatrolRemaining+"名。回原地标提交回执。",
