@@ -9,7 +9,7 @@ namespace Starfall.Tests
         public static void NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Campaign data)
         {
             var g=Fresh(data);
-            g.mode="world";g.save.room=3;g.enemies.Clear();
+            g.mode="world";g.save.room=3;g.save.stage=3;g.enemies.Clear();
             g.save.flags.Add("nightshift_started");
             g.save.flags.Add("nightshift_trace_1");
             g.save.flags.Add("nightshift_trace_2");
@@ -63,7 +63,8 @@ namespace Starfall.Tests
                 "Genuine cooling-route progress persists via existing signed v2 evidence, not runtime clocks");
 
             var expired=Fresh(data);
-            expired.mode="world";expired.save.room=3;expired.enemies.Clear();
+            expired.mode="world";expired.save.room=3;expired.save.stage=3;
+            expired.enemies.Clear();
             expired.save.flags.Add("nightshift_started");
             expired.save.flags.Add("nightshift_trace_1");
             expired.save.flags.Add("nightshift_trace_2");
