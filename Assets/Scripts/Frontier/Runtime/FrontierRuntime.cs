@@ -226,6 +226,12 @@ namespace Starfall
                 }
                 if(Input.GetKeyDown(KeyCode.O))
                     Game.CycleNearbyInteraction();
+                // Right-click an actual nearby actor in the WORLD, not an
+                // obstructed prop or UI button. It selects a speaker only;
+                // ordinary E / B remains the sole dialogue/quest action.
+                if(Input.GetMouseButtonDown(1)&&Game.SafeTravel&&
+                   !PointerOverInterface(mouse))
+                    Game.FocusNearbyInteractionAt(WorldAtPointer(mouse));
                 // The shipped Unity InputManager has a real Mouse ScrollWheel
                 // axis. One physical scroll notch advances through the
                 // UNLOCKED weapon roster, never an unearned future weapon.
@@ -1096,8 +1102,8 @@ namespace Starfall
                     TextAnchor.MiddleCenter);
                 if(crowded)
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("O / R3 · 切换交互对象",
-                               "O / R3 · CYCLE INTERACTION"),
+                        Game.L("右键点选 / O / R3 切换",
+                               "RIGHT-CLICK / O / R3 · SELECT"),
                         11,muted,TextAnchor.MiddleCenter);
             }
             else if (near != null && Game.mode == "world" && Game.SafeTravel)
@@ -1111,8 +1117,8 @@ namespace Starfall
                     Text(s.x-147,s.y+17,294,26,label,14,paper,
                         TextAnchor.MiddleCenter);
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("O / R3 · 切换交互对象",
-                               "O / R3 · CYCLE INTERACTION"),
+                        Game.L("右键点选 / O / R3 切换",
+                               "RIGHT-CLICK / O / R3 · SELECT"),
                         11,muted,TextAnchor.MiddleCenter);
                 }
                 else

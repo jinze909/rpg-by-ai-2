@@ -3810,6 +3810,62 @@ namespace Starfall
                     "Selected: "+selected.en+" · E to interact.");
             return true;
         }
+
+        // Secondary-click focuses the visible world actor under the pointer,
+        // never a nearer but different speaker. A body-shaped hit area lets
+        // players click an NPC's torso instead of a tiny ground-coordinate
+        // dot; all candidates still pass the same live, wall-aware reach
+        // check as E and the crowded-interaction list.
+        public bool FocusNearbyInteractionAt(Point worldPointer)
+        {
+            if(mode!="world"||Dying||!SafeTravel||
+               !Finite(worldPointer.x)||!Finite(worldPointer.y)||
+               !CanStand(Position))return false;
+            var options=NearbyInteractionChoices();
+            var hits=new List<int>();
+            float best=float.MaxValue;
+            for(int i=0;i<options.Count;i++)
+            {
+                WorldObject o=options[i];
+                Point foot=o==null?reliefFollowerPosition:new Point(o.x,o.y);
+                float dx=Math.Abs(worldPointer.x-foot.x);
+                float dy=worldPointer.y-foot.y;
+                if(!Finite(dx)||!Finite(dy)||dx>.65f||
+                   dy< -1.25f||dy>.45f)continue;
+                // Screen-space character silhouettes extend above the feet.
+                // Prefer the clicked column; use torso height only to break
+                // close ties between actors in that column.
+                float score=dx*dx+.25f*(dy+.35f)*(dy+.35f);
+                if(score<best-.01f)
+                {
+                    best=score;
+                    hits.Clear();
+                    hits.Add(i);
+                }
+                else if(score<=best+.01f)
+                    hits.Add(i);
+            }
+            if(hits.Count==0)return false;
+            int selected=hits[0];
+            if(hits.Count>1)
+            {
+                // Two speakers can share identical painted feet. Repeated
+                // clicks at those same pixels advance only within that
+                // overlapping cluster; the existing O/R3 list remains an
+                // alternative for keyboard/controller users.
+                WorldObject current=Nearest();
+                if(InteractionReliefFocusIsValid()||
+                   ReliefCivilianIsInteractionTarget(current))
+                    current=null;
+                for(int i=0;i<hits.Count;i++)
+                    if(Object.ReferenceEquals(options[hits[i]],current))
+                    {
+                        selected=hits[(i+1)%hits.Count];
+                        break;
+                    }
+            }
+            return FocusNearbyInteraction(selected);
+        }
         public WorldObject Nearest()
         {
             // Revalidate non-map mission actors even when the renderer
