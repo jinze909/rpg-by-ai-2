@@ -1245,6 +1245,7 @@ namespace Starfall
             TickGhostTrain(dt);
             TickRidgeEcho(dt);
             TickWildernessHunt(dt);
+            TickFieldTacticTrial();
             TickRegionalMachineShelters(dt);
             TickGuidance(beforeMove);
             TickPolish(dt);
@@ -1791,6 +1792,7 @@ namespace Starfall
             OnLastDirectiveEnemyDefeated(e);
             OnRidgeWatchEnemyDefeated(e);
             OnWildernessHuntEnemyDefeated(e);
+            OnFieldTacticTrialEnemyDefeated(e);
             OnCivicCourierGuardDefeated(e);
             if (IsRootHarmonyEnemy(e) && !enemies.Exists(IsRootHarmonyEnemy))
                 hazards.RemoveAll(h => h.rootHarmonyOwned);
@@ -1808,7 +1810,8 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e);
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e) ||
+                IsFieldTacticTrialEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.
             if (!specialEncounterEnemy)
@@ -4866,7 +4869,7 @@ namespace Starfall
         }
         private bool FieldWorkPreventsRest
         {
-            get { return SagaGuardActive || ChapterRoadActive || VantageWatchActive || FieldDispatchActive || FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
+            get { return FieldTacticTrialActive || SagaGuardActive || ChapterRoadActive || VantageWatchActive || FieldDispatchActive || FieldOutpostActive || RidgeEchoRunActive || GhostTrainBattleActive || RegionalVigilActive || BiomeCrisisActive || AfterglowActive || SignalRelayActive || OuterDeliveryActive || SpecialistDrillActive || SwordLessonActive || FrostSignalActive || MineConvoyActive || PressureworksActive || SilentLedgerActive || MistlightActive || MistConvoyActive || LastLanternActive || ThornwatchActive || CountertideActive || GlassLoomActive || FarCourierActive || CivicResponseActive || AfterlightWatchActive || OuterPatrolActive || stormTuning ||
                 afterlightChargeRegion != 0 || blackoutActive || reliefMissionRoom != 0 ||
                 // Rest jumps world time but does not advance these activity clocks.
                 racing || fieldSurveyRoom != 0 ||
@@ -4918,7 +4921,9 @@ namespace Starfall
             if (action.StartsWith("goto") || action == "routes" ||
                 action == "rest" || action == "scout" ||
                 action.StartsWith("scout_",StringComparison.Ordinal) ||
-                action == "field_tactic_trigger" || action == "engine" ||
+                (action == "field_tactic_trigger" ||
+                 action.StartsWith("field_tactic_trial_",StringComparison.Ordinal)) ||
+                action == "engine" ||
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
@@ -5139,6 +5144,7 @@ namespace Starfall
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
             if (ChooseFieldTactics(action)) return;
+            if (ChooseFieldTacticTrial(action)) return;
             if (ChooseScoutRescue(action)) return;
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;

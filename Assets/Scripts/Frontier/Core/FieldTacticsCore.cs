@@ -25,8 +25,181 @@ namespace Starfall
         }
         private static bool TacticInterceptsArrows(int room)
         { return room==4||room==5; }
+
+        // Live, source-bound combat drill: exactly two genuine enemies, one
+        // successful use of this specific battlefield device, then a signed
+        // return. No serialized actor/clock and no new SaveData v2 fields.
+        private int tacticTrialRoom=-1;
+        private WorldObject tacticTrialSource;
+        private MapData tacticTrialMap;
+        private SaveData tacticTrialSave;
+        private readonly List<Enemy> tacticTrialEnemies=new List<Enemy>();
+        private readonly HashSet<Enemy> tacticTrialKills=new HashSet<Enemy>();
+        private bool tacticTrialUsed;
+        private static readonly int[,] tacticTrialRoles={
+            {0,1},{1,0},{2,0},{2,1},{1,1},{2,2},{0,0}
+        };
+        public bool FieldTacticTrialActive
+        {get{return tacticTrialRoom>=1&&tacticTrialRoom<=7&&
+            tacticTrialRoom==save.room&&
+            Object.ReferenceEquals(tacticTrialMap,Map)&&
+            Object.ReferenceEquals(tacticTrialSave,save)&&
+            FieldTacticSource(tacticTrialSource);}}
+        public bool FieldTacticTrialDone(int room)
+        {return room>=1&&room<=7&&Has("tactic_trial_done_"+room);}
+        public int FieldTacticTrialWins
+        {get{int n=0;for(int i=1;i<=7;i++)if(FieldTacticTrialDone(i))n++;return n;}}
+        public int FieldTacticTrialRemaining
+        {get{int n=0;if(FieldTacticTrialActive)
+            foreach(Enemy e in tacticTrialEnemies)
+                if(!tacticTrialKills.Contains(e)&&enemies.Contains(e)&&e.hp>0)n++;
+            return n;}}
+        public bool FieldTacticTrialUsed
+        {get{return FieldTacticTrialActive&&tacticTrialUsed;}}
+        public bool FieldTacticTrialReady
+        {get{return FieldTacticTrialUsed&&tacticTrialEnemies.Count==2&&
+            tacticTrialKills.Count==2&&FieldTacticTrialRemaining==0;}}
+        public Point FieldTacticTrialGuideTarget
+        {get{if(!FieldTacticTrialActive)return Position;
+            foreach(Enemy e in tacticTrialEnemies)
+                if(!tacticTrialKills.Contains(e)&&enemies.Contains(e)&&e.hp>0)
+                    return e.Position;
+            return new Point(tacticTrialSource.x,tacticTrialSource.y);}}
+        private bool IsFieldTacticTrialEnemy(Enemy e)
+        {return e!=null&&FieldTacticTrialActive&&tacticTrialEnemies.Contains(e);}
+        private void OnFieldTacticTrialEnemyDefeated(Enemy e)
+        {if(IsFieldTacticTrialEnemy(e)&&e.hp<=0)tacticTrialKills.Add(e);}
+        private void ResetFieldTacticTrial()
+        {
+            foreach(Enemy e in tacticTrialEnemies)
+            {RemoveEnemyPendingWarning(e);regionalAmbientEnemies.Remove(e);enemies.Remove(e);}
+            projectiles.RemoveAll(p=>p!=null&&p.hostileShooter!=null&&
+                tacticTrialEnemies.Contains(p.hostileShooter));
+            tacticTrialEnemies.Clear();tacticTrialKills.Clear();
+            tacticTrialRoom=-1;tacticTrialSource=null;
+            tacticTrialMap=null;tacticTrialSave=null;tacticTrialUsed=false;
+        }
+        private void TickFieldTacticTrial()
+        {
+            if(tacticTrialRoom<0)return;
+            if(!FieldTacticTrialActive){ResetFieldTacticTrial();return;}
+            foreach(Enemy e in tacticTrialEnemies)
+                if(e==null||(!tacticTrialKills.Contains(e)&&
+                    (!enemies.Contains(e)||e.hp<=0)))
+                {ResetFieldTacticTrial();revision++;
+                 Notify("演练敌人未经真实战斗便消失。委托作废。",
+                     "A trial fighter vanished without a true defeat. Contract void.");
+                 return;}
+        }
+        private bool StageFieldTacticTrial(WorldObject source)
+        {
+            Point center=new Point(source.x,source.y);
+            var pads=new List<Point>();
+            for(int radius=3;radius<=6&&pads.Count<2;radius++)
+            for(int dy=-radius;dy<=radius&&pads.Count<2;dy++)
+            for(int dx=-radius;dx<=radius&&pads.Count<2;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
+                Point p=new Point((float)Math.Floor(center.x)+dx+.5f,
+                                  (float)Math.Floor(center.y)+dy+.5f);
+                float distance=(p-center).Length;
+                if(distance<2.8f||distance>5.7f||!CanStand(p)||
+                   (p-Position).Length<2.5f||
+                   !ClearAttackPath(center,p)||
+                   NavigationPathFrom(Position,p,true).Count==0)continue;
+                bool clear=true;
+                foreach(WorldObject obj in Map.objects)
+                    if(obj!=null&&obj!=source&&
+                        (p-new Point(obj.x,obj.y)).Length<2.25f)
+                    {clear=false;break;}
+                if(!clear)continue;
+                if(Map.decor!=null)
+                    foreach(Decoration d in Map.decor)
+                        if((p-new Point(d.x,d.y)).Length<
+                            RegionalDecorationEnemyPad(d))
+                        {clear=false;break;}
+                if(!clear)continue;
+                foreach(Enemy enemy in enemies)
+                    if(enemy!=null&&enemy.hp>0&&
+                        (p-enemy.Position).Length<2.5f)
+                    {clear=false;break;}
+                if(!clear)continue;
+                foreach(Point old in pads)
+                    if((p-old).Length<3f){clear=false;break;}
+                if(clear)pads.Add(p);
+            }
+            if(pads.Count!=2)return false;
+            tacticTrialRoom=save.room;tacticTrialSource=source;
+            tacticTrialMap=Map;tacticTrialSave=save;tacticTrialUsed=false;
+            tacticTrialEnemies.Clear();tacticTrialKills.Clear();
+            for(int i=0;i<2;i++)
+            {
+                Enemy e=new Enemy(++enemyId,tacticTrialRoles[save.room-1,i],
+                    pads[i].x,pads[i].y,40+save.room*8);
+                enemies.Add(e);tacticTrialEnemies.Add(e);
+                effects.Add(new Effect("enemyRelease",e.Position,.65f)
+                    {variant=e.kind});
+            }
+            revision++;sound="alert";return true;
+        }
+        private bool ChooseFieldTacticTrial(string action)
+        {
+            if(action!="field_tactic_trial_begin"&&
+               action!="field_tactic_trial_report"&&
+               action!="field_tactic_trial_abort")return false;
+            WorldObject source=pendingDialogueSource;
+            if(!FieldTacticSource(source)||pendingDialogueSourceRoom!=save.room||
+                !HasPhysicalInteractionReach(source)||!CanStand(Position)||
+                mode!="world"||Dying||practicing)return true;
+            int room=save.room;
+            if(action=="field_tactic_trial_abort")
+            {
+                if(FieldTacticTrialActive&&
+                   Object.ReferenceEquals(tacticTrialSource,source))
+                {ResetFieldTacticTrial();revision++;sound="ui";
+                 Notify("演练已撤回，不结算奖励。","Trial withdrawn without reward.");}
+                return true;
+            }
+            if(action=="field_tactic_trial_report")
+            {
+                if(!FieldTacticTrialReady||
+                   !Object.ReferenceEquals(tacticTrialSource,source)||
+                   !SafeTravel)return true;
+                ResetFieldTacticTrial();
+                if(FieldTacticTrialDone(room))return true;
+                Flag("tactic_trial_done_"+room);
+                CreditCoins(22+room*4);CreditShards(1);AddXp(48+room*8);
+                RecordMoment("第"+room+"区 · 用本地战术装置反制袭击，并亲自击退两名敌人。",
+                    "Region "+room+": used the actual field counter and defeated two real trial raiders.");
+                revision++;sound="reward";
+                Notify("演练回执已签收：硬币"+(22+room*4)+"、碎片1、经验"+(48+room*8)+"。",
+                    "Signed trial: "+(22+room*4)+" coins, 1 shard, "+(48+room*8)+" XP.");
+                if(FieldTacticTrialWins==7&&!Has("tactic_trials_mastered"))
+                {
+                    Flag("tactic_trials_mastered");CreditSkillPoints(1);
+                    RecordMoment("七地区的现场反制均通过真实实战认证。",
+                        "All seven region-specific countermeasures proved in live combat.");
+                    Notify("七地实战全部通过！额外技能点1。",
+                        "Seven field trials complete! +1 talent point.");
+                }
+                return true;
+            }
+            if(FieldTacticTrialDone(room)||FieldTacticTrialActive||
+               FieldWorkPreventsRest||!SafeTravel)
+            {Notify("先完成其他现场战斗，再开始演练。",
+                "Finish current fieldwork and nearby danger before starting.");
+             return true;}
+            if(!StageFieldTacticTrial(source))
+            {Notify("装置附近不足两条安全可步行的敌人进路，清理现场再试。",
+                "No complete two-raider walkable lane here. Clear the area and retry.");
+             return true;}
+            Notify("实战演练开始：用现场装置命中至少一名指定敌人，击败两人后回这里交回回执。",
+                "Trial started: counter at least one assigned enemy, defeat both and return here.");
+            return true;
+        }
         private void ResetFieldTactics()
         {
+            ResetFieldTacticTrial();
             fieldTacticReady.Clear();fieldTacticMap=null;fieldTacticSave=null;
         }
         private void EnsureFieldTacticSession()
@@ -125,7 +298,19 @@ namespace Starfall
                   "\n\nUse all four chapter mechanisms in real combat to earn one talent point.":
                   "\n\nMaster all three outer-region mechanisms in real combat to earn a separate talent point."),
                 C("启动现场装置","Activate mechanism","field_tactic_trigger"),
-                C("查看其他路线","Inspect other paths","close"));
+                FieldTacticTrialDone(room)?
+                    C("本地实战回执已签收","Combat trial already signed","close"):
+                FieldTacticTrialActive?
+                    (FieldTacticTrialReady?
+                        C("签收现场演练回执","Sign completed tactical trial","field_tactic_trial_report"):
+                        C("演练中 · 还剩"+FieldTacticTrialRemaining+"名 · "+
+                            (FieldTacticTrialUsed?"装置已启动":"须启动装置"),
+                          "Live drill · "+FieldTacticTrialRemaining+" foes · "+
+                            (FieldTacticTrialUsed?"counter used":"counter required"),"close")):
+                    C("开启本地实战演练 · 两名袭击者","Start local combat drill · two raiders","field_tactic_trial_begin"),
+                FieldTacticTrialActive?
+                    C("撤回演练","Withdraw the drill","field_tactic_trial_abort"):
+                    C("查看其他路线","Inspect other paths","close"));
             return true;
         }
         // Shift+G uses the same authenticated mechanism as the ordinary E
@@ -187,6 +372,11 @@ namespace Starfall
             }
             save.energy-=14f;
             fieldTacticReady[o]=save.totalTime+24f;
+            if(FieldTacticTrialActive&&
+               Object.ReferenceEquals(tacticTrialSource,o))
+                foreach(Enemy enemy in targets)
+                    if(tacticTrialEnemies.Contains(enemy))
+                    {tacticTrialUsed=true;break;}
             foreach(Enemy e in targets)
             {
                 if(room==1)
