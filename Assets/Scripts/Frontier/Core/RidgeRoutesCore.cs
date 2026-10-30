@@ -85,6 +85,24 @@ namespace Starfall
                 "Two previously unregistered wells now share one public path.",
                 "A high chime guides travelers toward warmth instead of another alarm."
             };
+            if(RemoteRoadEncounterActive&&
+               RemoteRoadActiveDistrict==side)
+            {
+                // The original marker is also an authentic safe EXIT from
+                // the OPTIONAL fight. No fast travel, no battle receipt.
+                // The hero still has to physically return to the crossing
+                // and interact before the next enemy attack lands.
+                Dialog(o.name,o.en,
+                    zh[room]+"\n\n这处伏击尚余"+RemoteRoadRemaining+
+                        "名敌人。可留在现场迎战，或从原路口撤回。撤离不获得胜利回执。",
+                    en[room]+"\n\n"+RemoteRoadRemaining+
+                        " raiders still threaten this road. Fight on, or withdraw at "+
+                        "this original marker without claiming victory.",
+                    C("从本路口撤离 · 不领取奖励",
+                        "Withdraw from road · no reward","remote_road_withdraw"),
+                    C("继续交战","Keep fighting","close"));
+                return true;
+            }
             if(IsSignalRelayDestination(o))
             {
                 // Keep the ordinary one-time ridge discovery above. The
@@ -112,7 +130,8 @@ namespace Starfall
                 // instead of having combat sprung on them by teleport.
                 // Ordinary walking near the marker keeps its live ambush.
                 bool unclearedRoad=room>=1&&room<=7&&
-                    !RemoteRoadCleared(room,side);
+                    !RemoteRoadCleared(room,side)&&
+                    !RemoteRoadEncounterActive;
                 Choice confront=C("主动清剿本路口伏击",
                     "Challenge this road's raiders","remote_road_challenge");
                 Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
@@ -132,9 +151,11 @@ namespace Starfall
                     new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 "+passageCost+" 耐力。"+
+                    (unclearedRoad?"\n\n这处伏击仍可选：付费高地通行安全抵达；可在本路标主动挑战，或徒步返回迎战。":"")+
                     (first?"\n\n这处地标首次记录：经验 +9。线路连通：硬币 +20、碎片 +1、经验 +24。":""),
                     en[room]+RidgeWatchHint(room,true)+
                     "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for "+passageCost+" energy."+
+                    (unclearedRoad?"\n\nThis roadside fight remains OPTIONAL: paid ridge transit lands safely. Challenge at this marker or return on foot to face its raiders.":"")+
                     (first?"\n\nFirst visit: +9 XP. Route linked: +20 coins, +1 shard, +24 XP.":""),
                     choices);
                 return true;
@@ -154,12 +175,35 @@ namespace Starfall
         {
             if(action!="ridge_travel"&&action!="ridge_watch_track"&&
                 action!="ridge_field_aid"&&
-                action!="remote_road_challenge")return false;
+                action!="remote_road_challenge"&&
+                action!="remote_road_withdraw")return false;
             int room=save.room;
             if(action=="ridge_travel"&&SignalRelayActive)
             {
                 Notify("烽火传讯必须亲自走完整条路，不能利用高地通道跳过距离。",
                     "Carry the signal overland; ridge transfers cannot skip a live dispatch.");
+                return true;
+            }
+            if(action=="remote_road_withdraw")
+            {
+                WorldObject marker=pendingDialogueSource;
+                if(marker==null||room<1||room>7||
+                   pendingDialogueSourceRoom!=room||
+                   marker.kind!="ridgemarker"||
+                   !SourceBelongsToActiveMap(marker)||
+                   !HasPhysicalInteractionReach(marker)||
+                   !RemoteRoadEncounterActive||Dying)return true;
+                int district=marker.id=="ridge_route_"+room+"_0"?0:
+                    marker.id=="ridge_route_"+room+"_1"?1:-1;
+                if(district<0||RemoteRoadActiveDistrict!=district)return true;
+                ResetRemoteRoadEncounter(false,true);
+                // No immediate auto-rematch while still standing at the
+                // very marker used to withdraw. Exit the crossing and come
+                // back, or explicitly challenge again after re-opening it.
+                SetRemoteRoadSafeArrival(marker);
+                revision++;sound="quest";
+                Notify("你撤出了远路伏击，没有战斗奖励。离开路口后可返回再战。",
+                    "Withdrew without reward. Leave and return, or challenge again.");
                 return true;
             }
             if(action=="remote_road_challenge")

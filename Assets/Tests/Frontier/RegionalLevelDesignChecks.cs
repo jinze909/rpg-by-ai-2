@@ -1676,6 +1676,62 @@ namespace Starfall.Tests
             }
         }
 
+
+        // A voluntary fight must also have a real voluntary exit.
+        // Retreat at the original road marker cleans exactly its real
+        // owned actors and prevents two-second immediate re-ambush.
+        public static void PhysicalRoadMarkerCanWithdrawOptionalBattleWithoutFarming(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();g.save.energy=100f;
+                WorldObject marker=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_0");
+                Check(marker!=null,"Original terrain marker exists for voluntary exit");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Tick(.02f,new Point());
+                Check(g.RemoteRoadEncounterActive&&
+                    g.RemoteRoadRemaining==2&&g.enemies.Count==2,
+                    "The authentic two-body road encounter is active");
+                var owned=new List<Enemy>(g.enemies);
+                int coins=g.save.coins,shards=g.save.shards;
+                int kills=g.save.kills[room],moments=g.save.moments.Count;
+                g.Talk(marker);
+                Check(g.conversation!=null,
+                    "A real physically reachable marker can speak during the optional fight");
+                int withdraw=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="remote_road_withdraw");
+                Check(withdraw>=0,
+                    "The actual original road marker offers a deliberate no-reward retreat");
+                g.Choose(withdraw);
+                Check(!g.RemoteRoadEncounterActive&&g.enemies.Count==0&&
+                    !g.enemies.Contains(owned[0])&&!g.enemies.Contains(owned[1])&&
+                    g.RemoteRoadSafeArrivalActive&&
+                    g.save.coins==coins&&g.save.shards==shards&&
+                    g.save.kills[room]==kills&&
+                    g.save.moments.Count==moments&&
+                    !g.RemoteRoadCleared(room,0),
+                    "Real withdrawal removes both owned enemies, credits nothing, protects same-foot exit");
+                for(int i=0;i<60;i++)g.Tick(.05f,new Point());
+                Check(!g.RemoteRoadEncounterActive&&g.enemies.Count==0,
+                    "Standing on the surrender marker cannot retrigger a surprise battle");
+                Point spawn=new Point(g.Map.spawnX,g.Map.spawnY);
+                Check(g.CanStand(spawn)&&
+                    (spawn-new Point(marker.x,marker.y)).Length>10.5f,
+                    "Actual regional spawn is outside the cleared transit corridor");
+                g.save.x=spawn.x;g.save.y=spawn.y;
+                g.Tick(.05f,new Point());
+                Check(!g.RemoteRoadSafeArrivalActive,
+                    "Leaving the actual local crossing rearms only optional combat");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Tick(.05f,new Point());
+                Check(g.RemoteRoadEncounterActive&&g.RemoteRoadRemaining==2&&
+                    !g.RemoteRoadCleared(room,0),
+                    "Revisiting the original road restores a real, replayable two-foe challenge");
+            }
+        }
+
         public static void FourteenRoadAmbushesHaveUsableJournalGuidance(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=1;
