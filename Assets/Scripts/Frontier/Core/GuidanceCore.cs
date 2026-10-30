@@ -4617,10 +4617,12 @@ namespace Starfall
                             ObjectPoint(i,i==5?"captain":i==6?"tinker":"keeper",
                                 MainSagaEvidencePoint(i));
                         q.next=SagaGuardActive&&save.room==i?
-                            L(placesZh[i]+"：真实证词护卫第"+SagaGuardWave+
-                                "波，仍有"+SagaGuardRemaining+"名袭击者。守住实际现场。",
-                              placesEn[i]+": live witness defense wave "+
-                                SagaGuardWave+" · "+SagaGuardRemaining+" attackers remain."):
+                            L(placesZh[i]+"：证人护卫第"+SagaGuardWave+
+                                "波，剩余"+SagaGuardRemaining+"名袭击者 · 原件安全度"+
+                                SagaGuardEvidenceSafety+"%。阻止敌人接近证人。",
+                              placesEn[i]+": witness defense wave "+
+                                SagaGuardWave+" · "+SagaGuardRemaining+" attackers · evidence "+
+                                SagaGuardEvidenceSafety+"% safe. Keep raiders away from the witness."):
                             !Has("saga_guard_"+i)?
                             L(placesZh[i]+"：回到证人面前，守住原件并抵御两波袭击者。",
                               placesEn[i]+": defend the witness and originals against two live waves."):

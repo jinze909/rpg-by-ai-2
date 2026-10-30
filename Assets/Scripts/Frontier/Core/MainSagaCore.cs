@@ -482,6 +482,10 @@ namespace Starfall
         // Already signed v2/v1-origin saves keep their existing milestone.
         private int sagaGuardRoom=-1,sagaGuardWave;
         private float sagaGuardClock;
+        // Transient contested-evidence pressure: owned raiders must actually
+        // reach the original speaker while able to fight. No v2 save fields.
+        private float sagaGuardBreach;
+        private bool sagaGuardBreachWarned;
         private bool sagaGuardDeviceUsed;
         private MapData sagaGuardMap;
         private SaveData sagaGuardSave;
@@ -502,6 +506,8 @@ namespace Starfall
                 if(e!=null&&e.hp>0&&enemies.Contains(e))n++;
             return n; } }
         public float SagaGuardClock {get{return SagaGuardActive?sagaGuardClock:0f;}}
+        public int SagaGuardEvidenceSafety
+        {get{return SagaGuardActive?Math.Max(0,100-(int)Math.Ceiling(sagaGuardBreach)):100;}}
         public bool SagaGuardDeviceUsed {get{return SagaGuardActive&&sagaGuardDeviceUsed;}}
         public bool SagaGuardDeviceReady
         {get{return SagaGuardActive&&!sagaGuardDeviceUsed&&SagaGuardRemaining>0;}}
@@ -541,6 +547,7 @@ namespace Starfall
                 projectiles.RemoveAll(p=>Object.ReferenceEquals(p.hostileShooter,e));
             }
             sagaGuardRoom=-1;sagaGuardWave=0;sagaGuardClock=0f;
+            sagaGuardBreach=0f;sagaGuardBreachWarned=false;
             sagaGuardDeviceUsed=false;
             sagaGuardMap=null;sagaGuardSave=null;sagaGuardWitness=null;
             sagaGuardFoes.Clear();sagaGuardDefeated.Clear();
@@ -670,8 +677,40 @@ namespace Starfall
                     "The defense ran out of time. The witness relocated the evidence; regroup before signing.");
                 return;
             }
+            // The enemies contest the actual witness, not an abstract kill
+            // quota. Only living, present, unstunned owned raiders inside
+            // the speaker's perimeter erode the original evidence. Pull
+            // them off the site, stagger them or use the regional device.
+            // Bound the time slice so a paused Unity frame cannot instantly
+            // destroy the documents. Pressure persists across both waves.
+            float slice=Math.Min(.1f,dt);
+            int raidersAtWitness=0;
+            Point witnessFoot=new Point(sagaGuardWitness.x,sagaGuardWitness.y);
+            foreach(Enemy e in sagaGuardFoes)
+                if(e!=null&&e.hp>0&&enemies.Contains(e)&&
+                    e.stun<=0f&&e.stagger<=0f&&
+                    (e.Position-witnessFoot).Length<=7.5f)
+                    raidersAtWitness++;
+            sagaGuardBreach=Math.Max(0f,Math.Min(100f,
+                sagaGuardBreach+slice*(raidersAtWitness>0?
+                    raidersAtWitness*10f:-6f)));
+            if(sagaGuardBreach>=100f)
+            {
+                int lostRoom=sagaGuardRoom;
+                ResetSagaGuard();revision++;sound="alert";
+                Notify("第"+(lostRoom-4)+"处证人的原始证据被追兵夺走了！重新组织防守；原有调查不会被抹去。",
+                    "Raiders seized the witness's original evidence! Regroup; previously earned investigation remains intact.");
+                return;
+            }
+            if(sagaGuardBreach>=55f&&!sagaGuardBreachWarned)
+            {
+                sagaGuardBreachWarned=true;revision++;sound="alert";
+                Notify("证据正受到围攻！冲向证人击退追兵，或启用当地机关缓解危机。",
+                    "The records are under attack! Intercept raiders near the witness or operate the local device.");
+            }
+            if(sagaGuardBreach<30f)sagaGuardBreachWarned=false;
             // Three genuinely different local risks in the combat pocket.
-            if((Position-new Point(sagaGuardWitness.x,sagaGuardWitness.y)).Length<17f)
+            if((Position-witnessFoot).Length<17f)
             {
                 if(sagaGuardRoom==5&&!LowTide)
                     save.energy=Math.Max(0f,save.energy-dt*
@@ -802,8 +841,8 @@ namespace Starfall
                     EarlyRescueVoice(room,true)+MainSagaFieldConsequence(room,true)+en[room]+
                     "\n\nSomeone is trying to seize this original evidence. Defend the genuine witness and records against two separate attacks before signing.",
                     SagaGuardActive?
-                        C("守住防线 · 剩余"+SagaGuardRemaining+"名敌人",
-                            "Defend the line · "+SagaGuardRemaining+" attackers left","close"):
+                        C("守住防线 · 剩余"+SagaGuardRemaining+"名 · 安全度"+SagaGuardEvidenceSafety+"%",
+                            "Defend · "+SagaGuardRemaining+" raiders · evidence "+SagaGuardEvidenceSafety+"%","close"):
                         C("守护证人与证据 · 两波实际战斗",
                             "Defend witness and evidence · two live waves","saga_guard_begin"),
                     SagaGuardActive&&SagaGuardDeviceReady?
@@ -913,6 +952,11 @@ namespace Starfall
                     save.inventory[0]-=timber;
                     save.inventory[2]-=herb;save.energy-=stamina;
                     sagaGuardDeviceUsed=true;
+                    // Foghorn disperses the most pressure; heat vent and
+                    // brazier buy time as well as interrupting real enemies.
+                    sagaGuardBreach=Math.Max(0f,sagaGuardBreach-
+                        (room==5?42f:room==6?30f:36f));
+                    if(sagaGuardBreach<30f)sagaGuardBreachWarned=false;
                     Point center=new Point(host.x,host.y);
                     int interrupted=0;
                     foreach(Enemy e in sagaGuardFoes)
@@ -939,6 +983,7 @@ namespace Starfall
                 }
                 if(SagaGuardActive||FieldWorkPreventsRest||!SafeTravel)return true;
                 sagaGuardRoom=room;sagaGuardWave=0;
+                sagaGuardBreach=0f;sagaGuardBreachWarned=false;
                 sagaGuardMap=Map;sagaGuardSave=save;
                 sagaGuardWitness=host;sagaGuardClock=(room==5?175f:room==6?185f:200f)+
                     (EarlyRescueEcho(room)?25f:0f)+
@@ -953,8 +998,8 @@ namespace Starfall
                     return true;
                 }
                 sound="alert";revision++;
-                Notify("两波敌人正在逼近证人。守住原件，击退全部真实袭击者！",
-                    "Two real waves are closing on the witness. Defend the original records!");
+                Notify("两波追兵正在逼近证人！敌人进入证人附近会降低证据安全度；击退、打断或启用机关阻止抢夺。",
+                    "Two waves approach! Raiders near the witness lower evidence safety. Fight, stagger or use the local device to prevent seizure.");
                 return true;
             }
             if(action.StartsWith("saga_field_aid_",StringComparison.Ordinal)||

@@ -360,6 +360,94 @@ namespace Starfall.Tests
                     "Preserving records does not fabricate the separate aid-route time bonus");
             }
         }
+
+        public static void WitnessDefenseCanLoseOriginalEvidenceWithoutForgingSignedTestimony(Campaign data)
+        {
+            var tick=typeof(GameCore).GetMethod("TickSagaGuard",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(tick!=null,"The real two-wave defense advances evidence pressure in world time");
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);
+                g.save.flags.Add("saga_outer_"+room);
+                WorldObject speaker=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(speaker!=null&&PlaceWithinTalkReach(g,speaker),
+                    "Real named witness remains physically reachable");
+                g.Talk(speaker);
+                int account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Real witness interview exists");
+                g.Choose(account);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"Witness has real live defense option");
+                g.Choose(begin);
+                Check(g.SagaGuardActive&&g.SagaGuardRemaining==2&&
+                    g.SagaGuardEvidenceSafety==100,
+                    "Every region starts with intact actual evidence");
+
+                Enemy[] owned=g.enemies.ToArray();
+                // Keep the real spawned objects in the live combat list,
+                // but test the threat radius without random enemy AI drift.
+                foreach(Enemy e in owned)
+                {
+                    e.x=speaker.x+2.5f;e.y=speaker.y;
+                    e.stun=3f;e.stagger=0f;
+                }
+                for(int i=0;i<10;i++)
+                    tick.Invoke(g,new object[]{.08f});
+                Check(g.SagaGuardEvidenceSafety==100,
+                    "Physically near but stunned raiders cannot seize evidence");
+                foreach(Enemy e in owned)e.stun=0f;
+                for(int i=0;i<12;i++)
+                    tick.Invoke(g,new object[]{.08f});
+                int endangered=g.SagaGuardEvidenceSafety;
+                Check(endangered<100&&endangered>0,
+                    "Only live unrestrained raiders near the witness erode records");
+
+                // The original physical NPC device is a tactical recovery,
+                // not a quest flag, free heal, or infinite repeatable action.
+                Check(PlaceWithinTalkReach(g,speaker),
+                    "Defender can reach the original regional mechanism");
+                g.Talk(speaker);
+                account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"Original speaker offers a defense interaction");
+                g.Choose(account);
+                int mechanism=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_device");
+                Check(mechanism>=0,"Active actual region offers its mechanism");
+                g.save.inventory[0]=5;g.save.inventory[2]=5;
+                g.save.energy=100f;
+                g.Choose(mechanism);
+                Check(g.SagaGuardDeviceUsed&&
+                    g.SagaGuardEvidenceSafety>endangered,
+                    "A paid, one-use live device relieves real evidence pressure");
+
+                // A later sustained breach really loses this attempt even
+                // if the raiders remain in the list, never awarding signatures.
+                foreach(Enemy e in owned){e.stun=0f;e.stagger=0f;}
+                for(int i=0;i<110&&g.SagaGuardActive;i++)
+                    tick.Invoke(g,new object[]{.1f});
+                Check(!g.SagaGuardActive&&g.SagaGuardEvidenceSafety==100&&
+                    g.SagaGuardRemaining==0&&!g.Has("saga_guard_"+room)&&
+                    !g.Has("saga_voice_"+room)&&
+                    !g.enemies.Exists(e=>Array.IndexOf(owned,e)>=0),
+                    "Evidence seizure fails only the temporary fight and retires owned enemies");
+                g.PrepareSave();
+                GameCore restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&!restored.SagaGuardActive&&
+                    !restored.Has("saga_guard_"+room)&&
+                    restored.SagaGuardEvidenceSafety==100,
+                    "Old SaveData v2 cannot persist a fabricated defense victory or breach meter");
+            }
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;
