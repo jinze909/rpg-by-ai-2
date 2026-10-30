@@ -426,9 +426,14 @@ namespace Starfall.Tests
             Check(!g.FieldTacticTrialUsed&&g.FieldTacticTrialRemaining==0&&
                 !g.FieldTacticTrialReady,
                 "Killing without using the field mechanism cannot earn a receipt");
-            g.Tick(.02f,new Point());
+            // Hit() deliberately freezes live world simulation for a
+            // short, authored impact stop after each actual kill. Wait for
+            // the resumed physical world ticks, not a fictional instant
+            // cleanup during the first frozen 20ms frame.
+            for(int frame=0;frame<12&&g.FieldTacticTrialActive;frame++)
+                g.Tick(.05f,new Point());
             Check(!g.FieldTacticTrialActive,
-                "No-counter trial must end after the actual game tick");
+                "No-counter trial must end promptly after real hit-stop resolves");
             Check(g.enemies.Count==0,
                 "No-counter cleanup must retire only the two trial actors: remaining "+
                     g.enemies.Count);
