@@ -507,6 +507,7 @@ namespace Starfall
                 DrawMinimap(); QuestGuide q = urgentMain ?
                     Game.GetQuest("main") :
                     Game.FieldTacticTrialActive ? Game.GetQuest("tactic_trials") :
+                    Game.FieldPatrolActive ? Game.GetQuest("field_patrols") :
                     Game.CivicCourierActive ? Game.GetQuest("civic_courier") : Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.MineConvoyActive ? Game.GetQuest("mine_convoy") :
                     Game.WitnessDefenseRoom!=0 ? Game.GetQuest("campaign_witness") :

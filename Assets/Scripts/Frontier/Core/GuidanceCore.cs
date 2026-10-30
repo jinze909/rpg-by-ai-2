@@ -5421,6 +5421,11 @@ namespace Starfall
             if(OuterPatrolActive)return outerPatrolPost;
             if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
             if(FieldTacticTrialActive)return FieldTacticTrialGuideTarget;
+            // A live paid civilian patrol is an actual local encounter.
+            // Its direction must follow surviving contracted enemies, then
+            // return to the signing post, even if the journal still tracks
+            // another optional quest. This never alters progress flags.
+            if(FieldPatrolActive)return FieldPatrolGuideTarget;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.

@@ -183,6 +183,37 @@ namespace Starfall.Tests
                 "Urgent guidance never invents a rescue or modifies SaveData v2");
         }
 
+
+        public static void PaidForestPatrolHudCompassTracksLiveEnemiesWithoutRewritingStory(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.room=1;g.mode="world";g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            WorldObject post=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "Authentic forest survey post is reachable before a paid patrol");
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"The original local field contract has a real combat choice");
+            g.Choose(begin);
+            Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==2&&
+                g.enemies.Count==2,
+                "The physical first forest patrol spawns both real combatants");
+            g.save.trackedQuest="main";
+            QuestGuide patrol=g.GetQuest("field_patrols");
+            Point? target=g.NavigationTarget();
+            Check(target.HasValue&&patrol.room==g.save.room&&
+                (target.Value-patrol.target).Length<.001f&&
+                (target.Value-g.FieldPatrolGuideTarget).Length<.001f,
+                "The live world arrow uses the same surviving contract target as the HUD");
+            Check(g.save.trackedQuest=="main"&&
+                !g.FieldPatrolDone(1)&&g.FieldPatrolRemaining==2&&
+                g.save.version==2,
+                "Viewing a real optional combat objective does not reset main tracking or mint receipts");
+        }
+
         public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
         {
             Check(MapPresentationPolicy.ShowObject("portal1",true,false,true),
