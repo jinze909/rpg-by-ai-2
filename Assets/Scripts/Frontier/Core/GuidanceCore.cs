@@ -4795,8 +4795,10 @@ namespace Starfall
                     if(ScoutDefenseActive&&save.room==1)
                     {
                         q.target=ScoutDefenseGuideTarget;
-                        q.next=L("击退守着侦察员的两名真实追兵 · 剩余"+ScoutDefenseRemaining+"名",
-                            "Defeat the actual scout raiders · "+ScoutDefenseRemaining+" remain");
+                        q.next=L("保护侦察员 · "+ScoutDefenseRemaining+"名追兵 · 安全度"+
+                            ScoutDefenseSafety+"%。击退敌人或站位拦截。",
+                            "Protect the scout · "+ScoutDefenseRemaining+" raiders · safety "+
+                            ScoutDefenseSafety+"%. Stagger or body-block attackers.");
                     }
                     else if(Has("scout_aid_prepared")&&!Has("scout_beacon_lit"))
                     {

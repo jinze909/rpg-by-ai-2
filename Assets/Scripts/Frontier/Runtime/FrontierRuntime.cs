@@ -2048,6 +2048,18 @@ namespace Starfall
                 return;
             }
 
+            if(kind=="scout"&&Game.ScoutDefenseActive)
+            {
+                Color safety=Game.ScoutDefenseSafety<35?
+                    PixelArt.C("#ed8c82"):
+                    Game.ScoutDefenseUnderAttack?gold:mint;
+                Ring(new Point(o.x,o.y),.84f,safety,28);
+                Bar(p.x-38,p.y-102,76,Game.ScoutDefenseSafety/100f,safety,6);
+                Text(p.x-88,p.y-128,176,19,
+                    Game.L("侦察员安全度 ","SCOUT SAFETY ")+
+                    Game.ScoutDefenseSafety+"%",11,safety,
+                    TextAnchor.MiddleCenter);
+            }
             if (kind.StartsWith("portal"))
             {
                 int destination = int.Parse(kind.Substring(6)); bool available = Game.CanEnter(destination);

@@ -22,6 +22,7 @@ namespace Starfall.Tests
                 "First rescue offers distinct real combat and fieldwork choices");
             defend.Choose(defendChoice);
             Check(defend.ScoutDefenseActive&&defend.ScoutDefenseRemaining==2&&
+                defend.ScoutDefenseSafety==100&&
                 !defend.Has("scout_saved")&&defend.GetQuest("main").room==1,
                 "Choosing combat spawns two specific reachable enemies without granting progress");
             var hit=typeof(GameCore).GetMethod("Hit",

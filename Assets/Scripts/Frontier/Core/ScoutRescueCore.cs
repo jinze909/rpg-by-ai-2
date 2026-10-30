@@ -11,6 +11,8 @@ namespace Starfall
         private MapData scoutDefenseMap;
         private SaveData scoutDefenseSave;
         private WorldObject scoutDefenseSource;
+        private float scoutDefensePressure;
+        private bool scoutDefenseWarning,scoutDefenseHeroCover;
         private readonly List<Enemy> scoutDefenseFoes=new List<Enemy>();
         private readonly HashSet<Enemy> scoutDefenseDefeated=new HashSet<Enemy>();
         public bool ScoutDefenseActive
@@ -30,6 +32,14 @@ namespace Starfall
                 return n;
             }
         }
+        public int ScoutDefenseSafety
+        { get { return ScoutDefenseActive?
+            Math.Max(0,100-(int)Math.Ceiling(scoutDefensePressure)):100; } }
+        public bool ScoutDefenseUnderAttack
+        { get { return ScoutDefenseActive&&scoutDefensePressure>0f&&
+            !scoutDefenseHeroCover; } }
+        public bool ScoutDefenseHeroCover
+        { get { return ScoutDefenseActive&&scoutDefenseHeroCover; } }
         public Point ScoutDefenseGuideTarget
         {
             get {
@@ -48,6 +58,7 @@ namespace Starfall
             }
             scoutDefenseFoes.Clear();scoutDefenseDefeated.Clear();
             scoutDefenseSource=null;scoutDefenseMap=null;scoutDefenseSave=null;
+            scoutDefensePressure=0f;scoutDefenseWarning=false;scoutDefenseHeroCover=false;
         }
         private bool ScoutAttackFootSafe(Point foot,List<Point> placed)
         {
@@ -78,6 +89,7 @@ namespace Starfall
             }
             if(feet.Count!=2)return false;
             scoutDefenseSource=scout;scoutDefenseMap=Map;scoutDefenseSave=save;
+            scoutDefensePressure=0f;scoutDefenseWarning=false;scoutDefenseHeroCover=false;
             for(int i=0;i<feet.Count;i++)
             {
                 Enemy foe=CreatePlacedEnemy(++enemyId,i==0?0:1,
@@ -117,7 +129,9 @@ namespace Starfall
                     enemies.Contains(e)){cleared=false;break;}
             if(cleared)
             {
+                bool safe=ScoutDefenseSafety>=70;
                 ResetScoutDefense();Flag("scout_defense_cleared");
+                if(!safe)Flag("scout_defense_scarred");
                 effects.Add(new Effect("discover",Position,.6f));
                 RecordMoment("密林 · 你亲自击退了威胁侦察员的两名追兵。道路安全，但他仍需要你回去确认。",
                     "Thornwood: you defeated the two raiders threatening the scout. Return to check on him.");
@@ -131,6 +145,49 @@ namespace Starfall
                 ResetScoutDefense();revision++;
                 Notify("离开侦察员防线太远。本次交战撤销，可免费再试。",
                     "You left the scout perimeter. Return to retry without a penalty.");
+                return;
+            }
+            Point witness=new Point(scoutDefenseSource.x,scoutDefenseSource.y);
+            bool covered=false;
+            int threatening=0;
+            foreach(Enemy e in scoutDefenseFoes)
+            {
+                if(e==null||e.hp<=0||!enemies.Contains(e)||
+                    e.stun>0f||e.stagger>0f||e.hitTime>0f||
+                    !CanStand(e.Position)||
+                    (e.Position-witness).Length>5.5f||
+                    !ClearAttackPath(e.Position,witness))continue;
+                // Body-blocking is physical: the hero must stand in a clear
+                // lane between this actual enemy and the actual scout.
+                if(SagaGuardHeroInterposes(e,witness))covered=true;
+                else threatening++;
+            }
+            if(covered&&!scoutDefenseHeroCover)
+            {
+                effects.Add(new Effect("number",Position,.7f,
+                    L("舍身拦截！","BODYGUARD!")));
+                revision++;sound="guard";
+            }
+            scoutDefenseHeroCover=covered;
+            // Only genuine world time degrades the route. Bound frame spikes
+            // so a dropped frame cannot erase an entire rescue instantly.
+            float slice=Math.Min(.1f,dt);
+            scoutDefensePressure=Math.Max(0f,Math.Min(100f,
+                scoutDefensePressure+slice*(threatening>0?threatening*10f:-4f)));
+            if(scoutDefensePressure>=100f)
+            {
+                ResetScoutDefense();revision++;sound="alert";
+                Notify("追兵冲到侦察员身边，他退回隐蔽处。防线需重新组织，已完成的调查不会丢失。",
+                    "Raiders reached the scout. He fell back to cover; regroup and retry without losing investigation progress.");
+                return;
+            }
+            if(scoutDefensePressure>=55f&&!scoutDefenseWarning)
+            {
+                scoutDefenseWarning=true;revision++;sound="alert";
+                effects.Add(new Effect("number",witness+new Point(0,-.8f),
+                    1f,L("侦察员暴露！","SCOUT EXPOSED!")));
+                Notify("侦察员受到威胁！击退追兵，或站在敌人和侦察员之间。",
+                    "Scout exposed! Stagger the raiders or physically stand between them and the scout.");
             }
         }
         private bool TalkScoutRescue(WorldObject o)
@@ -162,9 +219,9 @@ namespace Starfall
             if(ScoutDefenseActive)
             {
                 Dialog(o.name,o.en,
-                    "“追兵就在外头。”他把测绘纸压在胸前。“还有"+ScoutDefenseRemaining+"名。你可以继续战斗，或者撤回重新部署。”",
+                    "“追兵就在外头。”他把测绘纸压在胸前。“还有"+ScoutDefenseRemaining+"名，撤离安全度"+ScoutDefenseSafety+"%。你可以继续战斗，挡在我身前，或者撤回重新部署。”",
                     "“They're still out there.” He holds the map tight. "+
-                    ScoutDefenseRemaining+" raiders remain. Fight on, or withdraw and regroup.",
+                    ScoutDefenseRemaining+" raiders remain. Safety "+ScoutDefenseSafety+"%. Fight on, screen me in the lane, or withdraw and regroup.",
                     C("继续保护侦察员","Keep defending","close"),
                     C("撤回本次防御（无惩罚）","Withdraw without penalty","scout_abort"));
                 return true;
@@ -176,12 +233,16 @@ namespace Starfall
                 string method=Has("scout_beacon_lit")?
                     "“那座旧灯亮了！你沿着我画的路走了一遍，这回我敢跟着它回去。”":
                     Has("scout_defense_cleared")?
-                    "“两名追兵都不在了。谢谢你回来确认。现在可以把这份原始记录带回去。”":
+                    (Has("scout_defense_scarred")?
+                        "“他们几乎冲到了我身边。谢谢你在最后一刻守住了测绘图。”":
+                        "“两名追兵都不在了。谢谢你回来确认。现在可以把这份原始记录带回去。”"):
                     "“你已经替旧巡路清出一条路。地图还是我亲手交给你。”";
                 string methodEn=Has("scout_beacon_lit")?
                     "“The old beacon is lit. You walked the trail I marked. Now I can follow it home.”":
                     Has("scout_defense_cleared")?
-                    "“Both raiders are gone. Thanks for returning to check. Take the original record home.”":
+                    (Has("scout_defense_scarred")?
+                        "“They almost reached me. You held the line before they took the survey.”":
+                        "“Both raiders are gone. Thanks for returning to check. Take the original record home.”"):
                     "“You cleared a way through the old patrol. Here is the map, from my own hands.”";
                 Dialog(o.name,o.en,
                     method+"\n\n“根脉下的切口不是兽爪，是矿镐。有人把原本属于森林的星核能量接去了堡垒。我回镇告诉莉雅，你去祭坛查清真相。”",
