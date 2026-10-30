@@ -425,6 +425,181 @@ namespace Starfall
                 C("追踪真正的第二幕主线","Track the second act","saga_track"),
                 C("我会带他们的回答回来","I'll bring their answers","close"));
         }
+        // Chapter Five-Seven witnesses must survive two DISTINCT on-map
+        // incursions before they can safely countersign the original records.
+        // This is transient encounter state, not a SaveData format change.
+        // Already signed v2/v1-origin saves keep their existing milestone.
+        private int sagaGuardRoom=-1,sagaGuardWave;
+        private float sagaGuardClock;
+        private MapData sagaGuardMap;
+        private SaveData sagaGuardSave;
+        private WorldObject sagaGuardWitness;
+        private readonly List<Enemy> sagaGuardFoes=new List<Enemy>();
+        private readonly HashSet<Enemy> sagaGuardDefeated=new HashSet<Enemy>();
+        public bool SagaGuardActive
+        { get { return sagaGuardRoom>=5&&sagaGuardRoom<=7&&
+            save.room==sagaGuardRoom&&
+            Object.ReferenceEquals(sagaGuardSave,save)&&
+            Object.ReferenceEquals(sagaGuardMap,Map)&&
+            sagaGuardWitness!=null&&
+            SourceBelongsToActiveMap(sagaGuardWitness); } }
+        public int SagaGuardWave { get { return SagaGuardActive?sagaGuardWave:0; } }
+        public int SagaGuardRemaining
+        { get { int n=0;if(SagaGuardActive)
+            foreach(Enemy e in sagaGuardFoes)
+                if(e!=null&&e.hp>0&&enemies.Contains(e))n++;
+            return n; } }
+        public float SagaGuardClock {get{return SagaGuardActive?sagaGuardClock:0f;}}
+        public Point SagaGuardGuideTarget
+        {
+            get {
+                if(SagaGuardActive)
+                    foreach(Enemy e in sagaGuardFoes)
+                        if(e!=null&&e.hp>0&&enemies.Contains(e))
+                            return e.Position;
+                return sagaGuardWitness!=null&&SagaGuardActive?
+                    new Point(sagaGuardWitness.x,sagaGuardWitness.y):Position;
+            }
+        }
+        private bool IsSagaGuardEnemy(Enemy e)
+        {return e!=null&&SagaGuardActive&&sagaGuardFoes.Contains(e);}
+        private void OnSagaGuardEnemyDefeated(Enemy e)
+        {if(IsSagaGuardEnemy(e))sagaGuardDefeated.Add(e);}
+        private void ResetSagaGuard()
+        {
+            foreach(Enemy e in sagaGuardFoes)
+            {
+                RemoveEnemyPendingWarning(e);
+                enemies.Remove(e);regionalAmbientEnemies.Remove(e);
+                projectiles.RemoveAll(p=>Object.ReferenceEquals(p.hostileShooter,e));
+            }
+            sagaGuardRoom=-1;sagaGuardWave=0;sagaGuardClock=0f;
+            sagaGuardMap=null;sagaGuardSave=null;sagaGuardWitness=null;
+            sagaGuardFoes.Clear();sagaGuardDefeated.Clear();
+        }
+        private bool SagaGuardFootFree(Point foot,List<Point> chosen)
+        {
+            if(!CanStand(foot)||(foot-Position).Length<4.5f||
+                NavigationPathFrom(Position,foot,true).Count==0)return false;
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&(foot-new Point(o.x,o.y)).Length<2.9f)return false;
+            foreach(Enemy e in enemies)
+                if(e!=null&&e.hp>0&&(e.Position-foot).Length<3.5f)return false;
+            foreach(Point p in chosen)
+                if((p-foot).Length<5f)return false;
+            return true;
+        }
+        private bool SpawnSagaGuardWave(int wave)
+        {
+            if(!SagaGuardActive||wave<1||wave>2)return false;
+            Point origin=new Point(sagaGuardWitness.x,sagaGuardWitness.y);
+            var feet=new List<Point>();
+            int cx=(int)Math.Floor(origin.x),cy=(int)Math.Floor(origin.y);
+            // Search the actual connected walkable approach; the second
+            // wave attacks from the opposite flank, never through a wall.
+            int facing=wave==1?1:-1;
+            for(int radius=6;radius<=16&&feet.Count<2;radius++)
+            for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
+            for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                    Math.Abs(dx)+Math.Abs(dy)>21||
+                    (wave==1?dx*facing<0:dx*facing>0))continue;
+                Point foot=new Point(cx+dx+.5f,cy+dy+.5f);
+                if(SagaGuardFootFree(foot,feet))feet.Add(foot);
+            }
+            if(feet.Count!=2)return false;
+            sagaGuardFoes.Clear();sagaGuardDefeated.Clear();
+            int[,] styles={{1,0,0,1},{2,0,2,1},{1,2,0,2}};
+            for(int i=0;i<2;i++)
+            {
+                int kind=styles[sagaGuardRoom-5,(wave-1)*2+i];
+                Enemy e=CreatePlacedEnemy(++enemyId,kind,feet[i],
+                    49f+6f*(sagaGuardRoom-5)+8f*(wave-1));
+                sagaGuardFoes.Add(e);enemies.Add(e);
+                effects.Add(new Effect("enemyRelease",e.Position,.6f)
+                    {variant=kind});
+            }
+            sagaGuardWave=wave;
+            return true;
+        }
+        private void TickSagaGuard(float dt)
+        {
+            if(sagaGuardRoom<0)return;
+            if(!SagaGuardActive||Dying||practicing)
+                {ResetSagaGuard();return;}
+            // No invisible defeat or arbitrary enemy-list edits may advance
+            // the chapter. Real combat death must call the production hit hook.
+            foreach(Enemy e in sagaGuardFoes)
+                if(e==null||(!sagaGuardDefeated.Contains(e)&&
+                    (!enemies.Contains(e)||e.hp<=0)))
+                {
+                    ResetSagaGuard();revision++;
+                    Notify("证词护卫中有敌人未经确认便消失。回到当事者处重新组织。",
+                        "An unverified attacker vanished. Return to the witness and regroup.");
+                    return;
+                }
+            bool cleared=sagaGuardFoes.Count==2;
+            foreach(Enemy e in sagaGuardFoes)
+                if(!sagaGuardDefeated.Contains(e)||e.hp>0||
+                    enemies.Contains(e)){cleared=false;break;}
+            if(cleared)
+            {
+                int completed=sagaGuardWave;
+                if(completed==1)
+                {
+                    if(!SpawnSagaGuardWave(2))
+                    {
+                        ResetSagaGuard();revision++;
+                        Notify("第二波追兵暂时找不到可到达的进路。撤回防线后再试。",
+                            "The second wave has no safe accessible route. Regroup and retry.");
+                        return;
+                    }
+                    sound="alert";revision++;
+                    Notify("第一波袭击已被挡住。真正的追兵从另一侧赶来！",
+                        "The first assault is defeated. A second wave is approaching from the other flank!");
+                    return;
+                }
+                int room=sagaGuardRoom;
+                ResetSagaGuard();
+                Flag("saga_guard_"+room);
+                CreditCoins(16+room*3);
+                AddXp(24+room*7);
+                revision++;sound="quest";
+                RecordMoment("第二幕 · "+new[]{"","","","","","雾港名册","沙海配额图","高原警钟"}[room]+
+                    "：在两波真实袭击中守住证人和原始证据。",
+                    "Act Two: defended the original witness and evidence against two real on-map enemy assaults.");
+                Notify("证人和原件得以保全。现在回到本人面前，决定如何签署证词。",
+                    "The witness and records are secure. Return to choose how they will sign the account.");
+                return;
+            }
+            if(dt<=0f||mode!="world")return;
+            if((Position-new Point(sagaGuardWitness.x,sagaGuardWitness.y)).Length>31f)
+            {
+                ResetSagaGuard();revision++;
+                Notify("你离开了证人防线。守卫撤回，必须重新集结。",
+                    "You left the witness perimeter. The defenders withdrew; regroup at the original speaker.");
+                return;
+            }
+            sagaGuardClock=Math.Max(0f,sagaGuardClock-dt);
+            if(sagaGuardClock<=0f)
+            {
+                ResetSagaGuard();revision++;
+                Notify("袭击拖得太久，证人带着证据转移了。重新组织才能再签。",
+                    "The defense ran out of time. The witness relocated the evidence; regroup before signing.");
+                return;
+            }
+            // Three genuinely different local risks in the combat pocket.
+            if((Position-new Point(sagaGuardWitness.x,sagaGuardWitness.y)).Length<17f)
+            {
+                if(sagaGuardRoom==5&&!LowTide)
+                    save.energy=Math.Max(0f,save.energy-dt*.45f);
+                if(sagaGuardRoom==6)
+                    save.heat=Math.Min(100f,save.heat+dt*1.7f);
+                if(sagaGuardRoom==7)
+                    save.cold=Math.Min(100f,save.cold+dt*1.7f);
+            }
+        }
         private void MainSagaAccount(WorldObject host,int room)
         {
             if(!Has("saga_trace_"+room))
@@ -488,6 +663,25 @@ namespace Starfall
                 "Give the originals to families first, then publish together",
                 "Distribute repair diagrams and preserve his confession",
                 "Hear survivors and late evacuees together first"};
+            if(!Has("saga_guard_"+room))
+            {
+                Dialog(host.name,host.en,zh[room]+
+                    "\n\n有人试图截走原始证据。"+(room==5?
+                        "先守住渡口上的名册，直到第二批追兵撤退。":
+                        room==6?"先守住井站的供水图和签字人，直到两波破坏者落败。":
+                        "先守住高原钟牌和幸存者，击退两波封口的追兵。"),
+                    en[room]+
+                    "\n\nSomeone is trying to seize this original evidence. Defend the genuine witness and records against two separate attacks before signing.",
+                    SagaGuardActive?
+                        C("守住防线 · 剩余"+SagaGuardRemaining+"名敌人",
+                            "Defend the line · "+SagaGuardRemaining+" attackers left","close"):
+                        C("守护证人与证据 · 两波实际战斗",
+                            "Defend witness and evidence · two live waves","saga_guard_begin"),
+                    SagaGuardActive?
+                        C("撤回护卫 · 重新组织","Withdraw the defense","saga_guard_abort"):
+                        C("先备好物资","Prepare supplies","close"));
+                return;
+            }
             Dialog(host.name,host.en,zh[room],en[room],
                 C(first[room],firstEn[room],"saga_sign_"+room+"_a"),
                 C(second[room],secondEn[room],"saga_sign_"+room+"_b"),
@@ -557,6 +751,35 @@ namespace Starfall
                 return true;
             }
             if(ChooseMainSagaLastGate(action))return true;
+            if(action=="saga_guard_begin"||action=="saga_guard_abort")
+            {
+                int room=save.room;
+                if(!MainSagaActive||save.ending>0||
+                    !Has("boss_4")||!Has("saga_trace_"+room)||
+                    !Has("saga_outer_"+room)||!Has(SagaReport(room))||
+                    Has("saga_voice_"+room)||Has("saga_guard_"+room)||
+                    !SagaValidSpeaker(host,room))return true;
+                if(action=="saga_guard_abort")
+                {
+                    if(SagaGuardActive)ResetSagaGuard();
+                    revision++;sound="ui";return true;
+                }
+                if(SagaGuardActive||FieldWorkPreventsRest||!SafeTravel)return true;
+                sagaGuardRoom=room;sagaGuardWave=0;
+                sagaGuardMap=Map;sagaGuardSave=save;
+                sagaGuardWitness=host;sagaGuardClock=room==5?175f:room==6?185f:200f;
+                if(!SpawnSagaGuardWave(1))
+                {
+                    ResetSagaGuard();
+                    Notify("证人附近没有两条安全的真实敌人进路。调整位置后重试。",
+                        "The original witness site has no two safely reachable raider feet. Reposition and retry.");
+                    return true;
+                }
+                sound="alert";revision++;
+                Notify("两波敌人正在逼近证人。守住原件，击退全部真实袭击者！",
+                    "Two real waves are closing on the witness. Defend the original records!");
+                return true;
+            }
             if(action=="saga_begin"||action=="saga_debrief")
             {
                 if(host==null||host.kind!="guild"||
@@ -601,6 +824,7 @@ namespace Starfall
                     !Has("boss_4")||!SagaValidSpeaker(host,room)||
                     !Has(SagaReport(room))||!Has("saga_trace_"+room)||
                     !Has("saga_outer_"+room)||
+                    !Has("saga_guard_"+room)||
                     Has("saga_voice_"+room))return true;
                 Flag("saga_voice_"+room);
                 Flag("saga_choice_"+room+"_"+bits[1]);

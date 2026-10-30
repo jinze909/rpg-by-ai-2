@@ -4559,6 +4559,9 @@ namespace Starfall
                     q.steps.Add(new QuestStep(L("走访远端原始记录 · "+placesZh[i],
                         "Inspect conflicting outlying account · "+placesEn[i]),
                         Has("saga_outer_"+i)||Has("saga_voice_"+i)));
+                    q.steps.Add(new QuestStep(L("守住当事人与原始证据 · "+placesZh[i],
+                        "Defend witness and original records · "+placesEn[i]),
+                        Has("saga_guard_"+i)||Has("saga_voice_"+i)));
                     q.steps.Add(new QuestStep(L("由当事人亲自签下证词 · "+placesZh[i],
                         "First-hand signed account · "+placesEn[i]),Has("saga_voice_"+i)));
                 }
@@ -4609,10 +4612,20 @@ namespace Starfall
                     if(!Has("saga_voice_"+i))
                     {
                         q.room=i;
-                        q.target=ObjectPoint(i,i==5?"captain":i==6?"tinker":"keeper",
-                            MainSagaEvidencePoint(i));
-                        q.next=L(placesZh[i]+"：回到当事者面前，决定如何留下他的真实证词。",
-                            placesEn[i]+": return to the witness and decide how their testimony will be remembered.");
+                        q.target=SagaGuardActive&&save.room==i?
+                            SagaGuardGuideTarget:
+                            ObjectPoint(i,i==5?"captain":i==6?"tinker":"keeper",
+                                MainSagaEvidencePoint(i));
+                        q.next=SagaGuardActive&&save.room==i?
+                            L(placesZh[i]+"：真实证词护卫第"+SagaGuardWave+
+                                "波，仍有"+SagaGuardRemaining+"名袭击者。守住实际现场。",
+                              placesEn[i]+": live witness defense wave "+
+                                SagaGuardWave+" · "+SagaGuardRemaining+" attackers remain."):
+                            !Has("saga_guard_"+i)?
+                            L(placesZh[i]+"：回到证人面前，守住原件并抵御两波袭击者。",
+                              placesEn[i]+": defend the witness and originals against two live waves."):
+                            L(placesZh[i]+"：证人已安全，回来决定如何签署供词。",
+                              placesEn[i]+": the witness is secure; return to sign their account.");
                         return q;
                     }
                 }

@@ -73,9 +73,48 @@ namespace Starfall.Tests
                     c=>c.action=="saga_account_"+room);
                 Check(account>=0,"The live speaker offers to finish their account");
                 g.Choose(account);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_sign_"+room+"_a")<0,
+                    "Unsigned evidence cannot skip a physical two-wave witness defense");
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"Real witness offers a playable defense before signing");
+                g.Choose(begin);
+                Check(g.SagaGuardActive&&g.SagaGuardWave==1&&
+                    g.SagaGuardRemaining==2,
+                    "First defender wave exists as genuine game enemies");
+                var hit=typeof(GameCore).GetMethod("Hit",
+                    BindingFlags.NonPublic|BindingFlags.Instance);
+                Check(hit!=null,"Combat must use production damage and defeat hooks");
+                for(int wave=1;wave<=2;wave++)
+                {
+                    Enemy[] attackers=g.enemies.ToArray();
+                    Check(attackers.Length==2,"Each distinct defensive wave has two live foes");
+                    foreach(Enemy foe in attackers)
+                    {
+                        Check(g.CanStand(foe.Position)&&
+                            g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                            "Every attacker approaches through a real traversable original map");
+                        hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+                    }
+                    g.Tick(.02f,new Point());
+                    if(wave==1)
+                        Check(g.SagaGuardActive&&g.SagaGuardWave==2&&
+                            g.SagaGuardRemaining==2&&!g.Has("saga_guard_"+room),
+                            "First real cleared wave triggers a separate second combat phase");
+                }
+                Check(!g.SagaGuardActive&&g.Has("saga_guard_"+room)&&
+                    !g.Has("saga_voice_"+room),
+                    "Only defeating all four actual attackers secures the still unsigned original");
+                Check(PlaceWithinTalkReach(g,npc),"Actual regional speaker remains reachable");
+                g.Talk(npc);
+                account=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(account>=0,"The genuine witness reopens their moral decision");
+                g.Choose(account);
                 int sign=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="saga_sign_"+room+"_a");
-                Check(sign>=0,"The interview reveals an authored moral decision");
+                Check(sign>=0,"Secured evidence unlocks the authored moral decision");
                 g.Choose(sign);
                 Check(g.save.flags.Contains("saga_voice_"+room)&&
                     g.save.flags.Contains("saga_choice_"+room+"_a"),
