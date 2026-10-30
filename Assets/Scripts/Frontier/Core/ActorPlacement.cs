@@ -352,6 +352,13 @@ namespace Starfall
         private float remoteRoadRetrySeconds;
         private float remoteRoadDisengageSeconds;
         private WorldObject remoteRoadSource;
+        // A paid, preexisting SAFE ridge transfer must never arrive as
+        // an involuntary trigger for an OPTIONAL road battle. This is
+        // ephemeral per-map/session state, not a save-v2 clearance flag.
+        // Protection expires only on actually walking out of the crossing.
+        private WorldObject remoteRoadSafeArrival;
+        private MapData remoteRoadSafeArrivalMap;
+        private SaveData remoteRoadSafeArrivalSave;
         private MapData remoteRoadMap;
         private SaveData remoteRoadSave;
         private static readonly int[,] remoteRoadKinds={
@@ -427,6 +434,35 @@ namespace Starfall
         }
         // A cancelled or lost encounter can be fought again without
         // teleporting away or awarding an unearned world-state receipt.
+        private void SetRemoteRoadSafeArrival(WorldObject marker)
+        {
+            remoteRoadSafeArrival=save.room>=1&&save.room<=7&&
+                marker!=null&&marker.kind=="ridgemarker"&&
+                SourceBelongsToActiveMap(marker)?marker:null;
+            remoteRoadSafeArrivalMap=remoteRoadSafeArrival==null?null:Map;
+            remoteRoadSafeArrivalSave=remoteRoadSafeArrival==null?null:save;
+        }
+        // Actual foot movement beyond the landing neighborhood rearms
+        // ordinary discovery. A quest pin or scene-independent coordinate
+        // cannot grant this temporary immunity.
+        private bool RemoteRoadArrivalProtected(int district)
+        {
+            if(remoteRoadSafeArrival==null)return false;
+            if(!System.Object.ReferenceEquals(remoteRoadSafeArrivalMap,Map)||
+                !System.Object.ReferenceEquals(remoteRoadSafeArrivalSave,save)||
+                !SourceBelongsToActiveMap(remoteRoadSafeArrival)||
+                (Position-new Point(remoteRoadSafeArrival.x,
+                    remoteRoadSafeArrival.y)).Length>10.5f)
+            {
+                SetRemoteRoadSafeArrival(null);
+                return false;
+            }
+            return remoteRoadSafeArrival.id==
+                "ridge_route_"+save.room+"_"+district;
+        }
+        public bool RemoteRoadSafeArrivalActive
+        { get { return RemoteRoadArrivalProtected(0)||
+                         RemoteRoadArrivalProtected(1); } }
         private void ResetRemoteRoadEncounter(bool resetDistricts=false,
             bool retry=false)
         {
@@ -455,6 +491,7 @@ namespace Starfall
             {
                 remoteRoadVisited.Clear();
                 remoteRoadRetrySeconds=0f;
+                SetRemoteRoadSafeArrival(null);
             }
         }
         // The first raider must be visible, and BOTH must stand inside
@@ -608,7 +645,8 @@ namespace Starfall
             for(int district=0;district<2;district++)
             {
                 if(remoteRoadVisited.Contains(district)||
-                   RemoteRoadCleared(save.room,district))continue;
+                   RemoteRoadCleared(save.room,district)||
+                   RemoteRoadArrivalProtected(district))continue;
                 WorldObject marker=null;
                 string id="ridge_route_"+save.room+"_"+district;
                 foreach(WorldObject o in Map.objects)

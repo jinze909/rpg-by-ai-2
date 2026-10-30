@@ -1559,6 +1559,68 @@ namespace Starfall.Tests
         // The player can actually find and track all 14 optional roads.
         // Live battle routing targets physical actors, not stale markers;
         // completed quest progress is derived from existing v2 receipts.
+
+        // Original safe-travel promise vs. new OPTIONAL battles:
+        // authentic two-endpoint teleport cannot spawn compulsory raiders;
+        // explicit local dialogue instead creates real attackable bodies.
+        public static void LinkedRidgeTransportIsSafeButAllowsVoluntaryRealRoadCombat(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            for(int side=0;side<2;side++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();g.save.energy=100f;
+                g.save.flags.Add("ridge_seen_"+room+"_0");
+                g.save.flags.Add("ridge_seen_"+room+"_1");
+                WorldObject from=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_"+side);
+                WorldObject end=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_"+(1-side));
+                Check(from!=null&&end!=null,"Real ridge pair exists in every wilderness");
+                g.save.x=from.x;g.save.y=from.y;
+                int money=g.save.coins,kills=g.save.kills[room];
+                int energy=g.RidgePassageEnergyCost(room);
+                g.Talk(from);
+                Check(g.conversation!=null,
+                    "Existing transport opens an actual original ridge marker dialogue");
+                int crossing=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="ridge_travel");
+                Check(crossing>=0,"The original safe crossing remains usable");
+                g.Choose(crossing);
+                Check(g.mode=="world"&&
+                    (g.Position-new Point(end.x,end.y)).Length<.001f&&
+                    Math.Abs(g.save.energy-(100-energy))<.01f&&
+                    g.RemoteRoadSafeArrivalActive,
+                    "Original safe crossing lands at authentic far end for correct energy");
+                for(int t=0;t<12;t++)g.Tick(.05f,new Point());
+                Check(!g.RemoteRoadEncounterActive&&
+                    !g.RemoteRoadCleared(room,1-side)&&
+                    g.enemies.Count==0&&g.save.coins==money&&
+                    g.save.kills[room]==kills,
+                    "Paid safe arrival never starts optional combat or grants fake clearance");
+                g.Talk(end);
+                Check(g.conversation!=null,
+                    "Protected arrival can still speak to the real landing marker");
+                int challenge=Array.FindIndex(g.conversation.choices,
+                    x=>x.action=="remote_road_challenge");
+                Check(challenge>=0,
+                    "Uncleared roadside offers voluntary confrontation at existing marker");
+                g.Choose(challenge);
+                Check(g.RemoteRoadEncounterActive&&g.RemoteRoadRemaining==2&&
+                    !g.RemoteRoadSafeArrivalActive&&g.enemies.Count==2&&
+                    !g.RemoteRoadCleared(room,1-side),
+                    "Voluntary choice spawns exactly two genuine dangerous enemies without reward");
+                foreach(Enemy enemy in g.enemies)
+                    Check(enemy.hp>0f&&g.CanStand(enemy.Position)&&
+                        g.NavigationPathFrom(g.Position,enemy.Position,true).Count>0,
+                        "Opt-in squad uses genuine walkable, attackable positions");
+                g.PrepareSave();
+                Check(g.save.version==2&&
+                    !g.RemoteRoadCleared(room,1-side),
+                    "Transport immunity and optional fight state never become v2 completion flags");
+            }
+        }
+
         public static void FourteenRoadAmbushesHaveUsableJournalGuidance(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=1;

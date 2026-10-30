@@ -107,11 +107,28 @@ namespace Starfall
                 Choice crossing=C("穿越巡路 · 耐力 "+passageCost,
                     "Cross ridge · "+passageCost+" energy","ridge_travel");
                 Choice depart=C("继续步行","Keep walking","close");
+                // Paid linked crossings stay safe, but a player may
+                // deliberately challenge their destination's real raiders
+                // instead of having combat sprung on them by teleport.
+                // Ordinary walking near the marker keeps its live ambush.
+                bool unclearedRoad=room>=1&&room<=7&&
+                    !RemoteRoadCleared(room,side);
+                Choice confront=C("主动清剿本路口伏击",
+                    "Challenge this road's raiders","remote_road_challenge");
                 Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
+                    unclearedRoad?
+                    new Choice[]{crossing,confront,
+                        C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
                     new Choice[]{crossing,C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
                     RidgeWatchComplete(room)?
+                    unclearedRoad?
+                    new Choice[]{crossing,confront,
+                        C("巡守补给 · 月光草 ×1","Warden field aid · 1 Moonherb",
+                            "ridge_field_aid"),depart}:
                     new Choice[]{crossing,C("巡守补给 · 月光草 ×1",
                         "Warden field aid · 1 Moonherb","ridge_field_aid"),depart}:
+                    unclearedRoad?
+                    new Choice[]{crossing,confront,depart}:
                     new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 "+passageCost+" 耐力。"+
@@ -136,12 +153,39 @@ namespace Starfall
         private bool ChooseRidge(string action)
         {
             if(action!="ridge_travel"&&action!="ridge_watch_track"&&
-                action!="ridge_field_aid")return false;
+                action!="ridge_field_aid"&&
+                action!="remote_road_challenge")return false;
             int room=save.room;
             if(action=="ridge_travel"&&SignalRelayActive)
             {
                 Notify("烽火传讯必须亲自走完整条路，不能利用高地通道跳过距离。",
                     "Carry the signal overland; ridge transfers cannot skip a live dispatch.");
+                return true;
+            }
+            if(action=="remote_road_challenge")
+            {
+                WorldObject marker=pendingDialogueSource;
+                if(marker==null||room<1||room>7||
+                    pendingDialogueSourceRoom!=room||
+                    marker.kind!="ridgemarker"||
+                    !SourceBelongsToActiveMap(marker)||
+                    !HasPhysicalInteractionReach(marker)||
+                    !RidgeLinked(room)||RemoteRoadEncounterActive||
+                    FieldWorkPreventsRest||ActionTransitionBlocked||
+                    !SafeTravel||Dying||practicing)return true;
+                int side=marker.id=="ridge_route_"+room+"_0"?0:
+                    marker.id=="ridge_route_"+room+"_1"?1:-1;
+                if(side<0||RemoteRoadCleared(room,side))return true;
+                if(BeginRemoteRoadEncounter(marker,side))
+                {
+                    remoteRoadVisited.Add(side);
+                    // The voluntary choice replaces SAFE arrival with
+                    // actual, committed combat at this physical crossing.
+                    SetRemoteRoadSafeArrival(null);
+                }
+                else
+                    Notify("目前路口地形拥堵，无法安全展开整队交战。稍后再试。",
+                        "The crossing is blocked; a complete real squad cannot deploy yet.");
                 return true;
             }
             if(action=="ridge_watch_track"||action=="ridge_field_aid")
@@ -209,7 +253,8 @@ namespace Starfall
             // Remote ridge travel is a physical transport just like the
             // rebuilt public ferry. It must never skip a live convoy clock,
             // rescue follower, duel wave or chapter calibration.
-            if(FieldWorkPreventsRest||!SafeTravel)
+            if(FieldWorkPreventsRest||RemoteRoadEncounterActive||
+               !SafeTravel)
             {
                 Notify("战斗或现场行动期间无法离开巡路。请先完成或在原地点取消任务。",
                     "Ridge transfer is blocked by combat or live fieldwork. Finish or cancel the active mission first.");
@@ -233,6 +278,10 @@ namespace Starfall
                 return true;
             }
             save.x=end.x;save.y=end.y;save.energy-=cost;
+            // Paid safe transport is NOT a signed kill and NOT combat
+            // consent. Walking away and approaching later, or choosing
+            // the explicit challenge, still triggers the full real wave.
+            SetRemoteRoadSafeArrival(end);
             revision++;sound="reward";
             Notify("安全穿越已经连通的偏远高地路。","Crossed the restored ridge way.");
             return true;
