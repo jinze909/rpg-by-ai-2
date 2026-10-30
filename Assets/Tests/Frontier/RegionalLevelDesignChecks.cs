@@ -5,6 +5,94 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void RegionalOverworldGroupsAttackInReadableMixedLanes(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<rows.Length;y++)
+                {
+                    char[] line=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{
+                    id=1,spawnX=20.5f,spawnY=15.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.mode="world";g.save.room=1;
+                g.save.x=20.5f;g.save.y=15.5f;
+                g.enemies.Clear();
+                var flags=System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance;
+                var spawn=typeof(GameCore).GetMethod(
+                    "SpawnRegionalBaselineEnemies",flags);
+                var available=typeof(GameCore).GetMethod(
+                    "RegionalVolleySlotAvailable",flags);
+                Check(spawn!=null&&available!=null,
+                    "Actual production spawning and live volley selector exist");
+                spawn.Invoke(g,new object[]{6,150f});
+                Check(g.enemies.Count==6,
+                    "The real forest overworld composition still contains six raiders");
+                // Arrange the SAME six authentic enemies around the hero
+                // on legal, completely open combat ground. No game mode,
+                // damage profile, enemy kind or weapon contract is mocked.
+                Point[] feet={
+                    new Point(19.1f,15.5f),new Point(21.9f,15.5f),
+                    new Point(20.5f,11.6f),new Point(20.5f,17f),
+                    new Point(17.2f,12.2f),new Point(18.9f,17.3f)
+                };
+                for(int i=0;i<6;i++)
+                {
+                    Enemy raider=g.enemies[i];
+                    raider.x=feet[i].x;raider.y=feet[i].y;
+                    raider.timer=0f;raider.stun=0f;
+                    raider.hitTime=raider.releaseTime=0f;
+                    Check(g.CanStand(raider.Position),
+                        "Authored overworld raider has genuine legal combat footing");
+                }
+                Check((bool)available.Invoke(g,
+                    new object[]{g.enemies[0]}),
+                    "The first physically present attacker may commit freely");
+                g.Tick(.04f,new Point());
+                int close=0,ranged=0;
+                foreach(Enemy e in g.enemies)
+                {
+                    if(e.state!=1)continue;
+                    if(e.kind==1)ranged++;else close++;
+                }
+                Check(close==1&&ranged==1,
+                    "Six active overworld raiders yield one true melee warning and one true bow warning, not simultaneous same-role bursts");
+                Check(g.save.version==2&&g.enemies.Count==6&&
+                    !g.save.flags.Contains("biome_patrol_done_1"),
+                    "Squad cadence does not despawn foes, claim patrol rewards or migrate old saves");
+                // Two ordinary enemies may reuse an integer ID on a
+                // restored save; committed actor identity still matters.
+                Enemy ready=g.enemies.Find(e=>e.kind!=1&&e.state==1);
+                Enemy queued=g.enemies.Find(e=>e.kind!=1&&e.state==0);
+                Check(ready!=null&&queued!=null,
+                    "The live squad contains one warned and one waiting melee raider");
+                queued.id=ready.id;
+                Check(!(bool)available.Invoke(g,new object[]{queued}),
+                    "A duplicate numeric spawn ID cannot bypass an occupied physical melee warning");
+                ready.state=0;ready.stun=3f;
+                Check((bool)available.Invoke(g,new object[]{queued}),
+                    "Interrupting the actual committed melee releases its lane to a waiting raider");
+                // Unscripted independent monsters and Bosses keep the
+                // original autonomous combat timing.
+                Enemy outsider=new Enemy(999111,0,19.2f,14.8f,100f);
+                Enemy guardian=new Enemy(999112,2,19.2f,14.8f,600f,true);
+                Check((bool)available.Invoke(g,new object[]{outsider})&&
+                    (bool)available.Invoke(g,new object[]{guardian}),
+                    "Generic independent encounters and Boss telegraphs are not throttled");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         // Runs against the real Campaign.json and production collision,
         // traversal, actor placement and original chapter sources.
         public static void RegionalCombatDevicesChangeRealEncountersAndPreserveSaves(Campaign data)

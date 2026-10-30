@@ -3002,7 +3002,12 @@ namespace Starfall
                 // invalid tile while waiting for that transition.
                 if (e.timer <= 0 && CanStand(e.Position) &&
                     (heroInRange || strikeTraveler || strikeCivilian || strikeStock ||
-                     strikePatrolStock || strikeWitness))
+                     strikePatrolStock || strikeWitness) &&
+                    // A physical defender may not wait for a soft crowd
+                    // budget. Only ambient, hero-targeted overworld enemies
+                    // share these telegraphed offense slots.
+                    (!ordinaryPatrol||!heroInRange||
+                     RegionalVolleySlotAvailable(e)))
                 {
                     e.state = 1; e.timer = e.boss ? 1.1f - e.BossPhase * .08f : .65f; e.windupDuration = e.timer;
                     e.targetingWayfarer = strikeTraveler;

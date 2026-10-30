@@ -340,6 +340,43 @@ namespace Starfall
         // are never tagged. Exact actor identity is session-only.
         private readonly HashSet<Enemy> regionalAmbientEnemies=
             new HashSet<Enemy>();
+
+        // The large original overworld rosters (and optional live survey
+        // patrols) need a readable two-lane attack rhythm, not six
+        // simultaneous contact warnings at one foot. A single close-range
+        // raider and a single archer may commit at once. Other actors keep
+        // walking, flanking and exposing themselves to real player attacks.
+        // Bosses, civilians, scripted objectives and independently spawned
+        // battle actors retain their existing attack contracts.
+        //
+        // This is an actor-IDENTITY check: reused numeric spawn IDs do not
+        // own a combat lane and there is no new persistent SaveData state.
+        private bool RegionalVolleySlotAvailable(Enemy candidate)
+        {
+            if(candidate==null||candidate.boss||
+                !regionalAmbientEnemies.Contains(candidate))return true;
+            bool bow=candidate.kind==1;
+            int active=0;
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||System.Object.ReferenceEquals(other,candidate)||
+                   !regionalAmbientEnemies.Contains(other)||other.hp<=0f||
+                   other.boss||other.state!=1||
+                   !CanStand(other.Position)||
+                   (other.Position-Position).Length>10f||
+                   (other.target-Position).Length>2.75f||
+                   other.targetingWayfarer||other.targetingReliefCivilian||
+                   other.targetingAfterlightStock||
+                   other.targetingOuterPatrolStock||
+                   other.targetingSagaGuardEvidence)continue;
+                // At most one close-range ring/sword lane and one ranged
+                // pressure lane can warn the same hero in this locality.
+                if((other.kind==1)==bow)return false;
+                active++;
+                if(active>=2)return false;
+            }
+            return true;
+        }
         private bool RegionalAmbientEncounterDormant(Enemy e)
         {
             return e!=null&&!e.boss&&regionalAmbientEnemies.Contains(e)&&
