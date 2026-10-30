@@ -8335,11 +8335,11 @@ public static class RuntimeCombatInputChecks
             "Invalid or distant clicks do not steal NPC focus");
         Mouse(app,new Point(archivist.x,archivist.y-.35f));
         Input.mouseDown.Add(1);Update(app);Input.mouseDown.Clear();
-        Check(Object.ReferenceEquals(g.Nearest(),archivist),
+        Check(System.Object.ReferenceEquals(g.Nearest(),archivist),
             "Real right-mouse input targets the clicked archivist's torso");
         Mouse(app,new Point(witness.x,witness.y-.35f));
         Input.mouseDown.Add(1);Update(app);Input.mouseDown.Clear();
-        Check(Object.ReferenceEquals(g.Nearest(),witness),
+        Check(System.Object.ReferenceEquals(g.Nearest(),witness),
             "Right-clicking the second real nearby NPC overrides aim/array ordering");
         Input.keys.Add(KeyCode.E);Update(app);
         Check(g.mode=="dialog"&&g.conversationSource==witness&&
