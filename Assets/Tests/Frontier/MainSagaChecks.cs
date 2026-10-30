@@ -870,7 +870,7 @@ namespace Starfall.Tests
                 raider.target=origin;raider.targetingSagaGuardEvidence=true;
                 Check((bool)imminent.Invoke(g,new object[]{raider}),
                     "Unblocked live attack is identified as an ally-intercept opportunity");
-                Check(Object.ReferenceEquals(chosen.Invoke(g,null),raider),
+                Check(System.Object.ReferenceEquals(chosen.Invoke(g,null),raider),
                     "The protector prioritizes the actual original-record attacker");
                 raider.stun=2f;
                 Check(!(bool)imminent.Invoke(g,new object[]{raider}),
@@ -887,7 +887,7 @@ namespace Starfall.Tests
                 tick.Invoke(g,new object[]{.18f});
                 Check(g.projectiles.Exists(p=>p.sagaGuardCoverTarget==raider&&
                     p.friendly&&p.sagaGuardCoverRoom==room&&
-                    Object.ReferenceEquals(p.sagaGuardCoverSave,g.save)),
+                    System.Object.ReferenceEquals(p.sagaGuardCoverSave,g.save)),
                     "A real ally release, not target selection, owns the evidence-cover missile");
                 Check(!g.Has("saga_guard_"+room)&&!g.Has("saga_voice_"+room),
                     "Targeting an attacker never awards victory or signs testimony");
