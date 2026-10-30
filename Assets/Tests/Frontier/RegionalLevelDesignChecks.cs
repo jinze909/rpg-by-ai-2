@@ -135,6 +135,10 @@ namespace Starfall.Tests
                 old.save.y=covers[room-1,1]+.5f;
                 old.save.health=52f;old.save.inventory[0]=5;
                 old.save.flags.Add("chapter_road_done_"+room);
+                // Only old SAVES that had already earned the original
+                // gated area may legitimately resume behind that gate.
+                if(room<=3)
+                    old.save.flags.Add(room==1?"scout_saved":"gate_"+room);
                 old.save.snapshotRoom=-1;old.save.worldEnemies=null;
                 Check(data.maps[room].rows[covers[room-1,1]][covers[room-1,0]]==
                     terrain[room-1],
@@ -149,6 +153,21 @@ namespace Starfall.Tests
                     "Level remodeling does not erase earned civilian records, supply, health or stage from an old save");
                 Check((recovered.Position-new Point(old.save.x,old.save.y)).Length<8f,
                     "One newly blocked tile relocates the returning traveler nearby, never across the 120x80 world");
+                // A forged save inside a STILL-CLOSED Boss arena must not
+                // select the nearest foothold if the physical gate forbids
+                // the path from the original regional entry.
+                if(room<=3)
+                {
+                    SaveData locked=CloneSave(old.save);
+                    locked.flags.Remove(room==1?"scout_saved":"gate_"+room);
+                    locked.x=29.5f;locked.y=8.5f;
+                    GameCore shut=new GameCore(data,locked);
+                    Check(!shut.GateOpen&&shut.CanStand(shut.Position),
+                        "Recovery never bypasses the original locked Boss arena");
+                    Check(shut.NavigationPathFrom(new Point(shut.Map.spawnX,
+                        shut.Map.spawnY),shut.Position,true).Count>0,
+                        "Recovered foot is on the truly accessible original side of a locked chapter");
+                }
             }
         }
     }

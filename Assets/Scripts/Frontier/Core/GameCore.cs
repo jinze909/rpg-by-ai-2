@@ -274,6 +274,53 @@ namespace Starfall
         {
             get { return save.room == 0 || save.room == 4 || save.room == 8 || save.room == 9 || (save.room == 1 && Has("scout_saved")) || Has("gate_" + save.room); }
         }
+        // A live older v1/v2 save may place the hero on a tile newly
+        // sculpted into roots, water or slag. Repair the foot near the SAVED
+        // position, never by blindly sending every valid player back to the
+        // chapter entrance. Only select feet actually reachable from the
+        // canonical region spawn under THIS slot's real gate/tide flags.
+        // No serialized migration, room transfer or story flag changes.
+        private Point RecoverInvalidSavedFoot(Point requested)
+        {
+            Point origin=new Point(Map.spawnX,Map.spawnY);
+            if(!Finite(requested.x)||!Finite(requested.y)||
+                !Fits(origin))return origin;
+            int width=Map.rows[0].Length,height=Map.rows.Length;
+            int count=width*height;
+            var reachable=new bool[count];
+            var queue=new int[count];
+            int sx=(int)Math.Floor(origin.x),sy=(int)Math.Floor(origin.y);
+            int first=sy*width+sx;
+            reachable[first]=true;
+            queue[0]=first;
+            int tail=1;
+            Point best=origin;
+            float bestSquared=(origin-requested).Length;
+            bestSquared*=bestSquared;
+            int[,] steps={{1,0},{-1,0},{0,1},{0,-1}};
+            for(int head=0;head<tail;head++)
+            {
+                int slot=queue[head],xx=slot%width,yy=slot/width;
+                Point foot=new Point(xx+.5f,yy+.5f);
+                float dx=foot.x-requested.x,dy=foot.y-requested.y;
+                float distanceSquared=dx*dx+dy*dy;
+                if(Fits(foot)&&distanceSquared<bestSquared)
+                {
+                    best=foot;bestSquared=distanceSquared;
+                }
+                for(int d=0;d<4;d++)
+                {
+                    int nx=xx+steps[d,0],ny=yy+steps[d,1];
+                    if(nx<2||ny<2||nx>=width-2||ny>=height-2)continue;
+                    int next=ny*width+nx;
+                    if(reachable[next]||!Fits(new Point(nx+.5f,ny+.5f)))
+                        continue;
+                    reachable[next]=true;
+                    queue[tail++]=next;
+                }
+            }
+            return best;
+        }
         public void Load(SaveData value)
         {
             if (value.version != 1 && value.version != 2) throw new ArgumentException("Unsupported save version.");
@@ -341,7 +388,11 @@ namespace Starfall
             save.plantedAt = Finite(save.plantedAt) ? Clamp(save.plantedAt, -1, save.totalTime) : -1;
             save.foodUntil = Finite(save.foodUntil) ? Clamp(save.foodUntil, 0, save.totalTime + 120) : 0;
             if (save.weapon > 0 && !Has("weapon_" + save.weapon)) save.weapon = 0;
-            if (!Finite(save.x) || !Finite(save.y) || !Fits(Position)) { save.x = Map.spawnX; save.y = Map.spawnY; }
+            if (!Finite(save.x) || !Finite(save.y) || !Fits(Position))
+            {
+                Point recovered=RecoverInvalidSavedFoot(Position);
+                save.x=recovered.x;save.y=recovered.y;
+            }
             // SaveData belongs to the loaded slot. Keep only the optional
             // validated in-progress escort while clearing runtime combat.
             RescueCheckpoint pendingRescue = save.rescueCheckpoint;
