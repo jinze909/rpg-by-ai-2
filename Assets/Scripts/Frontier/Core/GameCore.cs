@@ -3762,6 +3762,12 @@ namespace Starfall
         }
         public bool CycleNearbyInteraction()
         {
+            return CycleNearbyInteraction(false);
+        }
+        // Reverse is used by an actual list-hover wheel gesture; O/R3
+        // retain their shipped forward-cycling behavior.
+        public bool CycleNearbyInteraction(bool reverse)
+        {
             if(mode!="world"||Dying||Map==null||Map.objects==null||
                !CanStand(Position))return false;
             var nearby=NearbyInteractionChoices();
@@ -3779,7 +3785,11 @@ namespace Starfall
                (hasCivilian&&ReliefCivilianIsInteractionTarget(current)))
                 current=null;
             int at=nearby.IndexOf(current);
-            WorldObject selected=nearby[(at+1)%nearby.Count];
+            // With no previous selection, begin at the correct end of the
+            // ring in either direction (do not wrap a -1 index backwards).
+            if(at<0)at=reverse?0:nearby.Count-1;
+            WorldObject selected=nearby[
+                (at+nearby.Count+(reverse?-1:1))%nearby.Count];
             return SetNearbyInteractionChoice(selected);
         }
         // An actual click on the nearby list focuses exactly that living

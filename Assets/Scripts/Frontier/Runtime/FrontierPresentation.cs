@@ -106,6 +106,14 @@ namespace Starfall
             routeTimer -= dt; Point? goal = Game.NavigationTarget(); if (Game.mode == "world" && Game.save.showGuidance && (routeTimer <= 0 || !SameGoal(goal, routeGoal))) { routeGoal = goal; route = goal.HasValue ? Game.NavigationPath(goal.Value) : new List<Point>(); routeTimer = .65f; }
         }
         private bool SameGoal(Point? a, Point? b) { return a.HasValue == b.HasValue && (!a.HasValue || (a.Value - b.Value).Length < .6f); }
+        private bool PointerOverNearbyChoices(Point mouse)
+        {
+            // This is the SAME actual visible panel footprint used by world
+            // pointer blocking. Scroll there changes speakers, never gear.
+            return Game!=null&&Game.mode=="world"&&
+                Contains(new Rect(56,516,366,150),mouse)&&
+                Game.NearbyInteractionCount()>1;
+        }
         private bool PointerOverInterface(Point mouse)
         {
             if (mouse.x < 0 || mouse.x >= Width || mouse.y < 0 || mouse.y >= Height) return true;
@@ -113,9 +121,7 @@ namespace Starfall
             // Treat the source-selection panel as real UI, not an attack or
             // equipment-scroll area. Evaluate overlap only while the pointer
             // lies in the panel region to avoid extra collision work.
-            if(Game!=null&&Game.mode=="world"&&
-                Contains(new Rect(56,516,366,150),mouse)&&
-                Game.NearbyInteractionCount()>1)return true;
+            if(PointerOverNearbyChoices(mouse))return true;
             return Game.practicing && Contains(new Rect(785,246,130,34), mouse);
         }
         private bool TideBlocksGuide { get { return Game.save.room == 5 && !Game.LowTide && routeGoal.HasValue && (routeGoal.Value - Game.Position).Length > 1.8f && route.Count == 0; } }

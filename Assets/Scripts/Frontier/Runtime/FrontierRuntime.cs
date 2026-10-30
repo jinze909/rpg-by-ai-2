@@ -238,7 +238,16 @@ namespace Starfall
                 // Ignore scroll over buttons/inventory to preserve IMGUI's
                 // own focus and browsing. This remains a standard Equip().
                 float wheel=Input.GetAxisRaw("Mouse ScrollWheel");
-                if(Math.Abs(wheel)>.001f&&!PointerOverInterface(mouse))
+                if(Math.Abs(wheel)>.001f&&Game.SafeTravel&&
+                   PointerOverNearbyChoices(mouse))
+                {
+                    // Down selects the next real candidate, up the previous.
+                    // The wheel already belonged to this panel; it must not
+                    // silently equip a weapon or change the active quest.
+                    Game.CycleNearbyInteraction(wheel>0f);
+                    controllerUsed=false;
+                }
+                else if(Math.Abs(wheel)>.001f&&!PointerOverInterface(mouse))
                 {
                     int step=wheel>0f?1:-1;
                     for(int offset=1;offset<3;offset++)
@@ -1146,8 +1155,8 @@ namespace Starfall
             Panel(x,y,width,49f+displayed*25f,
                 new Color(.045f,.08f,.13f,.92f),PixelArt.C("#637d82"));
             Text(x+12,y+7,width-24,25,
-                Game.L("附近交互 · 点击选择 / O / R3 切换",
-                    "NEARBY · CLICK / O / R3 TO SELECT")+
+                Game.L("附近交互 · 点击选择 / 滚轮切换 / O / R3",
+                    "NEARBY · CLICK / WHEEL / O / R3 TO SELECT")+
                     "  "+(at+1)+"/"+options.Count,
                 12,gold);
             for(int row=0;row<displayed;row++)
