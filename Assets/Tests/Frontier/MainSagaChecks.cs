@@ -70,9 +70,33 @@ namespace Starfall.Tests
             Check(g.MainSagaVoices==3&&g.MainSagaTraces==3&&
                 !g.MainSagaCanConclude,
                 "Regional witness scenes alone cannot bypass the council");
-            g.save.frontierEnding=1;
-            Check(g.MainSagaCanConclude,
-                "The real three-party covenant completes the campaign preconditions");
+            // Complete the actual Mistport council conversation, not a
+            // synthetic save.frontierEnding assignment.
+            g.Close();g.save.room=5;g.mode="world";g.enemies.Clear();
+            WorldObject council=Array.Find(g.Map.objects,o=>o.kind=="council");
+            Check(council!=null&&PlaceWithinTalkReach(g,council),
+                "The existing Mistport council is physically accessible");
+            g.Talk(council);
+            int covenant=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="covenant1");
+            Check(covenant>=0,"Original three-party council can sign after all voices");
+            g.Choose(covenant);
+            Check(g.save.frontierEnding==1&&g.MainSagaCanConclude&&
+                g.conversation!=null&&
+                g.conversation.speaker.Contains("第二幕"),
+                "The live covenant unlocks the final act without premature credits");
+            g.Close();g.save.room=4;g.mode="world";g.enemies.Clear();
+            Check(PlaceWithinTalkReach(g,shrine),
+                "Return to the physical original citadel shrine");
+            g.Talk(shrine);
+            int ending=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ending1");
+            Check(ending>=0&&g.conversation.text.Contains("调度印"),
+                "Actual Orrin finale opens with the older supply-order revelation");
+            g.Choose(ending);
+            Check(g.save.ending==1&&g.Has("completed")&&
+                g.conversation.text.Contains("米拉"),
+                "The expanded main ends through a real player choice and remembers witnesses");
             g.PrepareSave();
             GameCore restored=new GameCore(data,CloneSave(g.save));
             Check(restored.MainSagaActive&&restored.MainSagaVoices==3&&
