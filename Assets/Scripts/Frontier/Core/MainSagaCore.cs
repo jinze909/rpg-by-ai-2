@@ -19,12 +19,134 @@ namespace Starfall
             get { int total=0;for(int i=5;i<=7;i++)
                 if(Has("saga_trace_"+i))total++;return total; }
         }
-        public bool MainSagaCanConclude
+        public bool MainSagaCouncilReady
         {
             get { return MainSagaActive&&Has("boss_4")&&
                 MainSagaVoices==3&&MainSagaTraces==3&&
                 Proofs==3&&save.frontierEnding>0; }
         }
+        public bool MainSagaCanConclude
+        {
+            get { return MainSagaCouncilReady&&Has("saga_lastgate_complete"); }
+        }
+        public int MainSagaLastGateStep
+        {
+            get {
+                if(!MainSagaCouncilReady)return 0;
+                if(!Has("saga_lastgate_ledger"))return 1;
+                if(!Has("saga_lastgate_relay"))return 2;
+                if(!Has("saga_lastgate_complete"))return 3;
+                return 4;
+            }
+        }
+        public Point MainSagaLastGateTarget
+        {
+            get {
+                int next=Math.Min(3,Math.Max(1,MainSagaLastGateStep));
+                WorldObject node=MainSagaLastGateNode(next);
+                return node!=null?new Point(node.x,node.y):Position;
+            }
+        }
+        private WorldObject MainSagaLastGateNode(int index)
+        {
+            if(index<1||index>3)return null;
+            foreach(WorldObject o in data.maps[4].objects)
+                if(o!=null&&o.id=="triadmemory"+index&&
+                    o.kind=="triadmemory"+index)return o;
+            return null;
+        }
+        private bool TryTalkMainSagaLastGate(WorldObject o)
+        {
+            if(!MainSagaCouncilReady||save.ending>0||save.room!=4||
+                o==null||!SourceBelongsToActiveMap(o)||
+                !HasPhysicalInteractionReach(o))return false;
+            int stage=MainSagaLastGateStep;
+            if(stage>3)return false; // Original memory sites retain their purpose.
+            WorldObject needed=MainSagaLastGateNode(stage);
+            if(needed==null||!Object.ReferenceEquals(needed,o))return false;
+            if(stage==1)
+                Dialog(o.name,o.en,
+                    "堡垒留下三道相互矛盾的供能注记。第一道写着“先保墙内”；第二道说“守护通路”；第三道竟没有记录任何接受决定的居民签名。\n\n你将三份远岸证词和九年前被擦去的命令放在一起，才看清这并非一位将军留下的错误，而是一套从未允许外环居民反对的制度。\n\n莉雅问：“我们能不能先把签名缺失这一栏保留给真正受影响的人？”",
+                    "Three contradictory supply notes remain. The first says PROTECT THE WALL; the second PRESERVE THE ROUTES. The third contains no resident signature at all.\n\nSet beside the farshore testimonies, they reveal not one commander's mistake but a system that never allowed outer-ring residents to object.\n\nLyra asks: “Can we reserve that blank line for the people who actually bear the cost?”",
+                    C("核对三份供词并封存旧命令","Verify the accounts and secure the order","saga_lastgate_1"),
+                    C("返回查看","Return later","close"));
+            else if(stage==2)
+                Dialog(o.name,o.en,
+                    "损坏的分流台仍把星核能量优先送往军用屏障。要让三方议会有权审核线路，必须在导流板发热时亲自重接紧急旁路。\n\n你得消耗22耐力稳住阀门。热流会影响周围环境，但不会凭空完成战斗或救援。\n\n诺尔提醒你：“公开一纸命令容易。让它在断电的夜里也执行，才算真的改变。”",
+                    "The battered diverter still routes power first to the military shield. To let the council inspect the actual circuit, the emergency bypass must be reset while its conductors are hot.\n\nHolding the valve costs 22 stamina. This is a physical repair, not a free quest tick.\n\nNoll says, “Publishing an order is easy. Making the machine obey in a blackout is the real change.”",
+                    C("亲自调谐应急旁路 · 耐力22","Tune the emergency bypass · 22 stamina","saga_lastgate_2"),
+                    C("稍后再试","Return when ready","close"));
+            else
+                Dialog(o.name,o.en,
+                    "第三份空白命令只剩两个不完美的方案：公开所有调度记录，让每一笔能源消耗都能被质疑；或让受难家属先核对身份，把敏感的安置地点从公开名册中遮住。\n\n公开可以防止新的秘密配额，却可能暴露正在躲避追捕的人。保护隐私能让幸存者安心，却要求议会承担监督责任。\n\n你不会替所有人决定如何生活，但必须决定这张新的表格如何开始。",
+                    "The last unsigned order admits no perfect solution. Publish the complete energy ledger for public challenge, or let affected families check their identities first while shielding the locations of people still in danger.\n\nTransparency may stop the next secret ration but expose hidden survivors. Privacy protects them, yet places greater scrutiny on the council.\n\nYou cannot choose a future for everyone. You must choose how its first record will be kept.",
+                    C("公开供能账本，允许居民监督","Publish energy accounts for public challenge","saga_lastgate_public"),
+                    C("先保护幸存者身份，由居民议会审核","Protect survivors; entrust review to residents","saga_lastgate_private"),
+                    C("我还需要想一想","I need to think","close"));
+            return true;
+        }
+        private bool ChooseMainSagaLastGate(string action)
+        {
+            if(string.IsNullOrEmpty(action)||!action.StartsWith("saga_lastgate_",StringComparison.Ordinal))
+                return false;
+            WorldObject source=pendingDialogueSource;
+            int stage=action=="saga_lastgate_1"?1:
+                action=="saga_lastgate_2"?2:
+                action=="saga_lastgate_public"||action=="saga_lastgate_private"?3:0;
+            if(stage==0||!MainSagaCouncilReady||save.ending>0||Dying||
+                practicing||save.room!=4||mode!="world"||
+                stage!=MainSagaLastGateStep||source==null||
+                !Object.ReferenceEquals(source,MainSagaLastGateNode(stage))||
+                pendingDialogueSourceRoom!=4||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||!CanStand(Position))
+                return true;
+            if(stage==2)
+            {
+                if(save.energy<22f)
+                {
+                    Notify("旁路阀门需要22耐力。先安全恢复，再回来操作。",
+                        "The bypass needs 22 stamina. Recover safely and return.");
+                    return true;
+                }
+                save.energy-=22f;
+                effects.Add(new Effect("burst",new Point(source.x,source.y),.7f)
+                    {radius=3f,variant=2});
+                Flag("saga_lastgate_relay");
+                RecordMoment("终章 · 堡垒旧分流台已由居民代表的证词重新校准。军用命令不能再自动覆盖公共供能。",
+                    "Finale: the old citadel diverter was retuned against resident testimony; military orders no longer silently override public power.");
+            }
+            else if(stage==1)
+            {
+                Flag("saga_lastgate_ledger");
+                RecordMoment("终章 · 将三份原始证词和九年前的旧配额放在同一张桌上。决策者无法再藏在空白签名之后。",
+                    "Finale: the original accounts confront the nine-year-old ration order. Decision makers can no longer hide behind an unsigned line.");
+            }
+            else
+            {
+                Flag(action=="saga_lastgate_public"?
+                    "saga_lastgate_open":"saga_lastgate_private");
+                Flag("saga_lastgate_complete");
+                CreditShards(3);
+                RecordMoment(action=="saga_lastgate_public"?
+                    "终章 · 居民议会签署公开账本，任何人都可以质疑每次调度。":
+                    "终章 · 居民议会先保护受难者的安置位置，并设立可追责的私人审阅程序。",
+                    action=="saga_lastgate_public"?
+                    "Finale: the council publishes an inspectable power ledger.":
+                    "Finale: the council protects refugee locations while opening accountable private review.");
+            }
+            revision++;sound="reward";
+            Dialog(source.name,source.en,
+                stage==1?"三份记录已核对。走向堡垒东面的旧分流台，让新协定真正接管供能线路。":
+                stage==2?"旁路成功接通，阀门不再只听军令。去最后的签名台决定如何保存幸存者的记录。":
+                "最后一道命令已由居民共同见证。回到厄洛所在的祭坛，决定星核的最终归宿。",
+                stage==1?"The accounts are verified. Reach the eastern diverter to make the covenant physically enforceable.":
+                stage==2?"The bypass is live. Go to the final signing station and decide how survivors will be recorded.":
+                "The last order has been witnessed by the residents. Return to Orrin's shrine and choose the cores' fate.",
+                C("继续主线","Continue the main story","close"));
+            return true;
+        }
+
         private static string SagaPerson(int room)
         { return room==5?"captain":room==6?"tinker":room==7?"keeper":""; }
         private static string SagaPersonId(int room)
@@ -248,11 +370,13 @@ namespace Starfall
                 (Has("saga_choice_5_a")?"Mira signs the open manifest. ":"Mira lets families read it first. ")+
                 (Has("saga_choice_6_a")?"Ivo publishes his old ration decision. ":"Every well receives Ivo's repair plan. ")+
                 (Has("saga_choice_7_a")?"Sen names his choice at the public hearing. ":"Rescued children and late evacuees tell their story together. ")+
+                (Has("saga_lastgate_open")?"The energy accounts become a public ledger, open to challenge by any affected citizen. ":"Survivor locations remain protected, but a resident panel reviews every energy transfer. ")+
                 "No signature erases a death, but people can now challenge the next secret order before it takes effect.":
                 "\n\n边境公共档案终于添上第二册。"+
                 (Has("saga_choice_5_a")?"米拉在公开的名册上亲笔署名。":"米拉先让失踪者家属读完原件。")+
                 (Has("saga_choice_6_a")?"伊沃公开了自己九年前改写的配额。":"每座井站都收到了伊沃的维修图。")+
                 (Has("saga_choice_7_a")?"森在听证会上说出自己的选择。":"获救的孩子与错过撤离的人一起讲完那夜。")+
+                (Has("saga_lastgate_open")?"每次供能调度都记录在公开账本里。":"幸存者安置地点受到保护，每次调度仍要接受居民代表的封闭审查。")+
                 "任何签名都无法抹平伤亡，但居民终于能在下一道秘密命令生效前提出质疑。";
         }
         private void MainSagaGate()
@@ -261,11 +385,15 @@ namespace Starfall
                 "三位当事人的证词还没有全部带来。":
                 save.frontierEnding==0?
                 "三地证词已经在手，但边境的共同供能方案尚未由三方议会签署。":
+                MainSagaCouncilReady?
+                "三方协定已经签好。去堡垒的三处旧记忆台重新接通最后的应急供能线路，才能决定星核归属。":
                 "你仍需带回各地的原始调查记录。";
             string enState=MainSagaVoices<3?
                 "The three first-hand accounts are not yet complete.":
                 save.frontierEnding==0?
                 "The testimonies are here, but the three-party council has not signed an energy covenant.":
+                MainSagaCouncilReady?
+                "The covenant is signed. Complete the three physical citadel memory stations and reconnect the last emergency circuit before choosing the cores' fate.":
                 "The original regional investigations are still incomplete.";
             Dialog("厄洛 · 星卫统领","Orrin · Starwarden",
                 "厄洛看着堡垒墙上的旧供能图。“我愿意为自己的选择负责。但你从远岸带回的证据说明，牺牲外环的决定比我的命令还要早。不能只在这里决定一次，就让所有人以为事情已经结束。”\n\n"+state+
@@ -281,6 +409,7 @@ namespace Starfall
             if(string.IsNullOrEmpty(action)||
                !action.StartsWith("saga_",StringComparison.Ordinal))return false;
             WorldObject host=pendingDialogueSource;
+            if(ChooseMainSagaLastGate(action))return true;
             if(action=="saga_begin"||action=="saga_debrief")
             {
                 if(host==null||host.kind!="guild"||

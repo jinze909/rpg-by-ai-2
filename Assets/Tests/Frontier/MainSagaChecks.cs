@@ -95,11 +95,35 @@ namespace Starfall.Tests
                 c=>c.action=="covenant1");
             Check(covenant>=0,"Original three-party council can sign after all voices");
             g.Choose(covenant);
-            Check(g.save.frontierEnding==1&&g.MainSagaCanConclude&&
-                g.conversation!=null&&
+            Check(g.save.frontierEnding==1&&g.MainSagaCouncilReady&&
+                !g.MainSagaCanConclude&&g.conversation!=null&&
                 g.conversation.speaker.Contains("第二幕"),
-                "The live covenant unlocks the final act without premature credits");
+                "The covenant opens a playable citadel finale, not instant credits");
             g.Close();g.save.room=4;g.mode="world";g.enemies.Clear();
+            string[] gateActions={"saga_lastgate_1","saga_lastgate_2",
+                "saga_lastgate_public"};
+            for(int step=1;step<=3;step++)
+            {
+                WorldObject station=Array.Find(g.Map.objects,
+                    o=>o.id=="triadmemory"+step);
+                Check(station!=null&&PlaceWithinTalkReach(g,station),
+                    "Live original citadel evidence station is physically reachable");
+                g.Talk(station);
+                int choice=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==gateActions[step-1]);
+                Check(choice>=0,"Each distinct citadel station has a live operation");
+                if(step==2)g.save.energy=100f;
+                float energy=g.save.energy;
+                g.Choose(choice);
+                Check(g.MainSagaLastGateStep==step+1,
+                    "Only the correct physical station advances the last chapter");
+                if(step==2)Check(g.save.energy==energy-22f,
+                    "Reconnecting the real circuit spends the advertised stamina");
+                g.Close();
+            }
+            Check(g.MainSagaCanConclude&&
+                g.save.flags.Contains("saga_lastgate_open"),
+                "The civic testimony and real three-stage citadel route unlock the final choice");
             Check(PlaceWithinTalkReach(g,shrine),
                 "Return to the physical original citadel shrine");
             g.Talk(shrine);

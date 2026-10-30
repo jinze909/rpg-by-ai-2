@@ -4564,6 +4564,15 @@ namespace Starfall
                 }
                 q.steps.Add(new QuestStep(L("第八章 · 三方议会签订共同协定",
                     "Chapter Eight · Ratify the three-party covenant"),save.frontierEnding>0));
+                q.steps.Add(new QuestStep(L("终章 · 核对九年前的三地旧命令",
+                    "Finale · Cross-check the nine-year-old supply orders"),
+                    Has("saga_lastgate_ledger")));
+                q.steps.Add(new QuestStep(L("终章 · 亲自重接堡垒紧急供能旁路",
+                    "Finale · Physically reconnect the citadel emergency bypass"),
+                    Has("saga_lastgate_relay")));
+                q.steps.Add(new QuestStep(L("终章 · 见证居民公开或保护隐私的选择",
+                    "Finale · Ratify public accountability or private protection"),
+                    Has("saga_lastgate_complete")));
                 q.steps.Add(new QuestStep(L("终章 · 与厄洛决定星核归宿",
                     "Finale · Decide the starcores' fate with Orrin"),false));
                 if(!Has("boss_4"))
@@ -4615,9 +4624,19 @@ namespace Starfall
                 }
                 else
                 {
-                    q.room=4;q.target=ObjectPoint(4,"shrine",new Point(29,8));
-                    q.next=L("终章：从雾港议会返回星陨堡垒，与厄洛共同决定星核的归宿。",
-                        "Finale: return from the farshore council to Orrin at the citadel and decide the starcores' fate.");
+                    q.room=4;
+                    if(!Has("saga_lastgate_complete"))
+                    {
+                        q.target=MainSagaLastGateTarget;
+                        q.next=L("终章：在堡垒的三处真实记忆台核对旧命令、重新接通供能线路，并让居民确认最后的处理方式。",
+                            "Finale: inspect the three physical memory stations, reconnect the supply bypass and ratify the residents' records.");
+                    }
+                    else
+                    {
+                        q.target=ObjectPoint(4,"shrine",new Point(29,8));
+                        q.next=L("终章：居民审议已完成，回到厄洛所在的祭坛决定星核归属。",
+                            "Finale: with the civic review complete, return to Orrin's shrine and decide the starcores' fate.");
+                    }
                 }
                 return q;
             }

@@ -4248,6 +4248,7 @@ namespace Starfall
         private void TalkCore(WorldObject o)
         {
             if (TryReadMainSagaTrace(o)) return;
+            if (TryTalkMainSagaLastGate(o)) return;
             if (TalkChapterRoad(o)) return;
             if (TalkGhostTrain(o)) return;
             if (TalkRidgeBreach(o)) return;
