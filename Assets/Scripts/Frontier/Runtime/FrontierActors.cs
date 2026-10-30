@@ -1224,6 +1224,22 @@ namespace Starfall
                         Game.L("搜查交战处","SEARCHING REPORT"),
                         10,patrolTint,TextAnchor.MiddleCenter);
             }
+            if(!drawingOutline&&Game.IsNightShiftRaider(e)&&e.hp>0f&&
+               Game.enemies.Contains(e))
+            {
+                // The real forest witness confrontation is distinguishable
+                // from mandatory roaming enemies. The original accepted
+                // monster sprites, equipment and hitboxes remain intact:
+                // only the exact two mission-owned living actors get the
+                // amber cue (not a duplicate numeric spawn ID).
+                Color evidenceTint=PixelArt.C("#edc272");
+                Ring(e.Position,.70f,evidenceTint,18);
+                Text(p.x-88,p.y-136,176,19,
+                    e.kind==1?
+                        Game.L("夜班追踪弓手","SHIFT TRACKER · BOW"):
+                        Game.L("夜班巡路追兵","SHIFT TRACKER · MELEE"),
+                    10,evidenceTint,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsLiveFieldDispatchRaider(e))
             {
                 // The courier ambush is an ACTUAL enemy body and AI actor.
