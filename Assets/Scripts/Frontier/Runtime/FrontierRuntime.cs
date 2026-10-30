@@ -1248,6 +1248,15 @@ namespace Starfall
                     p.x-34,p.y-76,68,80,ink);
                 Ring(new Point(o.x,o.y),actionable?.65f:.40f,ink,22);
                 if(actionable)Diamond(p.x,p.y-87,6,ink);
+                if(station==2&&Game.Has("nightshift_started")&&
+                   Game.NightShiftEvidenceCount==1&&!reviewed&&!finished)
+                    WorldObjectLabel(p.x-115,p.y-140,230,19,
+                        Game.LowTide?
+                            Game.L("退潮 · 原始刻痕可读",
+                                "LOW TIDE · ORIGINAL MARK EXPOSED"):
+                            Game.L("涨潮 · 等待 / 木材1搭架",
+                                "HIGH TIDE · WAIT / 1 TIMBER"),
+                        10,Game.LowTide?mint:gold,TextAnchor.MiddleCenter);
                 if(station==1&&Game.NightShiftRaidActive)
                 {
                     Ring(new Point(o.x,o.y),.90f,gold,28);

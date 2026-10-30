@@ -346,8 +346,11 @@ namespace Starfall
                 L("沿密林中路到半张旧班表，查清谁真正值了夜班。",
                   "Find the torn shift card in the forest and verify who was on duty."):
                 next==2?
-                L("到沉没遗迹寻找退潮钟印；不要只抄官方的日期。",
-                  "Find the low-tide clock in the ruins, not just the official date."):
+                (LowTide?
+                    L("沉没遗迹退潮窗口已开放：到石阶钟印对照原件。",
+                      "Low tide is open. Inspect the original clock mark on the ruin stairs."):
+                    L("沉没遗迹正在涨潮：等真正退潮，或带木材1搭支架测量。",
+                      "The ruins are flooded. Wait for ebb or bring one timber for a real gauge.")):
                 save.inventory[4]<1?
                 L("矿场封条缺一枚零件：先从本区真实矿点收集零件。",
                   "The sealed mine spool needs one part. Collect one from real ore."):
@@ -594,12 +597,20 @@ namespace Starfall
             }
             else if(room==2)
                 Dialog(o.name,o.en,
-                    "石阶有两道潮水印。堡垒抄本写着“日出后才放行”，可旧石匠把低潮刻在前一晚的钟点。若按公文计算，那艘船根本不可能驶过淹没的石阶。\n\n你要相信哪种时间？",
-                    "Two tide marks cross the stairs. The citadel copy says the crossing opened after sunrise. A mason carved the actual low-tide bell on the previous night. At the official hour the steps would have been submerged.\n\nWhich clock belongs in the record?",
-                    C("对照真正的退潮刻痕",
-                      "Cross-check the physical low-tide mark","nightshift_trace_2"),
+                    "旧石阶上的退潮钟印比公文时间早半日。潮水目前"+(LowTide?
+                        "已经落下，露出了完整的石匠刻痕。":
+                        "正在漫过刻痕。你可以等水自然退去，或用一块真实木料搭出临时观测支架。")+"\\n\\n堡垒抄本却写着日出后才放船。你信哪一种时间？",
+                    "The mason's real low-tide groove predates the citadel's report. "+(LowTide?
+                        "The ebb has exposed the complete old mark.":
+                        "The rising water covers the mark. Wait for the real ebb, or spend one timber to brace a temporary measuring platform.")+"\\n\\nThe official copy claims boats crossed after sunrise. Which clock can be trusted?",
+                    LowTide?
+                        C("退潮已露刻痕 · 核实原始时间",
+                          "Low tide · verify original time","nightshift_trace_2"):
+                        C("木材1 · 搭架测量漫水刻痕",
+                          "1 timber · brace a real tide gauge","nightshift_tidebrace"),
                     C("照抄公文上的日出时间",
-                      "Copy the official sunrise date","nightshift_false"));
+                      "Copy the official sunrise date","nightshift_false"),
+                    C("暂不取证","Wait for better conditions","close"));
             else
                 Dialog(o.name,o.en,
                     "最后一页被装进带螺丝的铁筒。筒盖上写着“未获批准不得停炉”，底下却有工人按下的停机手印。\n\n你需要一枚真实的矿场零件撬开生锈的锁环，不能凭猜测宣告谁签了字。",
@@ -669,7 +680,8 @@ namespace Starfall
             }
             int stage=-1;
             if(action=="nightshift_trace_1")stage=1;
-            if(action=="nightshift_trace_2")stage=2;
+            if(action=="nightshift_trace_2"||
+               action=="nightshift_tidebrace")stage=2;
             if(action=="nightshift_trace_3")stage=3;
             if(stage>=1)
             {
@@ -678,6 +690,25 @@ namespace Starfall
                    Has("nightshift_trace_"+stage)||
                    NightShiftEvidenceCount!=stage-1)return true;
                 if(stage==1&&!NightShiftRaidReady)return true;
+                if(stage==2)
+                {
+                    if(action=="nightshift_trace_2"&&!LowTide)
+                    {
+                        Notify("潮水盖住了原始刻度；需要真实退潮窗口。",
+                            "The original clock mark is submerged. Wait for a genuine ebb.");
+                        return true;
+                    }
+                    if(action=="nightshift_tidebrace")
+                    {
+                        if(LowTide||!SafeTravel||save.inventory[0]<1)
+                        {
+                            Notify("支架必须在涨潮时用一块木材安全搭设。",
+                                "The temporary gauge needs one timber during high tide, out of combat.");
+                            return true;
+                        }
+                        save.inventory[0]--;
+                    }
+                }
                 if(stage==3)
                 {
                     if(save.inventory[4]<1)
@@ -694,11 +725,15 @@ namespace Starfall
                     stage==1?
                         "夜班名册 · 密林半张班表证实三名工人在天亮前被巡路人护送至渡口。":
                         stage==2?
+                        action=="nightshift_tidebrace"?
+                        "夜班名册 · 涨潮时耗费一块木材搭设临时支架，测得真正的退潮钟印，推翻堡垒抄本。":
                         "夜班名册 · 沉没遗迹真正的退潮钟印否定了堡垒抄本中的日出时间。":
                         "夜班名册 · 在赤铁矿场消耗一枚零件，打开封存的停机卷轴并保全工人的手印。",
                     stage==1?
                         "Night-Shift Roll: the torn forest card confirms three workers reached the ferry before dawn.":
                         stage==2?
+                        action=="nightshift_tidebrace"?
+                        "Night-Shift Roll: spent one timber on a real tide gauge during floodwater and disproved the citadel's sunrise timestamp.":
                         "Night-Shift Roll: the real low-tide mark disproves the citadel's sunrise crossing time.":
                         "Night-Shift Roll: spent one genuine part to open the mine spool and preserve the stop-work signature.");
                 sound="quest";revision++;

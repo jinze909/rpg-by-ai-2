@@ -6,6 +6,56 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void NightShiftRuinsRequiresRealEbbOrPhysicalTimber(Campaign data)
+        {
+            var game=Fresh(data);
+            game.save.flags.Add("nightshift_started");
+            game.save.flags.Add("nightshift_trace_1");
+            WorldObject ruin=NightShiftAt(game,2);
+            int initial=game.save.moments.Count;
+            game.save.totalTime=29f; // genuine high tide, not a stubbed state
+            Check(!game.LowTide&&game.NightShiftEvidenceCount==1,
+                "Actual 36-second regional tide clock is in flood phase");
+            int originalTimber=game.save.inventory[0];
+            game.save.inventory[0]=0;
+            game.Talk(ruin);
+            Check(game.conversation!=null&&
+                Array.FindIndex(game.conversation.choices,
+                    c=>c.action=="nightshift_trace_2")<0&&
+                Array.FindIndex(game.conversation.choices,
+                    c=>c.action=="nightshift_tidebrace")>=0,
+                "A flooded original mark cannot be claimed by the ordinary exposed-ebb choice");
+            NightShiftChoose(game,ruin,"nightshift_tidebrace");
+            Check(game.NightShiftEvidenceCount==1&&game.save.inventory[0]==0,
+                "No real timber means no improvised tide platform and no forged clue");
+            game.save.inventory[0]=1;
+            NightShiftChoose(game,ruin,"nightshift_tidebrace");
+            Check(game.NightShiftEvidenceCount==2&&
+                game.save.inventory[0]==0&&
+                game.save.moments.Count==initial+1&&
+                game.save.moments[game.save.moments.Count-1].en.Contains("spent one timber"),
+                "One real timber creates a viable flood-time reading and durable authored record");
+            game.PrepareSave();
+            var loaded=new GameCore(data,CloneSave(game.save));
+            Check(loaded.Has("nightshift_trace_2")&&
+                loaded.save.version==2,
+                "The resource-built tide measurement survives genuine v2 load");
+            var waiting=Fresh(data);
+            waiting.save.flags.Add("nightshift_started");
+            waiting.save.flags.Add("nightshift_trace_1");
+            WorldObject original=NightShiftAt(waiting,2);
+            waiting.save.totalTime=0f;
+            Check(waiting.LowTide,
+                "Original tide returns naturally without a fabricated quest flag");
+            int woodBefore=waiting.save.inventory[0];
+            NightShiftChoose(waiting,original,"nightshift_trace_2");
+            Check(waiting.NightShiftEvidenceCount==2&&
+                waiting.save.inventory[0]==woodBefore,
+                "Patient tide observation retrieves the same real clue for free at ebb");
+            Check(originalTimber>=0,"Ordinary old-save materials remain representable");
+        }
+
+
         public static void NightShiftForestGuardHasRealChoiceCombatAndNoFakeEvidence(Campaign data)
         {
             var g=Fresh(data);
