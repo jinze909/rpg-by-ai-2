@@ -4427,6 +4427,16 @@ namespace Starfall
                 grownRootDecor.Add(new Decoration {kind="ruin",
                     x=23.5f+gallery*15f,y=41.5f,variant=gallery});
             }
+            // Three additional, intentionally different visual milestones
+            // frame the outer branch, the lower gallery and the return arm.
+            // No new interactable signs or fabricated quest flags: existing
+            // original painted root/crystal/ruin sources are reused.
+            grownRootDecor.Add(new Decoration {
+                kind="crystal",x=37.5f,y=18.5f,variant=1});
+            grownRootDecor.Add(new Decoration {
+                kind="root",x=52.5f,y=30.5f,variant=2});
+            grownRootDecor.Add(new Decoration {
+                kind="ruin",x=27.5f,y=37.5f,variant=0});
             abyssMap.decor=grownRootDecor.ToArray();
             // The original seeded map, encounter RNG and reward gate stay
             // unchanged. The optional ward appears only on hazardous floors;
@@ -4447,6 +4457,64 @@ namespace Starfall
                     x = wardSite.x, y = wardSite.y
                 });
                 abyssMap.objects = objects.ToArray();
+            }
+            // The live procedural map also needs the same breathing room as
+            // the curated overworld. Run AFTER choosing the floor's authentic
+            // refuge/ward; no enemy RNG, terrain tile, quest or save is changed.
+            ReframeAbyssQuestSightlines();
+        }
+        private void ReframeAbyssQuestSightlines()
+        {
+            if(abyssMap==null||abyssMap.objects==null||
+                abyssMap.decor==null)return;
+            var props=abyssMap.decor;
+            for(int i=0;i<props.Length;i++)
+            {
+                Decoration current=props[i];
+                if(current==null)continue;
+                Point foot=new Point(current.x,current.y);
+                bool cramped=false;
+                foreach(WorldObject source in abyssMap.objects)
+                    if(source!=null&&
+                       (foot-new Point(source.x,source.y)).Length<3.5f)
+                    {cramped=true;break;}
+                if(!cramped)
+                    for(int j=0;j<props.Length;j++)
+                        if(j!=i&&props[j]!=null&&
+                           (foot-new Point(props[j].x,props[j].y)).Length<2.5f)
+                        {cramped=true;break;}
+                if(!cramped)continue;
+                bool found=false;
+                for(int radius=3;radius<=14&&!found;radius++)
+                    for(int dy=-radius;dy<=radius&&!found;dy++)
+                        for(int dx=-radius;dx<=radius&&!found;dx++)
+                        {
+                            if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)
+                                continue;
+                            Point candidate=new Point(
+                                (float)Math.Floor(current.x)+dx+.5f,
+                                (float)Math.Floor(current.y)+dy+.5f);
+                            int x=(int)candidate.x,y=(int)candidate.y;
+                            if(x<2||y<2||x>=abyssMap.rows[0].Length-2||
+                               y>=abyssMap.rows.Length-2||
+                               (abyssMap.rows[y][x]!='.'&&abyssMap.rows[y][x]!='=')||
+                               (candidate-new Point(5,14)).Length<6f||
+                               (candidate-new Point(29,9)).Length<3.8f)
+                                continue;
+                            bool occupied=false;
+                            foreach(WorldObject source in abyssMap.objects)
+                                if(source!=null&&
+                                   (candidate-new Point(source.x,source.y)).Length<3.8f)
+                                {occupied=true;break;}
+                            if(occupied)continue;
+                            for(int j=0;j<props.Length;j++)
+                                if(j!=i&&props[j]!=null&&
+                                   (candidate-new Point(props[j].x,props[j].y)).Length<2.8f)
+                                {occupied=true;break;}
+                            if(occupied)continue;
+                            current.x=candidate.x;current.y=candidate.y;
+                            found=true;
+                        }
             }
         }
         private void TalkAbyssAnnex(WorldObject o)
