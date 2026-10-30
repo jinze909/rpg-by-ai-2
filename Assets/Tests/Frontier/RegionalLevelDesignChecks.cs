@@ -427,11 +427,19 @@ namespace Starfall.Tests
                 !g.FieldTacticTrialReady,
                 "Killing without using the field mechanism cannot earn a receipt");
             g.Tick(.02f,new Point());
-            Check(!g.FieldTacticTrialActive&&g.enemies.Count==0&&
-                !g.FieldTacticTrialDone(1)&&
-                g.save.coins==coins&&g.save.shards==shards&&
-                g.save.xp==xp,
-                "Invalid no-counter victory retires the exact trial and grants no reward");
+            Check(!g.FieldTacticTrialActive,
+                "No-counter trial must end after the actual game tick");
+            Check(g.enemies.Count==0,
+                "No-counter cleanup must retire only the two trial actors: remaining "+
+                    g.enemies.Count);
+            Check(!g.FieldTacticTrialDone(1),
+                "Uncountered fighters cannot sign a saved trial receipt");
+            Check(g.save.coins==coins,
+                "Failed trial must award zero bonus coins: "+g.save.coins+" versus "+coins);
+            Check(g.save.shards==shards,
+                "Failed trial must award zero bonus shards: "+g.save.shards+" versus "+shards);
+            Check(g.save.xp==xp,
+                "Failed trial must award zero trial XP: "+g.save.xp+" versus "+xp);
             g.Close();g.Talk(site);
             begin=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="field_tactic_trial_begin");
