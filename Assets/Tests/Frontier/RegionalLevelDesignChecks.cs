@@ -266,7 +266,7 @@ namespace Starfall.Tests
                     "Real tactical activation hits at least one assigned living raider");
                 foreach(Enemy foe in assigned)
                     hit.Invoke(g,new object[]{foe,600f,false,null,null});
-                Check(assigned.TrueForAll(e=>!g.IsFieldTacticTrialTarget(e)),
+                Check(Array.TrueForAll(assigned,e=>!g.IsFieldTacticTrialTarget(e)),
                     "Defeated registered bodies must lose their live world target marker");
                 Check(g.FieldTacticTrialReady&&
                     g.FieldTacticTrialRemaining==0&&!g.FieldTacticTrialDone(room),
