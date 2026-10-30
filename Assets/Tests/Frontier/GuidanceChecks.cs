@@ -28,7 +28,7 @@ namespace Starfall.Tests
                     en="Witness B",x=11.5f,y=10.5f};
                 WorldObject three=new WorldObject{
                     id="quest_c",kind="lore",name="Witness C",
-                    en="Witness C",x=10.5f,y=11.5f};
+                    en="Witness C",x=12f,y=10.5f};
                 data.maps[0]=new MapData{
                     id=0,spawnX=10.5f,spawnY=10.5f,
                     rows=rows,objects=new[]{one,two,three},
