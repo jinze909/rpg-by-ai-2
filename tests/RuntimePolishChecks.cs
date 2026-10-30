@@ -216,7 +216,7 @@ public static class RuntimePolishChecks
                 "Produce a real schema-checked save before simulating interruption");
             string main=SaveStore.PathFor(2);
             string preserved=File.ReadAllText(main);
-            const string corrupt="{\\"corrupt\\":true}";
+            const string corrupt="{truncated";
             File.WriteAllText(main,corrupt);
             File.WriteAllText(main+".precommit",preserved);
             MethodInfo portable=typeof(SaveStore).GetMethod("PortableReplace",
