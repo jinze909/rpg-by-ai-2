@@ -94,7 +94,7 @@ namespace Starfall.Tests
                     new Point(device.x,device.y),true).Count>0,
                     "The original chapter entrance has a real route to its combat mechanism");
                 foreach(WorldObject prop in g.Map.objects)
-                    if(!Object.ReferenceEquals(prop,device))
+                    if(!System.Object.ReferenceEquals(prop,device))
                         Check((new Point(prop.x,prop.y)-
                             new Point(device.x,device.y)).Length>=3f,
                             "A usable device needs its own interaction clearing");
