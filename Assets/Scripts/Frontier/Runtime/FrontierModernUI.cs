@@ -162,6 +162,7 @@ namespace Starfall
         // It lets the map display the quest ACTUALLY selected in the journal
         // even when another mission or a personal pin owns the world compass.
         private string mapInspectedQuestId;
+        private bool mapFocusMode=true;
         // View-only journal filter; original 60 quest IDs, progress and
         // ordering stay untouched in SaveData v2.
         // Default to playable content; Show All remains one click away.
@@ -210,7 +211,8 @@ namespace Starfall
         private void DrawAvailableMapQuestMarkers(List<string> options,
             float left,float top,float scale)
         {
-            if(options==null||scale<=0f)return;
+            if(options==null||scale<=0f||
+                !MapPresentationPolicy.ShowAlternativeQuest(mapFocusMode))return;
             Color mark=PixelArt.C("#80c7ba");
             foreach(string id in options)
             {
@@ -949,13 +951,18 @@ namespace Starfall
                     Game.Explored(Game.save.room,x,y)?c:Color.Lerp(c,ink,.68f));
             }
             DrawNavigationRoute(x0, y0, cell, left, top, cellsX, cellsY);
+            WorldObject nearestWorld=Game.Nearest();
             foreach(WorldObject o in Game.Map.objects)
             {
-                if(o.x<left||o.x>=left+cellsX||o.y<top||o.y>=top+cellsY||
-                    !Game.IsObjectPresent(o))continue;
-                if(o.kind.StartsWith("portal")||Game.Explored(Game.save.room,o.x,o.y))
-                    Box(x0+(o.x-left)*cell-2,y0+(o.y-top)*cell-2,5,5,
-                        o.kind.StartsWith("portal")?mint:gold);
+                if(o.x<left||o.x>=left+cellsX||o.y<top||o.y>=top+cellsY)
+                    continue;
+                bool present=Game.IsObjectPresent(o);
+                bool explored=Game.Explored(Game.save.room,o.x,o.y);
+                if(!MapPresentationPolicy.ShowObject(o.kind,true,explored,present)&&
+                    !(System.Object.ReferenceEquals(o,nearestWorld)&&explored))
+                    continue;
+                Box(x0+(o.x-left)*cell-2,y0+(o.y-top)*cell-2,5,5,
+                    o.kind.StartsWith("portal")?mint:gold);
             }
             Point? goal=Game.NavigationTarget();
             if(goal.HasValue&&(Game.save.showGuidance||Game.PlayerRequestedNavigationActive)&&
@@ -970,7 +977,11 @@ namespace Starfall
             DrawTerrainPreview(Game.Map,Game.save.room,true,x0,y0,size);
             DrawNavigationRoute(x0, y0, size, 0, 0,
                 Game.Map.rows[0].Length, Game.Map.rows.Length);
-            foreach (var o in Game.Map.objects) if (Game.IsObjectPresent(o) && (o.kind.StartsWith("portal") || Game.Explored(Game.save.room, o.x, o.y))) Box(x0 + o.x * size - 1, y0 + o.y * size - 1, 3, 3, o.kind.StartsWith("portal") ? mint : gold);
+            foreach(WorldObject o in Game.Map.objects)
+                if(MapPresentationPolicy.ShowObject(o.kind,mapFocusMode,
+                    Game.Explored(Game.save.room,o.x,o.y),Game.IsObjectPresent(o)))
+                    Box(x0+o.x*size-1,y0+o.y*size-1,3,3,
+                        o.kind.StartsWith("portal")?mint:gold);
             Point? goal = Game.NavigationTarget(); if (goal.HasValue &&
                 (Game.save.showGuidance || Game.PlayerRequestedNavigationActive))
             {
@@ -1622,7 +1633,9 @@ namespace Starfall
         }
         private void DrawMap()
         {
-            Window(Game.L("边境与远岸", "Frontier & distant shores"), Game.L("点击青色任务点查看任务 · 点击空地标记 · R/Y移动个人标记 · P/X指定同伴驻守", "Click teal quests to inspect · click ground to pin · R/Y move pin · P/X assign ally post")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
+            Window(Game.L("边境与远岸","Frontier & distant shores"),
+                Game.L("聚焦当前任务，或切换全部地点；地区任务可浏览，点击空地放置个人标记",
+                    "Focus the objective or show all; browse regional quests, click ground to pin")); if (selectedRegion < 0 || selectedRegion >= Game.data.maps.Length) selectedRegion = Game.save.room;
             for (int i = 0; i < Math.Min(9, Game.data.maps.Length); i++) { float x = 279 + i % 3 * 189, y = 178 + i / 3 * 154; bool open = Game.CanEnter(i); Card(x, y, 176, 140, selectedRegion == i); Box(x + 1, y + 1, 174, 35, Color.Lerp(PixelArt.C(Game.data.maps[i].color), panel, .35f)); Text(x + 11, y + 8, 152, 27, "0" + (i + 1) + "  " + (i == Game.save.room ? Game.L("当前位置", "HERE") : open ? Game.L("已开放", "OPEN") : Game.L("未开放", "LOCKED")), 10, open ? gold : muted); if (Button(x + 10, y + 46, 156, 80, Game.L(Game.data.maps[i].name, Game.data.maps[i].en), selectedRegion == i, !mapTileCursor.Active)) selectedRegion = i; }
             // Region-specific available quest browser. Explicit selection
             // changes only the inspected map marker, never trackedQuest or
@@ -1661,13 +1674,19 @@ namespace Starfall
             Card(866, 178, 351, 564);
             // The Abyss uses a seeded runtime map, NOT the old 36x24 atlas stub.
             MapData m = selectedRegion==Game.save.room?Game.Map:Game.data.maps[selectedRegion];
-            Text(888, 197, 306, 46, Game.L(m.name, m.en), 25, gold);
+            Text(888,193,306,33,Game.L(m.name,m.en),23,gold);
+            if(Button(888,231,306,27,mapFocusMode?
+                Game.L("聚焦地图 · 点击显示全部地点","FOCUS MAP · SHOW ALL PLACES"):
+                Game.L("全部地点 · 点击聚焦当前目标","ALL PLACES · FOCUS OBJECTIVE"),
+                mapFocusMode,!mapTileCursor.Active))
+                mapFocusMode=!mapFocusMode;
             float terrainScale = WorldStreaming.PreviewScale(m.rows[0].Length,m.rows.Length,306,207);
             if (selectedRegion == Game.save.room)
             {
                 MiniTerrain(888, 264, terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
-                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                if(MapPresentationPolicy.ShowFieldSurvey(mapFocusMode))
+                    DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1733,7 +1752,7 @@ namespace Starfall
                                     "NEAR OBJECTIVE · CHECK INTERACTION"):
                                 Game.L("没有确认可行走路线 · 检查道路",
                                     "NO VERIFIED WALKING APPROACH");
-                        Text(888,244,306,17,approachLabel,10,
+                        Text(888,575,306,18,approachLabel,10,
                             approach.Count>0?inspection:muted,
                             TextAnchor.MiddleCenter);
                     }
@@ -1778,7 +1797,8 @@ namespace Starfall
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
-                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                if(MapPresentationPolicy.ShowFieldSurvey(mapFocusMode))
+                    DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.CurrentGuide;
                 if(q.room==selectedRegion&&!q.locked)

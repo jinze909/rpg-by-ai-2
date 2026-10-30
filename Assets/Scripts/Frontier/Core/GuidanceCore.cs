@@ -9,6 +9,24 @@ namespace Starfall
     }
     // Four readable journal rows instead of compressing long quest chains
     // into tiny unreadable labels. Does not touch any quest or save state.
+    // Map Focus suppresses optional catalogue clutter, never actual quest
+    // progression, the player's pin or the current mission destination.
+    public static class MapPresentationPolicy
+    {
+        public static bool ShowObject(string kind,bool focus,
+            bool discovered,bool present)
+        {
+            if(!present||String.IsNullOrEmpty(kind))return false;
+            if(kind.StartsWith("portal",StringComparison.Ordinal))return true;
+            return !focus&&discovered;
+        }
+        public static bool ShowAlternativeQuest(bool focus)
+        { return !focus; }
+        public static bool ShowFieldSurvey(bool focus)
+        { return !focus; }
+        public static bool ShowQuest(bool focus,bool primary)
+        { return primary||!focus; }
+    }
     public static class QuestStepPagination
     {
         public const int PageSize=4;

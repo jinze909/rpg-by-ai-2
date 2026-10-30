@@ -3,6 +3,28 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
+        {
+            Check(MapPresentationPolicy.ShowObject("portal1",true,false,true),
+                "Regional exits remain visible in focused maps");
+            Check(!MapPresentationPolicy.ShowObject("herb",true,true,true)&&
+                !MapPresentationPolicy.ShowObject("archivefragment1",true,true,true),
+                "Focused navigation hides discovered material and optional-site dots");
+            Check(MapPresentationPolicy.ShowObject("herb",false,true,true)&&
+                !MapPresentationPolicy.ShowObject("herb",false,false,true)&&
+                !MapPresentationPolicy.ShowObject("portal1",false,true,false),
+                "All restores legitimately discovered present props, never hidden or missing actors");
+            Check(!MapPresentationPolicy.ShowAlternativeQuest(true)&&
+                MapPresentationPolicy.ShowAlternativeQuest(false)&&
+                !MapPresentationPolicy.ShowFieldSurvey(true)&&
+                MapPresentationPolicy.ShowFieldSurvey(false),
+                "Optional quests and field survey overlay require Show All");
+            Check(MapPresentationPolicy.ShowQuest(true,true)&&
+                !MapPresentationPolicy.ShowQuest(true,false)&&
+                MapPresentationPolicy.ShowQuest(false,false),
+                "The tracked or inspected quest is always eligible in Focus");
+        }
+
         public static void LongQuestJournalKeepsEveryStepReadableAndAccessible(Campaign data)
         {
             var steps=new System.Collections.Generic.List<QuestStep>();
