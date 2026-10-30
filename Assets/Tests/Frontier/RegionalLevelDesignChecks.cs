@@ -1518,10 +1518,21 @@ namespace Starfall.Tests
                 "Loading an unfinished ambush neither restores ghost raiders nor grants chapter kills");
             saved.mode="world";
             saved.Tick(.02f,new Point());
+            Check(!saved.RemoteRoadEncounterActive&&
+                saved.RemoteRoadSafeArrivalActive&&saved.enemies.Count==0,
+                "Reloaded unfinished roadside fight leaves a safe saved foot, never resurrects hostile ghosts");
+            Point distant=new Point(saved.Map.spawnX,saved.Map.spawnY);
+            Check((distant-new Point(site.x,site.y)).Length>10.5f&&
+                saved.CanStand(distant),
+                "Original reachable spawn lies outside the protected roadside landing");
+            saved.save.x=distant.x;saved.save.y=distant.y;
+            saved.Tick(.02f,new Point());
+            saved.save.x=site.x;saved.save.y=site.y;
+            saved.Tick(.02f,new Point());
             Check(saved.RemoteRoadEncounterActive&&
                 saved.RemoteRoadRemaining==2&&
                 saved.save.kills[1]==oldKills,
-                "Returning to the actual crossing retries a fresh physical fight, not stale saved enemy references");
+                "Physically leaving and returning retries new genuine foes, not stale saved enemy references");
         }
 
 
@@ -1631,6 +1642,11 @@ namespace Starfall.Tests
             {
                 var g=Fresh(data);g.mode="world";g.save.room=room;
                 g.save.stage=3;g.enemies.Clear();g.save.energy=100f;
+                // Restore from a LEGITIMATELY unlocked v2 region: the
+                // loader correctly refuses to enter locked story chapters.
+                if(room==5)g.save.flags.Add("exp_intro");
+                if(room==6)g.save.flags.Add("harbor_report");
+                if(room==7)g.save.flags.Add("desert_report");
                 g.save.flags.Add("ridge_seen_"+room+"_0");
                 g.save.flags.Add("ridge_seen_"+room+"_1");
                 WorldObject start=Array.Find(g.Map.objects,o=>
@@ -1653,8 +1669,9 @@ namespace Starfall.Tests
                 g.PrepareSave();
                 var loaded=new GameCore(data,CloneSave(g.save));
                 loaded.Start();loaded.enemies.Clear();
-                Check(loaded.save.version==2&&loaded.RemoteRoadSafeArrivalActive,
-                    "Version-two recovery recognizes authentic saved marker without a new flag");
+                Check(loaded.save.version==2&&loaded.save.room==room&&
+                    loaded.RemoteRoadSafeArrivalActive,
+                    "Unlocked version-two recovery recognizes exact saved marker without new flags");
                 for(int i=0;i<7;i++)loaded.Tick(.05f,new Point());
                 Check(!loaded.RemoteRoadEncounterActive&&
                     !loaded.RemoteRoadCleared(room,1)&&
