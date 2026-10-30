@@ -135,8 +135,18 @@ namespace Starfall
         {
             if(mode!="world"||Dying||practicing||Map==null||
                 Map.objects==null||!CanStand(Position))return false;
-            WorldObject source=Nearest();
-            if(!FieldTacticSource(source))return false;
+            // E and its O-cycle focus belong to the player's chosen NPC
+            // or survivor. A dedicated combat shortcut must not inherit
+            // that unrelated menu selection. Find ONLY the current map's
+            // authenticated contraption and recheck its real contact foot.
+            // No global nearest actor or offscreen/other-room object can
+            // redirect a live 14-energy combat action.
+            WorldObject source=null;
+            foreach(WorldObject candidate in Map.objects)
+                if(FieldTacticSource(candidate)&&
+                   HasPhysicalInteractionReach(candidate))
+                {source=candidate;break;}
+            if(source==null)return false;
             return ActivateFieldTactic(source,false);
         }
         private bool ChooseFieldTactics(string action)

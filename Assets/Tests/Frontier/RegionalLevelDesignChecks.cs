@@ -323,6 +323,71 @@ namespace Starfall.Tests
                 "Distant input cannot operate a mechanism through a false remote target");
         }
 
+        // Crowded NPC interaction is deliberately independent of the
+        // dedicated field-device shortcut. A focused NPC must not hide an
+        // authentic reachable contraption or have its E selection stolen.
+        public static void QuickTacticsWorkBesideFocusedNpcWithoutHijackingE(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            WorldObject device=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(device!=null&&PlaceWithinTalkReach(g,device),
+                "Tactical focus test uses live reachable field mechanism");
+            Point player=g.Position;
+            MapData map=g.Map;
+            WorldObject[] before=map.objects;
+            var neighbor=new WorldObject{
+                id="test_nearby_civilian",kind="campfire",name="紧邻的居民",
+                en="Nearby civilian",x=player.x,y=player.y
+            };
+            try
+            {
+                var extended=new WorldObject[before.Length+1];
+                Array.Copy(before,extended,before.Length);
+                extended[before.Length]=neighbor;
+                map.objects=extended;
+                int index=g.NearbyInteractionChoices().IndexOf(neighbor);
+                Check(index>=0&&g.FocusNearbyInteraction(index)&&
+                    System.Object.ReferenceEquals(g.Nearest(),neighbor),
+                    "Crowded live scene preserves explicit player choice of the nearer NPC");
+                g.enemies.Clear();
+                var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(clear!=null,"Real attack LOS verifies crowded tactic enemy");
+                Point center=new Point(device.x,device.y),foot=new Point();
+                bool found=false;
+                for(int dy=-5;dy<=5&&!found;dy++)
+                for(int dx=-5;dx<=5&&!found;dx++)
+                {
+                    Point p=center+new Point(dx,dy);
+                    float distance=(p-center).Length;
+                    if(distance<2.5f||distance>5.7f||!g.CanStand(p)||
+                       !(bool)clear.Invoke(g,new object[]{center,p}))continue;
+                    foot=p;found=true;
+                }
+                Check(found,"Focused civilian does not block genuine combat line");
+                Enemy foe=new Enemy(99731,0,foot.x,foot.y,85f);
+                g.enemies.Add(foe);g.save.energy=90f;
+                Check(g.QuickActivateFieldTactic()&&g.save.energy==76f&&
+                    foe.stun>=2.29f&&g.Has("field_tactic_used_1")&&
+                    g.mode=="world",
+                    "Shift+G fires real adjacent mechanism despite closer selected NPC");
+                Check(System.Object.ReferenceEquals(g.Nearest(),neighbor),
+                    "Quick tactics never replace the explicit NPC E interaction focus");
+                int energy=(int)g.save.energy;
+                Check(g.QuickActivateFieldTactic()&&g.save.energy==energy,
+                    "Shift+G still honors the shared tactical cooldown");
+                g.save.room=0;
+                Check(!g.QuickActivateFieldTactic()&&g.save.energy==energy,
+                    "Shortcut rejects foreign-room stale objects");
+            }
+            finally
+            {
+                map.objects=before;
+            }
+        }
+
         public static void FarshoreTacticsJournalRoutesOnlyThroughUnlockedRealDevices(Campaign data)
         {
             GameCore g=Fresh(data);
