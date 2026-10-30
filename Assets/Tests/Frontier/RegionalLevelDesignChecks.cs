@@ -219,6 +219,118 @@ namespace Starfall.Tests
             }
         }
 
+        // Every region must spawn actual living actors on the original
+        // walkable battlefield; only physical counterplay, Hit defeats
+        // and source-bound signing may award the first-clear report.
+        public static void SevenFieldTacticDrillsRequireRealCounterKillsAndReceipt(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Trials must use the original combat death pipeline");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.Enter(room);g.enemies.Clear();
+                WorldObject source=Array.Find(g.Map.objects,
+                    o=>o.id=="field_tactic_"+room&&o.kind=="fielddevice");
+                Check(source!=null&&PlaceWithinTalkReach(g,source),
+                    "Region "+room+" has a physically interactable original device");
+                Point hero=g.Position;
+                g.Talk(source);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trial_begin");
+                Check(begin>=0,"Region "+room+" genuinely offers its optional live combat drill");
+                int coins=g.save.coins,shards=g.save.shards;
+                g.Choose(begin);
+                Check(g.FieldTacticTrialActive&&
+                    g.FieldTacticTrialRemaining==2&&g.enemies.Count==2&&
+                    !g.FieldTacticTrialReady&&!g.FieldTacticTrialUsed,
+                    "Region "+room+" spawns both real contracted actors");
+                Enemy[] assigned=g.enemies.ToArray();
+                foreach(Enemy foe in assigned)
+                {
+                    Check(foe.hp>0f&&!foe.boss&&g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(hero,foe.Position,true).Count>0&&
+                        (foe.Position-new Point(source.x,source.y)).Length<=5.8f,
+                        "Live trial attacker must be on authentic reachable counterplay ground");
+                }
+                g.save.energy=100f;
+                Check(g.QuickActivateFieldTactic()&&g.FieldTacticTrialUsed&&
+                    g.save.energy==86f&&g.FieldTacticTrialRemaining==2,
+                    "Real tactical activation hits at least one assigned living raider");
+                foreach(Enemy foe in assigned)
+                    hit.Invoke(g,new object[]{foe,600f,false,null,null});
+                Check(g.FieldTacticTrialReady&&
+                    g.FieldTacticTrialRemaining==0&&!g.FieldTacticTrialDone(room),
+                    "Real defeats earn a report opportunity, not immediate free loot");
+                g.save.x=hero.x;g.save.y=hero.y;
+                g.Close();g.Talk(source);
+                int report=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trial_report");
+                Check(report>=0,"The same physical source offers only its earned report");
+                g.Choose(report);
+                Check(g.FieldTacticTrialDone(room)&&
+                    !g.FieldTacticTrialActive&&
+                    g.save.coins>=coins+22+room*4&&
+                    g.save.shards>=shards+1&&
+                    g.GetQuest("tactic_trials").steps[room-1].done,
+                    "Signed trial gives its one-time real reward and journal progress");
+                int signedCoins=g.save.coins;
+                g.Close();g.Talk(source);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="field_tactic_trial_begin")<0&&
+                    g.save.coins==signedCoins,
+                    "Veteran trial receipt prevents repeat-farming its first clear");
+                g.PrepareSave();
+                GameCore restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.FieldTacticTrialDone(room)&&
+                    !restored.FieldTacticTrialActive&&
+                    restored.GetQuest("tactic_trials").steps[room-1].done,
+                    "A legacy v2 save retains only signed truth, not transient foes");
+            }
+        }
+
+        public static void FieldTacticTrialDisappearanceAndWithdrawalCannotClaimReward(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject source=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(source!=null&&PlaceWithinTalkReach(g,source),
+                "An authentic chapter device supports contract cancellation");
+            int coins=g.save.coins;
+            g.Talk(source);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(begin>=0,"Physical source offers a new real trial");
+            g.Choose(begin);
+            Check(g.FieldTacticTrialActive&&g.enemies.Count==2,
+                "The live contract owns two exact actors");
+            g.enemies.RemoveAt(0);
+            g.Tick(.02f,new Point());
+            Check(!g.FieldTacticTrialActive&&!g.FieldTacticTrialDone(1)&&
+                g.save.coins==coins,
+                "Deleting an actor without genuine combat must void its claim");
+            g.Close();g.Talk(source);
+            begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(begin>=0,"A failed drill may be physically retried");
+            g.Choose(begin);
+            g.Close();g.Talk(source);
+            int abort=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_abort");
+            Check(abort>=0,"Live trial supports voluntary source-bound withdrawal");
+            g.Choose(abort);
+            Check(!g.FieldTacticTrialActive&&g.enemies.Count==0&&
+                !g.FieldTacticTrialDone(1)&&g.save.coins==coins,
+                "Withdrawal removes drill actors and yields no false rewards");
+        }
+
         // The three outer regions are distinct optional battlefields, not
         // decoration pasted into the map. Check real story gates, original
         // seven-actor roster, E interaction and one-time saved mastery.

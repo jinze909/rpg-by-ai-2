@@ -65,7 +65,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1083,7 +1083,7 @@ namespace Starfall
             "main", "shore", "chapter_roads", "last_directive",
             "civic_aftercare", "afterlight", "civic_services",
             "wayfarers", "stations", "archive_trail", "field_patrols",
-            "outer_tactics", "sword_lesson", "secrets"
+            "outer_tactics", "tactic_trials", "sword_lesson", "secrets"
         };
         public QuestGuide RecommendedContinuationGuide
         {
@@ -1124,6 +1124,71 @@ namespace Starfall
 
 
 
+
+            if(id=="tactic_trials")
+            {
+                q.title=L("七地战场实战 · 环境反制与居民防御",
+                    "Seven Field Trials · Defend the Frontier");
+                q.category=L("七地真实战斗 · 战术装置认证",
+                    "SEVEN LIVE BATTLES · FIELD COUNTERMEASURES");
+                q.description=L(
+                    "到每区战场装置按 E 接取本地实战演练。用真实装置反制至少一名指定敌人，击败两名演练袭击者，回到原装置签收。逃离、撤回、敌人凭空消失以及未用装置都不会结算。",
+                    "Press E at each actual battlefield mechanism to start a local drill. Counter at least one assigned raider, defeat both genuine enemies, and return to the same device to sign. Quitting, missing actors or unused counters never earn a receipt.");
+                q.reward=L("每区首次回执：硬币、碎片和经验；七地完成另奖技能点1",
+                    "First signed report: coins, shards and XP; all seven grant +1 talent point");
+                q.locked=false;q.complete=FieldTacticTrialWins==7;
+                int next=-1,locked=-1;
+                for(int r=1;r<=7;r++)
+                {
+                    bool done=FieldTacticTrialDone(r);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[r].name,data.maps[r].en)+
+                        L(done?" · 实战回执已签收":" · 尚待演练",
+                          done?" · REAL COMBAT SIGNED":" · TRIAL PENDING"),done));
+                    if(done)continue;
+                    if(CanEnter(r))
+                    {if(next<0||r==save.room)next=r;}
+                    else if(locked<0)locked=r;
+                }
+                if(FieldTacticTrialActive)
+                {
+                    q.room=save.room;q.target=FieldTacticTrialGuideTarget;
+                    if(FieldTacticTrialRemaining>0)
+                        q.next=L("本地演练：还有"+FieldTacticTrialRemaining+
+                            "名指定敌人。"+(FieldTacticTrialUsed?
+                                "装置已用，击退敌人。":"先用 Shift+G 影响指定敌人。"),
+                            "Live drill: "+FieldTacticTrialRemaining+" raiders. "+
+                            (FieldTacticTrialUsed?"Counter used; defeat them.":"Use Shift+G on a trial raider."));
+                    else
+                        q.next=FieldTacticTrialReady?
+                            L("两名敌人已击退。返回原装置按 E 交回回执。",
+                              "Both raiders defeated. Return to the same device and press E."):
+                            L("未用装置前敌人已退。回原装置撤回本次演练，重新尝试。",
+                              "The counter was not used. Withdraw at the device and retry.");
+                }
+                else if(q.complete)
+                {
+                    q.room=save.room;q.target=Position;
+                    q.next=L("七地演练均已签收，继续自由探索。",
+                        "All seven field trials signed. Explore freely.");
+                }
+                else if(next>=0)
+                {
+                    q.room=next;
+                    q.target=ObjectPoint(next,"fielddevice",
+                        new Point(data.maps[next].spawnX,data.maps[next].spawnY));
+                    q.next=L("到战场装置按 E 开始演练。用环境反制击退两名指定敌人，再返回签收。",
+                        "Press E at the field device; counter two assigned raiders, defeat them and sign there.");
+                }
+                else if(locked>=0)
+                {
+                    QuestGuide prerequisite=GetQuest(locked<=4?"main":"shore");
+                    q.room=prerequisite.room;q.target=prerequisite.target;
+                    q.next=L("先解锁尚未开放的地区。 ","Unlock the remaining region first. ")+
+                        prerequisite.next;
+                }
+                return q;
+            }
 
             if(id=="outer_tactics")
             {
@@ -5244,6 +5309,7 @@ namespace Starfall
             if(ChapterRoadActive)return ChapterRoadGuideTarget;
             if(OuterPatrolActive)return outerPatrolPost;
             if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
+            if(FieldTacticTrialActive)return FieldTacticTrialGuideTarget;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
