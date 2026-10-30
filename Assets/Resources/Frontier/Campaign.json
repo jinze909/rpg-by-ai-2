@@ -1326,8 +1326,8 @@
           "id": "field_tactic_1",
           "name": "枯根诱捕铃",
           "en": "Rootsnare bell",
-          "x": 29.5,
-          "y": 12.5,
+          "x": 19.5,
+          "y": 15.5,
           "kind": "fielddevice"
         },
         {
@@ -2957,8 +2957,8 @@
           "id": "field_tactic_2",
           "name": "遗迹退潮闸",
           "en": "Tidebreak sluice",
-          "x": 26.5,
-          "y": 12.5,
+          "x": 24.5,
+          "y": 10.5,
           "kind": "fielddevice"
         },
         {
@@ -4438,8 +4438,8 @@
           "id": "field_tactic_3",
           "name": "矿场排渣阀",
           "en": "Slag relief valve",
-          "x": 13.5,
-          "y": 12.5,
+          "x": 24.5,
+          "y": 7.5,
           "kind": "fielddevice"
         },
         {
@@ -6135,8 +6135,8 @@
           "id": "field_tactic_4",
           "name": "堡垒断弧器",
           "en": "Citadel arc-breaker",
-          "x": 14.5,
-          "y": 13.5,
+          "x": 23.5,
+          "y": 11.5,
           "kind": "fielddevice"
         },
         {
