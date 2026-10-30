@@ -304,6 +304,42 @@ namespace Starfall
         // triggered by browsing, cycling, or inspecting a map marker.
         // Validate everything BEFORE changing saved tracking or taking a
         // previous personal pin; a rejected request is non-destructive.
+
+        // World-HUD follow is a deliberate player action, never an
+        // automatic rewrite when the recommendation changes. Verify the
+        // local route BEFORE replacing the saved tracked ID or manual pin.
+        // Cross-region intent uses the same portal/arrival handoff as the
+        // existing journal/map; no teleport or new save field is introduced.
+        public bool FollowRecommendedAdventure()
+        {
+            if(mode!="world"&&mode!="journal")return false;
+            if(Dying||practicing||!SafeTravel||!CanStand(Position))
+                return false;
+            QuestGuide next=RecommendedContinuationGuide;
+            if(next==null||next.locked||next.complete||
+               next.room<0||next.room>=data.maps.Length||
+               !CanEnter(next.room))return false;
+            if(next.room==save.room)
+            {
+                Point approach;
+                if(!TryQuestApproachFoot(next.target,out approach))
+                {
+                    Notify("推荐目标暂时没有可走通的接近路线，原导航保留。",
+                        "The next objective has no verified walking approach; your previous route is retained.");
+                    return false;
+                }
+                TrackQuest(next.id);
+                CommitLocalWaymark(approach,next.id);
+                Notify("已追踪下一段冒险，并标出真实可走的任务接近路线。",
+                    "Following the next adventure with a verified walking approach.");
+                return true;
+            }
+            TrackQuest(next.id);
+            QueueTravelQuestApproach(next.id);
+            Notify("已追踪下一段冒险。先到开放的地区通道，抵达后会验证当地步行路线。",
+                "Following the next adventure. Travel through an open crossing; its walking approach will be checked on arrival.");
+            return true;
+        }
         public bool TrackAndFollowRemoteQuest(string questId)
         {
             if(mode!="map"||Dying||practicing||

@@ -122,6 +122,10 @@ namespace Starfall
             // equipment-scroll area. Evaluate overlap only while the pointer
             // lies in the panel region to avoid extra collision work.
             if(PointerOverNearbyChoices(mouse))return true;
+            // The recommendation action is a genuine world HUD button;
+            // clicking it cannot also swing the player's weapon.
+            if(Game!=null&&Game.mode=="world"&&
+               Contains(new Rect(1015,488,234,30),mouse))return true;
             return Game.practicing && Contains(new Rect(785,246,130,34), mouse);
         }
         private bool TideBlocksGuide { get { return Game.save.room == 5 && !Game.LowTide && routeGoal.HasValue && (routeGoal.Value - Game.Position).Length > 1.8f && route.Count == 0; } }
