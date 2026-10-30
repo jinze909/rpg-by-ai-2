@@ -279,6 +279,61 @@ namespace Starfall.Tests
                 "Distant input cannot operate a mechanism through a false remote target");
         }
 
+        public static void FarshoreTacticsJournalRoutesOnlyThroughUnlockedRealDevices(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            QuestGuide closed=g.GetQuest("outer_tactics");
+            Check(closed.id=="outer_tactics"&&closed.locked&&
+                !closed.complete&&closed.steps.Count==3,
+                "Unintroduced farshore adventure is available in the journal but cannot forge travel");
+            g.TrackQuest("outer_tactics");
+            Check(g.save.trackedQuest!="outer_tactics",
+                "New game cannot pin a still-locked farshore route");
+            g.save.stage=3;g.save.flags.Add("exp_intro");
+            QuestGuide open=g.GetQuest("outer_tactics");
+            WorldObject harbor=Array.Find(data.maps[5].objects,
+                o=>o.id=="field_tactic_5");
+            Check(!open.locked&&open.room==5&&harbor!=null&&
+                (open.target-new Point(harbor.x,harbor.y)).Length<.001f,
+                "Open harbor guides to the actual unique coastal combat object");
+            g.TrackQuest("outer_tactics");
+            Check(g.save.trackedQuest=="outer_tactics",
+                "Player can voluntarily track real farshore devices");
+            g.save.flags.Add("field_tactic_used_5");
+            QuestGuide waiting=g.GetQuest("outer_tactics");
+            QuestGuide story=g.GetQuest("shore");
+            Check(waiting.room==story.room&&waiting.steps[0].done&&
+                !waiting.steps[1].done&&!waiting.complete,
+                "Locked desert sends the player through the genuine shore story instead of an invalid portal");
+            g.save.flags.Add("harbor_report");
+            QuestGuide desert=g.GetQuest("outer_tactics");
+            WorldObject prism=Array.Find(data.maps[6].objects,
+                o=>o.id=="field_tactic_6");
+            Check(desert.room==6&&prism!=null&&
+                (desert.target-new Point(prism.x,prism.y)).Length<.001f,
+                "Harbor report opens the actual desert prism quest marker");
+            g.save.flags.Add("field_tactic_used_6");
+            g.save.flags.Add("desert_report");
+            QuestGuide frost=g.GetQuest("outer_tactics");
+            WorldObject stillbell=Array.Find(data.maps[7].objects,
+                o=>o.id=="field_tactic_7");
+            Check(frost.room==7&&stillbell!=null&&
+                (frost.target-new Point(stillbell.x,stillbell.y)).Length<.001f,
+                "Desert report opens the actual Frostchime tactical marker");
+            g.save.flags.Add("field_tactic_used_7");
+            QuestGuide finished=g.GetQuest("outer_tactics");
+            Check(finished.complete&&!finished.locked&&
+                finished.Progress==1f&&finished.steps.Count==3&&
+                g.save.trackedQuest=="outer_tactics",
+                "All physical field successes close the journal route without hijacking the tracked quest");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.GetQuest("outer_tactics").complete&&
+                restored.save.trackedQuest=="outer_tactics",
+                "The existing v2 save preserves the player's selected farshore quest and completed steps");
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={

@@ -65,7 +65,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1083,7 +1083,7 @@ namespace Starfall
             "main", "shore", "chapter_roads", "last_directive",
             "civic_aftercare", "afterlight", "civic_services",
             "wayfarers", "stations", "archive_trail", "field_patrols",
-            "sword_lesson", "secrets"
+            "outer_tactics", "sword_lesson", "secrets"
         };
         public QuestGuide RecommendedContinuationGuide
         {
@@ -1124,6 +1124,66 @@ namespace Starfall
 
 
 
+
+            if(id=="outer_tactics")
+            {
+                q.title=L("远岸现场战术 · 三地求生装置",
+                    "Farshore Fieldcraft · Three Working Contraptions");
+                q.category=L("远岸可选战斗 · 实地操作",
+                    "FARSHORE · PHYSICAL COMBAT COUNTERPLAY");
+                q.description=L(
+                    "沿着雾港、玻璃沙海和霜钟高原的真实战场寻找潮哨、折光棱镜与静风铃。面对视线内的敌人时，贴近装置按 Shift+G 即时启动，或按 E 观察和操作。每次使用消耗14耐力，24秒复位。必须真的影响敌人或来箭才记录首次经验；三地全部掌握可获一个技能点。",
+                    "Find the foghorn, prism and stillbell on the actual battle routes of Mistport, Glass Desert and Frostchime. Approach and press Shift+G for an immediate counter, or E to inspect and operate. Each successful use costs 14 energy and has a 24-second reset. Only affecting actual enemies or arrows records field experience; mastering all three earns one talent point.");
+                q.reward=L("每地首次实战经验12；三地全部使用额外技能点1",
+                    "12 XP on each first physical combat use; +1 talent point for all three");
+                q.complete=OuterTacticMasteryCount==3;
+                // This extra expedition becomes available after the normal
+                // harbor introduction; never send new players through locked
+                // gates or silently change their manually tracked quest.
+                q.locked=!CanEnter(5)&&!q.complete;
+                int selected=-1,lockedNext=-1;
+                for(int region=5;region<=7;region++)
+                {
+                    bool done=Has("field_tactic_used_"+region);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[region].name,data.maps[region].en)+
+                        L(done?" · 已实战掌握":" · 待现场反制",
+                          done?" · COMBAT MASTERED":" · ACTIVATE IN COMBAT"),
+                        done));
+                    if(done)continue;
+                    if(CanEnter(region))
+                    {
+                        if(selected<0||region==save.room)selected=region;
+                    }
+                    else if(lockedNext<0)lockedNext=region;
+                }
+                if(q.complete)
+                {
+                    q.locked=false;q.room=save.room;q.target=Position;
+                    q.next=L("远岸三地的实战记录已完成。可自由重访这些装置。",
+                        "All three farshore battle records are complete. Revisit any device freely.");
+                }
+                else if(selected>=0)
+                {
+                    q.room=selected;
+                    q.target=ObjectPoint(selected,"fielddevice",
+                        new Point(data.maps[selected].spawnX,
+                                  data.maps[selected].spawnY));
+                    q.next=L("到真实战场上的战术装置，遇到敌人时按 Shift+G 启动反制。先避开守护者的封锁区。",
+                        "Reach the actual field device on the battle approach. Use Shift+G while a foe is exposed; avoid the sealed guardian arena.");
+                }
+                else if(lockedNext>=0)
+                {
+                    QuestGuide story=GetQuest("shore");
+                    q.room=story.room;q.target=story.target;
+                    q.next=L("先沿远岸主线解锁",
+                        "First unlock ")+
+                        L(data.maps[lockedNext].name,data.maps[lockedNext].en)+
+                        L("，再调查下一处战场装置。 ",
+                          " through the farshore story. ")+story.next;
+                }
+                return q;
+            }
 
             if(id=="chapter_roads")
             {
