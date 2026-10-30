@@ -217,7 +217,7 @@ namespace Starfall
             tacticTrialEnemies.Clear();tacticTrialKills.Clear();
             tacticTrialCountered.Clear();tacticTrialCounterUntil=0f;
             tacticTrialChainEarned=false;
-            for(int i=0;i<2;i++
+            for(int i=0;i<2;i++)
             {
                 Enemy e=new Enemy(++enemyId,tacticTrialRoles[save.room-1,i],
                     pads[i].x,pads[i].y,40+save.room*8);
