@@ -1508,6 +1508,38 @@ namespace Starfall.Tests
                 "Legacy v2 round trip preserves optional road progress and the explicit pin");
         }
 
+
+        // A safer physical road must actually make the EXISTING ridge
+        // passage cheaper, using the same shared calculator as its menu and
+        // travel transaction. An old v2 save with no flags pays old prices.
+        public static void RoadClearancePermanentlyReducesActualRidgeTravelCost(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";
+                g.save.stage=3;g.save.room=room;g.enemies.Clear();
+                int original=g.RidgePassageEnergyCost(room);
+                Check(original==12,"Legacy unpaid ridge journey still costs twelve energy");
+                g.save.flags.Add("remote_road_clear_"+room+"_0");
+                Check(g.RidgePassageEnergyCost(room)==10,
+                    "One cleared authentic crossing reduces actual travel stamina by two");
+                g.save.flags.Add("remote_road_clear_"+room+"_1");
+                Check(g.RidgePassageEnergyCost(room)==8,
+                    "Both crossings secured reduce the existing ridge journey to eight");
+                g.save.flags.Add("unlisted_public");
+                Check(g.RidgePassageEnergyCost(room)==2,
+                    "Stacked civilian route costs never become free or negative");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.RidgePassageEnergyCost(room)==2,
+                    "Cumulative road security discounts survive original v2 serialization");
+            }
+            var untouched=Fresh(data);
+            Check(untouched.RidgePassageEnergyCost(0)==12,
+                "Canal town crossing cost is not mistakenly changed by seven outer-road rewards");
+        }
+
         public static void RemoteRoadOpeningAmbushesEnterPhysicalAwarenessRange(Campaign data)
         {
             var sight=typeof(GameCore).GetMethod("ClearAttackPath",

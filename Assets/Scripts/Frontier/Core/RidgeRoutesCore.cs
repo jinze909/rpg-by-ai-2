@@ -19,8 +19,18 @@ namespace Starfall
         {
             int baseCost=Has("unlisted_public")?6:12;
             int region=room==0?0:room==3?1:room==5?2:-1;
-            return region>=0&&Has("unlisted_relief_trail_"+region)?
-                baseCost-4:baseCost;
+            int relief=region>=0&&
+                Has("unlisted_relief_trail_"+region)?4:0;
+            // Two ACTUALLY cleared roadside ambushes are useful beyond
+            // their one-time loot: each secured outer path saves 2 energy
+            // on this region's existing physical ridge crossing. Old saves
+            // with neither receipt retain the precise historical cost.
+            // Maintain a minimum 2-energy walking cost even when several
+            // unrelated civilian route improvements stack together.
+            int saferRoads=room>=1&&room<=7?
+                (RemoteRoadCleared(room,0)?2:0)+
+                (RemoteRoadCleared(room,1)?2:0):0;
+            return Math.Max(2,baseCost-relief-saferRoads);
         }
         private bool TalkRidge(WorldObject o)
         {

@@ -1616,8 +1616,8 @@ namespace Starfall
                 q.description=L(
                     "七片地区各有两处原始高地路标。走近路口会遭遇有真实视线和步行路径的不同敌人。击退或用绊索活捉两名敌人即可永久扫清该处伏击。可以离开战场撤离，返回后再战；不影响原有主线击杀要求或巡护委托。",
                     "Each of seven regions has two original outer ridge markers. Walk near them to face different real, sighted enemies. Defeat or snare both to permanently clear that road. You can escape, then return to try again without changing main-story kill gates or signed patrol contracts.");
-                q.reward=L("每处完成：硬币、经验；两名均活捉额外碎片1",
-                    "Each crossing: coins and XP; both captured alive grant +1 shard");
+                q.reward=L("每处完成：硬币、经验、高地通行耐力永久减少2；两名均活捉额外碎片1",
+                    "Each crossing: coins, XP, and -2 lasting local ridge travel energy; both restrained alive +1 shard");
                 q.complete=RemoteRoadClearedCount==14;q.locked=false;
                 int selectedRoom=-1,selectedSide=-1;
                 for(int room=1;room<=7;room++)
