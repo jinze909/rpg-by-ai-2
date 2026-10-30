@@ -893,6 +893,21 @@ namespace Starfall.Tests
                     System.Object.ReferenceEquals(p.sagaGuardCoverSave,g.save))&&
                     g.CompanionWitnessCoverInFlight,
                     "A real released allied projectile owns the cover and enables the truthful flight cue");
+                // Commit-to-contact is the only legal rescue: step the REAL
+                // production projectile sampler until that already released
+                // missile reaches the actual living raider. A warning or
+                // ownership tag by itself earns no safety or stun.
+                var fly=typeof(GameCore).GetMethod("UpdateProjectiles",flags);
+                Check(fly!=null,"The live swept projectile flight is available");
+                for(int flightFrame=0;flightFrame<45&&
+                    g.projectiles.Exists(p=>p.sagaGuardCoverTarget==raider);
+                    flightFrame++)
+                    fly.Invoke(g,new object[]{.05f});
+                Check(g.effects.Exists(effect=>effect.kind=="number"&&
+                    effect.text.Contains(g.save.english?
+                        "ALLY SAVED RECORDS!":"援护截住原件"))&&
+                    raider.stun>.1f&&!g.CompanionWitnessCoverInFlight,
+                    "Only a genuine physical ally impact interrupts the original sabotage");
                 Check(!g.Has("saga_guard_"+room)&&!g.Has("saga_voice_"+room),
                     "Targeting an attacker never awards victory or signs testimony");
             }
