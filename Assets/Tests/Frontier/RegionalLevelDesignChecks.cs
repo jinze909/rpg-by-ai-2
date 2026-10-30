@@ -1349,5 +1349,65 @@ namespace Starfall.Tests
                 map.objects=originalObjects;map.decor=originalDecor;
             }
         }
+
+        // The actual paid field patrol is composed after the player chooses
+        // a real survey sign. A following companion or painted cover at a
+        // formerly accepted slot should redirect the full encounter, not
+        // produce a stacked monster or an invented completion receipt.
+        public static void LiveForestPatrolRoutesAroundCompanionAndPaintedTree(Campaign data)
+        {
+            GameCore first=Fresh(data);
+            first.save.room=1;first.mode="world";
+            first.save.flags.Add("biome_field_done_1");
+            first.enemies.Clear();
+            WorldObject site=Array.Find(first.Map.objects,
+                o=>o!=null&&o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(site!=null&&PlaceWithinTalkReach(first,site),
+                "Original forest survey post has legal physical interaction access");
+            first.Talk(site);
+            int begin=Array.FindIndex(first.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"Real forest board offers an actual patrol contract");
+            first.Choose(begin);
+            Check(first.FieldPatrolActive&&first.FieldPatrolRemaining==2,
+                "Baseline contracted forest wave spawns two distinct live enemies");
+            Point occupied=first.enemies[0].Position;
+            GameCore guarded=Fresh(data);
+            guarded.save.room=1;guarded.mode="world";
+            guarded.save.flags.Add("biome_field_done_1");
+            guarded.enemies.Clear();
+            MapData map=guarded.Map;
+            Decoration[] originalDecor=map.decor;
+            try
+            {
+                Decoration[] crowded=new Decoration[originalDecor.Length+1];
+                Array.Copy(originalDecor,crowded,originalDecor.Length);
+                crowded[crowded.Length-1]=new Decoration{
+                    kind="tree",x=occupied.x,y=occupied.y};
+                map.decor=crowded;
+                Check(PlaceWithinTalkReach(guarded,site),
+                    "Additional scenery must not affect the original walkable sign");
+                guarded.save.companion=0;
+                guarded.companionPosition=occupied;
+                guarded.Talk(site);
+                int choice=Array.FindIndex(guarded.conversation.choices,
+                    c=>c.action=="biome_patrol_begin");
+                Check(choice>=0,"The same forest contract remains playable");
+                guarded.Choose(choice);
+                Check(guarded.FieldPatrolActive&&
+                    guarded.FieldPatrolRemaining==2&&
+                    guarded.enemies.Count==2,
+                    "The live patrol still deploys its FULL paid wave around occupied cover");
+                foreach(Enemy foe in guarded.enemies)
+                    Check((foe.Position-occupied).Length>=1.7f&&
+                        guarded.CanStand(foe.Position)&&
+                        guarded.NavigationPathFrom(guarded.Position,
+                            foe.Position,true).Count>0,
+                        "Neither a companion nor large tree becomes a monster spawn pad");
+                Check(guarded.save.version==2&&!guarded.FieldPatrolDone(1),
+                    "Avoidance cannot complete a contract or alter SaveData v2");
+            }
+            finally { map.decor=originalDecor; }
+        }
     }
 }

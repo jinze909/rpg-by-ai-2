@@ -361,10 +361,31 @@ namespace Starfall
         private bool RegionalScoutFootClear(Point p,Point source,
             bool requireFull,List<Point> selected)
         {
-            if(!CanStand(p)||(p-Position).Length<5f)return false;
+            if(!Finite(p.x)||!Finite(p.y)||!CanStand(p)||
+                (p-Position).Length<5f)return false;
+            // A field patrol cannot appear under the feet of a REAL
+            // following companion or escorted civilian while the player
+            // signs a survey post. Preserve the existing player/enemy
+            // clearances and require an alternate real physical approach.
+            if(save.companion>=0&&
+                (p-companionPosition).Length<1.45f)return false;
+            if(ReliefEscortActive&&reliefMissionRoom==save.room&&
+                (p-reliefFollowerPosition).Length<1.45f)return false;
             foreach(WorldObject o in Map.objects)
-                if(o!=null&&(new Point(o.x,o.y)-p).Length<4.5f)
+                if(o!=null&&IsObjectPresent(o)&&
+                    (new Point(o.x,o.y)-p).Length<4.5f)
                     return false;
+            // Trees, houses and ruined columns are painted taller than
+            // their terrain tiles. Reuse the authored visual-foot radius
+            // of normal chapter battles; never harden them into new walls.
+            if(Map.decor!=null)
+                foreach(Decoration visual in Map.decor)
+                {
+                    float radius=RegionalDecorationEnemyPad(visual);
+                    if(radius>0f&&
+                        (p-new Point(visual.x,visual.y)).Length<radius+.25f)
+                        return false;
+                }
             foreach(Enemy e in enemies)
                 if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
                     return false;
