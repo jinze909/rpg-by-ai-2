@@ -5,6 +5,48 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        // The tenth gameplay location is not Campaign.maps[8]: live floor
+        // layouts are regenerated from the exact persistent v2 seed. Exercise
+        // the real generator, not a decorative static preview.
+        public static void ProceduralAbyssQuestFramesKeepSixFloorsPlayable(Campaign data)
+        {
+            var generate=typeof(GameCore).GetMethod("GenerateAbyss",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(generate!=null,"Live procedural level generator remains wired");
+            foreach(int seed in new[]{137,417})
+            for(int floor=1;floor<=6;floor++)
+            {
+                var g=new GameCore(data);
+                g.save.room=8;g.save.abyssFloor=floor;
+                g.save.abyssSeed=seed;
+                int coins=g.save.coins,flags=g.save.flags.Count;
+                generate.Invoke(g,null);
+                MapData map=g.Map;
+                Check(map.id==8&&map.rows.Length==44&&
+                    map.rows[0].Length==66&&map.decor.Length>=33,
+                    "Every genuine floor contains its original connected dungeon and framed branches");
+                WorldObject exit=Array.Find(map.objects,o=>o.id=="abyssExit");
+                WorldObject gate=Array.Find(map.objects,o=>o.id=="abyssGate");
+                Check(exit!=null&&gate!=null&&exit.x==3&&exit.y==14&&
+                    gate.x==31&&gate.y==14,
+                    "New wayfinding never moves the original unbanked-exit or reward gate");
+                foreach(Decoration prop in map.decor)
+                {
+                    Check(prop!=null&&prop.x>=0&&prop.y>=0&&
+                        prop.x<66&&prop.y<44,
+                        "Floor-specific scenery is bounded by true terrain");
+                    foreach(WorldObject source in map.objects)
+                        Check((new Point(prop.x-source.x,
+                            prop.y-source.y)).Length>=2.5f,
+                            "Cavern visuals do not cover actual quest interaction: "+source.id);
+                }
+                Check(g.save.coins==coins&&g.save.flags.Count==flags&&
+                    g.save.version==2,
+                    "Reframing existing root art neither banks loot nor rewrites saves");
+            }
+        }
+
         // End-to-end map composition regression. Relocations preserve the
         // original interacting instance and all source IDs. Large world-map
         // silhouettes are visuals; only real terrain determines reachability.
