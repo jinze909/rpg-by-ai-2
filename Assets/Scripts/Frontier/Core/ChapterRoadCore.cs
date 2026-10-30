@@ -44,6 +44,39 @@ namespace Starfall
             "Ferry survivors write their own names back into the roll. The tide still rises, but the crossing no longer counts people as broken cargo.",
             "The last minecart carries the wounded away. Workers pin the shutdown order to the shed, so the next person who starts the machinery cannot claim ignorance.",
             "Every civilian name is now pinned to the evidence wall. While the citadel lights still burn, people outside its walls know they have not been reduced to numbers."};
+        // Human voices at the three actual walkable rescue sites. These
+        // scenes seed the older outer-ring conspiracy WITHOUT spoiling its
+        // later witnesses, and keep the original physical rescue gameplay.
+        private static readonly string[] chapterOpeningWitnessZh={"",
+            "求援牌下面夹着一张沾泥的儿童画：桥的这一边画着草药棚，那一边画着一个举铃的人。纸角写着：“我们不怕森林，我们怕再也听不见有人来。”\n\n巡林人说，侦察员失踪前坚持去找那口被军需队拆下的铃。他本可以带着星核情报直接回镇，却回头寻找伤者。",
+            "被水浸皱的值夜簿上，最后一个签名属于阿菱的弟弟。他不是士兵，只是每晚把木板钉回渡口的学徒。官署在签名上盖了“已损耗”，没有通知他的家人。\n\n你听见有人在半塌的楼梯下喊：“别只救名册上还活着的人。”",
+            "停工单上压着一副裂开的护目镜。维恩原本想把它还给徒弟，但整夜没人来领取。矿机继续轰响，他每小时都在表格上写一遍“有人尚未撤离”。\n\n监工却只问产量有没有下降。你要找的不止是星核，还有谁有权让机器停下来。",
+            "这张求援布是用几件旧军衣缝的。墙内的孩子写“我们需要灯”，墙外的孩子写“我们需要水”。两边用了同一种蓝色墨水，却被军官撕成两份。\n\n留下它的居民不想让你替他们选一边，只希望有人把整幅布带回证据墙。"};
+        private static readonly string[] chapterOpeningWitnessEn={"",
+            "Beneath the distress post lies a child's muddy drawing: a herb shelter on one side of the bridge, a person with a bell on the other. 'We aren't afraid of the forest,' it says. 'We're afraid nobody will come.'\n\nThe scout went back to find the bell removed by military requisition. He could have carried the core report home. Instead he turned around for the wounded.",
+            "The last name in the soaked night ledger belongs to Arin's younger brother. He was no soldier, only an apprentice who replaced the ferry planks each evening. An official stamp marked him 'written off'. Nobody told his family.\n\nSomeone calls from beneath the collapsed steps: 'Don't only rescue the people still counted as alive.'",
+            "A cracked pair of goggles weighs down Venn's stop-work petition. He meant to return them to his apprentice, but nobody came. All night he wrote 'workers still inside' on the form while the mining engine roared.\n\nThe overseer asked only whether production had fallen. You are seeking not just a core but the right to stop a machine.",
+            "The distress cloth was sewn from old uniforms. Children inside the wall wrote 'we need light'; children outside wrote 'we need water'. They used the same blue ink. An officer tore their words apart.\n\nThe people who left it do not ask you to choose a side for them. They ask you to bring both halves to the evidence wall."};
+        private static readonly string[] chapterMidWitnessZh={"",
+            "草药棚的门被人从外面用藤蔓缠住。伤者用颤抖的声音说，先前来的守卫把救援铃当成违令的噪音。你现在挡下的劫掠者不过是趁着无人应答而来。\n\n若让铃重新响起，今后任何孩子都能知道这条路仍有人守。",
+            "石阶旁有一只上锁的铁箱，里面不是金银，而是渡工家属写下的名字。河水涨得比预报快，是因为有人在上游优先给堡垒蓄能。\n\n幸存者求你把名字带出去，即使没人能保证下一次退潮一定准时。",
+            "热管下躲着一名学徒。他悄声说监工也有孩子在堡垒里，所以害怕停机就会让城内断光。但学徒举起满是烫伤的手：“那我们算谁的孩子？”\n\n真正的对手不只是眼前的佣兵，还有那份没有任何工人签过字的供能命令。",
+            "守卫中有人认识证据墙上的名字，仍奉命拆下撤离灯。他说若屏障熄灭，城内的小孩会冻死。墙外一名老妇回答：“我们早就一直在冷里。”\n\n你不能用一次胜利来消除两边的恐惧，但可以先阻止今天的驱逐。"};
+        private static readonly string[] chapterMidWitnessEn={"",
+            "Vines bind the herb-shelter door from outside. A wounded patient says guards called the rescue bell an unlawful disturbance. Raiders arrived only after nobody answered.\n\nIf the bell rings again, the next child on this road will know someone is listening.",
+            "A locked iron box beside the stairs holds no treasure: only names written by ferry families. The water rose ahead of the forecast because upstream storage prioritized the citadel shield.\n\nSurvivors ask you to carry their names out, even if nobody can promise the next tide will arrive on time.",
+            "An apprentice hides beneath the hot manifold. The foreman has children inside the citadel and fears that stopping the engine will put out their lights. The apprentice raises his burned hands: 'Then whose children are we?'\n\nYour enemy is not only these hired guards. It is an energy order no miner was allowed to sign.",
+            "One guard recognizes the names on the wall but obeys orders to tear down the evacuation lamp. He says the shield keeps children alive inside. An old woman beyond the wall answers, 'We've been cold for years.'\n\nOne battle cannot erase both fears. But you can stop today's expulsion."};
+        private static readonly string[] chapterClosingWitnessZh={"",
+            "获救的巡林人没有感谢你“杀死怪物”。他把已经修好的铜铃放到草药棚前，问你明天是否还有人能听见它。你意识到，森林真正需要的不是一次胜利，而是一条会有人反复走过的路。",
+            "阿菱把名字交给活着的渡工自己抄写。她问你：“等堡垒重新要求供能，我们还会不会被擦掉？”你无法许下永不涨潮的诺言，却能决定要不要让那张名单公开留存。",
+            "矿工把写满停工要求的布贴在机器门口，没有人立刻欢呼。明天还有工资、灯光和食物的问题要解决。维恩说：“但今天开始，我们至少可以自己说什么时候危险。”",
+            "居民把破成两半的蓝字布重新缝好。墙内的孩子站在墙外的老妇身边，没有人要求对方撤回自己的愿望。你带走的证据没有提供简单答案，却让厄洛以后再也不能只听见半句话。"};
+        private static readonly string[] chapterClosingWitnessEn={"",
+            "The rescued warden does not thank you for 'killing monsters'. He puts the repaired bell outside the herb shelter and asks whether anyone will hear it tomorrow. The forest needs more than one victory; it needs a road people will keep walking.",
+            "Arin lets the living ferrymen copy the names in their own hands. 'When the citadel asks for more power,' she asks, 'will we be erased again?' You cannot promise the tide will never rise. You can decide whether their record remains public.",
+            "The miners pin their signed shutdown petition to the machinery door. Nobody cheers. Tomorrow still brings questions of wages, light and food. Venn says, 'But today we can at least say when it is dangerous.'",
+            "Residents sew the two halves of blue writing together. Children from inside the wall stand beside an elder from outside. Nobody demands the other retract a need. The evidence gives no easy answer, but Orrin can no longer pretend to hear only half the sentence."};
         private int chapterRoadRoom=-1,chapterRoadStage;
         private MapData chapterRoadMap;
         private SaveData chapterRoadSave;
@@ -361,8 +394,10 @@ namespace Starfall
                         C("沿路寻找求援人","Find the origin","close"));
                     return true;
                 }
-                Dialog(o.name,o.en,chapterOpeningZh[room],
-                    chapterOpeningEn[room],
+                Dialog(o.name,o.en,chapterOpeningZh[room]+
+                    "\n\n"+chapterOpeningWitnessZh[room],
+                    chapterOpeningEn[room]+
+                    "\n\n"+chapterOpeningWitnessEn[room],
                     C("接手本章居民行动 · 实地步行","Begin the civilian chapter route · on foot","chapterroad_begin"),
                     C("现在不出发","Not yet","close"));
                 return true;
@@ -378,8 +413,10 @@ namespace Starfall
             if(slot==1)
             {
                 if(chapterRoadStage==1)
-                    Dialog(o.name,o.en,chapterMiddleZh[room],
-                        chapterMiddleEn[room],
+                    Dialog(o.name,o.en,chapterMiddleZh[room]+
+                        "\n\n"+chapterMidWitnessZh[room],
+                        chapterMiddleEn[room]+
+                        "\n\n"+chapterMidWitnessEn[room],
                         C("站稳阵地 · 耐力10，拦截袭击者",
                             "Brace the line · 10 stamina, intercept raiders",
                             "chapterroad_defend"),
@@ -446,8 +483,10 @@ namespace Starfall
             }
             choices.Add(C("检查安置点","Inspect the handoff","close"));
             Dialog(o.name,o.en,chapterEndZh[room]+
+                "\n\n"+chapterClosingWitnessZh[room]+
                 "\n\n请选择居民今后如何保留这份真实证词。",
                 chapterEndEn[room]+
+                "\n\n"+chapterClosingWitnessEn[room]+
                 "\n\nChoose how the survivors keep this physical testimony.",
                 choices.ToArray());
             return true;

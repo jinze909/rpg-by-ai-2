@@ -48,8 +48,9 @@ namespace Starfall.Tests
                     " initial original source must open dialogue");
                 int start=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="chapterroad_begin");
-                Check(start>=0&&g.conversation.textEn.Length>80,
-                    "Chapter's actual source opens a region-specific scene");
+                Check(start>=0&&g.conversation.textEn.Length>190&&
+                    g.conversation.text.Contains("。"),
+                    "Chapter's actual source opens a substantial, distinct human scene");
                 int originalMoney=g.save.coins,originalShards=g.save.shards;
                 g.Choose(start);
                 Check(g.ChapterRoadActive&&g.ChapterRoadStage==1&&
@@ -116,7 +117,8 @@ namespace Starfall.Tests
                 int finish=Array.FindIndex(g.conversation.choices,
                     c=>c.action==(chapter==1?
                         "chapterroad_care":"chapterroad_witness"));
-                Check(finish>=0,"Resident handoff offers a lasting regional choice");
+                Check(finish>=0&&g.conversation.textEn.Length>180,
+                    "Last handoff includes actual survivor reflection and a lasting choice");
                 g.Choose(finish);
                 Check(g.ChapterRoadDone(chapter)&&!g.ChapterRoadActive&&
                     g.save.coins==originalMoney+17+chapter*10&&
