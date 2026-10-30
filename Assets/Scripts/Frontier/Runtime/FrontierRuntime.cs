@@ -2105,8 +2105,8 @@ namespace Starfall
             }
             if(kind=="ridgemarker")
             {
-                bool read=Game.RidgeSeen(Game.save.room,
-                    o.id.EndsWith("_0")?0:1);
+                int district=o.id.EndsWith("_0")?0:1;
+                bool read=Game.RidgeSeen(Game.save.room,district);
                 bool linked=Game.RidgeLinked(Game.save.room);
                 PropImage("obelisk",0,p.x-34,p.y-84,68,90,
                     linked?new Color(.63f,.95f,.85f):read?
@@ -2114,6 +2114,25 @@ namespace Starfall
                 Ring(new Point(o.x,o.y),.51f,
                     linked?mint:read?muted:gold,16);
                 if(!read)Diamond(p.x,p.y-78,5,gold);
+                // These outer roads are genuinely contested in the world
+                // simulation. Show ONLY this marker's live encounter, not
+                // the other district's foes or a new fictional quest. Keep
+                // the earlier ridge/story pips and original Sprite unchanged.
+                if(Game.RemoteRoadActiveDistrict==district)
+                {
+                    Ring(new Point(o.x,o.y),.94f,gold,28);
+                    WorldObjectLabel(p.x-96,p.y-135,192,19,
+                        Game.L("远路拦截 · 尚余"+Game.RemoteRoadRemaining+"名",
+                            "OUTER AMBUSH · "+Game.RemoteRoadRemaining+" LEFT"),
+                        10,gold,TextAnchor.MiddleCenter);
+                }
+                else if(Game.RemoteRoadCleared(Game.save.room,district))
+                {
+                    Ring(new Point(o.x,o.y),.75f,mint,22);
+                    WorldObjectLabel(p.x-93,p.y-135,186,19,
+                        Game.L("远路安全 · 已清除伏击","SAFE ROAD · AMBUSH CLEARED"),
+                        10,mint,TextAnchor.MiddleCenter);
+                }
                 // A reopened ridge carries a real combat survey as well as
                 // its original two-end travel link. Three tiny grounded pips
                 // above the accepted obelisk show verified patrol contacts;

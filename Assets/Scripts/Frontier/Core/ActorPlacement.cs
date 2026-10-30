@@ -364,6 +364,8 @@ namespace Starfall
             Object.ReferenceEquals(remoteRoadMap,Map)&&
             Object.ReferenceEquals(remoteRoadSave,save)&&
             remoteRoadFoes.Count==2; } }
+        public int RemoteRoadActiveDistrict
+        { get { return RemoteRoadEncounterActive?remoteRoadDistrict:-1; } }
         public int RemoteRoadRemaining
         { get {
             int count=0;
