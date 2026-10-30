@@ -1584,6 +1584,36 @@ namespace Starfall
                 return false;
             return true;
         }
+        // Real, currently interruptible assault; world art and HUD should
+        // never label an arbitrary idle raider an incoming document strike.
+        public Enemy IncomingWitnessRecordThreat
+        {
+            get {
+                if(!SagaGuardActive)return null;
+                Enemy soonest=null;
+                foreach(Enemy foe in enemies)
+                    if(CompanionCommittedWitnessStrike(foe)&&
+                        (soonest==null||foe.timer<soonest.timer))
+                        soonest=foe;
+                return soonest;
+            }
+        }
+        public bool CompanionWitnessCoverInFlight
+        {
+            get {
+                if(!SagaGuardActive)return false;
+                foreach(Projectile shot in projectiles)
+                    if(shot!=null&&shot.friendly&&shot.life>0f&&
+                        shot.sagaGuardCoverTarget!=null&&
+                        System.Object.ReferenceEquals(shot.sagaGuardCoverSave,save)&&
+                        System.Object.ReferenceEquals(shot.sagaGuardCoverMap,Map)&&
+                        shot.sagaGuardCoverRoom==save.room&&
+                        enemies.Contains(shot.sagaGuardCoverTarget)&&
+                        shot.sagaGuardCoverTarget.hp>0f)
+                        return true;
+                return false;
+            }
+        }
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;

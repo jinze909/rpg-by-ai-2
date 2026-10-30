@@ -870,11 +870,14 @@ namespace Starfall.Tests
                 raider.target=origin;raider.targetingSagaGuardEvidence=true;
                 Check((bool)imminent.Invoke(g,new object[]{raider}),
                     "Unblocked live attack is identified as an ally-intercept opportunity");
-                Check(System.Object.ReferenceEquals(chosen.Invoke(g,null),raider),
-                    "The protector prioritizes the actual original-record attacker");
+                Check(System.Object.ReferenceEquals(chosen.Invoke(g,null),raider)&&
+                    System.Object.ReferenceEquals(g.IncomingWitnessRecordThreat,raider)&&
+                    !g.CompanionWitnessCoverInFlight,
+                    "Threat display and ally choice both identify the real warning without inventing a projectile");
                 raider.stun=2f;
-                Check(!(bool)imminent.Invoke(g,new object[]{raider}),
-                    "Stunned foe is not falsely advertised as imminent");
+                Check(!(bool)imminent.Invoke(g,new object[]{raider})&&
+                    g.IncomingWitnessRecordThreat==null,
+                    "Stunned foe no longer appears as an incoming document attack");
                 raider.stun=0f;
                 raider.targetingSagaGuardEvidence=false;
                 Check(!(bool)imminent.Invoke(g,new object[]{raider}),
@@ -887,8 +890,9 @@ namespace Starfall.Tests
                 tick.Invoke(g,new object[]{.18f});
                 Check(g.projectiles.Exists(p=>p.sagaGuardCoverTarget==raider&&
                     p.friendly&&p.sagaGuardCoverRoom==room&&
-                    System.Object.ReferenceEquals(p.sagaGuardCoverSave,g.save)),
-                    "A real ally release, not target selection, owns the evidence-cover missile");
+                    System.Object.ReferenceEquals(p.sagaGuardCoverSave,g.save))&&
+                    g.CompanionWitnessCoverInFlight,
+                    "A real released allied projectile owns the cover and enables the truthful flight cue");
                 Check(!g.Has("saga_guard_"+room)&&!g.Has("saga_voice_"+room),
                     "Targeting an attacker never awards victory or signs testimony");
             }

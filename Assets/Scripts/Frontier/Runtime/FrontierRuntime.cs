@@ -856,6 +856,25 @@ namespace Starfall
                     Game.L("证据安全 "+safety+"%",
                         "EVIDENCE SAFE "+safety+"%"),
                     11,safetyTint,TextAnchor.MiddleCenter);
+                // A real imminent contact gets its OWN narrow highlight,
+                // separate from the warning's ground impact ring. The
+                // companion's counter-shot label appears only after the
+                // ally genuinely releases a still-flying mission-tagged
+                // projectile, never on aim selection or cooldown alone.
+                Enemy saboteur=Game.IncomingWitnessRecordThreat;
+                if(saboteur!=null)
+                {
+                    Color warning=new Color(1f,.46f,.37f,.95f);
+                    Ring(saboteur.Position,.78f,warning,24);
+                    Point raiderFoot=ScreenPoint(saboteur.Position);
+                    Text(raiderFoot.x-98,raiderFoot.y-81,196,18,
+                        Game.L("即将抢夺证据！","RECORDS TARGETED!"),
+                        10,warning,TextAnchor.MiddleCenter);
+                }
+                if(Game.CompanionWitnessCoverInFlight)
+                    Text(labelFoot.x-98,labelFoot.y-85,196,18,
+                        Game.L("同伴援护弹道在途","ALLY SHOT IN FLIGHT"),
+                        10,mint,TextAnchor.MiddleCenter);
             }
             // Persistent real-foot recovery cue for an authentic hit-spilled
             // 90-second medical parcel. The original E, collision and
