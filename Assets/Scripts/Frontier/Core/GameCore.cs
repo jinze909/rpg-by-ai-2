@@ -1257,7 +1257,7 @@ namespace Starfall
             TickMainSagaRelay(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
-            TickRemoteRoadEncounters();
+            TickRemoteRoadEncounters(dt);
             TickFieldPatrol();
             TickFieldOutpost();
             TickFieldDispatch(dt);

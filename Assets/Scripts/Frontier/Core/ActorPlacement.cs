@@ -347,6 +347,9 @@ namespace Starfall
         private readonly HashSet<Enemy> remoteRoadDefeated=new HashSet<Enemy>();
         private readonly HashSet<Enemy> remoteRoadCaptured=new HashSet<Enemy>();
         private int remoteRoadRoom=-1,remoteRoadDistrict=-1;
+        // A blocked tidal route can make a complete two-foe wave impossible.
+        // Retry at most once every two world seconds, never every frame.
+        private float remoteRoadRetrySeconds;
         private MapData remoteRoadMap;
         private SaveData remoteRoadSave;
         private static readonly int[,] remoteRoadKinds={
@@ -407,7 +410,11 @@ namespace Starfall
             remoteRoadCaptured.Clear();
             remoteRoadRoom=-1;remoteRoadDistrict=-1;
             remoteRoadMap=null;remoteRoadSave=null;
-            if(resetDistricts)remoteRoadVisited.Clear();
+            if(resetDistricts)
+            {
+                remoteRoadVisited.Clear();
+                remoteRoadRetrySeconds=0f;
+            }
         }
         // These are authentic map objects, not fabricated markers or an
         // automatic world teleport. A whole two-enemy wave must fit BEFORE
@@ -475,8 +482,10 @@ namespace Starfall
                 "Far ridge: another patrol has spotted you. Hold the real crossing.");
             return true;
         }
-        private void TickRemoteRoadEncounters()
+        private void TickRemoteRoadEncounters(float dt)
         {
+            if(remoteRoadRetrySeconds>0f)
+                remoteRoadRetrySeconds=Math.Max(0f,remoteRoadRetrySeconds-dt);
             if(remoteRoadDistrict>=0)
             {
                 if(!RemoteRoadEncounterActive||Dying)
@@ -519,6 +528,7 @@ namespace Starfall
                // A brief quiet gap in a signed patrol, rescue or timed
                // field investigation is NOT consent to start extra combat.
                FieldWorkPreventsRest||ActionTransitionBlocked||
+               remoteRoadRetrySeconds>0f||
                FieldPatrolActive||NightShiftRaidActive||
                NightShiftVentSeconds>0f||RidgeWatchCallPending||
                RidgeWatchAlarmActive||CivicCourierActive||
@@ -539,6 +549,8 @@ namespace Starfall
                     continue;
                 if(BeginRemoteRoadEncounter(marker,district))
                     remoteRoadVisited.Add(district);
+                else
+                    remoteRoadRetrySeconds=2f;
                 break;
             }
         }
