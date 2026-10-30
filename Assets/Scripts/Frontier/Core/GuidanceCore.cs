@@ -1089,6 +1089,10 @@ namespace Starfall
         {
             get
             {
+                // The player voluntarily began a live, unsigned encounter.
+                // Present that exact battle's CURRENT stage throughout the
+                // HUD, map and journal without rewriting trackedQuest.
+                if(FieldTacticTrialActive)return GetQuest("tactic_trials");
                 QuestGuide current=CurrentGuide;
                 if(!current.complete&&!current.locked)return current;
                 QuestGuide firstRemote=null;

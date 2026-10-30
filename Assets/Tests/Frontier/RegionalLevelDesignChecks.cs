@@ -302,6 +302,65 @@ namespace Starfall.Tests
         // A signed field result is not a disposable modal. Protect the
         // LIVE contract during both a portal Enter and the quick town route;
         // after real settlement, normal travel remains possible.
+        // A generic main-story marker cannot send a player across the
+        // world while a physical local battle needs its counter, opponents
+        // or signed return. Preserve their manual tracker across all steps.
+        public static void FieldTacticTrialWaypointsFollowTheRequiredBattleStage(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject device=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(device!=null&&PlaceWithinTalkReach(g,device),
+                "Battle navigation uses a real originally authored source");
+            string manual=g.save.trackedQuest;
+            g.Talk(device);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(start>=0,"The original source actually offers this trial");
+            g.Choose(start);
+            Point site=new Point(device.x,device.y);
+            Check(g.FieldTacticTrialActive&&!g.FieldTacticTrialUsed&&
+                (g.FieldTacticTrialGuideTarget-site).Length<.001f&&
+                g.RecommendedContinuationGuide.id=="tactic_trials"&&
+                (g.RecommendedContinuationGuide.target-site).Length<.001f&&
+                g.save.trackedQuest==manual,
+                "Before counterplay, the live guide points to the nearby device, not an arbitrary fighter");
+            g.save.energy=100f;
+            Check(g.QuickActivateFieldTactic()&&g.FieldTacticTrialUsed,
+                "Real device activation advances the live trial stage");
+            var foes=g.enemies.ToArray();
+            Point nearest=foes[0].Position;
+            if((foes[1].Position-g.Position).Length<
+               (foes[0].Position-g.Position).Length)nearest=foes[1].Position;
+            Check((g.FieldTacticTrialGuideTarget-nearest).Length<.001f&&
+                (g.RecommendedContinuationGuide.target-nearest).Length<.001f,
+                "After actual counterplay, navigation pursues the nearest living designated fighter");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Waypoint progression requires the real combat defeat");
+            hit.Invoke(g,new object[]{foes[0],600f,false,null,null});
+            Check((g.FieldTacticTrialGuideTarget-foes[1].Position).Length<.001f&&
+                g.FieldTacticTrialRemaining==1,
+                "After an authentic defeat the marker immediately follows the remaining fighter");
+            hit.Invoke(g,new object[]{foes[1],600f,false,null,null});
+            Check(g.FieldTacticTrialReady&&
+                (g.FieldTacticTrialGuideTarget-site).Length<.001f&&
+                (g.RecommendedContinuationGuide.target-site).Length<.001f&&
+                g.save.trackedQuest==manual,
+                "After clearing both actors, navigation leads to the signed return and does not hijack the manual tracker");
+            g.Close();g.Talk(device);
+            int sign=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_report");
+            Check(sign>=0,"Actual source offers an earned return choice");
+            g.Choose(sign);
+            Check(!g.FieldTacticTrialActive&&
+                g.save.trackedQuest==manual&&
+                g.RecommendedContinuationGuide.id==manual,
+                "Signing completes the temporary objective and restores the player's original quest");
+        }
+
         public static void FieldTacticTrialsCannotBeLostToUnsignedTravel(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);

@@ -59,12 +59,27 @@ namespace Starfall
         public bool FieldTacticTrialReady
         {get{return FieldTacticTrialUsed&&tacticTrialEnemies.Count==2&&
             tacticTrialKills.Count==2&&FieldTacticTrialRemaining==0;}}
+        // Stage-accurate objective: approach the field device FIRST when
+        // counterplay is still due. After an actual counter, track the
+        // nearest surviving designated body rather than roster slot zero;
+        // once both have fallen, point back to the original receipt source.
         public Point FieldTacticTrialGuideTarget
-        {get{if(!FieldTacticTrialActive)return Position;
-            foreach(Enemy e in tacticTrialEnemies)
-                if(!tacticTrialKills.Contains(e)&&enemies.Contains(e)&&e.hp>0)
-                    return e.Position;
-            return new Point(tacticTrialSource.x,tacticTrialSource.y);}}
+        {
+            get {
+                if(!FieldTacticTrialActive)return Position;
+                Point device=new Point(tacticTrialSource.x,tacticTrialSource.y);
+                if(!tacticTrialUsed)return device;
+                Point target=device;float best=float.MaxValue;
+                foreach(Enemy e in tacticTrialEnemies)
+                {
+                    if(e==null||tacticTrialKills.Contains(e)||
+                       !enemies.Contains(e)||e.hp<=0f)continue;
+                    float d=(e.Position-Position).Length;
+                    if(d<best){best=d;target=e.Position;}
+                }
+                return target;
+            }
+        }
         private bool IsFieldTacticTrialEnemy(Enemy e)
         {return e!=null&&FieldTacticTrialActive&&tacticTrialEnemies.Contains(e);}
         // Public read-only identity for the shipped actor renderer. A
