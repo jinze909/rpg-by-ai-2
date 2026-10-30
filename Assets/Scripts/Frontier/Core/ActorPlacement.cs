@@ -380,6 +380,12 @@ namespace Starfall
         private bool RegionalAmbientEncounterDormant(Enemy e)
         {
             return e!=null&&!e.boss&&regionalAmbientEnemies.Contains(e)&&
+                // A paid, ACTIVE patrol is a current player contract, not
+                // background ambient scenery. Its authentic cooldowns and
+                // threatened actor simulation continue when the hero moves
+                // behind a distant post; it still obeys normal perception,
+                // attack lanes and the 8-tile non-alerted chase boundary.
+                !(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))&&
                 save.room>=1&&save.room<=7&&
                 (e.Position-Position).Length>13f&&
                 e.state==0&&e.hitTime<=0f&&e.stun<=0f&&

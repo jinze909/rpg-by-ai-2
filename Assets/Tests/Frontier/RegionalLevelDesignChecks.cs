@@ -6,6 +6,80 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void LiveFieldContractsDoNotFreezeWhileOrdinaryDistrictsSleep(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            WorldObject post=Array.Find(g.Map.objects,
+                o=>o!=null&&o.id=="biomeSurvey1");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "Original forest survey station accepts a genuine local contract");
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"A genuine signed survey offers a live patrol");
+            g.Choose(begin);
+            Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==2&&
+                g.enemies.Count==2,
+                "Paid contract stages precisely two living opponents");
+            var flags=System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance;
+            var dormant=typeof(GameCore).GetMethod(
+                "RegionalAmbientEncounterDormant",flags);
+            Check(dormant!=null,"Production distance sleep selector exists");
+            // Walk to an authentic valid distant tile rather than moving
+            // actors through gates. No rewards or enemy identities are faked.
+            Point far=new Point();bool found=false;
+            for(int y=2;y<g.Map.rows.Length-2&&!found;y++)
+            for(int x=2;x<g.Map.rows[y].Length-2&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if(!g.CanStand(p))continue;
+                bool remote=true;
+                foreach(Enemy enemy in g.enemies)
+                    if((enemy.Position-p).Length<15f){remote=false;break;}
+                if(remote){far=p;found=true;}
+            }
+            Check(found,"Existing Thornwood contains a physically valid second combat district");
+            g.save.x=far.x;g.save.y=far.y;
+            Enemy contracted=g.enemies[0];
+            contracted.state=0;contracted.stun=0f;
+            contracted.hitTime=contracted.releaseTime=0f;
+            contracted.timer=2f;
+            Check(!(bool)dormant.Invoke(g,new object[]{contracted}),
+                "Exact live paid-contract actor never enters idle background sleep");
+            float before=contracted.timer;
+            g.Tick(.05f,new Point());
+            Check(g.FieldPatrolActive&&g.enemies.Contains(contracted)&&
+                contracted.timer<before&&g.FieldPatrolRemaining==2,
+                "Contracted enemies keep ticking genuine world cooldowns outside passive ambient range");
+            Check(!g.FieldPatrolDone(1)&&g.save.version==2,
+                "Physical distance alone cannot claim a reward or change the save schema");
+            // Historical baseline foes are still permitted to sleep away
+            // from the hero, retaining regional streaming performance.
+            var ordinary=Fresh(data);
+            ordinary.mode="world";ordinary.save.room=1;
+            ordinary.save.x=far.x;ordinary.save.y=far.y;
+            ordinary.enemies.Clear();
+            var spawn=typeof(GameCore).GetMethod(
+                "SpawnRegionalBaselineEnemies",flags);
+            Check(spawn!=null,"Original regional enemy spawner remains active");
+            // Baseline spawning is centered on real player ground; choose
+            // an existing opposite pocket as the sleep reference afterward.
+            ordinary.save.x=post.x;ordinary.save.y=post.y;
+            spawn.Invoke(ordinary,new object[]{6,100f});
+            ordinary.save.x=far.x;ordinary.save.y=far.y;
+            bool sleeps=false;
+            foreach(Enemy enemy in ordinary.enemies)
+                if((enemy.Position-far).Length>13f&&
+                    (bool)dormant.Invoke(ordinary,new object[]{enemy}))
+                    sleeps=true;
+            Check(sleeps,
+                "Unalerted authored baseline districts still sleep at long distance");
+        }
+
+
         public static void RegionalOverworldGroupsAttackInReadableMixedLanes(Campaign data)
         {
             MapData original=data.maps[1];
