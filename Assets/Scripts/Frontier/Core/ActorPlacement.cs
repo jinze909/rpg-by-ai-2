@@ -481,9 +481,14 @@ namespace Starfall
             return remoteRoadSafeArrival.id==
                 "ridge_route_"+save.room+"_"+district;
         }
+        public int RemoteRoadProtectedDistrict
+        { get {
+            for(int district=0;district<2;district++)
+                if(RemoteRoadArrivalProtected(district))return district;
+            return -1;
+        }}
         public bool RemoteRoadSafeArrivalActive
-        { get { return RemoteRoadArrivalProtected(0)||
-                         RemoteRoadArrivalProtected(1); } }
+        { get { return RemoteRoadProtectedDistrict>=0; } }
         private void ResetRemoteRoadEncounter(bool resetDistricts=false,
             bool retry=false)
         {

@@ -1614,8 +1614,8 @@ namespace Starfall
                 q.category=L("开放地图 · 十四处可撤离的真实遭遇",
                     "OPEN WORLD · FOURTEEN RETREATABLE BATTLES");
                 q.description=L(
-                    "七片地区各有两处原始高地路标。走近路口会遭遇有真实视线和步行路径的不同敌人。击退或用绊索活捉两名敌人即可永久扫清该处伏击。可以离开战场撤离，返回后再战；不影响原有主线击杀要求或巡护委托。",
-                    "Each of seven regions has two original outer ridge markers. Walk near them to face different real, sighted enemies. Defeat or snare both to permanently clear that road. You can escape, then return to try again without changing main-story kill gates or signed patrol contracts.");
+                    "七片地区各有两处原始高地路标。徒步接近旧路口会遭遇两名有真实视线与路径的敌人；已连通的付费高地通行则能安全抵达，之后可在路标主动挑战。击退或用绊索活捉两人即可永久清理。战斗中可在原路标主动撤离，或跑离危险地带；撤离不给奖励，返回后可再战。不影响主线击杀与巡护委托。",
+                    "Each of seven regions has two original ridge markers. Approaching on foot triggers two physical, sighted raiders; paid linked-ridge transit lands safely, with a voluntary challenge at the marker. Defeat or snare both to permanently clear the road. Withdraw at its original marker or escape the area without reward, then return to try again. Main-story kill gates and signed patrol contracts remain unchanged.");
                 q.reward=L("每处完成：硬币、经验、高地通行耐力永久减少2；两名均活捉额外碎片1",
                     "Each crossing: coins, XP, and -2 lasting local ridge travel energy; both restrained alive +1 shard");
                 q.complete=RemoteRoadClearedCount==14;q.locked=false;
@@ -1636,14 +1636,23 @@ namespace Starfall
                         room==save.room&&selectedRoom!=save.room))
                     {selectedRoom=room;selectedSide=district;}
                 }
+                // On safe paid arrival guide the player to the exact
+                // UNFINISHED landing they are standing beside, not the
+                // other region's first unfinished quest entry.
+                int protectedRoad=RemoteRoadProtectedDistrict;
+                if(protectedRoad>=0&&!RemoteRoadCleared(save.room,protectedRoad))
+                {
+                    selectedRoom=save.room;
+                    selectedSide=protectedRoad;
+                }
                 if(RemoteRoadEncounterActive)
                 {
                     q.room=save.room;
                     q.target=RemoteRoadGuideTarget;
                     q.next=L("伏击正在发生，尚余"+RemoteRoadRemaining+
-                        "名真实敌人。可以击败、绊索活捉，或远离路口撤退。",
+                        "名真实敌人。可以击败、绊索活捉，或回原路标主动撤离。",
                         "Road ambush active: "+RemoteRoadRemaining+
-                        " real enemies. Fight, snare alive, or retreat from the crossing.");
+                        " real enemies. Fight, snare alive, or withdraw at the original marker.");
                 }
                 else if(q.complete)
                 {
@@ -1665,8 +1674,11 @@ namespace Starfall
                     q.next=selectedRoom<0?
                         L("继续主线探索，解锁剩余野外地区后再清理远路。",
                           "Continue the story to access the remaining outer regions.") :
-                        L("亲自接近标记的旧路口，击退或活捉真实伏击者。",
-                          "Walk to the original marked crossing and confront real raiders.");
+                        protectedRoad>=0&&selectedRoom==save.room?
+                        L("已安全抵达这处旧路标。与路标交互，主动挑战未清除的伏击者。",
+                          "Safe ridge arrival. Speak to this marker to challenge its remaining raiders.") :
+                        L("亲自徒步接近标记的旧路口，击退或活捉伏击者。",
+                          "Approach the marked crossing on foot and confront real raiders.");
                 }
                 return q;
             }

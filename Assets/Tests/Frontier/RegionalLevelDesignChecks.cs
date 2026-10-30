@@ -1732,6 +1732,48 @@ namespace Starfall.Tests
             }
         }
 
+
+        // Journal continuation must not pull the player away from the
+        // exact uncleared landing they JUST PAID to reach. In-progress
+        // battle still overrides the marker with actual living enemies.
+        public static void RoadJournalOffersActionableChallengeAtSafeArrival(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();g.save.energy=100f;
+                g.save.flags.Add("ridge_seen_"+room+"_0");
+                g.save.flags.Add("ridge_seen_"+room+"_1");
+                WorldObject from=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_0");
+                WorldObject destination=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_1");
+                g.save.x=from.x;g.save.y=from.y;
+                g.Talk(from);
+                g.Choose(Array.FindIndex(g.conversation.choices,
+                    a=>a.action=="ridge_travel"));
+                Check(g.RemoteRoadProtectedDistrict==1&&
+                    !g.RemoteRoadCleared(room,1),
+                    "The actual paid arrival protects its unfinished physical branch");
+                QuestGuide guide=g.GetQuest("remote_roads");
+                Check(guide.room==room&&
+                    (guide.target-new Point(destination.x,destination.y)).Length<.001f&&
+                    guide.next.Contains(g.L("主动挑战","challenge")),
+                    "Journal now prefers exact actionable protected landing to unrelated unfinished site");
+                g.Talk(destination);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    o=>o.action=="remote_road_challenge");
+                Check(begin>=0,
+                    "Roadside dialogue offers the original grounded combat choice");
+                g.Choose(begin);
+                guide=g.GetQuest("remote_roads");
+                Check(g.RemoteRoadEncounterActive&&
+                    (guide.target-g.RemoteRoadGuideTarget).Length<.001f&&
+                    guide.next.Contains(g.L("原路标","original marker")),
+                    "Active battle immediately changes objective to real foes and explains physical withdrawal");
+            }
+        }
+
         public static void FourteenRoadAmbushesHaveUsableJournalGuidance(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=1;
