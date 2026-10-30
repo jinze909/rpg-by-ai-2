@@ -1319,6 +1319,38 @@ namespace Starfall.Tests
         // A remote wilderness encounter is not a story gate, a duplicate
         // static patrol, or an instant quest reward. It wakes only at the
         // player's physical crossing with two actual reachable combatants.
+
+        // A paid patrol does not become an automatic ambush merely because
+        // the player walks past a remote ridge while its enemies are far.
+        // Source-owned field contracts remain the only active wave.
+        public static void RemoteRoadAmbushDoesNotHijackSignedFieldPatrol(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=3;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>
+                o.kind=="biomeSurvey"&&o.id=="biomeSurvey1");
+            Check(survey!=null&&PlaceWithinTalkReach(g,survey),
+                "Original forest survey remains an actual reachable source");
+            g.Talk(survey);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="biome_patrol_begin");
+            Check(begin>=0,"Physical survey offers the original combat contract");
+            g.Choose(begin);
+            Check(g.FieldPatrolActive&&g.FieldPatrolRemaining==2,
+                "Two contracted field enemies are actually alive");
+            int originalCount=g.enemies.Count;
+            WorldObject ridge=Array.Find(g.Map.objects,o=>
+                o.kind=="ridgemarker"&&o.id=="ridge_route_1_0");
+            Check(ridge!=null&&g.CanStand(new Point(ridge.x,ridge.y)),
+                "The remote ridge is still a real physical map destination");
+            g.save.x=ridge.x;g.save.y=ridge.y;
+            g.Tick(.02f,new Point());
+            Check(g.FieldPatrolActive&&!g.RemoteRoadEncounterActive&&
+                g.enemies.Count==originalCount&&!g.RemoteRoadCleared(1,0),
+                "An already signed patrol cannot receive two unsolicited attackers or a free clear");
+        }
+
         public static void FarRoadDistrictsHavePlayableOptionalAmbushes(Campaign data)
         {
             var flags=System.Reflection.BindingFlags.Instance|

@@ -516,8 +516,14 @@ namespace Starfall
             if(mode!="world"||Dying||practicing||racing||
                save.room<1||save.room>7||Map.objects==null||
                !CanStand(Position)||!SafeTravel||
+               // A brief quiet gap in a signed patrol, rescue or timed
+               // field investigation is NOT consent to start extra combat.
                FieldWorkPreventsRest||ActionTransitionBlocked||
-               RemoteRoadCleared(save.room,0)&&RemoteRoadCleared(save.room,1))
+               FieldPatrolActive||NightShiftRaidActive||
+               NightShiftVentSeconds>0f||RidgeWatchCallPending||
+               RidgeWatchAlarmActive||CivicCourierActive||
+               (RemoteRoadCleared(save.room,0)&&
+                RemoteRoadCleared(save.room,1)))
                 return;
             for(int district=0;district<2;district++)
             {
