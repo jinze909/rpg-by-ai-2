@@ -1351,6 +1351,56 @@ namespace Starfall.Tests
                 "An already signed patrol cannot receive two unsolicited attackers or a free clear");
         }
 
+
+        // The player may choose the shipped, fully physical nonlethal snare
+        // path instead of lethal combat. Both original enemy references must
+        // actually trip separate planted snares and be captured alive before
+        // the humane reward can be signed; neither capture is a kill.
+        public static void FarRoadPatrolCanBeResolvedWithTwoRealLivingCaptures(Campaign data)
+        {
+            var g=Fresh(data,0);g.mode="world";g.save.stage=3;
+            g.save.room=1;g.enemies.Clear();g.invulnerable=200f;
+            g.save.inventory[0]=12;g.save.inventory[4]=12;
+            WorldObject ridge=Array.Find(g.Map.objects,o=>
+                o.id=="ridge_route_1_0"&&o.kind=="ridgemarker");
+            Check(ridge!=null,"Original forest marker exists");
+            g.save.x=ridge.x;g.save.y=ridge.y;
+            g.Tick(.02f,new Point());
+            var raiders=new List<Enemy>(g.enemies);
+            Check(g.RemoteRoadEncounterActive&&raiders.Count==2,
+                "A full physical outer-road raider pair starts first");
+            int kills=g.save.kills[1],coins=g.save.coins,
+                crystals=g.save.shards;
+            for(int i=0;i<2;i++)
+            {
+                Point snareFoot=PutRealSnare(g);
+                Enemy foe=raiders[i];
+                foe.x=snareFoot.x;foe.y=snareFoot.y;
+                foe.hitTime=5f;
+                for(int step=0;step<11;step++)g.Tick(.05f,new Point());
+                Check(g.CanBindSnaredEnemy&&
+                    Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                    "A real placed stake, contact and stun create this living bind window");
+                g.save.energy=100f;
+                Check(g.BindSnaredEnemy()&&!g.enemies.Contains(foe)&&
+                    g.RemoteRoadRemaining==1-i,
+                    "Only a paid genuine snare restraint removes its own registered road raider");
+            }
+            for(int i=0;i<5&&g.RemoteRoadEncounterActive;i++)
+                g.Tick(.05f,new Point());
+            Check(!g.RemoteRoadEncounterActive&&
+                g.RemoteRoadCleared(1,0)&&
+                g.save.kills[1]==kills&&
+                g.save.coins==coins+21&&
+                g.save.shards==crystals+1,
+                "Two alive captures sign the one-time humane road reward without any chapter kill");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.RemoteRoadCleared(1,0)&&
+                saved.save.version==2&&!saved.RemoteRoadEncounterActive,
+                "Nonlethal field outcome persists as a completed v2 road without ghost enemies");
+        }
+
         public static void FarRoadDistrictsHavePlayableOptionalAmbushes(Campaign data)
         {
             var flags=System.Reflection.BindingFlags.Instance|
