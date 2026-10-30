@@ -473,10 +473,20 @@ namespace Starfall
             // The 3-tile interaction cutoff was too narrow for physical
             // shelters, rescues and their live resource/cost indicators.
             if(priority==0&&distance<=5.5f)priority=1;
-            // A time-limited distant relay must remain readable when the
-            // player pans to its actual remote field marker.
-            if(priority==0&&worldLabelOwner.kind=="unsentrelay"&&
-                Game.UnsentWarningRunActive)priority=2;
+            // Contextual live mission cues must remain on the object that
+            // actually owns the rescue, shelter or public service. These are
+            // not ambient POI names: their conditions disappear when the
+            // mission, service or physical reach is revoked.
+            string kind=worldLabelOwner.kind;
+            bool urgent=(kind=="unsentrelay"&&Game.UnsentWarningRunActive)||
+                (kind.StartsWith("wayfarer")&&
+                    Game.WayfarerEncounterRoom==Game.save.room)||
+                (kind.StartsWith("fieldstation")&&
+                    Game.FieldStationSheltersHero(worldLabelOwner))||
+                (kind=="outerrelay"&&Game.OuterSignalRouteReady)||
+                (kind=="waytrail"&&Game.Has("civic_aftercare_published")&&
+                    Game.Has("civic_aftercare_waytrail_"+Game.save.room));
+            if(urgent)priority=3;
             if(priority==0||x+w<16||x>Width-16||y+h<16||y>Height-16)return;
             int owned=0;
             for(int i=0;i<occupiedWorldLabels.Count;i++)
@@ -485,10 +495,10 @@ namespace Starfall
                     worldLabelOwner))
                 {owned++;continue;}
                 Rect other=occupiedWorldLabels[i];
-                if(WorldLabelPolicy.Overlap(x,y,w,h,other.x,other.y,
+                if(!urgent&&WorldLabelPolicy.Overlap(x,y,w,h,other.x,other.y,
                     other.width,other.height))return;
             }
-            if(owned>=(priority==1?1:2))return;
+            if(owned>=(urgent?4:priority==1?1:2))return;
             occupiedWorldLabels.Add(new Rect(x,y,w,h));
             occupiedWorldLabelOwners.Add(worldLabelOwner);
             Text(x,y,w,h,content,size,color,anchor);
