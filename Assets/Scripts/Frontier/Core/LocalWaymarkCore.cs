@@ -310,15 +310,24 @@ namespace Starfall
         // local route BEFORE replacing the saved tracked ID or manual pin.
         // Cross-region intent uses the same portal/arrival handoff as the
         // existing journal/map; no teleport or new save field is introduced.
+        // An enemy-free pause between real fieldwork waves is not consent
+        // to discard that mission in favor of a new journal destination.
+        public bool CanFollowRecommendedAdventure
+        {
+            get
+            {
+                if((mode!="world"&&mode!="journal")||Dying||practicing||
+                   FieldWorkPreventsRest||CivicCourierActive||WhiteoutActive||
+                   !SafeTravel||!CanStand(Position))return false;
+                QuestGuide q=RecommendedContinuationGuide;
+                return q!=null&&!q.locked&&!q.complete&&
+                    q.room>=0&&q.room<data.maps.Length&&CanEnter(q.room);
+            }
+        }
         public bool FollowRecommendedAdventure()
         {
-            if(mode!="world"&&mode!="journal")return false;
-            if(Dying||practicing||!SafeTravel||!CanStand(Position))
-                return false;
+            if(!CanFollowRecommendedAdventure)return false;
             QuestGuide next=RecommendedContinuationGuide;
-            if(next==null||next.locked||next.complete||
-               next.room<0||next.room>=data.maps.Length||
-               !CanEnter(next.room))return false;
             if(next.room==save.room)
             {
                 Point approach;
