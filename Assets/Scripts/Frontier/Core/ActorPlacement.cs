@@ -436,11 +436,13 @@ namespace Starfall
                     pads.Add(p);found=true;
                 }
             }
-            // Irregular roads can invalidate every exact compass ray while
-            // still offering real connected combat ground beside the post.
-            // Search only this district, and only for full paid contracts;
-            // never drag an enemy across the map or reward a partial wave.
-            if(requireFull&&pads.Count<count)
+            // Actual survey side-encounters AND paid patrol contracts
+            // need enough local, readable attackers. Scenic/companion
+            // clearance can invalidate every exact compass ray despite
+            // genuine open terrain between those rays. Search a bounded
+            // district ring with the SAME physical rules as the original
+            // encounter, without crossing walls or overriding story spawns.
+            if(pads.Count<count)
             {
                 int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
                 for(int radius=6;radius<=13&&pads.Count<count;radius++)
@@ -450,7 +452,7 @@ namespace Starfall
                     if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                         Math.Abs(dx)+Math.Abs(dy)>16)continue;
                     Point p=new Point(sx+dx+.5f,sy+dy+.5f);
-                    if(RegionalScoutFootClear(p,source,true,pads))
+                    if(RegionalScoutFootClear(p,source,requireFull,pads))
                         pads.Add(p);
                 }
             }
