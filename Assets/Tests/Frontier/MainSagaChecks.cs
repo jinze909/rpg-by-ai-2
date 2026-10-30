@@ -188,6 +188,10 @@ namespace Starfall.Tests
             g.save.flags.Remove("saga_choice_5_b");
             g.save.flags.Add("saga_choice_5_a");
             g.Talk(council);
+            Check(g.conversation.textEn.Contains("repaired boarding plank")&&
+                g.conversation.textEn.Contains("repaired return valve")&&
+                g.conversation.textEn.Contains("warming shelter"),
+                "All three authentic field aid actions reach the real later council hearing");
             int covenant=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="covenant1");
             Check(covenant>=0,"Original three-party council can sign after all voices");
@@ -198,10 +202,6 @@ namespace Starfall.Tests
                 "The covenant opens a playable citadel finale, not instant credits");
             Check(g.conversation.textEn.Contains("The shared water order reserves"),
                 "Ratified council policy changes the physical supply agreement");
-            Check(g.conversation.textEn.Contains("repaired boarding plank")&&
-                g.conversation.textEn.Contains("repaired return valve")&&
-                g.conversation.textEn.Contains("warming shelter"),
-                "All three authentic field aid actions reach the real later council hearing");
             g.Close();g.save.room=4;g.mode="world";g.enemies.Clear();
             string[] gateActions={"saga_lastgate_1","saga_lastgate_2",
                 "saga_lastgate_public"};
