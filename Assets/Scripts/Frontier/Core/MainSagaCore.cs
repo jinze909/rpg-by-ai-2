@@ -497,14 +497,20 @@ namespace Starfall
             int cx=(int)Math.Floor(origin.x),cy=(int)Math.Floor(origin.y);
             // Search the actual connected walkable approach; the second
             // wave attacks from the opposite flank, never through a wall.
-            int facing=wave==1?1:-1;
-            for(int radius=6;radius<=16&&feet.Count<2;radius++)
+            // The first incursion prefers the east approach; the second
+            // prefers the WEST. Some original docks and highland gates
+            // physically close a flank. If that flank has too few legal
+            // feet, expand through genuine connected alternatives rather
+            // than silently cancel an otherwise completed first wave.
+            for(int pass=0;pass<2&&feet.Count<2;pass++)
+            for(int radius=6;radius<=18&&feet.Count<2;radius++)
             for(int dy=-radius;dy<=radius&&feet.Count<2;dy++)
             for(int dx=-radius;dx<=radius&&feet.Count<2;dx++)
             {
                 if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                    Math.Abs(dx)+Math.Abs(dy)>21||
-                    (wave==1?dx*facing<0:dx*facing>0))continue;
+                    Math.Abs(dx)+Math.Abs(dy)>24)continue;
+                if(pass==0&&
+                    ((wave==1&&dx<0)||(wave==2&&dx>0)))continue;
                 Point foot=new Point(cx+dx+.5f,cy+dy+.5f);
                 if(SagaGuardFootFree(foot,feet))feet.Add(foot);
             }

@@ -101,7 +101,11 @@ namespace Starfall.Tests
                     if(wave==1)
                         Check(g.SagaGuardActive&&g.SagaGuardWave==2&&
                             g.SagaGuardRemaining==2&&!g.Has("saga_guard_"+room),
-                            "First real cleared wave triggers a separate second combat phase");
+                            "First real cleared wave triggers a separate second combat phase in region "+
+                                room+": active="+g.SagaGuardActive+
+                                " wave="+g.SagaGuardWave+
+                                " left="+g.SagaGuardRemaining+
+                                " toast="+g.toast);
                 }
                 Check(!g.SagaGuardActive&&g.Has("saga_guard_"+room)&&
                     !g.Has("saga_voice_"+room),
