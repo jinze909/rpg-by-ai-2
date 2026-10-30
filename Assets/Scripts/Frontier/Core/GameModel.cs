@@ -205,6 +205,11 @@ namespace Starfall
         public Enemy stockCoverTarget;
         // Genuine relay/cache defense uses transient exact instance ownership.
         public Enemy patrolCoverTarget;
+        // Unsaved auto-ally mission cover, exact live owner and world only.
+        public Enemy sagaGuardCoverTarget;
+        public SaveData sagaGuardCoverSave;
+        public MapData sagaGuardCoverMap;
+        public int sagaGuardCoverRoom=-1;
         public SaveData patrolCoverSave;
         public MapData patrolCoverMap;
         public int patrolCoverRoom = -1;

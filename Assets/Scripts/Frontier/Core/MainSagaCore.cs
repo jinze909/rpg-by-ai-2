@@ -560,6 +560,11 @@ namespace Starfall
         {if(IsSagaGuardEnemy(e))sagaGuardDefeated.Add(e);}
         private void ResetSagaGuard()
         {
+            // Retire only ally shots committed to the abandoned witness.
+            projectiles.RemoveAll(p=>p.sagaGuardCoverTarget!=null&&
+                sagaGuardFoes.Contains(p.sagaGuardCoverTarget)&&
+                Object.ReferenceEquals(p.sagaGuardCoverSave,save)&&
+                Object.ReferenceEquals(p.sagaGuardCoverMap,Map));
             foreach(Enemy e in sagaGuardFoes)
             {
                 RemoveEnemyPendingWarning(e);

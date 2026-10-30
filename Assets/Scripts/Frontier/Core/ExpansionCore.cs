@@ -1367,6 +1367,7 @@ namespace Starfall
         {
             if(!QuietStepping||mode!="world"||foe==null||foe.hp<=0f||
                foe.boss||IsCompanionFocusTarget(foe)||
+               IsSagaGuardEnemy(foe)||
                ArrowSoundCannotOverrideObjective(foe)||
                CompanionCommittedHeroStrike(foe)||
                CompanionCommittedRescueStrike(foe)||
@@ -1495,6 +1496,7 @@ namespace Starfall
                 foe.releaseTime>.001f||
                 foe.targetingWayfarer||foe.targetingReliefCivilian||
                 foe.targetingAfterlightStock||foe.targetingOuterPatrolStock||
+                foe.targetingSagaGuardEvidence||
                 !Finite(foe.target.x)||!Finite(foe.target.y)||
                 !CanStand(foe.Position)||
                 !ClearAttackPath(foe.Position,Position))
@@ -1562,6 +1564,26 @@ namespace Starfall
                 EnemyMeleeLaneClear(foe,reliefFollowerPosition);
         }
 
+        // Genuine original-record assault, still in its interruptible
+        // window and not already physically blocked by the hero.
+        private bool CompanionCommittedWitnessStrike(Enemy foe)
+        {
+            if(foe==null||!SagaGuardActive||!IsSagaGuardEnemy(foe)||
+                foe.kind==1||foe.hp<=0||!enemies.Contains(foe)||
+                !foe.targetingSagaGuardEvidence||foe.state!=1||
+                !Finite(foe.timer)||!Finite(foe.windupDuration)||
+                foe.windupDuration<=0f||
+                foe.timer>foe.windupDuration+.001f||
+                foe.stun>.001f||foe.stagger>.001f||
+                foe.hitTime>.001f||foe.releaseTime>.001f||
+                !Finite(foe.target.x)||!Finite(foe.target.y)||
+                (foe.target-SagaGuardWitnessPosition).Length>.6f||
+                (foe.Position-foe.target).Length>2.3f||
+                !EnemyObjectiveContactLaneClear(foe,foe.target)||
+                SagaGuardHeroInterposes(foe,SagaGuardWitnessPosition))
+                return false;
+            return true;
+        }
         private Enemy NearestCompanionThreat()
         {
             Enemy nearest=null;
@@ -1587,8 +1609,10 @@ namespace Starfall
                     IsOuterPatrolEnemy(foe)&&foe.kind!=1;
                 bool watchRaider=AfterlightWatchActive&&
                     IsAfterlightWatchEnemy(foe)&&foe.kind!=1;
+                bool witnessRaider=SagaGuardActive&&
+                    IsSagaGuardEnemy(foe)&&foe.kind!=1;
                 int priority;
-                if(saboteur||watchRaider)
+                if(saboteur||watchRaider||witnessRaider)
                     priority=CompanionCacheContactImminent(foe)?0:1;
                 else
                 {
@@ -1713,6 +1737,25 @@ namespace Starfall
         // afterlight attacker BEFORE the receiver strike, may interrupt the
         // saboteur. The collision path invokes this; no fake distance-based
         // stock immunity or wave completion is granted.
+        private bool SagaGuardCoverContactEligible(Projectile shot,Enemy foe)
+        {
+            return shot!=null&&foe!=null&&shot.friendly&&shot.damage>0f&&
+                shot.impact!=null&&!shot.impact.playerOwned&&
+                System.Object.ReferenceEquals(shot.sagaGuardCoverTarget,foe)&&
+                System.Object.ReferenceEquals(shot.sagaGuardCoverSave,save)&&
+                System.Object.ReferenceEquals(shot.sagaGuardCoverMap,Map)&&
+                shot.sagaGuardCoverRoom==save.room&&
+                CompanionCommittedWitnessStrike(foe);
+        }
+        private void FinishCompanionSagaGuardCoverContact(Projectile shot,Enemy foe)
+        {
+            if(!projectiles.Contains(shot))return;
+            if(foe.hp>0f)ApplyEnemyControl(foe,.85f);
+            effects.Add(new Effect("number",foe.Position,.8f,
+                L("援护截住原件！","ALLY SAVED RECORDS!")));
+            sound="counter";revision++;
+            shot.sagaGuardCoverTarget=null;
+        }
         private bool StockCoverContactEligible(Projectile shot,Enemy foe)
         {
             return shot!=null&&foe!=null&&shot.friendly&&shot.damage>0f&&
@@ -1838,7 +1881,8 @@ namespace Starfall
         {
             return foe!=null&&enemies.Contains(foe)&&
                 (OuterPatrolUncoveredStockStrike(foe)||
-                 AfterlightWatchCommittedStockStrike(foe));
+                 AfterlightWatchCommittedStockStrike(foe)||
+                 CompanionCommittedWitnessStrike(foe));
         }
         // Closing tide, a raised gate or a collapsed ledge can invalidate
         // an ally's EXISTING foot without the hero crossing the room. Resolve
@@ -2092,6 +2136,16 @@ namespace Starfall
                                 // The older relief-watch siege's actual
                                 // uncovered raider can be stopped only by
                                 // this released projectile's genuine impact.
+                                // Only an actual released automatic arrow
+                                // may protect the evidence on real contact.
+                                if(action.kind=="attack"&&
+                                   CompanionCommittedWitnessStrike(locked))
+                                {
+                                    shot.sagaGuardCoverTarget=locked;
+                                    shot.sagaGuardCoverSave=save;
+                                    shot.sagaGuardCoverMap=Map;
+                                    shot.sagaGuardCoverRoom=save.room;
+                                }
                                 if(action.kind=="attack"&&
                                    OuterPatrolUncoveredStockStrike(locked))
                                 {
