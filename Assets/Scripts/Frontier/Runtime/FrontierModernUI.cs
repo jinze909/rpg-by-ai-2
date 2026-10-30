@@ -1249,6 +1249,17 @@ namespace Starfall
                 if(!candidate.locked&&!candidate.complete)
                     visibleQuestIndices.Add(i);
             }
+            // Present ONE next action first, without deleting any of the
+            // original quest catalogue or changing the player's chosen
+            // tracked objective. The full, historical list remains under
+            // SHOW ALL. A completed quest can never sit at the top of the
+            // default actionable list simply because of its original index.
+            string recommendedQuestId=Game.RecommendedContinuationGuide.id;
+            int recommendedIndex=Array.IndexOf(GameCore.QuestIds,
+                recommendedQuestId);
+            if(journalOnlyActionable&&
+                visibleQuestIndices.Remove(recommendedIndex))
+                visibleQuestIndices.Insert(0,recommendedIndex);
             if(visibleQuestIndices.Count==0)
             {
                 Text(300,284,295,140,
@@ -1272,7 +1283,8 @@ namespace Starfall
                 QuestGuide quest=Game.GetQuest(GameCore.QuestIds[originalIndex]);
                 if(Button(279,y,321,26,
                     (quest.complete?"✓ ":
-                        Game.save.trackedQuest==quest.id?"◆ ":"")+quest.title,
+                        Game.save.trackedQuest==quest.id?"◆ ":
+                        quest.id==recommendedQuestId?"→ ":"")+quest.title,
                     selectedQuest==originalIndex))
                     selectedQuest=originalIndex;
             }
