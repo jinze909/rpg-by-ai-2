@@ -467,7 +467,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetFieldTactics();ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
+            ResetFieldTactics();ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetNightShiftRaid();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -1139,6 +1139,7 @@ namespace Starfall
                 // waiting for a future world tick or slot load.
                 TickVantageWatch(0f);
                 TickChapterRoad(0f);
+                TickNightShiftRaid();
                 TickSagaGuard(0f);
                 TickScoutDefense(0f);
                 TickMainSagaRelay(0f);
@@ -1249,6 +1250,7 @@ namespace Starfall
             // their actor references into a new slot or scene.
             TickVantageWatch(dt);
             TickChapterRoad(dt);
+            TickNightShiftRaid();
             TickSagaGuard(dt);
             TickScoutDefense(dt);
             TickMainSagaRelay(dt);
@@ -1797,6 +1799,7 @@ namespace Starfall
             OnFieldOutpostEnemyDefeated(e);
             OnVantageWatchEnemyDefeated(e);
             OnChapterRoadEnemyDefeated(e);
+            OnNightShiftRaiderDefeated(e);
             OnScoutDefenseEnemyDefeated(e);
             OnSagaGuardEnemyDefeated(e);
             OnMainSagaRelayEnemyDefeated(e);
@@ -1825,7 +1828,7 @@ namespace Starfall
             }
             bool specialEncounterEnemy = IsRoadwardenTrialEnemy(e) || IsWayfarerEnemy(e) ||
                 IsAtlasEchoEnemy(e) || IsReliefMissionEnemy(e) || IsRootHarmonyEnemy(e) ||
-                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e) ||
+                IsCommonsRelayEnemy(e) || IsSkywatchEnemy(e) || IsBridgeChordsElite(e) || IsOuterPatrolEnemy(e) || IsAfterglowEnemy(e) || IsBiomeCrisisEnemy(e) || IsRegionalVigilEnemy(e) || IsFieldOutpostEnemy(e) || IsVantageWatchEnemy(e) || IsChapterRoadEnemy(e) || IsNightShiftRaider(e) || IsSagaGuardEnemy(e) || IsFieldDispatchEnemy(e) || IsGhostTrainEnemy(e) || IsAfterlightWatchEnemy(e) || IsFarCourierRaider(e) || IsCivicResponseEnemy(e) || IsLastDirectiveEnemy(e) || IsGlasswindEnemy(e) || IsTideSalvageEnemy(e) || IsTemperEnemy(e) || IsMineConvoyEnemy(e) || IsFrostSignalEnemy(e) || IsLastLanternEnemy(e) || IsThornwatchEnemy(e) || IsTriadEnemy(e) || IsWitnessEnemy(e) || IsFloodReliefEnemy(e) || IsCivicCourierGuard(e) || IsWildernessHuntEnemy(e) ||
                 IsFieldTacticTrialEnemy(e);
             // Authored encounter combat pays only its first-clear quest reward,
             // never normal chapter kills, bounty credits, or loot drops.

@@ -575,7 +575,7 @@ namespace Starfall
                     // reference-owned raiders into an ordinary v2 world
                     // snapshot that would resurrect them without a mission.
                     IsFieldPatrolEnemy(e) || IsVantageWatchEnemy(e) ||
-                    IsChapterRoadEnemy(e)) continue;
+                    IsChapterRoadEnemy(e) || IsNightShiftRaider(e)) continue;
                 records.Add(new EnemyRecord { id = e.id, kind = e.kind, boss = e.boss, x = e.x, y = e.y, hp = e.hp, maxHp = e.maxHp });
             }
             save.worldEnemies = records.ToArray();

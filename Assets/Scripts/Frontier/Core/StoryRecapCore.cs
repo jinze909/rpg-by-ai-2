@@ -336,7 +336,13 @@ namespace Starfall
             WorldObject source=NightShiftSite(next);
             q.target=source==null?new Point(18.5f,15.5f):
                 new Point(source.x,source.y);
-            q.next=next==1?
+            q.next=next==1&&NightShiftRaidActive?
+                (NightShiftRaidReady?
+                    L("林道追兵已被击退，回到班表核验原件。",
+                      "Trackers defeated. Return to the original card."):
+                    L("真实林道战斗中：击退两名追兵。",
+                      "Live forest encounter: defeat both trackers.")):
+                next==1?
                 L("沿密林中路到半张旧班表，查清谁真正值了夜班。",
                   "Find the torn shift card in the forest and verify who was on duty."):
                 next==2?
@@ -347,6 +353,7 @@ namespace Starfall
                   "The sealed mine spool needs one part. Collect one from real ore."):
                 L("到赤铁矿场打开停机卷轴，看看是谁签了最后一次关机令。",
                   "Open the Ironreach stop-work spool and identify the final signature.");
+            if(next==1&&NightShiftRaidActive)q.target=NightShiftRaidTarget;
             if(next==3&&save.room==3&&save.inventory[4]<1)
                 q.target=ResourcePoint(3,"ore");
             if(!CanEnter(next))
@@ -361,6 +368,123 @@ namespace Starfall
                     unlock.next;
             }
             return q;
+        }
+
+        // Optional physical confrontation at the original forest evidence.
+        // Session-owned actors cannot be restored into ordinary world saves.
+        private int nightShiftRaidRoom=-1;
+        private SaveData nightShiftRaidSave;
+        private MapData nightShiftRaidMap;
+        private readonly List<Enemy> nightShiftRaiders=new List<Enemy>();
+        private readonly HashSet<Enemy> nightShiftRaidKills=new HashSet<Enemy>();
+        public bool NightShiftRaidActive
+        {get{return nightShiftRaidRoom==1&&save.room==1&&
+            System.Object.ReferenceEquals(nightShiftRaidMap,Map)&&
+            System.Object.ReferenceEquals(nightShiftRaidSave,save)&&
+            !Has("nightshift_trace_1");}}
+        public bool IsNightShiftRaider(Enemy e)
+        {return e!=null&&NightShiftRaidActive&&nightShiftRaiders.Contains(e);}
+        public int NightShiftRaidRemaining
+        {get{int n=0;if(NightShiftRaidActive)foreach(Enemy e in nightShiftRaiders)
+            if(e!=null&&e.hp>0f&&enemies.Contains(e))n++;return n;}}
+        public bool NightShiftRaidReady
+        {get{
+            if(!NightShiftRaidActive||nightShiftRaiders.Count!=2)return false;
+            foreach(Enemy e in nightShiftRaiders)
+                if(e==null||!nightShiftRaidKills.Contains(e)||
+                   e.hp>0f||enemies.Contains(e))return false;
+            return true;
+        }}
+        public Point NightShiftRaidTarget
+        {get{
+            WorldObject site=NightShiftSite(1);
+            Point result=site==null?Position:new Point(site.x,site.y);
+            float nearest=float.MaxValue;
+            if(NightShiftRaidActive)foreach(Enemy e in nightShiftRaiders)
+                if(e!=null&&e.hp>0f&&enemies.Contains(e))
+                {
+                    float d=(Position-e.Position).Length;
+                    if(d<nearest){nearest=d;result=e.Position;}
+                }
+            return result;
+        }}
+        private void ResetNightShiftRaid()
+        {
+            projectiles.RemoveAll(p=>p!=null&&p.hostileShooter!=null&&
+                nightShiftRaiders.Contains(p.hostileShooter));
+            foreach(Enemy e in nightShiftRaiders)
+            {
+                RemoveEnemyPendingWarning(e);
+                enemies.Remove(e);regionalAmbientEnemies.Remove(e);
+            }
+            nightShiftRaidRoom=-1;nightShiftRaidSave=null;nightShiftRaidMap=null;
+            nightShiftRaiders.Clear();nightShiftRaidKills.Clear();
+        }
+        private void OnNightShiftRaiderDefeated(Enemy e)
+        {if(IsNightShiftRaider(e))nightShiftRaidKills.Add(e);}
+        private void TickNightShiftRaid()
+        {
+            if(nightShiftRaidRoom<0)return;
+            if(!NightShiftRaidActive||Dying)
+            {ResetNightShiftRaid();return;}
+            foreach(Enemy e in nightShiftRaiders)
+                if(e==null||!nightShiftRaidKills.Contains(e)&&
+                   (!enemies.Contains(e)||e.hp<=0f))
+                {
+                    ResetNightShiftRaid();revision++;
+                    Notify("现场追兵失联，证据尚未核实。回到原始班表重新调查。",
+                        "A raider vanished without a verified defeat. Revisit the original shift card.");
+                    return;
+                }
+        }
+        private bool BeginNightShiftRaid(WorldObject site)
+        {
+            if(!NightShiftSource(site,1)||NightShiftRaidActive||
+               !Has("nightshift_started")||NightShiftEvidenceCount!=0||
+               Dying||practicing||!SafeTravel||FieldWorkPreventsRest)
+                return false;
+            int x=(int)Math.Floor(site.x),y=(int)Math.Floor(site.y);
+            Point center=new Point(site.x,site.y);
+            var pads=new List<Point>();
+            // Two separate forest approaches; only full, reachable waves
+            // can be activated, never incomplete/through-wall raiders.
+            int[,] dirs={{-1,0},{1,1}};
+            for(int i=0;i<2;i++)
+            {
+                int dx=dirs[i,0],dy=dirs[i,1];
+                bool accepted=false;
+                for(int radius=6;radius<=13&&!accepted;radius++)
+                for(int side=-3;side<=3&&!accepted;side++)
+                {
+                    Point p=new Point(x+dx*radius-dy*side+.5f,
+                        y+dy*radius+dx*side+.5f);
+                    if(RegionalScoutFootClear(p,center,true,pads))
+                    {pads.Add(p);accepted=true;}
+                }
+            }
+            for(int radius=6;radius<=14&&pads.Count<2;radius++)
+            for(int dy=-radius;dy<=radius&&pads.Count<2;dy++)
+            for(int dx=-radius;dx<=radius&&pads.Count<2;dx++)
+            {
+                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                   Math.Abs(dx)+Math.Abs(dy)>18)continue;
+                Point p=new Point(x+dx+.5f,y+dy+.5f);
+                if(RegionalScoutFootClear(p,center,true,pads))pads.Add(p);
+            }
+            if(pads.Count!=2)return false;
+            nightShiftRaidRoom=1;nightShiftRaidSave=save;nightShiftRaidMap=Map;
+            nightShiftRaiders.Clear();nightShiftRaidKills.Clear();
+            for(int i=0;i<2;i++)
+            {
+                Enemy e=CreatePlacedEnemy(++enemyId,i,pads[i],56f);
+                nightShiftRaiders.Add(e);enemies.Add(e);
+                effects.Add(new Effect("enemyRelease",e.Position,.6f)
+                    {variant=i});
+            }
+            revision++;sound="alert";
+            Notify("撕下班表引出巡路追踪者！击退两名真实追兵，再回来核对原始记录。",
+                "Two real road trackers answer the disturbed roll. Defeat both and return to verify the evidence.");
+            return true;
         }
         private bool NightShiftSource(WorldObject o,int region)
         {
@@ -444,11 +568,30 @@ namespace Starfall
                 return true;
             }
             if(room==1)
-                Dialog(o.name,o.en,
-                    "半张纸钉在折断的树枝背面。上面写着：“最后一班巡林人护送三名工人到渡口。天还没亮，三人都还活着。”\n\n不是野兽造成失踪。那条路是有人刻意从新地图上擦掉的。",
-                    "Half a card is pinned behind a broken branch. “Last watch escorted three furnace workers to the ferry. All alive before dawn.”\n\nBeasts didn't make these people disappear. Someone deliberately erased the road from the new map.",
-                    C("核验巡路班表并带走副本",
-                      "Verify the watch and carry a copy","nightshift_trace_1"));
+            {
+                if(NightShiftRaidActive)
+                    Dialog(o.name,o.en,
+                        NightShiftRaidReady?
+                            "追兵已经被击退。树洞内的纸张幸存，可以取下原件核对失踪者的真正归路。":
+                            "两名追兵还在这里搜寻。纸张留在树洞里，先击退敌人，免得它落回军方手中。",
+                        NightShiftRaidReady?
+                            "The trackers have fallen. Recover the original card from the tree hollow.":
+                            "Two trackers are still searching here. Defeat them before the card is seized.",
+                        NightShiftRaidReady?
+                            C("现场安全 · 核验原件",
+                              "Area secured · verify evidence","nightshift_trace_1"):
+                            C("追兵尚存 · "+NightShiftRaidRemaining,
+                              "Trackers remaining · "+NightShiftRaidRemaining,"close"));
+                else
+                    Dialog(o.name,o.en,
+                        "半张纸钉在折枝背面：“三名工人于天亮前被护送到渡口。”新鲜脚印说明追兵仍在附近。你可以燃烧药草压住气味，或把追兵引到真实林道交战。",
+                        "The torn card reads: “Three workers escorted to the ferry before dawn.” Fresh prints show trackers nearby. Burn an herb to conceal your scent or draw the real raiders into combat.",
+                        C("草药1、耐力30 · 无声取证",
+                          "1 herb + 30 stamina · quiet recovery","nightshift_quiet"),
+                        C("诱出追兵 · 两人实战",
+                          "Draw out two trackers · actual combat","nightshift_fight"),
+                        C("暂不冒险","Leave the roll","close"));
+            }
             else if(room==2)
                 Dialog(o.name,o.en,
                     "石阶有两道潮水印。堡垒抄本写着“日出后才放行”，可旧石匠把低潮刻在前一晚的钟点。若按公文计算，那艘船根本不可能驶过淹没的石阶。\n\n你要相信哪种时间？",
@@ -474,6 +617,34 @@ namespace Starfall
             int room=pendingDialogueSourceRoom;
             if(room<0||room>3||!NightShiftSource(source,room))
                 return true;
+            if(action=="nightshift_fight")
+            {
+                if(!BeginNightShiftRaid(source))
+                    Notify("周边地形或敌人尚不安全，无法布置完整战斗。",
+                        "The terrain is unsafe for a complete encounter.");
+                return true;
+            }
+            if(action=="nightshift_quiet")
+            {
+                if(room!=1||NightShiftRaidActive||
+                   !Has("nightshift_started")||
+                   NightShiftEvidenceCount!=0||NightShiftComplete)return true;
+                if(!SafeTravel||save.inventory[2]<1||save.energy<30f)
+                {
+                    Notify("潜行取证需要草药1、耐力30并脱离危险。",
+                        "Quiet recovery costs one herb, 30 stamina and requires safety.");
+                    return true;
+                }
+                save.inventory[2]--;save.energy-=30f;
+                Flag("nightshift_trace_1");
+                RecordMoment(
+                    "夜班名册 · 用草药掩盖气味，消耗耐力悄悄取回密林原始记录，没有惊动附近追兵。",
+                    "Night-Shift Roll: spent a genuine herb and 30 stamina to retrieve the forest original without alerting the patrol.");
+                revision++;sound="quest";
+                Notify("无声取证完成：去沉没遗迹核实退潮钟印。",
+                    "Quiet recovery complete. Check the tide clock in the ruins.");
+                return true;
+            }
             if(action=="nightshift_false")
             {
                 if(room!=2||!Has("nightshift_trace_1")||
@@ -506,6 +677,7 @@ namespace Starfall
                    !Has("nightshift_started")||
                    Has("nightshift_trace_"+stage)||
                    NightShiftEvidenceCount!=stage-1)return true;
+                if(stage==1&&!NightShiftRaidReady)return true;
                 if(stage==3)
                 {
                     if(save.inventory[4]<1)
@@ -517,6 +689,7 @@ namespace Starfall
                     save.inventory[4]--;
                 }
                 Flag("nightshift_trace_"+stage);
+                if(stage==1)ResetNightShiftRaid();
                 RecordMoment(
                     stage==1?
                         "夜班名册 · 密林半张班表证实三名工人在天亮前被巡路人护送至渡口。":
