@@ -2901,7 +2901,23 @@ namespace Starfall
                      ((travelerAttacker||reliefAttacker||escortPatrol||
                        stockRaider||patrolSaboteur) &&
                       !EnemyMeleeLaneClear(e,pursuit)));
-                if (!e.backpedaling && (distance > desired || !visible || teammateCover))
+                // A waiting frontline combatant should actively circle
+                // the occupied opening, not remain motionless in a row of
+                // overlapping silhouettes. Only physically sighted,
+                // uncommitted overworld melee at genuine striking range
+                // receives this local flanking movement. The ordinary
+                // wall/crowd sweep still owns every centimeter of travel.
+                bool waitingForFlank=ordinaryPatrol&&e.kind!=1&&
+                    regionalAmbientEnemies.Contains(e)&&
+                    e.state==0&&e.timer<=0f&&
+                    !trackingOrdinaryFoot&&
+                    !IsEnemyInvestigatingImpact(e)&&
+                    !IsEnemyReturningFromImpact(e)&&
+                    !RidgeWatchRespondsToAlarm(e)&&
+                    distance>=1.05f&&distance<=2.5f&&
+                    (pursuit-Position).Length<.1f&&
+                    visible&&!RegionalVolleySlotAvailable(e);
+                if (!e.backpedaling && (distance > desired || !visible || teammateCover || waitingForFlank))
                 {
                     // Actual archer missile LOS may be shut by a corner
                     // beside an otherwise perfectly open walking ray.
@@ -2909,6 +2925,12 @@ namespace Starfall
                     // committing pursuit: moving directly nearer simply
                     // repeats a blocked shot or eventually backpedals.
                     Point heading=DirectionTo(e.Position,pursuit);
+                    if(waitingForFlank)
+                    {
+                        Point toward=(Position-e.Position).Normalized;
+                        heading=new Point(-toward.y,toward.x)*
+                            ((e.id&1)==0?1f:-1f);
+                    }
                     if(e.kind==1&&!e.boss&&!visible)
                     {
                         Point lateral=ArcherFollowCornerPlan(e,pursuit);

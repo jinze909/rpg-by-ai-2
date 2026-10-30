@@ -67,6 +67,10 @@ namespace Starfall.Tests
                 }
                 Check(close==1&&ranged==1,
                     "Six active overworld raiders yield one true melee warning and one true bow warning, not simultaneous same-role bursts");
+                Check(g.enemies[1].state==0&&
+                    Math.Abs(g.enemies[1].y-feet[1].y)>.005f&&
+                    (g.enemies[1].Position-g.Position).Length>1.05f,
+                    "A waiting second melee fighter genuinely circles the hero on walkable ground instead of freezing in a stacked attack queue");
                 Check(g.save.version==2&&g.enemies.Count==6&&
                     !g.save.flags.Contains("biome_patrol_done_1"),
                     "Squad cadence does not despawn foes, claim patrol rewards or migrate old saves");
