@@ -106,6 +106,32 @@ namespace Starfall.Tests
             }
         }
 
+        // These are accepted quest/resource objects with real E hitboxes,
+        // not background scenery. Preserve every identity and story handler
+        // while separating formerly overlapping map sources.
+        public static void ChapterEvidenceAndResourcesHaveDistinctInteractionPads(Campaign data)
+        {
+            int[] rooms={2,2,3,3,4,4};
+            string[] moved={"archivefragment2","afterlightoutlet2",
+                "wood3","ore3","lastDirectiveEvidence0","annex_camp_4"};
+            string[] neighbor={"survey2","stormrelay2",
+                "witnessnpc3","rootcounter3","ridge_route_4_1",
+                "silentledger_record"};
+            for(int i=0;i<moved.Length;i++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;g.Enter(rooms[i]);
+                WorldObject a=Array.Find(g.Map.objects,o=>o.id==moved[i]);
+                WorldObject b=Array.Find(g.Map.objects,o=>o.id==neighbor[i]);
+                Check(a!=null&&b!=null,
+                    "Existing story and resource targets retain their exact authored identities");
+                Point foot=new Point(a.x,a.y),other=new Point(b.x,b.y);
+                Check(g.CanStand(foot),
+                    "Repositioned object must be on actual legal game terrain: "+a.id);
+                Check((foot-other).Length>=2.5f,
+                    "Nearby quest sources need individually readable E interaction clearings: "+a.id);
+            }
+        }
+
         public static void FourDifferentCampaignLevelsRetainRealOldAndNewWalkingRoutes(Campaign data)
         {
             string[][] originalMustReach={
