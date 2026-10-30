@@ -97,7 +97,11 @@ namespace Starfall.Tests
                             "Every attacker approaches through a real traversable original map");
                         hit.Invoke(g,new object[]{foe,9999f,true,null,null});
                     }
-                    g.Tick(.02f,new Point());
+                    // Production contact applies real hit-stop. A single
+                    // 20ms tick may intentionally freeze all world missions;
+                    // simulate enough actual frames to release that impact
+                    // and let the second wave enter genuine world time.
+                    Advance(g,.65f);
                     if(wave==1)
                         Check(g.SagaGuardActive&&g.SagaGuardWave==2&&
                             g.SagaGuardRemaining==2&&!g.Has("saga_guard_"+room),
