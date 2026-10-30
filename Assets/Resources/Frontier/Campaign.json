@@ -293,7 +293,7 @@
           "name": "艾拉 · 堡垒证词保管员",
           "en": "Ayla · Keeper of Public Testimony",
           "x": 13.5,
-          "y": 6.5
+          "y": 10.5
         },
         {
           "id": "skywatcher",
@@ -8016,7 +8016,7 @@
           "en": "Western Medicine Crate",
           "kind": "tidecargo1",
           "x": 5.5,
-          "y": 6.5
+          "y": 8.5
         },
         {
           "id": "tidecargo2",
@@ -8031,8 +8031,8 @@
           "name": "南岛潮汐航图",
           "en": "Southern Tide Chart",
           "kind": "tidecargo3",
-          "x": 26.5,
-          "y": 14.5
+          "x": 22.5,
+          "y": 17.5
         },
         {
           "id": "waytrail5s",

@@ -106,10 +106,10 @@ namespace Starfall.Tests
         // Reposition seven existing source objects to give each its own
         // physical E reach circle in busy story locations. Keep stable
         // IDs, authored battle objects, source counts and v2 quest flags.
-        public static void FourDistrictsDecrowdActualQuestSources(Campaign data)
+        public static void ThreeDistrictsDecrowdActualQuestSources(Campaign data)
         {
             string[][] moved={
-                new[]{"commonswitness0"},
+                new string[0],
                 new string[0],new string[0],new string[0],
                 new[]{"triadmemory3","silentledger_record"},
                 new[]{"tidecargo1","tidecargo3","mistlight_lamp"},
