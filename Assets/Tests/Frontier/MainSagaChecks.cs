@@ -639,6 +639,101 @@ namespace Starfall.Tests
             Check(verified,
                 "At least one authored regional speaker has a physically open bodyguard lane");
         }
+
+        public static void OriginalWitnessSabotageUsesRealTimedAttackAndLastSecondBodyguard(Campaign data)
+        {
+            var update=typeof(GameCore).GetMethod("UpdateEnemies",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(update!=null&&clear!=null,
+                "Real production AI releases real document attack");
+            int verified=0;
+            for(int room=5;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+                g.save.flags.Add(room==5?"harbor_report":
+                    room==6?"desert_report":"mountain_report");
+                g.save.flags.Add("saga_trace_"+room);g.save.flags.Add("saga_outer_"+room);
+                WorldObject npc=Array.Find(g.Map.objects,o=>o.id==
+                    (room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Real original witness exists in active authored map");
+                g.Talk(npc);
+                int interview=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_account_"+room);
+                Check(interview>=0,"Physical interview exists");
+                g.Choose(interview);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_guard_begin");
+                Check(begin>=0,"Original speaker offers live defense");
+                g.Choose(begin);
+                Check(g.SagaGuardActive,"Live two-wave mission starts");
+                Enemy raider=Array.Find(g.enemies.ToArray(),e=>e.kind!=1);
+                Check(raider!=null,"At least one raider can physically seize records");
+                foreach(Enemy e in g.enemies)if(e!=raider)e.stun=20f;
+                Point witness=new Point(npc.x,npc.y);
+                Point attackerFoot=new Point(),heroFoot=new Point();
+                bool found=false;
+                Point[] dirs={new Point(1,0),new Point(-1,0),
+                    new Point(0,1),new Point(0,-1),
+                    new Point(.7071f,.7071f),new Point(-.7071f,.7071f),
+                    new Point(.7071f,-.7071f),new Point(-.7071f,-.7071f)};
+                foreach(Point dir in dirs)
+                {
+                    for(float distance=1.25f;distance<=1.85f;distance+=.2f)
+                    {
+                        Point a=witness+dir*distance;
+                        Point h=witness-dir*4f;
+                        if(!g.CanStand(a)||!g.CanStand(h)||
+                           !(bool)clear.Invoke(g,new object[]{a,witness}))
+                            continue;
+                        attackerFoot=a;heroFoot=h;found=true;break;
+                    }
+                    if(found)break;
+                }
+                if(!found)continue;
+                verified++;
+                g.save.x=heroFoot.x;g.save.y=heroFoot.y;
+                raider.x=attackerFoot.x;raider.y=attackerFoot.y;
+                raider.timer=0f;raider.stun=raider.stagger=raider.hitTime=0f;
+                raider.releaseTime=0f;
+                update.Invoke(g,new object[]{.05f});
+                Check(raider.state==1&&raider.targetingSagaGuardEvidence&&
+                    (raider.target-witness).Length<.02f&&
+                    g.SagaGuardEvidenceSafety==100,
+                    "Raider must visibly commit on the genuine evidence foot");
+                Check(g.effects.Exists(effect=>effect.kind=="danger"&&
+                    (effect.position-witness).Length<.02f),
+                    "Live ground warning precedes actual document damage");
+                update.Invoke(g,new object[]{.2f});
+                Check(g.SagaGuardEvidenceSafety==100,
+                    "Unreleased attacks cannot damage the original documents");
+                update.Invoke(g,new object[]{.5f});
+                Check(g.SagaGuardEvidenceSafety<=
+                    (raider.kind==2?75:83)&&
+                    !raider.targetingSagaGuardEvidence&&g.SagaGuardActive,
+                    "A genuine unblocked released raid removes evidence integrity");
+                // Second attack begins unblocked. Defender moves into its
+                // actual committed lane AFTER the red warning, not at spawn.
+                raider.state=0;raider.timer=0f;raider.releaseTime=0f;
+                raider.stun=raider.hitTime=raider.stagger=0f;
+                update.Invoke(g,new object[]{.05f});
+                Check(raider.state==1&&raider.targetingSagaGuardEvidence,
+                    "Recovered raider telegraphs its next document attempt");
+                Point midpoint=attackerFoot+(witness-attackerFoot)*.5f;
+                int safety=g.SagaGuardEvidenceSafety;
+                g.save.x=midpoint.x;g.save.y=midpoint.y;
+                update.Invoke(g,new object[]{.72f});
+                Check(g.SagaGuardEvidenceSafety==safety&&g.SagaGuardActive,
+                    "Hero interposes during actual locked release to protect evidence");
+                Check(!g.Has("saga_voice_"+room)&&!g.Has("saga_guard_"+room),
+                    "Neither attacks nor hero blocking fabricate a signed ending");
+            }
+            Check(verified>0,"At least one authored witness supports real raid contact and bodyguard");
+        }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=0;
