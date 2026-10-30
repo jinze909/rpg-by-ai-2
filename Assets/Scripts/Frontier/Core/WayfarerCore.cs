@@ -297,11 +297,11 @@ namespace Starfall
                     (rewardPending ? " 三位旅人已经平安，请在背包留出一份炖汤的空间，再回来领取共同的奖励。" : "") +
                     (room==3&&MineConvoyComplete?
                         " 南侧矿棚最后一班矿工已经平安归来，矿工不再需要军用货运许可。":"")+
-                    " 其他旅人也许还在等待救援。" + FloodArchiveWayfarerNote(false),
+                    WayfarerNextLead(false) + FloodArchiveWayfarerNote(false),
                     responseEn +
                     (room==3&&MineConvoyComplete?
                         " The last-shift miners returned safely; they no longer need a military cargo permit.":"")+
-                    " Others may still be stranded." +
+                    WayfarerNextLead(true) +
                     (rewardPending ? " All three travelers are safe. Free one stew slot and return to claim their shared reward." : "") +
                     FloodArchiveWayfarerNote(true),
                     rewardPending ? C("领取三人共同的补给", "Claim the travelers' shared supplies", "wayfarer_reward") :
@@ -328,14 +328,17 @@ namespace Starfall
                     options.ToArray());
                 return true;
             }
+            // One concrete person's dilemma in each region, not another
+            // interchangeable "bring two items or defeat two raiders" job.
+            // The old nonlethal supply and live defense outcomes remain real.
             string[] zh = { "",
-                "我的药袋被掠夺者打散了。两份药草能帮助伤者；你也可以替我击退追兵。",
-                "洪水卷走了渡口信号灯。两块星晶能点亮安全河道；你也可以帮我击退劫路者。",
-                "矿道运输车坏了。两份备用零件可以修好；否则我们得先击退趁乱袭来的掠夺者。" };
+                "伤员们都在等我这一袋药。掠夺者说，交出药就让我们走——可我见过他们背走没法跑的人。我不敢再赌。两份月见草能稳住伤口；若没有，请替我们挡下追兵，让伤员先过林道。",
+                "昨夜有人故意调转了渡口的灯，船队差点驶进断桥。洪水只冲走了最后一盏真灯。两块星晶能重燃正确航标；如果你选择守渡口，就得在掠夺者发现灯光前挡住他们。",
+                "旧运输车里不止有矿石，还有等着回家的夜班工人。监工让我们先救货，可伤者的呼救声就在车厢后面。两份零件能让车先载人离开；不然请守住矿道，我们自己推车出去。" };
             string[] en = { "",
-                "Raiders scattered my medicines. Two Moonherbs can help the wounded, or you can fight the pursuers.",
-                "The flood carried away our ferry lamp. Two starcrystals can restore the crossing, or we must repel raiders.",
-                "The supply cart broke down. Two spare parts will repair it, or we can fight the ambushers." };
+                "The wounded are waiting for this bag of medicine. The raiders promised to let us pass if I handed it over. I saw what they did to those who couldn't run. Two Moonherbs will close the wounds; without them, hold off the pursuers while we cross the grove.",
+                "Someone deliberately turned the ferry signal toward the broken bridge. We nearly lost a boat before the flood took our last honest lamp. Two starcrystals can relight the true channel; or defend the crossing while we restore it under raider fire.",
+                "That cart holds more than ore. The night shift is still inside, calling for help. The foreman ordered us to save the freight first. Two spare parts will move the people out; otherwise hold the mine passage while we push the cart by hand." };
             string[] supplyZh = { "", "药草×2 · 当地声望+1", "星晶×2 · 当地声望+1", "零件×2 · 当地声望+1" };
             string[] supplyEn = { "", "2 Moonherbs · trust +1", "2 starcrystals · trust +1", "2 spare parts · trust +1" };
             Dialog(o.name, o.en, zh[room]+FloodArchiveWayfarerNote(false), en[room]+FloodArchiveWayfarerNote(true),
@@ -343,6 +346,24 @@ namespace Starfall
                 C("守护旅人 · 武器熟练度+4", "Defend traveler · mastery +4", "wayfarer_defend_" + room),
                 C("稍后再说", "Prepare first", "close"));
             return true;
+        }
+        // Read-only narrative handoff. In the original v2 quest receipts,
+        // rescue order is flexible; never send the player back toward an
+        // already completed traveler or fabricate an unlocked region.
+        private string WayfarerNextLead(bool english)
+        {
+            for(int r=1;r<=3;r++)
+                if(!Has("wayfarer_"+r))
+                    return english?
+                        " The next missing traveler was last seen near "+
+                            (r==1?"Thornwood":r==2?"the Drowned Ruins":"Ironreach")+
+                            ". Check the actual roadside marker.":
+                        " 下一位失联旅人的线索在"+
+                            (r==1?"荆棘密林":r==2?"沉没遗迹":"赤铁矿场")+
+                            "的路边标记处。";
+            return english?
+                " All three travelers are safe. No further rescue is required.":
+                " 三位旅人都已平安，这条救援线已经结束。";
         }
         // Old dialogue choices may still be clickable after a gate
         // closes. Donations, field medicine, withdrawals and the shared
