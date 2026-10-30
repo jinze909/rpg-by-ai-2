@@ -119,6 +119,118 @@ namespace Starfall.Tests
             Check(distinct.Count==24,
                 "Twenty-four independently positioned, reachable physical field devices exist");
         }
+
+        public static void RepairedStationsLaunchPhysicalRegionalSoundDiversions(Campaign data)
+        {
+            int[] supplied={0,0,0,0,0,0,4,2};
+            var audible=typeof(GameCore).GetMethod("AudibleAlongWorld",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(audible!=null,"The actual acoustic corridor solver is available");
+            int heardAcrossEight=0;
+            for(int room=0;room<8;room++)
+            {
+                GameCore g=new GameCore(data);g.Close();
+                g.save.room=room;g.mode="world";g.enemies.Clear();
+                g.save.flags.Add("regional_machine_done_"+room);
+                int material=supplied[room];
+                g.save.inventory[material]=3;
+                WorldObject station=Array.Find(g.Map.objects,o=>
+                    o.id=="regional_machine_"+room+"_0");
+                Check(station!=null&&station.kind=="regionalMachine",
+                    "Regional acoustic signal uses a real reachable machine");
+                Point origin=new Point(station.x,station.y);
+                g.save.x=origin.x;g.save.y=origin.y;
+                Point enemyFoot=new Point(),facing=new Point();
+                bool located=false;
+                Point[] compass={
+                    new Point(1,0),new Point(-1,0),
+                    new Point(0,1),new Point(0,-1),
+                    new Point(.7071f,.7071f),new Point(-.7071f,.7071f),
+                    new Point(.7071f,-.7071f),new Point(-.7071f,-.7071f)
+                };
+                for(float distance=4.5f;distance<=7f&&!located;distance+=.5f)
+                foreach(Point direction in compass)
+                {
+                    Point candidate=origin+direction*distance;
+                    if(!g.CanStand(candidate))continue;
+                    if(!(bool)audible.Invoke(g,new object[]{origin,candidate,7.3f}))
+                        continue;
+                    enemyFoot=candidate;facing=direction;
+                    located=true;break;
+                }
+                Check(located,
+                    "At least one actual terrain-connected sentry route exists beside every public station");
+                Enemy sentry=new Enemy(98000+room,0,enemyFoot.x,enemyFoot.y,80f);
+                sentry.Face(facing);sentry.timer=30f;
+                g.enemies.Add(sentry);
+                g.Talk(station);
+                int signal=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="regional_machine_signal");
+                Check(signal>=0,"Commissioned public machine offers a real field signal");
+                int before=g.save.inventory[material];
+                g.Choose(signal);
+                Check(g.IsEnemyInvestigatingImpact(sentry)&&
+                    g.save.inventory[material]==before-1&&
+                    !g.Has("regional_machine_signal_"+room)&&
+                    g.mode=="world",
+                    "World-acoustic patrol diversion costs exactly one appropriate local material");
+                heardAcrossEight++;
+                // The same source cannot be spammed during its actual 26s
+                // recovery. Re-opening the real map dialogue must not reset it.
+                g.Talk(station);
+                signal=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="regional_machine_signal");
+                Check(signal>=0,"Active field signal remains visible at the original device");
+                int after=g.save.inventory[material];
+                g.Choose(signal);
+                Check(g.save.inventory[material]==after&&
+                    g.IsEnemyInvestigatingImpact(sentry),
+                    "Cooldown rejects an immediate second activation without charging stock");
+                // Current mission-controlled combat cannot be overwritten
+                // by a convenience decoy. A new world slot also cannot
+                // inherit an old instance-owned sound footprint.
+                g.PrepareSave();
+                GameCore restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.RegionalMachineDone(room)&&
+                    !restored.IsEnemyInvestigatingImpact(sentry),
+                    "Existing v2 public engineering persists but live acoustic ownership does not");
+            }
+            Check(heardAcrossEight==8,
+                "All eight authored regions gain a functional, terrain-checked tactical diversion");
+        }
+        public static void FieldStationSignalCannotHijackAttackingOrUnawareObjectiveGuards(Campaign data)
+        {
+            GameCore g=new GameCore(data);g.Close();g.save.room=0;
+            g.mode="world";g.enemies.Clear();
+            g.save.flags.Add("regional_machine_done_0");
+            WorldObject station=Array.Find(g.Map.objects,o=>
+                o.id=="regional_machine_0_0");
+            Check(station!=null,"Original canal gong exists");
+            g.save.x=station.x;g.save.y=station.y;
+            g.save.inventory[0]=2;
+            Point foot=new Point(station.x+5f,station.y);
+            if(!g.CanStand(foot))
+                foot=new Point(station.x-5f,station.y);
+            Check(g.CanStand(foot)&&
+                g.NavigationPathFrom(new Point(station.x,station.y),
+                    foot,true).Count>0,
+                "An actual canal guard can stand on local walkable terrain");
+            Enemy committed=new Enemy(98070,0,foot.x,foot.y,120f);
+            committed.state=1;committed.timer=.4f;committed.Face(
+                (foot-new Point(station.x,station.y)).Normalized);
+            g.enemies.Add(committed);
+            g.Talk(station);
+            int signal=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="regional_machine_signal");
+            Check(signal>=0,"The real signal interaction is offered");
+            g.Choose(signal);
+            Check(committed.state==1&&
+                !g.IsEnemyInvestigatingImpact(committed)&&
+                g.save.inventory[0]==2,
+                "Already committed attacks ignore diversion and consume no wasted materials");
+        }
         public static void CommissionedSafeMachinesActuallyRestoreNearbyPlayerButNotRemote(Campaign data)
         {
             GameCore g=new GameCore(data);
