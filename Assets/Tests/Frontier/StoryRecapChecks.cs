@@ -74,6 +74,62 @@ namespace Starfall.Tests
         }
 
 
+        public static void NightShiftAidWaitsWhenPlayerCannotBenefit(Campaign data)
+        {
+            for(int outcome=0;outcome<2;outcome++)
+            for(int room=1;room<=3;room++)
+            {
+                var g=Fresh(data);
+                g.save.stage=3;
+                g.save.flags.Add("nightshift_started");
+                for(int r=1;r<=3;r++)g.save.flags.Add("nightshift_trace_"+r);
+                bool publicAid=outcome==0;
+                g.save.flags.Add(publicAid?"nightshift_public":"nightshift_private");
+                WorldObject site=NightShiftAt(g,room);
+                string receipt="nightshift_followup_"+room;
+                int slot=room==1?2:room==2?0:4;
+                // First offer a genuine field choice with room for recovery.
+                if(publicAid)g.save.inventory[slot]=9996;
+                else if(room==2)g.save.energy=70f;
+                else g.save.health=g.save.maxHealth-30f;
+                g.Talk(site);
+                Check(g.conversation!=null,
+                    "Original survivor site opens an actual dialogue");
+                int option=Array.FindIndex(g.conversation.choices,
+                    c=>c.action==receipt);
+                Check(option>=0,"On-site aid is initially genuinely available");
+                // The player's condition may change after opening the dialog.
+                // A stale button must not consume an irreplaceable receipt.
+                if(publicAid)g.save.inventory[slot]=9999;
+                else if(room==2)g.save.energy=100f;
+                else g.save.health=g.save.maxHealth;
+                int moments=g.save.moments.Count;
+                g.Choose(option);
+                Check(!g.Has(receipt)&&g.save.moments.Count==moments&&
+                    !g.GetQuest("night_shift_aftercare").complete,
+                    "Full resources cannot waste a claim-once field receipt");
+                g.Close();g.Talk(site);
+                Check(g.conversation!=null&&
+                    Array.FindIndex(g.conversation.choices,
+                        c=>c.action==receipt)<0,
+                    "Player-facing choices explain capacity rather than inviting a wasted pickup");
+                g.Close();
+                if(publicAid)g.save.inventory[slot]=9996;
+                else if(room==2)g.save.energy=70f;
+                else g.save.health=g.save.maxHealth-30f;
+                NightShiftChoose(g,site,receipt);
+                Check(g.Has(receipt)&&g.save.moments.Count==moments+1&&
+                    (publicAid?g.save.inventory[slot]==9996+(room==3?1:2):
+                     room==2?g.save.energy==100f:
+                     g.save.health==g.save.maxHealth-(30f-(room==1?24f:18f))),
+                    "Returning with real need safely pays the original distinct aid");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.Has(receipt)&&restored.save.version==2,
+                    "Claimed field aid stays once-only in the unchanged SaveData v2 schema");
+            }
+        }
+
         public static void NightShiftMineHasWalkedValveAlternativeRealTimerAndSaveIsolation(Campaign data)
         {
             var g=Fresh(data);

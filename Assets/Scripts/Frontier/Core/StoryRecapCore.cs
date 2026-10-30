@@ -552,6 +552,15 @@ namespace Starfall
                 SourceBelongsToActiveMap(o)&&IsObjectPresent(o)&&
                 HasPhysicalInteractionReach(o);
         }
+        // Field aid is a claim-once survivor gift. Do not sign away a finite
+        // receipt when the player has no room for its actual recovery.
+        private bool NightShiftAidAtCapacity(int room)
+        {
+            if(room<1||room>3||!NightShiftComplete)return false;
+            if(Has("nightshift_public"))
+                return save.inventory[room==1?2:room==2?0:4]>=9999;
+            return room==2?save.energy>=100f:save.health>=save.maxHealth;
+        }
         private bool TalkNightShift(WorldObject o)
         {
             if(o==null)return false;
@@ -656,17 +665,33 @@ namespace Starfall
                     room==2?
                         "The old tide mark conceals an unsigned shelter guide. Someone cleared the glass from the stairs and left a place to recover.":
                         "No miners have signed this gift, but a heat cloth and herbs wait beside the original spool for the next witness.";
-                Dialog(o.name,o.en,storyZh+(
-                    delivered?"\n\n这处现场的补给已领取；原始证词仍可供查验。":
-                    "\n\n他们留下的一次性现场援助仍在。"),
-                    storyEn+(delivered?
-                        "\n\nThe field cache has been collected. The original evidence remains readable.":
-                        "\n\nA one-time on-site aid package is still available."),
+                bool aidFull=NightShiftAidAtCapacity(room);
+                string aidZh=delivered?
+                    "\n\n这处现场的补给已领取；原始证词仍可供查验。":
+                    aidFull?
+                        (published?
+                            "\n\n对应物资已经装满。先使用一些，再来领取这份仅有一次的援助。":
+                            room==2?
+                                "\n\n耐力已经恢复到上限。先上路，再回来领取这份仅有一次的援助。":
+                                "\n\n生命已经恢复到上限。需要疗伤时再回来，不会失去援助。"):
+                        "\n\n他们留下的一次性现场援助仍在。";
+                string aidEn=delivered?
+                    "\n\nThe field cache has been collected. The original evidence remains readable.":
+                    aidFull?
+                        (published?
+                            "\n\nYour matching supply stack is full. Use some first; this one-time gift will wait.":
+                            room==2?
+                                "\n\nYour energy is full. Return after the road tires you; the gift will wait.":
+                                "\n\nYour health is full. Return when you need healing; the gift will wait."):
+                        "\n\nA one-time on-site aid package is still available.";
+                Dialog(o.name,o.en,storyZh+aidZh,storyEn+aidEn,
                     delivered?
                         C("合上现场记录","Close field record","close"):
-                        C(published?"领取公共巡路物资":"领取匿名现场援助",
-                          published?"Collect public route supplies":"Receive anonymous field aid",
-                          "nightshift_followup_"+room),
+                        aidFull?
+                            C("援助保留 · 以后再来","Leave aid for later","close"):
+                            C(published?"领取公共巡路物资":"领取匿名现场援助",
+                              published?"Collect public route supplies":"Receive anonymous field aid",
+                              "nightshift_followup_"+room),
                     C("以后再来","Return later","close"));
                 return true;
             }
@@ -765,6 +790,20 @@ namespace Starfall
                    !NightShiftComplete||!Has("nightshift_trace_"+station)||
                    Has("nightshift_followup_"+station))
                     return true;
+                if(NightShiftAidAtCapacity(station))
+                {
+                    Notify(Has("nightshift_public")?
+                        "这类物资已满，援助保留在现场；先使用一些再来领取。":
+                        station==2?
+                            "耐力已经满了，匿名援助会留到你真正需要时。":
+                            "生命已经满了，匿名援助会留到需要疗伤时。",
+                        Has("nightshift_public")?
+                            "The matching supply stack is full. Use some and return; the field gift is reserved.":
+                        station==2?
+                            "Energy is full. The anonymous gift stays here until needed.":
+                            "Health is full. The anonymous gift stays here until needed.");
+                    return true;
+                }
                 // Credit only exact visit at the original field record.
                 // The outcome changes the type of service, but never
                 // creates permanent respawning loot or new SaveData fields.
