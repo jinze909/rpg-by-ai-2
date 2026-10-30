@@ -295,10 +295,10 @@ namespace Starfall.Tests
             // Removal without authentic hit-death hook is never a victory.
             g.enemies.RemoveAt(0);
             Advance(g,.2f);
-            Check(!g.WildernessHuntActive&&
+            Check(!g.WildernessHuntActive&&g.enemies.Count==0&&
                 !g.Has("wilderness_hunt_fought_6")&&
                 !g.WildernessHuntFinished(6),
-                "Vanished opponents cannot forge progress or advance the original quest");
+                "Vanished opponents retire every exclusively hunt-owned raider, without forging story progress");
         }
         public static void LegacyV2SavesInsideNewAuthoringCoverRecoverWithoutLosingCampaign(Campaign data)
         {

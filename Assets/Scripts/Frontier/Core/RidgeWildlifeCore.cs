@@ -1130,6 +1130,19 @@ namespace Starfall
         {return e!=null&&WildernessHuntActive&&wildernessHuntFoes.Contains(e);}
         private void ResetWildernessHunt()
         {
+            // Failure, abort, timeout, death or changing save/room must
+            // retire ONLY our exact mission actors and their already-fired
+            // hostile missiles. A vanished hunt may never leave a roaming
+            // ordinary foe, stale warning or arrow behind to pay fake loot.
+            foreach(Enemy foe in wildernessHuntFoes)
+                if(foe!=null)
+                {
+                    enemies.Remove(foe);
+                    RemoveEnemyPendingWarning(foe);
+                }
+            projectiles.RemoveAll(shot=>shot!=null&&
+                shot.hostileShooter!=null&&
+                wildernessHuntFoes.Contains(shot.hostileShooter));
             wildernessHuntRoom=-1;wildernessHuntWave=0;
             wildernessHuntClock=0f;wildernessHuntQuiet=false;
             wildernessHuntSave=null;wildernessHuntMap=null;
