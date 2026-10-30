@@ -311,6 +311,59 @@ namespace Starfall.Tests
         // A generic main-story marker cannot send a player across the
         // world while a physical local battle needs its counter, opponents
         // or signed return. Preserve their manual tracker across all steps.
+        public static void FieldTacticTrialRequiresUsableEnergyAndReadyDevice(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);
+            g.enemies.Clear();
+            WorldObject source=Array.Find(g.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(source!=null&&PlaceWithinTalkReach(g,source),
+                "Preparation requires authentic reachable field equipment");
+            g.save.energy=13f;
+            g.Talk(source);
+            int action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(action>=0,"The real source offers the usual trial dialogue");
+            g.Choose(action);
+            Check(!g.FieldTacticTrialActive&&g.enemies.Count==0&&
+                g.save.energy==13f&&!g.FieldTacticTrialDone(1),
+                "Starting without actual counter energy spawns no raiders and spends nothing");
+            g.save.energy=14f;
+            g.Close();g.Talk(source);
+            action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            g.Choose(action);
+            Check(g.FieldTacticTrialActive&&g.enemies.Count==2,
+                "At exact legal energy the real walkable drill is available");
+            g.Close();g.Talk(source);
+            action=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_tactic_trial_abort");
+            Check(action>=0,"The physical station supports a legal trial abort");
+            g.Choose(action);
+            Check(!g.FieldTacticTrialActive&&!g.FieldTacticTrialDone(1),
+                "Preparation and cancellation do not grant a receipt");
+            GameCore prior=Fresh(data);prior.save.stage=3;prior.Enter(1);
+            WorldObject device=Array.Find(prior.Map.objects,
+                o=>o.id=="field_tactic_1"&&o.kind=="fielddevice");
+            Check(device!=null&&PlaceWithinTalkReach(prior,device)&&
+                prior.FieldTacticLiveThreatCount(device)>0,
+                "Original required room roster exposes genuine enemies to the device");
+            prior.save.energy=100f;
+            Check(prior.QuickActivateFieldTactic()&&
+                prior.FieldTacticCooldown(device)>23f,
+                "A previous real battlefield activation imposes genuine source cooldown");
+            prior.enemies.Clear();
+            int energy=(int)prior.save.energy;
+            prior.Close();prior.Talk(device);
+            action=Array.FindIndex(prior.conversation.choices,
+                c=>c.action=="field_tactic_trial_begin");
+            Check(action>=0,"Even cooling equipment describes the trial option");
+            prior.Choose(action);
+            Check(!prior.FieldTacticTrialActive&&prior.enemies.Count==0&&
+                prior.save.energy==energy&&!prior.FieldTacticTrialDone(1),
+                "Cooldown prevents an unwinnable ambush without spending energy or signing completion");
+        }
+
         public static void FieldTacticTrialWaypointsFollowTheRequiredBattleStage(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.Enter(1);

@@ -237,6 +237,23 @@ namespace Starfall
             {Notify("先完成其他现场战斗，再开始演练。",
                 "Finish current fieldwork and nearby danger before starting.");
              return true;}
+            // A live trial is only fair when the exact source can ACTUALLY
+            // fire at the outset. Previously the contract spawned attackers
+            // even if an earlier use left 24 seconds of cooldown, or the
+            // hero had under 14 energy, creating an unavoidable opener.
+            if(save.energy<14f)
+            {
+                Notify("演练需要至少14耐力来操作现场装置。补充后再开始。",
+                    "The drill requires at least 14 energy to activate the counter. Recover first.");
+                return true;
+            }
+            float wait=FieldTacticCooldown(source);
+            if(wait>.001f)
+            {
+                Notify("装置仍在复位，剩余"+(int)Math.Ceiling(wait)+"秒。待就绪后再开始演练。",
+                    "The device is resetting for "+(int)Math.Ceiling(wait)+"s. Start the drill when ready.");
+                return true;
+            }
             if(!StageFieldTacticTrial(source))
             {Notify("装置附近不足两条安全可步行的敌人进路，清理现场再试。",
                 "No complete two-raider walkable lane here. Clear the area and retry.");
