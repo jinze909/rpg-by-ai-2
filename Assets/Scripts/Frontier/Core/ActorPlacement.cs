@@ -350,6 +350,8 @@ namespace Starfall
         // A blocked tidal route can make a complete two-foe wave impossible.
         // Retry at most once every two world seconds, never every frame.
         private float remoteRoadRetrySeconds;
+        private float remoteRoadDisengageSeconds;
+        private WorldObject remoteRoadSource;
         private MapData remoteRoadMap;
         private SaveData remoteRoadSave;
         private static readonly int[,] remoteRoadKinds={
@@ -395,13 +397,23 @@ namespace Starfall
             remoteRoadCaptured.Add(e);
             return true;
         }
-        private void ResetRemoteRoadEncounter(bool resetDistricts=false)
+        // A cancelled or lost encounter can be fought again without
+        // teleporting away or awarding an unearned world-state receipt.
+        private void ResetRemoteRoadEncounter(bool resetDistricts=false,
+            bool retry=false)
         {
+            if(retry&&remoteRoadDistrict>=0)
+            {
+                remoteRoadVisited.Remove(remoteRoadDistrict);
+                remoteRoadRetrySeconds=2f;
+            }
             projectiles.RemoveAll(p=>p!=null&&p.hostileShooter!=null&&
                 remoteRoadFoes.Contains(p.hostileShooter));
             foreach(Enemy e in remoteRoadFoes)
             {
                 RemoveEnemyPendingWarning(e);
+                ForgetOrdinaryPatrolSight(e);
+                enemyHitAlert.Remove(e);
                 regionalAmbientEnemies.Remove(e);
                 enemies.Remove(e);
             }
@@ -409,12 +421,24 @@ namespace Starfall
             remoteRoadDefeated.Clear();
             remoteRoadCaptured.Clear();
             remoteRoadRoom=-1;remoteRoadDistrict=-1;
+            remoteRoadSource=null;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=null;remoteRoadSave=null;
             if(resetDistricts)
             {
                 remoteRoadVisited.Clear();
                 remoteRoadRetrySeconds=0f;
             }
+        }
+        // The first raider must be visible, and BOTH must stand inside
+        // the real eight-tile ordinary enemy aggro range. Cover may shield
+        // the second flanker, but never invent a distant unseen ambush.
+        private bool RemoteRoadCombatFootClear(Point foot,Point source,
+            int slot,List<Point> selected)
+        {
+            float range=(foot-Position).Length;
+            return range>=5f&&range<=8f&&
+                (slot!=0||ClearAttackPath(Position,foot))&&
+                RegionalScoutFootClear(foot,source,true,selected);
         }
         // These are authentic map objects, not fabricated markers or an
         // automatic world teleport. A whole two-enemy wave must fit BEFORE
@@ -432,7 +456,7 @@ namespace Starfall
             for(int slot=0;slot<2;slot++)
             {
                 bool found=false;
-                for(int radius=7;radius<=12&&!found;radius++)
+                for(int radius=5;radius<=8&&!found;radius++)
                 for(int offset=0;offset<8&&!found;offset++)
                 {
                     int d=(save.room*3+district*5+slot*4+offset)%8;
@@ -441,26 +465,27 @@ namespace Starfall
                             dirs[d,0]*radius,
                         (float)Math.Floor(marker.y)+.5f+
                             dirs[d,1]*radius);
-                    if(RegionalScoutFootClear(foot,center,true,pads))
+                    if(RemoteRoadCombatFootClear(foot,center,slot,pads))
                     { pads.Add(foot);found=true; }
                 }
             }
             if(pads.Count!=2)
             {
                 int sx=(int)Math.Floor(marker.x),sy=(int)Math.Floor(marker.y);
-                for(int radius=6;radius<=13&&pads.Count<2;radius++)
+                for(int radius=5;radius<=9&&pads.Count<2;radius++)
                 for(int dy=-radius;dy<=radius&&pads.Count<2;dy++)
                 for(int dx=-radius;dx<=radius&&pads.Count<2;dx++)
                 {
                     if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                        Math.Abs(dx)+Math.Abs(dy)>18)continue;
                     Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
-                    if(RegionalScoutFootClear(foot,center,true,pads))
+                    if(RemoteRoadCombatFootClear(foot,center,pads.Count,pads))
                         pads.Add(foot);
                 }
             }
             if(pads.Count!=2)return false;
             remoteRoadRoom=save.room;remoteRoadDistrict=district;
+            remoteRoadSource=marker;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=Map;remoteRoadSave=save;
             for(int slot=0;slot<2;slot++)
             {
@@ -488,15 +513,32 @@ namespace Starfall
                 remoteRoadRetrySeconds=Math.Max(0f,remoteRoadRetrySeconds-dt);
             if(remoteRoadDistrict>=0)
             {
-                if(!RemoteRoadEncounterActive||Dying)
-                { ResetRemoteRoadEncounter();return; }
+                if(!RemoteRoadEncounterActive||Dying||
+                    remoteRoadSource==null||
+                    !SourceBelongsToActiveMap(remoteRoadSource))
+                { ResetRemoteRoadEncounter(false,true);return; }
                 // Disappeared enemies and scripted removals are not earned
                 // victories; only the actual death / snare transaction signs.
                 foreach(Enemy e in remoteRoadFoes)
                     if(e==null||(!remoteRoadDefeated.Contains(e)&&
                         !remoteRoadCaptured.Contains(e)&&
                         (!enemies.Contains(e)||e.hp<=0f)))
-                    { ResetRemoteRoadEncounter();return; }
+                    { ResetRemoteRoadEncounter(false,true);return; }
+                // A voluntary crossing battle is not an unbounded pursuit:
+                // running far from its authentic ridge for 1.6 seconds
+                // retires these exact actors without any completion credit.
+                Point crossing=new Point(remoteRoadSource.x,remoteRoadSource.y);
+                if((Position-crossing).Length>26f)
+                    remoteRoadDisengageSeconds+=dt;
+                else remoteRoadDisengageSeconds=0f;
+                if(remoteRoadDisengageSeconds>=1.6f)
+                {
+                    ResetRemoteRoadEncounter(false,true);
+                    revision++;
+                    Notify("你已离开伏击地带。敌人撤回路口，返回后可以再次迎战。",
+                        "You escaped the ambush. Return to the crossing to try again.");
+                    return;
+                }
                 if(remoteRoadDefeated.Count+remoteRoadCaptured.Count<2)
                     return;
                 int district=remoteRoadDistrict,region=remoteRoadRoom;

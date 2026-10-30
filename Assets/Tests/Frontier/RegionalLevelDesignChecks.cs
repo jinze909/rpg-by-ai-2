@@ -1436,6 +1436,70 @@ namespace Starfall.Tests
                 "Returning to the actual crossing retries a fresh physical fight, not stale saved enemy references");
         }
 
+
+        // Existing maps, actual sight, and the 8-tile enemy perception
+        // contract must agree: an announced ambush is playable on screen.
+        public static void RemoteRoadOpeningAmbushesEnterPhysicalAwarenessRange(Campaign data)
+        {
+            var sight=typeof(GameCore).GetMethod("ClearAttackPath",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(sight!=null,"Original terrain line of sight remains wired");
+            for(int room=1;room<=7;room++)
+            for(int district=0;district<2;district++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                WorldObject marker=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_"+district);
+                Check(marker!=null,"Both original ridge crossings exist");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Tick(.02f,new Point());
+                Check(g.RemoteRoadEncounterActive&&g.enemies.Count==2,
+                    "Every authentic crossing opens a full local ambush");
+                Enemy first=g.enemies[0],second=g.enemies[1];
+                foreach(Enemy foe in new[]{first,second})
+                    Check((foe.Position-g.Position).Length>=4.99f&&
+                        (foe.Position-g.Position).Length<=8.01f&&
+                        g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                        "Real foes enter ordinary perception range on genuinely traversable ground");
+                Check((bool)sight.Invoke(g,new object[]{g.Position,first.Position}),
+                    "At least the first ambusher has an unobstructed actual sightline");
+                Check((first.Position-second.Position).Length>=4.99f,
+                    "The two threats use distinct authentic flank approaches");
+            }
+        }
+
+        public static void RemoteRoadRetreatReleasesOriginalActorsAndAllowsRetry(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.stage=3;
+            g.save.room=1;g.enemies.Clear();g.invulnerable=200f;
+            WorldObject marker=Array.Find(g.Map.objects,o=>
+                o.id=="ridge_route_1_0");
+            Check(marker!=null,"Original forest outer crossing remains present");
+            g.save.x=marker.x;g.save.y=marker.y;
+            int kills=g.save.kills[1],coins=g.save.coins;
+            g.Tick(.02f,new Point());
+            var original=new List<Enemy>(g.enemies);
+            Check(g.RemoteRoadEncounterActive&&original.Count==2,
+                "Original two live raiders physically appear on site");
+            g.save.x=g.Map.spawnX;g.save.y=g.Map.spawnY;
+            for(int i=0;i<35;i++)g.Tick(.05f,new Point());
+            Check(!g.RemoteRoadEncounterActive&&
+                !g.RemoteRoadCleared(1,0)&&
+                g.save.kills[1]==kills&&g.save.coins==coins&&
+                !g.enemies.Contains(original[0])&&
+                !g.enemies.Contains(original[1]),
+                "Retreat retires exact raiders without farming money or main kills");
+            g.save.x=marker.x;g.save.y=marker.y;
+            for(int i=0;i<50&&!g.RemoteRoadEncounterActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.RemoteRoadEncounterActive&&g.RemoteRoadRemaining==2&&
+                g.enemies.Count==2&&
+                !System.Object.ReferenceEquals(g.enemies[0],original[0]),
+                "Reentry creates genuine new enemies after world-time rearm");
+        }
+
         public static void FarRoadDistrictsHavePlayableOptionalAmbushes(Campaign data)
         {
             var flags=System.Reflection.BindingFlags.Instance|
