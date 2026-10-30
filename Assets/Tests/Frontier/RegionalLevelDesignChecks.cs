@@ -102,6 +102,46 @@ namespace Starfall.Tests
         }
 
 
+
+        // Reposition seven existing source objects to give each its own
+        // physical E reach circle in busy story locations. Keep stable
+        // IDs, authored battle objects, source counts and v2 quest flags.
+        public static void FourDistrictsDecrowdActualQuestSources(Campaign data)
+        {
+            string[][] moved={
+                new[]{"commonswitness0"},
+                new string[0],new string[0],new string[0],
+                new[]{"triadmemory3","silentledger_record"},
+                new[]{"tidecargo1","tidecargo3","mistlight_lamp"},
+                new string[0],new[]{"seal7"},
+                new string[0],new string[0]
+            };
+            for(int room=0;room<data.maps.Length;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.room=room;
+                foreach(string id in moved[room])
+                {
+                    WorldObject focus=Array.Find(g.Map.objects,o=>o.id==id);
+                    Check(focus!=null&&g.CanStand(new Point(focus.x,focus.y)),
+                        "Moved original source must have legal world footing: "+id);
+                    foreach(WorldObject other in g.Map.objects)
+                    {
+                        if(System.Object.ReferenceEquals(other,focus))continue;
+                        float distance=(new Point(other.x-focus.x,
+                            other.y-focus.y)).Length;
+                        Check(distance>=2.55f,
+                            "Existing world interaction sources are separated: "+id+"/"+other.id);
+                    }
+                    g.save.x=focus.x;g.save.y=focus.y;
+                    if(g.IsObjectPresent(focus))
+                        Check(g.NearbyInteractionChoices().Contains(focus),
+                            "Actual relocated source remains selectable in real E list: "+id);
+                }
+                Check(g.save.version==2,
+                    "Decluttering the map does not change original hero persistence");
+            }
+        }
+
         public static void LiveFieldContractsDoNotFreezeWhileOrdinaryDistrictsSleep(Campaign data)
         {
             var g=Fresh(data);

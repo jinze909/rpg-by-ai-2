@@ -293,7 +293,7 @@
           "name": "艾拉 · 堡垒证词保管员",
           "en": "Ayla · Keeper of Public Testimony",
           "x": 13.5,
-          "y": 10.5
+          "y": 6.5
         },
         {
           "id": "skywatcher",
@@ -6272,8 +6272,8 @@
           "kind": "triadmemory3",
           "name": "赤铁矿场作业审计",
           "en": "Ironreach Core Ledger",
-          "x": 25.5,
-          "y": 19.5
+          "x": 28.5,
+          "y": 21.5
         },
         {
           "id": "triadnexus",
@@ -6400,8 +6400,8 @@
           "name": "北侧旧名册 · 无名之人",
           "en": "Northern Register · The Unnamed",
           "kind": "silentledgerrecord",
-          "x": 60.5,
-          "y": 36.5
+          "x": 58.5,
+          "y": 33.5
         },
         {
           "id": "silentledger_witness",
@@ -8015,8 +8015,8 @@
           "name": "西侧药箱残片",
           "en": "Western Medicine Crate",
           "kind": "tidecargo1",
-          "x": 8.5,
-          "y": 8.5
+          "x": 5.5,
+          "y": 6.5
         },
         {
           "id": "tidecargo2",
@@ -8031,8 +8031,8 @@
           "name": "南岛潮汐航图",
           "en": "Southern Tide Chart",
           "kind": "tidecargo3",
-          "x": 25.5,
-          "y": 17.5
+          "x": 26.5,
+          "y": 14.5
         },
         {
           "id": "waytrail5s",
@@ -8127,8 +8127,8 @@
           "kind": "mistlightlamp",
           "name": "北岸信标 · 未熄的煤油",
           "en": "Northshore Beacon · Keeper's Oil",
-          "x": 60.5,
-          "y": 37.5
+          "x": 58.5,
+          "y": 40.5
         },
         {
           "id": "mistlight_mirror",
@@ -11124,8 +11124,8 @@
           "kind": "seal3",
           "name": "断桥修复",
           "en": "Broken bridge",
-          "x": 6.5,
-          "y": 19.5
+          "x": 9.5,
+          "y": 21.5
         },
         {
           "id": "cache7",
