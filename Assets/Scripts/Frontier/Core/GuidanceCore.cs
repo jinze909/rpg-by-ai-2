@@ -5596,7 +5596,8 @@ namespace Starfall
             // but do not paint misleading world arrows/breadcrumbs toward it.
             // Higher-priority live rescues and climate emergencies above
             // continue using their own authoritative targets.
-            if(QuestApproachNextStageBlocked||QuestApproachTravelArrivalBlocked)
+            if(QuestApproachNextStageBlocked||QuestApproachTravelArrivalBlocked||
+               LocalWaymarkRouteBlocked)
                 return null;
             Point? personal=LocalWaymark;
             if(personal.HasValue&&!FieldWorkPreventsRest)return personal;

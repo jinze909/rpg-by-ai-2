@@ -7158,6 +7158,8 @@ public static class RuntimeCombatInputChecks
             for(int i=0;i<32;i++)g.Tick(.05f,new Point());
             Check(g.LocalWaymarkRouteBlocked&&g.HasLocalWaymark,
                 "Blocked live destination holds the player's original personal pin");
+            Check(!g.NavigationTarget().HasValue&&!g.PersonalNavigationActive,
+                "The world compass refuses to point at an unreachable personal destination");
             GUI.commands.Clear();Call(app,"OnGUI");
             Check(GUI.commands.Exists(c=>c.Contains("ROUTE BLOCKED")) &&
                 !GUI.commands.Exists(c=>c.Contains("PERSONAL PIN")),
