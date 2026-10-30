@@ -189,8 +189,20 @@ namespace Starfall
             // readable rather than turning their interaction pads into
             // unavoidable body-blocking piles.
             foreach(WorldObject obj in Map.objects)
-                if(obj!=null&&(foot-new Point(obj.x,obj.y)).Length<2f)
-                    return false;
+                if(obj!=null)
+                {
+                    float distance=(foot-new Point(obj.x,obj.y)).Length;
+                    // The first four chapters now have meaningful live
+                    // civilian rescues at three separate stations. Preserve
+                    // a real safe conversation pad around these stations,
+                    // rather than camping their new arrival trail with the
+                    // mandatory regional battle roster. Regular NPCs, the
+                    // Boss and other late-world objectives retain their
+                    // existing 2-unit collision clearance.
+                    float clearance=save.room>=1&&save.room<=4&&
+                        obj.kind=="chapterroad"?4.2f:2f;
+                    if(distance<clearance)return false;
+                }
             foreach(Enemy other in enemies)
                 if(other!=null&&other.hp>0&&
                     (foot-other.Position).Length<2.5f)return false;

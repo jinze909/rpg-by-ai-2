@@ -42,8 +42,14 @@ namespace Starfall.Tests
                         g.NavigationPathFrom(regionSpawn,enemy.Position,true).Count>0,
                         "All original mandatory enemies occupy connected, physically walkable regional ground");
                     foreach(WorldObject prop in g.Map.objects)
-                        Check((enemy.Position-new Point(prop.x,prop.y)).Length>=1.9f,
+                    {
+                        float pad=(enemy.Position-new Point(prop.x,prop.y)).Length;
+                        Check(pad>=1.9f,
                             "Regional fighters do not block original NPC, resource or chapter investigation props");
+                        if(prop.kind=="chapterroad")
+                            Check(pad>=4.15f,
+                                "Mandatory regional monsters cannot camp a chapter rescue or survivor conversation");
+                    }
                 }
                 // The original seal/barrier prerequisites still control the
                 // Boss arena. Decorative new paths must not bypass them.
@@ -89,10 +95,10 @@ namespace Starfall.Tests
             }
             // Keep the thematic changes literal, not four generic biome
             // recolors: trees, flooded islands, slag, and fortress walls.
-            Check(data.maps[1].rows[8][45]=='#' &&
-                data.maps[2].rows[8][45]=='~' &&
+            Check(data.maps[1].rows[4][25]=='#' &&
+                data.maps[2].rows[5][24]=='~' &&
                 data.maps[3].rows[5][24]=='#' &&
-                data.maps[4].rows[8][45]=='#',
+                data.maps[4].rows[20][30]=='#',
                 "Forest roots, Ruins flood, Mine slag and Citadel barricades have physically authored distinct topology");
         }
     }
