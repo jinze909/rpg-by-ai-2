@@ -493,16 +493,31 @@ namespace Starfall
                         Game.L("星薄荷保护 · 剩余 ","STAR-MINT PROTECTION · ")+
                             (int)Math.Ceiling(Game.TeaProtectionLeft)+"s",
                         11,mint);
-                DrawMinimap(); QuestGuide q = Game.CivicCourierActive ? Game.GetQuest("civic_courier") : Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
+                // Witness defense is an immediate, reversible threat to
+                // actual evidence, even while another quest is tracked.
+                // Present the main-story combat guide without changing the
+                // player's persistent tracked quest.
+                DrawMinimap(); QuestGuide q = Game.SagaGuardActive ?
+                    Game.GetQuest("main") :
+                    Game.CivicCourierActive ? Game.GetQuest("civic_courier") : Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.MineConvoyActive ? Game.GetQuest("mine_convoy") :
                     Game.WitnessDefenseRoom!=0 ? Game.GetQuest("campaign_witness") :
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
                     Game.FrostSignalActive ? Game.GetQuest("frost_signal") :
                     Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.CurrentGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
                 Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
-                Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint : Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
+                Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
+                    Game.SagaGuardActive ? Game.Objective() :
+                    Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
                     Game.TideSalvageActive || Game.FrostSignalActive ||
-                    Game.WitnessDefenseRoom!=0) ? q.next : Game.GuidanceHint(), 13, muted); Bar(1025, 422, 214, Game.practicing ? Game.practiceStage / 3f : q.Progress, gold, 3);
+                    Game.WitnessDefenseRoom!=0) ? q.next : Game.GuidanceHint(), 13, muted);
+                // During the two waves, the visible meter represents the
+                // document's real remaining safety, not unrelated quest
+                // checklist completion; normal HUD progress is restored on
+                // victory or failure.
+                Bar(1025, 422, 214, Game.SagaGuardActive ?
+                    Game.SagaGuardEvidenceSafety / 100f :
+                    Game.practicing ? Game.practiceStage / 3f : q.Progress, gold, 3);
                 if (!Game.practicing && Button(1015, 448, 234, 33, Game.save.showGuidance ? Game.L("路线指引 ON", "Route guide ON") : Game.L("路线指引 OFF", "Route guide OFF"))) { Game.save.showGuidance = !Game.save.showGuidance; Game.revision++; }
                 if (Game.save.room >= 5 || Game.CivicCourierActive || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.MineConvoyActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
