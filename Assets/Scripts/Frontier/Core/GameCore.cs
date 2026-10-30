@@ -388,7 +388,12 @@ namespace Starfall
             // alone would be discarded at every Load() and slot switch.
             save.maxHealth = 100 + save.upgrades * 20 +
                 save.talents[1] * 12 + (save.profession == 0 ? 20 : 0) +
-                (Has("unlisted_protected") ? 25 : 0);
+                (Has("unlisted_protected") ? 25 : 0) +
+                // The optional witness-protection ending pays permanent
+                // survivability. A raw maxHealth increment is erased by
+                // this canonical load/recovery formula, so derive it from
+                // its original once-only v2 flag on every slot load.
+                (Has("nightshift_private") ? 8 : 0);
             save.health = Finite(save.health) ? Clamp(save.health, 1, save.maxHealth) : save.maxHealth;
             save.energy = Finite(save.energy) ? Clamp(save.energy, 0, 100) : 100;
             save.totalTime = Finite(save.totalTime) ? Clamp(save.totalTime, 0, 10000000) : 0;

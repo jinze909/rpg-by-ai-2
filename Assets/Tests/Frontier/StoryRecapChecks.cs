@@ -138,6 +138,15 @@ namespace Starfall.Tests
                 c=>c.action=="nightshift_private")<0&&
                 privateRun.save.maxHealth==oldMax+8,
                 "An old save can revisit the protected records without farming health");
+            privateRun.Close();privateRun.PrepareSave();
+            var recoveredPrivate=new GameCore(data,CloneSave(privateRun.save));
+            Check(recoveredPrivate.Has("nightshift_private")&&
+                recoveredPrivate.save.maxHealth==oldMax+8&&
+                recoveredPrivate.save.version==2,
+                "The chosen +8 max-health reward survives the REAL load-time canonical health recalculation");
+            recoveredPrivate.Load(CloneSave(recoveredPrivate.save));
+            Check(recoveredPrivate.save.maxHealth==oldMax+8,
+                "Repeated slot loads never double or erase the original private ending bonus");
         }
 
         public static void StoryRecapOnlyRevealsChaptersPlayerReached(Campaign data)
