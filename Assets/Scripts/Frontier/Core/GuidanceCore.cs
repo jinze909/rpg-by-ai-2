@@ -16,7 +16,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1378,6 +1378,65 @@ namespace Starfall
                             "Unlock an outdoor region and find its original repair marker."):
                     L("到真实的道路施工台，携带地区材料清理被阻挡的通道。",
                         "Reach the authentic field clearance site with its regional materials.");
+                return q;
+            }
+
+            // Three remote farshore hunt clearings are actual optional
+            // combat locations, not automatic post-ending quest flags.
+            if(id=="wilderness_hunts")
+            {
+                q.title=L("远岸荒野追踪 · 失踪者的归路",
+                    "Farshore Wilderness Hunts · The Missing Way Home");
+                q.category=L("远岸三地 · 双波真实战斗 · 居民处置",
+                    "FARSHORE · REAL TWO-WAVE COMBAT · CIVILIAN CHOICE");
+                q.description=L(
+                    "雾港、玻璃沙海和霜钟高原新增三个远离原任务点的现场。追随留下的绳结、井沿脚印和断钟记录，到真正的空地与敌人交战。可以花费该地物资提前设伏，也可以直接追击挑战两批敌人。只有真正击败四名敌人后才能回原现场决定公开居民归路或登记守路赏金；两种结果都保留旧存档。",
+                    "Find three new remote sites in Mistport, Glass Desert and Frostbell. Follow real pilot rope, well-rim footprints and a silent rescue bell to fight two physical enemy waves. Spend regional supplies to prepare an ambush or pursue openly. Only four actual combat deaths unlock a final decision to publish a civilian safe route or claim the watch bounty. Older saves stay intact.");
+                q.reward=L("每区可选居民补给和疗伤，或高额守路赏金；三地独立记录",
+                    "Per region: choice of civilian medical supplies or a larger watch bounty; three independent records");
+                q.complete=true;q.locked=true;
+                int chosen=-1;
+                for(int room=5;room<=7;room++)
+                {
+                    bool done=WildernessHuntFinished(room);
+                    bool fought=Has("wilderness_hunt_fought_"+room);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[room].name,data.maps[room].en)+
+                        L(done?" · 处置已登记":
+                            fought?" · 战斗已胜，待现场处置":
+                            " · 追查失踪路线",
+                          done?" · CROSSING SECURED":
+                            fought?" · BATTLE WON · DECISION PENDING":
+                            " · HUNT NOT YET STARTED"),done));
+                    if(!done)q.complete=false;
+                    if(CanEnter(room))q.locked=false;
+                    if(!done&&CanEnter(room)&&
+                        (chosen<0||room==save.room))chosen=room;
+                }
+                if(WildernessHuntActive)chosen=save.room;
+                q.room=chosen>=0?chosen:save.room;
+                q.target=chosen>=0?
+                    ObjectPoint(chosen,"wildernessHunt",
+                        new Point(data.maps[chosen].spawnX,
+                            data.maps[chosen].spawnY)):Position;
+                q.next=q.complete?
+                    L("三地失踪者的归路均已通过实战调查并完成居民决定。",
+                      "All three crossings have been fought for and assigned a civilian outcome."):
+                    WildernessHuntActive?
+                        L("第"+WildernessHuntWave+"/2波敌人仍在现场，剩余"+
+                          WildernessHuntRemaining+"名；时间还剩"+
+                          (int)Math.Ceiling(WildernessHuntSecondsLeft)+"秒。",
+                          "Live fight: wave "+WildernessHuntWave+"/2, "+
+                          WildernessHuntRemaining+" enemies; "+
+                          (int)Math.Ceiling(WildernessHuntSecondsLeft)+"s remain."):
+                    chosen<0?
+                        L("先开启通往远岸的真实道路。",
+                          "Unlock a real route to the farshore first."):
+                    Has("wilderness_hunt_fought_"+chosen)?
+                        L("四名敌人确实已败，回原始路标选择居民归路或巡守赏金。",
+                          "Four enemies have genuinely fallen. Return to the original sign to decide between civilian refuge and a watch bounty."):
+                        L("前往野外真正的旧绳、井台或断钟现场，自行选择伏击或追击。",
+                          "Walk to the real pilot rope, well terrace or broken bell; choose a paid ambush or an open pursuit.");
                 return q;
             }
 

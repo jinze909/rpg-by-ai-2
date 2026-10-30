@@ -1059,6 +1059,48 @@ namespace Starfall
         {
             if (!Game.IsObjectPresent(o)) return;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+            if(kind=="wildernessHunt")
+            {
+                int region=Game.save.room;
+                bool done=Game.WildernessHuntFinished(region);
+                Color ink=done?mint:
+                    Game.WildernessHuntActive?new Color(1f,.51f,.37f,.95f):gold;
+                string prop=region==5?"post":region==6?"obelisk":"barrel";
+                PropImage(prop,0,p.x-32,p.y-77,64,76,ink);
+                // Three distinct, authored recognizable investigation sites:
+                // the harbour's broken towline, desert stone tracks, and
+                // Frostbell's ruined low rescue chime. Existing resources
+                // and their Sprite provenance remain intact.
+                if(region==5)
+                {
+                    Frame(p.x-23,p.y-68,46,8,ink);
+                    Box(p.x-30,p.y-56,36,3,ink);
+                }
+                else if(region==6)
+                {
+                    Diamond(p.x,p.y-82,8,ink);
+                    Box(p.x-27,p.y-42,54,3,ink);
+                }
+                else
+                {
+                    Box(p.x-3,p.y-91,6,32,ink);
+                    Diamond(p.x,p.y-94,9,ink);
+                }
+                Ring(new Point(o.x,o.y),done?.47f:.75f,ink,22);
+                string state=done?
+                    Game.L("居民路口 · 已结案","CROSSING SECURED"):
+                    Game.WildernessHuntActive?
+                    Game.L("荒野追踪 · 第"+Game.WildernessHuntWave+"/2波 · 剩"+
+                        Game.WildernessHuntRemaining+"名",
+                        "LIVE HUNT · WAVE "+Game.WildernessHuntWave+
+                        "/2 · "+Game.WildernessHuntRemaining+" LEFT"):
+                    Game.Has("wilderness_hunt_fought_"+region)?
+                    Game.L("两波胜利 · 回来决定处置","BATTLE WON · DECIDE OUTCOME"):
+                    Game.L("未知足迹 · 可实地调查","UNKNOWN TRACKS · INVESTIGATE");
+                Text(p.x-143,p.y-114,286,19,state,10,ink,
+                    TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="ridgeBreach")
             {
                 int region=Game.save.room;
