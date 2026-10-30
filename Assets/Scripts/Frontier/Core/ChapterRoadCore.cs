@@ -83,6 +83,7 @@ namespace Starfall
         private WorldObject chapterRoadOrigin;
         private float chapterRoadTime;
         private bool chapterRoadDeviceUsed;
+        private bool chapterRoadDiversion;
         private readonly List<Enemy> chapterRoadFoes=new List<Enemy>();
         private readonly HashSet<Enemy> chapterRoadKills=new HashSet<Enemy>();
         private readonly HashSet<Enemy> chapterRoadBinds=new HashSet<Enemy>();
@@ -185,7 +186,7 @@ namespace Starfall
             }
             chapterRoadRoom=-1;chapterRoadStage=0;
             chapterRoadMap=null;chapterRoadSave=null;chapterRoadOrigin=null;
-            chapterRoadTime=0;chapterRoadDeviceUsed=false;chapterRoadFoes.Clear();
+            chapterRoadTime=0;chapterRoadDeviceUsed=false;chapterRoadDiversion=false;chapterRoadFoes.Clear();
             chapterRoadKills.Clear();chapterRoadBinds.Clear();
         }
         // The four civilian routes now use the ACTUAL geography around
@@ -420,6 +421,15 @@ namespace Starfall
                         C("站稳阵地 · 耐力10，拦截袭击者",
                             "Brace the line · 10 stamina, intercept raiders",
                             "chapterroad_defend"),
+                        C(new[]{"","留1份药草燃起安全求援烟，引开追兵",
+                            "留1份木材做空载木筏，吸引巡逻者追逐",
+                            "留1块矿石卡住计压仪，骗走雇佣守卫",
+                            "花14硬币借货车先把平民送走"}[room],
+                            new[]{"","Spend 1 herb on rescue smoke and distract pursuers",
+                            "Spend 1 wood on an empty raft decoy",
+                            "Spend 1 ore jamming the gauge to divert hired guards",
+                            "Spend 14 coins on a freight cart to evacuate civilians first"}[room],
+                            "chapterroad_divert"),
                         C("先检查地形","Check the approach","close"));
                 else
                 {
@@ -484,9 +494,19 @@ namespace Starfall
             choices.Add(C("检查安置点","Inspect the handoff","close"));
             Dialog(o.name,o.en,chapterEndZh[room]+
                 "\n\n"+chapterClosingWitnessZh[room]+
+                (chapterRoadDiversion?new[]{"",
+                    "\n\n跟着药草烟找来的巡路人救出另一名伤者；那个孩子却只问，明天铃还会不会响。",
+                    "\n\n追兵追着空木筏离开，阿菱的弟弟才敢带着原始值夜簿走出水下楼梯。",
+                    "\n\n压力表的误报让监工冲向空车轨。学徒亲手按下停机钮，第一次不必等他的签字。",
+                    "\n\n车驶过城门时，一名士兵认出了妹妹的围巾。他仍握着长矛，却没有拦住平民。"}[room]:"")+
                 "\n\n请选择居民今后如何保留这份真实证词。",
                 chapterEndEn[room]+
                 "\n\n"+chapterClosingWitnessEn[room]+
+                (chapterRoadDiversion?new[]{"",
+                    "\n\nA warden followed the herb smoke and carried out another wounded child. She only asked whether the bell would ring tomorrow.",
+                    "\n\nThe patrol followed the empty raft downstream. Arin's brother emerged from the flooded stairs with the untouched night ledger.",
+                    "\n\nThe false gauge alarm drew the foreman to an empty rail. His apprentice shut down the engine himself, without waiting for permission.",
+                    "\n\nA guard recognized his sister's scarf in the departing cart. He kept his spear but let the civilians pass."}[room]:"")+
                 "\n\nChoose how the survivors keep this physical testimony.",
                 choices.ToArray());
             return true;
@@ -506,12 +526,13 @@ namespace Starfall
                 return true;
             }
             bool start=action=="chapterroad_begin",fight=action=="chapterroad_defend",
+                diversion=action=="chapterroad_divert",
                 device=action=="chapterroad_device",
                 abort=action=="chapterroad_abort",
                 care=action=="chapterroad_care",witness=action=="chapterroad_witness",
                 finish=action=="chapterroad_finish";
-            if(!start&&!fight&&!device&&!abort&&!care&&!witness&&!finish)return false;
-            int room=save.room,slot=abort||start?0:fight||device?1:2;
+            if(!start&&!fight&&!diversion&&!device&&!abort&&!care&&!witness&&!finish)return false;
+            int room=save.room,slot=abort||start?0:fight||diversion||device?1:2;
             WorldObject source=pendingDialogueSource;
             if(room<1||room>4||save.ending>0||Dying||practicing||
                mode!="world"||source==null||source!=ChapterRoadNode(room,slot)||
@@ -546,10 +567,17 @@ namespace Starfall
                     "Walk to the second original site and press E to defend.");
                 return true;
             }
-            if(fight)
+            if(fight||diversion)
             {
                 if(!ChapterRoadActive||chapterRoadStage!=1||
-                   save.energy<10f||!CanStand(Position))return true;
+                   save.energy<(diversion?6f:10f)||!CanStand(Position))return true;
+                int material=room==1?2:room==2?0:4;
+                if(diversion&&(room==4?save.coins<14:save.inventory[material]<1))
+                {
+                    Notify("物资不足以布置撤离诱饵。也可以直接守住防线。",
+                        "Not enough supplies for the civilian decoy; direct defense remains possible.");
+                    return true;
+                }
                 // An authentic hostile wave must be fully reachable BEFORE
                 // the player spends stamina or a state transition is committed.
                 if(!SpawnChapterRoadRaiders())
@@ -558,11 +586,26 @@ namespace Starfall
                         "The full real enemy approach is blocked. Reposition and retry.");
                     return true;
                 }
-                save.energy-=10f;chapterRoadStage=2;
+                if(diversion)
+                {
+                    if(room==4)save.coins-=14;
+                    else save.inventory[material]--;
+                    chapterRoadDiversion=true;
+                    foreach(Enemy enemy in chapterRoadFoes)
+                    {
+                        enemy.stun=Math.Max(enemy.stun,1.4f);
+                        enemy.armorOpenTime=Math.Max(enemy.armorOpenTime,1.1f);
+                    }
+                }
+                save.energy-=diversion?6f:10f;chapterRoadStage=2;
                 sound="alert";revision++;
-                Notify(chapterMiddleZh[room]+" 击退或绊索活捉全部"+
+                Notify(chapterMiddleZh[room]+
+                    (diversion?" 你用真实物资吸引守卫转向，平民趁机撤离。但仍必须实际击退敌人。":"")+
+                    " 击退或绊索活捉全部"+
                     chapterRoadFoes.Count+"名袭击者，再步行前往接收点。",
-                    chapterMiddleEn[room]+" Defeat or restrain all "+
+                    chapterMiddleEn[room]+
+                    (diversion?" Your decoy drew the guards away from civilians; the real attackers still need to be stopped.":"")+
+                    " Defeat or restrain all "+
                     chapterRoadFoes.Count+" actual raiders, then walk to the receiver.");
                 return true;
             }
@@ -628,9 +671,11 @@ namespace Starfall
             if(witness&&room==1)return true;
             bool allCaptures=chapterRoadBinds.Count==chapterRoadFoes.Count&&
                 chapterRoadKills.Count==0;
+            bool decoyUsed=chapterRoadDiversion;
             if(care)save.inventory[2]--;
             ResetChapterRoad();
             Flag("chapter_road_done_"+room);
+            if(decoyUsed)Flag("chapter_road_diverted_"+room);
             if(care)Flag("chapter_road_care_"+room);
             if(witness)Flag("chapter_road_witness_"+room);
             CreditCoins(17+room*10);

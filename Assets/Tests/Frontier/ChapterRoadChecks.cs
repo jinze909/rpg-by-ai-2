@@ -7,6 +7,60 @@ namespace Starfall.Tests
     {
         // Exercises actual Chapter I–IV authored map data and production
         // dialogue/combat/receipt paths, not artificially awarded quest flags.
+        public static void FourDistinctCivilianDiversionsAlterLiveCombatAndWitnessOutcome(Campaign data)
+        {
+            var damage=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(damage!=null,"Real combat hit hook exists");
+            for(int room=1;room<=4;room++)
+            {
+                GameCore g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=room-1;g.enemies.Clear();g.save.energy=100;
+                g.save.coins=100;g.save.inventory[0]=5;
+                g.save.inventory[2]=5;g.save.inventory[4]=5;
+                WorldObject start=Array.Find(g.Map.objects,o=>o.id=="chapterroad_"+room+"_0");
+                WorldObject mid=Array.Find(g.Map.objects,o=>o.id=="chapterroad_"+room+"_1");
+                WorldObject end=Array.Find(g.Map.objects,o=>o.id=="chapterroad_"+room+"_2");
+                Check(start!=null&&mid!=null&&end!=null,"Original regional sites exist");
+                Check(PlaceWithinTalkReach(g,start),"Walk to civilian origin");
+                g.Talk(start);
+                int take=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="chapterroad_begin");
+                Check(take>=0,"Original rescue option remains available");
+                g.Choose(take);
+                Check(PlaceWithinTalkReach(g,mid),"Walk to original ambush midpoint");
+                g.Talk(mid);
+                int decoy=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="chapterroad_divert");
+                Check(decoy>=0,"Real civilian decoy option is presented");
+                int slot=room==1?2:room==2?0:4;
+                int oldStock=g.save.inventory[slot],oldCoins=g.save.coins;
+                g.Choose(decoy);
+                Check(g.ChapterRoadStage==2&&g.ChapterRoadRemaining==(room>2?3:2)&&
+                    (room==4?g.save.coins==oldCoins-14:
+                        g.save.inventory[slot]==oldStock-1),
+                    "The diversion spends genuine supplies and spawns all genuine attackers");
+                foreach(Enemy enemy in g.enemies.ToArray())
+                {
+                    Check(enemy.stun>=1.39f&&enemy.armorOpenTime>=1.09f,
+                        "Rescue tactics tangibly interrupt each real raider");
+                    damage.Invoke(g,new object[]{enemy,9999f,true,null,null});
+                }
+                Check(g.ChapterRoadSecured,"All physical raider deaths secure the lane");
+                Check(PlaceWithinTalkReach(g,end),"Walk to real civilian handoff");
+                g.Talk(end);
+                Check(g.conversation.textEn.Contains(room==1?"herb smoke":
+                    room==2?"empty raft":room==3?"gauge alarm":"sister's scarf"),
+                    "Witness names the distinct local consequence of player tactic");
+                int finish=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="chapterroad_finish");
+                Check(finish>=0,"Original chapter receipt remains available");
+                g.Choose(finish);
+                Check(g.ChapterRoadDone(room)&&
+                    g.save.flags.Contains("chapter_road_diverted_"+room),
+                    "Alternative approach survives as a durable v2-friendly story flag");
+            }
+        }
         public static void FourChapterCivilianRoadStoriesHaveRealWalkingFightsAndSafeHandoffs(Campaign data)
         {
             var damage=typeof(GameCore).GetMethod("Hit",
