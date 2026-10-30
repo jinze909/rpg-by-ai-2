@@ -2846,7 +2846,18 @@ namespace Starfall
                     !escortPatrol && !stockRaider && !patrolSaboteur && !witnessRaider &&
                     distance > (e.boss ? 18 : 8) &&
                     !(RidgeWatchRespondsToAlarm(e)&&distance<=18f) &&
-                    !(playerHitProvoked&&distance<=18f)) continue;
+                    !(playerHitProvoked&&distance<=18f))
+                {
+                    // The actual paid field-patrol contract must keep its
+                    // attack cooldown clock running even after the hero
+                    // leaves visual range. It still cannot acquire a hidden
+                    // player, path across the whole map or strike at range.
+                    // Baseline ambient enemies retain their original
+                    // distance-sleep behavior for large-region performance.
+                    if(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))
+                        e.timer=Math.Max(0f,e.timer-freeDt);
+                    continue;
+                }
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
                 // Hold a genuine firing lane outside the civilian's reach.
