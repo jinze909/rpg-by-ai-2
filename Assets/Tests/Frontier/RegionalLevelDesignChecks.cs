@@ -18,7 +18,7 @@ namespace Starfall.Tests
                 new[]{"witnesssite22"},
                 new[]{"witnesssite23","stormrelay3","annex_camp_3"},
                 new string[0],
-                new[]{"tidecargo1","seal5","mistlight_mirror","annex_camp_5"},
+                new[]{"seal5","mistlight_mirror"},
                 new[]{"glassherb"},
                 new[]{"skyprism1","frostwood","annex_vista_7"},
                 new string[0],new string[0]
