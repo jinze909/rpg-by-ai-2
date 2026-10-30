@@ -56,6 +56,23 @@ namespace Starfall.Tests
                 for(int i=1;i<options.Count;i++)g.CycleNearbyInteraction();
                 Check(g.Nearest()==selected&&g.save.version==2,
                     "Full ring rotation restores the initial selection without save changes");
+                // Distinct physical click targets focus their exact map
+                // source, while repeated clicks on IDENTICAL source feet
+                // rotate within that collision-free candidate cluster.
+                Check(g.FocusNearbyInteractionAt(new Point(12f,10.5f))&&
+                    System.Object.ReferenceEquals(g.Nearest(),three),
+                    "World-click hits the third real actor, not the first map entry");
+                Check(g.FocusNearbyInteractionAt(new Point(11.5f,10.5f)),
+                    "Identical-feet first click selects an actual source");
+                WorldObject firstClick=g.Nearest();
+                Check(System.Object.ReferenceEquals(firstClick,one)||
+                    System.Object.ReferenceEquals(firstClick,two),
+                    "Shared location cannot select a neighboring actor instead");
+                Check(g.FocusNearbyInteractionAt(new Point(11.5f,10.5f))&&
+                    !System.Object.ReferenceEquals(firstClick,g.Nearest())&&
+                    (System.Object.ReferenceEquals(g.Nearest(),one)||
+                     System.Object.ReferenceEquals(g.Nearest(),two)),
+                    "Repeated world-click cycles the overlapping speakers");
                 // A closed wall must invalidate the stale explicit selection
                 // rather than allowing a dialogue to bleed across colliders.
                 char[] closed=rows[10].ToCharArray();closed[11]='#';

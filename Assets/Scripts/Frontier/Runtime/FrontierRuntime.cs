@@ -1187,6 +1187,32 @@ namespace Starfall
             bool civilian=Game.ReliefCivilianIsInteractionTarget(current);
             int at=civilian?options.IndexOf(null):options.IndexOf(current);
             if(at<0)at=0;
+            // World-space number pips correspond EXACTLY to the nearby
+            // list below. Crowded NPCs/props no longer require a player to
+            // guess which ground dot belongs to the selected speaker.
+            // Mark only a bounded window to avoid creating another layer
+            // of visual clutter in an already crowded district. The
+            // original sprite pixels, map objects and E authority remain
+            // untouched. A moving civilian uses its actual live foot.
+            int visiblePips=Math.Min(6,options.Count);
+            for(int slot=0;slot<visiblePips;slot++)
+            {
+                int index=(at+slot)%options.Count;
+                WorldObject obj=options[index];
+                Point foot=obj==null?Game.reliefFollowerPosition:
+                    new Point(obj.x,obj.y);
+                bool chosen=slot==0;
+                Color ink=chosen?mint:PixelArt.C("#9aaeb4");
+                Ring(foot,chosen?.62f:.44f,ink,chosen?22:16);
+                Point screen=ScreenPoint(foot);
+                // Keep the numbered label small and offset from the
+                // actor's torso so overlapping body pixels remain readable.
+                Box(screen.x+9,screen.y-26,23,21,
+                    new Color(.035f,.075f,.12f,.9f));
+                Text(screen.x+10,screen.y-26,21,20,
+                    (index+1).ToString(),12,ink,
+                    TextAnchor.MiddleCenter);
+            }
             int displayed=Math.Min(4,options.Count);
             float x=56f,y=516f,width=366f;
             Panel(x,y,width,49f+displayed*25f,
