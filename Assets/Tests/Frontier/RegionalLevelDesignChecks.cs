@@ -146,9 +146,12 @@ namespace Starfall.Tests
                 g.Enter(room);
                 WorldObject device=Array.Find(g.Map.objects,
                     o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
-                Check(device!=null&&g.enemies.Count==7&&
-                    g.CanStand(new Point(device.x,device.y)),
-                    "Outer device integrates with original mandatory seven-fighter region");
+                Check(g.save.room==room,"Outer region entry succeeds: "+room);
+                Check(device!=null,"Outer region has its real placed device: "+room);
+                Check(g.enemies.Count==7,
+                    "Outer region "+room+" retains seven required fighters; got "+g.enemies.Count);
+                Check(g.CanStand(new Point(device.x,device.y)),
+                    "Outer region "+room+" mechanism is physically standable");
                 Check(g.NavigationPathFrom(g.Position,
                     new Point(device.x,device.y),true).Count>0,
                     "Outer battlefield has real walkable approach from the story entrance");
@@ -173,6 +176,10 @@ namespace Starfall.Tests
                     !g.Has("field_tactic_used_"+room),
                     "Empty activation never consumes energy, cooldown or mastery");
                 Point center=new Point(device.x,device.y),enemyFoot=new Point();
+                var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(clear!=null,"Live projectile LOS remains available");
                 bool found=false;
                 for(int dy=-5;dy<=5&&!found;dy++)
                 for(int dx=-5;dx<=5&&!found;dx++)
@@ -180,7 +187,8 @@ namespace Starfall.Tests
                     Point foot=center+new Point(dx,dy);
                     float distance=(foot-center).Length;
                     if(distance<2.5f||distance>5.7f||
-                        !g.CanStand(foot))continue;
+                        !g.CanStand(foot)||
+                        !(bool)clear.Invoke(g,new object[]{center,foot}))continue;
                     enemyFoot=foot;found=true;
                 }
                 Check(found,"Each outer device has an actual nearby walkable enemy pad");
