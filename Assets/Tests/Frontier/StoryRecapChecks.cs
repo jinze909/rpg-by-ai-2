@@ -6,6 +6,101 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+        public static void NightShiftForestGuardHasRealChoiceCombatAndNoFakeEvidence(Campaign data)
+        {
+            var g=Fresh(data);
+            g.mode="world";g.enemies.Clear();
+            WorldObject town=NightShiftAt(g,0);
+            NightShiftChoose(g,town,"nightshift_begin");
+            WorldObject forest=NightShiftAt(g,1);
+            g.save.inventory[2]=0;g.save.energy=25;
+            NightShiftChoose(g,forest,"nightshift_quiet");
+            Check(g.NightShiftEvidenceCount==0&&
+                g.save.energy==25&&g.save.inventory[2]==0,
+                "No-herb or exhausted hero cannot recover the clue free");
+            NightShiftChoose(g,forest,"nightshift_fight");
+            Check(g.NightShiftRaidActive&&g.NightShiftRaidRemaining==2&&
+                g.enemies.Count==2,
+                "The original forest roll stages two fully real live enemies");
+            Enemy[] actors=g.enemies.ToArray();
+            Check(actors[0].kind==0&&actors[1].kind==1&&
+                !g.NightShiftRaidReady,
+                "The forest produces a melee pursuer and a genuine ranged scout, not duplicate decoration");
+            foreach(Enemy foe in actors)
+            {
+                Check(g.IsNightShiftRaider(foe)&&g.CanStand(foe.Position)&&
+                    g.NavigationPathFrom(g.Position,foe.Position,true).Count>0&&
+                    (foe.Position-g.Position).Length>=5f,
+                    "Exact battle actors occupy real, player-reachable forest ground");
+                foreach(WorldObject prop in g.Map.objects)
+                    Check((foe.Position-new Point(prop.x,prop.y)).Length>=4.45f,
+                        "The raid does not block an original map object's interaction space");
+            }
+            Check((g.GetQuest("night_shift").target-actors[0].Position).Length<.01f||
+                  (g.GetQuest("night_shift").target-actors[1].Position).Length<.01f,
+                "The live mission marker follows an actual surviving attacker");
+            // The actual v2 snapshot cannot serialize the temporary roster
+            // as ordinary enemies detached from their scripted contract.
+            g.PrepareSave();
+            Check(g.save.worldEnemies!=null&&
+                Array.Find(g.save.worldEnemies,r=>r!=null&&
+                    (r.id==actors[0].id||r.id==actors[1].id))==null,
+                "Transient forest trackers cannot escape into saved generic combat rosters");
+            var interrupted=new GameCore(data,CloneSave(g.save));
+            Check(!interrupted.NightShiftRaidActive&&
+                interrupted.NightShiftEvidenceCount==0&&
+                !interrupted.Has("nightshift_trace_1"),
+                "Reloading an interrupted fight never grants a free evidence receipt");
+            // Removing an actor without Hit must NEVER sign a false record.
+            g.enemies.Remove(actors[0]);
+            g.Tick(.05f,new Point());
+            Check(!g.NightShiftRaidActive&&g.NightShiftEvidenceCount==0,
+                "An unverified disappearing pursuer voids the entire real battle");
+            g.Close();g.mode="world";
+            NightShiftChoose(g,forest,"nightshift_fight");
+            Check(g.NightShiftRaidRemaining==2,
+                "After corrupted combat a complete genuine retry is possible");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Real damage and death attribution is available");
+            Enemy[] retry=g.enemies.ToArray();
+            int coins=g.save.coins;
+            int kills=g.save.kills[1];
+            // The scene already contained no other hostiles.
+            Check(retry.Length==2&&g.IsNightShiftRaider(retry[0])&&
+                g.IsNightShiftRaider(retry[1]),
+                "Retry's two fighters are exact encounter-owned identities");
+            var sameId=new Enemy(retry[0].id,0,retry[0].x+1f,
+                retry[0].y,100f);
+            g.enemies.Add(sameId);
+            Check(!g.IsNightShiftRaider(sameId),
+                "A foreign enemy reusing the same numeric ID cannot forge evidence");
+            g.enemies.Remove(sameId);
+            hit.Invoke(g,new object[]{retry[0],9999f,true,null,null});
+            Check(g.NightShiftRaidRemaining==1&&!g.NightShiftRaidReady,
+                "Only a genuine first kill releases half of this actual combat objective");
+            g.invulnerable=20f;
+            hit.Invoke(g,new object[]{retry[1],9999f,true,null,null});
+            Check(g.NightShiftRaidReady&&g.NightShiftRaidRemaining==0&&
+                g.save.coins==coins&&g.save.kills[1]==kills,
+                "Both exact lethal contacts secure evidence, without normal loot or story kill inflation");
+            g.Close();g.mode="world";
+            Check((g.GetQuest("night_shift").target-
+                new Point(forest.x,forest.y)).Length<.01f,
+                "Once the live wave ends the quest points back to the genuine original record");
+            NightShiftChoose(g,forest,"nightshift_trace_1");
+            Check(g.NightShiftEvidenceCount==1&&!g.NightShiftRaidActive&&
+                g.Has("nightshift_trace_1"),
+                "Only the original secure physical record commits a permanent v2 evidence flag");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.Has("nightshift_trace_1")&&
+                !saved.NightShiftRaidActive&&saved.save.version==2,
+                "The combat-earned clue persists without serializing temporary actors");
+        }
+
+
         private static WorldObject NightShiftAt(GameCore game,int room)
         {
             game.mode="world";game.save.room=room;
@@ -63,7 +158,13 @@ namespace Starfall.Tests
                 "The final physical record cannot skip the first two timestamps");
             WorldObject forest=NightShiftAt(g,1);
             float baselineSpeed=g.Speed;
-            NightShiftChoose(g,forest,"nightshift_trace_1");
+            float oldEnergy=g.save.energy;
+            int oldHerb=g.save.inventory[2];
+            NightShiftChoose(g,forest,"nightshift_quiet");
+            Check(g.save.energy==oldEnergy-30f&&
+                g.save.inventory[2]==oldHerb-1&&
+                !g.NightShiftRaidActive,
+                "Quiet physical evidence retrieval spends exactly one herb and 30 stamina without conjuring raiders");
             Check(g.NightShiftEvidenceCount==1&&
                 g.GetQuest("night_shift").steps[1].done,
                 "The original forest evidence updates the read-only quest steps");

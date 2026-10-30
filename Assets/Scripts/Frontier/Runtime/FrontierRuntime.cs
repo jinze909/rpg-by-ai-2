@@ -1248,6 +1248,17 @@ namespace Starfall
                     p.x-34,p.y-76,68,80,ink);
                 Ring(new Point(o.x,o.y),actionable?.65f:.40f,ink,22);
                 if(actionable)Diamond(p.x,p.y-87,6,ink);
+                if(station==1&&Game.NightShiftRaidActive)
+                {
+                    Ring(new Point(o.x,o.y),.90f,gold,28);
+                    WorldObjectLabel(p.x-112,p.y-140,224,19,
+                        Game.NightShiftRaidReady?
+                            Game.L("追兵已击退 · 返回原件",
+                                "TRACKERS DEFEATED · VERIFY"):
+                            Game.L("正在保护班表 · 敌人"+Game.NightShiftRaidRemaining,
+                                "DEFEND SHIFT CARD · "+Game.NightShiftRaidRemaining+" LEFT"),
+                        10,gold,TextAnchor.MiddleCenter);
+                }
                 if(actionable||reviewed||finished)
                     WorldObjectLabel(p.x-98,p.y-113,196,19,
                         finished?Game.L("名册结案","ROLL FILED"):
