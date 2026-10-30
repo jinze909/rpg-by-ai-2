@@ -150,6 +150,39 @@ namespace Starfall.Tests
                 "Invalid render coordinates cannot poison the live label layout");
         }
 
+
+        public static void LiveScoutDefenseOverridesStaleNavigationWithoutChangingSavedQuest(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.save.room=1;g.mode="world";g.enemies.Clear();
+            WorldObject scout=Array.Find(g.Map.objects,
+                o=>o!=null&&o.kind=="scout");
+            Check(scout!=null&&PlaceWithinTalkReach(g,scout),
+                "Actual Thornwood scout is reachable from the hero's live footing");
+            g.Talk(scout);
+            int start=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="scout_defend");
+            Check(start>=0,"Existing first-chapter dialogue starts the real defense");
+            g.Choose(start);
+            Check(g.ScoutDefenseActive&&g.ScoutDefenseRemaining==2&&
+                g.enemies.Count==2,
+                "The original protection battle has two actual living raiders");
+            g.save.trackedQuest="ally1";
+            QuestGuide urgent=g.GetQuest("main");
+            Point? world=g.NavigationTarget();
+            Check(world.HasValue&&urgent.room==g.save.room&&
+                (world.Value-urgent.target).Length<.001f&&
+                g.save.trackedQuest=="ally1",
+                "World compass follows the genuine threatened scout even with stale side-quest tracking");
+            // Read-only navigation must not auto-resolve the battle or
+            // silently change player inventory, story or quest selection.
+            Check(g.ScoutDefenseRemaining==2&&
+                !g.Has("scout_saved")&&
+                !g.Has("scout_defense_cleared")&&
+                g.save.version==2,
+                "Urgent guidance never invents a rescue or modifies SaveData v2");
+        }
+
         public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
         {
             Check(MapPresentationPolicy.ShowObject("portal1",true,false,true),

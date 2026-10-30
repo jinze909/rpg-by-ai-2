@@ -5400,6 +5400,18 @@ namespace Starfall
         public Point? NavigationTarget()
         {
             if (practicing) return enemies.Count > 0 ? (Point?)enemies[0].Position : null;
+            // The world arrow must agree with the actual urgent battle
+            // shown in the HUD. Previously a manually tracked side quest
+            // could pull the arrow away from an endangered scout, witness,
+            // emergency power relay or carried civilian medicine. Read the
+            // genuine live quest's stage/actor; never rewrite trackedQuest,
+            // reward flags, the player's personal pin or SaveData v2.
+            if(ScoutDefenseActive||SagaGuardActive||MainSagaRelayActive)
+                return GetQuest("main").target;
+            if(WitnessDefenseRoom>0&&WitnessDefenseRoom==save.room)
+                return GetQuest("campaign_witness").target;
+            if(CivicCourierActive&&CivicCourierOriginId(save.room)!=null)
+                return GetQuest("civic_courier").target;
             // During an actual timed supply defense the world's objective
             // arrow points back to the vulnerable physical cache, never
             // away to an unrelated stale journal waypoint. Original tracked

@@ -6,6 +6,7 @@ namespace Starfall.Tests
 {
     public sealed class UnityCoreTests
     {
+        [Test] public void LiveScoutDefenseCompassOverridesStaleJournal() { CoreChecks.LiveScoutDefenseOverridesStaleNavigationWithoutChangingSavedQuest(Data()); }
         [Test] public void MissionLabelsWinCrowdedWorldSpace() { CoreChecks.MissionLabelsActuallyWinCrowdedWorldSpace(Data()); }
         [Test] public void SevenTerrainRepairsReallyUnblockWalkingAndSurviveOldSaveV2() { CoreChecks.SevenTerrainClearancesOpenActualWalkableShortcutsWithoutForgedRewards(Data()); }
         [Test] public void SevenBiomesHaveRealObstructingLandmarksAndContinuousThreeLegFieldRoads() { CoreChecks.SevenRebuiltBiomesHavePhysicalCoverAndReachableOverlandNetworks(Data()); }
