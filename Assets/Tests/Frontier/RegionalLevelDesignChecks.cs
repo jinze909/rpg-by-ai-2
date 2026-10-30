@@ -401,7 +401,7 @@ namespace Starfall.Tests
                 Check(!g.IsFieldTacticTrialComboTarget(impostor),
                     "Matching numeric ID cannot fake the exact actor bonus");
                 int beforeCoins=g.save.coins, beforeShards=g.save.shards;
-                int beforeXp=g.save.xp;
+                int beforeXp=g.save.xp,beforeLevel=g.save.level;
                 hit.Invoke(g,new object[]{exposed,600f,false,null,null});
                 Check(g.FieldTacticTrialChainEarned&&
                     g.FieldTacticTrialChainSecondsLeft==0f&&
@@ -417,10 +417,16 @@ namespace Starfall.Tests
                 Check(report>=0,"The physical source signs a real cleared counter");
                 g.Choose(report);
                 Check(g.FieldTacticTrialDone(room)&&
-                    g.save.shards>=beforeShards+2&&
-                    g.save.xp>=beforeXp+48+room*8+24&&
                     !g.FieldTacticTrialChainEarned,
-                    "A first real signed exposed-combat kill awards exactly the optional supplement");
+                    "The exact signed follow-up cannot remain active in a completed trial");
+                Check(g.save.shards>=beforeShards+2,
+                    "The actual exposed combat kill must pay both base and optional shards");
+                // AddXp may convert XP into character levels. A real
+                // level-up resets the within-level counter; requiring raw
+                // beforeXp+reward would reject a correctly paid promotion.
+                Check(g.save.level>beforeLevel||
+                    g.save.xp>=beforeXp+48+room*8+24,
+                    "Real signed precision XP must be credited or advance the actual character level");
                 int paid=g.save.shards;
                 g.Close();g.Talk(source);
                 Check(g.save.shards==paid&&!g.FieldTacticTrialActive,
