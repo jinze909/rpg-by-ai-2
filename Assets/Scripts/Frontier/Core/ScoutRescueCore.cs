@@ -209,6 +209,9 @@ namespace Starfall
                         Has("scout_rescue_defense")?
                         "The scout lays a broken arrow on the table. “Only after the two raiders fell could I unfold the chart. You came back to check I was alive. That mattered more than the bounty.”":
                         "The scout flattens his torn survey. “When you came for me, I knew the road hadn't been forgotten.”",
+                    C(Has("scout_gift")?"一路平安":"收下谢礼：炖汤1",
+                      Has("scout_gift")?"Stay safe":"Accept thanks: 1 stew",
+                      "scoutgift"),
                     C("下次路上见","See you on the road","close"));
                 return true;
             }
@@ -355,10 +358,14 @@ namespace Starfall
                     (Has("scout_rescue_aid")?"你修复了信标撤离线。":"你亲自守住了林间道路。"),
                     "Chapter One: the scout reached town with evidence that the forest's energy was diverted."+
                     (Has("scout_rescue_aid")?" You repaired the beacon route.":" You protected the actual road."));
-                Dialog(source.name,source.en,
-                    "他卷起带镐痕的原图。“我会和莉雅说明。祭坛里的星核可能就是森林失去的东西。”\n\n侦察员已经安全返镇。获得20硬币、20经验。前往祭坛。",
-                    "He rolls up the pickaxe-marked survey. “I'll tell Lyra. The starcore at the altar may be what the forest lost.”\n\nScout home safely: 20 coins, 20 XP. Head to the altar.",
-                    C("继续前往祭坛","Continue to the altar","close"));
+                // This choice has already closed its real NPC dialogue.
+                // Do not reopen a modal after the gate-opening flag: world
+                // ticks must dissolve the gate before its Boss can spawn,
+                // and the vacated scout must not leave a stale conversation.
+                // The player's spoken outcome is recorded above; the lived
+                // response appears here and later at the town scout.
+                Notify("侦察员带着原始调查图平安返镇！星核入口开启。获得20硬币与20经验。",
+                    "Scout home with the original survey! Altar open. +20 coins and +20 XP.");
             }
             return true;
         }

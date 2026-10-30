@@ -50,7 +50,8 @@ namespace Starfall.Tests
                 c=>c.action=="scout");
             Check(send>=0,"Real protected scout gives his authored survey");
             defend.Choose(send);
-            Check(defend.Has("scout_saved")&&
+            Check(defend.Has("scout_saved")&&defend.mode=="world"&&
+                defend.conversation==null&&
                 defend.Has("scout_rescue_defense")&&
                 !defend.Has("scout_rescue_aid")&&defend.save.version==2,
                 "Defense outcome has persistent distinct character consequence");
@@ -83,9 +84,19 @@ namespace Starfall.Tests
                 c=>c.action=="scout");
             Check(send>=0,"Aid route shares the real scout handoff");
             aid.Choose(send);
-            Check(aid.Has("scout_saved")&&aid.Has("scout_rescue_aid")&&
+            Check(aid.Has("scout_saved")&&aid.mode=="world"&&
+                aid.conversation==null&&aid.Has("scout_rescue_aid")&&
                 !aid.Has("scout_rescue_defense"),
                 "Route choice persists without changing v2 schema or canonical hero");
+            aid.Enter(0);
+            WorldObject returned=Array.Find(aid.Map.objects,o=>o.kind=="returnscout");
+            Check(returned!=null&&PlaceWithinTalkReach(aid,returned),
+                "Original returned scout exists in the real town map");
+            aid.Talk(returned);
+            Check(Array.FindIndex(aid.conversation.choices,
+                c=>c.action=="scoutgift")>=0,
+                "New survivor dialogue preserves the original optional stew gift");
+            aid.Close();
             aid.PrepareSave();
             GameCore restored=new GameCore(data,CloneSave(aid.save));
             Check(restored.Has("scout_rescue_aid")&&restored.Has("scout_saved"),
