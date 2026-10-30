@@ -1230,6 +1230,33 @@ namespace Starfall
             if (!Game.IsObjectPresent(o)) return;
             worldLabelOwner=o;
             Point p = ScreenPoint(new Point(o.x, o.y)); string kind = o.kind;
+
+            if(kind=="nightledger")
+            {
+                bool finished=Game.NightShiftComplete;
+                int station=Game.save.room;
+                bool reviewed=station>0&&Game.Has("nightshift_trace_"+station);
+                bool actionable=station==0?
+                    (!Game.Has("nightshift_started")||
+                     Game.NightShiftEvidenceCount==3&&!finished):
+                    Game.Has("nightshift_started")&&!reviewed&&
+                    Game.NightShiftEvidenceCount==station-1;
+                Color ink=finished?mint:reviewed?muted:
+                    actionable?gold:new Color(.60f,.77f,.86f);
+                PropImage(station==0?"bookshelf":
+                    station==3?"barrel":"post",0,
+                    p.x-34,p.y-76,68,80,ink);
+                Ring(new Point(o.x,o.y),actionable?.65f:.40f,ink,22);
+                if(actionable)Diamond(p.x,p.y-87,6,ink);
+                if(actionable||reviewed||finished)
+                    WorldObjectLabel(p.x-98,p.y-113,196,19,
+                        finished?Game.L("名册结案","ROLL FILED"):
+                        reviewed?Game.L("现场已核验","EVIDENCE CHECKED"):
+                        station==0?Game.L("夜班名册 · 按 E","NIGHT ROLL · E"):
+                                   Game.L("核实原始时间 · 按 E","VERIFY RECORD · E"),
+                        10,ink,TextAnchor.MiddleCenter);
+                return;
+            }
             if(kind=="fielddevice")
             {
                 int room=Game.save.room;

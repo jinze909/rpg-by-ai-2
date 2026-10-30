@@ -269,7 +269,7 @@ namespace Starfall
                 (save.room<8&&BiomeSupplyRoadBuilt(save.room)&&
                  Has("biome_crisis_done_"+save.room)?.18f:0f) +
                 (save.room<8&&Has("biome_crisis_council_roads")?.10f:0f) +
-                (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
+                (save.profession == 1 ? .45f : 0) + save.talents[2] * .12f + (Relic(2) ? .4f : 0) + (racing ? .65f : 0) + (Has("survey_complete") ? .25f : 0) + (Has("nightshift_public")&&save.room>=1&&save.room<=3?.22f:0f) - (FarCourierActive ? .7f : 0) - (save.cold > 70 ? .55f : 0) - (TideSalvagePhase==4 ? .55f : 0); } }
         public bool GateOpen
         {
             get { return save.room == 0 || save.room == 4 || save.room == 8 || save.room == 9 || (save.room == 1 && Has("scout_saved")) || Has("gate_" + save.room); }
@@ -4439,6 +4439,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkNightShift(o)) return;
             if (TalkFieldTactics(o)) return;
             if (TalkScoutRescue(o)) return;
             if (TryReadMainSagaTrace(o)) return;
@@ -5180,6 +5181,7 @@ namespace Starfall
 
         private void ChooseCore(string action)
         {
+            if(ChooseNightShift(action))return;
             if(ChooseMainSaga(action))return;
             // The topic menu must remain bound to the actual inn traveler,
             // not an unrelated NPC or a previously removed world actor.

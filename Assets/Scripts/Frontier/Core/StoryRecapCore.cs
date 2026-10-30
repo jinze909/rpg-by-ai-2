@@ -256,6 +256,300 @@ namespace Starfall
             return beats;
         }
 
+
+        // Optional cross-region story: the official casualty lists counted
+        // machines but not the workers who stopped them. Four newly authored
+        // physical campaign props; no phantom map click or new save schema.
+        // Three distinct field inspections must happen in their actual
+        // regions and order before a conscious final decision at the town
+        // desk. Old saves simply see an available quest.
+        public bool NightShiftComplete
+        { get {return Has("nightshift_public")||Has("nightshift_private");} }
+        public int NightShiftEvidenceCount
+        {
+            get
+            {
+                int n=0;
+                for(int r=1;r<=3;r++)if(Has("nightshift_trace_"+r))n++;
+                return n;
+            }
+        }
+        private WorldObject NightShiftSite(int region)
+        {
+            if(region<0||region>=data.maps.Length)return null;
+            MapData map=data.maps[region];
+            if(map==null||map.objects==null)return null;
+            foreach(WorldObject o in map.objects)
+                if(o!=null&&o.kind=="nightledger"&&
+                   o.id=="nightledger"+region)return o;
+            return null;
+        }
+        public QuestGuide BuildNightShiftGuide(QuestGuide q)
+        {
+            q.title=L("夜班名册 · 被删去的回家路",
+                "Night-Shift Roll · The Road Left Out");
+            q.category=L("跨区调查 · 可选居民故事",
+                "CROSS-REGION INVESTIGATION · OPTIONAL STORY");
+            q.description=L(
+                "一份没有寄出的夜班名单，把密林的巡路人、沉没遗迹的渡工和矿场停机工连在了一起。对照真实现场留下的时间，查出是谁把他们从撤离记录中删掉，再决定公开姓名，还是保护仍在工作的证人。",
+                "An unsent shift roll links the forest roadwardens, flood-season ferrymen and furnace workers. Compare physical timestamps to uncover who erased their evacuation record. Decide whether to publish their names or protect witnesses still employed.");
+            q.reward=L("硬币40、经验35；公开名单可改善三地实际巡路速度，保密保护证人会永久增加生命上限8",
+                "40 coins, 35 XP; publishing improves travel speed in three regions, protecting witnesses permanently grants +8 max HP");
+            q.locked=false;q.complete=NightShiftComplete;
+            q.steps.Add(new QuestStep(L("阅读余烬镇尚未寄出的名册",
+                "Read the unsent roll in Emberfall"),Has("nightshift_started")));
+            for(int r=1;r<=3;r++)
+                q.steps.Add(new QuestStep(
+                    r==1?L("核实密林夜间巡路班表",
+                          "Verify the forest night watch"):
+                    r==2?L("以退潮钟印纠正官方渡口时间",
+                          "Cross-check the low-tide clock"):
+                         L("用一个真实零件打开矿场停机封条",
+                           "Spend one real part to open the furnace shutdown record"),
+                    Has("nightshift_trace_"+r)));
+            q.steps.Add(new QuestStep(L("回余烬镇决定证词如何保存",
+                "Return to town and choose what to protect"),q.complete));
+            int next=0;
+            if(Has("nightshift_started"))
+                for(int r=1;r<=3;r++)
+                    if(!Has("nightshift_trace_"+r)){next=r;break;}
+            if(q.complete||!Has("nightshift_started")||next==0)
+            {
+                q.room=0;
+                WorldObject desk=NightShiftSite(0);
+                q.target=desk==null?new Point(25.5f,24.5f):
+                    new Point(desk.x,desk.y);
+                q.next=q.complete?
+                    Has("nightshift_public")?
+                        L("居民已经拿到可核对的名单；三地旧路重新有人维护。",
+                          "Residents now share the corrected roll and maintain the three old roads."):
+                        L("原始名单已封存，证人的名字只有本人能决定是否公开。",
+                          "The original roll is sealed; living witnesses control their names."):
+                    Has("nightshift_started")?
+                        L("证据已齐，回镇上把原始名单交给等消息的人。",
+                          "Evidence secured. Return to the people waiting at the town desk."):
+                        L("在余烬镇找到尚未寄出的夜班名册，选择亲自调查。",
+                          "Find the unsent night-shift roll in Emberfall and accept the case.");
+                return q;
+            }
+            q.room=next;
+            WorldObject source=NightShiftSite(next);
+            q.target=source==null?new Point(18.5f,15.5f):
+                new Point(source.x,source.y);
+            q.next=next==1?
+                L("沿密林中路到半张旧班表，查清谁真正值了夜班。",
+                  "Find the torn shift card in the forest and verify who was on duty."):
+                next==2?
+                L("到沉没遗迹寻找退潮钟印；不要只抄官方的日期。",
+                  "Find the low-tide clock in the ruins, not just the official date."):
+                save.inventory[4]<1?
+                L("矿场封条缺一枚零件：先从本区真实矿点收集零件。",
+                  "The sealed mine spool needs one part. Collect one from real ore."):
+                L("到赤铁矿场打开停机卷轴，看看是谁签了最后一次关机令。",
+                  "Open the Ironreach stop-work spool and identify the final signature.");
+            if(next==3&&save.room==3&&save.inventory[4]<1)
+                q.target=ResourcePoint(3,"ore");
+            if(!CanEnter(next))
+            {
+                QuestGuide unlock=GetQuest("main");
+                q.room=unlock.room;
+                q.target=unlock.target;
+                q.next=L("先通过原有主线开放", "First unlock ")+
+                    L(data.maps[next].name,data.maps[next].en)+
+                    L("的通路；无需重做已找到的线索。 ",
+                      " through the original story. Earlier evidence stays secured. ")+
+                    unlock.next;
+            }
+            return q;
+        }
+        private bool NightShiftSource(WorldObject o,int region)
+        {
+            return o!=null&&o.kind=="nightledger"&&
+                save.room==region&&o.id=="nightledger"+region&&
+                System.Object.ReferenceEquals(o,NightShiftSite(region))&&
+                SourceBelongsToActiveMap(o)&&IsObjectPresent(o)&&
+                HasPhysicalInteractionReach(o);
+        }
+        private bool TalkNightShift(WorldObject o)
+        {
+            if(o==null||o.kind!="nightledger")return false;
+            int room=save.room;
+            if(!NightShiftSource(o,room))return true;
+            if(room==0)
+            {
+                if(NightShiftComplete)
+                {
+                    Dialog(o.name,o.en,
+                        Has("nightshift_public")?
+                            "公会没有替那三个人发言。名单在墙上，名字后面还有一块空白，留给他们自己补完。":
+                            "名册锁在抽屉里。莉雅留下了三把钥匙，分别寄给仍在世的当事人；镇上的空椅子却从没被撤走。",
+                        Has("nightshift_public")?
+                            "The guild spoke for no one. The roll hangs in public, with blank space beside the names for their owners to finish it.":
+                            "The roll is locked away. Lyra sent three keys to the living witnesses, but never removed the empty chairs.",
+                        C("合上名册","Close the roll","close"));
+                }
+                else if(NightShiftEvidenceCount==3)
+                {
+                    Dialog(o.name,o.en,
+                        "莉雅把三张湿透的纸并排压好。\n\n“根系、退潮、炉火。三处的钟都比官方名册早停了半小时。人不是没回来，是有人不肯让他们回来。现在还剩最后一件事：这些名字究竟由谁说出口？”",
+                        "Lyra weighs down three weather-damaged pages.\n\n“Roots, ebb tide, furnace. All three clocks stopped half an hour before the official roll. Those people weren't missing. Someone refused to count their return. Who gets to speak their names now?”",
+                        C("公开更正名单 · 修复巡路","Publish a corrected roll · safer roads",
+                          "nightshift_public"),
+                        C("封存原件并保护证人 · 生命上限+8",
+                          "Seal the original · protect witnesses · +8 max HP",
+                          "nightshift_private"),
+                        C("还没想好","Decide later","close"));
+                }
+                else if(!Has("nightshift_started"))
+                    Dialog(o.name,o.en,
+                        "旧账箱里有一张沾了雨的纸，抬头写着“夜班正常交接”。下面却有三种笔迹：巡林人在空白处画了折枝，渡工写了退潮时刻，矿工只留下一个“停”字。\n\n莉雅说：“不是每一份没送到的信都应该替人拆开。你愿意亲自走一遍他们的路吗？”",
+                        "A rain-stained roll says “normal night handover.” Three hands disagree: a broken branch drawn by a roadwarden, a low-tide time from a ferryman, and one word from a miner: STOP.\n\nLyra asks, “Not every unsent letter is ours to open. Will you walk their roads before we decide?”",
+                        C("接过名册 · 追查三处现场","Take the roll · investigate three sites",
+                          "nightshift_begin"),
+                        C("暂时留下","Leave it for now","close"));
+                else
+                    Dialog(o.name,o.en,
+                        "莉雅把剩下的纸放进防潮袋。\n\n“先别猜结论。拿回来的是时间、地点和说话的人，不是公会想听的答案。”",
+                        "Lyra wraps the remaining pages against the damp.\n\n“Don't guess the conclusion. Bring back times, places and people, not the answer the guild wants.”",
+                        C("继续沿线调查","Continue the investigation","close"));
+                return true;
+            }
+            if(room<1||room>3)return true;
+            if(!Has("nightshift_started"))
+            {
+                Dialog(o.name,o.en,
+                    "这里留着一小截被雨泡软的夜班登记纸，右下角有余烬镇公会的回信地址。",
+                    "A softened scrap of shift paper still carries the Emberfall guild's return address.",
+                    C("记下地址","Remember the return address","close"));
+                return true;
+            }
+            if(Has("nightshift_trace_"+room))
+            {
+                Dialog(o.name,o.en,
+                    room==1?"两条巡林路线已经对上。那晚有人走出了树线，却没有写进送往堡垒的名单。":
+                    room==2?"潮位刻度仍在，刻痕不会跟着一纸命令改动。":
+                            "卷轴上的停机手印还很清楚。工人至少曾有机会把机器关掉。",
+                    room==1?"Both forest routes agree. Someone emerged from the trees that night and was never entered on the citadel roll.":
+                    room==2?"The tide mark remains. A decree cannot move a groove cut in stone.":
+                            "The stop-work thumbprint is still legible. Someone really tried to shut the furnace down.",
+                    C("收起原件","Keep the record","close"));
+                return true;
+            }
+            if(NightShiftEvidenceCount!=room-1)
+            {
+                Dialog(o.name,o.en,
+                    "这里的日期只有一半。没有上一处现场的原始时间，连是谁改动过记录都无法确定。",
+                    "The date here is incomplete. Without the previous physical timestamp, nobody can tell who altered it.",
+                    C("先找上一处证据","Find the earlier evidence first","close"));
+                return true;
+            }
+            if(room==1)
+                Dialog(o.name,o.en,
+                    "半张纸钉在折断的树枝背面。上面写着：“最后一班巡林人护送三名工人到渡口。天还没亮，三人都还活着。”\n\n不是野兽造成失踪。那条路是有人刻意从新地图上擦掉的。",
+                    "Half a card is pinned behind a broken branch. “Last watch escorted three furnace workers to the ferry. All alive before dawn.”\n\nBeasts didn't make these people disappear. Someone deliberately erased the road from the new map.",
+                    C("核验巡路班表并带走副本",
+                      "Verify the watch and carry a copy","nightshift_trace_1"));
+            else if(room==2)
+                Dialog(o.name,o.en,
+                    "石阶有两道潮水印。堡垒抄本写着“日出后才放行”，可旧石匠把低潮刻在前一晚的钟点。若按公文计算，那艘船根本不可能驶过淹没的石阶。\n\n你要相信哪种时间？",
+                    "Two tide marks cross the stairs. The citadel copy says the crossing opened after sunrise. A mason carved the actual low-tide bell on the previous night. At the official hour the steps would have been submerged.\n\nWhich clock belongs in the record?",
+                    C("对照真正的退潮刻痕",
+                      "Cross-check the physical low-tide mark","nightshift_trace_2"),
+                    C("照抄公文上的日出时间",
+                      "Copy the official sunrise date","nightshift_false"));
+            else
+                Dialog(o.name,o.en,
+                    "最后一页被装进带螺丝的铁筒。筒盖上写着“未获批准不得停炉”，底下却有工人按下的停机手印。\n\n你需要一枚真实的矿场零件撬开生锈的锁环，不能凭猜测宣告谁签了字。",
+                    "The last page is sealed in a screwed iron spool. “No shutdown without authorization,” says the lid, beside a worker's stop-work thumbprint.\n\nOne genuine mine part can loosen the corroded collar. You cannot invent the last signature.",
+                    C("耗费零件1 · 打开卷轴",
+                      "Spend 1 part · open the spool","nightshift_trace_3"),
+                    C("暂不拆封","Leave the seal intact","close"));
+            return true;
+        }
+        private bool ChooseNightShift(string action)
+        {
+            if(action==null||!action.StartsWith("nightshift_",StringComparison.Ordinal))
+                return false;
+            WorldObject source=pendingDialogueSource;
+            int room=pendingDialogueSourceRoom;
+            if(room<0||room>3||!NightShiftSource(source,room))
+                return true;
+            if(action=="nightshift_false")
+            {
+                if(room!=2||!Has("nightshift_trace_1")||
+                   Has("nightshift_trace_2"))return true;
+                Dialog(source.name,source.en,
+                    "你照着日出日期试算：那时石阶已被水盖住，渡工不可能把船划到这里。公文里的时间不是证据。",
+                    "You test the sunrise entry. The stairs would already be underwater; no ferryman could land here. The copied hour is not evidence.",
+                    C("重新查看石阶","Re-examine the stairs","close"));
+                return true;
+            }
+            if(action=="nightshift_begin"&&room==0&&
+                !Has("nightshift_started")&&!NightShiftComplete)
+            {
+                Flag("nightshift_started");
+                TrackQuest("night_shift");
+                Notify("名册已接下：先去密林中路查看真正的夜班记录。",
+                    "Roll accepted. Find the real night-watch card in Thornwood.");
+                return true;
+            }
+            int stage=-1;
+            if(action=="nightshift_trace_1")stage=1;
+            if(action=="nightshift_trace_2")stage=2;
+            if(action=="nightshift_trace_3")stage=3;
+            if(stage>=1)
+            {
+                if(room!=stage||NightShiftComplete||
+                   !Has("nightshift_started")||
+                   Has("nightshift_trace_"+stage)||
+                   NightShiftEvidenceCount!=stage-1)return true;
+                if(stage==3)
+                {
+                    if(save.inventory[4]<1)
+                    {
+                        Notify("矿场铁筒缺一枚零件，不能凭空开锁。",
+                            "The mine spool needs one real part. It cannot open for free.");
+                        return true;
+                    }
+                    save.inventory[4]--;
+                }
+                Flag("nightshift_trace_"+stage);
+                sound="quest";revision++;
+                Notify(stage==1?"巡林班表已收录：下一处到沉没遗迹核对退潮钟印。":
+                    stage==2?"退潮钟印已核实：前往赤铁矿场找最后的停机记录。":
+                        "真实停机手印已保全：带着完整名册回余烬镇。",
+                    stage==1?"Forest card secured. Check the low-tide bell in the ruins.":
+                    stage==2?"Tide verified. Find the final shutdown roll in Ironreach.":
+                        "Shutdown signature secured. Return the complete roll to town.");
+                return true;
+            }
+            if((action=="nightshift_public"||action=="nightshift_private")&&
+                room==0&&!NightShiftComplete&&
+                Has("nightshift_started")&&NightShiftEvidenceCount==3)
+            {
+                bool publish=action=="nightshift_public";
+                Flag(publish?"nightshift_public":"nightshift_private");
+                save.coins=Math.Min(999999,save.coins+40);
+                GrantXp(35,true);
+                if(!publish)
+                {
+                    save.maxHealth=Math.Min(9999,save.maxHealth+8);
+                    save.health=Math.Min(save.maxHealth,save.health+8);
+                }
+                sound="quest";revision++;
+                Dialog(source.name,source.en,
+                    publish?
+                    "莉雅没有代替任何人宣布死亡。她把被删掉的道路画回公开的巡路图，只贴出三人自己留下的班表。\n\n“现在有人能沿这条路回家。”":
+                    "莉雅收起名册，把三把钥匙寄给名单上仍然活着的人。镇上的灯照样亮着，等他们愿意说的时候再开门。\n\n“保护一个人，也可以是不替他说话。”",
+                    publish?
+                    "Lyra announces no deaths on anyone's behalf. She restores the erased road to the public chart and posts only the workers' own shift card.\n\n“Someone can follow it home now.”":
+                    "Lyra seals the roll and sends three keys to its living owners. The town lamps stay lit until they choose to speak.\n\n“Protecting someone can mean refusing to speak for them.”",
+                    C("继续旅程","Return to the road","close"));
+                return true;
+            }
+            return true;
+        }
+
         private void AddUnlockedRecap(List<StoryBeat> beats,int chapter,string questId,
             string nameZh,string nameEn,string summaryZh,string summaryEn,
             string finishedZh,string finishedEn)

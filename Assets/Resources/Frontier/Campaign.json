@@ -96,6 +96,14 @@
       ],
       "objects": [
         {
+          "id": "nightledger0",
+          "kind": "nightledger",
+          "name": "未寄出的夜班名册",
+          "en": "Unsent Night-Shift Roll",
+          "x": 25.5,
+          "y": 24.5
+        },
+        {
           "id": "lastDirectiveBoard",
           "kind": "lastdirectiveboard",
           "name": "居民议事 · 最后指令",
@@ -1266,6 +1274,14 @@
         "########################################################################################################################"
       ],
       "objects": [
+        {
+          "id": "nightledger1",
+          "kind": "nightledger",
+          "name": "密林中的半张班表",
+          "en": "Half a Shift Card in the Roots",
+          "x": 51.5,
+          "y": 41.5
+        },
         {
           "id": "ridge_breach_1",
           "kind": "ridgeBreach",
@@ -2898,6 +2914,14 @@
       ],
       "objects": [
         {
+          "id": "nightledger2",
+          "kind": "nightledger",
+          "name": "退潮后露出的旧钟印",
+          "en": "The Low-Tide Clock Mark",
+          "x": 39.5,
+          "y": 41.5
+        },
+        {
           "id": "ridge_breach_2",
           "kind": "ridgeBreach",
           "name": "低潮踏石 · 遗迹渡路",
@@ -4378,6 +4402,14 @@
         "########################################################################################################################"
       ],
       "objects": [
+        {
+          "id": "nightledger3",
+          "kind": "nightledger",
+          "name": "矿场密封的停机记录",
+          "en": "Sealed Furnace Shutdown Roll",
+          "x": 49.5,
+          "y": 42.5
+        },
         {
           "id": "ridge_breach_3",
           "kind": "ridgeBreach",
