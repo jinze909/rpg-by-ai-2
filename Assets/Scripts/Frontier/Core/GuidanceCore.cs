@@ -4788,8 +4788,26 @@ namespace Starfall
             if (!gateOpen)
             {
                 q.target = ObjectPoint(chapter, chapter == 1 ? "scout" : chapter == 2 ? !Has("lore_2") ? "lore" : "rune" + new[] { 0, 2, 1 }[Math.Min(2, runeProgress)] : "engine", q.target);
-                q.next = L(chapter == 1 ? "清理敌人，再解救侦察员" : chapter == 2 ? "调查记录，依线索触碰石碑" : "收集零件3，修复升降机", chapter == 1 ? "Clear enemies, then rescue the scout" : chapter == 2 ? "Read the record, then touch the tablets" : "Gather 3 parts and repair the elevator");
-                if (chapter == 1 && save.room == 1 && save.kills[1] < 4) { Enemy e = enemies.Find(a => !a.boss); if (e != null) q.target = e.Position; q.next += " " + save.kills[1] + "/4"; }
+                q.next = L(chapter == 1 ? "找到侦察员，选择现场防卫或信标撤离" : chapter == 2 ? "调查记录，依线索触碰石碑" : "收集零件3，修复升降机",
+                    chapter == 1 ? "Find the scout; defend or restore his beacon exit" : chapter == 2 ? "Read the record, then touch the tablets" : "Gather 3 parts and repair the elevator");
+                if(chapter==1)
+                {
+                    if(ScoutDefenseActive&&save.room==1)
+                    {
+                        q.target=ScoutDefenseGuideTarget;
+                        q.next=L("击退守着侦察员的两名真实追兵 · 剩余"+ScoutDefenseRemaining+"名",
+                            "Defeat the actual scout raiders · "+ScoutDefenseRemaining+" remain");
+                    }
+                    else if(Has("scout_aid_prepared")&&!Has("scout_beacon_lit"))
+                    {
+                        q.target=ObjectPoint(1,"survey1",new Point(14.5f,10.5f));
+                        q.next=L("去苔根巡路信标亲手点亮安全撤离线",
+                            "Walk to Mossroot beacon and light the safe return route");
+                    }
+                    else if(Has("scout_beacon_lit")||Has("scout_defense_cleared"))
+                        q.next=L("返回侦察员身边，亲自确认他安全返镇",
+                            "Return to the scout and confirm he reaches town");
+                }
                 if (chapter == 3 && save.inventory[4] < 3) q.target = ResourcePoint(3, "ore");
             }
             else if (Has("core_" + chapter) && chapter < 4) { q.room = 0; q.target = new Point(18, 17); q.next = L("把星核交给莉雅", "Deliver the starcore to Lyra"); }

@@ -462,7 +462,7 @@ namespace Starfall
             runeProgress = 0;
             ResetExpansionTransient(); ResetCombatPresentation(); ResetOuterDelivery();
             RootsongPulseCooldown=0;
-            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetMainSagaRelay();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
+            ResetCampWard();ResetSignalRelay();ResetAfterglow();ResetBiomeCrisis();ResetRegionalVigil();ResetFieldPatrol();ResetFieldOutpost();ResetVantageWatch();ResetChapterRoad();ResetSagaGuard();ResetMainSagaRelay();ResetScoutDefense();ResetFieldDispatch();ResetGhostTrain();ResetRidgeEcho();ResetWildernessHunt();
             ResetMineConvoy(); ResetUnsentWarning(); ResetGlassLedger(); ResetBridgeOfChords(); ResetFrostSignal(); ResetLastLantern(); ResetThornwatch(); ResetCountertide(); ResetGlassLoom(); ResetWhiteout(); ResetPressureworks(); ResetSilentLedger(); ResetMistlight(); ResetMistConvoy(); ResetSwordGuard(); ResetSwordLesson(); ResetSpecialistDrill(); ResetFieldSnares();
             ResetSeventhSupper();
             ResetContinuity(); ResetLocalWaymark(); ResetCompanionTestimonyReading(); ResetRidgeWatch(); ResetCivicCourierGuard(); ResetRoadwardenTrial(); ResetWayfarerEncounter(); ResetAtlasEcho(); ResetReliefMission(); ResetRootHarmonyTrial(); ResetCommonsRelayTrial(); ResetSkywatch(); ResetGlasswind(); ResetTideSalvage(); ResetTemper(); ResetTriadDefense(); ResetWitnessDefense(); ResetBlackout(); ResetAfterlightCharge(); ResetAfterlightWatch(); ResetStormTransient(); ResetOuterPatrol(); ResetFarCourier(); ResetCivicResponse(); ResetLastDirective(); ResetCivicConduit(); ResetFloodRelief();
@@ -1125,6 +1125,7 @@ namespace Starfall
                 TickVantageWatch(0f);
                 TickChapterRoad(0f);
                 TickSagaGuard(0f);
+                TickScoutDefense(0f);
                 TickMainSagaRelay(0f);
                 deathTime -= dt;
                 if (deathTime <= 0) CompleteDeath();
@@ -1234,6 +1235,7 @@ namespace Starfall
             TickVantageWatch(dt);
             TickChapterRoad(dt);
             TickSagaGuard(dt);
+            TickScoutDefense(dt);
             TickMainSagaRelay(dt);
             if (Dying) return;
             TickRegionalVigil(dt);
@@ -1779,6 +1781,7 @@ namespace Starfall
             OnFieldOutpostEnemyDefeated(e);
             OnVantageWatchEnemyDefeated(e);
             OnChapterRoadEnemyDefeated(e);
+            OnScoutDefenseEnemyDefeated(e);
             OnSagaGuardEnemyDefeated(e);
             OnMainSagaRelayEnemyDefeated(e);
             OnGhostTrainEnemyDefeated(e);
@@ -4000,6 +4003,7 @@ namespace Starfall
                 // Append the new courier chapter to their actual source.
                 if(mode=="dialog"&&conversation!=previousConversation)
                 {
+                    AppendScoutBeaconChoice(o);
                     AppendMainSagaChoice(o);
                     AppendMainSagaAfterwordChoice(o);
                     AppendUnsentWarningChoice(o);
@@ -4289,6 +4293,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if (TalkScoutRescue(o)) return;
             if (TryReadMainSagaTrace(o)) return;
             if (TryTalkMainSagaLastGate(o)) return;
             if (TalkChapterRoad(o)) return;
@@ -4881,7 +4886,8 @@ namespace Starfall
             if(action.StartsWith("inn_",StringComparison.Ordinal))return true;
             // Choices whose handlers do not independently validate their target.
             if (action.StartsWith("goto") || action == "routes" ||
-                action == "rest" || action == "scout" || action == "engine" ||
+                action == "rest" || action == "scout" ||
+                action.StartsWith("scout_",StringComparison.Ordinal) || action == "engine" ||
                 action == "plant" || action == "harvest" || action == "seeds" ||
                 action == "upgrade" || action == "bow" || action == "staff" ||
                 action == "cook" || action == "buymeal" || action == "buywood" ||
@@ -5101,6 +5107,7 @@ namespace Starfall
             if (ChooseGlassLoom(action)) return;
             if (ChooseFloodArchive(action)) return;
             if (ChooseRootsong(action)) return;
+            if (ChooseScoutRescue(action)) return;
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
             if (ChooseLastDirective(action)) return;
@@ -5122,7 +5129,6 @@ namespace Starfall
                 ResolveRestTimeSkip(45f);
                 save.flags.RemoveAll(f => f.StartsWith("node_")); save.heat = save.cold = 0; Notify("炉火温暖。生命与耐力已恢复。", "Warm by the fire. Health and energy restored."); revision++; return;
             }
-            if (action == "scout" && save.kills[1] >= 4 && !Has("scout_saved")) { Flag("scout_saved"); CreditCoins(20); Notify("侦察员安全离开。星核入口已开启。", "Scout rescued. The altar path is open."); }
             if (action == "engine" && Spend(0, 0, 0, 0, 3)) { Flag("gate_3"); sound = "reward"; Notify("升降机启动，工厂入口开启。", "Elevator repaired. The workshop is open."); }
             if (action == "plant")
             {
@@ -5549,7 +5555,9 @@ namespace Starfall
         }
         public string GateHint(bool en)
         {
-            if (save.room == 1) return en ? "Defeat 4 enemies, then rescue the scout at (21,7)." : "击败 4 个敌人，再救出右上方（21,7）的侦察员。";
+            if (save.room == 1) return en ?
+                "Reach the scout: defend him against two nearby raiders, or repair the west beacon with timber and herb." :
+                "找到侦察员：击退现场两名追兵，或用木材和药草修复西侧信标撤离线。";
             if (save.room == 2) return en ? "Activate the tablets: Sun (12,11), Moon (23,17), Tide (18,6). The northwest relic holds the clue." : "依次触碰日（12,11）、月（23,17）、潮（18,6）石碑；左上遗物有线索。";
             return en ? "Gather 3 parts, then repair the elevator at (21,10)." : "收集 3 个零件，修复右上方（21,10）的升降机。";
         }
@@ -5563,6 +5571,9 @@ namespace Starfall
             // A witness defense has an actual loss condition even when
             // the player tracks a side quest. Keep evidence safety visible
             // in the production objective HUD until the encounter ends.
+            if(ScoutDefenseActive)
+                return L("密林侦察员防线 · 还剩"+ScoutDefenseRemaining+"名追兵",
+                    "Scout rescue · "+ScoutDefenseRemaining+" raiders remain");
             if(SagaGuardActive)
                 return L("证词护卫 · 第"+SagaGuardWave+"波 · "+SagaGuardRemaining+
                         "名追兵 · 证据安全度"+SagaGuardEvidenceSafety+"% · 剩余"+

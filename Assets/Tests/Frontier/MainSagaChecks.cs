@@ -4,6 +4,93 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void OpeningScoutHasRealDefenseOrBeaconRescue(Campaign data)
+        {
+            GameCore defend=Fresh(data);
+            defend.save.room=1;defend.mode="world";defend.enemies.Clear();
+            WorldObject scout=Array.Find(defend.Map.objects,o=>o.kind=="scout");
+            WorldObject beacon=Array.Find(defend.Map.objects,o=>o.kind=="survey1");
+            Check(scout!=null&&beacon!=null&&
+                PlaceWithinTalkReach(defend,scout),
+                "Opening rescue uses original reachable Thornwood NPC and road beacon");
+            defend.Talk(scout);
+            int defendChoice=Array.FindIndex(defend.conversation.choices,
+                c=>c.action=="scout_defend");
+            Check(defendChoice>=0&&
+                Array.FindIndex(defend.conversation.choices,c=>c.action=="scout_aid")>=0,
+                "First rescue offers distinct real combat and fieldwork choices");
+            defend.Choose(defendChoice);
+            Check(defend.ScoutDefenseActive&&defend.ScoutDefenseRemaining==2&&
+                !defend.Has("scout_saved")&&defend.GetQuest("main").room==1,
+                "Choosing combat spawns two specific reachable enemies without granting progress");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(hit!=null,"Opening attackers need actual production combat");
+            Enemy[] raiders=defend.enemies.ToArray();
+            foreach(Enemy foe in raiders)
+                Check(defend.CanStand(foe.Position)&&
+                    defend.NavigationPathFrom(defend.Position,foe.Position,true).Count>0,
+                    "Every authored opening raider has a real accessible route");
+            hit.Invoke(defend,new object[]{raiders[0],9999f,true,null,null});
+            Advance(defend,.3f);
+            Check(defend.ScoutDefenseActive&&defend.ScoutDefenseRemaining==1&&
+                !defend.Has("scout_saved"),
+                "One real defeat is not enough to rescue the scout");
+            hit.Invoke(defend,new object[]{raiders[1],9999f,true,null,null});
+            Advance(defend,.5f);
+            Check(!defend.ScoutDefenseActive&&
+                defend.Has("scout_defense_cleared")&&!defend.Has("scout_saved"),
+                "Exactly two combat defeats secure the opening road, not distant kills");
+            Check(PlaceWithinTalkReach(defend,scout),
+                "A secure route still requires returning to the actual scout");
+            defend.Talk(scout);
+            int send=Array.FindIndex(defend.conversation.choices,
+                c=>c.action=="scout");
+            Check(send>=0,"Real protected scout gives his authored survey");
+            defend.Choose(send);
+            Check(defend.Has("scout_saved")&&
+                defend.Has("scout_rescue_defense")&&
+                !defend.Has("scout_rescue_aid")&&defend.save.version==2,
+                "Defense outcome has persistent distinct character consequence");
+            GameCore aid=Fresh(data);
+            aid.save.room=1;aid.mode="world";aid.enemies.Clear();
+            Check(PlaceWithinTalkReach(aid,scout),"Scout reachable for fieldwork");
+            aid.save.inventory[0]=1;aid.save.inventory[2]=1;
+            aid.Talk(scout);
+            int aidChoice=Array.FindIndex(aid.conversation.choices,
+                c=>c.action=="scout_aid");
+            Check(aidChoice>=0,"Scout offers supply-backed safe exit");
+            aid.Choose(aidChoice);
+            Check(aid.Has("scout_aid_prepared")&&
+                aid.save.inventory[0]==0&&aid.save.inventory[2]==0&&
+                !aid.Has("scout_saved")&&
+                (aid.GetQuest("main").target-new Point(beacon.x,beacon.y)).Length<.1f,
+                "Aid spends real inventory and guides to the original beacon");
+            aid.Close();
+            Check(PlaceWithinTalkReach(aid,beacon),
+                "Player must physically reach the other original road object");
+            aid.Talk(beacon);
+            int light=Array.FindIndex(aid.conversation.choices,
+                c=>c.action=="scout_beacon");
+            Check(light>=0,"Ordinary live beacon dialogue integrates the rescue option");
+            aid.Choose(light);
+            Check(aid.Has("scout_beacon_lit")&&!aid.Has("scout_saved"),
+                "Lighting the beacon is a separate genuine field action");
+            aid.Close();Check(PlaceWithinTalkReach(aid,scout),"Walk back for completion");
+            aid.Talk(scout);send=Array.FindIndex(aid.conversation.choices,
+                c=>c.action=="scout");
+            Check(send>=0,"Aid route shares the real scout handoff");
+            aid.Choose(send);
+            Check(aid.Has("scout_saved")&&aid.Has("scout_rescue_aid")&&
+                !aid.Has("scout_rescue_defense"),
+                "Route choice persists without changing v2 schema or canonical hero");
+            aid.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(aid.save));
+            Check(restored.Has("scout_rescue_aid")&&restored.Has("scout_saved"),
+                "Completed aid outcome survives v2 save round-trip");
+        }
+
         public static void MainSagaRequiresRealEvidenceWitnessAndCouncilBeforeFinale(Campaign data)
         {
             GameCore g=Fresh(data);
