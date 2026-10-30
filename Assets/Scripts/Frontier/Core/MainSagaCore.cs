@@ -279,6 +279,102 @@ namespace Starfall
             Array.Copy(before,insert,after,insert+1,before.Length-insert);
             conversation.choices=after;
         }
+        // After the credits, real people still live in the three regions.
+        // Do not invent a fresh obligatory chapter: keep all original NPC
+        // menus and append a purely optional, first-hand continuation.
+        private void AppendMainSagaAfterwordChoice(WorldObject o)
+        {
+            if(!MainSagaActive||save.ending<=0||o==null||
+                conversation==null||conversation.choices==null||mode!="dialog"||
+                save.room<5||save.room>7||o.id!=SagaPersonId(save.room)||
+                o.kind!=SagaPerson(save.room)||!Has("saga_voice_"+save.room))
+                return;
+            string action="saga_afterword_"+save.room;
+            foreach(Choice choice in conversation.choices)
+                if(choice!=null&&choice.action==action)return;
+            Choice[] before=conversation.choices;
+            int offset=before.Length;
+            if(offset>0&&before[offset-1]!=null&&
+                before[offset-1].action=="close")offset--;
+            var after=new Choice[before.Length+1];
+            Array.Copy(before,0,after,0,offset);
+            after[offset]=C("结局之后 · 听听这里的人怎么生活",
+                "After the ending · how people live now",action);
+            Array.Copy(before,offset,after,offset+1,before.Length-offset);
+            conversation.choices=after;
+        }
+        private void MainSagaAfterwordDialogue(WorldObject host,int room)
+        {
+            bool publicVoice=Has("saga_choice_"+room+"_a");
+            string zh,en;
+            if(room==5)
+            {
+                zh=publicVoice?
+                    "米拉推开一本已经被翻得卷边的公共船册。她自己的签名就写在第一行。今天又有一户家属来质问她，为什么当年没有等到返航船。她没有逃开。\n\n“他们可以恨我，但不能再有人因为没拿到通行证就从纸上消失。”她把一只空药箱放在码头边。“守灯人会在这里给上岸的人换药。路过时也来歇歇。”":
+                    "米拉将船册交给了失踪者的家属。公示版遮去了仍躲在外岸的孩子的藏身位置，原件则在议会的共同保管箱里。\n\n“有个母亲说她不愿意孩子的名字再被任何人拿去交换安全。”米拉望向灯塔。“所以我们把这里留成了真正的补给站。至少返航的人不必再空着肚子赶路。”";
+                en=publicVoice?
+                    "Mira opens a well-worn public manifest. Her own signature leads the page. Another family came today to demand why she never returned for their loved one. She did not hide.\n\n“They may hate me. But nobody disappears from a ledger for lacking a permit again.” She opens a field-aid chest beside the dock. “The watch will keep it stocked. Rest here when you pass.”":
+                    "Mira gave the original manifest to the missing families. The public copy masks the hiding places of children still sheltering across the water; the council keeps the originals under joint custody.\n\n“A mother said she never wants her child's name traded for safety again,” Mira says. “So we've made this a real waystation. Returning travelers shouldn't cross this shore hungry.”";
+            }
+            else if(room==6)
+            {
+                zh=publicVoice?
+                    "伊沃在旧供水牌旁亲手刻下九年前的日期，下面列出所有被切断的井。他每天都能听见有人抱怨，也能看见新的报修单一张张挂起来。\n\n“以前我只画能过审的线路图。现在任何人都能看见这根管子通向哪里。”他掀开遮阳帆：“站到这里歇歇，沙风吹不过来。”":
+                    "伊沃把自己的维修图交给各井的居民委员会，没人需要再等他一个人的签字才能开阀。城内的人依旧担心供水不足，外环也没有一夜变绿。\n\n“至少有新的修井人会来跟我争论。”他笑了一下，指向刚搭好的遮阴棚。“先喝水，等太阳低一点再赶路。”";
+                en=publicVoice?
+                    "Ivo engraved the date of his diversion on the old water plate. Beneath it are the wells he cut off. Every day someone argues with him, and another repair request appears.\n\n“I used to draw only the routes the authorities would approve. Now anybody can see where a pipe leads.” He lifts the shade canopy. “Rest here out of the sandwind.”":
+                    "Ivo distributed his repair drawings to the well committees. Nobody needs his signature alone to open a valve. The city still fears shortages; the outer ring has not turned green overnight.\n\n“At least the next repairer can argue with me.” He points to a new shade canopy. “Drink here before crossing the dunes.”";
+            }
+            else
+            {
+                zh=publicVoice?
+                    "森把旧钟停在正午。他亲自站在山门前讲述自己当年为何捂住警报，以及谁因此没能回家。有人听完默默离开，也有人留下来刻完那块名牌。\n\n“今天钟声不是命令谁立刻走。”森添了几块柴。“只是告诉路过的人，暖棚还有火。”":
+                    "森让当年获救的孩子和后来赶到的撤离者一起重新写下那夜的经过。两份说法不再被装进两本互不相干的档案。\n\n“我没法让所有人原谅我。”他守着新搭起的暖棚。“但以后听不见钟的人，也能沿着这里的火光找到路。”";
+                en=publicVoice?
+                    "Sen stops the chime at noon and tells the waiting crowd why he muffled the alarm, and who never came home. Some leave without speaking; others remain to finish the nameplate.\n\n“Today the bell orders nobody to run,” he says, adding firewood. “It means there is still warmth here.”":
+                    "Sen gathered the children he saved and the evacuees who arrived too late. Together they rewrote the history of that night, refusing to hide one set of names in a different book.\n\n“I can't make everyone forgive me,” Sen says beside the new shelter. “But someone who cannot hear the bell can still follow this fire home.”";
+            }
+            Dialog(host.name,host.en,zh,en,
+                C("谢谢，我继续上路","Thank you. I'll keep travelling","close"));
+        }
+        // A consequence of a signed story choice, not another chores
+        // checklist. Existing, physical NPCs sustain different safe rests
+        // after the ending; no remote healing, combat invulnerability,
+        // reward farming or new SaveData schema.
+        private void TickMainSagaAfterword(float dt)
+        {
+            if(dt<=0f||!MainSagaActive||save.ending<=0||mode!="world"||
+                Dying||practicing||FieldWorkPreventsRest||!SafeTravel||
+                save.room<5||save.room>7||
+                !Has("saga_voice_"+save.room))return;
+            WorldObject host=null;
+            foreach(WorldObject o in Map.objects)
+                if(o!=null&&o.id==SagaPersonId(save.room)&&
+                    o.kind==SagaPerson(save.room)){host=o;break;}
+            if(host==null||!HasPhysicalInteractionReach(host))return;
+            bool publicVoice=Has("saga_choice_"+save.room+"_a");
+            if(save.room==5)
+            {
+                save.health=Math.Min(save.maxHealth,save.health+
+                    (publicVoice?1.25f:.65f)*dt);
+                save.energy=Math.Min(100f,save.energy+
+                    (publicVoice?1.1f:2.1f)*dt);
+            }
+            else if(save.room==6)
+            {
+                save.heat=Math.Max(0f,save.heat-
+                    (publicVoice?3.4f:1.7f)*dt);
+                save.energy=Math.Min(100f,save.energy+
+                    (publicVoice?.8f:2.4f)*dt);
+            }
+            else
+            {
+                save.cold=Math.Max(0f,save.cold-
+                    (publicVoice?3.4f:1.8f)*dt);
+                save.health=Math.Min(save.maxHealth,save.health+
+                    (publicVoice?.7f:1.5f)*dt);
+            }
+        }
         private void MainSagaDebrief(WorldObject guild)
         {
             Dialog(guild.name,guild.en,
@@ -409,6 +505,15 @@ namespace Starfall
             if(string.IsNullOrEmpty(action)||
                !action.StartsWith("saga_",StringComparison.Ordinal))return false;
             WorldObject host=pendingDialogueSource;
+            if(action.StartsWith("saga_afterword_",StringComparison.Ordinal))
+            {
+                int room;
+                if(int.TryParse(action.Substring(15),out room)&&
+                    MainSagaActive&&save.ending>0&&
+                    Has("saga_voice_"+room)&&SagaValidSpeaker(host,room))
+                    MainSagaAfterwordDialogue(host,room);
+                return true;
+            }
             if(ChooseMainSagaLastGate(action))return true;
             if(action=="saga_begin"||action=="saga_debrief")
             {

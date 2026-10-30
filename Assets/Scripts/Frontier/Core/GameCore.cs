@@ -1225,6 +1225,7 @@ namespace Starfall
             TickLastDirective(dt);
             TickCivicConduit(dt);
             TickExpansion(dt);
+            TickMainSagaAfterword(dt);
             // An interrupted or lethal watch must retire its exact live
             // raiders before the normal death early-return. Never carry
             // their actor references into a new slot or scene.
@@ -3960,6 +3961,7 @@ namespace Starfall
                 if(mode=="dialog"&&conversation!=previousConversation)
                 {
                     AppendMainSagaChoice(o);
+                    AppendMainSagaAfterwordChoice(o);
                     AppendUnsentWarningChoice(o);
                     if(o.kind=="tinker")AppendGlassLedgerTinkerChoice(o);
                     if(o.kind=="cook"||o.kind=="innGuest")

@@ -192,6 +192,76 @@ namespace Starfall.Tests
                     beat.questId=="afterlight"),
                 "Extended main chapters remain historical and postcredits work cannot impersonate them");
         }
+        public static void EndingChoicesBecomeRealLocalResidentServices(Campaign data)
+        {
+            var afterword=typeof(GameCore).GetMethod("TickMainSagaAfterword",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(afterword!=null,"Postgame resident service is wired into real gameplay");
+            for(int room=5;room<=7;room++)
+            for(int route=0;route<=1;route++)
+            {
+                GameCore g=Fresh(data);
+                g.mode="world";g.save.stage=3;g.save.room=room;
+                g.enemies.Clear();g.save.ending=1;
+                g.save.flags.Add("saga_act_two");
+                g.save.flags.Add("saga_voice_"+room);
+                g.save.flags.Add("saga_choice_"+room+"_"+(route==0?"a":"b"));
+                WorldObject npc=Array.Find(g.Map.objects,
+                    o=>o.id==(room==5?"mira":room==6?"ivo":"sen"));
+                Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                    "Postgame continues at the genuine original regional NPC");
+                g.Talk(npc);
+                Check(g.conversation!=null,
+                    "The existing mature NPC conversation remains available");
+                int after=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="saga_afterword_"+room);
+                Check(after>=0,"Optional postgame dialogue is appended, not substituted");
+                g.Choose(after);
+                Check(g.mode=="dialog"&&g.conversation!=null&&
+                    g.conversation.speaker==npc.name&&
+                    g.conversation.textEn.Length>120,
+                    "The actual regional witness delivers a substantive personal epilogue");
+                g.Close();
+                Check(PlaceWithinTalkReach(g,npc),
+                    "Local support requires physically standing beside its speaker");
+                g.save.health=40f;g.save.energy=40f;
+                g.save.heat=50f;g.save.cold=50f;
+                float oldHealth=g.save.health,oldEnergy=g.save.energy;
+                float oldHeat=g.save.heat,oldCold=g.save.cold;
+                afterword.Invoke(g,new object[]{1f});
+                if(room==5)
+                    Check(g.save.health>oldHealth&&g.save.energy>oldEnergy,
+                        "Mistport's signed rescue story maintains a genuine field-aid station");
+                if(room==6)
+                    Check(g.save.heat<oldHeat&&g.save.energy>oldEnergy,
+                        "The desert's chosen water policy operates a real cooling station");
+                if(room==7)
+                    Check(g.save.cold<oldCold&&g.save.health>oldHealth,
+                        "Frostchime keeps a genuine warm haven for travelers");
+                g.save.health=40f;g.save.energy=40f;
+                g.save.heat=50f;g.save.cold=50f;
+                g.save.ending=0;
+                afterword.Invoke(g,new object[]{1f});
+                Check(g.save.health==40f&&g.save.energy==40f&&
+                    g.save.heat==50f&&g.save.cold==50f,
+                    "Pre-finale saves cannot claim postgame benefits");
+                g.save.ending=1;g.save.x=70f;g.save.y=70f;
+                afterword.Invoke(g,new object[]{1f});
+                Check(g.save.health==40f&&g.save.energy==40f&&
+                    g.save.heat==50f&&g.save.cold==50f,
+                    "A remote or unreachable NPC cannot heal an absent player");
+                GameCore legacy=Fresh(data);
+                legacy.mode="world";legacy.save.room=room;
+                legacy.save.ending=2;legacy.enemies.Clear();
+                Check(PlaceWithinTalkReach(legacy,npc),
+                    "A legacy-ending character can visit the original NPC");
+                legacy.Talk(npc);
+                Check(legacy.conversation!=null&&
+                    Array.FindIndex(legacy.conversation.choices,
+                        c=>c.action=="saga_afterword_"+room)<0,
+                    "Legacy four-chapter endings gain no invented second-act testimony");
+            }
+        }
         public static void CompletedLegacyFinaleRemainsCompletedWithoutActTwo(Campaign data)
         {
             GameCore g=Fresh(data);
