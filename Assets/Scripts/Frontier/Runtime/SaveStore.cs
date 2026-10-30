@@ -349,13 +349,15 @@ namespace Starfall
         private static void PortableReplace(string temp, string path, string backup)
         {
             string prior = path + ".precommit";
-            // When an earlier attempt died after displacement, restore its
-            // original before starting a new transaction. Do not overwrite
-            // the last recoverable primary with a stale temp or empty slot.
+            // A previous crash may leave a VALID .precommit beside a
+            // truncated primary. Deleting it here would destroy the only
+            // recoverable progress if promotion of the new stage then fails.
+            // Preserve that immutable candidate under a unique, already
+            // scanned .stage-* name until the new primary is committed.
             if (File.Exists(prior))
             {
                 if (!File.Exists(path)) File.Move(prior, path);
-                else File.Delete(prior);
+                else File.Move(prior, path + ".stage-" + Guid.NewGuid().ToString("N"));
             }
             if (backup != null) File.Copy(path, backup, true);
             File.Move(path, prior);

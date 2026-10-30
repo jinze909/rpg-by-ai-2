@@ -198,6 +198,64 @@ public static class RuntimePolishChecks
             VerifyWayfarerLethalOwnership();
         }
 
+    // CI exercises the actual portable fallback even on hosts where
+    // File.Replace normally succeeds. A bad primary plus a valid prior
+    // must remain recoverable when the incoming promotion fails.
+    public static void PortableSaveFallbackPreservesRecoveredPrecommit(FrontierRuntime ignored)
+    {
+        string previous=Application.persistentDataPath;
+        string directory=Path.Combine(Path.GetTempPath(),
+            "starfall-portable-recovery-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        Application.persistentDataPath=directory;
+        try
+        {
+            var game=new GameCore(CampaignFixture.Create());
+            game.NewGame(0);game.Close();game.save.coins=317;game.PrepareSave();
+            Check(SaveStore.Write(game.save,2),
+                "Produce a real schema-checked save before simulating interruption");
+            string main=SaveStore.PathFor(2);
+            string preserved=File.ReadAllText(main);
+            const string corrupt="{\\"corrupt\\":true}";
+            File.WriteAllText(main,corrupt);
+            File.WriteAllText(main+".precommit",preserved);
+            MethodInfo portable=typeof(SaveStore).GetMethod("PortableReplace",
+                BindingFlags.NonPublic|BindingFlags.Static);
+            Check(portable!=null,"Production portable promotion is testable");
+            bool failed=false;
+            try
+            {
+                portable.Invoke(null,new object[]{
+                    main+".stage-missing",main,null});
+            }
+            catch(TargetInvocationException error)
+            { failed=error.InnerException is IOException; }
+            Check(failed&&File.ReadAllText(main)==corrupt,
+                "A failed portable promotion restores the original primary");
+            string[] stages=Directory.GetFiles(directory,
+                Path.GetFileName(main)+".stage-*");
+            Check(stages.Length==1&&File.ReadAllText(stages[0])==preserved,
+                "The only valid previous transaction survives a failed promotion");
+            string warning;
+            SaveData recovered=SaveStore.Read(2,out warning);
+            Check(recovered!=null&&recovered.coins==317&&
+                warning!=null&&warning.Contains("Recovered"),
+                "Continue recovers real earlier progress from the preserved stage");
+            string next=main+".stage-ready";
+            File.WriteAllText(next,preserved);
+            portable.Invoke(null,new object[]{next,main,null});
+            Check(File.ReadAllText(main)==preserved&&
+                SaveStore.Read(2,out warning).coins==317,
+                "The subsequent portable retry commits a verified primary");
+            Console.WriteLine("PASS Portable save fallback retains valid precommit across failed promotion and retry");
+        }
+        finally
+        {
+            Application.persistentDataPath=previous;
+            try { Directory.Delete(directory,true); } catch { }
+        }
+    }
+
     public static void Run(FrontierRuntime app)
     {
         string previous = Application.persistentDataPath; string directory = Path.Combine(Path.GetTempPath(), "starfall-save-check-" + Guid.NewGuid()); Application.persistentDataPath = directory;
