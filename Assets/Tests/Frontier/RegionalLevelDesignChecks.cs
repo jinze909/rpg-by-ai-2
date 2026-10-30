@@ -1621,6 +1621,61 @@ namespace Starfall.Tests
             }
         }
 
+
+        // Save-load at the END of a paid ridge crossing is not equivalent
+        // to walking back into danger. The same transient courtesy ends
+        // after actually leaving the site; legacy v2 slots stay untouched.
+        public static void LoadedRidgeCheckpointPreservesArrivalSafetyUntilWalkingBack(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();g.save.energy=100f;
+                g.save.flags.Add("ridge_seen_"+room+"_0");
+                g.save.flags.Add("ridge_seen_"+room+"_1");
+                WorldObject start=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_0");
+                WorldObject destination=Array.Find(g.Map.objects,o=>
+                    o.id=="ridge_route_"+room+"_1");
+                Check(start!=null&&destination!=null,
+                    "Both real original ridge ends are present");
+                g.save.x=start.x;g.save.y=start.y;
+                g.Talk(start);
+                Check(g.conversation!=null,
+                    "Real original ridge marker supports existing travel");
+                int travel=Array.FindIndex(g.conversation.choices,
+                    o=>o.action=="ridge_travel");
+                Check(travel>=0,"Original passage is unlocked");
+                g.Choose(travel);
+                Check(g.RemoteRoadSafeArrivalActive&&
+                    (g.Position-new Point(destination.x,destination.y)).Length<.01f,
+                    "Paid crossing established the actual safe arrival");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                loaded.Start();loaded.enemies.Clear();
+                Check(loaded.save.version==2&&loaded.RemoteRoadSafeArrivalActive,
+                    "Version-two recovery recognizes authentic saved marker without a new flag");
+                for(int i=0;i<7;i++)loaded.Tick(.05f,new Point());
+                Check(!loaded.RemoteRoadEncounterActive&&
+                    !loaded.RemoteRoadCleared(room,1)&&
+                    loaded.enemies.Count==0,
+                    "Resuming safe transport cannot create an unannounced checkpoint ambush");
+                Point depart=new Point(loaded.Map.spawnX,loaded.Map.spawnY);
+                Check(loaded.CanStand(depart)&&
+                    (depart-new Point(destination.x,destination.y)).Length>10.5f,
+                    "Actual original spawn is outside the protected far-road footprint");
+                loaded.save.x=depart.x;loaded.save.y=depart.y;
+                loaded.Tick(.02f,new Point());
+                Check(!loaded.RemoteRoadSafeArrivalActive,
+                    "Stepping outside the genuine arrival area rearms exploration");
+                loaded.save.x=destination.x;loaded.save.y=destination.y;
+                loaded.Tick(.02f,new Point());
+                Check(loaded.RemoteRoadEncounterActive&&
+                    loaded.RemoteRoadRemaining==2,
+                    "Walking back to the EXACT uncleared crossing opens two real attackers");
+            }
+        }
+
         public static void FourteenRoadAmbushesHaveUsableJournalGuidance(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=1;

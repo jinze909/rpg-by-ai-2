@@ -442,6 +442,27 @@ namespace Starfall
             remoteRoadSafeArrivalMap=remoteRoadSafeArrival==null?null:Map;
             remoteRoadSafeArrivalSave=remoteRoadSafeArrival==null?null:save;
         }
+        // Saving at a recently transported or still-dangerous crossing
+        // must not reload directly into an unannounced ambush on the very
+        // first simulated frame. Recover only local spawn safety; this does
+        // NOT persist a fake battle clear or lock out later on-foot combat.
+        private void RestoreRoadLandingFromSavedFoot()
+        {
+            if(save.room<1||save.room>7||Map.objects==null||
+                !CanStand(Position))return;
+            foreach(WorldObject marker in Map.objects)
+            {
+                if(marker==null||marker.kind!="ridgemarker"||
+                    (marker.id!="ridge_route_"+save.room+"_0"&&
+                     marker.id!="ridge_route_"+save.room+"_1"))continue;
+                Point site=new Point(marker.x,marker.y);
+                if((Position-site).Length<=1.8f)
+                {
+                    SetRemoteRoadSafeArrival(marker);
+                    return;
+                }
+            }
+        }
         // Actual foot movement beyond the landing neighborhood rearms
         // ordinary discovery. A quest pin or scene-independent coordinate
         // cannot grant this temporary immunity.

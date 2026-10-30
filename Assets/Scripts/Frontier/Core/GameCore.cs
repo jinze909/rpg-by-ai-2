@@ -410,6 +410,10 @@ namespace Starfall
             RescueCheckpoint pendingRescue = save.rescueCheckpoint;
             ResetTransient(); SpawnRoom(); RestoreWorld();
             RestoreReliefCheckpoint(pendingRescue);
+            // A v2 checkpoint at an original ridge marker resumes safely
+            // before any auto-ambush tick; physical exit still rearms the
+            // genuine optional encounter. No serialized grace field needed.
+            RestoreRoadLandingFromSavedFoot();
             // A new save slot replaces the active play session. Transient
             // dialogue/inventory/fishing modes from the previous character
             // must not strand the new hero in a frozen non-world UI after
