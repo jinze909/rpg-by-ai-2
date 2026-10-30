@@ -67,6 +67,12 @@ namespace Starfall
             return new Point(tacticTrialSource.x,tacticTrialSource.y);}}
         private bool IsFieldTacticTrialEnemy(Enemy e)
         {return e!=null&&FieldTacticTrialActive&&tacticTrialEnemies.Contains(e);}
+        // Public read-only identity for the shipped actor renderer. A
+        // regular foe with the same numeric spawn ID cannot inherit this
+        // trial marker; no duplicate sprite or persistent actor metadata.
+        public bool IsFieldTacticTrialTarget(Enemy e)
+        {return IsFieldTacticTrialEnemy(e)&&e.hp>0f&&
+            enemies.Contains(e)&&!tacticTrialKills.Contains(e);}
         private void OnFieldTacticTrialEnemyDefeated(Enemy e)
         {if(IsFieldTacticTrialEnemy(e)&&e.hp<=0)tacticTrialKills.Add(e);}
         private void ResetFieldTacticTrial()

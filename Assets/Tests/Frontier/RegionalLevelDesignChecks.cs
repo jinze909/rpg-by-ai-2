@@ -253,6 +253,8 @@ namespace Starfall.Tests
                 Enemy[] assigned=g.enemies.ToArray();
                 foreach(Enemy foe in assigned)
                 {
+                    Check(g.IsFieldTacticTrialTarget(foe),
+                        "Only authenticated living contracted actors receive the visible trial marker");
                     Check(foe.hp>0f&&!foe.boss&&g.CanStand(foe.Position)&&
                         g.NavigationPathFrom(hero,foe.Position,true).Count>0&&
                         (foe.Position-new Point(source.x,source.y)).Length<=5.8f,
@@ -264,6 +266,8 @@ namespace Starfall.Tests
                     "Real tactical activation hits at least one assigned living raider");
                 foreach(Enemy foe in assigned)
                     hit.Invoke(g,new object[]{foe,600f,false,null,null});
+                Check(assigned.TrueForAll(e=>!g.IsFieldTacticTrialTarget(e)),
+                    "Defeated registered bodies must lose their live world target marker");
                 Check(g.FieldTacticTrialReady&&
                     g.FieldTacticTrialRemaining==0&&!g.FieldTacticTrialDone(room),
                     "Real defeats earn a report opportunity, not immediate free loot");

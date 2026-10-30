@@ -1187,6 +1187,18 @@ namespace Starfall
             // same live enemy instance also drives its patrol gait, AI and
             // tracked-journal waypoint. Static dots remain legible with
             // reduced-motion and vanish after the actual credited kill.
+            if(!drawingOutline&&Game.IsFieldTacticTrialTarget(e))
+            {
+                // Show the exact two contracted living actors in the world.
+                // An amber ground ring and quiet fixed label supplement the
+                // published whole-body art; no costume, rig, hitbox or
+                // legacy protagonist sprite is substituted or duplicated.
+                Color trialTint=PixelArt.C("#e6b46e");
+                Ring(e.Position,.72f,trialTint,18);
+                Text(p.x-82,p.y-132,164,20,
+                    Game.L("演练指定敌人","TRIAL TARGET"),
+                    10,trialTint,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsActiveRidgeWatchPatrol(e))
             {
                 // Green: an ordinary quest patrol. Amber: this exact
