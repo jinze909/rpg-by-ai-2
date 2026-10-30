@@ -7,6 +7,8 @@ namespace Starfall
     {
         private int selectedItem, selectedQuest, selectedRegion = -1, helpTopic, dialoguePage, dialogueChoicePage, recordsPage, questPage;
         private bool journalSpeechOpen;
+        private int journalStepPage;
+        private string journalStepQuestId;
         private int journalSpeechIndex,journalSpeechPage;
         private const int DialogueChoicesPerPage = 6;
         // In-game, read-only transcript overlay; never runs archived choice
@@ -162,7 +164,8 @@ namespace Starfall
         private string mapInspectedQuestId;
         // View-only journal filter; original 60 quest IDs, progress and
         // ordering stay untouched in SaveData v2.
-        private bool journalOnlyActionable;
+        // Default to playable content; Show All remains one click away.
+        private bool journalOnlyActionable=true;
         private QuestGuide InspectedMapQuest()
         {
             if(Game==null||Game.mode!="map"||
@@ -1270,11 +1273,33 @@ namespace Starfall
                 questPage<questPages-1))
             {questPage++;selectedQuest=visibleQuestIndices[questPage*questsPerPage];}
             QuestGuide q = Game.GetQuest(GameCore.QuestIds[selectedQuest]); Card(625, 226, 592, 510); Text(650, 244, 541, 27, q.category + (q.complete ? Game.L(" · 已完成", " · COMPLETE") : ""), 12, gold); Text(650, 281, 541, 45, q.title, 26, paper); Text(650, 342, 541, 62, q.description, 17, muted); Text(650, 410, 541, 60, Game.L("下一步：", "Next: ") + q.next, 14, gold);
-            float stepPitch = Math.Min(34f, 133f / Math.Max(1, q.steps.Count));
-            for (int i = 0; i < q.steps.Count; i++)
-                Text(650, 482 + i * stepPitch, 542, Math.Min(33f, stepPitch),
-                    (q.steps[i].done ? "✓  " : "○  ") + q.steps[i].text,
-                    15, q.steps[i].done ? mint : paper);
+            // Each page has four full-height objectives. Prior pages stay
+            // accessible; new selections open at the first incomplete step.
+            if(journalStepQuestId!=q.id)
+            {
+                journalStepQuestId=q.id;
+                journalStepPage=QuestStepPagination.SuggestedPage(q.steps);
+            }
+            int stepPages=QuestStepPagination.PageCount(q.steps.Count);
+            journalStepPage=Math.Max(0,Math.Min(journalStepPage,stepPages-1));
+            int firstStep=QuestStepPagination.FirstStep(journalStepPage,q.steps.Count);
+            int endStep=Math.Min(q.steps.Count,
+                firstStep+QuestStepPagination.PageSize);
+            for(int i=firstStep;i<endStep;i++)
+                Text(650,480+(i-firstStep)*30,542,29,
+                    (q.steps[i].done?"✓  ":"○  ")+q.steps[i].text,
+                    15,q.steps[i].done?mint:paper);
+            if(q.steps.Count>0)
+            {
+                if(Button(650,601,130,20,Game.L("上一组","Earlier"),
+                    false,journalStepPage>0))journalStepPage--;
+                Text(790,601,256,20,(firstStep+1)+"–"+endStep+
+                    " / "+q.steps.Count+"  ·  "+
+                    (journalStepPage+1)+"/"+stepPages,
+                    12,muted,TextAnchor.MiddleCenter);
+                if(Button(1060,601,130,20,Game.L("下一组","Later"),
+                    false,journalStepPage<stepPages-1))journalStepPage++;
+            }
             Text(650, 622, 540, 22, q.reward, 12, gold); if (Button(650, 647, 258, 31, Game.L("追踪任务", "Track quest"), Game.save.trackedQuest == q.id, !q.locked && !q.complete)) Game.TrackQuest(q.id); if (Button(927, 647, 263, 31, Game.L("查看目标地图", "Show destination"), false, !q.locked)) { selectedRegion = q.room; OpenMenu("map"); mapInspectedQuestId=q.id; }
             // One-tap local navigation from the actual journal selection.
             // The core validates current eligibility and rechecks walking

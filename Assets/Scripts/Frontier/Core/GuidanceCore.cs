@@ -7,6 +7,23 @@ namespace Starfall
         public string text; public bool done;
         public QuestStep(string text, bool done) { this.text = text; this.done = done; }
     }
+    // Four readable journal rows instead of compressing long quest chains
+    // into tiny unreadable labels. Does not touch any quest or save state.
+    public static class QuestStepPagination
+    {
+        public const int PageSize=4;
+        public static int PageCount(int count)
+        { return Math.Max(1,(Math.Max(0,count)+PageSize-1)/PageSize); }
+        public static int FirstStep(int page,int count)
+        { return Math.Max(0,Math.Min(page,PageCount(count)-1))*PageSize; }
+        public static int SuggestedPage(List<QuestStep> steps)
+        {
+            if(steps==null||steps.Count==0)return 0;
+            for(int i=0;i<steps.Count;i++)
+                if(!steps[i].done)return i/PageSize;
+            return PageCount(steps.Count)-1;
+        }
+    }
     public sealed class QuestGuide
     {
         public string id, title, category, description, next, reward;

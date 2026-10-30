@@ -3,6 +3,31 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        public static void LongQuestJournalKeepsEveryStepReadableAndAccessible(Campaign data)
+        {
+            var steps=new System.Collections.Generic.List<QuestStep>();
+            for(int i=0;i<27;i++)
+                steps.Add(new QuestStep("Story action "+i,i<19));
+            Check(QuestStepPagination.PageCount(27)==7&&
+                QuestStepPagination.SuggestedPage(steps)==4&&
+                QuestStepPagination.FirstStep(4,27)==16,
+                "Long story opens at first unfinished full-height objective");
+            for(int page=0;page<QuestStepPagination.PageCount(steps.Count);page++)
+            {
+                int first=QuestStepPagination.FirstStep(page,steps.Count);
+                Check(first>=0&&first<steps.Count&&
+                    Math.Min(steps.Count,first+QuestStepPagination.PageSize)-first<=4,
+                    "Every main-story objective remains on a readable page");
+            }
+            foreach(var step in steps)step.done=true;
+            Check(QuestStepPagination.SuggestedPage(steps)==6&&
+                QuestStepPagination.FirstStep(99,27)==24,
+                "Completed story shows its last page and out-of-range views clamp");
+            Check(QuestStepPagination.PageCount(0)==1&&
+                QuestStepPagination.SuggestedPage(null)==0,
+                "Empty quest step lists have a stable viewport");
+        }
+
         public static void CivilianCourierHasVisibleTimedObjectiveInEveryRegion(Campaign data)
         {
             var g=Fresh(data);g.save.flags.Add("far_bridge_0");
