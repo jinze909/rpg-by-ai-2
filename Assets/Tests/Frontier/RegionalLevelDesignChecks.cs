@@ -1379,7 +1379,7 @@ namespace Starfall.Tests
                 foe.hitTime=5f;
                 for(int step=0;step<11;step++)g.Tick(.05f,new Point());
                 Check(g.CanBindSnaredEnemy&&
-                    Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                    System.Object.ReferenceEquals(g.SnaredBindTarget,foe),
                     "A real placed stake, contact and stun create this living bind window");
                 g.save.energy=100f;
                 Check(g.BindSnaredEnemy()&&!g.enemies.Contains(foe)&&
