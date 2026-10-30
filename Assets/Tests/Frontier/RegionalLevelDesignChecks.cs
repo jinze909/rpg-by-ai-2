@@ -1467,6 +1467,47 @@ namespace Starfall.Tests
                 "A dead actor loses its label immediately without hiding the surviving foe");
         }
 
+
+        // The player can actually find and track all 14 optional roads.
+        // Live battle routing targets physical actors, not stale markers;
+        // completed quest progress is derived from existing v2 receipts.
+        public static void FourteenRoadAmbushesHaveUsableJournalGuidance(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=3;g.enemies.Clear();
+            QuestGuide fresh=g.GetQuest("remote_roads");
+            Check(!fresh.locked&&!fresh.complete&&fresh.steps.Count==14&&
+                fresh.Progress==0f,
+                "The world journal exposes all fourteen genuine optional road sites");
+            WorldObject first=Array.Find(g.Map.objects,o=>
+                o.id=="ridge_route_1_0");
+            Check(first!=null,"The first journal marker is an original map object");
+            g.TrackQuest("remote_roads");
+            Check(g.save.trackedQuest=="remote_roads",
+                "Player may deliberately track road clearances in the original journal");
+            g.save.x=first.x;g.save.y=first.y;
+            g.Tick(.02f,new Point());
+            QuestGuide engaged=g.GetQuest("remote_roads");
+            Check(g.RemoteRoadEncounterActive&&engaged.room==1&&
+                engaged.steps.Count==14&&
+                (engaged.target-g.RemoteRoadGuideTarget).Length<.001f,
+                "Active journal compass uses the nearest actual living ambusher");
+            for(int room=1;room<=7;room++)
+            for(int district=0;district<2;district++)
+                g.save.flags.Add("remote_road_clear_"+room+"_"+district);
+            QuestGuide completed=g.GetQuest("remote_roads");
+            Check(completed.complete&&completed.steps.Count==14&&
+                completed.Progress==1f&&
+                g.save.trackedQuest=="remote_roads",
+                "All fourteen authentic signed routes complete the original selected journal quest");
+            g.PrepareSave();
+            var saved=new GameCore(data,CloneSave(g.save));
+            Check(saved.save.version==2&&
+                saved.GetQuest("remote_roads").complete&&
+                saved.save.trackedQuest=="remote_roads",
+                "Legacy v2 round trip preserves optional road progress and the explicit pin");
+        }
+
         public static void RemoteRoadOpeningAmbushesEnterPhysicalAwarenessRange(Campaign data)
         {
             var sight=typeof(GameCore).GetMethod("ClearAttackPath",

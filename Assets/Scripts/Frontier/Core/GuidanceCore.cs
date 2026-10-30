@@ -134,7 +134,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "veteran_patrols", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "veteran_patrols", "remote_roads", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1605,6 +1605,69 @@ namespace Starfall
                       "All seven real kit locations recovered; road supplies are replenished."):
                     L("到本区远端工具箱取回物资；若调查未完成，先核对本区两处地标。",
                       "Go to the distant physical field kit; complete both survey clues before collecting.");
+                return q;
+            }
+            if(id=="remote_roads")
+            {
+                q.title=L("七地远路伏击 · 清出真正的居民通道",
+                    "Far-Road Ambushes · Reopen Civilian Crossings");
+                q.category=L("开放地图 · 十四处可撤离的真实遭遇",
+                    "OPEN WORLD · FOURTEEN RETREATABLE BATTLES");
+                q.description=L(
+                    "七片地区各有两处原始高地路标。走近路口会遭遇有真实视线和步行路径的不同敌人。击退或用绊索活捉两名敌人即可永久扫清该处伏击。可以离开战场撤离，返回后再战；不影响原有主线击杀要求或巡护委托。",
+                    "Each of seven regions has two original outer ridge markers. Walk near them to face different real, sighted enemies. Defeat or snare both to permanently clear that road. You can escape, then return to try again without changing main-story kill gates or signed patrol contracts.");
+                q.reward=L("每处完成：硬币、经验；两名均活捉额外碎片1",
+                    "Each crossing: coins and XP; both captured alive grant +1 shard");
+                q.complete=RemoteRoadClearedCount==14;q.locked=false;
+                int selectedRoom=-1,selectedSide=-1;
+                for(int room=1;room<=7;room++)
+                for(int district=0;district<2;district++)
+                {
+                    bool done=RemoteRoadCleared(room,district);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[room].name,data.maps[room].en)+
+                        L(district==0?" · 外环":" · 支路",
+                          district==0?" · OUTER ROAD":" · RIDGE BRANCH")+
+                        L(done?" · 已安全":" · 待清理",
+                          done?" · SECURED":" · HOSTILES"),
+                        done));
+                    if(!done&&CanEnter(room)&&
+                       (selectedRoom<0||
+                        room==save.room&&selectedRoom!=save.room))
+                    {selectedRoom=room;selectedSide=district;}
+                }
+                if(RemoteRoadEncounterActive)
+                {
+                    q.room=save.room;
+                    q.target=RemoteRoadGuideTarget;
+                    q.next=L("伏击正在发生，尚余"+RemoteRoadRemaining+
+                        "名真实敌人。可以击败、绊索活捉，或远离路口撤退。",
+                        "Road ambush active: "+RemoteRoadRemaining+
+                        " real enemies. Fight, snare alive, or retreat from the crossing.");
+                }
+                else if(q.complete)
+                {
+                    q.room=save.room;q.target=Position;
+                    q.next=L("十四处远路伏击全部清除，居民不再需要躲开旧路标。",
+                        "All fourteen road ambushes cleared; these civilian crossings are secure.");
+                }
+                else
+                {
+                    q.room=selectedRoom>=0?selectedRoom:save.room;
+                    WorldObject next=null;
+                    if(selectedRoom>=0)
+                        foreach(WorldObject o in data.maps[selectedRoom].objects)
+                            if(o!=null&&o.id=="ridge_route_"+
+                               selectedRoom+"_"+selectedSide)
+                            {next=o;break;}
+                    q.target=next==null?Position:
+                        new Point(next.x,next.y);
+                    q.next=selectedRoom<0?
+                        L("继续主线探索，解锁剩余野外地区后再清理远路。",
+                          "Continue the story to access the remaining outer regions.") :
+                        L("亲自接近标记的旧路口，击退或活捉真实伏击者。",
+                          "Walk to the original marked crossing and confront real raiders.");
+                }
                 return q;
             }
             if(id=="veteran_patrols")
@@ -5478,6 +5541,10 @@ namespace Starfall
             // return to the signing post, even if the journal still tracks
             // another optional quest. This never alters progress flags.
             if(FieldPatrolActive)return FieldPatrolGuideTarget;
+            // An automatic road ambush overrides only transient world
+            // guidance while its two registered enemies are physically
+            // present. Never overwrite the user's pinned quest or v2 flags.
+            if(RemoteRoadEncounterActive)return RemoteRoadGuideTarget;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.

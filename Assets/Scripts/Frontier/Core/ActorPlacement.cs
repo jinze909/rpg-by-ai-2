@@ -384,6 +384,30 @@ namespace Starfall
         public bool RemoteRoadCleared(int region,int district)
         { return region>=1&&region<=7&&district>=0&&district<2&&
             Has("remote_road_clear_"+region+"_"+district); }
+        public int RemoteRoadClearedCount
+        { get {
+            int count=0;
+            for(int room=1;room<=7;room++)
+            for(int district=0;district<2;district++)
+                if(RemoteRoadCleared(room,district))count++;
+            return count;
+        }}
+        // A genuine encounter points toward the nearest surviving foe.
+        // Source markers guide the optional journal when no fight is live;
+        // no persistent enemy ID or fabricated destination is introduced.
+        public Point RemoteRoadGuideTarget
+        { get {
+            if(!RemoteRoadEncounterActive)return Position;
+            Point best=new Point(remoteRoadSource.x,remoteRoadSource.y);
+            float distance=float.MaxValue;
+            foreach(Enemy foe in remoteRoadFoes)
+            {
+                if(!IsRemoteRoadThreat(foe))continue;
+                float next=(Position-foe.Position).Length;
+                if(next<distance){best=foe.Position;distance=next;}
+            }
+            return best;
+        }}
         private bool IsRemoteRoadEnemy(Enemy e)
         { return e!=null&&RemoteRoadEncounterActive&&remoteRoadFoes.Contains(e); }
         // Presentation reads only EXACT live actors: duplicate numeric IDs
