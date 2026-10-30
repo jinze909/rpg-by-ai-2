@@ -318,6 +318,8 @@ namespace Starfall
             {
                 if((mode!="world"&&mode!="journal")||Dying||practicing||
                    FieldWorkPreventsRest||CivicCourierActive||WhiteoutActive||
+                   ScoutDefenseActive||MainSagaRelayActive||
+                   witnessDefenseRoom!=0||InAbyss||
                    !SafeTravel||!CanStand(Position))return false;
                 QuestGuide q=RecommendedContinuationGuide;
                 return q!=null&&!q.locked&&!q.complete&&
