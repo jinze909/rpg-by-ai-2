@@ -255,7 +255,8 @@ namespace Starfall.Tests
                 Check(g.WildernessHuntFinished(room)&&
                     g.Has((refuge?"wilderness_hunt_refuge_":
                         "wilderness_hunt_bounty_")+room)&&
-                    g.save.coins>=oldCoins+(refuge?32:70)&&
+                    g.Has("wilderness_hunt_open_"+room)&&
+                    g.save.coins>=oldCoins+(refuge?32:70)+12&&
                     (!refuge||g.save.inventory[2]==oldHerbs+2),
                     "One chosen outcome grants the correct permanent civilian or watch benefit");
                 g.PrepareSave();
@@ -294,6 +295,7 @@ namespace Starfall.Tests
                 c=>c.action=="wilderness_hunt_quiet");
             g.Choose(ambush);
             Check(g.WildernessHuntActive&&g.save.inventory[4]==1&&
+                !g.Has("wilderness_hunt_open_6")&&
                 g.WildernessHuntRemaining==2&&
                 g.enemies.TrueForAll(e=>e.stun>=1.39f&&e.armorOpenTime>=1.09f),
                 "Paying real desert gears gives a real temporary advantage to the first wave");

@@ -1264,8 +1264,12 @@ namespace Starfall
                     "The advance patrol has fallen; the main force arrives along another walkable approach!");
                 return;
             }
+            // The direct-pursuit premium is earned after actual second
+            // wave contact, never on pressing the setup option.
+            bool openPursuit=!wildernessHuntQuiet;
             ResetWildernessHunt();
             Flag("wilderness_hunt_fought_"+room);
+            if(openPursuit)Flag("wilderness_hunt_open_"+room);
             RecordMoment("荒野追踪 · "+wildernessHuntNamesZh[room]+
                 "：两批敌人真正被击败。留下的居民路标还需要你决定如何处理。",
                 "Wilderness Hunt · "+wildernessHuntNamesEn[room]+
@@ -1355,7 +1359,8 @@ namespace Starfall
                 Flag("wilderness_hunt_done_"+room);
                 Flag((refuge?"wilderness_hunt_refuge_":
                     "wilderness_hunt_bounty_")+room);
-                CreditCoins(refuge?32:70);
+                CreditCoins((refuge?32:70)+
+                    (Has("wilderness_hunt_open_"+room)?12:0));
                 AddXp(refuge?100:65);
                 if(refuge)
                 {
@@ -1364,7 +1369,9 @@ namespace Starfall
                 }
                 RecordMoment(wildernessHuntNamesZh[room]+
                     (refuge?"：居民归路被公开；伤药留给后来者。":
-                        "：守路队登记战斗现场，公开出资巡查。"),
+                        "：守路队登记战斗现场，公开出资巡查。")+
+                    (Has("wilderness_hunt_open_"+room)?
+                        " 直面追击获额外十二枚赏金。":""),
                     wildernessHuntNamesEn[room]+
                     (refuge?": civilian passage published and field medicine shared.":
                         ": the watch paid for verified protection of the crossing."));
