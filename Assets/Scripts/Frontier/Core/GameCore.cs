@@ -5601,6 +5601,21 @@ namespace Starfall
         }
         public string Objective()
         {
+            // A live optional field drill is a genuine world battle, even
+            // when the hero has already completed the main campaign.
+            if(FieldTacticTrialActive)
+                return FieldTacticTrialRemaining>0?
+                    L("战术演练 · 剩余"+FieldTacticTrialRemaining+
+                        "名指定敌人 · "+(FieldTacticTrialUsed?
+                            "装置反制已完成":"按 Shift+G 使用装置"),
+                      "Tactical drill · "+FieldTacticTrialRemaining+
+                        " live raiders · "+(FieldTacticTrialUsed?
+                            "counter activated":"use SHIFT+G at device")):
+                    FieldTacticTrialReady?
+                        L("战术演练成功 · 回原装置按 E 签回执",
+                          "Drill complete · return to original device to sign"):
+                        L("未完成装置反制 · 返回原装置撤回演练",
+                          "Counter required · return to the device and withdraw");
             // The world can keep changing, but a completed main tracker
             // cannot present those optional changes as unfinished credits.
             if(save.ending>0&&save.trackedQuest=="main")
