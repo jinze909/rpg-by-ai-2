@@ -195,8 +195,9 @@ namespace Starfall
             if(o.kind=="returnscout")
             {
                 if(!Has("scout_saved")||save.room!=0)return true;
-                if(!HasPhysicalInteractionReach(o))
-                    {Notify("请走近侦察员。","Move closer to the scout.");return true;}
+                // Keep the original read-only town greeting available
+                // from a remote NPC reference. Claiming the stew is a
+                // separate source-validated action and still requires reach.
                 bool aid=Has("scout_rescue_aid");
                 Dialog(o.name,o.en,
                     aid?
