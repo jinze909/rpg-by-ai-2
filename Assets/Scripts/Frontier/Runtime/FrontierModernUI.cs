@@ -1373,6 +1373,9 @@ namespace Starfall
                     bool sample=supply.id=="trail_forager_"+region+"_0"||
                         supply.id=="trail_forager_"+region+"_2";
                     bool awaiting=completed&&!Game.BiomeSupplyBuilt(region);
+                    // Focus keeps the two real supply samples required by a
+                    // current civilian repair, not every routine resource.
+                    if(mapFocusMode&&!(awaiting&&sample&&!claimed))continue;
                     // Two distant, truly gathered sites certify the actual
                     // civilian logistics decision. Yellow outlines distinguish
                     // samples without pretending a map click collected them.
@@ -1391,7 +1394,7 @@ namespace Starfall
                          claimed))
                         Frame(px-5,py-5,10,10,gold);
                 }
-                if(total>0)
+                if(total>0&&!mapFocusMode)
                     Text(originX+172,originY-18,134,14,
                         Game.L("可采补给 ","FIELD SUPPLIES ")+
                         (total-gathered)+"/"+total,10,mint,
@@ -1422,6 +1425,7 @@ namespace Starfall
                     float sy=originY+signal.y*tileScale;
                     bool target=!done&&
                         (active-new Point(signal.x,signal.y)).Length<.01f;
+                    if(mapFocusMode&&!target)continue;
                     Color color=done?mint:target?gold:muted;
                     Frame(sx-5,sy-5,10,10,color);
                     if(target)Frame(sx-9,sy-9,18,18,gold);
@@ -1460,6 +1464,7 @@ namespace Starfall
                     float px=originX+machine.x*tileScale;
                     float py=originY+machine.y*tileScale;
                     Color mark=claimed?mint:next?gold:muted;
+                    if(mapFocusMode&&!next)continue;
                     Frame(px-5,py-5,10,10,mark);
                     if(claimed)Box(px-2.5f,py-2.5f,5,5,mark);
                     else if(next)Frame(px-8,py-8,16,16,gold);
@@ -1523,6 +1528,7 @@ namespace Starfall
                     float sx=originX+location.x*tileScale;
                     float sy=originY+location.y*tileScale;
                     bool done=Game.Has("ridge_watch_"+region+"_"+i);
+                    if(mapFocusMode&&done)continue;
                     Color marker=done?muted:PixelArt.C("#e7a47b");
                     Frame(sx-7,sy-7,14,14,marker);
                     if(!done)
@@ -1685,8 +1691,10 @@ namespace Starfall
             {
                 MiniTerrain(888, 264, terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
-                if(MapPresentationPolicy.ShowFieldSurvey(mapFocusMode))
-                    DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                // Keep ACTIVE authored investigation and emergency destinations
+                // on the map even in Focus. The field renderer itself removes
+                // optional background supply dots in Focus.
+                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1797,8 +1805,10 @@ namespace Starfall
             {
                 DrawTerrainPreview(m,selectedRegion,false,888,264,terrainScale);
                 DrawAvailableMapQuestMarkers(regionQuests,888,264,terrainScale);
-                if(MapPresentationPolicy.ShowFieldSurvey(mapFocusMode))
-                    DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                // Keep ACTIVE authored investigation and emergency destinations
+                // on the map even in Focus. The field renderer itself removes
+                // optional background supply dots in Focus.
+                DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.CurrentGuide;
                 if(q.room==selectedRegion&&!q.locked)
