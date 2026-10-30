@@ -149,6 +149,9 @@ namespace Starfall.Tests
                 Check(!g.SagaGuardActive&&g.Has("saga_guard_"+room)&&
                     !g.Has("saga_voice_"+room),
                     "Only defeating all four actual attackers secures the still unsigned original");
+                Check(g.Has("saga_guard_pristine_"+room)&&
+                    !g.Has("saga_guard_scarred_"+room),
+                    "An entirely intact two-wave win earns a truthful pristine-record flag");
                 Check(PlaceWithinTalkReach(g,npc),"Actual regional speaker remains reachable");
                 g.Talk(npc);
                 account=Array.FindIndex(g.conversation.choices,
@@ -733,6 +736,70 @@ namespace Starfall.Tests
                     "Neither attacks nor hero blocking fabricate a signed ending");
             }
             Check(verified>0,"At least one authored witness supports real raid contact and bodyguard");
+        }
+
+        public static void DamagedWitnessRecordsStayPlayableAndAreTruthfullyAnnotated(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            var grade=typeof(GameCore).GetField("sagaGuardBreach",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(hit!=null&&grade!=null,
+                "Actual combat kill hooks and transient record integrity are available");
+            GameCore g=Fresh(data);g.mode="world";g.save.stage=3;
+            int room=5;g.save.room=room;g.enemies.Clear();
+            g.save.flags.Add("saga_act_two");g.save.flags.Add("boss_4");
+            g.save.flags.Add("harbor_report");g.save.flags.Add("saga_trace_5");
+            g.save.flags.Add("saga_outer_5");
+            WorldObject npc=Array.Find(g.Map.objects,o=>o.id=="mira");
+            Check(npc!=null&&PlaceWithinTalkReach(g,npc),
+                "Mira's true map actor is available");
+            g.Talk(npc);
+            int account=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_account_5");
+            Check(account>=0,"Live evidence interview is available");
+            g.Choose(account);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_guard_begin");
+            Check(begin>=0,"Live two-wave battle starts at original witness");
+            g.Choose(begin);
+            Check(g.SagaGuardActive&&g.SagaGuardRemaining==2,
+                "Real hostile actors are present");
+            // Deterministically fix an already sustained, nonfatal siege
+            // grade while still requiring all four REAL combat deaths.
+            grade.SetValue(g,56f);
+            for(int wave=1;wave<=2;wave++)
+            {
+                Enemy[] attackers=g.enemies.ToArray();
+                Check(attackers.Length==2,"Each real assault has two raiders");
+                foreach(Enemy e in attackers)
+                    hit.Invoke(g,new object[]{e,9999f,true,null,null});
+                Advance(g,.65f);
+            }
+            Check(g.Has("saga_guard_5")&&g.Has("saga_guard_scarred_5")&&
+                !g.Has("saga_guard_pristine_5")&&!g.Has("saga_voice_5"),
+                "A damaged but saved original permits a real signed story");
+            Check(PlaceWithinTalkReach(g,npc),
+                "Surviving witness can examine damaged originals on-map");
+            g.Talk(npc);
+            account=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_account_5");
+            Check(account>=0,"Original signing sequence remains accessible");
+            g.Choose(account);
+            Check(g.conversation.text.Contains("页边")&&
+                g.conversation.textEn.Contains("battle damage"),
+                "Witness openly annotates damaged margins in both languages");
+            int sign=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="saga_sign_5_a");
+            Check(sign>=0,"Damaged originals do not unfairly softlock the main story");
+            g.Choose(sign);
+            Check(g.Has("saga_voice_5")&&g.Has("saga_guard_scarred_5"),
+                "Genuine speaker signature retains the durable battle condition");
+            g.PrepareSave();
+            GameCore restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.Has("saga_voice_5")&&
+                restored.Has("saga_guard_scarred_5"),
+                "Both signed record condition and story remain v2 save compatible");
         }
         public static void ThirdCoreDeliveryAutomaticallyEntersExtendedMainStory(Campaign data)
         {
