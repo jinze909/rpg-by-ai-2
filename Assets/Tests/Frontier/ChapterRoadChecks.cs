@@ -13,6 +13,12 @@ namespace Starfall.Tests
                 BindingFlags.NonPublic|BindingFlags.Instance);
             Check(damage!=null,"Actual production combat contact exists");
             var seen=new System.Collections.Generic.HashSet<string>();
+            // Verify the active rescued-civilian battle has real chapter
+            // roles rather than four identical reskinned spawn waves.
+            int[][] chapterRoles={
+                new[]{0,1},new[]{1,0},
+                new[]{2,0,2},new[]{2,1,0}
+            };
             for(int chapter=1;chapter<=4;chapter++)
             {
                 GameCore g=Fresh(data);
@@ -67,6 +73,10 @@ namespace Starfall.Tests
                     g.enemies.Count==defenders,
                     "All genuine enemy actors spawned on the original regional map");
                 Enemy[] actual=g.enemies.ToArray();
+                for(int role=0;role<actual.Length;role++)
+                    Check(actual[role].kind==chapterRoles[chapter-1][role]&&
+                        !actual[role].boss,
+                        "The real civilian ambush uses its chapter's authored tactical roles");
                 foreach(Enemy enemy in actual)
                 {
                     Check(g.IsLiveChapterRoadEnemy(enemy)&&

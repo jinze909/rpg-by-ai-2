@@ -155,6 +155,37 @@ namespace Starfall
             chapterRoadTime=0;chapterRoadDeviceUsed=false;chapterRoadFoes.Clear();
             chapterRoadKills.Clear();chapterRoadBinds.Clear();
         }
+        // The four civilian routes now use the ACTUAL geography around
+        // their middle sites. Favor different flanking approaches instead
+        // of filling the first northern scanline in every region. Any
+        // blocked road falls back to the old exhaustive legal-pad search.
+        // Nothing is allowed to spawn through a closed original gate.
+        private static readonly int[,,] chapterRoadApproaches={
+            {{-1,-1},{1,1},{0,-1}}, // Rootwood: pursuit from split tree trails
+            {{1,0},{-1,1},{0,1}},   // Floodway: banks and rear water stair
+            {{-1,1},{1,-1},{0,1}},  // Mine: opposing carts and manifold lane
+            {{1,-1},{-1,1},{1,1}}   // Citadel: staggered wall-side sentries
+        };
+        private static readonly int[,] chapterRoadRaidKinds={
+            {0,1,0}, // Forest: pursuer and bow flanker
+            {1,0,0}, // Floodway: ranged watch behind close pursuit
+            {2,0,2}, // Mine: armored pressure around a runner
+            {2,1,0}  // Citadel: combined arms behind the evacuation wall
+        };
+        private bool ChapterRoadRaidFootFree(Point p,List<Point> placed)
+        {
+            if(!CanStand(p)||(p-Position).Length<4f||
+               NavigationPathFrom(Position,p,true).Count==0)return false;
+            foreach(WorldObject prop in Map.objects)
+                if(prop!=null&&(p-new Point(prop.x,prop.y)).Length<3.1f)
+                    return false;
+            foreach(Enemy e in enemies)
+                if(e!=null&&e.hp>0&&(e.Position-p).Length<3.2f)
+                    return false;
+            foreach(Point previous in placed)
+                if((previous-p).Length<5.2f)return false;
+            return true;
+        }
         private bool SpawnChapterRoadRaiders()
         {
             int room=chapterRoadRoom;
@@ -163,6 +194,29 @@ namespace Starfall
             int count=room>=3?3:2;
             int cx=(int)Math.Floor(middle.x),cy=(int)Math.Floor(middle.y);
             var places=new List<Point>();
+            // These are genuine tiles in the live game, not decorative
+            // formation markers. An approach is accepted only after the
+            // same real player-foot path and live prop/crowd checks.
+            for(int rank=0;rank<count;rank++)
+            {
+                int dx=chapterRoadApproaches[room-1,rank,0];
+                int dy=chapterRoadApproaches[room-1,rank,1];
+                bool placed=false;
+                for(int radius=6;radius<=13&&!placed;radius++)
+                for(int sideways=-3;sideways<=3&&!placed;sideways++)
+                {
+                    Point candidate=new Point(
+                        cx+dx*radius-dy*sideways+.5f,
+                        cy+dy*radius+dx*sideways+.5f);
+                    if(!ChapterRoadRaidFootFree(candidate,places))
+                        continue;
+                    places.Add(candidate);placed=true;
+                }
+            }
+            // If tides, trees or original locked gates suppress one of
+            // those approaches, complete the full wave by the historically
+            // valid exhaustive search. Never charge stamina or advance the
+            // story for a partial/inaccessible combat wave.
             for(int radius=5;radius<=14&&places.Count<count;radius++)
             for(int dy=-radius;dy<=radius&&places.Count<count;dy++)
             for(int dx=-radius;dx<=radius&&places.Count<count;dx++)
@@ -170,25 +224,12 @@ namespace Starfall
                 if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                     Math.Abs(dx)+Math.Abs(dy)>19)continue;
                 Point p=new Point(cx+dx+.5f,cy+dy+.5f);
-                if(!CanStand(p)||(p-Position).Length<4f||
-                    NavigationPathFrom(Position,p,true).Count==0)continue;
-                bool safe=true;
-                foreach(WorldObject prop in Map.objects)
-                    if((p-new Point(prop.x,prop.y)).Length<3.1f)
-                        {safe=false;break;}
-                if(!safe)continue;
-                foreach(Enemy e in enemies)
-                    if(e.hp>0&&(e.Position-p).Length<3.2f)
-                        {safe=false;break;}
-                if(!safe)continue;
-                foreach(Point prev in places)
-                    if((prev-p).Length<5.2f){safe=false;break;}
-                if(safe)places.Add(p);
+                if(ChapterRoadRaidFootFree(p,places))places.Add(p);
             }
             if(places.Count!=count)return false;
             for(int i=0;i<count;i++)
             {
-                int kind=(room+i)%3;
+                int kind=chapterRoadRaidKinds[room-1,i];
                 Enemy e=CreatePlacedEnemy(++enemyId,kind,places[i],
                     31f+room*10f);
                 chapterRoadFoes.Add(e);enemies.Add(e);
