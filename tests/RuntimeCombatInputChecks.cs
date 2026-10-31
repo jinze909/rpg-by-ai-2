@@ -8678,7 +8678,9 @@ public static class RuntimeCombatInputChecks
                 " safe travel="+g.SafeTravel+
                 " tracked="+g.save.trackedQuest+
                 " recommendation="+g.RecommendedContinuationGuide.id);
-            Input.Clear();Input.keys.Add(KeyCode.LeftShift);
+            // Runtime input stubs distinguish a held modifier from an
+            // edge-triggered key-down, like the real Unity Input API.
+            Input.Clear();Input.held.Add(KeyCode.LeftShift);
             Input.keys.Add(KeyCode.O);Update(app);
             Check(System.Object.ReferenceEquals(g.Nearest(),scout)&&
                 g.mode=="world"&&!g.Has("scout_saved"),
