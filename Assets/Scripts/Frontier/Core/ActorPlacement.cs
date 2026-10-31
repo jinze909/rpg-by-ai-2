@@ -1196,11 +1196,15 @@ namespace Starfall
                     for(int offset=0;offset<=radius*2&&pads.Count<count;offset++)
                     for(int edge=0;edge<4&&pads.Count<count;edge++)
                     {
+                        // A full-squad recovery should share the same
+                        // region/role-aware approach rotation as the main
+                        // tactical search, not reset to the north edge.
+                        int side=(edge+room+i)%4;
                         int span=offset-radius;
-                        int dx=edge==0?span:edge==1?radius:
-                            edge==2?-span:-radius;
-                        int dy=edge==0?-radius:edge==1?span:
-                            edge==2?radius:-span;
+                        int dx=side==0?span:side==1?radius:
+                            side==2?-span:-radius;
+                        int dy=side==0?-radius:side==1?span:
+                            side==2?radius:-span;
                         if(Math.Abs(dx)+Math.Abs(dy)>16)continue;
                         Point p=new Point(sx+dx+.5f,sy+dy+.5f);
                         if(RegionalScoutFootClear(
