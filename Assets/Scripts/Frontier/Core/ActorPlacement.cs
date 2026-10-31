@@ -729,10 +729,12 @@ namespace Starfall
                 revision++;sound="quest";
                 Notify("远路安全 "+(district+1)+"/2 · 获得硬币"+
                     (18+region*3)+"、经验"+(32+region*5)+
-                    (humane?"、非致命巡护碎片1。":"。"),
+                    (humane?"、非致命巡护碎片1。":"。")+
+                    " 原路标现可自愿发起精锐进阶巡护。",
                     "Remote crossing secured "+(district+1)+"/2: "+
                     (18+region*3)+" coins, "+(32+region*5)+
-                    " XP"+(humane?", +1 mercy shard.":"."));
+                    " XP"+(humane?", +1 mercy shard.":".")+
+                    " Veteran roadwatch is now available voluntarily at this ridge marker.");
                 return;
             }
             if(mode!="world"||Dying||practicing||racing||

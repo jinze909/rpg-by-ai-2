@@ -2239,6 +2239,57 @@ namespace Starfall.Tests
             }
         }
 
+        public static void VeteranRoadwatchFourteenReceiptsGrantExactlyOneTalent(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=3;g.save.room=1;
+            g.mode="world";g.enemies.Clear();
+            g.save.flags.Add("ridge_seen_1_0");
+            g.save.flags.Add("ridge_seen_1_1");
+            for(int room=1;room<=7;room++)
+            for(int side=0;side<2;side++)
+            {
+                g.save.flags.Add("remote_road_clear_"+room+"_"+side);
+                if(room!=1||side!=0)
+                    g.save.flags.Add("remote_road_veteran_"+room+"_"+side);
+            }
+            Check(g.RemoteRoadVeteranWins==13&&
+                g.GetQuest("road_veterans").Progress> .92f&&
+                !g.GetQuest("road_veterans").complete,
+                "Thirteen signed elite watches cannot award final mastery");
+            WorldObject post=Array.Find(g.Map.objects,o=>
+                o.kind=="ridgemarker"&&o.id=="ridge_route_1_0");
+            Check(post!=null&&PlaceWithinTalkReach(g,post),
+                "Final mastery must be earned from an authentic physical site");
+            int before=g.save.skillPoints;
+            g.Talk(post);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="remote_road_veteran");
+            Check(begin>=0,"The last elite watch is still a voluntary choice");
+            g.Choose(begin);
+            Check(g.RemoteRoadVeteranActive&&g.RemoteRoadRemaining==2,
+                "The last two foes really enter the physical scene");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            foreach(Enemy foe in g.enemies.ToArray())
+                hit.Invoke(g,new object[]{foe,2000f,false,null,null});
+            for(int i=0;i<20&&g.RemoteRoadEncounterActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.RemoteRoadVeteranWins==14&&
+                g.Has("remote_road_veteran_mastered")&&
+                g.save.skillPoints==before+1&&
+                g.GetQuest("road_veterans").complete,
+                "Only fourteen real receipts sign the permanent one-point mastery");
+            int skill=g.save.skillPoints;
+            g.PrepareSave();
+            GameCore loaded=new GameCore(data,CloneSave(g.save));
+            Check(loaded.save.version==2&&
+                loaded.RemoteRoadVeteranWins==14&&
+                loaded.GetQuest("road_veterans").complete&&
+                loaded.save.skillPoints==skill,
+                "Original V2 save keeps the completed elite chapter and exactly one skill reward");
+        }
+
         public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
         {
             int[][] expected={

@@ -1728,8 +1728,8 @@ namespace Starfall
                 else if(q.complete)
                 {
                     q.room=save.room;q.target=Position;
-                    q.next=L("十四处远路伏击全部清除，居民不再需要躲开旧路标。",
-                        "All fourteen road ambushes cleared; these civilian crossings are secure.");
+                    q.next=L("十四处远路伏击全部清除。居民路线安全；若想继续战斗，可在原路标自愿加入进阶巡护，绝不强制。",
+                        "All fourteen ambushes cleared. Civilian crossings are safe; veteran roadwatch is an optional challenge at the original markers, never mandatory.");
                 }
                 else
                 {
