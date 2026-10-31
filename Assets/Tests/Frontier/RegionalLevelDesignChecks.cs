@@ -2171,8 +2171,10 @@ namespace Starfall.Tests
                     g.Choose(begin);
                     Check(g.RemoteRoadVeteranActive&&
                         g.RemoteRoadRemaining==2&&
-                        g.enemies.Count==2,
-                        "Voluntary watch spawns exactly two authenticated active elites");
+                        g.enemies.Count==2&&
+                        g.RecommendedContinuationGuide.id=="road_veterans"&&
+                        (g.NavigationTarget()-g.RemoteRoadGuideTarget).Value.Length<.001f,
+                        "Voluntary watch spawns two real elites and owns the live HUD/compass without overwriting manual tracking");
                     Enemy[] foes=g.enemies.ToArray();
                     foreach(Enemy foe in foes)
                     {

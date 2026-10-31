@@ -507,6 +507,8 @@ namespace Starfall
                 DrawMinimap(); QuestGuide q = urgentMain ?
                     Game.GetQuest("main") :
                     Game.FieldTacticTrialActive ? Game.GetQuest("tactic_trials") :
+                    Game.RemoteRoadEncounterActive ? Game.GetQuest(
+                        Game.RemoteRoadVeteranActive?"road_veterans":"remote_roads") :
                     Game.FieldPatrolActive ? Game.GetQuest("field_patrols") :
                     Game.CivicCourierActive ? Game.GetQuest("civic_courier") : Game.CivicConduitActive ? Game.GetQuest("civic_conduit") : Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 ? Game.GetQuest("last_directive") : Game.FarCourierActive ? Game.GetQuest("far_couriers") :
                     Game.MineConvoyActive ? Game.GetQuest("mine_convoy") :
@@ -526,10 +528,14 @@ namespace Starfall
                 bool questCrowded=nextQuestSource!=null&&
                     Game.NearbyInteractionCount()>1;
                 Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
-                Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
+                Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") :
+                    Game.RemoteRoadEncounterActive?
+                        Game.L("高地巡护交战中 · ","ROADWATCH IN COMBAT · ")+q.category:
+                    (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
                     urgentMain ? q.next :
                     Game.FieldTacticTrialActive ? q.next :
+                    Game.RemoteRoadEncounterActive ? q.next :
                     Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
                     Game.TideSalvageActive || Game.FrostSignalActive ||
                     Game.WitnessDefenseRoom!=0) ? q.next : Game.GuidanceHint(), 13, muted);
@@ -551,6 +557,8 @@ namespace Starfall
                     Game.FieldTacticTrialActive?
                         (Game.FieldTacticTrialUsed?.5f:0f)+
                         (2-Game.FieldTacticTrialRemaining)*.25f:
+                    Game.RemoteRoadEncounterActive?
+                        (2-Game.RemoteRoadRemaining)/2f:
                     Game.practicing?Game.practiceStage/3f:q.Progress;
                 Color missionColor=(Game.ScoutDefenseActive&&Game.ScoutDefenseSafety<35||
                     Game.MainSagaRelayActive&&Game.MainSagaRelayIntegrity<35)?

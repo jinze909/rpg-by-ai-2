@@ -1179,6 +1179,13 @@ namespace Starfall
                 // Present that exact battle's CURRENT stage throughout the
                 // HUD, map and journal without rewriting trackedQuest.
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
+                // Once the player deliberately starts a physical ridge
+                // battle, its living actors are the immediate objective
+                // even if the saved tracked quest remains somewhere else.
+                // This is UI-only priority: no forced tracking or V2 change.
+                if(RemoteRoadEncounterActive)
+                    return GetQuest(RemoteRoadVeteranActive?
+                        "road_veterans":"remote_roads");
                 QuestGuide current=CurrentGuide;
                 if(!current.complete&&!current.locked)return current;
                 QuestGuide firstRemote=null;
@@ -1201,6 +1208,7 @@ namespace Starfall
             if(q.complete||q.locked)
                 return L("当前任务已结束。打开 TAB 任务手帐选择新的冒险。",
                     "This quest is done. Open TAB to choose another adventure.");
+            if(RemoteRoadEncounterActive)return q.next;
             string step=q.room!=save.room?
                 L("前往", "Travel to ")+L(data.maps[q.room].name,data.maps[q.room].en)+" · "+q.next:
                 q.next;
