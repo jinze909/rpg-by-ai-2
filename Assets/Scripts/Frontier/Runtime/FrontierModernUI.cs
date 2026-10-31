@@ -1475,6 +1475,27 @@ namespace Starfall
         // the 120x80 atlas shows the actual two monuments at their true
         // tile locations. It never displays a fake clear route across a
         // locked gate or competes with user-authored waymarks.
+        // The atlas finally reveals the two genuine alternate paths
+        // authored in each outdoor district. Both glyphs derive from live
+        // Campaign terrain and never become synthetic quest icons or
+        // another persistent progression objective.
+        private void DrawRegionalShortcutMarkers(int region,
+            float originX,float originY,float scale)
+        {
+            if(region<1||region>7||!Game.CanEnter(region)||
+               mapFocusMode||scale<=0f)return;
+            Color route=PixelArt.C("#8fd7ca");
+            for(int i=0;i<2;i++)
+            {
+                Point? foot=Game.RegionalShortcutFoot(region,i);
+                if(!foot.HasValue)continue;
+                float x=originX+foot.Value.x*scale;
+                float y=originY+foot.Value.y*scale;
+                Frame(x-5,y-5,10,10,route);
+                Box(x-2,y-2,4,4,route);
+            }
+        }
+
         private void DrawBiomeFieldMapSites(MapData map,int region,
             float originX,float originY,float tileScale)
         {
@@ -1825,6 +1846,7 @@ namespace Starfall
                 // on the map even in Focus. The field renderer itself removes
                 // optional background supply dots in Focus.
                 DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                DrawRegionalShortcutMarkers(selectedRegion,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1939,6 +1961,7 @@ namespace Starfall
                 // on the map even in Focus. The field renderer itself removes
                 // optional background supply dots in Focus.
                 DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
+                DrawRegionalShortcutMarkers(selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.RecommendedContinuationGuide;
                 if(q.room==selectedRegion&&!q.locked)
@@ -2145,6 +2168,28 @@ namespace Starfall
                         "NO VERIFIED WALKING ROUTE");
                 if(Button(888,693,306,32,prompt,false,walkable))
                     PinInspectedQuestWalkingApproach();
+            }
+            // Physical, controller-accessible shortcut routing. This
+            // uses the existing transient personal waypoint and its full
+            // real-world BFS; the player must explicitly press a button.
+            // Quest inspection retains the lower panel and is never stolen.
+            if(selectedRegion==Game.save.room&&selectedRegion>=1&&
+               selectedRegion<=7&&!mapTileCursor.Active&&
+               inspectedMap==null)
+            {
+                for(int route=0;route<2;route++)
+                {
+                    Point? passage=Game.RegionalShortcutFoot(
+                        selectedRegion,route);
+                    if(Button(888+route*156,693,150,32,
+                        route==0?Game.L("中央近路 · 设导航",
+                            "CENTRAL PASS · PIN"):
+                            Game.L("外环通路 · 设导航",
+                                "OUTER PASS · PIN"),
+                        false,passage.HasValue&&!Game.Dying&&
+                            !Game.practicing))
+                        Game.FollowRegionalShortcut(route);
+                }
             }
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
             if (Button(888, 616, 306, 47,

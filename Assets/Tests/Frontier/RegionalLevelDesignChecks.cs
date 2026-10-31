@@ -15,6 +15,45 @@ namespace Starfall.Tests
         // in each biome. It must work with the live actor collision graph,
         // remain reachable from the original west gate, and never overlap
         // an existing quest object or require new save fields.
+        // The real map action must select an original paved passage,
+        // prove the complete hero walking route, preserve unrelated quest
+        // tracking, and never serialize a temporary map pin.
+        public static void FourteenRegionalShortcutMapPinsFollowRealRoads(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);
+                g.save.room=room;g.save.stage=3;
+                g.mode="map";g.save.x=5.5f;g.save.y=14.5f;
+                string tracked=g.save.trackedQuest;
+                for(int pass=0;pass<2;pass++)
+                {
+                    Point? road=g.RegionalShortcutFoot(room,pass);
+                    Check(road.HasValue&&g.CanStand(road.Value),
+                        "Atlas exposes only an original physically open road: "+room+"/"+pass);
+                    var walk=g.NavigationPathFrom(g.Position,road.Value,true);
+                    Check(walk.Count>0,
+                        "The actual world movement graph reaches its atlas pass: "+room+"/"+pass);
+                    Check(g.FollowRegionalShortcut(pass)&&
+                        g.HasLocalWaymark&&
+                        (g.LocalWaymark.Value-road.Value).Length<.001f,
+                        "A deliberate map shortcut button pins its exact walkable road: "+room+"/"+pass);
+                    Check(g.save.trackedQuest==tracked&&g.save.version==2,
+                        "Optional atlas route never silently tracks a quest or changes SaveData");
+                }
+                Point previous=g.LocalWaymark.Value;
+                Check(!g.FollowRegionalShortcut(-1)&&
+                    !g.FollowRegionalShortcut(2)&&
+                    !g.RegionalShortcutFoot(room,2).HasValue&&
+                    (previous-g.LocalWaymark.Value).Length<.001f,
+                    "Invalid route requests must not delete the player's old pin");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(!restored.HasLocalWaymark&&restored.save.version==2,
+                    "Old save slots load without transient shortcut navigation state");
+            }
+        }
+
         public static void SevenFarDistrictAlternativePassagesStayWalkable(Campaign data)
         {
             int[,] sites={{82,52,1},{87,62,0},{76,54,0},

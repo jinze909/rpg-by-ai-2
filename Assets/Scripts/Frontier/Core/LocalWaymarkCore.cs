@@ -224,6 +224,53 @@ namespace Starfall
         }
         // Only the current opened local map accepts clicks. Both mouse and
         // keyboard/handpad must commit the identical inspected tile.
+        // The two authored terrain crossings in each outdoor region are
+        // actual walkable roads, not inferred quest markers. Keep their
+        // coordinates alongside the collision validation so the world atlas
+        // cannot advertise a removed/sealed/stale bridge as a shortcut.
+        // No new MapData objects, quest flags or SaveData v2 fields.
+        private static readonly int[,,] regionalShortcutRoads={
+            {{60,46},{82,52}}, // Thornwood: middle ravine / east ridge gap
+            {{60,46},{87,62}}, // Flooded Ruins: midspan / southern ferry bank
+            {{61,46},{76,54}}, // Ironreach: quarry / low rail crossing
+            {{64,46},{82,45}}, // Citadel: civilian bridge / east curtain
+            {{63,46},{75,54}}, // Mistport: canal / outer pier link
+            {{59,46},{25,54}}, // Glass Desert: gorge / west dune cut
+            {{61,46},{88,62}}  // Frostchime: saddle / distant bell pass
+        };
+        public Point? RegionalShortcutFoot(int region,int index)
+        {
+            if(region<1||region>7||index<0||index>=2||
+               data==null||data.maps==null||
+               region>=data.maps.Length)return null;
+            MapData target=data.maps[region];
+            if(target==null||target.rows==null)return null;
+            int x=regionalShortcutRoads[region-1,index,0];
+            int y=regionalShortcutRoads[region-1,index,1];
+            if(y<1||y+2>=target.rows.Length||
+               target.rows[y-1]==null||
+               target.rows[y]==null||target.rows[y+1]==null||
+               target.rows[y+2]==null)return null;
+            for(int yy=y;yy<=y+1;yy++)
+                if(x<1||x+1>=target.rows[yy].Length||
+                   target.rows[yy][x]!='='||
+                   target.rows[yy][x+1]!='=')return null;
+            // Only the current region may offer a walking pin. Terrain
+            // glyphs alone do not prove a dynamic gate/tide can be crossed.
+            Point foot=new Point(x+.5f,y+.5f);
+            if(region==save.room&&!CanStand(foot))return null;
+            return foot;
+        }
+        public bool FollowRegionalShortcut(int index)
+        {
+            if(mode!="map"||Dying||practicing||save.room<1||
+               save.room>7||!CanStand(Position))return false;
+            Point? foot=RegionalShortcutFoot(save.room,index);
+            // The original PlaceLocalWaymark transaction preserves an
+            // existing marker on any invalid or disconnected path.
+            return foot.HasValue&&PlaceLocalWaymark(foot.Value);
+        }
+
         public bool PlaceLocalWaymark(Point requested)
         {
             if(mode!="map"||Dying||practicing)return false;
