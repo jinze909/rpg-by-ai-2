@@ -652,6 +652,18 @@ namespace Starfall
                         (2-Game.FieldTacticTrialRemaining)*.25f:
                     Game.RemoteRoadEncounterActive?
                         (2-Game.RemoteRoadRemaining)/2f:
+                    // Progress during an ACTIVE contract is about its
+                    // authenticated physical stages, never the seven
+                    // regions' unrelated permanent-completion counters.
+                    Game.FieldOutpostActive?
+                        (Game.FieldOutpostReady?1f:
+                            (float)(2+(Game.save.room==2||
+                              Game.save.room==3||Game.save.room==6?1:0)-
+                              Game.FieldOutpostRemaining)/
+                            (2+(Game.save.room==2||
+                              Game.save.room==3||Game.save.room==6?1:0))):
+                    Game.FieldDispatchActive?
+                        (Game.FieldDispatchStage==1?.33f:.73f):
                     Game.practicing?Game.practiceStage/3f:q.Progress;
                 Color missionColor=(Game.ScoutDefenseActive&&Game.ScoutDefenseSafety<35||
                     Game.MainSagaRelayActive&&Game.MainSagaRelayIntegrity<35)?
