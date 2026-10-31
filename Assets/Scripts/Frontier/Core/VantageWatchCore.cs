@@ -82,6 +82,29 @@ namespace Starfall
             }
             return target;
         }}
+        private static readonly string[] WatchCompassZh={
+            "东","东北","北","西北","西","西南","南","东南"};
+        private static readonly string[] WatchCompassEn={
+            "east","northeast","north","northwest",
+            "west","southwest","south","southeast"};
+        private string WatchApproachNames(bool english)
+        {
+            if(!VantageWatchActive)return "";
+            var directions=new List<string>();
+            foreach(Enemy foe in vantageFoes)
+            {
+                if(foe==null||foe.hp<=0f||!enemies.Contains(foe))continue;
+                int dx=(int)Math.Round(foe.x-vantageSource.x);
+                int dy=(int)Math.Round(foe.y-vantageSource.y);
+                if(dx==0&&dy==0)continue;
+                int sector=WatchApproachOctant(dx,dy);
+                string name=english?WatchCompassEn[sector]:WatchCompassZh[sector];
+                if(!directions.Contains(name))directions.Add(name);
+            }
+            return string.Join(english?", ":"、",directions.ToArray());
+        }
+        public string VantageWatchApproachDirections
+        {get{return L(WatchApproachNames(false),WatchApproachNames(true));}}
         public bool VantageWatchReady
         {get{
             if(!VantageWatchActive||vantageFoes.Count<2)return false;
@@ -138,6 +161,11 @@ namespace Starfall
             List<Point> already,int sector,out Point chosen)
         {
             chosen=new Point();
+            // A visually nearby raider can be a long maze detour away.
+            // Compare up to four authenticated walkable approaches in the
+            // requested sector instead of keeping the first row-major hit.
+            // Retain the shortest valid fallback for narrow/closed regions.
+            int shortest=int.MaxValue,verified=0;
             for(int radius=7;radius<=14;radius++)
             for(int dy=-radius;dy<=radius;dy++)
             for(int dx=-radius;dx<=radius;dx++)
@@ -158,12 +186,17 @@ namespace Starfall
                 foreach(WorldObject o in Map.objects)
                     if(o!=null&&(new Point(o.x,o.y)-foot).Length<3.2f)
                         {clear=false;break;}
-                if(!clear||NavigationPathFrom(start,foot,true).Count==0)
-                    continue;
-                chosen=foot;
-                return true;
+                if(!clear)continue;
+                int walk=NavigationPathFrom(start,foot,true).Count;
+                if(walk==0)continue;
+                if(walk<shortest){shortest=walk;chosen=foot;}
+                verified++;
+                // A short local route is ideal for a readable fight.
+                // Stop after four candidates to keep encounter startup
+                // bounded even in a dense 120x80 outdoor region.
+                if(walk<=22||verified>=4)return true;
             }
-            return false;
+            return verified>0;
         }
         private bool SpawnVantageWatchWave(WorldObject source)
         {
@@ -365,10 +398,12 @@ namespace Starfall
                     return true;
                 }
                 revision++;sound="alert";
-                Notify(watchZh[room]+" 击倒或用真正绊索活捉"+
-                    vantageFoes.Count+"名袭击者，再回望台建设公共服务。",
-                    watchEn[room]+" Defeat or genuinely restrain "+
-                    vantageFoes.Count+" raiders, then return to build a public service.");
+                Notify(watchZh[room]+" 来袭方向："+WatchApproachNames(false)+
+                    "。击倒或用真正绊索活捉"+vantageFoes.Count+
+                    "名袭击者，再回望台建设公共服务。",
+                    watchEn[room]+" Incoming lanes: "+WatchApproachNames(true)+
+                    ". Defeat or genuinely restrain "+vantageFoes.Count+
+                    " raiders, then return to build a public service.");
                 return true;
             }
             if(!VantageWatchActive||

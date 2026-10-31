@@ -1468,8 +1468,8 @@ namespace Starfall
                     (VantageWatchReady?
                         L("已击退或活捉全部袭击者，回原观测站选择永久服务",
                           "All attackers accounted for. Return to the original lookout and choose a lasting service"):
-                        L("守望进行中：还有 "+VantageWatchRemaining+" 名真实袭击者",
-                          "Live watch: "+VantageWatchRemaining+" original raiders remain")):
+                        L("守望进行中：还有 "+VantageWatchRemaining+" 名真实袭击者；来袭方向："+VantageWatchApproachDirections,
+                          "Live watch: "+VantageWatchRemaining+" raiders remain; approach lanes: "+VantageWatchApproachDirections)):
                     q.complete?
                         L("八地公共观测站都已守住，可在各自站点使用服务",
                           "All eight public lookouts are secured and their local services work"):

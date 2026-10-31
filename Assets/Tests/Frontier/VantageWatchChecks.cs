@@ -55,6 +55,11 @@ namespace Starfall.Tests
                     "All eight authentic lookouts provide a player-triggered defensive bell");
                 g.Close();
                 Enemy[] wave=g.enemies.ToArray();
+                Check(!String.IsNullOrEmpty(g.VantageWatchApproachDirections),
+                    "The actual defended location reports incoming raider bearings");
+                for(int k=0;k<wave.Length;k++)
+                    Check(g.NavigationPathFrom(start,wave[k].Position,true).Count>0,
+                        "Compass warnings describe original reachable raiders only");
                 // Move only the test hero's transient foot to the farthest
                 // roster entry: the compass must favor the actual nearest
                 // living fighter, not a stale spawn-array index.
