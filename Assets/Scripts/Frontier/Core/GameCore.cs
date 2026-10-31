@@ -1746,7 +1746,9 @@ namespace Starfall
                 RememberOrdinaryPatrolSight(e,
                     profile.sourceFoot.HasValue?
                     profile.sourceFoot.Value:Position);
-            NotifyEnemyOfActualDistantPlayerHit(e,profile); e.recoil = attackDirection ?? (e.Position - Position).Normalized;
+            NotifyEnemyOfActualDistantPlayerHit(e,profile);
+            NotifyAmbientAlliesOfRealHit(e,profile);
+            e.recoil = attackDirection ?? (e.Position - Position).Normalized;
             OnSpecialistDrillHit(e,profile,technique);
             // A REAL player technique hit inherits the three professions'
             // distinct combat element, but only after the authoritative HP,

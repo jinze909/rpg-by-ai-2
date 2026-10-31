@@ -115,6 +115,49 @@ namespace Starfall
             nextSprintNoise=.2f;
             recentSprintFootstepHearers=0;
         }
+        // A confirmed close-range strike is audible to nearby ordinary
+        // patrol mates even when a corner hides the hero. Reinforcements
+        // investigate the injured ALLY'S real foot, not the player's
+        // concealed position; sealed islands, Bosses, event objectives,
+        // already-committed attacks and genuinely alerted guards keep their
+        // existing priority. The short alert is actor/session-owned only.
+        private void NotifyAmbientAlliesOfRealHit(Enemy victim,ImpactProfile impact)
+        {
+            if(victim==null||impact==null||!impact.playerOwned||
+               mode!="world"||practicing||Dying||
+               !regionalAmbientEnemies.Contains(victim)||
+               !enemies.Contains(victim)||!CanStand(victim.Position))
+                return;
+            EnsureEnemyHitAlertSession();
+            const float hearing=5.5f;
+            foreach(Enemy ally in enemies)
+            {
+                if(ally==null||Object.ReferenceEquals(ally,victim)||
+                   ally.hp<=0f||ally.boss||ally.state==1||
+                   !regionalAmbientEnemies.Contains(ally)||
+                   patrolsThatSawHero.Contains(ally)||
+                   ArrowSoundCannotOverrideObjective(ally)||
+                   !CanStand(ally.Position)||
+                   (ally.Position-victim.Position).Length>hearing||
+                   ImpactSearchGuardSeesHero(ally)||
+                   !AudibleAlongWorld(victim.Position,ally.Position,hearing))
+                    continue;
+                EnemyHitAlert old;
+                if(enemyHitAlert.TryGetValue(ally,out old))
+                {
+                    // A guard already pursuing a real witness report must
+                    // not be downgraded to an uncertain ally-contact sound.
+                    if(!old.impactOnly&&!old.returning)continue;
+                    if(old.impactOnly&&
+                       (old.lastKnown-victim.Position).Length<.8f)
+                        continue;
+                }
+                enemyHitAlert[ally]=new EnemyHitAlert(
+                    3.5f,victim.Position,true,ally.Position);
+                effects.Add(new Effect("number",ally.Position,.75f,
+                    L("听见同伴受袭","ALLY UNDER ATTACK")));
+            }
+        }
         private void NotifyEnemyOfActualDistantPlayerHit(Enemy e,ImpactProfile impact)
         {
             if(e==null||impact==null||!impact.playerOwned||
