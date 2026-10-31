@@ -81,11 +81,22 @@ namespace Starfall
             }
             if(candidates.Count==0)return 0;
             int firstKind=dispatchRoom%3,secondKind=(dispatchRoom+1)%3;
+            // The two-role ranking must not raycast for every possible
+            // pair: candidate visibility and bow clearance are fixed for
+            // this snapshot of the same signed physical checkpoint.
+            var firstScores=new List<float>(candidates.Count);
+            var secondScores=new List<float>(candidates.Count);
+            var headings=new List<Point>(candidates.Count);
             int firstIndex=-1,secondIndex=-1;
             float bestOne=float.NegativeInfinity;
             for(int a=0;a<candidates.Count;a++)
             {
-                float score=FieldDispatchPadScore(candidates[a],firstKind);
+                Point foot=candidates[a];
+                float score=FieldDispatchPadScore(foot,firstKind);
+                firstScores.Add(score);
+                secondScores.Add(count==2?
+                    FieldDispatchPadScore(foot,secondKind):0f);
+                headings.Add((foot-Position).Normalized);
                 if(firstIndex<0||score>bestOne+.0001f)
                 {firstIndex=a;bestOne=score;}
             }
@@ -100,11 +111,9 @@ namespace Starfall
                 {
                     Point first=candidates[a],second=candidates[b];
                     if((first-second).Length<5f)continue;
-                    Point f=(first-Position).Normalized;
-                    Point t=(second-Position).Normalized;
+                    Point f=headings[a],t=headings[b];
                     float spread=1f-f.x*t.x-f.y*t.y;
-                    float score=FieldDispatchPadScore(first,firstKind)+
-                        FieldDispatchPadScore(second,secondKind)+spread*9f;
+                    float score=firstScores[a]+secondScores[b]+spread*9f;
                     if(!foundPair||score>bestPair+.0001f)
                     {
                         firstIndex=a;secondIndex=b;
