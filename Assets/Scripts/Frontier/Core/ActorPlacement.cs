@@ -237,19 +237,53 @@ namespace Starfall
                     (foot-other.Position).Length<2.5f)return false;
             return true;
         }
-        private Point? RegionalBattleFoot(int rank,bool[] connected)
+        // The mandatory opening roster still has the same authored anchor
+        // and headcount, but a ranged slot can no longer be assigned a
+        // sealed sightline merely because that was the first legal tile.
+        // Rank ONLY nearby, hero-reachable, decoration-clear battle feet.
+        private float RegionalOpeningPadScore(Point foot,Point anchor,int kind)
+        {
+            float anchorDrift=(foot-anchor).Length;
+            float heroDistance=(foot-Position).Length;
+            bool clearLine=ClearAttackPath(foot,Position);
+            float desired=kind==1?11f:kind==2?7.8f:6.8f;
+            float score=40f-anchorDrift*3f-
+                Math.Abs(heroDistance-desired)*(kind==1?1.3f:.8f);
+            if(kind==1)score+=clearLine?18f:-14f;
+            else score+=clearLine?4f:0f;
+            foreach(Enemy existing in enemies)
+            {
+                if(existing==null||existing.hp<=0f)continue;
+                Point previous=existing.Position-Position;
+                Point approach=foot-Position;
+                float cosine=(approach.x*previous.x+
+                    approach.y*previous.y)/
+                    Math.Max(.001f,approach.Length*previous.Length);
+                score+=(1f-cosine)*(kind==1?4f:2f);
+            }
+            return score;
+        }
+        private Point? RegionalBattleFoot(int rank,bool[] connected,int kind)
         {
             int room=save.room;
             int ax=regionalBattleAnchors[room-1,rank,0],
                 ay=regionalBattleAnchors[room-1,rank,1];
-            for(int radius=0;radius<=6;radius++)
-            for(int dy=-radius;dy<=radius;dy++)
-            for(int dx=-radius;dx<=radius;dx++)
+            Point anchor=new Point(ax+.5f,ay+.5f);
+            Point? best=null;
+            float bestScore=float.MinValue;
+            int viable=0;
+            for(int radius=0;radius<=6&&viable<18;radius++)
+            for(int dy=-radius;dy<=radius&&viable<18;dy++)
+            for(int dx=-radius;dx<=radius&&viable<18;dx++)
             {
                 if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius)continue;
                 Point p=new Point(ax+dx+.5f,ay+dy+.5f);
-                if(RegionalBattleFootFree(p,connected))return p;
+                if(!RegionalBattleFootFree(p,connected))continue;
+                viable++;
+                float score=RegionalOpeningPadScore(p,anchor,kind);
+                if(score>bestScore){bestScore=score;best=p;}
             }
+            if(best.HasValue)return best;
             // A changed gate or authored map can eliminate every favored
             // battle pad. The former final fallback used unvalidated legacy
             // coordinates, potentially placing a mandatory enemy IN a wall
@@ -318,12 +352,12 @@ namespace Starfall
             bool[] connected=RegionalBattleReachableTiles();
             for(int i=0;i<count;i++)
             {
-                Point? foot=RegionalBattleFoot(i,connected);
-                if(!foot.HasValue)break;
                 int kind=save.room>=1&&save.room<=4?
                     chapterBattleKinds[save.room-1,i]:
                     save.room>=5&&save.room<=7?
                     farshoreBattleKinds[save.room-5,i]:i%3;
+                Point? foot=RegionalBattleFoot(i,connected,kind);
+                if(!foot.HasValue)break;
                 Enemy staged=CreatePlacedEnemy(++enemyId,kind,
                     foot.Value,health);
                 enemies.Add(staged);
