@@ -1197,9 +1197,9 @@ namespace Starfall
             // No actor IDs, resources, mission flags or rewards have been
             // committed yet, so the caller can safely retry later.
             if(pads.Count!=count)return 0;
-            foreach(Point p in pads)
+            for(int slot=0;slot<pads.Count;slot++)
             {
-                int slot=pads.IndexOf(p);
+                Point p=pads[slot];
                 Enemy patrol=CreatePlacedEnemy(++enemyId,
                     veteran?veteranPatrolKinds[room-1,slot]:
                         fieldPatrolKinds[room-1,slot],p,
