@@ -87,11 +87,14 @@ namespace Starfall
             }
             return target;
         }}
+        // The actual Frontier.unity OnGUI world transform places +Y lower
+        // on screen. Keep octant geometry mathematical, but display +Y as
+        // south and -Y as north in both narrative and the quest journal.
         private static readonly string[] WatchCompassZh={
-            "东","东北","北","西北","西","西南","南","东南"};
+            "东","东南","南","西南","西","西北","北","东北"};
         private static readonly string[] WatchCompassEn={
-            "east","northeast","north","northwest",
-            "west","southwest","south","southeast"};
+            "east","southeast","south","southwest",
+            "west","northwest","north","northeast"};
         private string WatchApproachNames(bool english)
         {
             if(!VantageWatchActive)return "";

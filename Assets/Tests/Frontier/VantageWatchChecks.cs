@@ -14,6 +14,14 @@ namespace Starfall.Tests
             var octant=typeof(GameCore).GetMethod("WatchApproachOctant",
                 BindingFlags.NonPublic|BindingFlags.Static);
             Check(octant!=null,"Lookout waves have a compass-aware spawn chooser");
+            var zh=(string[])typeof(GameCore).GetField("WatchCompassZh",
+                BindingFlags.NonPublic|BindingFlags.Static).GetValue(null);
+            var en=(string[])typeof(GameCore).GetField("WatchCompassEn",
+                BindingFlags.NonPublic|BindingFlags.Static).GetValue(null);
+            Check(zh[2]=="南"&&en[2]=="south"&&
+                zh[6]=="北"&&en[6]=="north"&&
+                zh[1]=="东南"&&en[1]=="southeast",
+                "World +Y points down on the real game screen; compass narration cannot invert north and south");
             int[,] directions={{1,0},{1,1},{0,1},{-1,1},
                 {-1,0},{-1,-1},{0,-1},{1,-1}};
             for(int i=0;i<8;i++)
