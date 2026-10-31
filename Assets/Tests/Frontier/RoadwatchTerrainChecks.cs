@@ -20,11 +20,15 @@ namespace Starfall.Tests
                     g.RemoteRoadRemaining==2&&g.enemies.Count==2,
                     "Arrival at original exposed marker spawns only its two genuine raiders");
                 Enemy[] foes=g.enemies.ToArray();
-                int coins=g.save.coins,priorFlags=g.save.flags.Count;
+                int coins=g.save.coins;
                 Check(g.RemoteRoadSignalEnergyCost(room)==12&&
                     g.RemoteRoadSignalThreatCount(marker)>=1,
                     "Unsurveyd marker has actual visible counter targets and standard cost");
                 g.Talk(marker);
+                // First contact legitimately records the ORIGINAL ridge
+                // discovery (+9 XP and its ridge_seen flag). Test only the
+                // NEW signal's transaction, not that prior story action.
+                int priorFlags=g.save.flags.Count;
                 int choice=Array.FindIndex(g.conversation.choices,
                     c=>c.action=="remote_road_signal");
                 Check(choice>=0,"Existing in-combat ridge menu offers optional terrain counter");
