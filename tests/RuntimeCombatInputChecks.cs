@@ -8665,8 +8665,10 @@ public static class RuntimeCombatInputChecks
             Set(app,"camera",g.Position);
             GUI.commands.Clear();Call(app,"OnGUI");
             Check(GUI.commands.Exists(s=>s.Contains("FOCUS QUEST OBJECTIVE"))&&
+                GUI.commands.Exists(s=>s.Contains("FOCUS QUEST SOURCE"))&&
+                GUI.commands.Exists(s=>s.Contains("QUEST SOURCE NEARBY"))&&
                 GUI.commands.Exists(s=>s.Contains("★")),
-                "Actual GameView displays a focused quest action and unique star marker");
+                "Actual GameView and its main objective card show the same verified crowd focus");
             Input.Clear();Input.keys.Add(KeyCode.LeftShift);
             Input.keys.Add(KeyCode.O);Update(app);
             Check(Object.ReferenceEquals(g.Nearest(),scout)&&

@@ -513,7 +513,19 @@ namespace Starfall
                     Game.WitnessDefenseRoom!=0 ? Game.GetQuest("campaign_witness") :
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
                     Game.FrostSignalActive ? Game.GetQuest("frost_signal") :
-                    Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.RecommendedContinuationGuide; Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
+                    Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.RecommendedContinuationGuide;
+                // The moment the next physical quest source enters E reach,
+                // its actionable identity should be visible on the MAIN
+                // world objective card, not hidden in a crowded-world list
+                // or a four-second toast. Only the authenticated source
+                // can enable the shortcut; emergency missions retain their
+                // own live objective and never advertise an unrelated NPC.
+                WorldObject nextQuestSource=!Game.practicing&&
+                    q.id==Game.RecommendedContinuationGuide.id?
+                    Game.NearbyQuestInteraction():null;
+                bool questCrowded=nextQuestSource!=null&&
+                    Game.NearbyInteractionCount()>1;
+                Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
                 Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") : (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
                     urgentMain ? q.next :
@@ -521,6 +533,13 @@ namespace Starfall
                     Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
                     Game.TideSalvageActive || Game.FrostSignalActive ||
                     Game.WitnessDefenseRoom!=0) ? q.next : Game.GuidanceHint(), 13, muted);
+                if(nextQuestSource!=null)
+                    Text(1025,400,214,20,questCrowded?
+                        Game.L("任务目标已到达 · Shift+O 聚焦",
+                            "QUEST SOURCE NEARBY · SHIFT+O"):
+                        Game.L("任务目标已到达 · 按 E 交互",
+                            "QUEST SOURCE NEARBY · PRESS E"),
+                        11,mint);
                 // During the two waves, the visible meter represents the
                 // document's real remaining safety, not unrelated quest
                 // checklist completion; normal HUD progress is restored on
@@ -543,14 +562,21 @@ namespace Starfall
                 // is not taken until a real local path or valid remote
                 // crossing has been verified by GameCore.
                 if(!Game.practicing&&Button(1015,488,234,30,
+                    questCrowded?
+                        Game.L("Shift+O · 聚焦任务目标",
+                            "SHIFT+O · FOCUS QUEST SOURCE"):
                     Game.HasLocalWaymark||Game.QuestApproachTravelHandoffPending?
                         Game.L("Shift+Tab · 替换旧路线",
                             "SHIFT+TAB · REPLACE ROUTE"):
                         Game.L("Shift+Tab · 跟随下一段",
                             "SHIFT+TAB · FOLLOW NEXT"),
-                    false,Game.CanFollowRecommendedAdventure&&
-                          q.id==Game.RecommendedContinuationGuide.id))
-                    Game.FollowRecommendedAdventure();
+                    false,questCrowded||
+                        (Game.CanFollowRecommendedAdventure&&
+                          q.id==Game.RecommendedContinuationGuide.id)))
+                {
+                    if(questCrowded)Game.FocusNearbyQuestInteraction();
+                    else Game.FollowRecommendedAdventure();
+                }
                 if (Game.save.room >= 5 || Game.CivicCourierActive || Game.CivicConduitActive || Game.LastDirectiveWave==1 || Game.LastDirectiveWave==3 || Game.FarCourierActive || Game.MineConvoyActive || Game.CivicResponseActive || Game.WitnessDefenseRoom!=0 || Game.StormTuning || Game.BlackoutActive || Game.TemperActive || Game.TriadDefenseActive || Game.TriadBossInterruptReady || Game.save.teaUntil > Game.save.totalTime) { Panel(24, 145, 298, 60, new Color(.045f, .08f, .13f, .85f), PixelArt.C("#405970")); Text(39, 156, 271, 42, Game.Conditions(), 13, muted); }
                 DrawTutorialPrompt(); Panel(342, 696, 596, 80, new Color(.045f, .08f, .13f, .95f), PixelArt.C("#4d6478"));
                 ActionSlot(354, ControlKey("Q", "Y"), SkillName(), Game.save.profession == 0 ? "sword" : Game.save.profession == 1 ? "bow" : "staff", Game.skillCooldown, Game.save.energy >= Game.ClassSkillEnergyCost, () => Game.Skill(InputAim(true)), Game.ForgeSkillCooldown, Game.L("耐力不足", "Low energy"));
