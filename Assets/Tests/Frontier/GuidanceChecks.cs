@@ -440,6 +440,15 @@ namespace Starfall.Tests
                 !g.FieldPatrolDone(1)&&g.FieldPatrolRemaining==2&&
                 g.save.version==2,
                 "Viewing a real optional combat objective does not reset main tracking or mint receipts");
+            // A post-finale player can voluntarily sign the same patrol.
+            // Completed-story free roam must not silence a live contract's
+            // world compass while the enemies and receipt still exist.
+            g.save.ending=2;
+            Point? postEndingTarget=g.NavigationTarget();
+            Check(postEndingTarget.HasValue&&
+                (postEndingTarget.Value-g.FieldPatrolGuideTarget).Length<.001f&&
+                g.save.trackedQuest=="main",
+                "Post-ending voluntary patrol keeps the actual route marker without rewriting tracking");
         }
 
         public static void FocusedMapSeparatesPrimaryGoalFromOptionalClutter(Campaign data)
