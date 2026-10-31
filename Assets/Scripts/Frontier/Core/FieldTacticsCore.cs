@@ -544,7 +544,7 @@ namespace Starfall
                     e.stagger=Math.Max(e.stagger,e.kind==0?1.7f:.6f);
                 }
                 if(interrupted)
-                    effects.Add(new Effect("number",e.Position+.5f*new Point(0,1),.75f,
+                    effects.Add(new Effect("number",e.Position+new Point(0,.5f),.75f,
                         L("攻击中断！","ATTACK INTERRUPTED")));
                 effects.Add(new Effect("number",e.Position,.65f,
                     (room==3||room==6)&&e.kind==2?L("护甲暴露","ARMOR OPEN"):
