@@ -214,7 +214,7 @@ namespace Starfall
                 action!="remote_road_signal")return false;
             int room=save.room;
             if(action=="remote_road_signal")
-                return ActivateRemoteRoadSignal(pendingDialogueSource);
+                return ActivateRemoteRoadSignal(pendingDialogueSource,true);
             if(action=="ridge_travel"&&SignalRelayActive)
             {
                 Notify("烽火传讯必须亲自走完整条路，不能利用高地通道跳过距离。",
