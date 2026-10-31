@@ -5,6 +5,124 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        // Original map props and existing SaveData v2 are deliberately
+        // untouched. Only pre-existing walkable floor ('.') becomes
+        // continuous visible '=' road: tests use the LIVE hero collision
+        // and real source identities to validate the updated atlas.
+        public static void EightBiomesHaveGenuineContinuousSurveyAndCrossingRoadNetworks(Campaign data)
+        {
+            var signatures=new HashSet<string>();
+            for(int room=0;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;
+                WorldObject[] sites=new WorldObject[5];
+                for(int stage=1;stage<=3;stage++)
+                    sites[stage-1]=Array.Find(g.Map.objects,
+                        o=>o.id=="trailcircuit_"+room+"_"+stage&&
+                            o.kind=="trailcircuit");
+                for(int district=0;district<2;district++)
+                    sites[3+district]=Array.Find(g.Map.objects,
+                        o=>o.id=="ridge_route_"+room+"_"+district&&
+                            o.kind=="ridgemarker");
+                foreach(WorldObject site in sites)
+                    Check(site!=null&&
+                        g.CanStand(new Point(site.x,site.y)),
+                        "Original exact survey/crossing sources remain physically accessible: "+room);
+                int[,] legs={{0,1},{1,2},{2,3},{1,4}};
+                foreach(int leg in new[]{0,1,2,3})
+                {
+                    WorldObject first=sites[legs[leg,0]];
+                    WorldObject last=sites[legs[leg,1]];
+                    int sx=(int)Math.Floor(first.x),
+                        sy=(int)Math.Floor(first.y);
+                    int tx=(int)Math.Floor(last.x),
+                        ty=(int)Math.Floor(last.y);
+                    int w=g.Map.rows[0].Length,h=g.Map.rows.Length;
+                    var seen=new bool[w*h];
+                    var q=new int[w*h];
+                    int front=0,back=0,source=sy*w+sx;
+                    seen[source]=true;q[back++]=source;
+                    bool reached=false;
+                    while(front<back)
+                    {
+                        int n=q[front++],x=n%w,y=n/w;
+                        if(x==tx&&y==ty){reached=true;break;}
+                        int[,] directions={{1,0},{-1,0},{0,1},{0,-1}};
+                        for(int side=0;side<4;side++)
+                        {
+                            int xx=x+directions[side,0];
+                            int yy=y+directions[side,1];
+                            if(xx<2||yy<2||xx>=w-2||yy>=h-2)
+                                continue;
+                            int next=yy*w+xx;
+                            if(seen[next]||g.Map.rows[yy][xx]!='='||
+                                !g.CanStand(new Point(xx+.5f,yy+.5f)))
+                                continue;
+                            seen[next]=true;q[back++]=next;
+                        }
+                    }
+                    Check(reached,
+                        "The real visible paved road network reaches the authentic next stop without water, wall or collider: "+room+"/"+leg);
+                    g.save.x=first.x;g.save.y=first.y;
+                    Check(g.NavigationPathFrom(g.Position,
+                        new Point(last.x,last.y),true).Count>0,
+                        "Original navigation engine also walks the route: "+room+"/"+leg);
+                }
+                // Distinct local contours: don't merely recolor seven
+                // copies of the same urban/causeway/rail/bell road drawing.
+                string signature="";
+                for(int y=31;y<=66;y++)
+                    signature+=g.Map.rows[y].Substring(40,70);
+                Check(signatures.Add(signature),
+                    "Different biomes preserve non-identical authored paved topology");
+                Check(g.save.version==2,
+                    "World terrain authoring does not alter the saved schema");
+            }
+        }
+
+        public static void SurveyedPavedGroundGivesRealTravelRecoveryButNeverOffRoad(Campaign data)
+        {
+            for(int room=0;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();
+                WorldObject marker=Array.Find(g.Map.objects,
+                    o=>o.id=="trailcircuit_"+room+"_1");
+                Check(marker!=null&&g.CanStand(new Point(marker.x,marker.y)),
+                    "An original authentic trail marker anchors this reward");
+                g.save.x=marker.x;g.save.y=marker.y;
+                Check(g.TrailRoadRecoveryBonus==0f,
+                    "Uncompleted survey cannot grant route endurance");
+                for(int i=1;i<=3;i++)
+                    g.save.flags.Add("trail_circuit_"+room+"_"+i);
+                Check(g.TrailRoadRecoveryBonus==2f,
+                    "Completed survey restores +2 on real paved ground");
+                float px=g.save.x,py=g.save.y;
+                bool found=false;
+                for(int dy=-6;dy<=6&&!found;dy++)
+                for(int dx=-6;dx<=6&&!found;dx++)
+                {
+                    Point field=new Point(px+dx,py+dy);
+                    int x=(int)Math.Floor(field.x),y=(int)Math.Floor(field.y);
+                    if(x<2||y<2||x>=118||y>=78||
+                       g.Map.rows[y][x]!='.'||!g.CanStand(field))continue;
+                    g.save.x=field.x;g.save.y=field.y;found=true;
+                }
+                Check(found&&g.TrailRoadRecoveryBonus==0f,
+                    "Off-road exploration receives no invented paved endurance: "+room);
+                g.save.x=px;g.save.y=py;
+                Check(g.TrailRoadRecoveryBonus==2f,
+                    "The same real marker resumes its intended travel recovery");
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.TrailCircuitComplete(room)&&
+                    restored.TrailRoadRecoveryBonus==2f,
+                    "Legacy v2 save derives pavement effect from existing flags and terrain");
+            }
+        }
+
         // The tenth gameplay location is not Campaign.maps[8]: live floor
         // layouts are regenerated from the exact persistent v2 seed. Exercise
         // the real generator, not a decorative static preview.

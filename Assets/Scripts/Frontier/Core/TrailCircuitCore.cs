@@ -164,6 +164,27 @@ namespace Starfall
         }
         public bool TrailCircuitComplete(int room)
         { return TrailCircuitProgress(room)==3; }
+
+        // An earned, *physical* road-use benefit. The completed trail
+        // already restores +2 endurance across the open region; traveling
+        // on one of its genuine paved footpaths restores another +2 per
+        // second. No inventory item, fast travel, synthetic collision or
+        // serialized SaveData field is introduced. A flooded/solid saved
+        // foot must not be mistaken for a safe road.
+        public float TrailRoadRecoveryBonus
+        {get{
+            if(save==null||mode!="world"||Dying||
+                save.room<0||save.room>7||
+                !TrailCircuitComplete(save.room)||
+                Map==null||Map.rows==null||Map.rows.Length==0||
+                !Finite(save.x)||!Finite(save.y))return 0f;
+            int x=(int)Math.Floor(save.x),y=(int)Math.Floor(save.y);
+            if(x<2||y<2||y>=Map.rows.Length-2||
+               Map.rows[y]==null||x>=Map.rows[y].Length-2||
+               Map.rows[y][x]!='='||!CanStand(Position))return 0f;
+            return 2f;
+        }}
+
         // Resolve the NEXT authored stop by its actual living world source,
         // rather than hardcoding a hint that points to stale scenery.
         // The same reader serves dialogue, atlas and explicit navigation.

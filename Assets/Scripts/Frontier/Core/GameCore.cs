@@ -1191,6 +1191,11 @@ namespace Starfall
                 (save.room<8&&Has("annex_relay_archived") ? 2 : 0) +
                 (save.room<8 && (save.x>=36 || save.y>=24) &&
                     TrailCircuitComplete(save.room) ? 2 : 0) +
+                // Completing a physical survey makes its real *road*
+                // easier to travel; side-country and combat terrain retain
+                // their previous energy rules. Actual floor + collision
+                // decide eligibility, never the map compass.
+                TrailRoadRecoveryBonus +
                 // Cleared outer watches grant a real, permanent local
                 // endurance benefit during sustained high-trail traversal.
                 // No global combat buff and no new save schema field.
