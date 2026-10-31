@@ -1309,21 +1309,35 @@ namespace Starfall
                 WorldObject obj=options[index];
                 Point foot=obj==null?Game.reliefFollowerPosition:
                     new Point(obj.x,obj.y);
-                int overlapCount=0;
-                bool containsObjective=false;
-                for(int other=0;other<options.Count;other++)
+                // One readable HUD badge per CONNECTED group of painted
+                // bodies. A overlaps B and B overlaps C may hold without
+                // A directly overlapping C. Earlier direct-neighbor grouping
+                // painted a second badge over the first in this common
+                // three-person town queue.
+                var members=new List<int>(options.Count){index};
+                drawn[index]=true;
+                bool containsObjective=objective!=null&&
+                    System.Object.ReferenceEquals(obj,objective);
+                for(int node=0;node<members.Count;node++)
                 {
-                    if(drawn[other])continue;
-                    WorldObject member=options[other];
-                    Point memberFoot=member==null?Game.reliefFollowerPosition:
-                        new Point(member.x,member.y);
-                    if(!GameCore.WorldInteractionSilhouettesOverlap(foot,memberFoot))
-                        continue;
-                    drawn[other]=true;overlapCount++;
-                    if(objective!=null&&
-                        System.Object.ReferenceEquals(member,objective))
-                        containsObjective=true;
+                    WorldObject pivot=options[members[node]];
+                    Point pivotFoot=pivot==null?Game.reliefFollowerPosition:
+                        new Point(pivot.x,pivot.y);
+                    for(int other=0;other<options.Count;other++)
+                    {
+                        if(drawn[other])continue;
+                        WorldObject member=options[other];
+                        Point memberFoot=member==null?Game.reliefFollowerPosition:
+                            new Point(member.x,member.y);
+                        if(!GameCore.WorldInteractionSilhouettesOverlap(
+                            pivotFoot,memberFoot))continue;
+                        drawn[other]=true;members.Add(other);
+                        if(objective!=null&&
+                            System.Object.ReferenceEquals(member,objective))
+                            containsObjective=true;
+                    }
                 }
+                int overlapCount=members.Count;
                 bool chosen=index==at;
                 Color ink=chosen?mint:containsObjective?gold:
                     PixelArt.C("#9aaeb4");
