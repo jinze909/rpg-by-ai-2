@@ -524,8 +524,9 @@ namespace Starfall
                 // manually pinned navigation remain authoritative.
                 bool postgameIdle=!Game.practicing&&Game.save.ending>0&&
                     Game.save.trackedQuest=="main"&&
-                    !Game.FieldWorkPreventsRest&&
                     q.id==Game.RecommendedContinuationGuide.id&&
+                    // The PUBLIC world compass already gives live rescues,
+                    // urgent encounters and player-owned pins precedence.
                     !Game.NavigationTarget().HasValue;
                 if(postgameIdle)q=Game.GetQuest("main");
                 // The moment the next physical quest source enters E reach,
