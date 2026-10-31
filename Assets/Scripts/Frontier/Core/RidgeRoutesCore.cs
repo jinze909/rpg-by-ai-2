@@ -88,6 +88,8 @@ namespace Starfall
             if(RemoteRoadEncounterActive&&
                RemoteRoadActiveDistrict==side)
             {
+                int signalCost=RemoteRoadSignalEnergyCost(room);
+                int visible=RemoteRoadSignalThreatCount(o);
                 // The original marker is also an authentic safe EXIT from
                 // the OPTIONAL fight. No fast travel, no battle receipt.
                 // The hero still has to physically return to the crossing
@@ -97,12 +99,24 @@ namespace Starfall
                         (RemoteRoadVeteranActive?
                             "自愿召集的进阶巡护尚余":"这处伏击尚余")+
                         RemoteRoadRemaining+
-                        "名敌人。可继续迎战，或从原路口撤回。撤离不获得回执，居民通路安全不受影响。",
+                        "名敌人。可继续迎战，或从原路口撤回。撤离不获得回执，居民通路安全不受影响。"+
+                        "\n\n原路标的环境信号可在现场反制真正暴露的敌人；影响目标 "+visible+
+                        "。每场交战限一次，消耗耐力 "+signalCost+
+                        (TrailCircuitComplete(room)?"（该区巡路完成，已减少消耗）。":"。"),
                     en[room]+"\n\n"+
                         (RemoteRoadVeteranActive?
                             "Veteran roadwatch: ":"Road ambush: ")+
                         RemoteRoadRemaining+
-                        " raiders remain. Fight on or withdraw at this original marker. Civilian passage stays open.",
+                        " raiders remain. Fight on or withdraw at this original marker. Civilian passage stays open."+
+                        "\n\nThis original marker's field signal counters actual exposed enemies ("+
+                        visible+"). One use per encounter, "+signalCost+
+                        " energy"+(TrailCircuitComplete(room)?
+                            " with your completed trail survey discount.":"."),
+                    RemoteRoadSignalUsed?
+                        C("现场信号已用过","Field signal expended","close"):
+                        C("利用原路标反制敌人 · 耐力 "+signalCost,
+                            "Counter raiders with marker · "+signalCost+" energy",
+                            "remote_road_signal"),
                     C("从本路口撤离 · 不领取奖励",
                         "Withdraw from road · no reward","remote_road_withdraw"),
                     C("继续交战","Keep fighting","close"));
@@ -196,8 +210,11 @@ namespace Starfall
                 action!="ridge_field_aid"&&
                 action!="remote_road_challenge"&&
                 action!="remote_road_veteran"&&
-                action!="remote_road_withdraw")return false;
+                action!="remote_road_withdraw"&&
+                action!="remote_road_signal")return false;
             int room=save.room;
+            if(action=="remote_road_signal")
+                return ActivateRemoteRoadSignal(pendingDialogueSource);
             if(action=="ridge_travel"&&SignalRelayActive)
             {
                 Notify("烽火传讯必须亲自走完整条路，不能利用高地通道跳过距离。",

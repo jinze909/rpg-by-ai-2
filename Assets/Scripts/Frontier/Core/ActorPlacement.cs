@@ -351,6 +351,11 @@ namespace Starfall
         // physical actor/death/capture contract as the first road battle.
         // It can never revoke the original permanently safe crossing.
         private bool remoteRoadVeteran;
+        // The original ridge marker offers one honest, physical terrain
+        // counter per ACTIVE fight. It is never serialized or farmable.
+        private bool remoteRoadSignalUsed;
+        public bool RemoteRoadSignalUsed
+        {get{return RemoteRoadEncounterActive&&remoteRoadSignalUsed;}}
         // A blocked tidal route can make a complete two-foe wave impossible.
         // Retry at most once every two world seconds, never every frame.
         private float remoteRoadRetrySeconds;
@@ -538,6 +543,7 @@ namespace Starfall
             remoteRoadCaptured.Clear();
             remoteRoadRoom=-1;remoteRoadDistrict=-1;
             remoteRoadVeteran=false;
+            remoteRoadSignalUsed=false;
             remoteRoadSource=null;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=null;remoteRoadSave=null;
             if(resetDistricts)
@@ -632,6 +638,7 @@ namespace Starfall
             if(pads.Count!=2)return false;
             remoteRoadRoom=save.room;remoteRoadDistrict=district;
             remoteRoadVeteran=veteran;
+            remoteRoadSignalUsed=false;
             remoteRoadSource=marker;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=Map;remoteRoadSave=save;
             for(int slot=0;slot<2;slot++)

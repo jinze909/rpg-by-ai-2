@@ -5313,6 +5313,7 @@ namespace Starfall
             if (ChooseChapterRoad(action)) return;
             if (ChooseVantageWatch(action)) return;
             if (ChooseGhostTrain(action)) return;
+            if (ChooseRidge(action)) return;
             if (ChooseRidgeBreach(action)) return;
             if (ChooseRidgeEcho(action)) return;
             if (ChooseWildernessHunt(action)) return;
