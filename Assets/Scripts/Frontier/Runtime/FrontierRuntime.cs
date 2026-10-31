@@ -205,9 +205,25 @@ namespace Starfall
                 // this same rendered frame's attack or Q starts. Equip() is
                 // the single authoritative unlock/action/combination guard.
                 // Dialogue numbers remain scoped to their original choices.
-                for(int slot=0;slot<3;slot++)
-                    if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+slot)))
-                    { Game.Equip(slot);break; }
+                bool selectingNearbyWithAlt=
+                    (Input.GetKey(KeyCode.LeftAlt)||
+                     Input.GetKey(KeyCode.RightAlt))&&
+                    Game.SafeTravel&&Game.NearbyInteractionCount()>1;
+                if(selectingNearbyWithAlt)
+                {
+                    // Press the printed nearby-panel row directly, without
+                    // accidentally changing the equipped weapon or
+                    // triggering an E/quest effect on that same frame.
+                    for(int row=0;row<4;row++)
+                        if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+row)))
+                        {Game.FocusCrowdedInteractionRow(row);break;}
+                }
+                else
+                {
+                    for(int slot=0;slot<3;slot++)
+                        if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+slot)))
+                        {Game.Equip(slot);break;}
+                }
                 // R3 is a deliberate physical target-lock toggle. This
                 // selects only a visible, attackable live enemy reference;
                 // no serialization, target IDs, damage or aim-through-walls.
@@ -1286,7 +1302,7 @@ namespace Starfall
                     Game.L("移动中的获救居民","Moving rescued civilian"):
                     Game.L(target.name,target.en);
                 if(Button(x+18,y+34+row*25,width-32,23,
-                    (chosen?"◆  ":"   ")+
+                    "Alt+"+(row+1)+"  "+(chosen?"◆  ":"   ")+
                     (objective!=null&&System.Object.ReferenceEquals(target,objective)?"★  ":"")+label,chosen))
                     Game.FocusNearbyInteraction(index);
             }

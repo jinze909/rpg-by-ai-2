@@ -188,6 +188,15 @@ namespace Starfall.Tests
                 Check(options.Count==3&&options.Count==g.NearbyInteractionCount()&&
                     g.CanStand(g.Position),
                     "Three overlapping visible objects remain independently reachable");
+                Check(!g.FocusCrowdedInteractionRow(-1)&&
+                    !g.FocusCrowdedInteractionRow(4)&&
+                    g.FocusCrowdedInteractionRow(1),
+                    "Alt+2 chooses the next *visible* nearby row, not an arbitrary map ID");
+                WorldObject expectedByRow=g.Nearest();
+                Check(expectedByRow!=null&&
+                    g.FocusCrowdedInteractionRow(1)&&
+                    g.Nearest()!=expectedByRow,
+                    "Repeated Alt+2 follows the UI's rotated ordering as the chosen row changes");
                 WorldObject selected=g.Nearest();
                 Check(selected!=null&&g.FocusNearbyInteraction(2)&&
                     g.Nearest()==g.NearbyInteractionChoices()[2],

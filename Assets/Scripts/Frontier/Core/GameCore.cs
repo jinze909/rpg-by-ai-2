@@ -3883,6 +3883,21 @@ namespace Starfall
             if(index<0||index>=options.Count)return false;
             return SetNearbyInteractionChoice(options[index]);
         }
+        // Keyboard shortcuts must index the SAME four visible
+        // rotated rows as the real nearby-choice UI, not the raw map
+        // authored order. Alt+1..4 never performs the dialogue itself.
+        public bool FocusCrowdedInteractionRow(int visibleRow)
+        {
+            if(mode!="world"||Dying||!SafeTravel||
+                visibleRow<0||visibleRow>=4)return false;
+            List<WorldObject> choices=NearbyInteractionChoices();
+            if(choices.Count<2||visibleRow>=choices.Count)return false;
+            WorldObject current=Nearest();
+            bool civilian=ReliefCivilianIsInteractionTarget(current);
+            int at=civilian?choices.IndexOf(null):choices.IndexOf(current);
+            if(at<0)at=0;
+            return FocusNearbyInteraction((at+visibleRow)%choices.Count);
+        }
         private bool SetNearbyInteractionChoice(WorldObject selected)
         {
             // O/R3 and actual pointed row/click are deliberate source
