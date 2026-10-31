@@ -224,6 +224,37 @@ namespace Starfall
                 Box(x-2,y-2,4,4,mark);
             }
         }
+        // The next bearing belongs to the actual shipped three-stop
+        // trail, not a generated destination or an extra quest flag.
+        // Gold marks its position even in focused map mode; all other
+        // completed markers remain ordinary scenery.
+        private void DrawNextTrailCircuitMarker(int region,
+            float left,float top,float scale)
+        {
+            if(region<0||region>7||!Game.CanEnter(region)||scale<=0f)
+                return;
+            WorldObject marker=Game.NextTrailCircuitMarker(region);
+            if(marker==null)return;
+            float x=left+marker.x*scale,y=top+marker.y*scale;
+            Color tone=PixelArt.C("#f5c567");
+            Frame(x-6,y-6,12,12,tone);
+            Frame(x-3,y-3,6,6,tone);
+            Box(x-1.5f,y-1.5f,3,3,tone);
+        }
+        // A visible gold bearing is clickable in current-region map
+        // view. The deliberate click invokes exactly the same validated
+        // E-reachable approach that the next-bearing button requests.
+        private bool TryPinNextTrailBearingAt(Point tile,float scale)
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+               selectedRegion!=Game.save.room||scale<=0f)return false;
+            WorldObject marker=Game.NextTrailCircuitMarker(selectedRegion);
+            if(marker==null)return false;
+            float distance=(tile-new Point(marker.x,marker.y)).Length*scale;
+            if(distance>6.5f)return false;
+            Game.FollowNextTrailCircuitMarker();
+            return true;
+        }
         // Clicking a visible shortcut icon must pin the EXACT existing
         // walkable passage, never an arbitrary neighbor rounded from a
         // miniature-map pixel. Consume a matched click even if a gate
@@ -1871,6 +1902,7 @@ namespace Starfall
                 // optional background supply dots in Focus.
                 DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 DrawRegionalShortcutMarkers(selectedRegion,888,264,terrainScale);
+                DrawNextTrailCircuitMarker(selectedRegion,888,264,terrainScale);
                 if(Game.CompanionHoldingPosition)
                 {
                     // The purple post belongs to the recruited companion,
@@ -1973,6 +2005,7 @@ namespace Starfall
                             }
                         }
                         else if(!TryInspectMapQuestAt(tile,terrainScale,regionQuests)&&
+                                !TryPinNextTrailBearingAt(tile,terrainScale)&&
                                 !TryPinRegionalShortcutAt(tile,terrainScale))
                             Game.PlaceLocalWaymark(tile);
                     }
@@ -1987,6 +2020,7 @@ namespace Starfall
                 // optional background supply dots in Focus.
                 DrawBiomeFieldMapSites(m,selectedRegion,888,264,terrainScale);
                 DrawRegionalShortcutMarkers(selectedRegion,888,264,terrainScale);
+                DrawNextTrailCircuitMarker(selectedRegion,888,264,terrainScale);
                 QuestGuide inspected=InspectedMapQuest();
                 QuestGuide q=inspected??Game.RecommendedContinuationGuide;
                 if(q.room==selectedRegion&&!q.locked)
@@ -2198,22 +2232,41 @@ namespace Starfall
             // uses the existing transient personal waypoint and its full
             // real-world BFS; the player must explicitly press a button.
             // Quest inspection retains the lower panel and is never stolen.
-            if(selectedRegion==Game.save.room&&selectedRegion>=1&&
-               selectedRegion<=7&&!mapTileCursor.Active&&
-               inspectedMap==null)
+            if(selectedRegion==Game.save.room&&!mapTileCursor.Active&&
+               inspectedMap==null&&selectedRegion>=0&&selectedRegion<=7)
             {
-                for(int route=0;route<2;route++)
+                WorldObject nextTrail=Game.NextTrailCircuitMarker(
+                    selectedRegion);
+                bool trailAvailable=nextTrail!=null;
+                if(selectedRegion>=1)
+                    for(int route=0;route<2;route++)
+                    {
+                        Point? passage=Game.RegionalShortcutFoot(
+                            selectedRegion,route);
+                        float x=trailAvailable?888+route*103:888+route*156;
+                        float width=trailAvailable?99:150;
+                        string label=trailAvailable?
+                            route==0?Game.L("中央近路","MID PASS"):
+                                Game.L("外环近路","OUTER PASS"):
+                            route==0?Game.L("中央近路 · 设导航",
+                                "CENTRAL PASS · PIN"):
+                                Game.L("外环通路 · 设导航",
+                                    "OUTER PASS · PIN");
+                        if(Button(x,693,width,32,label,false,
+                            passage.HasValue&&!Game.Dying&&!Game.practicing))
+                            Game.FollowRegionalShortcut(route);
+                    }
+                if(trailAvailable)
                 {
-                    Point? passage=Game.RegionalShortcutFoot(
-                        selectedRegion,route);
-                    if(Button(888+route*156,693,150,32,
-                        route==0?Game.L("中央近路 · 设导航",
-                            "CENTRAL PASS · PIN"):
-                            Game.L("外环通路 · 设导航",
-                                "OUTER PASS · PIN"),
-                        false,passage.HasValue&&!Game.Dying&&
-                            !Game.practicing))
-                        Game.FollowRegionalShortcut(route);
+                    float x=selectedRegion==0?888:1094;
+                    float width=selectedRegion==0?306:100;
+                    if(Button(x,693,width,32,
+                        selectedRegion==0?
+                            Game.L("寻找下一处巡路碑 · 设导航",
+                                "PIN NEXT TRAIL BEARING"):
+                            Game.L("下一路碑","NEXT TRAIL"),
+                        false,!Game.Dying&&!Game.practicing))
+                        Game.FollowNextTrailCircuitMarker();
                 }
             }
             bool rescueTravelLock = Game.reliefMissionRoom != 0 && selectedRegion != Game.save.room;
