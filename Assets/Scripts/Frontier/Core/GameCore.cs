@@ -1724,6 +1724,9 @@ namespace Starfall
             Point strikeSource=profile.playerOwned?Position:
                 save.companion>=0?companionPosition:e.Position;
             AlertRidgeWatchOnRealHit(e,strikeSource);
+            // This is the confirmed physical HP-contact pipeline, not aim,
+            // animation windup or a companion's separate support projectile.
+            OnRemoteRoadSignalFollowUp(e,profile);
             e.hp -= damage; e.flash = .09f; e.hitTime = .18f;
             // A REAL player-owned HP strike exposes the shooter at any
             // distance, not just the existing >8-tile ranged alarm. A

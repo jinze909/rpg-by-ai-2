@@ -56,13 +56,44 @@ namespace Starfall
             return count;
         }
 
-        // A deliberate choice from the live marker is REQUIRED. One signal
-        // per battle, no auto-attack, no damage, no success receipt, and no
-        // spending energy when the terrain is blocked or threats are gone.
-        private bool ActivateRemoteRoadSignal(WorldObject marker)
+        // Share Shift+G with field devices: the existing device gets first
+        // refusal, then only the actual current crossing can consume the
+        // shortcut. No NPC focus, synthesized prop or old dialog is trusted.
+        public bool QuickActivateRemoteRoadSignal()
+        {
+            if(mode!="world"||Dying||practicing||!CanStand(Position)||
+                !RoadSignalSource(remoteRoadSource)||
+                !HasPhysicalInteractionReach(remoteRoadSource))return false;
+            return ActivateRemoteRoadSignal(remoteRoadSource,false);
+        }
+        public float RemoteRoadCounterOpportunitySeconds
+        {get{
+            return RemoteRoadEncounterActive&&!remoteRoadCounterRewarded&&
+                remoteRoadCounterTarget!=null&&
+                IsRemoteRoadThreat(remoteRoadCounterTarget)?
+                Math.Max(0f,remoteRoadCounterUntil-save.totalTime):0f;
+        }}
+        // A real player-owned strike on the EXACT controlled opponent earns
+        // one small recovery. Not a free hit, damage, XP, loot or quest flag.
+        private void OnRemoteRoadSignalFollowUp(Enemy struck,ImpactProfile hit)
+        {
+            if(hit==null||!hit.playerOwned||remoteRoadCounterRewarded||
+                !System.Object.ReferenceEquals(struck,remoteRoadCounterTarget)||
+                RemoteRoadCounterOpportunitySeconds<=0f)return;
+            remoteRoadCounterRewarded=true;
+            remoteRoadCounterTarget=null;remoteRoadCounterUntil=0f;
+            save.energy=Math.Min(100f,save.energy+5f);
+            effects.Add(new Effect("number",struck.Position,.9f,
+                L("地形追击 · 耐力+5","TERRAIN FOLLOW-UP · +5 ENERGY")));
+            revision++;
+        }
+        // Source-checked dialog E and real-time Shift+G use one cost,
+        // collision, live-target, control and encounter-consumption pipeline.
+        private bool ActivateRemoteRoadSignal(WorldObject marker,bool dialogueChoice)
         {
             if(mode!="world"||Dying||practicing||
-                pendingDialogueSourceRoom!=save.room||
+                (dialogueChoice&&(pendingDialogueSourceRoom!=save.room||
+                    !System.Object.ReferenceEquals(pendingDialogueSource,marker)))||
                 !RoadSignalSource(marker)||
                 !HasPhysicalInteractionReach(marker)||
                 !CanStand(Position))return true;
@@ -108,6 +139,9 @@ namespace Starfall
             }
             save.energy-=cost;
             remoteRoadSignalUsed=true;
+            remoteRoadCounterTarget=target;
+            remoteRoadCounterUntil=target==null?0f:save.totalTime+3.5f;
+            remoteRoadCounterRewarded=false;
             if(target!=null)
             {
                 bool interrupted=target.state==1;
@@ -165,8 +199,12 @@ namespace Starfall
             sound=room==2||room==5?"splash":
                 room==3||room==6?"explosion":"alert";
             revision++;
-            Notify("原路标的战术信号已发动，反制真正的伏击者。此战不可再次使用。",
-                "Roadside terrain counter activated on genuine ambushers. One use this fight.");
+            Notify(target==null?
+                "成功拦截敌箭。此战不可再次启动路标信号。":
+                "敌人已被反制！3.5秒内亲自命中目标可恢复5耐力。",
+                target==null?
+                "Hostile shot intercepted; signal spent for this fight.":
+                "Ambusher countered! Hit the foe within 3.5s to regain 5 energy.");
             return true;
         }
     }

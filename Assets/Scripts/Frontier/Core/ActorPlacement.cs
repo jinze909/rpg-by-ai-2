@@ -354,6 +354,10 @@ namespace Starfall
         // The original ridge marker offers one honest, physical terrain
         // counter per ACTIVE fight. It is never serialized or farmable.
         private bool remoteRoadSignalUsed;
+        // Exact actor and live-world follow-up timer; never serialized.
+        private Enemy remoteRoadCounterTarget;
+        private float remoteRoadCounterUntil;
+        private bool remoteRoadCounterRewarded;
         public bool RemoteRoadSignalUsed
         {get{return RemoteRoadEncounterActive&&remoteRoadSignalUsed;}}
         // A blocked tidal route can make a complete two-foe wave impossible.
@@ -544,6 +548,8 @@ namespace Starfall
             remoteRoadRoom=-1;remoteRoadDistrict=-1;
             remoteRoadVeteran=false;
             remoteRoadSignalUsed=false;
+            remoteRoadCounterTarget=null;remoteRoadCounterUntil=0f;
+            remoteRoadCounterRewarded=false;
             remoteRoadSource=null;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=null;remoteRoadSave=null;
             if(resetDistricts)
@@ -639,6 +645,8 @@ namespace Starfall
             remoteRoadRoom=save.room;remoteRoadDistrict=district;
             remoteRoadVeteran=veteran;
             remoteRoadSignalUsed=false;
+            remoteRoadCounterTarget=null;remoteRoadCounterUntil=0f;
+            remoteRoadCounterRewarded=false;
             remoteRoadSource=marker;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=Map;remoteRoadSave=save;
             for(int slot=0;slot<2;slot++)

@@ -347,13 +347,16 @@ namespace Starfall
                     else if(shift)Game.LayFieldSnare(InputAim()??Game.aim);
                     else Game.ThrowPebble(InputAim()??Game.aim);
                 }
-                // A live nearby contraption may be fired without freezing a
-                // dangerous encounter in a dialogue modal. G alone retains
-                // the loadout menu, and E retains all existing conversations.
+                // Keep the shipped device's priority. If absent, the real
+                // active road marker uses the same immediate Shift+G; G
+                // alone and E retain their original menu/dialog ownership.
                 if (Input.GetKeyDown(KeyCode.G)&&
                     (Input.GetKey(KeyCode.LeftShift)||
                      Input.GetKey(KeyCode.RightShift)))
-                    Game.QuickActivateFieldTactic();
+                {
+                    if(!Game.QuickActivateFieldTactic())
+                        Game.QuickActivateRemoteRoadSignal();
+                }
                 if (Input.GetKeyDown(KeyCode.V)) Game.QuickBraceOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.X)) Game.QuickPatchOuterPatrol();
                 if (Input.GetKeyDown(KeyCode.Y)) Game.QuickToggleOuterPatrolCompanionGuard();
@@ -2185,15 +2188,19 @@ namespace Starfall
                     // marker, not to distant copies or a fictional prop.
                     // Keep the original enemy countdown when the terrain
                     // has no valid counter target.
+                    float follow=Game.RemoteRoadCounterOpportunitySeconds;
                     Color encounterInk=used?muted:visible>0?gold:muted;
                     Ring(new Point(o.x,o.y),.94f,encounterInk,28);
                     WorldObjectLabel(p.x-118,p.y-135,236,20,
+                        follow>0f?
+                            Game.L("追击目标 · "+follow.ToString("0.0")+"秒 · 命中回耐力",
+                                "FOLLOW UP · "+follow.ToString("0.0")+"s · HIT TO REGAIN"):
                         used?
                             Game.L("路标反制已用 · 尚余"+Game.RemoteRoadRemaining+"名",
                                 "SIGNAL SPENT · "+Game.RemoteRoadRemaining+" LEFT"):
                         visible>0?
-                            Game.L("路标反制可用 · 按 E · 尚余"+Game.RemoteRoadRemaining+"名",
-                                "COUNTER READY · E · "+Game.RemoteRoadRemaining+" LEFT"):
+                            Game.L("路标反制 · Shift+G / E · 尚余"+Game.RemoteRoadRemaining+"名",
+                                "COUNTER · SHIFT+G / E · "+Game.RemoteRoadRemaining+" LEFT"):
                             Game.L("远路拦截 · 尚余"+Game.RemoteRoadRemaining+"名",
                                 "OUTER AMBUSH · "+Game.RemoteRoadRemaining+" LEFT"),
                         10,encounterInk,TextAnchor.MiddleCenter);

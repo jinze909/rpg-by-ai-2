@@ -4,6 +4,73 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        // Direct input MUST stay in live world mode, never borrow an
+        // unrelated focused NPC or pre-existing dialog's world source.
+        public static void QuickRoadwatchSignalsRunInWorldOnAllFourteenCrossings(Campaign data)
+        {
+            for(int room=1;room<=7;room++)
+            for(int side=0;side<2;side++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=room;g.enemies.Clear();
+                WorldObject marker=Array.Find(g.Map.objects,
+                    o=>o.id=="ridge_route_"+room+"_"+side);
+                Check(marker!=null,"Original roadwatch object remains authored");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Tick(.02f,new Point());
+                Check(g.RemoteRoadEncounterActive&&
+                    g.RemoteRoadActiveDistrict==side,"Real wave, not menu-generated actors");
+                g.save.energy=100f;
+                Check(g.QuickActivateRemoteRoadSignal()&&
+                    g.mode=="world"&&g.RemoteRoadSignalUsed&&
+                    g.RemoteRoadCounterOpportunitySeconds>0f&&
+                    Math.Abs(g.save.energy-88f)<.001f,
+                    "Shift+G source-bound counter affects live opponents without modal combat pause: "+room+"/"+side);
+                Check(g.QuickActivateRemoteRoadSignal()&&
+                    Math.Abs(g.save.energy-88f)<.001f,
+                    "Repeated shortcut cannot pay twice in one encounter");
+                g.save.x+=15f;
+                Check(!g.QuickActivateRemoteRoadSignal(),
+                    "Quick action rejects faraway player even during an active world encounter");
+            }
+        }
+
+        public static void RoadwatchFollowUpIsRealTimedAndOncePerPlayerContact(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Follow-up must pass through original real HP strike");
+            for(int delayed=0;delayed<2;delayed++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.stage=3;
+                g.save.room=1;g.enemies.Clear();
+                WorldObject marker=Array.Find(g.Map.objects,
+                    o=>o.id=="ridge_route_1_0");
+                g.save.x=marker.x;g.save.y=marker.y;
+                g.Tick(.02f,new Point());g.save.energy=100f;
+                Check(g.QuickActivateRemoteRoadSignal(),"Original quick counter succeeds");
+                Enemy target=g.enemies.Find(e=>e.stun>1.5f);
+                Check(target!=null,"Live roadwatch opponent owns the opening");
+                Enemy unrelated=g.enemies.Find(e=>!System.Object.ReferenceEquals(e,target));
+                float energy=g.save.energy;
+                hit.Invoke(g,new object[]{unrelated,1f,false,null,null});
+                Check(Math.Abs(g.save.energy-energy)<.001f,
+                    "Contact on another real enemy cannot claim this exact target's opening");
+                if(delayed==1)g.save.totalTime+=4f;
+                hit.Invoke(g,new object[]{target,1f,false,null,null});
+                Check(Math.Abs(g.save.energy-(energy+(delayed==0?5f:0f)))<.001f,
+                    "Only an in-window genuine player HP strike earns 5 energy");
+                hit.Invoke(g,new object[]{target,1f,false,null,null});
+                Check(Math.Abs(g.save.energy-(energy+(delayed==0?5f:0f)))<.001f,
+                    "A second hit cannot duplicate the earned one-time follow-up");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(!loaded.RemoteRoadEncounterActive&&
+                    loaded.RemoteRoadCounterOpportunitySeconds==0f,
+                    "Legacy v2 save retains no transient enemy link or follow-up");
+            }
+        }
         public static void SevenRegionalRoadSignalsAffectOnlyRealCombatActors(Campaign data)
         {
             for(int room=1;room<=7;room++)
