@@ -2130,6 +2130,104 @@ namespace Starfall.Tests
             }
         }
 
+        // A resolved civilian crossing stays safe forever, yet the real
+        // post may host a fully voluntary, harder battle and a one-time
+        // save-v2 receipt. This calls the ORIGINAL ridge dialogue, original
+        // actor HP/death pipeline, and the real world-time settlement tick.
+        public static void FourteenSafeRoadsOfferRealVolunteerEliteWatches(Campaign data)
+        {
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic);
+            Check(hit!=null,"Veteran watch must use actual enemy deaths");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
+                g.save.room=room;g.mode="world";
+                g.enemies.Clear();
+                g.save.flags.Add("ridge_seen_"+room+"_0");
+                g.save.flags.Add("ridge_seen_"+room+"_1");
+                for(int side=0;side<2;side++)
+                {
+                    WorldObject marker=Array.Find(g.Map.objects,o=>o.kind=="ridgemarker"&&
+                        o.id=="ridge_route_"+room+"_"+side);
+                    Check(marker!=null&&PlaceWithinTalkReach(g,marker),
+                        "Every real roadwatch uses a reachable original ridge source");
+                    g.enemies.Clear();
+                    g.save.flags.Add("remote_road_clear_"+room+"_"+side);
+                    int fare=g.RidgePassageEnergyCost(room);
+                    g.Tick(.02f,new Point());
+                    Check(!g.RemoteRoadEncounterActive&&
+                        g.RemoteRoadCleared(room,side),
+                        "Cleared civilian roads never auto-spawn elite revenge waves");
+                    int prior=g.save.coins, xp=g.save.xp;
+                    g.Talk(marker);
+                    int begin=Array.FindIndex(g.conversation.choices,
+                        choice=>choice.action=="remote_road_veteran");
+                    Check(begin>=0,
+                        "Secure landmark offers an explicit elite challenge");
+                    g.Choose(begin);
+                    Check(g.RemoteRoadVeteranActive&&
+                        g.RemoteRoadRemaining==2&&
+                        g.enemies.Count==2,
+                        "Voluntary watch spawns exactly two authenticated active elites");
+                    Enemy[] foes=g.enemies.ToArray();
+                    foreach(Enemy foe in foes)
+                    {
+                        Check(g.IsRemoteRoadThreat(foe)&&foe.hp>=84f&&
+                            !foe.boss&&g.CanStand(foe.Position)&&
+                            g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                            "Veteran actors have real fightable feet, stronger HP and identity");
+                        hit.Invoke(g,new object[]{foe,2000f,false,null,null});
+                    }
+                    for(int frame=0;frame<20&&g.RemoteRoadEncounterActive;frame++)
+                        g.Tick(.05f,new Point());
+                    Check(!g.RemoteRoadEncounterActive&&
+                        g.RemoteRoadVeteranDone(room,side)&&
+                        g.RemoteRoadCleared(room,side)&&
+                        g.save.coins==prior+28+room*4&&
+                        g.save.xp>xp&&
+                        g.RidgePassageEnergyCost(room)==fare,
+                        "First true elite kills sign a separate receipt without revoking safe travel");
+                    Check(g.GetQuest("road_veterans").steps[(room-1)*2+side].done,
+                        "New veteran journal follows the real signed source");
+                    // Revisit the same authentic marker. It remains
+                    // playable but must never mint an additional reward.
+                    Check(PlaceWithinTalkReach(g,marker),
+                        "Physical source remains available after first victory");
+                    if(side==0)
+                    {
+                        int coins=g.save.coins, xpAgain=g.save.xp;
+                        g.Talk(marker);
+                        int replay=Array.FindIndex(g.conversation.choices,
+                            choice=>choice.action=="remote_road_veteran");
+                        Check(replay>=0,"Repeatable watch remains a voluntary player choice");
+                        g.Choose(replay);
+                        Check(g.RemoteRoadVeteranActive&&g.RemoteRoadRemaining==2,
+                            "Replay uses genuinely new elite bodies");
+                        foreach(Enemy foe in g.enemies.ToArray())
+                            hit.Invoke(g,new object[]{foe,2000f,false,null,null});
+                        for(int tick=0;tick<20&&g.RemoteRoadEncounterActive;tick++)
+                            g.Tick(.05f,new Point());
+                        Check(!g.RemoteRoadEncounterActive&&
+                            g.save.coins==coins&&g.save.xp==xpAgain,
+                            "Repeat fight pays no additional rewards or progress");
+                    }
+                }
+                g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    restored.RemoteRoadVeteranDone(room,0)&&
+                    restored.RemoteRoadVeteranDone(room,1)&&
+                    restored.RemoteRoadCleared(room,0)&&
+                    restored.RemoteRoadCleared(room,1)&&
+                    !restored.RemoteRoadEncounterActive,
+                    "Two veteran receipts survive old v2 slots; enemy actors do not");
+            }
+        }
+
         public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
         {
             int[][] expected={

@@ -134,7 +134,7 @@ namespace Starfall
     }
     public sealed partial class GameCore
     {
-        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "veteran_patrols", "remote_roads", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare" };
+        public static readonly string[] QuestIds = { "main", "shore", "ally1", "ally2", "ally3", "personal0", "personal1", "personal2", "bounty", "secrets", "signals", "dispatches", "vigil", "wayfarers", "stations", "station_patrol", "archive_trail", "archive_echo", "root_harmony", "commons_relay", "skywatch", "skywatch_afterglow", "glasswind", "tide_salvage", "triad_reckoning", "blackout", "afterlight", "storm_commons", "hearing", "campaign_witness", "iron_temper", "farshore_relief", "relief_rescue", "waytrails", "roadcharter", "annex_explorer", "trail_circuits", "outer_rescue", "outer_delivery", "outer_watch", "outer_watch_veteran", "outer_watch_flawless", "ridge_routes", "ridge_watch", "far_refuges", "far_bridges", "far_couriers", "civic_supply", "civic_services", "last_directive", "civic_conduit", "rootsong", "flood_archive", "ferry_relief", "mine_convoy", "frost_signal", "sword_lesson", "civic_aftercare", "civic_waystations", "civic_courier", "soup_route", "specialist_drill", "forge_masterwork", "field_snare", "merciful_warden", "last_lantern", "thornwatch", "countertide", "glass_loom", "whiteout_rescue", "pressureworks", "silent_ledger", "family_dispatch", "mistport_lastlight", "mistport_lastboat", "mistport_tidechart", "unsent_warning", "glassledger", "bridge_chords", "seventh_bed", "ghost_train", "wilderness_hunts", "ridge_echo", "ridge_breaches", "field_patrols", "veteran_patrols", "remote_roads", "field_kits", "field_outposts", "field_dispatches", "vantage_watches", "chapter_roads", "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare", "road_veterans" };
         // Completed public errands can still owe an earned final talent
         // when the 99-point wallet was full. Show the REAL local worker
         // and their original desk, not the obsolete eighth pickup/battle.
@@ -1169,7 +1169,7 @@ namespace Starfall
             "main", "shore", "chapter_roads", "last_directive",
             "civic_aftercare", "afterlight", "civic_services",
             "wayfarers", "stations", "archive_trail", "field_patrols", "veteran_patrols",
-            "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare", "sword_lesson", "secrets"
+            "outer_tactics", "tactic_trials", "night_shift", "night_shift_aftercare", "sword_lesson", "secrets", "road_veterans"
         };
         public QuestGuide RecommendedContinuationGuide
         {
@@ -1605,6 +1605,69 @@ namespace Starfall
                       "All seven real kit locations recovered; road supplies are replenished."):
                     L("到本区远端工具箱取回物资；若调查未完成，先核对本区两处地标。",
                       "Go to the distant physical field kit; complete both survey clues before collecting.");
+                return q;
+            }
+            if(id=="road_veterans")
+            {
+                q.title=L("远路进阶巡护 · 安全通路的自愿守卫",
+                    "Veteran Roadwatch · Defend the Restored Crossings");
+                q.category=L("开放地图后日谈 · 十四处主动精锐挑战",
+                    "OPEN-WORLD AFTERMATH · FOURTEEN VOLUNTARY ELITE BATTLES");
+                q.description=L(
+                    "原远路伏击已经清除的路口，不会再次自动伏击。回到原高地路标，可以自愿叫来更强的精锐进行实战：必须击退或真正绊索活捉两名敌人才能获得首次回执。可从原路标撤回或逃离；不算胜利。已经签收的路口仍可无奖励复训。安全高地通行、原清理奖励和主线均不受影响。",
+                    "Cleared crossings never automatically ambush travelers again. At each original ridge marker, voluntarily summon a tougher two-person roadwatch: defeat or genuinely restrain both for one first-clear receipt. Withdraw at the marker or escape without credit. Completed posts allow reward-free rematches. Original civilian safety, ridge travel and the main story remain unchanged.");
+                q.reward=L("每处首次：硬币、经验；全活捉额外碎片2；十四处全完成另获技能点1",
+                    "Each first clear: coins and XP; both alive +2 shards; all fourteen +1 talent point");
+                q.complete=RemoteRoadVeteranWins==14;
+                q.locked=RemoteRoadClearedCount==0;
+                int chosenRoom=-1,chosenSide=-1;
+                for(int room=1;room<=7;room++)
+                for(int side=0;side<2;side++)
+                {
+                    bool open=RemoteRoadCleared(room,side);
+                    bool done=RemoteRoadVeteranDone(room,side);
+                    q.steps.Add(new QuestStep(
+                        L(data.maps[room].name,data.maps[room].en)+
+                        L(side==0?" · 外环精锐":" · 支路精锐",
+                          side==0?" · OUTER ELITES":" · RIDGE ELITES")+
+                        L(done?" · 已签收":open?" · 可挑战":" · 先清路",
+                          done?" · VERIFIED":open?" · AVAILABLE":" · CLEAR FIRST"),done));
+                    if(open&&!done&&CanEnter(room)&&
+                       (chosenRoom<0||room==save.room&&chosenRoom!=save.room))
+                    {chosenRoom=room;chosenSide=side;}
+                }
+                if(RemoteRoadVeteranActive)
+                {
+                    q.room=save.room;q.target=RemoteRoadGuideTarget;
+                    q.next=L("精锐巡护已开始，还剩"+RemoteRoadRemaining+
+                        "名实际敌人。击退、活捉或回原路标撤离。",
+                        "Veteran fight active: "+RemoteRoadRemaining+
+                        " actual raiders. Defeat, restrain, or withdraw at the marker.");
+                }
+                else if(q.complete)
+                {
+                    q.room=save.room;q.target=Position;
+                    q.next=L("十四处精锐巡护全部签收。安全路线仍然开放，路口复训自愿且无重复奖励。",
+                        "All fourteen elite watches signed. Safe crossings stay open; rematches remain optional and reward-free.");
+                }
+                else
+                {
+                    q.room=chosenRoom>=0?chosenRoom:save.room;
+                    WorldObject post=null;
+                    if(chosenRoom>=0)
+                        foreach(WorldObject o in data.maps[chosenRoom].objects)
+                            if(o!=null&&o.id=="ridge_route_"+chosenRoom+"_"+chosenSide)
+                            {post=o;break;}
+                    q.target=post==null?Position:new Point(post.x,post.y);
+                    q.next=q.locked?
+                        L("先完成至少一处真实远路伏击，解锁进阶巡护。",
+                          "Secure an original roadside ambush to unlock veteran watch."):
+                        chosenRoom<0?
+                        L("进入已开放的安全路口继续巡护。",
+                          "Enter a cleared, accessible crossing to continue."):
+                        L("在已经清理的高地路标主动选择进阶巡护；不会自动开战。",
+                          "At the cleared ridge marker, voluntarily begin veteran roadwatch.");
+                }
                 return q;
             }
             if(id=="remote_roads")
