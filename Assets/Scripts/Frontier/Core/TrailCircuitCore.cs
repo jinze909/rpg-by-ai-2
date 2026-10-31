@@ -5,6 +5,99 @@ namespace Starfall
     // stages are permanent string flags, including on legacy migrated slots.
     public sealed partial class GameCore
     {
+        // Explicit, temporary ownership of a connected three-marker
+        // walking expedition. No new SaveData field or automatic objective
+        // receipt: only original source-bound E interactions advance it.
+        private WorldObject trailFollowSource;
+        private MapData trailFollowMap;
+        private int trailFollowRoom=-1;
+        private Point trailFollowFoot;
+        private bool trailFollowArrivalNotified;
+
+        public bool TrailCircuitAutoFollowActive
+        { get { return TrailFollowOwnsCurrentPin(); } }
+
+        private void CancelTrailCircuitAutoFollow()
+        {
+            trailFollowSource=null;trailFollowMap=null;
+            trailFollowRoom=-1;trailFollowFoot=new Point();
+            trailFollowArrivalNotified=false;
+        }
+
+        private bool TrailFollowOwnsCurrentPin()
+        {
+            Point? pin=LocalWaymark;
+            return trailFollowSource!=null&&trailFollowRoom==save.room&&
+                System.Object.ReferenceEquals(trailFollowMap,Map)&&
+                SourceBelongsToActiveMap(trailFollowSource)&&
+                IsObjectPresent(trailFollowSource)&&
+                trailFollowSource.kind=="trailcircuit"&&
+                trailFollowSource.id=="trailcircuit_"+save.room+"_"+
+                    (TrailCircuitProgress(save.room)+1)&&
+                pin.HasValue&&
+                (pin.Value-trailFollowFoot).Length<.001f;
+        }
+
+        private void OwnTrailCircuitPin(WorldObject source,Point contact)
+        {
+            trailFollowSource=source;
+            trailFollowMap=Map;trailFollowRoom=save.room;
+            trailFollowFoot=new Point(
+                (float)Math.Floor(contact.x)+.5f,
+                (float)Math.Floor(contact.y)+.5f);
+            trailFollowArrivalNotified=false;
+        }
+
+        private bool TrailCircuitAtFollowPin()
+        {
+            return TrailFollowOwnsCurrentPin()&&
+                (Position-trailFollowFoot).Length<=.85f&&
+                ReliefActorLineWalkable(Position,trailFollowFoot);
+        }
+
+        private bool HoldTrailCircuitApproachForInteraction()
+        {
+            if(!TrailCircuitAtFollowPin())return false;
+            if(!trailFollowArrivalNotified)
+            {
+                trailFollowArrivalNotified=true;revision++;sound="quest";
+                Notify("已抵达下一处真实路碑，请按 E 核对。核对后将自动规划下一段。",
+                    "At the real trail bearing. Press E to survey; your next leg will be planned automatically.");
+            }
+            return true;
+        }
+
+        private void AdvanceOwnedTrailCircuit(WorldObject reached,bool complete)
+        {
+            if(!TrailFollowOwnsCurrentPin()||
+                !System.Object.ReferenceEquals(trailFollowSource,reached))
+                return;
+            if(complete)
+            {
+                ResetLocalWaymark();revision++;
+                Notify("三处真实路碑都已核对，连续巡路导航已结束。",
+                    "All three real bearings surveyed. Continuous trail guidance complete.");
+                return;
+            }
+            WorldObject next=NextTrailCircuitMarker(save.room);
+            Point contact;
+            if(next==null||!SourceBelongsToActiveMap(next)||
+                !IsObjectPresent(next)||
+                !TryQuestApproachFoot(new Point(next.x,next.y),out contact))
+            {
+                // The previous pin is now a completed step, not a route
+                // into a locked tide/gate. Retire ONLY our own obsolete pin.
+                ResetLocalWaymark();revision++;
+                Notify("下一段真实路线暂时不可达，自动引导已停止；任务记录仍保留。",
+                    "The next physical bearing is blocked. Auto-follow stopped; survey receipts remain.");
+                return;
+            }
+            CommitLocalWaymark(contact,null);
+            OwnTrailCircuitPin(next,contact);
+            Notify("路碑已核对：下一段真实可步行路线已自动规划。",
+                "Bearing recorded. A verified walking route to the next stop is ready.");
+        }
+
         private static readonly string[,] trailEvidenceZh = {
             {"旧渠刻度表明，城墙外的人曾自己修好一段灌溉支线，而堡垒的正式水图从来没有标出它。", "南侧漂来的木桨刻着三个孩子的名字；那晚送他们回家的不是巡逻队，而是无名的摆渡人。", "最后一枚铜钉把失散的水路重新接回镇外。莉雅要求以后把平民修的渠也写进官方星图。"},
             {"高台上的老根仍为躲避星雨的行人留着空洞。根系活着，不该只被当作堡垒的燃料。", "庇护名单用树叶压出手印，莫芽认得每一个暂住者，也记得哪些人在冬天没有回来。", "三处分散的树根终于标成可走的林路。森林不必再为城墙独自付账。"},
@@ -73,7 +166,9 @@ namespace Starfall
                     "No verified walk to the next trail bearing. Your existing pin is preserved.");
                 return false;
             }
-            return PlaceLocalWaymark(contact);
+            if(!PlaceLocalWaymark(contact))return false;
+            OwnTrailCircuitPin(next,contact);
+            return true;
         }
         // State-dependent, bilingual directions use authentic map sources.
         // Telling a player only to "find the previous marker" makes three
@@ -103,8 +198,8 @@ namespace Starfall
             Choice leave=C(closeZh,closeEn,"close");
             if(NextTrailCircuitMarker(room)==null)return new Choice[]{leave};
             return new Choice[]{
-                C("沿真实道路引导至下一处路碑",
-                  "Guide me to the next real marker","trail_circuit_follow"),
+                C("连续引导后续路碑 · 可随时取消",
+                  "Auto-guide remaining real markers · cancel anytime","trail_circuit_follow"),
                 leave
             };
         }
@@ -141,8 +236,9 @@ namespace Starfall
                 return true;
             }
             CommitLocalWaymark(contact,null);
-            Notify("已规划至下一处真实路碑的步行路线。抵达后按 E 核对。",
-                "Real walking route pinned. Reach the next bearing and press E.");
+            OwnTrailCircuitPin(next,contact);
+            Notify("已开启连续实地巡路引导。抵达下一处真实路碑后按 E 核对，将自动规划下一段。",
+                "Continuous walking guide started. Press E at each real bearing; the next leg updates automatically.");
             return true;
         }
         private bool TalkTrailCircuit(WorldObject o)
@@ -160,6 +256,11 @@ namespace Starfall
             for(int i=1;i<=3;i++)if(o.id=="trailcircuit_"+room+"_"+i)stage=i;
             if(stage==0)return true;
             int progress=TrailCircuitProgress(room);
+            // Ownership is checked BEFORE the source's real survey receipt
+            // changes the next-stage identity. No silent route replacement
+            // is allowed for a manual pin, different source or stale map.
+            bool autoAdvance=TrailFollowOwnsCurrentPin()&&
+                System.Object.ReferenceEquals(trailFollowSource,o);
             string[] routeZh={"渠外归乡路","林地共生路","沉桥渡口路","矿工安全路",
                 "堡垒公共外环","雾港回航路","沙海补水路","霜钟归火路"};
             string[] routeEn={"Canal Homeward Route","Living Thornwood Trail","Open River Crossing",
@@ -199,6 +300,7 @@ namespace Starfall
                     "; the annex now supports sustained civilian stamina recovery.");
             }
             else AddXp(8);
+            if(autoAdvance)AdvanceOwnedTrailCircuit(o,done);
             Dialog(o.name,o.en,trailEvidenceZh[room,stage-1]+
                 "\n\n你亲自核对"+routeZh[room]+"的第 "+stage+"/3 个路标。"+
                 (done?"\n\n完整线路确认：硬币 +24、碎片 +2、经验 +35。本区域的新探索地形额外恢复耐力 +2/秒。":

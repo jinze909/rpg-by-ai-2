@@ -168,6 +168,7 @@ namespace Starfall
         }
         private void ResetLocalWaymark()
         {
+            CancelTrailCircuitAutoFollow();
             ResetAtlasSurvey();
             localWaymarkSet=false;
             localWaymarkRoom=-1;
@@ -301,6 +302,9 @@ namespace Starfall
         // fresh physical-route check. This function never writes SaveData.
         private bool CommitLocalWaymark(Point requested,string questId)
         {
+            // Any new owner explicitly cancels a previous continuous trail
+            // guide. Its caller may reclaim ownership AFTER a valid commit.
+            CancelTrailCircuitAutoFollow();
             // Any fresh manual or quest pin revokes the atlas's previous
             // on-site route. Atlas-origin callers take ownership explicitly
             // only after a successful commit.
@@ -539,6 +543,10 @@ namespace Starfall
                         // because the hero reached the feet BEFORE pressing E.
                         return;
                     }
+                    // A player-owned connected trail retains its real
+                    // approach until the genuine source's E survey. The
+                    // next leg cannot be awarded from mere proximity.
+                    if(HoldTrailCircuitApproachForInteraction())return;
                     // A trail shortcut is a destination, not a new quest.
                     // Give the player an actionable north/south crossing
                     // instruction instead of a generic "pin reached" toast.
