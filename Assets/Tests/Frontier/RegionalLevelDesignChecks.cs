@@ -2889,6 +2889,49 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void ScoutRolesUseDifferentHeroDistancePreferences(Campaign data)
+        {
+            // The tactical scorer must differentiate the living hero from
+            // the survey post. On identical open ground a bow should favor
+            // a longer firing lane than a closing melee fighter.
+            var original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] tiles=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=20.5f,
+                    spawnY=15.5f,rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.x=20.5f;g.save.y=15.5f;
+                var score=typeof(GameCore).GetMethod(
+                    "RegionalScoutTacticalPadScore",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(score!=null,"Patrol scorer exists for actual combat roles");
+                Point source=g.Position;
+                Point close=new Point(27.5f,15.5f);
+                Point far=new Point(30.5f,15.5f);
+                float meleeClose=(float)score.Invoke(g,new object[]{
+                    close,source,0,new List<Point>(),0});
+                float meleeFar=(float)score.Invoke(g,new object[]{
+                    far,source,0,new List<Point>(),0});
+                float bowClose=(float)score.Invoke(g,new object[]{
+                    close,source,1,new List<Point>(),0});
+                float bowFar=(float)score.Invoke(g,new object[]{
+                    far,source,1,new List<Point>(),0});
+                Check(meleeClose>meleeFar&&bowFar>bowClose,
+                    "Melee prefers an approaching foot while bows maintain range");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
         {
             MapData original=data.maps[1];
