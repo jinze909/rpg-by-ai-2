@@ -4197,7 +4197,11 @@ namespace Starfall
             }
             if(scored.Count==0)
             {
-                lastInteractionClickValid=false;
+                // Clicking empty ground explicitly dismisses an old manual
+                // focus. Otherwise the highlighted actor may remain the E
+                // target even after the pointer moved to empty terrain.
+                // This does not alter any quest, dialogue or save data.
+                ClearInteractionFocus();
                 return false;
             }
             scored.Sort((a,b)=>
