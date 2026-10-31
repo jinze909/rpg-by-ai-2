@@ -35,6 +35,63 @@ namespace Starfall
         }
         public bool TrailCircuitComplete(int room)
         { return TrailCircuitProgress(room)==3; }
+        // Resolve the NEXT authored stop by its actual living world source,
+        // rather than hardcoding a hint that points to stale scenery.
+        // The same reader serves dialogue, atlas and explicit navigation.
+        // Existing v1/v2 trail flags remain the sole authoritative progress.
+        public WorldObject NextTrailCircuitMarker(int room)
+        {
+            if(room<0||room>7||data==null||data.maps==null||
+               room>=data.maps.Length)return null;
+            MapData map=room==save.room?Map:data.maps[room];
+            if(map==null||map.objects==null||
+               TrailCircuitComplete(room))return null;
+            string id="trailcircuit_"+room+"_"+
+                (TrailCircuitProgress(room)+1);
+            foreach(WorldObject o in map.objects)
+                if(o!=null&&o.kind=="trailcircuit"&&o.id==id&&
+                   Finite(o.x)&&Finite(o.y))return o;
+            return null;
+        }
+        // Called only by an explicit atlas button; inspecting a marker or
+        // reading an account never takes the player's earlier personal pin.
+        // Reuse the tested transactional map-pin and real E-approach solver:
+        // a flood, quest gate or malformed source may reject this request.
+        public bool FollowNextTrailCircuitMarker()
+        {
+            if(mode!="map"||Dying||practicing||
+               save.room<0||save.room>7||!CanStand(Position))
+                return false;
+            WorldObject next=NextTrailCircuitMarker(save.room);
+            if(next==null||!SourceBelongsToActiveMap(next)||
+               !IsObjectPresent(next))return false;
+            Point contact;
+            if(!TryQuestApproachFoot(new Point(next.x,next.y),
+                out contact))
+            {
+                Notify("下一处巡路碑目前没有可验证的步行接近路线，保留原导航。",
+                    "No verified walk to the next trail bearing. Your existing pin is preserved.");
+                return false;
+            }
+            return PlaceLocalWaymark(contact);
+        }
+        // State-dependent, bilingual directions use authentic map sources.
+        // Telling a player only to "find the previous marker" makes three
+        // mandatory-ordered visits feel like missing quest instructions.
+        private string TrailCircuitNextBearingHint(int room,bool english)
+        {
+            WorldObject next=NextTrailCircuitMarker(room);
+            if(next==null)return "";
+            string coordinates=next.x.ToString("0.0",
+                System.Globalization.CultureInfo.InvariantCulture)+","+
+                next.y.ToString("0.0",
+                System.Globalization.CultureInfo.InvariantCulture);
+            return english?
+                "\n\nNext real road marker: "+(TrailCircuitProgress(room)+1)+
+                "/3 at ("+coordinates+"). Open the local world map to pin a verified walking approach.":
+                "\n\n下一处真实路碑："+(TrailCircuitProgress(room)+1)+
+                "/3，坐标（"+coordinates+"）。打开本地区地图，可选择经实际道路前往下一站。";
+        }
         public int TrailCircuitCount
         {
             get { int total=0;for(int i=0;i<8;i++)if(TrailCircuitComplete(i))total++;return total; }
@@ -62,16 +119,21 @@ namespace Starfall
             if(progress>=stage)
             {
                 Dialog(o.name,o.en,trailEvidenceZh[room,stage-1]+
-                    "\n\n这里已经记下"+routeZh[room]+"的第 "+stage+" 个真实坐标，可以随时重读。",
+                    "\n\n这里已经记下"+routeZh[room]+"的第 "+stage+" 个真实坐标，可以随时重读。"+
+                    TrailCircuitNextBearingHint(room,false),
                     trailEvidenceEn[room,stage-1]+
-                    "\n\nBearing "+stage+" of "+routeEn[room]+" is filed and may be reread.",
+                    "\n\nBearing "+stage+" of "+routeEn[room]+
+                    " is filed and may be reread."+
+                    TrailCircuitNextBearingHint(room,true),
                     C("继续行路","Continue","close"));
                 return true;
             }
             if(stage!=progress+1)
             {
-                Dialog(o.name,o.en,"路碑上的信息必须结合前面的记录才能辨认。先到上一处实地路标；已完成 "+progress+"/3。",
-                    "This marker relies on the earlier field bearing. Find the previous physical stop first ("+progress+"/3).",
+                Dialog(o.name,o.en,"路碑上的信息必须结合前面的记录才能辨认。必须依次记录；已完成 "+progress+"/3。"+
+                    TrailCircuitNextBearingHint(room,false),
+                    "This marker relies on earlier field bearings. Visit the stops in order ("+progress+"/3)."+
+                    TrailCircuitNextBearingHint(room,true),
                     C("寻找上一处路标","Find the earlier bearing","close"));
                 return true;
             }
@@ -91,11 +153,13 @@ namespace Starfall
             Dialog(o.name,o.en,trailEvidenceZh[room,stage-1]+
                 "\n\n你亲自核对"+routeZh[room]+"的第 "+stage+"/3 个路标。"+
                 (done?"\n\n完整线路确认：硬币 +24、碎片 +2、经验 +35。本区域的新探索地形额外恢复耐力 +2/秒。":
-                "\n\n还有下一段路需要抵达。经验 +8。"),
+                "\n\n还有下一段路需要抵达。经验 +8。"+
+                    TrailCircuitNextBearingHint(room,false)),
                 trailEvidenceEn[room,stage-1]+
                 "\n\nPersonally surveyed bearing "+stage+"/3 of "+routeEn[room]+"."+
                 (done?"\n\nFull circuit complete: +24 coins, +2 shards and +35 XP. New paths in this region now restore an extra 2 stamina per second.":
-                "\n\nContinue along the route. +8 XP."),
+                "\n\nContinue along the route. +8 XP."+
+                    TrailCircuitNextBearingHint(room,true)),
                 C("记下新坐标","Record the new bearing","close"));
             return true;
         }
