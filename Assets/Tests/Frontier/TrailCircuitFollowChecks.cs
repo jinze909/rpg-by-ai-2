@@ -107,7 +107,7 @@ namespace Starfall.Tests
             try
             {
                 g.Map.objects=Array.FindAll(original,
-                    o=>!Object.ReferenceEquals(o,third));
+                    o=>!System.Object.ReferenceEquals(o,third));
                 g.Choose(choice);
                 Check(g.HasLocalWaymark&&
                     (g.LocalWaymark.Value-previous).Length<.001f&&
