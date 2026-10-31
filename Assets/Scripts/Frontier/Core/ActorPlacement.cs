@@ -347,6 +347,10 @@ namespace Starfall
         private readonly HashSet<Enemy> remoteRoadDefeated=new HashSet<Enemy>();
         private readonly HashSet<Enemy> remoteRoadCaptured=new HashSet<Enemy>();
         private int remoteRoadRoom=-1,remoteRoadDistrict=-1;
+        // A voluntarily signed post-clear watch uses the exact same
+        // physical actor/death/capture contract as the first road battle.
+        // It can never revoke the original permanently safe crossing.
+        private bool remoteRoadVeteran;
         // A blocked tidal route can make a complete two-foe wave impossible.
         // Retry at most once every two world seconds, never every frame.
         private float remoteRoadRetrySeconds;
@@ -370,6 +374,28 @@ namespace Starfall
             {2,1, 0,2}, // Desert: plated heatwatch with distant bow pressure
             {0,2, 1,0}  // Frost: fast flank and weighty bellwatch
         };
+        private static readonly int[,] remoteRoadVeteranKinds={
+            {2,1,1,2}, // Forest: plated wardens and distant lookouts
+            {2,0,2,1}, // Ruins: armored flood guard and skirmishers
+            {1,2,2,0}, // Mine: crossfire behind a heavy breach line
+            {1,2,0,1}, // Citadel: elite bow screen and mobile guards
+            {2,1,2,0}, // Mistport: thick pier guard and fog archers
+            {1,2,2,1}, // Desert: shielded heatwatch and ranged fire
+            {2,1,1,2}  // Frost: disciplined bellwatch with archers
+        };
+        public bool RemoteRoadVeteranDone(int region,int district)
+        { return region>=1&&region<=7&&district>=0&&district<2&&
+            Has("remote_road_veteran_"+region+"_"+district); }
+        public int RemoteRoadVeteranWins
+        { get {
+            int total=0;
+            for(int r=1;r<=7;r++)
+            for(int d=0;d<2;d++)
+                if(RemoteRoadVeteranDone(r,d))total++;
+            return total;
+        }}
+        public bool RemoteRoadVeteranActive
+        {get{return RemoteRoadEncounterActive&&remoteRoadVeteran;}}
         public bool RemoteRoadEncounterActive
         { get { return remoteRoadRoom==save.room&&
             remoteRoadDistrict>=0&&
@@ -511,6 +537,7 @@ namespace Starfall
             remoteRoadDefeated.Clear();
             remoteRoadCaptured.Clear();
             remoteRoadRoom=-1;remoteRoadDistrict=-1;
+            remoteRoadVeteran=false;
             remoteRoadSource=null;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=null;remoteRoadSave=null;
             if(resetDistricts)
@@ -535,10 +562,13 @@ namespace Starfall
         // automatic world teleport. A whole two-enemy wave must fit BEFORE
         // either opponent is created. Both candidates must have a complete
         // walking route, avoid active allies/quest props and retain spacing.
-        private bool BeginRemoteRoadEncounter(WorldObject marker,int district)
+        private bool BeginRemoteRoadEncounter(WorldObject marker,int district,
+            bool veteran=false)
         {
             if(marker==null||save.room<1||save.room>7||
-               !SourceBelongsToActiveMap(marker)||district<0||district>1)
+               !SourceBelongsToActiveMap(marker)||district<0||district>1||
+               (veteran&&!RemoteRoadCleared(save.room,district))||
+               (!veteran&&RemoteRoadCleared(save.room,district)))
                 return false;
             Point center=new Point(marker.x,marker.y);
             var pads=new List<Point>();
@@ -576,13 +606,18 @@ namespace Starfall
             }
             if(pads.Count!=2)return false;
             remoteRoadRoom=save.room;remoteRoadDistrict=district;
+            remoteRoadVeteran=veteran;
             remoteRoadSource=marker;remoteRoadDisengageSeconds=0f;
             remoteRoadMap=Map;remoteRoadSave=save;
             for(int slot=0;slot<2;slot++)
             {
                 Enemy e=CreatePlacedEnemy(++enemyId,
-                    remoteRoadKinds[save.room-1,district*2+slot],
-                    pads[slot],40+save.room*11+district*8);
+                    veteran?
+                        remoteRoadVeteranKinds[save.room-1,district*2+slot]:
+                        remoteRoadKinds[save.room-1,district*2+slot],
+                    pads[slot],
+                    veteran?68+save.room*16+district*12:
+                        40+save.room*11+district*8);
                 remoteRoadFoes.Add(e);
                 enemies.Add(e);
                 regionalAmbientEnemies.Add(e);
@@ -590,9 +625,13 @@ namespace Starfall
                     {variant=e.kind});
             }
             revision++;sound="alert";
-            Notify(district==0?
+            Notify(veteran?
+                "进阶巡护：两名精锐应约来到旧路口。击败或活捉后可领取首次回执；旧路继续安全。":
+                district==0?
                 "外环巡路：前方出现两名拦路者。战斗或活捉均可解除威胁。":
                 "高地旧路：另一队巡哨发现了你，守住这条实际通路。",
+                veteran?
+                "Veteran roadwatch: two elite challengers accepted your call. Defeat or restrain them for a first-clear receipt. Civilian passage stays safe.":
                 district==0?
                 "Outer road: two raiders hold this crossing. Defeat or restrain them.":
                 "Far ridge: another patrol has spotted you. Hold the real crossing.");
@@ -633,8 +672,49 @@ namespace Starfall
                 if(remoteRoadDefeated.Count+remoteRoadCaptured.Count<2)
                     return;
                 int district=remoteRoadDistrict,region=remoteRoadRoom;
+                bool veteran=remoteRoadVeteran;
                 bool humane=remoteRoadCaptured.Count==2;
                 ResetRemoteRoadEncounter();
+                if(veteran)
+                {
+                    // Repeatable physical challenge, ONE legitimate signed
+                    // reward. Replays cannot farm coins, XP, shards or
+                    // another mastery point. No existing road clear changes.
+                    if(!RemoteRoadCleared(region,district)||
+                       RemoteRoadVeteranDone(region,district))
+                    {
+                        revision++;sound="quest";
+                        Notify("进阶巡护复训完成。原路仍安全；重复挑战不发放奖励。",
+                            "Veteran roadwatch rematch complete. Crossing stays safe; no repeat rewards.");
+                        return;
+                    }
+                    Flag("remote_road_veteran_"+region+"_"+district);
+                    CreditCoins(28+region*4);
+                    GrantXp(55+region*8,true);
+                    if(humane)CreditShards(2);
+                    RecordMoment("进阶远路巡护 · "+data.maps[region].name+
+                        "第"+(district+1)+"处路口精锐已真实击退"+
+                        (humane?"，全员活捉。":"。"),
+                        "Veteran roadwatch: defeated the real elite squad at crossing "+
+                        (district+1)+" in "+data.maps[region].en+
+                        (humane?", capturing both alive.":"."));
+                    if(RemoteRoadVeteranWins==14&&
+                       !Has("remote_road_veteran_mastered"))
+                    {
+                        Flag("remote_road_veteran_mastered");
+                        CreditSkillPoints(1);
+                        Notify("十四处进阶远路巡护完成，获得技能点1。",
+                            "All fourteen veteran roadwatches completed: +1 talent point.");
+                    }
+                    else Notify("进阶巡护回执 "+RemoteRoadVeteranWins+
+                        "/14：领取首次硬币、经验"+
+                        (humane?"与非致命碎片奖励。":"奖励。"),
+                        "Veteran roadwatch "+RemoteRoadVeteranWins+
+                        "/14: first-clear coins and XP"+
+                        (humane?", plus mercy shards.":"."));
+                    revision++;sound="reward";
+                    return;
+                }
                 if(RemoteRoadCleared(region,district))return;
                 Flag("remote_road_clear_"+region+"_"+district);
                 CreditCoins(18+region*3);
