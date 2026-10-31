@@ -5700,7 +5700,9 @@ namespace Starfall
             // Emergency encounters above and personal map pins retain
             // precedence, and no SaveData field or quest flag is rewritten.
             if(save.ending>0&&save.trackedQuest=="main"&&
-               !FieldWorkPreventsRest&&!QuestApproachTravelHandoffPending)
+               !FieldWorkPreventsRest&&!FieldPatrolActive&&
+               !FieldTacticTrialActive&&!RemoteRoadEncounterActive&&
+               !QuestApproachTravelHandoffPending)
                 return null;
             QuestGuide q = RecommendedContinuationGuide;
             if (q.complete || q.locked) return null;
