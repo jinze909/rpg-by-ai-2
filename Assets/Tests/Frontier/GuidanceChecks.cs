@@ -305,6 +305,93 @@ namespace Starfall.Tests
                 "Suggestion preserves the original v2 quest tracking schema");
         }
 
+        public static void LiveFieldworkOverridesStaleQuestCompassWithoutRewritingTracking(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.enemies.Clear();g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            WorldObject kit=Array.Find(g.Map.objects,
+                o=>o.id=="fieldKit1"&&o.kind=="fieldKit");
+            WorldObject original=Array.Find(g.Map.objects,
+                o=>o.id=="biomeSurvey1"&&o.kind=="biomeSurvey");
+            Check(kit!=null&&original!=null&&PlaceWithinTalkReach(g,kit),
+                "The original field source and handoff exist");
+            g.save.trackedQuest="main";
+            g.save.energy=100f;g.save.inventory[0]=6;
+            g.save.inventory[4]=6;g.save.inventory[2]=6;
+            g.Talk(kit);
+            int begin=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_outpost_begin");
+            Check(begin>=0,"Real recovered kit offers its live road defense");
+            g.Choose(begin);
+            Check(g.FieldOutpostActive&&g.FieldOutpostRemaining==2&&
+                g.RecommendedContinuationGuide.id=="field_outposts"&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-g.FieldOutpostGuideTarget).Length<.001f&&
+                g.save.trackedQuest=="main",
+                "Outpost defense owns HUD and compass while saved main tracking stays untouched");
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Live damage owns outpost combat resolution");
+            Enemy[] foes=g.enemies.ToArray();
+            foreach(Enemy foe in foes)
+                hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+            Check(g.FieldOutpostReady&&g.FieldOutpostRemaining==0&&
+                g.RecommendedContinuationGuide.id=="field_outposts"&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-new Point(kit.x,kit.y)).Length<.001f,
+                "Cleared outpost compass returns to original physical construction site");
+            g.Close();g.save.x=kit.x;g.save.y=kit.y;g.Talk(kit);
+            int ward=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_outpost_ward");
+            Check(ward>=0,"Original kit offers the permanent construction handoff");
+            g.Choose(ward);
+            Check(!g.FieldOutpostActive&&g.FieldOutpostBuilt(1),
+                "Signed defense relinquishes temporary HUD priority");
+            g.Close();g.Talk(kit);
+            int courier=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start");
+            Check(courier>=0,"Built physical facility offers paid cargo delivery");
+            g.Choose(courier);
+            Point checkpoint=g.FieldDispatchTarget;
+            Check(g.FieldDispatchActive&&g.FieldDispatchStage==1&&
+                g.RecommendedContinuationGuide.id=="field_dispatches"&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-checkpoint).Length<.001f&&
+                g.save.trackedQuest=="main",
+                "Cargo first leg moves HUD and compass to original machine without altering saved tracking");
+            WorldObject machine=Array.Find(g.Map.objects,
+                o=>o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-checkpoint).Length<.001f);
+            Check(machine!=null,"Signed stage belongs to original machine");
+            g.Close();g.save.x=machine.x;g.save.y=machine.y;
+            g.Talk(machine);
+            int sign=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_checkpoint");
+            Check(sign>=0,"Actual machine offers step registration");
+            g.Choose(sign);
+            Check(g.FieldDispatchStage==2&&
+                g.RecommendedContinuationGuide.id=="field_dispatches"&&
+                g.NavigationTarget().HasValue&&
+                (g.NavigationTarget().Value-new Point(original.x,original.y)).Length<.001f&&
+                g.save.trackedQuest=="main",
+                "Signed first leg automatically guides next original physical handoff");
+            g.Close();g.save.x=original.x;g.save.y=original.y;
+            g.Talk(original);
+            int end=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_finish");
+            Check(end>=0,"Real survey allows completion");
+            g.Choose(end);
+            Check(!g.FieldDispatchActive&&g.FieldDispatchDone(1)&&
+                g.save.trackedQuest=="main",
+                "Completed cargo does not force player to follow a different quest");
+            g.PrepareSave();var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&restored.save.trackedQuest=="main"&&
+                !restored.FieldDispatchActive,
+                "Old v2 save retains manual tracked story and no ephemeral cargo owner");
+        }
+
         public static void WorldLabelsFocusOnNearbyActionsWithoutOverlapping(Campaign data)
         {
             Check(WorldLabelPolicy.Priority(60f,false,false)==0&&

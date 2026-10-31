@@ -1202,6 +1202,13 @@ namespace Starfall
                 if(CivicConduitActive)return GetQuest("civic_conduit");
                 if(FrostSignalActive)return GetQuest("frost_signal");
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
+                // These paid, live field operations have genuine enemy
+                // ownership and a physical handoff. A stale journal
+                // selection cannot strand a carried parcel or send its
+                // defender toward another region. This is HUD-only; do not
+                // change tracking, personal pins, or SaveData v2.
+                if(FieldDispatchActive)return GetQuest("field_dispatches");
+                if(FieldOutpostActive)return GetQuest("field_outposts");
                 // Active physical road operations already own the world
                 // compass. Their journal/HUD objective must agree rather
                 // than showing an unrelated manually tracked mission.
@@ -5678,6 +5685,12 @@ namespace Starfall
             if(OuterPatrolActive)return outerPatrolPost;
             if(OuterDeliveryActive)return GetQuest("outer_delivery").target;
             if(FieldTacticTrialActive)return FieldTacticTrialGuideTarget;
+            // The carried parcel and live field-kit raid own the physical
+            // objective until final handoff or explicit withdrawal. The
+            // Guide and arrow must name the SAME source even if the hero
+            // had been tracking another distant adventure.
+            if(FieldDispatchActive)return FieldDispatchTarget;
+            if(FieldOutpostActive)return FieldOutpostGuideTarget;
             // A live paid civilian patrol is an actual local encounter.
             // Its direction must follow surviving contracted enemies, then
             // return to the signing post, even if the journal still tracks
