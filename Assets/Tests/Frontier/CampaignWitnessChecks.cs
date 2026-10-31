@@ -508,6 +508,11 @@ namespace Starfall.Tests
                     g.WitnessDefenseTime>=64 &&
                     g.enemies.FindAll(g.IsWitnessEnemy).Count==2,
                     "Live chapter defense spawns two actual patrol guards within 65 seconds");
+                g.save.trackedQuest="main";
+                Check(g.RecommendedContinuationGuide.id=="campaign_witness"&&
+                    g.GuidanceHint().Contains(g.GetQuest("campaign_witness").next)&&
+                    g.save.trackedQuest=="main",
+                    "Real witness defense overrides stale story HUD without rewriting saved tracking");
                 g.Enter(0);
                 Check(g.save.room==region && g.WitnessDefenseRoom==region,
                     "A story combat cannot be evaded by opening fast travel");
