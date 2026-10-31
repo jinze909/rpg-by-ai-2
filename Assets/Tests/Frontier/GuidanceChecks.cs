@@ -321,6 +321,19 @@ namespace Starfall.Tests
                 "A nearby ambient sign cannot erase urgent mission status");
             candidates.Clear();
             candidates.Add(new WorldLabelSlot{owner=ordinary,
+                x=90,y=120,width=180,height=24,distance=.25f,priority=3});
+            candidates.Add(new WorldLabelSlot{owner=objective,
+                x=110,y=120,width=180,height=24,distance=3f,
+                priority=3,urgent=true});
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==1&&kept[0]==1,
+                "Same-rank urgent battle cues beat closer ambient captions");
+            candidates.Reverse();
+            WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
+            Check(kept.Count==1&&kept[0]==0,
+                "Urgent cue ownership survives source-array reorder");
+            candidates.Clear();
+            candidates.Add(new WorldLabelSlot{owner=ordinary,
                 x=float.NaN,y=100,width=50,height=22,distance=1f,priority=3});
             WorldLabelPolicyExtensions.Select(candidates,kept,scratch);
             Check(kept.Count==0,
