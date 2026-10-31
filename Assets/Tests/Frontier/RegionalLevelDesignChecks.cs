@@ -2162,6 +2162,49 @@ namespace Starfall.Tests
                 "Canal town crossing cost is not mistakenly changed by seven outer-road rewards");
         }
 
+        // On open authentic walkable terrain, the visible first raider
+        // and its companion must NOT stack into an identical approach.
+        // This runs the original remote-road event transaction and exact
+        // combat body creation, not a coordinate-only helper.
+        public static void RemoteRoadAmbushChoosesActualOpposingFlankWhenOpen(Campaign data)
+        {
+            MapData saved=data.maps[1];
+            try
+            {
+                var rows=new string[55];
+                for(int y=0;y<55;y++)
+                {
+                    char[] line=new string('.',55).ToCharArray();
+                    for(int x=0;x<55;x++)
+                        if(x<2||x>=53||y<2||y>=53)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                WorldObject marker=new WorldObject{
+                    id="ridge_route_1_0",kind="ridgemarker",
+                    name="Open Crossing",en="Open Crossing",
+                    x=27.5f,y=27.5f};
+                data.maps[1]=new MapData{
+                    id=1,spawnX=27.5f,spawnY=27.5f,
+                    rows=rows,objects=new[]{marker},
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.stage=3;g.save.x=marker.x;g.save.y=marker.y;
+                g.enemies.Clear();
+                g.Tick(.02f,new Point());
+                Check(g.RemoteRoadEncounterActive&&g.enemies.Count==2,
+                    "Original real crossing spawns both visible physical foes");
+                Point a=(g.enemies[0].Position-g.Position).Normalized;
+                Point b=(g.enemies[1].Position-g.Position).Normalized;
+                Check(a.x*b.x+a.y*b.y<-.2f,
+                    "Second live raider comes from an opposing sector, not the same warning lane");
+                foreach(Enemy e in g.enemies)
+                    Check(g.CanStand(e.Position)&&
+                        g.NavigationPathFrom(g.Position,e.Position,true).Count>0,
+                        "Opposing raiders have complete original walking and contact routes");
+            }
+            finally {data.maps[1]=saved;}
+        }
+
         public static void RemoteRoadOpeningAmbushesEnterPhysicalAwarenessRange(Campaign data)
         {
             var sight=typeof(GameCore).GetMethod("ClearAttackPath",

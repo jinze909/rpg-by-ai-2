@@ -577,8 +577,10 @@ namespace Starfall
             for(int slot=0;slot<2;slot++)
             {
                 bool found=false;
-                for(int radius=5;radius<=8&&!found;radius++)
-                for(int offset=0;offset<8&&!found;offset++)
+                Point bestFlank=new Point();
+                float bestFlankScore=float.NegativeInfinity;
+                for(int radius=5;radius<=8;radius++)
+                for(int offset=0;offset<8;offset++)
                 {
                     int d=(save.room*3+district*5+slot*4+offset)%8;
                     Point foot=new Point(
@@ -586,9 +588,32 @@ namespace Starfall
                             dirs[d,0]*radius,
                         (float)Math.Floor(marker.y)+.5f+
                             dirs[d,1]*radius);
-                    if(RemoteRoadCombatFootClear(foot,center,slot,pads))
-                    { pads.Add(foot);found=true; }
+                    if(!RemoteRoadCombatFootClear(foot,center,slot,pads))
+                        continue;
+                    if(slot==0)
+                    {
+                        // The opening warning comes from an actually
+                        // visible, original physical attacker. Keep the
+                        // proven first-foe sector and near-first fallback.
+                        pads.Add(foot);found=true;break;
+                    }
+                    // Rank all live reachable candidates instead of
+                    // accepting the first coordinate. A second raider
+                    // approaching from the far side creates legible
+                    // cross-pressure rather than overlapping silhouettes.
+                    // A wall or sealed gate STILL vetoes every pad through
+                    // RemoteRoadCombatFootClear before any score is read.
+                    Point first=(pads[0]-Position).Normalized;
+                    Point other=(foot-Position).Normalized;
+                    float dot=first.x*other.x+first.y*other.y;
+                    float spread=(foot-pads[0]).Length;
+                    float score=(1f-dot)*10f+
+                        Math.Min(16f,spread)*.15f-
+                        (foot-Position).Length*.015f;
+                    if(score>bestFlankScore)
+                    {bestFlankScore=score;bestFlank=foot;found=true;}
                 }
+                if(slot==1&&found)pads.Add(bestFlank);
             }
             if(pads.Count!=2)
             {
