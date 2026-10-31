@@ -158,8 +158,12 @@ namespace Starfall.Tests
                 next.room>=0&&next.room<data.maps.Length&&
                 g.CanEnter(next.room)&&g.save.trackedQuest=="main",
                 "Post-finale recommendation finds accessible work without reopening or altering the completed story");
-            Check(g.GuidanceHint().Contains(g.L("接下来：","NEXT: ")),
-                "The player receives an explicit next-step handoff");
+            Check(g.NavigationTarget()==null&&
+                g.GuidanceHint().Contains(g.L("主线已经完结","main story is complete")),
+                "The finished main story does not order a new quest or paint a mandatory world arrow");
+            Check(g.CanFollowRecommendedAdventure&&
+                g.RecommendedContinuationGuide.id==next.id,
+                "Optional afterstory is still discoverable with a deliberate follow action");
             g.TrackQuest(next.id);
             Check(g.RecommendedContinuationGuide.id==next.id&&
                 g.save.trackedQuest==next.id,

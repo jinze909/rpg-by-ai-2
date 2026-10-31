@@ -1204,6 +1204,15 @@ namespace Starfall
         }
         public string GuidanceHint()
         {
+            // After the ending the player owns free exploration. A voluntary
+            // afterstory recommendation stays available in the journal/HUD
+            // follow action, but must not read as a mandatory fifth chapter.
+            // Real active rescues and deliberately selected side quests still
+            // keep their ordinary immediate instructions.
+            if(save.ending>0&&save.trackedQuest=="main"&&
+               !FieldWorkPreventsRest&&!FieldTacticTrialActive&&
+               !RemoteRoadEncounterActive)
+                return GetQuest("main").next;
             QuestGuide q=RecommendedContinuationGuide;
             if(q.complete||q.locked)
                 return L("当前任务已结束。打开 TAB 任务手帐选择新的冒险。",
@@ -5672,6 +5681,14 @@ namespace Starfall
                 return null;
             Point? personal=LocalWaymark;
             if(personal.HasValue&&!FieldWorkPreventsRest)return personal;
+            // A completed finale is not an implicit contract to undertake
+            // the next available optional quest. Leave the world compass
+            // free until the player explicitly tracks/follows that work.
+            // Emergency encounters above and personal map pins retain
+            // precedence, and no SaveData field or quest flag is rewritten.
+            if(save.ending>0&&save.trackedQuest=="main"&&
+               !FieldWorkPreventsRest&&!QuestApproachTravelHandoffPending)
+                return null;
             QuestGuide q = RecommendedContinuationGuide;
             if (q.complete || q.locked) return null;
             if(q.room==save.room)return q.target;
