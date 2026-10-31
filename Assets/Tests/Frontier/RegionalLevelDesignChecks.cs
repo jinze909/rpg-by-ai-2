@@ -13,6 +13,71 @@ namespace Starfall.Tests
         // these new pass tiles temporarily sealed; no old story gate,
         // '?' bridge, scripted breach or map-object coordinate is altered.
 
+
+        public static void IronMineHaulageShortcutsOfferSafeLocalVentilation(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=3;
+            g.save.stage=3;g.enemies.Clear();
+            MapData map=g.Map;
+            int[,] cuts={
+                {38,61,38,64,38,39,62,63,35},
+                {88,61,88,64,88,89,62,63,50},
+                {31,69,31,72,31,32,70,71,75}
+            };
+            int originalCoins=g.save.coins;
+            Check(g.IronMineHaulageCutCount==0&&!g.IronMineBreathingShaft,
+                "Old saves have no falsely completed mine restoration");
+            for(int i=0;i<3;i++)
+            {
+                Point a=new Point(cuts[i,0]+.5f,cuts[i,1]+.5f);
+                Point b=new Point(cuts[i,2]+.5f,cuts[i,3]+.5f);
+                Check(g.CanStand(a)&&g.CanStand(b),
+                    "Real mine haul roads are reachable at both ends");
+                string[] sourceRows=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=cuts[i,6];y<=cuts[i,7];y++)
+                    {
+                        char[] chars=map.rows[y].ToCharArray();
+                        for(int x=cuts[i,4];x<=cuts[i,5];x++)
+                        {
+                            Check(chars[x]=='='&&g.CanStand(new Point(x+.5f,y+.5f)),
+                                "New mine passage tiles have real physical player clearance");
+                            chars[x]='#';
+                        }
+                        map.rows[y]=new string(chars);
+                    }
+                    Check(g.NavigationPathFrom(a,b,true).Count>=cuts[i,8],
+                        "A closed mine ridge forces genuine extended travel");
+                }
+                finally{map.rows=sourceRows;}
+                int path=g.NavigationPathFrom(a,b,true).Count;
+                Check(path>0&&path<=9,
+                    "Opened mine haulage cuts shorten physical navigation without gates");
+                g.save.x=(cuts[i,4]+cuts[i,5])*.5f+.5f;
+                g.save.y=(cuts[i,6]+cuts[i,7])*.5f+.5f;
+                Check(g.IronMineBreathingShaft==false,
+                    "The breathing effect requires all three actually discovered cuts");
+                g.Tick(.02f,new Point());
+                Check(g.Has("iron_haulage_"+i)&&g.IronMineHaulageCutCount==i+1,
+                    "Physical mine exploration leaves one permanent v2 flag per passage");
+            }
+            Check(g.Has("iron_haulage_ventilated")&&
+                g.IronMineBreathingShaft&&
+                g.save.coins==originalCoins+34&&g.save.version==2,
+                "Three working passages activate only their local ventilation reward");
+            int reward=g.save.coins;
+            g.Tick(.02f,new Point());
+            Check(g.save.coins==reward,
+                "Standing in the breathable gallery cannot repeat its reward");
+            g.save.x=10.5f;g.save.y=13.5f;
+            Check(!g.IronMineBreathingShaft,
+                "Restored mine ventilation never becomes a remote full-map buff");
+            g.save.room=2;
+            Check(!g.IronMineBreathingShaft,
+                "The new energy service never leaks into unrelated regions");
+        }
+
         public static void RuinsRaisedCausewaysCreateActualDryAlternateRoutes(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=2;

@@ -2577,6 +2577,71 @@ namespace Starfall
                 Notify("桥端的水位刻线表明，这座石道在深水时仍可安全通行。",
                     "Tide marks show that this raised stone path remained passable in deep water.");
         }
+
+        // The Red Iron Mine used to force long backtracking around solid
+        // ridges, even between adjacent areas of open ground. These three
+        // genuine haulage cuts provide physical alternatives without
+        // bypassing authored story seals or teleporting the hero.
+        public int IronMineHaulageCutCount
+        {
+            get
+            {
+                int n=0;
+                for(int i=0;i<3;i++)
+                    if(Has("iron_haulage_"+i))n++;
+                return n;
+            }
+        }
+        // Restored mine ventilation is a local field service, not a
+        // permanent class stat. The breathable shafts only help in safe
+        // world time, beside their original stone mouth.
+        public bool IronMineBreathingShaft
+        {
+            get
+            {
+                if(save.room!=3||!Has("iron_haulage_ventilated")||
+                    !CanStand(Position))return false;
+                int x=(int)Math.Floor(Position.x),
+                    y=(int)Math.Floor(Position.y);
+                return (x>=38&&x<=39&&y>=62&&y<=63)||
+                    (x>=88&&x<=89&&y>=62&&y<=63)||
+                    (x>=31&&x<=32&&y>=70&&y<=71);
+            }
+        }
+        private void TickIronMineHaulageCuts()
+        {
+            if(save.room!=3||Dying||practicing||racing||
+               !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),
+                y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int site=x>=38&&x<=39&&y>=62&&y<=63?0:
+                x>=88&&x<=89&&y>=62&&y<=63?1:
+                x>=31&&x<=32&&y>=70&&y<=71?2:-1;
+            if(site<0||Has("iron_haulage_"+site))return;
+            Flag("iron_haulage_"+site);revision++;sound="ui";
+            if(IronMineHaulageCutCount==3&&
+               !Has("iron_haulage_ventilated"))
+            {
+                Flag("iron_haulage_ventilated");
+                CreditCoins(34);AddXp(30);sound="reward";revision++;
+                Notify("三处旧矿道恢复连通。通风井可在安全时恢复耐力。硬币 +34，经验 +30。",
+                    "All three abandoned haulage ways are linked. Their ventilation restores stamina outside danger. +34 coins, +30 XP.");
+                RecordMoment(
+                    "矿工刻在巷道里的家族记号重新接通了三条旧运矿路。如今居民可避开矿场的危险长绕路，并在通风井旁歇脚。",
+                    "Old miner family marks reconnect three haulage cuts. Civilians can bypass the dangerous detours and recover by their working air shafts.");
+            }
+            else if(site==0)
+                Notify("断裂石层背后藏着矿工留下的短巷，空气仍从深处缓缓流过。",
+                    "A miner's narrow passage cuts through broken rock; cool air still rises from below.");
+            else if(site==1)
+                Notify("另一处侧井连接了两条运矿路。旧支柱上的平民避难箭头还在。",
+                    "A side shaft joins the haul roads. Civilian evacuation arrows survive on the bracing.");
+            else
+                Notify("南部石廊通向旧通风系统。三处巷道合拢后，风会重新流动。",
+                    "The southern gallery leads toward the old ventilation system; linking all three cuts restores its draft.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2601,6 +2666,10 @@ namespace Starfall
             }
             TickThornwoodCanopyCuts();
             TickRuinsCauseways();
+            TickIronMineHaulageCuts();
+            if(!practicing&&!racing&&!FieldWorkPreventsRest&&
+               IronMineBreathingShaft&&SafeTravel)
+                save.energy=Math.Min(100f,save.energy+dt*4f);
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
             if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
