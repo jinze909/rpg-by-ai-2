@@ -12877,15 +12877,26 @@ public static class RuntimeCombatInputChecks
             "Real woodland ridge opens a visible multi-tile patrol corridor");
         // Move the live watcher using the same production tick while the
         // player is across the actual huge outdoor map.
-        for(int i=0;i<10;i++)
+        float actualTravel=0f,maxExcursion=0f;
+        bool genuineGait=false;
+        for(int i=0;i<18;i++)
         {
+            Point before=watcher.Position;
             g.save.totalTime+=.3f;
             CallCore(g,"TickRidgeWatchPatrols",.3f);
+            actualTravel+=(watcher.Position-before).Length;
+            maxExcursion=Math.Max(maxExcursion,(watcher.Position-old).Length);
+            genuineGait|=watcher.moving&&watcher.moveVelocity.Length>.01f;
         }
-        Check((watcher.Position-old).Length>.65f&&
-            g.CanStand(watcher.Position)&&
-            watcher.moving&&watcher.moveVelocity.Length>.01f,
-            "Real patrol makes visible physical progress with gait velocity rather than a stationary wobble");
+        // A real out-and-back patrol can finish close to its original
+        // marker. Inspect actual frame-by-frame travel, not only the
+        // accidentally near-zero displacement at the end of a circuit.
+        Check(actualTravel>1.1f&&maxExcursion>.45f&&
+            g.CanStand(watcher.Position)&&genuineGait,
+            "Real patrol must physically move and animate: walked="+
+            actualTravel+" excursion="+maxExcursion+
+            " gait="+genuineGait+" actual="+watcher.Position.x+","+
+            watcher.Position.y+" target="+desired.x+","+desired.y);
         Point beforeAlert=watcher.Position;
         ((HashSet<Enemy>)CoreField(g,"patrolsThatSawHero")).Add(watcher);
         for(int i=0;i<4;i++)
