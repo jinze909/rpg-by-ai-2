@@ -1264,7 +1264,7 @@ namespace Starfall
                     WorldObject member=options[other];
                     Point memberFoot=member==null?Game.reliefFollowerPosition:
                         new Point(member.x,member.y);
-                    if(!GameCore.WorldInteractionFeetCoincide(foot,memberFoot))
+                    if(!GameCore.WorldInteractionSilhouettesOverlap(foot,memberFoot))
                         continue;
                     drawn[other]=true;overlapCount++;
                     if(objective!=null&&

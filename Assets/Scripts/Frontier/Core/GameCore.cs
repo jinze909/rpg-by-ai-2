@@ -193,6 +193,15 @@ namespace Starfall
         private bool interactionFocusNeedsConfirmation;
         private MapData interactionFocusMap;
         private SaveData interactionFocusSave;
+        // A repeated right-click cycles ACTUALLY overlapping painted
+        // silhouettes. Bind the click to one pointer/map/save and last
+        // physical target: clicking a different place must first pick its
+        // nearest body, not cycle an unrelated old selection.
+        private Point lastInteractionClickFoot;
+        private WorldObject lastInteractionClickTarget;
+        private bool lastInteractionClickRelief, lastInteractionClickValid;
+        private MapData lastInteractionClickMap;
+        private SaveData lastInteractionClickSave;
         // Dialogue is bound to BOTH the real source object and the map in
         // which the player originally opened it. The same world coordinates
         // in a later region or a replaced/deleted NPC are not authorization.
@@ -3933,6 +3942,15 @@ namespace Starfall
                 Finite(b.x)&&Finite(b.y)&&
                 (a-b).Length<=.17f;
         }
+        // Interaction reach and E's two-press safety stay foot-exact.
+        // Painted NPC bodies, however, are wider/taller than their feet.
+        // Merge their WORLD badges and allow repeat-click selection across
+        // those real overlapping sprites, without merging source identity.
+        public static bool WorldInteractionSilhouettesOverlap(Point a,Point b)
+        {
+            return Finite(a.x)&&Finite(a.y)&&Finite(b.x)&&Finite(b.y)&&
+                Math.Abs(a.x-b.x)<=.72f&&Math.Abs(a.y-b.y)<=.72f;
+        }
         private bool HasPhysicalInteractionReach(WorldObject o)
         {
             if(o==null||!IsObjectPresent(o)||IsObjectFromAnotherMap(o))return false;
@@ -3963,6 +3981,9 @@ namespace Starfall
             interactionFocusNeedsConfirmation=false;
             interactionFocusMap=null;
             interactionFocusSave=null;
+            lastInteractionClickValid=false;
+            lastInteractionClickMap=null;
+            lastInteractionClickSave=null;
         }
         public bool CrowdedInteractionConfirmationPending
         {
@@ -4097,6 +4118,7 @@ namespace Starfall
             // O/R3 and actual pointed row/click are deliberate source
             // selections; they do not need the E preview safety step.
             interactionFocusNeedsConfirmation=false;
+            lastInteractionClickValid=false; // O, list and quest focus start fresh.
             interactionFocus=selected;
             interactionFocusRelief=selected==null;
             interactionFocusMap=Map;
@@ -4161,8 +4183,7 @@ namespace Starfall
                !Finite(worldPointer.x)||!Finite(worldPointer.y)||
                !CanStand(Position))return false;
             var options=NearbyInteractionChoices();
-            var hits=new List<int>();
-            float best=float.MaxValue;
+            var scored=new List<KeyValuePair<int,float>>();
             for(int i=0;i<options.Count;i++)
             {
                 WorldObject o=options[i];
@@ -4171,39 +4192,63 @@ namespace Starfall
                 float dy=worldPointer.y-foot.y;
                 if(!Finite(dx)||!Finite(dy)||dx>.65f||
                    dy< -1.25f||dy>.45f)continue;
-                // Screen-space character silhouettes extend above the feet.
-                // Prefer the clicked column; use torso height only to break
-                // close ties between actors in that column.
-                float score=dx*dx+.25f*(dy+.35f)*(dy+.35f);
-                if(score<best-.01f)
-                {
-                    best=score;
-                    hits.Clear();
-                    hits.Add(i);
-                }
-                else if(score<=best+.01f)
-                    hits.Add(i);
+                scored.Add(new KeyValuePair<int,float>(i,
+                    dx*dx+.25f*(dy+.35f)*(dy+.35f)));
             }
-            if(hits.Count==0)return false;
-            int selected=hits[0];
-            if(hits.Count>1)
+            if(scored.Count==0)
             {
-                // Two speakers can share identical painted feet. Repeated
-                // clicks at those same pixels advance only within that
-                // overlapping cluster; the existing O/R3 list remains an
-                // alternative for keyboard/controller users.
-                WorldObject current=Nearest();
-                if(InteractionReliefFocusIsValid()||
-                   ReliefCivilianIsInteractionTarget(current))
-                    current=null;
-                for(int i=0;i<hits.Count;i++)
-                    if(Object.ReferenceEquals(options[hits[i]],current))
+                lastInteractionClickValid=false;
+                return false;
+            }
+            scored.Sort((a,b)=>
+            {
+                int byScore=a.Value.CompareTo(b.Value);
+                return byScore!=0?byScore:a.Key.CompareTo(b.Key);
+            });
+            int primary=scored[0].Key;
+            WorldObject primaryObject=options[primary];
+            Point firstFoot=primaryObject==null?reliefFollowerPosition:
+                new Point(primaryObject.x,primaryObject.y);
+            var cluster=new List<int>();
+            foreach(var candidate in scored)
+            {
+                if(candidate.Value>scored[0].Value+.20f)continue;
+                WorldObject member=options[candidate.Key];
+                Point foot=member==null?reliefFollowerPosition:
+                    new Point(member.x,member.y);
+                if(WorldInteractionSilhouettesOverlap(firstFoot,foot))
+                    cluster.Add(candidate.Key);
+            }
+            int selected=primary;
+            // The FIRST click at a NEW screen point always picks its best
+            // physical actor; only repeating this exact hit cycles all
+            // silhouettes under it. Do not mistake an earlier O/list
+            // selection, stale room or removed civilian for a second click.
+            bool repeated=lastInteractionClickValid&&
+                Object.ReferenceEquals(lastInteractionClickMap,Map)&&
+                Object.ReferenceEquals(lastInteractionClickSave,save)&&
+                (worldPointer-lastInteractionClickFoot).Length<.12f;
+            if(repeated&&cluster.Count>1)
+            {
+                for(int i=0;i<cluster.Count;i++)
+                {
+                    WorldObject member=options[cluster[i]];
+                    if(Object.ReferenceEquals(member,lastInteractionClickTarget)&&
+                       (member==null)==lastInteractionClickRelief&&
+                       Object.ReferenceEquals(member,Nearest()))
                     {
-                        selected=hits[(i+1)%hits.Count];
+                        selected=cluster[(i+1)%cluster.Count];
                         break;
                     }
+                }
             }
-            return FocusNearbyInteraction(selected);
+            if(!FocusNearbyInteraction(selected))return false;
+            lastInteractionClickFoot=worldPointer;
+            lastInteractionClickTarget=options[selected];
+            lastInteractionClickRelief=options[selected]==null;
+            lastInteractionClickMap=Map;lastInteractionClickSave=save;
+            lastInteractionClickValid=true;
+            return true;
         }
         // When the player DELIBERATELY follows a quest's actual walking
         // approach, reaching the verified contact side makes that exact
