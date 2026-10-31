@@ -2802,8 +2802,9 @@ namespace Starfall.Tests
                     c=>c.action=="biome_patrol_begin");
                 Check(begin>=0,"Actual field contract must remain signed");
                 g.Choose(begin);
-                Check(g.FieldPatrolActive&&g.enemies.Count>=2,
-                    "The encounter must spawn real named living actors");
+                int expected=(room==2||room==3||room==6)?3:2;
+                Check(g.FieldPatrolActive&&g.enemies.Count==expected,
+                    "Every signed region patrol must spawn its entire authored squad");
                 Enemy first=g.enemies[0];
                 Check(first.kind==firstKinds[room-1]&&
                     g.CanStand(first.Position)&&
