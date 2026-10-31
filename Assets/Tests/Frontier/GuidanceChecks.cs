@@ -229,6 +229,15 @@ namespace Starfall.Tests
                     (System.Object.ReferenceEquals(g.Nearest(),one)||
                      System.Object.ReferenceEquals(g.Nearest(),two)),
                     "Repeated world-click cycles the overlapping speakers");
+                // The third sprite is still inside the pointer's body hitbox,
+                // although its foot scores more than .20 beyond the first.
+                // It must not become permanently unclickable behind A/B.
+                Check(g.FocusNearbyInteractionAt(new Point(11.5f,10.5f))&&
+                    System.Object.ReferenceEquals(g.Nearest(),three),
+                    "Repeated click reaches the farther overlapping actor too");
+                Check(g.FocusNearbyInteractionAt(new Point(11.5f,10.5f))&&
+                    System.Object.ReferenceEquals(g.Nearest(),firstClick),
+                    "Overlapping actor cycle wraps to the original source");
                 // A closed wall must invalidate the stale explicit selection
                 // rather than allowing a dialogue to bleed across colliders.
                 char[] closed=rows[10].ToCharArray();closed[11]='#';
