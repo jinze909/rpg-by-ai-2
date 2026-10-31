@@ -1183,9 +1183,13 @@ namespace Starfall
                     Text(s.x-147,s.y+17,294,26,label,14,paper,
                         TextAnchor.MiddleCenter);
                     Text(s.x-147,s.y+42,294,19,
-                        Game.L("右键点选 · O / R3 · 切换交互对象",
-                               "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
-                        11,muted,TextAnchor.MiddleCenter);
+                        Game.CrowdedInteractionConfirmationPending?
+                            Game.L("再次按 E 确认当前目标 · O / R3 切换",
+                                "PRESS E AGAIN TO CONFIRM · O / R3 CYCLE"):
+                            Game.L("右键点选 · O / R3 · 切换交互对象",
+                                "RIGHT-CLICK · O / R3 · CYCLE INTERACTION"),
+                        11,Game.CrowdedInteractionConfirmationPending?mint:muted,
+                        TextAnchor.MiddleCenter);
                 }
                 else
                 {
@@ -1220,26 +1224,47 @@ namespace Starfall
             // highlight a guess, an inaccessible source or a retired prop.
             if(objective!=null)
                 Ring(new Point(objective.x,objective.y),.76f,gold,24);
-            int visiblePips=Math.Min(6,options.Count);
-            for(int slot=0;slot<visiblePips;slot++)
+            // Distinct E sources can use exactly the same authored foot.
+            // Painting their badges separately made every number and ring
+            // overlap; one readable cluster now shows the selected source
+            // and its count, while all source rows remain separately live.
+            var drawn=new bool[options.Count];
+            int emitted=0;
+            for(int slot=0;slot<options.Count&&emitted<6;slot++)
             {
                 int index=(at+slot)%options.Count;
+                if(drawn[index])continue;
                 WorldObject obj=options[index];
                 Point foot=obj==null?Game.reliefFollowerPosition:
                     new Point(obj.x,obj.y);
-                bool chosen=slot==0;
-                Color ink=chosen?mint:
-                    objective!=null&&System.Object.ReferenceEquals(obj,objective)?gold:
+                int overlapCount=0;
+                bool containsObjective=false;
+                for(int other=0;other<options.Count;other++)
+                {
+                    if(drawn[other])continue;
+                    WorldObject member=options[other];
+                    Point memberFoot=member==null?Game.reliefFollowerPosition:
+                        new Point(member.x,member.y);
+                    if(!GameCore.WorldInteractionFeetCoincide(foot,memberFoot))
+                        continue;
+                    drawn[other]=true;overlapCount++;
+                    if(objective!=null&&
+                        System.Object.ReferenceEquals(member,objective))
+                        containsObjective=true;
+                }
+                bool chosen=index==at;
+                Color ink=chosen?mint:containsObjective?gold:
                     PixelArt.C("#9aaeb4");
                 Ring(foot,chosen?.62f:.44f,ink,chosen?22:16);
                 Point screen=ScreenPoint(foot);
-                // Keep the numbered label small and offset from the
-                // actor's torso so overlapping body pixels remain readable.
-                Box(screen.x+9,screen.y-26,23,21,
+                int badgeWidth=overlapCount>1?43:23;
+                Box(screen.x+9,screen.y-26,badgeWidth,21,
                     new Color(.035f,.075f,.12f,.9f));
-                Text(screen.x+10,screen.y-26,21,20,
-                    (index+1).ToString(),12,ink,
-                    TextAnchor.MiddleCenter);
+                Text(screen.x+10,screen.y-26,badgeWidth-2,20,
+                    (index+1).ToString()+
+                        (overlapCount>1?" ×"+overlapCount:""),
+                    12,ink,TextAnchor.MiddleCenter);
+                emitted++;
             }
             int displayed=Math.Min(4,options.Count);
             float x=56f,y=516f,width=366f;

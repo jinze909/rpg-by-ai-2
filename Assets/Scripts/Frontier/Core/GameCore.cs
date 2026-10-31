@@ -3731,6 +3731,14 @@ namespace Starfall
             // (and test fixtures); absence from a map is not proof of staleness.
             return false;
         }
+        // Co-located painted feet only; not the larger E contact
+        // radius. Share this definition with the HUD cluster renderer.
+        public static bool WorldInteractionFeetCoincide(Point a,Point b)
+        {
+            return Finite(a.x)&&Finite(a.y)&&
+                Finite(b.x)&&Finite(b.y)&&
+                (a-b).Length<=.17f;
+        }
         private bool HasPhysicalInteractionReach(WorldObject o)
         {
             if(o==null||!IsObjectPresent(o)||IsObjectFromAnotherMap(o))return false;
@@ -4150,7 +4158,8 @@ namespace Starfall
                     if(other==null||System.Object.ReferenceEquals(other,o)||
                         !IsObjectPresent(other)||
                         !HasPhysicalInteractionReach(other)||
-                        (new Point(o.x,o.y)-new Point(other.x,other.y)).Length>.17f)
+                        !WorldInteractionFeetCoincide(
+                            new Point(o.x,o.y),new Point(other.x,other.y)))
                         continue;
                     // First E names/locks the authentic winning instance.
                     // No quest flag, reward, tutorial bit or dialogue is
