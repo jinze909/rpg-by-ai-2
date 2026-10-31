@@ -1039,6 +1039,10 @@ namespace Starfall
             score-=Math.Abs(heroDistance-heroPreferred)*2.2f;
             bool sourceLine=ClearAttackPath(foot,source);
             bool playerLine=ClearAttackPath(foot,Position);
+            // A survey marker is not the fighter's target. Melee and heavy
+            // units should favor real sight of the hero over a picturesque
+            // but obstructed line back to a non-combat signpost.
+            if(kind!=1)score+=playerLine?8f:-5f;
             if(kind==1)
             {
                 // The survey marker is an anchor, not a damageable actor.
