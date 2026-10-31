@@ -2848,6 +2848,43 @@ namespace Starfall.Tests
                 "Across seven authentic regional contracts the ranking improves multiple attack approaches");
         }
 
+        public static void WindingRoadPatrolsRequireWalkingAccessNotStraightMarkerSight(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] tiles=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)tiles[x]='#';
+                    rows[y]=new string(tiles);
+                }
+                char[] barrier=rows[15].ToCharArray();
+                barrier[17]='#';rows[15]=new string(barrier);
+                data.maps[1]=new MapData{
+                    id=1,spawnX=20.5f,spawnY=15.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.stage=3;g.save.x=20.5f;g.save.y=15.5f;
+                g.enemies.Clear();
+                Point corner=new Point(14.5f,15.5f);
+                Check(!g.ClearAttackPath(g.Position,corner)&&
+                    g.NavigationPathFrom(g.Position,corner,true).Count>0,
+                    "Covered winding patrol foot is walkable but blocked by actual projectile cover");
+                var method=typeof(GameCore).GetMethod("RegionalScoutFootClear",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(method!=null&&
+                    (bool)method.Invoke(g,new object[]{corner,g.Position,false,
+                        new List<Point>()}),
+                    "Optional patrol can follow a real winding road around cover");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
         {
             MapData original=data.maps[1];
