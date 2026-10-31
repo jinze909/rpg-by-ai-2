@@ -2767,6 +2767,39 @@ namespace Starfall
                 Notify("第二道木石桥越过深水，旧木桩上的箭头指向居民的归家路。",
                     "The second raised bridge crosses deep water; old post arrows point civilians home.");
         }
+
+        // A genuine narrow rock cut through the southern glass desert.
+        // The sandstone walls cast a very small local shadow. Neither
+        // hidden save fields nor extra quest signs are required: walking
+        // through the rock opening discovers it for this character.
+        public bool DesertCanyonShade
+        {
+            get
+            {
+                if(save.room!=6||!Has("desert_canyon_shelter")||
+                   !CanStand(Position))return false;
+                int x=(int)Math.Floor(Position.x),
+                    y=(int)Math.Floor(Position.y);
+                return x>=55&&x<=56&&y>=70&&y<=71;
+            }
+        }
+        private void TickDesertCanyon()
+        {
+            if(save.room!=6||Dying||practicing||racing||
+               !CanStand(Position)||Map.rows==null||
+               Has("desert_canyon_shelter"))return;
+            int x=(int)Math.Floor(Position.x),
+                y=(int)Math.Floor(Position.y);
+            if(x<55||x>56||y<70||y>71||
+               y>=Map.rows.Length||Map.rows[y][x]!='=')return;
+            Flag("desert_canyon_shelter");
+            AddXp(16);revision++;sound="reward";
+            Notify("你发现了南侧岩峡的背阴捷径。这里可像绿洲树荫一样降低热度，安全时也能歇脚。经验 +16。",
+                "Found the southern canyon's shaded shortcut. The rock shadow cools you like oasis shade and allows safe respite. +16 XP.");
+            RecordMoment(
+                "玻璃沙海的旧商队曾利用南侧狭峡遮荫并绕开暴露的长路；岩上还留着给迷途者的水井方向刻痕。",
+                "Old caravans crossed the southern shaded canyon instead of taking the long exposed route. Well directions remain carved into its rock.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2795,6 +2828,7 @@ namespace Starfall
             TickCitadelWatchwalks();
             TickFrostWindbreakPasses();
             TickMistportGangways();
+            TickDesertCanyon();
             if(!practicing&&!racing&&!FieldWorkPreventsRest&&
                IronMineBreathingShaft&&SafeTravel)
                 save.energy=Math.Min(100f,save.energy+dt*4f);
@@ -2831,7 +2865,7 @@ namespace Starfall
             // beacon, live raid or uncompleted region can shield anyone.
             bool safeRescueLight=OuterRelayRestRefuge;
             bool tea = save.teaUntil > save.totalTime;
-            bool activeShade=ShadedInDesert;
+            bool activeShade=ShadedInDesert || DesertCanyonShade;
             // A short, earned cool breeze cushions one crossing out of an
             // actual canopy. It is NOT cooling at a distance, a portable
             // healing source or protection from damage already suffered.

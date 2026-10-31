@@ -17,6 +17,55 @@ namespace Starfall.Tests
 
 
 
+
+        public static void GlassDesertCanyonIsWalkableAndProvidesPhysicalShade(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=6;
+            g.save.stage=4;g.enemies.Clear();
+            MapData map=g.Map;
+            Point before=new Point(55.5f,69.5f);
+            Point beyond=new Point(55.5f,72.5f);
+            Check(g.CanStand(before)&&g.CanStand(beyond)&&
+                !g.DesertCanyonShade&&!g.Has("desert_canyon_shelter"),
+                "Desert rock mouth and exit exist, without default cooling");
+            string[] old=(string[])map.rows.Clone();
+            try
+            {
+                for(int y=70;y<=71;y++)
+                {
+                    char[] row=map.rows[y].ToCharArray();
+                    for(int x=55;x<=56;x++)
+                    {
+                        Check(row[x]=='='&&g.CanStand(new Point(x+.5f,y+.5f)),
+                            "Actual shaded canyon has collision-valid travel width");
+                        row[x]='#';
+                    }
+                    map.rows[y]=new string(row);
+                }
+                Check(g.NavigationPathFrom(before,beyond,true).Count>=25,
+                    "Without the pass, the heat-exposed desert route is genuinely long");
+            }
+            finally{map.rows=old;}
+            int direct=g.NavigationPathFrom(before,beyond,true).Count;
+            Check(direct>0&&direct<=8,
+                "New canyon offers a real three-step ground route, not teleportation");
+            g.save.x=55.5f;g.save.y=70.5f;
+            g.Tick(.02f,new Point());
+            Check(g.Has("desert_canyon_shelter")&&g.DesertCanyonShade&&
+                g.save.version==2,
+                "Walking the shaded canyon discovers its original rock refuge");
+            g.save.heat=40f;
+            g.Tick(.1f,new Point());
+            Check(g.save.heat<40f,
+                "Original desert survival clock recognizes the local earned rock shade");
+            g.save.x=10.5f;g.save.y=14.5f;
+            Check(!g.DesertCanyonShade,
+                "A remote traveler cannot use this canyon's cooling");
+            g.save.room=7;
+            Check(!g.DesertCanyonShade,
+                "Shade does not leak into the frost biome");
+        }
+
         public static void MistportRaisedGangwaysRemainUsefulAtHighTide(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=5;
