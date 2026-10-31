@@ -1499,6 +1499,8 @@ public static class RuntimeContinuityChecks
         Check(GUI.commands.Exists(x=>x.Contains("VERIFIED COURIER")&&
             x.Contains("STOCK UPGRADED")),
             "Original field object now visibly displays its earned persistent facility upgrade");
+        Check(GUI.commands.Exists(x=>x.Contains("RETURN 2C / 6ST")),
+            "Signed ordinary delivery shows the actual two-coin six-stamina shuttle fare");
         Console.WriteLine("PASS real civilian courier in-world origin, machine, survey and upgraded return display");
     }
 

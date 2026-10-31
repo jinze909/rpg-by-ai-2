@@ -1809,6 +1809,17 @@ namespace Starfall
                         "LOST KIT · "+Game.FieldKitTimber(room)+
                         " TIMBER / "+Game.FieldKitParts(room)+" PARTS"),
                     10,ink,TextAnchor.MiddleCenter);
+                // Do not hide the permanent tactical choice behind a
+                // one-time quest toast. Display the SAME charged return
+                // fare that the actual physical shuttle transaction uses.
+                // Keep the aid/workshop identity visible above this row.
+                if((ward||forge)&&Game.FieldDispatchDone(room))
+                    WorldObjectLabel(p.x-112,p.y-88,224,18,
+                        Game.L("返程 "+Game.FieldOutpostReturnFare(room)+
+                                "硬币 · "+Game.FieldOutpostReturnEnergy(room)+"耐力",
+                            "RETURN "+Game.FieldOutpostReturnFare(room)+
+                                "C / "+Game.FieldOutpostReturnEnergy(room)+"ST"),
+                        10,ink,TextAnchor.MiddleCenter);
                 if(active)
                     Ring(new Point(o.x,o.y),.92f,gold,28);
                 else if(ward||forge)
