@@ -1061,10 +1061,14 @@ namespace Starfall
                 score+=sourceLine?5f:0f;
                 score+=playerLine?5f:0f;
             }
-            Point approach=foot-source;
+            // Flanking is a relationship to the hero being threatened,
+            // not to the inert survey post. Two raiders on opposite sides
+            // of a sign can still occupy the same attack lane toward the
+            // player. Score their actual approach bearings instead.
+            Point approach=foot-Position;
             for(int i=0;i<assigned.Count;i++)
             {
-                Point previous=assigned[i]-source;
+                Point previous=assigned[i]-Position;
                 float separation=(foot-assigned[i]).Length;
                 float cosine=(approach.x*previous.x+
                     approach.y*previous.y)/
