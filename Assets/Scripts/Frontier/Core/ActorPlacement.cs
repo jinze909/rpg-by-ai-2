@@ -1186,12 +1186,18 @@ namespace Starfall
                 {
                     int sx=(int)Math.Floor(source.x),
                         sy=(int)Math.Floor(source.y);
+                    // In a narrow field, preserve complete squads without
+                    // filling every open slot from the same map edge.
                     for(int radius=6;radius<=13&&pads.Count<count;radius++)
-                    for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
-                    for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+                    for(int offset=0;offset<=radius*2&&pads.Count<count;offset++)
+                    for(int edge=0;edge<4&&pads.Count<count;edge++)
                     {
-                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                            Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                        int span=offset-radius;
+                        int dx=edge==0?span:edge==1?radius:
+                            edge==2?-span:-radius;
+                        int dy=edge==0?-radius:edge==1?span:
+                            edge==2?radius:-span;
+                        if(Math.Abs(dx)+Math.Abs(dy)>16)continue;
                         Point p=new Point(sx+dx+.5f,sy+dy+.5f);
                         if(RegionalScoutFootClear(
                             p,source,requireFull,pads))pads.Add(p);
