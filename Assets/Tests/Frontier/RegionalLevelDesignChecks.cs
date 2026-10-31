@@ -116,10 +116,14 @@ namespace Starfall.Tests
                     "The same real marker resumes its intended travel recovery");
                 g.PrepareSave();
                 var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.mode=="title"&&
+                    restored.TrailRoadRecoveryBonus==0f,
+                    "Loading a legacy save on the title screen must not grant world energy recovery");
+                restored.mode="world";
                 Check(restored.save.version==2&&
                     restored.TrailCircuitComplete(room)&&
                     restored.TrailRoadRecoveryBonus==2f,
-                    "Legacy v2 save derives pavement effect from existing flags and terrain");
+                    "Entering actual world mode derives paved recovery from existing v2 flags and terrain");
             }
         }
 
