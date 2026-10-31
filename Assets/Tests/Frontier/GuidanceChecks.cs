@@ -238,6 +238,13 @@ namespace Starfall.Tests
                 Check(g.FocusNearbyInteractionAt(new Point(11.5f,10.5f))&&
                     System.Object.ReferenceEquals(g.Nearest(),firstClick),
                     "Overlapping actor cycle wraps to the original source");
+                Check(g.FocusNearbyInteractionAt(new Point(12f,10.5f))&&
+                    System.Object.ReferenceEquals(g.Nearest(),three),
+                    "Click can select a non-default speaker before dismissal");
+                Check(!g.FocusNearbyInteractionAt(new Point(30f,30f))&&
+                    !System.Object.ReferenceEquals(g.Nearest(),three)&&
+                    !g.CrowdedInteractionConfirmationPending,
+                    "Empty world click dismisses stale explicit speaker focus");
                 // A closed wall must invalidate the stale explicit selection
                 // rather than allowing a dialogue to bleed across colliders.
                 char[] closed=rows[10].ToCharArray();closed[11]='#';
