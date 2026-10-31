@@ -1091,8 +1091,12 @@ namespace Starfall
                 // Preserve the original near-site eight-bearing roster
                 // search, but compare genuine attack lanes instead of
                 // committing the first trivially empty compass tile.
-                for(int radius=7;radius<=12&&viable<14;radius++)
-                for(int shift=0;shift<8&&viable<14;shift++)
+                // Evaluate the full 48-bearing ring before ranking actual
+                // combat feet. The former 14-candidate cutoff favored the
+                // first authored directions and repeatedly hid better
+                // flanking and bow lanes on later bearings.
+                for(int radius=7;radius<=12;radius++)
+                for(int shift=0;shift<8;shift++)
                 {
                     int direction=(room*2+i*3+shift)%8;
                     float dx=directions[direction,0],dy=directions[direction,1];
