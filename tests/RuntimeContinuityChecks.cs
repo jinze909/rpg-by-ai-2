@@ -731,8 +731,20 @@ public static class RuntimeContinuityChecks
                 !Get<bool>(app,"navigationRouteStrictQuestFinish"),
                 "Generic optional guidance retains its original best-effort policy, including valid empty fallbacks");
             g.mode="journal";g.save.showGuidance=false;
+            // Do not let a NEW explicit follow seize tracking or a manual
+            // destination while its very first real crossing is sealed.
+            // A quest that was legitimately accepted BEFORE a later flood
+            // still needs the original runtime blocked-route HUD below.
+            Check(!g.PlaceQuestApproachWaymark("trail_circuits")&&
+                !g.QuestApproachTravelHandoffPending,
+                "A newly requested route refuses the physically sealed real portal");
+            string[] sealedRows=(string[])g.Map.rows.Clone();
+            g.Map.rows=savedRows;
+            Check(g.NavigationPathFrom(g.Position,center,true).Count>0,
+                "The authored portal can be physically reached after reopening");
             Check(g.PlaceQuestApproachWaymark("trail_circuits"),
-                "Player explicitly accepts the same genuine remote quest");
+                "Player explicitly accepts the reopened genuine remote quest");
+            g.Map.rows=sealedRows;
             g.mode="world";
             var strict=(List<Point>)Call(app,"NavigationRoute");
             Check(strict.Count==0&&g.PlayerRequestedNavigationActive&&
