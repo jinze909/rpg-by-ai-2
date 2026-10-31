@@ -2969,6 +2969,43 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void MeleeFlanksPreferReachableLocalPressure(Campaign data)
+        {
+            var original=data.maps[1];
+            try
+            {
+                var rows=new string[36];
+                for(int y=0;y<36;y++)
+                {
+                    char[] line=new string('.',50).ToCharArray();
+                    for(int x=0;x<50;x++)
+                        if(x<2||x>=48||y<2||y>=34)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=20.5f,
+                    spawnY=15.5f,rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.x=20.5f;g.save.y=15.5f;
+                var score=typeof(GameCore).GetMethod(
+                    "RegionalScoutTacticalPadScore",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(score!=null,"Actual regional combat position scorer exists");
+                Point source=g.Position;
+                var assigned=new List<Point>{new Point(27.5f,15.5f)};
+                Point local=new Point(14.5f,15.5f);
+                Point distant=new Point(4.5f,15.5f);
+                float nearValue=(float)score.Invoke(g,new object[]{
+                    local,source,0,assigned,0});
+                float farValue=(float)score.Invoke(g,new object[]{
+                    distant,source,0,assigned,0});
+                Check(nearValue>farValue+10f,
+                    "A timely physically local melee flank outranks a distant angle");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
         {
             MapData original=data.maps[1];
