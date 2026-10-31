@@ -259,6 +259,16 @@ namespace Starfall.Tests
             var guardian=new Enemy(88222,3,69.5f,50.5f,230f,true)
                 {timer=200f};
             g.enemies.Add(raider);g.enemies.Add(guardian);
+            // The sunbeam must retract this already-committed warning,
+            // not merely pause a lethal strike until the blind expires.
+            raider.state=1;raider.timer=.14f;raider.windupDuration=.65f;
+            raider.target=g.Position;raider.targetingSagaGuardEvidence=true;
+            var warning=new Effect("danger",raider.target,.85f){radius=1f};
+            var warnings=(System.Runtime.CompilerServices.
+                ConditionalWeakTable<Enemy,Effect>)typeof(GameCore)
+                .GetField("rescueWindupEffects",System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).GetValue(g);
+            g.effects.Add(warning);warnings.Add(raider,warning);
             int kills=g.save.kills[6],coins=g.save.coins;
             g.Tick(.05f,new Point());
             Check(raider.hp==120f&&raider.stun>.75f&&
@@ -266,6 +276,12 @@ namespace Starfall.Tests
                 "A true patrol crossing the live beam gains a real stun and armor opening; hp="+
                 raider.hp+" stun="+raider.stun+" armor="+raider.armorOpenTime+
                 " foot="+raider.Position.x+","+raider.Position.y);
+            Effect abandoned;
+            Check(raider.state==0&&raider.timer>=.45f&&
+                !raider.targetingSagaGuardEvidence&&
+                !g.effects.Contains(warning)&&
+                !warnings.TryGetValue(raider,out abandoned),
+                "The actual daylight beam cancels an old attack and its owner-specific danger cue");
             // World Boss AI may independently adjust its own state or
             // attack timings during UpdateEnemies. Test the GLASSWELL
             // contact eligibility itself rather than demanding that the

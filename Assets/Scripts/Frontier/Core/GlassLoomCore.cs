@@ -437,7 +437,10 @@ namespace Starfall
                         if(glassLoomRecentContacts.TryGetValue(e,out readyAt)&&
                            save.totalTime<readyAt)continue;
                         glassLoomRecentContacts[e]=save.totalTime+4f;
-                        e.stun=Math.Max(e.stun,.95f);
+                        // The live optical beam blinds AND interrupts a
+                        // prepared strike. A paused 20ms attack must not
+                        // resume unseen after the light wears off.
+                        ApplyEnemyControl(e,.95f);
                         e.armorOpenTime=Math.Max(e.armorOpenTime,.55f);
                         e.state=0;
                         effects.Add(new Effect("number",e.Position,.7f,

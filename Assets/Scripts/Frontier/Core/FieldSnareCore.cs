@@ -372,7 +372,10 @@ namespace Starfall
                 fieldSnares.RemoveAt(i);
                 // A grounded, non-lethal contact interrupts an actual
                 // enemy. It creates NO boss credit, damage, loot, or kill.
-                triggered.stun=Math.Max(triggered.stun,
+                // A snare is a real attack counter. The common control
+                // transaction retracts the trapped enemy's unspent strike
+                // and its exact warning, including an almost-ready windup.
+                ApplyEnemyControl(triggered,
                     (Has("field_snare_mastered")?2.1f:1.5f)+SnareHoldBonus);
                 triggered.armorOpenTime=Math.Max(triggered.armorOpenTime,.7f);
                 triggered.state=0;triggered.timer=Math.Max(triggered.timer,.35f);

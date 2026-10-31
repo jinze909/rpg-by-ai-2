@@ -35,12 +35,27 @@ namespace Starfall.Tests
             Check(trap.arming>0f&&trap.seconds>20f,
                 "The new snare has a real arming delay and time-limited existence");
             var foe=new Enemy(89315,0,foot.x,foot.y,90);
-            foe.hitTime=3f;g.enemies.Add(foe);
+            foe.hitTime=3f;
+            foe.state=1;foe.timer=.02f;foe.windupDuration=.65f;
+            foe.target=g.Position;foe.targetingSagaGuardEvidence=true;
+            var warning=new Effect("danger",foe.Position,.85f){radius=1f};
+            var warningTable=(System.Runtime.CompilerServices.
+                ConditionalWeakTable<Enemy,Effect>)typeof(GameCore)
+                .GetField("rescueWindupEffects",System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic).GetValue(g);
+            g.effects.Add(warning);warningTable.Add(foe,warning);
+            g.enemies.Add(foe);
             int kills=g.save.kills[0],coins=g.save.coins;
             for(int i=0;i<11;i++)g.Tick(.05f,new Point());
             Check(g.FieldSnares.Count==0&&foe.stun>1f&&
                 foe.armorOpenTime>.4f&&foe.hp==90,
                 "A physically contacted ordinary enemy consumes exactly one snare and becomes briefly vulnerable");
+            Effect orphan;
+            Check(foe.state==0&&foe.timer>=.45f&&
+                !foe.targetingSagaGuardEvidence&&
+                !g.effects.Contains(warning)&&
+                !warningTable.TryGetValue(foe,out orphan),
+                "The physical snare interrupts the pending strike and removes only its unspent hazard");
             Check(g.save.kills[0]==kills&&g.save.coins==coins,
                 "Nonlethal snare contact cannot counterfeit kill or loot rewards");
         }
