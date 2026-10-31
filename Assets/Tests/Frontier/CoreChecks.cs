@@ -1222,6 +1222,10 @@ namespace Starfall.Tests
                     g.enemies.Count==count&&!g.FieldOutpostReady,
                     "Full authored local raider roster starts only at source");
                 var foes=g.enemies.ToArray();
+                for(int x=0;x<foes.Length;x++)
+                for(int y=x+1;y<foes.Length;y++)
+                    Check((foes[x].Position-foes[y].Position).Length>=5f,
+                        "Actual paid outpost attackers hold distinct collision-safe combat lanes");
                 foreach(Enemy e in foes)
                 {
                     Check(g.CanStand(e.Position)&&

@@ -104,23 +104,122 @@ namespace Starfall
                     return;
                 }
         }
+        // The raid opens at the same real kit, but its squad no longer
+        // marches out of whichever northwest square scans first. Use a
+        // bounded, quadrant-balanced set of authentic reachable pads and
+        // choose the entire tactical formation before creating any actor.
+        private float FieldOutpostRaidPadScore(Point foot,Point kit,int kind)
+        {
+            float range=(foot-Position).Length;
+            float preferred=kind==1?9.8f:kind==2?8.3f:7.1f;
+            float score=20f-(float)Math.Abs(range-preferred)*2.1f;
+            bool sight=ClearAttackPath(foot,Position);
+            if(kind==1)
+                score+=sight?
+                    (PhysicalBowLaneFromFoot(foot,Position)?16f:-9f):-12f;
+            else score+=sight?6f:-2f;
+            // Defenders should be able to SEE the protected station,
+            // rather than taking an unrelated patch of clear scenery.
+            if(ClearAttackPath(foot,kit))score+=kind==2?5f:3f;
+            return score;
+        }
         private bool SpawnFieldOutpostRaiders(WorldObject source)
         {
             int count=save.room==2||save.room==3||save.room==6?3:2;
             Point center=new Point(source.x,source.y);
-            var feet=new List<Point>();
             int x0=(int)Math.Floor(center.x),y0=(int)Math.Floor(center.y);
-            for(int radius=7;radius<=14&&feet.Count<count;radius++)
-            for(int dy=-radius;dy<=radius&&feet.Count<count;dy++)
-            for(int dx=-radius;dx<=radius&&feet.Count<count;dx++)
+            var empty=new List<Point>(0);
+            var candidates=new List<Point>(36);
+            // Rotate cardinal sides with region/radius. A row-major pass
+            // consumed its entire budget on the same side of every map.
+            for(int radius=7;radius<=14&&candidates.Count<36;radius++)
+            for(int offset=0;offset<=radius*2&&candidates.Count<36;offset++)
+            for(int edge=0;edge<4&&candidates.Count<36;edge++)
             {
-                if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                    Math.Abs(dx)+Math.Abs(dy)>17)continue;
+                int side=(edge+save.room+radius)%4;
+                int span=offset-radius;
+                int dx=side==0?span:side==1?radius:
+                       side==2?-span:-radius;
+                int dy=side==0?-radius:side==1?span:
+                       side==2?radius:-span;
+                if(Math.Abs(dx)+Math.Abs(dy)>17)continue;
                 Point foot=new Point(x0+dx+.5f,y0+dy+.5f);
-                // Use exactly the physical patrol clearance and collision
-                // graph; never create a paid wave through a closed tidegate.
-                if(RegionalScoutFootClear(foot,center,true,feet))
-                    feet.Add(foot);
+                if(candidates.Exists(p=>(p-foot).Length<.1f))continue;
+                if(RegionalScoutFootClear(foot,center,true,empty))
+                    candidates.Add(foot);
+            }
+            var feet=new List<Point>(count);
+            if(candidates.Count>=count)
+            {
+                var scores=new float[count,candidates.Count];
+                var headings=new Point[candidates.Count];
+                for(int c=0;c<candidates.Count;c++)
+                {
+                    headings[c]=(candidates[c]-Position).Normalized;
+                    for(int slot=0;slot<count;slot++)
+                        scores[slot,c]=FieldOutpostRaidPadScore(
+                            candidates[c],center,(save.room+slot*2)%3);
+                }
+                bool found=false;
+                float best=float.NegativeInfinity;
+                int first=-1,second=-1,third=-1;
+                for(int a=0;a<candidates.Count;a++)
+                for(int b=0;b<candidates.Count;b++)
+                {
+                    Point pa=candidates[a],pb=candidates[b];
+                    float dx=pa.x-pb.x,dy=pa.y-pb.y;
+                    if(dx*dx+dy*dy<25f)continue;
+                    float spread=1f-headings[a].x*headings[b].x-
+                        headings[a].y*headings[b].y;
+                    float pair=scores[0,a]+scores[1,b]+spread*9f;
+                    if(count==2)
+                    {
+                        if(!found||pair>best+.0001f)
+                        {found=true;best=pair;first=a;second=b;}
+                        continue;
+                    }
+                    // A three-person squad evaluates complete formation
+                    // ownership; the first best bow perch must not steal
+                    // the only valid heavy/melee approach.
+                    for(int c=0;c<candidates.Count;c++)
+                    {
+                        Point pc=candidates[c];
+                        float cx=pa.x-pc.x,cy=pa.y-pc.y;
+                        float bx=pb.x-pc.x,by=pb.y-pc.y;
+                        if(cx*cx+cy*cy<25f||bx*bx+by*by<25f)continue;
+                        float total=pair+scores[2,c]+
+                            (2f-headings[a].x*headings[c].x-
+                                headings[a].y*headings[c].y-
+                                headings[b].x*headings[c].x-
+                                headings[b].y*headings[c].y)*4f;
+                        if(!found||total>best+.0001f)
+                        {found=true;best=total;first=a;second=b;third=c;}
+                    }
+                }
+                if(found)
+                {
+                    feet.Add(candidates[first]);
+                    feet.Add(candidates[second]);
+                    if(count==3)feet.Add(candidates[third]);
+                }
+            }
+            // If a long, narrow corridor cannot support the higher-ranked
+            // complete squad, retain the older physically safe first-fit
+            // search. Do not charge the player or create any partial enemies
+            // if even that exact terrain cannot hold the required roster.
+            if(feet.Count!=count)
+            {
+                feet.Clear();
+                for(int radius=7;radius<=14&&feet.Count<count;radius++)
+                for(int dy=-radius;dy<=radius&&feet.Count<count;dy++)
+                for(int dx=-radius;dx<=radius&&feet.Count<count;dx++)
+                {
+                    if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                        Math.Abs(dx)+Math.Abs(dy)>17)continue;
+                    Point foot=new Point(x0+dx+.5f,y0+dy+.5f);
+                    if(RegionalScoutFootClear(foot,center,true,feet))
+                        feet.Add(foot);
+                }
             }
             if(feet.Count!=count)return false;
             for(int i=0;i<count;i++)
