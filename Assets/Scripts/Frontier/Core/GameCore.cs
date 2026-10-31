@@ -2443,6 +2443,28 @@ namespace Starfall
         // when a backward sweep found no clearance. This never teleports,
         // crosses living bodies or moves closer to the threat; the usual
         // timed bow windup still owns attacks after the escape step.
+        // A queued frontline cannot always circle in its preferred
+        // direction: a cliff, building or closed gate may occupy that side.
+        // Probe both short physical flank strides before choosing a heading,
+        // keeping existing crowd spacing and real movement physics intact.
+        private Point OpenMeleeFlankHeading(Enemy enemy,Point target,float stride)
+        {
+            Point from=enemy.Position, toward=target-from;
+            float range=toward.Length;
+            if(!Finite(range)||range<.1f||!Finite(stride)||
+               stride<=0f||!CanStand(from))return new Point();
+            Point side=new Point(-toward.y,toward.x)*(1f/range);
+            int preferred=(enemy.id&1)==0?1:-1;
+            for(int attempt=0;attempt<2;attempt++)
+            {
+                Point heading=side*(attempt==0?preferred:-preferred);
+                Point candidate=SweepActor(from,heading*stride);
+                if((candidate-from).Length>.01f&&
+                   EnemyCrowdStepClear(enemy,from,candidate))
+                    return heading;
+            }
+            return new Point();
+        }
         private Point ArcherPinnedEscapeStep(Enemy enemy,Point threat,float stride)
         {
             Point from=enemy.Position, toward=threat-from;
@@ -2996,11 +3018,9 @@ namespace Starfall
                     // repeats a blocked shot or eventually backpedals.
                     Point heading=DirectionTo(e.Position,pursuit);
                     if(waitingForFlank)
-                    {
-                        Point toward=(Position-e.Position).Normalized;
-                        heading=new Point(-toward.y,toward.x)*
-                            ((e.id&1)==0?1f:-1f);
-                    }
+                        heading=OpenMeleeFlankHeading(e,Position,
+                            freeDt*(e.kind==0?2.1f:1.5f)*
+                            (InAbyss&&save.abyssFloor%3==2?1.2f:1f));
                     if(e.kind==1&&!e.boss&&!visible)
                     {
                         Point lateral=ArcherFollowCornerPlan(e,pursuit);
