@@ -1199,7 +1199,7 @@ namespace Starfall
                         // A full-squad recovery should share the same
                         // region/role-aware approach rotation as the main
                         // tactical search, not reset to the north edge.
-                        int side=(edge+room+i)%4;
+                        int side=(edge+room+pads.Count)%4;
                         int span=offset-radius;
                         int dx=side==0?span:side==1?radius:
                             side==2?-span:-radius;
