@@ -413,13 +413,30 @@ namespace Starfall.Tests
                 Check(map!=null&&map.rows!=null&&map.rows.Length>0&&
                     map.objects!=null&&map.decor!=null,
                     "Each shipped map retains its authored terrain and sources");
-                // These immutable counts guard legacy source retention.
-                // Several pre-existing maps deliberately reuse an ID for
-                // alternative scenery/loot; don't invent a new uniqueness
-                // rule that would discard longstanding content.
-                int[] sourceCounts={68,66,69,80,76,73,69,66,2,15};
-                Check(map.objects.Length==sourceCounts[room],
-                    "Original authored source roster is not deleted or padded");
+                // Preserve every original source count and the three
+                // deliberate, externally playable new field caches in each
+                // outdoor biome. A random padding object cannot substitute
+                // for a named, authentic renewable resource interaction.
+                // Legacy maps and the safe town/Inn remain unchanged.
+                int[] originalSourceCounts={68,66,69,80,76,73,69,66,2,15};
+                int expectedAdditions=room>=1&&room<=7?3:0;
+                Check(map.objects.Length==
+                    originalSourceCounts[room]+expectedAdditions,
+                    "Original authored source roster and exactly three regional discoveries must survive");
+                if(expectedAdditions>0)
+                {
+                    for(int slot=0;slot<3;slot++)
+                    {
+                        string id="fartrail_supply_"+room+"_"+slot;
+                        WorldObject resource=Array.Find(map.objects,o=>o.id==id);
+                        Check(resource!=null&&
+                            (resource.kind=="herb"||resource.kind=="wood"||
+                             resource.kind=="ore")&&
+                            !String.IsNullOrEmpty(resource.name)&&
+                            !String.IsNullOrEmpty(resource.en),
+                            "Only three distinct authored renewable field caches may extend biome "+room);
+                    }
+                }
                 foreach(WorldObject o in map.objects)
                     Check(o!=null&&!String.IsNullOrEmpty(o.id),
                         "Every original source keeps a persistent identity");

@@ -4896,8 +4896,8 @@
           "kind": "wood",
           "name": "矿工退路支架",
           "en": "Quarry escape-route braces",
-          "x": 72.5,
-          "y": 56.5
+          "x": 83.5,
+          "y": 64.5
         },
         {
           "id": "fartrail_supply_3_2",
@@ -6592,8 +6592,8 @@
           "kind": "ore",
           "name": "外城卫塔星晶",
           "en": "Outer watchtower starcrystal",
-          "x": 111.5,
-          "y": 29.5
+          "x": 102.5,
+          "y": 53.5
         },
         {
           "id": "outer_4_0",
@@ -11477,8 +11477,8 @@
           "kind": "wood",
           "name": "风雪救援木架",
           "en": "Blizzard rescue timber",
-          "x": 88.5,
-          "y": 60.5
+          "x": 83.5,
+          "y": 58.5
         },
         {
           "id": "fartrail_supply_7_2",
