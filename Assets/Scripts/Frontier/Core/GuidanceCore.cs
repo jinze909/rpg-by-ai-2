@@ -1193,6 +1193,13 @@ namespace Starfall
                 // urgent HUD priority as its existing physical compass.
                 // No tracked quest or save field is changed by this lookup.
                 if(OuterDeliveryActive)return GetQuest("outer_delivery");
+                // Stage-dependent mine convoy work and live civic recovery
+                // already control the compass; the HUD must not send the
+                // player to an unrelated old quest while actors are active.
+                if(MineConvoyActive)return GetQuest("mine_convoy");
+                if(FarCourierActive)return GetQuest("far_couriers");
+                if(CivicResponseActive)return GetQuest("civic_services");
+                if(CivicConduitActive)return GetQuest("civic_conduit");
                 if(FrostSignalActive)return GetQuest("frost_signal");
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
                 // Active physical road operations already own the world
