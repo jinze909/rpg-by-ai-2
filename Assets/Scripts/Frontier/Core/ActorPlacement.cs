@@ -965,6 +965,56 @@ namespace Starfall
             {1,2,0},{2,0,1},{1,2,0},{1,2,0},
             {2,1,0},{1,0,2},{2,0,1}
         };
+        // Field contracts previously chose the FIRST available compass
+        // coordinate, independent of the enemy actually assigned there.
+        // Score only the original fully authenticated, real walking pads:
+        // bows seek open firing lanes, plated brutes hold the center, and
+        // fast melee raiders try a separate approach from earlier squadmates.
+        // The fallbacks still use precisely the same physical clearance
+        // rules; no teleport, phantom attack or additional saved enemy.
+        private float RegionalScoutTacticalPadScore(Point foot,
+            Point source,int kind,List<Point> assigned,int rank)
+        {
+            float distance=(foot-source).Length;
+            float preferred=kind==1?10.0f:kind==2?8.2f:7.6f;
+            float score=28f-Math.Abs(distance-preferred)*2f;
+            bool sourceLine=ClearAttackPath(foot,source);
+            bool playerLine=ClearAttackPath(foot,Position);
+            if(kind==1)
+            {
+                // A real ranged enemy cannot create crossfire through a
+                // ruin, tree, flooded wall or sealed mine gate.
+                score+=sourceLine?19f:-17f;
+                score+=playerLine?11f:-11f;
+            }
+            else if(kind==2)
+            {
+                score+=sourceLine?8f:0f;
+                score+=playerLine?4f:0f;
+            }
+            else
+            {
+                score+=sourceLine?5f:0f;
+                score+=playerLine?5f:0f;
+            }
+            Point approach=foot-source;
+            for(int i=0;i<assigned.Count;i++)
+            {
+                Point previous=assigned[i]-source;
+                float separation=(foot-assigned[i]).Length;
+                float cosine=(approach.x*previous.x+
+                    approach.y*previous.y)/
+                    Math.Max(.001f,approach.Length*previous.Length);
+                // Distinct genuine attack lanes are much more readable
+                // than three bodies sharing a diagonal from the survey post.
+                score+=(1f-cosine)*(kind==1?13f:9f);
+                if(separation<6.3f)score-=13f;
+            }
+            // Deterministic, tiny rank bias avoids flapping when two
+            // otherwise equal physical tiles trade position after a map
+            // edit. No random seed or SaveData field is introduced.
+            return score-rank*.0001f;
+        }
         private int SpawnRegionalScoutEncounter(WorldObject site,
             bool requireFull=false,bool veteran=false)
         {
@@ -981,9 +1031,16 @@ namespace Starfall
             Point source=new Point(site.x,site.y);
             for(int i=0;i<count;i++)
             {
-                bool found=false;
-                for(int radius=7;radius<=12&&!found;radius++)
-                for(int shift=0;shift<8&&!found;shift++)
+                int kind=veteran?veteranPatrolKinds[room-1,i]:
+                    fieldPatrolKinds[room-1,i];
+                Point best=new Point();
+                float bestScore=float.MinValue;
+                int viable=0,rank=0;
+                // Preserve the original near-site eight-bearing roster
+                // search, but compare genuine attack lanes instead of
+                // committing the first trivially empty compass tile.
+                for(int radius=7;radius<=12&&viable<14;radius++)
+                for(int shift=0;shift<8&&viable<14;shift++)
                 {
                     int direction=(room*2+i*3+shift)%8;
                     float dx=directions[direction,0],dy=directions[direction,1];
@@ -991,28 +1048,35 @@ namespace Starfall
                         (float)Math.Floor(source.y)+.5f+dy*radius);
                     if(!RegionalScoutFootClear(p,source,requireFull,pads))
                         continue;
-                    pads.Add(p);found=true;
+                    viable++;
+                    float score=RegionalScoutTacticalPadScore(
+                        p,source,kind,pads,rank++);
+                    if(score>bestScore){bestScore=score;best=p;}
                 }
-            }
-            // Actual survey side-encounters AND paid patrol contracts
-            // need enough local, readable attackers. Scenic/companion
-            // clearance can invalidate every exact compass ray despite
-            // genuine open terrain between those rays. Search a bounded
-            // district ring with the SAME physical rules as the original
-            // encounter, without crossing walls or overriding story spawns.
-            if(pads.Count<count)
-            {
-                int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
-                for(int radius=6;radius<=13&&pads.Count<count;radius++)
-                for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
-                for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+                // A few handcrafted bearing rays can land inside a flood,
+                // under painted cover or beside a mission NPC. Search
+                // alternate legal 4-way terrain pads, collecting enough
+                // real alternatives to rank a useful local tactical lane.
+                if(viable<8)
                 {
-                    if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                        Math.Abs(dx)+Math.Abs(dy)>16)continue;
-                    Point p=new Point(sx+dx+.5f,sy+dy+.5f);
-                    if(RegionalScoutFootClear(p,source,requireFull,pads))
-                        pads.Add(p);
+                    int sx=(int)Math.Floor(source.x),
+                        sy=(int)Math.Floor(source.y);
+                    for(int radius=6;radius<=13&&viable<14;radius++)
+                    for(int dy=-radius;dy<=radius&&viable<14;dy++)
+                    for(int dx=-radius;dx<=radius&&viable<14;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                            Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                        Point p=new Point(sx+dx+.5f,sy+dy+.5f);
+                        if(!RegionalScoutFootClear(p,source,requireFull,pads))
+                            continue;
+                        viable++;
+                        float score=RegionalScoutTacticalPadScore(
+                            p,source,kind,pads,rank++);
+                        if(score>bestScore){bestScore=score;best=p;}
+                    }
                 }
+                if(viable>0)pads.Add(best);
             }
             // Paid-off patrol contracts require a FULL wave. Check all feet
             // before touching enemies or actor IDs; no partial free reward.
