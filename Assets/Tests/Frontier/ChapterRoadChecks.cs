@@ -110,6 +110,10 @@ namespace Starfall.Tests
                 Check(g.ChapterRoadActive&&g.ChapterRoadStage==1&&
                     g.ChapterRoadRemaining==0,
                     "Only the original real quest opening starts a protected chapter handoff");
+                g.save.trackedQuest="main";
+                Check(g.RecommendedContinuationGuide.id=="chapter_roads"&&
+                    g.GuidanceHint()==g.GetQuest("chapter_roads").next,
+                    "Active civilian road episode overrides old tracked HUD objectives");
                 g.Enter(0);
                 Check(g.save.room==chapter&&g.ChapterRoadActive,
                     "Unfinished new story cannot be turned into a teleport reward");
