@@ -7846,10 +7846,9 @@ namespace Starfall.Tests
             g.Talk(post);
             patch=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_patch");
-            Check(patch>=0,"Patch choice remains visible but is single-use");
-            g.Choose(patch);
+            Check(patch<0,"Used emergency patch is no longer offered as an actionable choice");
             Check(g.save.inventory[0]==4&&g.save.inventory[2]==4,
-                "Repeating a cached UI action cannot spend a second repair");
+                "Reopening the repaired stock does not spend more materials");
             g.Talk(post);
             int abort=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="outer_watch_abort");
