@@ -9296,10 +9296,10 @@ public static class RuntimeCombatInputChecks
         {
             Point hero=new Point(14,11);
             var front=new WorldObject{id="keyboard_body_a",
-                kind="resident",name="甲",en="Front neighbor",
+                kind="garden",name="甲",en="Front neighbor",
                 x=14.5f,y=11.5f};
             var back=new WorldObject{id="keyboard_body_b",
-                kind="resident",name="乙",en="Back neighbor",
+                kind="garden",name="乙",en="Back neighbor",
                 x=14.91f,y=11.5f};
             map.objects=new[]{front,back};
             g.save.x=hero.x;g.save.y=hero.y;
