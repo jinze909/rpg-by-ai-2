@@ -663,7 +663,7 @@ namespace Starfall
                             (2+(Game.save.room==2||
                               Game.save.room==3||Game.save.room==6?1:0))):
                     Game.FieldDispatchActive?
-                        (Game.FieldDispatchStage==1?.33f:.73f):
+                        (Game.FieldDispatchStage==1 ? .33f : .73f):
                     Game.practicing?Game.practiceStage/3f:q.Progress;
                 Color missionColor=(Game.ScoutDefenseActive&&Game.ScoutDefenseSafety<35||
                     Game.MainSagaRelayActive&&Game.MainSagaRelayIntegrity<35)?
