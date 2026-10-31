@@ -1117,9 +1117,14 @@ namespace Starfall
                 {
                     int sx=(int)Math.Floor(source.x),
                         sy=(int)Math.Floor(source.y);
-                    for(int radius=6;radius<=13&&viable<14;radius++)
-                    for(int dy=-radius;dy<=radius&&viable<14;dy++)
-                    for(int dx=-radius;dx<=radius&&viable<14;dx++)
+                    // Sample more than the first few legal perimeter
+                    // feet. Floods, gates and painted cover create narrow
+                    // corridors; an early-14 cutoff repeatedly biased
+                    // every patrol toward one side of that corridor.
+                    // Bound this fallback to 32 authenticated candidates.
+                    for(int radius=6;radius<=13&&viable<32;radius++)
+                    for(int dy=-radius;dy<=radius&&viable<32;dy++)
+                    for(int dx=-radius;dx<=radius&&viable<32;dx++)
                     {
                         if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                             Math.Abs(dx)+Math.Abs(dy)>16)continue;
