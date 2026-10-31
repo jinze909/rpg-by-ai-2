@@ -36,13 +36,21 @@ namespace Starfall.Tests
                 Check(g.CanStand(g.Position),
                     "The actual new crossing has player-valid terrain");
                 g.Tick(.02f,new Point());
-                Check(!g.CrossingWatchActive&&!g.CrossingWatchPending,
-                    "Unfinished original boss route never spawns extra mandatory enemies");
+                Check(g.Has(discovery[index])&&
+                    !g.CrossingWatchActive&&!g.CrossingWatchPending,
+                    "Walking a real new path discovers it before the original boss is beaten");
+                // The same original boss completion elsewhere does not
+                // magically reveal a path no player has visited.
+                var remote=Fresh(data);remote.mode="world";
+                remote.save.room=room;remote.enemies.Clear();
+                remote.save.stage=4;remote.save.flags.Add("boss_"+room);
+                remote.save.x=remote.Map.spawnX;
+                remote.save.y=remote.Map.spawnY;
+                remote.Tick(.02f,new Point());
+                Check(!remote.Has(discovery[index])&&
+                    !remote.CrossingWatchPending&&!remote.CrossingWatchActive,
+                    "A remote boss receipt cannot trigger an undiscovered field event");
                 g.save.flags.Add("boss_"+room);
-                g.Tick(.02f,new Point());
-                Check(!g.CrossingWatchPending&&!g.CrossingWatchActive,
-                    "Boss completion alone does not manufacture a field discovery");
-                g.save.flags.Add(discovery[index]);
                 g.Tick(.02f,new Point());
                 Check(g.CrossingWatchPending&&g.enemies.Count==0,
                     "A legitimate physical crossing cues danger before real combat");
