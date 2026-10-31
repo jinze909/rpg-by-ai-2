@@ -1246,9 +1246,15 @@ namespace Starfall
                 // rather than chasing a marker off-screen. Reuse original
                 // accepted painted monsters and their feet; only apply a
                 // readable amber ring with the correct combat role.
-                Color roadside=PixelArt.C("#eab66c");
-                Ring(e.Position,.72f,roadside,18);
-                Text(p.x-82,p.y-132,164,20,
+                // Highlight the EXACT temporarily exposed opponent, not
+                // an arbitrary raider with the same numeric spawn id.
+                // Only draw above the accepted original monster body.
+                bool follow=Game.IsRoadwatchFollowUpTarget(e);
+                Color roadside=PixelArt.C(follow?"#7fe4dc":"#eab66c");
+                Ring(e.Position,follow?.89f:.72f,roadside,18);
+                Text(p.x-96,p.y-132,192,20,
+                    follow?
+                        Game.L("地形破绽 · 立即追击！","EXPOSED · STRIKE NOW!"):
                     e.kind==1?Game.L("远路伏击 · 弓手","ROAD AMBUSH · BOW"):
                     e.kind==2?Game.L("远路伏击 · 重卫","ROAD AMBUSH · GUARD"):
                         Game.L("远路伏击 · 突袭","ROAD AMBUSH · RAIDER"),

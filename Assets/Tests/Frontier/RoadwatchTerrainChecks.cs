@@ -51,7 +51,12 @@ namespace Starfall.Tests
                 g.Tick(.02f,new Point());g.save.energy=100f;
                 Check(g.QuickActivateRemoteRoadSignal(),"Original quick counter succeeds");
                 Enemy target=g.enemies.Find(e=>e.stun>1.5f);
-                Check(target!=null,"Live roadwatch opponent owns the opening");
+                Check(target!=null&&g.IsRoadwatchFollowUpTarget(target),
+                    "The actual opponent is individually marked for a real follow-up");
+                Enemy phantom=new Enemy(target.id,target.kind,
+                    target.x,target.y,target.hp);
+                Check(!g.IsRoadwatchFollowUpTarget(phantom),
+                    "Copied enemy id and feet cannot impersonate the exposed real actor");
                 Enemy unrelated=g.enemies.Find(e=>!System.Object.ReferenceEquals(e,target));
                 float energy=g.save.energy;
                 hit.Invoke(g,new object[]{unrelated,1f,false,null,null});
@@ -61,6 +66,9 @@ namespace Starfall.Tests
                 hit.Invoke(g,new object[]{target,1f,false,null,null});
                 Check(Math.Abs(g.save.energy-(energy+(delayed==0?5f:0f)))<.001f,
                     "Only an in-window genuine player HP strike earns 5 energy");
+                Check(!g.IsRoadwatchFollowUpTarget(target)==(delayed==0)||
+                    delayed==1&&g.RemoteRoadCounterOpportunitySeconds==0f,
+                    "Earned or expired follow-up removes its live actor cue");
                 hit.Invoke(g,new object[]{target,1f,false,null,null});
                 Check(Math.Abs(g.save.energy-(energy+(delayed==0?5f:0f)))<.001f,
                     "A second hit cannot duplicate the earned one-time follow-up");

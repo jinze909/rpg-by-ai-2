@@ -603,7 +603,14 @@ namespace Starfall
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
                     urgentMain ? q.next :
                     Game.FieldTacticTrialActive ? q.next :
-                    Game.RemoteRoadEncounterActive ? q.next :
+                    Game.RemoteRoadEncounterActive ?
+                        Game.RemoteRoadCounterOpportunitySeconds>0f?
+                            Game.L("真实反制破绽：击中青色标记的敌人，恢复5耐力！",
+                                "EXPOSED: hit the cyan-marked foe to recover 5 energy!"):
+                        !Game.RemoteRoadSignalUsed?
+                            Game.L("接近原路标按 Shift+G 使用环境反制；击退或活捉袭击者。",
+                                "Near the original ridge: Shift+G to counter; defeat or restrain raiders."):
+                            q.next :
                     Game.InAbyss ? Game.Objective() : TideBlocksGuide ? Game.L("潮水阻路：等待退潮，或开启控潮闸门。", "Tide blocks the route. Wait for ebb or use the sluice.") : (Game.CivicCourierActive || Game.FarCourierActive || Game.MineConvoyActive ||
                     Game.TideSalvageActive || Game.FrostSignalActive ||
                     Game.WitnessDefenseRoom!=0) ? q.next : Game.GuidanceHint(), 13, muted);

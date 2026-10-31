@@ -73,6 +73,12 @@ namespace Starfall
                 IsRemoteRoadThreat(remoteRoadCounterTarget)?
                 Math.Max(0f,remoteRoadCounterUntil-save.totalTime):0f;
         }}
+        public bool IsRoadwatchFollowUpTarget(Enemy actor)
+        {
+            return actor!=null&&
+                System.Object.ReferenceEquals(actor,remoteRoadCounterTarget)&&
+                RemoteRoadCounterOpportunitySeconds>0f;
+        }
         // A real player-owned strike on the EXACT controlled opponent earns
         // one small recovery. Not a free hit, damage, XP, loot or quest flag.
         private void OnRemoteRoadSignalFollowUp(Enemy struck,ImpactProfile hit)
