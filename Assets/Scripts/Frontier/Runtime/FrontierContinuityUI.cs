@@ -337,10 +337,29 @@ namespace Starfall
                 Game.GetQuest("mine_convoy"):
                 Game.TideSalvageActive?Game.GetQuest("tide_salvage"):
                 Game.FrostSignalActive?Game.GetQuest("frost_signal"):
-                Game.CurrentGuide;
+                // In combat the compact HUD replaces the entire world
+                // quest card. Live fieldwork must keep its true signed
+                // objective here too, not snap back to an unrelated old
+                // quest as soon as enemies approach.
+                Game.FieldDispatchActive?Game.GetQuest("field_dispatches"):
+                Game.FieldOutpostActive?Game.GetQuest("field_outposts"):
+                Game.RecommendedContinuationGuide;
+            bool crossingCombat=Game.CrossingWatchActive;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
-            Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") : guide.title,12,gold);
-            Text(1041,56,136,23,(int)(guide.Progress*100)+"%  ·  "+Game.L("查看步骤","View steps"),11,paper);
+            Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") :
+                crossingCombat?Game.L("可选路口伏击","OPTIONAL CROSSING AMBUSH"):
+                guide.title,12,gold);
+            Text(1041,56,136,23,crossingCombat?
+                Game.L("剩余"+Game.CrossingWatchRemaining+"名 · 可撤离",
+                    Game.CrossingWatchRemaining+" RAIDERS · MAY WITHDRAW"):
+                Game.FieldOutpostActive?
+                    Game.L("尚余"+Game.FieldOutpostRemaining+"名 · 返回建站",
+                        Game.FieldOutpostRemaining+" RAIDERS · BUILD AFTER"):
+                Game.FieldDispatchActive?
+                    Game.L("运送第"+Game.FieldDispatchStage+"/2站",
+                        "DELIVERY LEG "+Game.FieldDispatchStage+"/2"):
+                (int)(guide.Progress*100)+"%  ·  "+
+                    Game.L("查看步骤","View steps"),11,paper);
             if (Button(CombatJournalButton.x,CombatJournalButton.y,CombatJournalButton.width,CombatJournalButton.height,ControlKey("TAB","VIEW"))) OpenMenu("journal");
             // CombatHud is the ACTUAL shipped battle overlay; exploration
             // HUD is not drawn once a living Boss enters camera threat range.

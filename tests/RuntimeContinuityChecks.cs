@@ -1404,9 +1404,13 @@ public static class RuntimeContinuityChecks
             "Real encounter begins after warning and owns two actors");
         Set(app,"camera",g.Position);
         ClearDraw();Call(app,"OnGUI");
-        bool battleTitle=GUI.commands.Exists(x=>x.Contains("CROSSING AMBUSH")&&
-            x.Contains("FIGHT OR WITHDRAW"));
-        bool battleHint=GUI.commands.Exists(x=>x.Contains("2 raiders remain"));
+        // The actual shipped CombatHud intentionally replaces the large
+        // exploration card while enemies are close. It must still display
+        // the optional skirmish's real combat identity and remaining count.
+        bool battleTitle=GUI.commands.Exists(x=>
+            x.Contains("OPTIONAL CROSSING AMBUSH"));
+        bool battleHint=GUI.commands.Exists(x=>
+            x.Contains("2 RAIDERS")&&x.Contains("MAY WITHDRAW"));
         bool originalTrack=g.save.trackedQuest=="main";
         Check(battleTitle&&battleHint&&originalTrack,
             "Battle HUD mismatch: title="+battleTitle+
@@ -1427,9 +1431,10 @@ public static class RuntimeContinuityChecks
         Check(!g.CrossingWatchActive&&g.CrossingWatchSecured(1),
             "Two actual combat contacts clear only the optional crossing");
         ClearDraw();Call(app,"OnGUI");
-        Check(!GUI.commands.Exists(x=>x.Contains("FIGHT OR WITHDRAW"))&&
+        Check(!GUI.commands.Exists(x=>
+                x.Contains("OPTIONAL CROSSING AMBUSH"))&&
             g.save.trackedQuest=="main",
-            "Completing the skirmish relinquishes HUD priority to the unchanged tracked quest");
+            "After two authenticated defeats the compact HUD drops the optional battle identity and retains original tracking");
         Console.WriteLine("PASS optional crossing world HUD warning, real raiders and post-event focus");
     }
 
