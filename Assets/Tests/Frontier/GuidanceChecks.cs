@@ -150,6 +150,76 @@ namespace Starfall.Tests
             finally{data.maps[0]=original;}
         }
 
+        // The sprite silhouettes overlap, but neither author placed the
+        // actors on identical feet. Blind E must safely preview the actual
+        // selected speaker, then stay on THAT exact instance on confirmation.
+        // Explicit selection remains a one-press action.
+        public static void VisibleBodyOverlapRequiresHonestEPreview(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('.',25).ToCharArray();
+                    for(int x=0;x<25;x++)
+                        if(x<2||x>=23||y<2||y>=23)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject a=new WorldObject{id="bodyOverlapA",
+                    kind="garden",name="Neighbor A",en="Neighbor A",
+                    x=12.5f,y=12.5f};
+                WorldObject b=new WorldObject{id="bodyOverlapB",
+                    kind="garden",name="Neighbor B",en="Neighbor B",
+                    x=13f,y=12.5f};
+                data.maps[0]=new MapData{
+                    id=0,spawnX=12.5f,spawnY=13.5f,rows=rows,
+                    objects=new[]{a,b},decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";
+                g.save.x=12.5f;g.save.y=13.5f;
+                g.SetAim(new Point(0f,-1f));
+                Check(g.CanStand(g.Position)&&
+                    g.NearbyInteractionCount()==2&&g.Nearest()==a&&
+                    !GameCore.WorldInteractionFeetCoincide(
+                        new Point(a.x,a.y),new Point(b.x,b.y))&&
+                    GameCore.WorldInteractionSilhouettesOverlap(
+                        new Point(a.x,a.y),new Point(b.x,b.y)),
+                    "Two distinct reachable NPC feet share a real painted body, not one authored tile");
+                int initial=g.save.tutorialBits;
+                g.Interact();
+                Check(g.mode=="world"&&g.conversation==null&&
+                    g.CrowdedInteractionConfirmationPending&&g.Nearest()==a&&
+                    g.save.tutorialBits==initial,
+                    "Blind E previews original selected body before any story side effect");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==a&&
+                    !g.CrowdedInteractionConfirmationPending,
+                    "Second E authenticates EXACT instance A, never silently switches to B");
+                g.Close();
+                Check(g.FocusNearbyInteraction(
+                    g.NearbyInteractionChoices().IndexOf(b))&&g.Nearest()==b,
+                    "Explicit list selection still names separate actor B");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==b,
+                    "Explicitly selected overlapping B needs only one physical E");
+                g.Close();
+                // After a real scene move there is no visual overlap. Do
+                // not force a second E for an ordinary lone interaction.
+                b.x=16.5f;g.FocusNearbyInteractionAt(new Point(40f,40f));
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==a&&
+                    !g.CrowdedInteractionConfirmationPending,
+                    "Separate silhouettes do not add an unnecessary confirmation");
+                g.Close();g.PrepareSave();
+                var restored=new GameCore(data,CloneSave(g.save));
+                Check(restored.save.version==2&&
+                    !restored.CrowdedInteractionConfirmationPending,
+                    "Silhouette focus remains transient, compatible with old SaveData v2");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CrowdedTownInteractionsHaveRankedVisibleCycling(Campaign data)
         {
             MapData saved=data.maps[0];

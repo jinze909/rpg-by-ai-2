@@ -4427,9 +4427,12 @@ namespace Starfall
                     if(other==null||System.Object.ReferenceEquals(other,o)||
                         !IsObjectPresent(other)||
                         !HasPhysicalInteractionReach(other)||
-                        !WorldInteractionFeetCoincide(
+                        !WorldInteractionSilhouettesOverlap(
                             new Point(o.x,o.y),new Point(other.x,other.y)))
                         continue;
+                    // Bodies can overlap while their feet are half a
+                    // tile apart. The same visible silhouette definition
+                    // used by the world badge cluster protects blind E.
                     // First E names/locks the authentic winning instance.
                     // No quest flag, reward, tutorial bit or dialogue is
                     // committed. Existing crowded panel and O/R3 can
@@ -4439,9 +4442,9 @@ namespace Starfall
                     interactionFocusMap=Map;
                     interactionFocusSave=save;
                     interactionFocusNeedsConfirmation=true;
-                    Notify("两个交互目标重叠：已选 "+o.name+
+                    Notify("可交互目标在画面中重叠：已选 "+o.name+
                         "。再按 E 确认，或按 O / R3 切换。",
-                        "Overlapping sources: selected "+o.en+
+                        "Overlapping interaction silhouettes: selected "+o.en+
                         ". Press E again to confirm, or O / R3 to change.");
                     return;
                 }
