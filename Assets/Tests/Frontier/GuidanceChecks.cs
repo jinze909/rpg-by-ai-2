@@ -427,6 +427,9 @@ namespace Starfall.Tests
                 g.enemies.Count==2,
                 "The physical first forest patrol spawns both real combatants");
             g.save.trackedQuest="main";
+            Check(g.RecommendedContinuationGuide.id=="field_patrols"&&
+                g.GuidanceHint().Contains(g.L("巡路委托进行中","Active patrol")),
+                "A signed live patrol outranks stale story tracking in the actual HUD");
             QuestGuide patrol=g.GetQuest("field_patrols");
             Point? target=g.NavigationTarget();
             Check(target.HasValue&&patrol.room==g.save.room&&
