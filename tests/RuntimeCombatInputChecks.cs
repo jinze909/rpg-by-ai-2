@@ -8664,11 +8664,20 @@ public static class RuntimeCombatInputChecks
                 "Deliberate nonquest focus starts on the nearby fire");
             Set(app,"camera",g.Position);
             GUI.commands.Clear();Call(app,"OnGUI");
-            Check(GUI.commands.Exists(s=>s.Contains("FOCUS QUEST OBJECTIVE"))&&
-                GUI.commands.Exists(s=>s.Contains("FOCUS QUEST SOURCE"))&&
-                GUI.commands.Exists(s=>s.Contains("QUEST SOURCE NEARBY"))&&
-                GUI.commands.Exists(s=>s.Contains("★")),
-                "Actual GameView and its main objective card show the same verified crowd focus");
+            bool crowdFocus=GUI.commands.Exists(s=>s.Contains("FOCUS QUEST OBJECTIVE"));
+            bool cardFocus=GUI.commands.Exists(s=>s.Contains("FOCUS QUEST SOURCE"));
+            bool cardHint=GUI.commands.Exists(s=>s.Contains("QUEST SOURCE NEARBY"));
+            bool sourceStar=GUI.commands.Exists(s=>s.Contains("★"));
+            Check(crowdFocus&&cardFocus&&cardHint&&sourceStar,
+                "Actual GameView and its main objective card show verified focus;"+
+                " physical source="+
+                System.Object.ReferenceEquals(g.NearbyQuestInteraction(),scout)+
+                " crowd="+crowdFocus+" card="+cardFocus+
+                " hint="+cardHint+" star="+sourceStar+
+                " near count="+g.NearbyInteractionCount()+
+                " safe travel="+g.SafeTravel+
+                " tracked="+g.save.trackedQuest+
+                " recommendation="+g.RecommendedContinuationGuide.id);
             Input.Clear();Input.keys.Add(KeyCode.LeftShift);
             Input.keys.Add(KeyCode.O);Update(app);
             Check(System.Object.ReferenceEquals(g.Nearest(),scout)&&
