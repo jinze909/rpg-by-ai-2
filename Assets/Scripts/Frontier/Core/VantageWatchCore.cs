@@ -32,6 +32,11 @@ namespace Starfall
         private readonly List<Enemy> vantageFoes=new List<Enemy>();
         private readonly HashSet<Enemy> vantageKills=new HashSet<Enemy>();
         private readonly HashSet<Enemy> vantageCaptures=new HashSet<Enemy>();
+        // One physical warning-bell pulse per live defense. An abandoned or
+        // reloaded watch cannot inherit this transient encounter action.
+        private bool vantageAlarmUsed;
+        public bool VantageWatchAlarmSpent
+        {get{return VantageWatchActive&&vantageAlarmUsed;}}
         public bool VantageWatchAid(int r)
         {return r>=0&&r<8&&Has("vantage_watch_aid_"+r);}
         public bool VantageWatchSignal(int r)
@@ -101,6 +106,24 @@ namespace Starfall
             vantageRoom=-1;vantageMap=null;vantageSave=null;
             vantageSource=null;vantageFoes.Clear();
             vantageKills.Clear();vantageCaptures.Clear();
+            vantageAlarmUsed=false;
+        }
+        // A manually rung bell can only disrupt genuine living attackers
+        // who are in earshot AND in an unobstructed local combat lane.
+        // No damage, phantom kills, world patrol displacement or free payout.
+        private const float WatchAlarmRadius=10f;
+        private const float WatchAlarmEnergy=18f;
+        private int WatchAlarmThreats()
+        {
+            if(!VantageWatchActive||VantageWatchReady)return 0;
+            Point bell=new Point(vantageSource.x,vantageSource.y);
+            int count=0;
+            foreach(Enemy foe in vantageFoes)
+                if(foe!=null&&foe.hp>0f&&enemies.Contains(foe)&&
+                    (foe.Position-bell).Length<=WatchAlarmRadius&&
+                    ClearAttackPath(Position,foe.Position))
+                    count++;
+            return count;
         }
         // Use eight real compass sectors rather than accepting the first
         // north-west cells encountered by a row-major perimeter scan. The
@@ -231,6 +254,18 @@ namespace Starfall
                 conversation.textEn+="\n\nWardens: "+
                     (VantageWatchReady?"The watch is secured. Choose a medical or signal service.":
                         VantageWatchRemaining+" genuine raiders remain. Hold the road.");
+                if(!VantageWatchReady)
+                {
+                    conversation.text+=vantageAlarmUsed?
+                        "\n警钟已响过，本次守望不能再次发动。":
+                        "\n可回到望台敲响一次警钟，消耗18耐力，扰乱近处敌人的蓄势攻击；墙后目标不受影响。";
+                    conversation.textEn+=vantageAlarmUsed?
+                        "\nThe warning bell has been rung for this watch.":
+                        "\nRing the bell once for 18 energy to interrupt nearby attackers with a clear lane; foes behind walls are unaffected.";
+                    if(!vantageAlarmUsed)
+                        list.Insert(at++,C("敲响防线警钟 · 耐力18",
+                            "Ring defensive bell · 18 energy","vantage_alarm"));
+                }
                 if(VantageWatchReady)
                 {
                     list.Insert(at++,C("建公共医疗望台 · 木1 零件1",
@@ -252,7 +287,8 @@ namespace Starfall
         private bool ChooseVantageWatch(string action)
         {
             if(action!="vantage_begin"&&action!="vantage_abort"&&
-               action!="vantage_aid"&&action!="vantage_signal")return false;
+               action!="vantage_aid"&&action!="vantage_signal"&&
+               action!="vantage_alarm")return false;
             int room=save.room;
             WorldObject source=pendingDialogueSource;
             if(room<0||room>=8||Dying||mode!="world"||practicing||racing||
@@ -270,6 +306,43 @@ namespace Starfall
                     Notify("居民守望已撤回，未签收任何奖励。",
                         "Watch withdrawn; no unearned payout.");
                 }
+                return true;
+            }
+            if(action=="vantage_alarm")
+            {
+                if(!VantageWatchActive||vantageAlarmUsed||VantageWatchReady||
+                   !Object.ReferenceEquals(vantageSource,source))return true;
+                if(save.energy<WatchAlarmEnergy)
+                {
+                    Notify("警钟需要18耐力，请先恢复体力。",
+                        "The warning bell needs 18 energy.");return true;
+                }
+                if(WatchAlarmThreats()==0)
+                {
+                    Notify("目前没有进入警钟有效范围且不受墙体阻挡的袭击者；请等敌人靠近。",
+                        "No raiders have entered the bell's clear attack lanes. Let them approach.");
+                    return true;
+                }
+                // Spend only after verifying at least one actual target.
+                save.energy-=WatchAlarmEnergy;vantageAlarmUsed=true;
+                Point bell=new Point(source.x,source.y);
+                int interrupted=0;
+                foreach(Enemy foe in vantageFoes)
+                {
+                    if(foe==null||foe.hp<=0f||!enemies.Contains(foe)||
+                        (foe.Position-bell).Length>WatchAlarmRadius||
+                        !ClearAttackPath(Position,foe.Position))continue;
+                    ApplyEnemyControl(foe,foe.kind==1?1.65f:1.2f);
+                    foe.stagger=Math.Max(foe.stagger,.4f);
+                    effects.Add(new Effect("number",foe.Position,.8f,
+                        L("警钟惊退！","ALARM INTERRUPT!")));
+                    interrupted++;
+                }
+                effects.Add(new Effect("burst",bell,.65f)
+                    {radius=WatchAlarmRadius});
+                revision++;sound="alert";
+                Notify("警钟震退"+interrupted+"名真实袭击者！趁其短暂失衡反击。",
+                    "The bell disrupted "+interrupted+" real raiders. Seize the opening!");
                 return true;
             }
             if(action=="vantage_begin")

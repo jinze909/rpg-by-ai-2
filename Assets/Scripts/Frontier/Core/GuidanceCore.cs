@@ -1434,8 +1434,8 @@ namespace Starfall
                     "Roads Beyond Sight · Eight Civilian Lookouts");
                 q.category=L("地图探索 · 真实防守和永久医疗/信号服务",
                     "LIVE WORLD DEFENSE · PERSISTENT PUBLIC SERVICES");
-                q.description=L("在八张原始地图的远端观测站先记录地貌，再守住真实、可步行到达的敌人进路。可以击退或用真实绊索活捉袭击者，回原站用木材和零件各1份，二选一建医疗或信号望台。医疗点在安全时恢复生命并缓解冷热；信号台恢复耐力。未防守、撤回或快速移动均无奖励。",
-                    "Visit each original far lookout to chart the terrain, then face a real collision-reachable raider approach. Defeat or physically restrain the fighters; return to the exact lookout and spend one timber and one part to choose either local medical/climate care or stamina signal service. No reward on retreat or bypass.");
+                q.description=L("在八张原始地图的远端观测站先记录地貌，迎战真实、可步行到达的敌人进路。战斗中可回望台敲响一次警钟（耐力18），打断近处无遮蔽敌人的蓄势；也可用绊索活捉。回原站用木材和零件各1份，二选一建医疗或信号望台。医疗点安全时恢复生命并缓解冷热；信号台恢复耐力。撤回或快速移动均无奖励。",
+                    "Chart each far lookout and defend its real walking approaches. During combat, ring its warning bell once (18 energy) to interrupt nearby unobstructed raiders, or physically restrain them with a snare. Return to spend one timber and one part on either lasting local medical/climate care or stamina service. No reward on retreat or bypass.");
                 q.reward=L("每区真实战斗首通硬币、碎片、经验；全部八站守住额外技能点1",
                     "Real first-clear coins, shards and XP per region; +1 skill point after all eight");
                 q.locked=false;

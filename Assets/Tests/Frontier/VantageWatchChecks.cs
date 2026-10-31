@@ -49,6 +49,11 @@ namespace Starfall.Tests
                 Check(g.VantageWatchActive&&!g.VantageWatchReady&&
                     g.VantageWatchRemaining==count&&g.enemies.Count==count,
                     "Authentic live full defense roster spawned at original map source "+room);
+                g.Talk(lookout);
+                Check(Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="vantage_alarm")>=0,
+                    "All eight authentic lookouts provide a player-triggered defensive bell");
+                g.Close();
                 Enemy[] wave=g.enemies.ToArray();
                 // Move only the test hero's transient foot to the farthest
                 // roster entry: the compass must favor the actual nearest
@@ -200,6 +205,72 @@ namespace Starfall.Tests
                     (x.id==first.id||x.id==second.id))==null,
                 "Live mission raiders never leak into normal serialized world patrols");
         }
+
+        public static void LookoutWarningBellIsPaidPhysicalAndOneUse(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;g.enemies.Clear();
+            WorldObject lookout=Array.Find(g.Map.objects,
+                o=>o.kind=="farlookout"&&o.id=="far_vista_1");
+            Check(lookout!=null&&PlaceWithinTalkReach(g,lookout),
+                "Real Thornwood bell has a physical and reachable lookout");
+            g.save.energy=100f;
+            g.Talk(lookout);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="vantage_begin"));
+            Check(g.VantageWatchActive&&g.enemies.Count==2,
+                "A warning bell belongs to one genuine live enemy encounter");
+            Enemy target=g.enemies[0];
+            // Choose a real unblocked standable foot close to the source.
+            // Never create a phantom unit or let the horn act through walls.
+            var clear=typeof(GameCore).GetMethod("ClearAttackPath",
+                BindingFlags.NonPublic|BindingFlags.Instance);
+            Check(clear!=null,"Real attack cover geometry is exposed to the watch");
+            bool found=false;
+            for(int y=-6;y<=6&&!found;y++)
+            for(int x=-6;x<=6&&!found;x++)
+            {
+                Point foot=new Point((float)Math.Floor(g.Position.x)+x+.5f,
+                    (float)Math.Floor(g.Position.y)+y+.5f);
+                float distance=(foot-g.Position).Length;
+                if(distance<2.5f||distance>6.5f||!g.CanStand(foot)||
+                   !(bool)clear.Invoke(g,new object[]{g.Position,foot}))
+                    continue;
+                target.x=foot.x;target.y=foot.y;found=true;
+            }
+            Check(found,"An actual reachable line-of-sight foot is available for bell interruption");
+            Enemy impostor=new Enemy(target.id,target.kind,target.x,target.y,25f);
+            g.enemies.Add(impostor);
+            target.state=1;target.timer=.3f;target.stun=0;
+            impostor.state=1;impostor.timer=.3f;impostor.stun=0;
+            // A rejected action cannot spend resources, mark the bell used,
+            // or cancel either actor's telegraph.
+            g.save.energy=5f;g.Talk(lookout);
+            int option=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="vantage_alarm");
+            Check(option>=0,"The action is shown before its first real use");
+            g.Choose(option);
+            Check(!g.VantageWatchAlarmSpent&&g.save.energy==5f&&
+                target.state==1&&impostor.state==1,
+                "Insufficient energy preserves both threat and spend state");
+            g.save.energy=100f;g.Talk(lookout);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="vantage_alarm"));
+            Check(g.VantageWatchAlarmSpent&&g.save.energy==82f&&
+                target.state==0&&target.stun>=1.15f&&target.hp>0f&&
+                impostor.state==1&&impostor.stun==0f&&
+                impostor.hp==25f&&g.VantageWatchRemaining==2,
+                "One paid in-range bell interrupts only the real roster, never same-ID impostors or HP");
+            g.Talk(lookout);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="vantage_alarm")<0,
+                "Bell disappears on the same active watch after its genuine pulse");
+            g.Close();g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(!restored.VantageWatchActive&&!restored.VantageWatchAlarmSpent&&
+                !restored.VantageWatchBuilt(1)&&restored.save.version==2,
+                "Interrupted watch cannot leak its horn state or phantom rewards into v2 slots");
+        }
+
         public static void FatalLookoutWatchNeverSurvivesSlotReloadOrPaysPhantomReward(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=1;g.enemies.Clear();
