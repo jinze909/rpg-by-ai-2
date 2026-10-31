@@ -7807,6 +7807,13 @@ namespace Starfall.Tests
             Check(g.OuterPatrolActive&&g.OuterPatrolTime>=94f&&
                 g.OuterPatrolIntegrity==100f,
                 "New relief siege has real unsaved clock and full cache integrity");
+            // A new, undamaged cache must not advertise a wasteful repair.
+            g.Talk(post);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="outer_watch_patch")<0,
+                "Full-integrity supplies do not expose a wasteful emergency patch");
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="close"));
             Enemy melee=Array.Find(g.enemies.ToArray(),e=>e.kind==0);
             Check(melee!=null,"A real melee attacker targets the defended cache");
             // Position hero on a legal tile outside melee interception range.
