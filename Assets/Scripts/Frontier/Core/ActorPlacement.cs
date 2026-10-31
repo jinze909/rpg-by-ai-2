@@ -269,7 +269,7 @@ namespace Starfall
             int ax=regionalBattleAnchors[room-1,rank,0],
                 ay=regionalBattleAnchors[room-1,rank,1];
             Point anchor=new Point(ax+.5f,ay+.5f);
-            Point? best=null;
+            Point? preferredPad=null;
             float bestScore=float.MinValue;
             int viable=0;
             for(int radius=0;radius<=6&&viable<18;radius++)
@@ -281,9 +281,9 @@ namespace Starfall
                 if(!RegionalBattleFootFree(p,connected))continue;
                 viable++;
                 float score=RegionalOpeningPadScore(p,anchor,kind);
-                if(score>bestScore){bestScore=score;best=p;}
+                if(score>bestScore){bestScore=score;preferredPad=p;}
             }
-            if(best.HasValue)return best;
+            if(preferredPad.HasValue)return preferredPad;
             // A changed gate or authored map can eliminate every favored
             // battle pad. The former final fallback used unvalidated legacy
             // coordinates, potentially placing a mandatory enemy IN a wall
