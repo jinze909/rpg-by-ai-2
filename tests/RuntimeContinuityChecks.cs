@@ -1330,6 +1330,52 @@ public static class RuntimeContinuityChecks
     // This exercises the actual production world renderer for the original
     // relay machinery and survey objects. No fabricated map pin or menu
     // pretending to show game content is accepted.
+    public static void OutpostDefenseDrawsOnlyAuthenticatedLivingRaiders(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.stage=3;g.save.flags.Add("scout_saved");
+        g.save.english=true;g.Enter(1);g.mode="world";
+        g.enemies.Clear();
+        g.save.flags.Add("biome_field_done_1");
+        g.save.flags.Add("field_kit_recovered_1");
+        WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+        Check(kit!=null&&g.CanStand(new Point(kit.x,kit.y)),
+            "The real forward field kit exists in original terrain");
+        g.save.x=kit.x;g.save.y=kit.y;
+        g.Talk(kit);
+        int start=Array.FindIndex(g.conversation.choices,
+            t=>t.action=="field_outpost_begin");
+        Check(start>=0,"Recovered original kit offers real outpost defense");
+        g.Choose(start);
+        Check(g.FieldOutpostActive&&g.FieldOutpostRemaining==2&&
+            g.enemies.Count==2,
+            "The paid defense owns two real physically staged enemies");
+        Enemy foe=g.enemies[0];
+        Check(g.IsLiveFieldOutpostRaider(foe),
+            "The marker resolves exact live owned object identity");
+        Set(app,"camera",foe.Position);
+        ClearDraw();Call(app,"DrawEnemyActor",foe);
+        Check(GUI.commands.Exists(t=>t.Contains("OUTPOST RAIDER"))&&
+            GUI.textureCalls.Exists(t=>t.texture!=Texture2D.whiteTexture),
+            "Production enemy draw path labels an original outpost actor");
+        g.enemies.Remove(foe);
+        ClearDraw();Call(app,"DrawEnemyActor",foe);
+        Check(!GUI.commands.Exists(t=>t.Contains("OUTPOST RAIDER"))&&
+            !g.IsLiveFieldOutpostRaider(foe),
+            "Removed raider cannot retain a counterfeit live warning");
+        g.enemies.Add(foe);
+        g.Close();g.save.x=kit.x;g.save.y=kit.y;g.Talk(kit);
+        int abort=Array.FindIndex(g.conversation.choices,
+            t=>t.action=="field_outpost_abort");
+        Check(abort>=0,"Only original origin can withdraw this defense");
+        g.Choose(abort);
+        Check(!g.FieldOutpostActive&&g.enemies.Count==0&&
+            !g.IsLiveFieldOutpostRaider(foe),
+            "Outpost withdrawal retires actor and world combat cue");
+        Console.WriteLine("PASS outpost raider bodies and owned live tactical warning without ghosts");
+    }
+
     public static void ActualCourierAmbushPaintsOnlyOwnedLivingEnemy(FrontierRuntime app)
     {
         Prepare(app);

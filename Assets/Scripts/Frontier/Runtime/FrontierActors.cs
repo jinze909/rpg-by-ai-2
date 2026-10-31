@@ -1260,6 +1260,16 @@ namespace Starfall
                         Game.L("远路伏击 · 突袭","ROAD AMBUSH · RAIDER"),
                     10,roadside,TextAnchor.MiddleCenter);
             }
+            if(!drawingOutline&&Game.IsLiveFieldOutpostRaider(e))
+            {
+                // The physical outpost raid gets a legible actor-level cue.
+                // A missing actor or reused numeric ID never earns it.
+                Color warning=PixelArt.C("#f3ac6e");
+                Ring(e.Position,.75f,warning,20);
+                Text(p.x-86,p.y-132,172,20,
+                    Game.L("前线据点袭击者","OUTPOST RAIDER"),
+                    10,warning,TextAnchor.MiddleCenter);
+            }
             if(!drawingOutline&&Game.IsLiveFieldDispatchRaider(e))
             {
                 // The courier ambush is an ACTUAL enemy body and AI actor.

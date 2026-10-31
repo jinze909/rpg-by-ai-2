@@ -36,6 +36,8 @@ namespace Starfall
         {return FieldDispatchRouteSecured(room)?4:FieldDispatchDone(room)?6:8;}
         private bool IsFieldOutpostEnemy(Enemy e)
         {return e!=null&&FieldOutpostActive&&outpostFoes.Contains(e);}
+        public bool IsLiveFieldOutpostRaider(Enemy e)
+        {return IsFieldOutpostEnemy(e)&&e.hp>0f&&enemies.Contains(e);}
         private void OnFieldOutpostEnemyDefeated(Enemy e)
         {if(IsFieldOutpostEnemy(e))outpostKills.Add(e);}
         private bool OnFieldOutpostEnemyRestrained(Enemy e)
