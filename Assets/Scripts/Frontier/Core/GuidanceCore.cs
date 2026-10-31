@@ -65,6 +65,11 @@ namespace Starfall
                 WorldLabelSlot a=pending[ia],b=pending[ib];
                 int order=b.priority.CompareTo(a.priority);
                 if(order!=0)return order;
+                // At the same mission priority an imminent combat cue must
+                // win the shared screen slot over a closer ambient caption.
+                // Distance still breaks ties between equally urgent cues.
+                order=b.urgent.CompareTo(a.urgent);
+                if(order!=0)return order;
                 order=a.distance.CompareTo(b.distance);
                 if(order!=0)return order;
                 order=String.CompareOrdinal(a.owner.id,b.owner.id);
