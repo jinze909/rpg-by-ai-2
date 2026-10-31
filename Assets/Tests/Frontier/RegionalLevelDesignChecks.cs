@@ -124,6 +124,65 @@ namespace Starfall.Tests
             }
         }
 
+        // Actual original trail sources now direct the player to the
+        // NEXT stage, instead of replaying a generic hunt instruction.
+        // Dialogue itself cannot steal the hero's map marker; an explicit
+        // atlas action must create the real walkable personal route.
+        public static void EightOrderedTrailRoutesProvideRealNextStopNavigation(Campaign data)
+        {
+            for(int room=0;room<=7;room++)
+            {
+                var g=Fresh(data);
+                g.save.room=room;g.save.stage=3;g.mode="world";
+                WorldObject first=System.Array.Find(g.Map.objects,
+                    o=>o.id=="trailcircuit_"+room+"_1");
+                Check(first!=null&&g.CanStand(new Point(first.x,first.y)),
+                    "Original first trail landmark is real legal terrain: "+room);
+                g.save.x=first.x;g.save.y=first.y;
+                int money=g.save.coins;
+                g.Talk(first);
+                Check(g.TrailCircuitProgress(room)==1&&
+                    g.mode=="dialog"&&g.conversation!=null&&
+                    !g.HasLocalWaymark,
+                    "Reading a real field source advances one and ONLY one bearing without pinning");
+                WorldObject second=g.NextTrailCircuitMarker(room);
+                Check(second!=null&&second.id=="trailcircuit_"+room+"_2",
+                    "Next bearing resolves to original authored second source: "+room);
+                string coords=second.x.ToString("0.0",
+                    System.Globalization.CultureInfo.InvariantCulture)+","+
+                    second.y.ToString("0.0",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                Check(g.conversation.text.Contains(coords)&&
+                    g.conversation.textEn.Contains(coords),
+                    "Actual next coordinates appear in both story languages: "+room);
+                Check(g.save.coins==money&&g.save.version==2,
+                    "New guidance cannot mint a reward or change the save contract");
+                g.mode="map";
+                Check(g.FollowNextTrailCircuitMarker()&&g.HasLocalWaymark,
+                    "The explicit map route uses a verified real walking approach: "+room);
+                Point? pin=g.LocalWaymark;
+                Check(pin.HasValue&&g.CanStand(pin.Value)&&
+                    (pin.Value-new Point(second.x,second.y)).Length<2f,
+                    "Trail pin stops at true physical E-interaction reach: "+room);
+                g.save.flags.Add("trail_circuit_"+room+"_2");
+                WorldObject third=g.NextTrailCircuitMarker(room);
+                Check(third!=null&&third.id=="trailcircuit_"+room+"_3",
+                    "Legacy progress flags select the existing final stop: "+room);
+                // Keep real route ownership on refused requests.
+                g.mode="world";
+                Check(!g.FollowNextTrailCircuitMarker()&&
+                    (g.LocalWaymark.Value-pin.Value).Length<.001f,
+                    "World background or dialogue cannot steal a map-only pin");
+                g.save.flags.Add("trail_circuit_"+room+"_3");
+                g.mode="map";
+                Check(g.TrailCircuitComplete(room)&&
+                    g.NextTrailCircuitMarker(room)==null&&
+                    !g.FollowNextTrailCircuitMarker()&&
+                    (g.LocalWaymark.Value-pin.Value).Length<.001f,
+                    "Completed trails never revive old directions or discard prior routes");
+            }
+        }
+
         public static void SevenRegionalTerrainShortcutsCreatePhysicalWalkingLoops(Campaign data)
         {
             int[] centers={0,60,60,61,64,63,59,61};
