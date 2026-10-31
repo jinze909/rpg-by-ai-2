@@ -30,6 +30,20 @@ namespace Starfall.Tests
                     new Point(x+.5f,y+2.5f);
                 Check(g.CanStand(entry)&&g.CanStand(exit),
                     "Original biome path has walkable sides: "+room);
+                // Both entrances must be recognizable as the authored
+                // road material used elsewhere in this biome. Do not
+                // leave a narrow unmarked gap in the water or stone face.
+                for(int lane=0;lane<2;lane++)
+                {
+                    int edge=lane==0?-1:2;
+                    for(int shoulder=0;shoulder<2;shoulder++)
+                    {
+                        int tx=sideways?x+edge:x+shoulder;
+                        int ty=sideways?y+shoulder:y+edge;
+                        Check(g.Map.rows[ty][tx]=='=',
+                            "Outer route mouth joins the existing foot trail: "+room);
+                    }
+                }
                 for(int yy=y;yy<=y+1;yy++)
                 for(int xx=x;xx<=x+1;xx++)
                 {
