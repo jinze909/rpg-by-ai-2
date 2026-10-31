@@ -1243,7 +1243,8 @@ namespace Starfall
                !FieldPatrolActive&&!RemoteRoadEncounterActive&&
                !ChapterRoadActive&&!GhostTrainBattleActive&&
                !(WitnessDefenseRoom>0&&WitnessDefenseRoom==save.room)&&
-               !(CivicCourierActive&&CivicCourierOriginId(save.room)!=null))
+               !(CivicCourierActive&&CivicCourierOriginId(save.room)!=null)&&
+               !OuterDeliveryActive&&!FrostSignalActive)
                 return GetQuest("main").next;
             QuestGuide q=RecommendedContinuationGuide;
             if(q.complete||q.locked)
