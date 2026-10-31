@@ -1184,6 +1184,11 @@ namespace Starfall
                 // Present that exact battle's CURRENT stage throughout the
                 // HUD, map and journal without rewriting trackedQuest.
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
+                // Active physical road operations already own the world
+                // compass. Their journal/HUD objective must agree rather
+                // than showing an unrelated manually tracked mission.
+                if(ChapterRoadActive)return GetQuest("chapter_roads");
+                if(GhostTrainBattleActive)return GetQuest("ghost_train");
                 // An accepted patrol owns real living enemies and a return
                 // receipt. Showing an unrelated old tracked quest during
                 // combat strands players after the final raider falls.
