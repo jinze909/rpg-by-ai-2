@@ -55,8 +55,15 @@ namespace Starfall.Tests
                     "All eight authentic lookouts provide a player-triggered defensive bell");
                 g.Close();
                 Enemy[] wave=g.enemies.ToArray();
-                Check(!String.IsNullOrEmpty(g.VantageWatchApproachDirections),
+                string originalBearing=g.VantageWatchApproachDirections;
+                Check(!String.IsNullOrEmpty(originalBearing),
                     "The actual defended location reports incoming raider bearings");
+                Point firstArrival=wave[0].Position;
+                wave[0].x=2*lookout.x-firstArrival.x;
+                wave[0].y=2*lookout.y-firstArrival.y;
+                Check(g.VantageWatchApproachDirections==originalBearing,
+                    "A moving combatant cannot rewrite the announced entry lane mid-battle");
+                wave[0].x=firstArrival.x;wave[0].y=firstArrival.y;
                 for(int k=0;k<wave.Length;k++)
                     Check(g.NavigationPathFrom(start,wave[k].Position,true).Count>0,
                         "Compass warnings describe original reachable raiders only");

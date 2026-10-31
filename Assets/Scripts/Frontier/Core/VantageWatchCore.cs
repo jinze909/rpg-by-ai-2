@@ -32,6 +32,11 @@ namespace Starfall
         private readonly List<Enemy> vantageFoes=new List<Enemy>();
         private readonly HashSet<Enemy> vantageKills=new HashSet<Enemy>();
         private readonly HashSet<Enemy> vantageCaptures=new HashSet<Enemy>();
+        // Preserve where each real raider FIRST entered the defense.
+        // A chasing enemy must not rewrite the advertised approach lane;
+        // key by live actor identity, never a reused numeric spawn ID.
+        private readonly Dictionary<Enemy,int> vantageEntrySectors=
+            new Dictionary<Enemy,int>();
         // One physical warning-bell pulse per live defense. An abandoned or
         // reloaded watch cannot inherit this transient encounter action.
         private bool vantageAlarmUsed;
@@ -94,10 +99,8 @@ namespace Starfall
             foreach(Enemy foe in vantageFoes)
             {
                 if(foe==null||foe.hp<=0f||!enemies.Contains(foe))continue;
-                int dx=(int)Math.Round(foe.x-vantageSource.x);
-                int dy=(int)Math.Round(foe.y-vantageSource.y);
-                if(dx==0&&dy==0)continue;
-                int sector=WatchApproachOctant(dx,dy);
+                int sector;
+                if(!vantageEntrySectors.TryGetValue(foe,out sector))continue;
                 string name=english?WatchCompassEn[sector]:WatchCompassZh[sector];
                 if(!directions.Contains(name))directions.Add(name);
             }
@@ -129,7 +132,7 @@ namespace Starfall
             vantageRoom=-1;vantageMap=null;vantageSave=null;
             vantageSource=null;vantageFoes.Clear();
             vantageKills.Clear();vantageCaptures.Clear();
-            vantageAlarmUsed=false;
+            vantageEntrySectors.Clear();vantageAlarmUsed=false;
         }
         // A manually rung bell can only disrupt genuine living attackers
         // who are in earshot AND in an unobstructed local combat lane.
@@ -230,6 +233,9 @@ namespace Starfall
                 Enemy e=CreatePlacedEnemy(++enemyId,kind,feet[i],
                     34f+save.room*9f);
                 vantageFoes.Add(e);enemies.Add(e);
+                vantageEntrySectors[e]=WatchApproachOctant(
+                    (int)Math.Round(feet[i].x-source.x),
+                    (int)Math.Round(feet[i].y-source.y));
                 effects.Add(new Effect("enemyRelease",e.Position,.65f)
                     {variant=kind});
             }
