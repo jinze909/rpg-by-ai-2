@@ -1592,16 +1592,16 @@
           "kind": "trailcircuit",
           "name": "树根庇护",
           "en": "Root Shelter Names",
-          "x": 44.5,
-          "y": 50.5
+          "x": 82.5,
+          "y": 56.5
         },
         {
           "id": "trailcircuit_1_3",
           "kind": "trailcircuit",
           "name": "林地路口",
           "en": "Thornwood Safe Trail",
-          "x": 78.5,
-          "y": 48.5
+          "x": 44.5,
+          "y": 52.5
         },
         {
           "id": "trail_forager_1_0",
@@ -3255,16 +3255,16 @@
           "kind": "trailcircuit",
           "name": "过河名单",
           "en": "Public Crossing Roster",
-          "x": 44.5,
-          "y": 50.5
+          "x": 87.5,
+          "y": 64.5
         },
         {
           "id": "trailcircuit_2_3",
           "kind": "trailcircuit",
           "name": "渡口路口",
           "en": "Drowned Crossing",
-          "x": 78.5,
-          "y": 48.5
+          "x": 43.5,
+          "y": 58.5
         },
         {
           "id": "trail_forager_2_0",
@@ -4800,16 +4800,16 @@
           "kind": "trailcircuit",
           "name": "矿工停机令",
           "en": "Workers' Shutdown Order",
-          "x": 44.5,
-          "y": 50.5
+          "x": 79.5,
+          "y": 58.5
         },
         {
           "id": "trailcircuit_3_3",
           "kind": "trailcircuit",
           "name": "安全矿道",
           "en": "Miner Safety Trail",
-          "x": 78.5,
-          "y": 48.5
+          "x": 45.5,
+          "y": 50.5
         },
         {
           "id": "trail_forager_3_0",
@@ -6464,16 +6464,16 @@
           "kind": "trailcircuit",
           "name": "难民夜路",
           "en": "Refugee Night Road",
-          "x": 44.5,
-          "y": 50.5
+          "x": 84.5,
+          "y": 45.5
         },
         {
           "id": "trailcircuit_4_3",
           "kind": "trailcircuit",
           "name": "公共外环",
           "en": "Citadel Public Ring",
-          "x": 78.5,
-          "y": 48.5
+          "x": 46.5,
+          "y": 50.5
         },
         {
           "id": "trail_forager_4_0",
@@ -8175,16 +8175,16 @@
           "kind": "trailcircuit",
           "name": "潮汐桩号",
           "en": "Tidal Channel Marks",
-          "x": 44.5,
-          "y": 50.5
+          "x": 77.5,
+          "y": 58.5
         },
         {
           "id": "trailcircuit_5_3",
           "kind": "trailcircuit",
           "name": "返航支路",
           "en": "Mistport Homebound Way",
-          "x": 78.5,
-          "y": 48.5
+          "x": 46.5,
+          "y": 49.5
         },
         {
           "id": "trail_forager_5_0",
@@ -9688,16 +9688,16 @@
           "kind": "trailcircuit",
           "name": "绿洲井图",
           "en": "Oasis Water Chart",
-          "x": 44.5,
-          "y": 50.5
+          "x": 25.5,
+          "y": 57.5
         },
         {
           "id": "trailcircuit_6_3",
           "kind": "trailcircuit",
           "name": "沙海绿路",
           "en": "Desert Water Path",
-          "x": 78.5,
-          "y": 48.5
+          "x": 76.5,
+          "y": 45.5
         },
         {
           "id": "trail_forager_6_0",
@@ -11285,16 +11285,16 @@
           "kind": "trailcircuit",
           "name": "暖火方向",
           "en": "Warm Hearth Bearing",
-          "x": 44.5,
-          "y": 50.5
+          "x": 92.5,
+          "y": 64.5
         },
         {
           "id": "trailcircuit_7_3",
           "kind": "trailcircuit",
           "name": "雪线归程",
           "en": "Frostchime Homeward",
-          "x": 78.5,
-          "y": 48.5
+          "x": 52.5,
+          "y": 52.5
         },
         {
           "id": "trail_forager_7_0",
