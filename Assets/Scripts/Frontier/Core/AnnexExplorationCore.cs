@@ -496,10 +496,14 @@ namespace Starfall
                 // Only visiting a new real field site can awaken its
                 // additional local encounter; passive map browsing or
                 // unrelated story progression never spawns extra monsters.
-                SpawnRegionalScoutEncounter(site);
+                int scouts=SpawnRegionalScoutEncounter(site);
                 revision++;sound="quest";
-                Notify("第一份实地线索已记录。去本地区远端寻找对应的证据。",
-                    "First field clue recorded. Explore the distant matching site.");
+                if(scouts>0)
+                    Notify("第一份实地线索已记录。巡兵已被惊动；守住这里，再去远端寻找证据。",
+                        "First field clue recorded. A real patrol has mobilized; survive here, then seek the distant evidence.");
+                else
+                    Notify("第一份实地线索已记录。附近没有可完整通行的巡兵路线；直接去远端寻找证据。",
+                        "First field clue recorded. No complete walkable patrol could approach; continue toward the distant evidence.");
                 return true;
             }
             if(site.kind!="biomeAnswer"||site.id!="biomeAnswer"+room||
