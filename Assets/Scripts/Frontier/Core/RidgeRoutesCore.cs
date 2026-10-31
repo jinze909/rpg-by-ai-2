@@ -93,11 +93,16 @@ namespace Starfall
                 // The hero still has to physically return to the crossing
                 // and interact before the next enemy attack lands.
                 Dialog(o.name,o.en,
-                    zh[room]+"\n\n这处伏击尚余"+RemoteRoadRemaining+
-                        "名敌人。可留在现场迎战，或从原路口撤回。撤离不获得胜利回执。",
-                    en[room]+"\n\n"+RemoteRoadRemaining+
-                        " raiders still threaten this road. Fight on, or withdraw at "+
-                        "this original marker without claiming victory.",
+                    zh[room]+"\n\n"+
+                        (RemoteRoadVeteranActive?
+                            "自愿召集的进阶巡护尚余":"这处伏击尚余")+
+                        RemoteRoadRemaining+
+                        "名敌人。可继续迎战，或从原路口撤回。撤离不获得回执，居民通路安全不受影响。",
+                    en[room]+"\n\n"+
+                        (RemoteRoadVeteranActive?
+                            "Veteran roadwatch: ":"Road ambush: ")+
+                        RemoteRoadRemaining+
+                        " raiders remain. Fight on or withdraw at this original marker. Civilian passage stays open.",
                     C("从本路口撤离 · 不领取奖励",
                         "Withdraw from road · no reward","remote_road_withdraw"),
                     C("继续交战","Keep fighting","close"));
@@ -132,30 +137,44 @@ namespace Starfall
                 bool unclearedRoad=room>=1&&room<=7&&
                     !RemoteRoadCleared(room,side)&&
                     !RemoteRoadEncounterActive;
-                Choice confront=C("主动清剿本路口伏击",
-                    "Challenge this road's raiders","remote_road_challenge");
+                bool veteranRoad=room>=1&&room<=7&&
+                    RemoteRoadCleared(room,side)&&
+                    !RemoteRoadEncounterActive;
+                bool canChallenge=unclearedRoad||veteranRoad;
+                Choice confront=unclearedRoad?
+                    C("主动清剿本路口伏击",
+                      "Challenge this road's raiders","remote_road_challenge"):
+                    C(RemoteRoadVeteranDone(room,side)?
+                        "进阶巡护复训 · 不重复发放奖励":
+                        "进阶巡护 · 精锐双人队（首次回执）",
+                      RemoteRoadVeteranDone(room,side)?
+                        "Veteran rematch · no further rewards":
+                        "Veteran roadwatch · two elite raiders",
+                      "remote_road_veteran");
                 Choice[] choices=Has("boss_"+room)&&!RidgeWatchComplete(room)?
-                    unclearedRoad?
+                    canChallenge?
                     new Choice[]{crossing,confront,
                         C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
                     new Choice[]{crossing,C("追踪高地巡守","Track ridge patrols","ridge_watch_track"),depart}:
                     RidgeWatchComplete(room)?
-                    unclearedRoad?
+                    canChallenge?
                     new Choice[]{crossing,confront,
                         C("巡守补给 · 月光草 ×1","Warden field aid · 1 Moonherb",
                             "ridge_field_aid"),depart}:
                     new Choice[]{crossing,C("巡守补给 · 月光草 ×1",
                         "Warden field aid · 1 Moonherb","ridge_field_aid"),depart}:
-                    unclearedRoad?
+                    canChallenge?
                     new Choice[]{crossing,confront,depart}:
                     new Choice[]{crossing,depart};
                 Dialog(o.name,o.en,zh[room]+RidgeWatchHint(room,false)+
                     "\n\n两座旧标记已经由你亲自到访。现在可通过安全的高处通道前往另一端，消耗 "+passageCost+" 耐力。"+
-                    (unclearedRoad?"\n\n这处伏击仍可选：付费高地通行安全抵达；可在本路标主动挑战，或徒步返回迎战。":"")+
+                    (unclearedRoad?"\n\n这处伏击仍可选：付费高地通行安全抵达；可在本路标主动挑战，或徒步返回迎战。":
+                      veteranRoad?"\n\n这条居民路已经安全。你可以自愿召集更强的守路精锐实战；首次完成有奖励，之后复训无奖励，不会再自动伏击。":"")+
                     (first?"\n\n这处地标首次记录：经验 +9。线路连通：硬币 +20、碎片 +1、经验 +24。":""),
                     en[room]+RidgeWatchHint(room,true)+
                     "\n\nBoth markers have been visited on foot. Use the now-safe ridge connection to reach the opposite end for "+passageCost+" energy."+
-                    (unclearedRoad?"\n\nThis roadside fight remains OPTIONAL: paid ridge transit lands safely. Challenge at this marker or return on foot to face its raiders.":"")+
+                    (unclearedRoad?"\n\nThis roadside fight remains OPTIONAL: paid ridge transit lands safely. Challenge at this marker or return on foot to face its raiders.":
+                      veteranRoad?"\n\nThis civilian crossing is secure. Voluntarily summon harder roadwatch opponents; the first win pays once, later rematches give no rewards. No automatic ambush returns.":"")+
                     (first?"\n\nFirst visit: +9 XP. Route linked: +20 coins, +1 shard, +24 XP.":""),
                     choices);
                 return true;
@@ -176,6 +195,7 @@ namespace Starfall
             if(action!="ridge_travel"&&action!="ridge_watch_track"&&
                 action!="ridge_field_aid"&&
                 action!="remote_road_challenge"&&
+                action!="remote_road_veteran"&&
                 action!="remote_road_withdraw")return false;
             int room=save.room;
             if(action=="ridge_travel"&&SignalRelayActive)
@@ -206,8 +226,10 @@ namespace Starfall
                     "Withdrew without reward. Leave and return, or challenge again.");
                 return true;
             }
-            if(action=="remote_road_challenge")
+            if(action=="remote_road_challenge"||
+               action=="remote_road_veteran")
             {
+                bool veteran=action=="remote_road_veteran";
                 WorldObject marker=pendingDialogueSource;
                 if(marker==null||room<1||room>7||
                     pendingDialogueSourceRoom!=room||
@@ -219,8 +241,10 @@ namespace Starfall
                     !SafeTravel||Dying||practicing)return true;
                 int side=marker.id=="ridge_route_"+room+"_0"?0:
                     marker.id=="ridge_route_"+room+"_1"?1:-1;
-                if(side<0||RemoteRoadCleared(room,side))return true;
-                if(BeginRemoteRoadEncounter(marker,side))
+                if(side<0||
+                   (veteran&&!RemoteRoadCleared(room,side))||
+                   (!veteran&&RemoteRoadCleared(room,side)))return true;
+                if(BeginRemoteRoadEncounter(marker,side,veteran))
                 {
                     remoteRoadVisited.Add(side);
                     // The voluntary choice replaces SAFE arrival with
