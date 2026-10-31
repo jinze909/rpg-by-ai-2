@@ -224,6 +224,30 @@ namespace Starfall
                 Box(x-2,y-2,4,4,mark);
             }
         }
+        // Clicking a visible shortcut icon must pin the EXACT existing
+        // walkable passage, never an arbitrary neighbor rounded from a
+        // miniature-map pixel. Consume a matched click even if a gate
+        // closed between draw and activation, retaining the old pin.
+        private bool TryPinRegionalShortcutAt(Point tile,float scale)
+        {
+            if(Game==null||Game.mode!="map"||mapTileCursor.Active||
+               mapFocusMode||selectedRegion!=Game.save.room||
+               selectedRegion<1||selectedRegion>7||scale<=0f)
+                return false;
+            int picked=-1;
+            float nearest=5.5f;
+            for(int i=0;i<2;i++)
+            {
+                Point? road=Game.RegionalShortcutFoot(selectedRegion,i);
+                if(!road.HasValue)continue;
+                float distance=(tile-road.Value).Length*scale;
+                if(distance<nearest)
+                { nearest=distance;picked=i; }
+            }
+            if(picked<0)return false;
+            Game.FollowRegionalShortcut(picked);
+            return true;
+        }
         // A click on a teal objective chooses an inspected quest instead
         // of replacing the player's personal pin. Consecutive clicks can
         // cycle overlapping objectives without fabricating quest priority.
@@ -1948,7 +1972,8 @@ namespace Starfall
                                 mapCursorCompanionPost=false;
                             }
                         }
-                        else if(!TryInspectMapQuestAt(tile,terrainScale,regionQuests))
+                        else if(!TryInspectMapQuestAt(tile,terrainScale,regionQuests)&&
+                                !TryPinRegionalShortcutAt(tile,terrainScale))
                             Game.PlaceLocalWaymark(tile);
                     }
                 }

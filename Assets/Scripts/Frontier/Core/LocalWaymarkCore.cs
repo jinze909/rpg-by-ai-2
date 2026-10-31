@@ -539,9 +539,28 @@ namespace Starfall
                         // because the hero reached the feet BEFORE pressing E.
                         return;
                     }
+                    // A trail shortcut is a destination, not a new quest.
+                    // Give the player an actionable north/south crossing
+                    // instruction instead of a generic "pin reached" toast.
+                    int passage=-1;
+                    for(int site=0;site<2;site++)
+                    {
+                        Point? road=RegionalShortcutFoot(save.room,site);
+                        if(road.HasValue&&
+                           (road.Value-mark.Value).Length<.01f)
+                        { passage=site;break; }
+                    }
                     ResetLocalWaymark();
                     revision++;sound="quest";
-                    Notify("已到达个人标记位置。", "Personal map destination reached.");
+                    if(passage>=0)
+                        Notify(passage==0?
+                            "中央近路已抵达。沿真实路面向另一侧穿过峡口，继续探索，不需要重新接任务。":
+                            "外环通路已抵达。从这里可以徒步穿过远端地形障碍，继续探索另一条路。",
+                            passage==0?
+                            "Central shortcut reached. Cross the actual pass to the other bank; no quest re-acceptance required.":
+                            "Outer shortcut reached. Follow the walkable pass through to the other side of the district.");
+                    else
+                        Notify("已到达个人标记位置。", "Personal map destination reached.");
                     return;
                 }
                 // A quest's approached marker is not the quest itself.

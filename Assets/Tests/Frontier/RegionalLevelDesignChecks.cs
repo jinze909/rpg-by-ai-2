@@ -42,6 +42,25 @@ namespace Starfall.Tests
                         "Optional atlas route never silently tracks a quest or changes SaveData");
                 }
                 Point previous=g.LocalWaymark.Value;
+                // A dynamic map edit (or future authored demolition) can
+                // invalidate the bridge while the old personal pin exists.
+                // No reward, scene transition, or stale shortcut may be
+                // issued just because the atlas cached its old coordinates.
+                string roadBefore=g.Map.rows[46];
+                try
+                {
+                    int x=room==1||room==2?60:
+                        room==3||room==7?61:room==4?64:
+                        room==5?63:59;
+                    char[] blocked=roadBefore.ToCharArray();
+                    blocked[x]='#';
+                    g.Map.rows[46]=new string(blocked);
+                    Check(!g.RegionalShortcutFoot(room,0).HasValue&&
+                        !g.FollowRegionalShortcut(0)&&
+                        (g.LocalWaymark.Value-previous).Length<.001f,
+                        "Closed or damaged passage never steals a previous valid route");
+                }
+                finally {g.Map.rows[46]=roadBefore;}
                 Check(!g.FollowRegionalShortcut(-1)&&
                     !g.FollowRegionalShortcut(2)&&
                     !g.RegionalShortcutFoot(room,2).HasValue&&
