@@ -1283,14 +1283,14 @@ namespace Starfall.Tests
                 expanded[expanded.Length-1]=decoy;region.objects=expanded;
                 Check(g.NearbyInteractionCount()>=2&&
                     g.NearbyInteractionChoices().Contains(decoy)&&
-                    Object.ReferenceEquals(g.NearbyQuestInteraction(),scout),
+                    System.Object.ReferenceEquals(g.NearbyQuestInteraction(),scout),
                     "Only the real current quest source is eligible in a reachable NPC crowd");
                 int decoyIndex=g.NearbyInteractionChoices().IndexOf(decoy);
                 Check(decoyIndex>=0&&g.FocusNearbyInteraction(decoyIndex)&&
-                    Object.ReferenceEquals(g.Nearest(),decoy),
+                    System.Object.ReferenceEquals(g.Nearest(),decoy),
                     "Manual selection can still deliberately choose the neighbor");
                 Check(g.FocusNearbyQuestInteraction()&&
-                    Object.ReferenceEquals(g.Nearest(),scout),
+                    System.Object.ReferenceEquals(g.Nearest(),scout),
                     "One deliberate focus switches E to the authenticated current quest source");
                 Check(g.save.version==2&&!g.Has("scout_saved"),
                     "Focusing never opens dialogue or silently awards quest progress");
@@ -1301,7 +1301,7 @@ namespace Starfall.Tests
                 expanded[expanded.Length-1]=impostor;region.objects=expanded;
                 Check(g.NearbyQuestInteraction()==null&&
                     !g.FocusNearbyQuestInteraction()&&
-                    Object.ReferenceEquals(g.Nearest(),decoy),
+                    System.Object.ReferenceEquals(g.Nearest(),decoy),
                     "Two overlapping plausible targets are ambiguous and cannot steal an explicit player focus");
                 region.objects=original;
                 g.save.x+=12f;
