@@ -9100,11 +9100,19 @@ public static class RuntimeCombatInputChecks
                 g.NearbyInteractionCount()==2,
                 "Actors must have distinct real feet but one overlapping live painted body cluster");
             Mouse(app,pixel);Input.mouseDown.Add(1);Update(app);Input.mouseDown.Clear();
-            Check(System.Object.ReferenceEquals(g.Nearest(),left),
-                "First click at the ambiguous painted chest must target the nearest real sprite");
+            Check(System.Object.ReferenceEquals(g.Nearest(),left)&&
+                System.Object.ReferenceEquals(CoreField(g,"interactionFocus"),left),
+                "First actual right-click must set the REAL actor focus, not merely leave the nearest default unchanged; safe="+g.SafeTravel+
+                " focus="+(CoreField(g,"interactionFocus") as WorldObject)?.id);
             Mouse(app,pixel);Input.mouseDown.Add(1);Update(app);Input.mouseDown.Clear();
             Check(System.Object.ReferenceEquals(g.Nearest(),right),
-                "Second click at exactly the same overlap must reach the other physical actor");
+                "Second click at same overlap must change focus; current="+g.Nearest()?.id+
+                " focus="+(CoreField(g,"interactionFocus") as WorldObject)?.id+
+                " last="+(CoreField(g,"lastInteractionClickTarget") as WorldObject)?.id+
+                " valid="+CoreField(g,"lastInteractionClickValid")+
+                " savedFoot="+((Point)CoreField(g,"lastInteractionClickFoot")).x+","+
+                    ((Point)CoreField(g,"lastInteractionClickFoot")).y+
+                " safe="+g.SafeTravel);
             GUI.commands.Clear();Call(app,"OnGUI");
             Check(GUI.commands.Exists(s=>s.Contains("×2")),
                 "Actual world HUD must draw one readable two-body group badge, not overlapping number pips");
