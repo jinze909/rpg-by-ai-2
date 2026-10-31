@@ -2871,7 +2871,11 @@ namespace Starfall.Tests
                 g.save.stage=3;g.save.x=20.5f;g.save.y=15.5f;
                 g.enemies.Clear();
                 Point corner=new Point(14.5f,15.5f);
-                Check(!g.ClearAttackPath(g.Position,corner)&&
+                var line=typeof(GameCore).GetMethod("ClearAttackPath",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(line!=null&&
+                    !(bool)line.Invoke(g,new object[]{g.Position,corner})&&
                     g.NavigationPathFrom(g.Position,corner,true).Count>0,
                     "Covered winding patrol foot is walkable but blocked by actual projectile cover");
                 var method=typeof(GameCore).GetMethod("RegionalScoutFootClear",
