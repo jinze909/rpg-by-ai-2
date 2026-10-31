@@ -2242,6 +2242,10 @@ namespace Starfall.Tests
         public static void VeteranRoadwatchFourteenReceiptsGrantExactlyOneTalent(Campaign data)
         {
             GameCore g=Fresh(data);g.save.stage=3;g.save.room=1;
+            // At the level cap the physical victory still awards the
+            // one-time mastery talent, but ordinary combat XP cannot also
+            // level up and add an unrelated skill point in this assertion.
+            g.save.level=30;g.save.xp=0;
             g.mode="world";g.enemies.Clear();
             g.save.flags.Add("ridge_seen_1_0");
             g.save.flags.Add("ridge_seen_1_1");
@@ -2279,7 +2283,11 @@ namespace Starfall.Tests
                 g.Has("remote_road_veteran_mastered")&&
                 g.save.skillPoints==before+1&&
                 g.GetQuest("road_veterans").complete,
-                "Only fourteen real receipts sign the permanent one-point mastery");
+                "Only fourteen real receipts sign the permanent one-point mastery"+
+                " wins="+g.RemoteRoadVeteranWins+
+                " mastered="+g.Has("remote_road_veteran_mastered")+
+                " before="+before+" after="+g.save.skillPoints+
+                " quest="+g.GetQuest("road_veterans").complete);
             int skill=g.save.skillPoints;
             g.PrepareSave();
             GameCore loaded=new GameCore(data,CloneSave(g.save));
