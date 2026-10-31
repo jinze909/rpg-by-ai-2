@@ -2822,10 +2822,16 @@ namespace Starfall.Tests
                         "Real tactical first foot beats the legacy first-free compass ray: "+room);
                     if(selectedScore>naiveScore+.2f)improved++;
                 }
+                int[,] assignedKinds={
+                    {0,0,0},{1,1,0},{2,0,2},{2,1,0},
+                    {0,1,0},{0,2,1},{1,2,0}
+                };
                 var actorFeet=new List<Point>();
                 for(int slot=0;slot<g.enemies.Count;slot++)
                 {
                     Enemy foe=g.enemies[slot];
+                    Check(foe.kind==assignedKinds[room-1,slot],
+                        "Regional tactical roles must remain in their authored squad slots");
                     Check(g.CanStand(foe.Position)&&foe.hp>0f&&
                         g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
                         "All assigned real enemy roles stay within the local combat corridor");
