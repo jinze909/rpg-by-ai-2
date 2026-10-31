@@ -4210,22 +4210,15 @@ namespace Starfall
                 return byScore!=0?byScore:a.Key.CompareTo(b.Key);
             });
             int primary=scored[0].Key;
-            WorldObject primaryObject=options[primary];
-            Point firstFoot=primaryObject==null?reliefFollowerPosition:
-                new Point(primaryObject.x,primaryObject.y);
+            // Every candidate here is a real, physically reachable actor
+            // whose visible body was hit by this exact pointer position.
+            // Do not restrict cycling to bodies overlapping only the first
+            // actor's feet: at a crowded three-way crossing, B and C can
+            // both be under the cursor while A's feet overlap only B.
+            // Keep their click-proximity order, but let repeated clicks
+            // reach every visible hit instead of trapping a later actor.
             var cluster=new List<int>();
-            foreach(var candidate in scored)
-            {
-                // Every candidate already passed the actual on-screen
-                // silhouette hitbox. Do not discard a second overlapping
-                // NPC merely because its painted foot is slightly farther
-                // from the click: repeated clicks must reach that actor too.
-                WorldObject member=options[candidate.Key];
-                Point foot=member==null?reliefFollowerPosition:
-                    new Point(member.x,member.y);
-                if(WorldInteractionSilhouettesOverlap(firstFoot,foot))
-                    cluster.Add(candidate.Key);
-            }
+            foreach(var candidate in scored)cluster.Add(candidate.Key);
             int selected=primary;
             // The FIRST click at a NEW screen point always picks its best
             // physical actor; only repeating this exact hit cycles all
