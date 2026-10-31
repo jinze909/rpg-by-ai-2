@@ -615,6 +615,9 @@ namespace Starfall
                     crossingEncounter?Game.L("路口伏击 · 可战斗或撤离",
                         "CROSSING AMBUSH · FIGHT OR WITHDRAW"):q.title, 17, paper);
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
+                    // A live optional ambush must not show unrelated tide,
+                    // current-quest or postgame guidance beneath its title.
+                    crossingEncounter ? Game.GuidanceHint() :
                     urgentMain ? q.next :
                     Game.FieldTacticTrialActive ? q.next :
                     Game.RemoteRoadEncounterActive ?
