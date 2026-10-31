@@ -26,6 +26,10 @@ namespace Starfall
 
         private bool TrailFollowOwnsCurrentPin()
         {
+            // Render and focus queries also run on malformed/transient
+            // maps during save repair. Without an explicitly active owner,
+            // do NOT consult the map or collision system at all.
+            if(trailFollowSource==null)return false;
             Point? pin=LocalWaymark;
             return trailFollowSource!=null&&trailFollowRoom==save.room&&
                 System.Object.ReferenceEquals(trailFollowMap,Map)&&
@@ -65,8 +69,9 @@ namespace Starfall
             // Prioritize the authentic source whenever E can genuinely
             // reach it; the pin itself is only a navigation hint.
             // A nearby raider must not steal or fake the player's E source.
-            return mode=="world"&&!Dying&&CanStand(Position)&&
+            return mode=="world"&&!Dying&&
                 TrailFollowOwnsCurrentPin()&&
+                CanStand(Position)&&
                 HasPhysicalInteractionReach(trailFollowSource)?
                 trailFollowSource:null;
         }
