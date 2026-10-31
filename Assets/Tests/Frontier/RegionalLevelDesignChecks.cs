@@ -8,6 +8,38 @@ namespace Starfall.Tests
         // The tenth gameplay location is not Campaign.maps[8]: live floor
         // layouts are regenerated from the exact persistent v2 seed. Exercise
         // the real generator, not a decorative static preview.
+        // The seven original 120x80 landscapes had opposite banks
+        // three tiles apart but 37-45 real walking steps apart. These
+        // biome-specific cuts change real terrain, not the UI or save flags.
+        public static void SevenRegionalTerrainShortcutsCreatePhysicalWalkingLoops(Campaign data)
+        {
+            int[] centers={0,60,60,61,64,63,59,61};
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                int x=centers[room];
+                Point north=new Point(x+.5f,45.5f);
+                Point south=new Point(x+.5f,48.5f);
+                Check(g.CanStand(north)&&g.CanStand(south),
+                    "Both sides of the authored passage need real hero footing: "+room);
+                for(int y=46;y<=47;y++)
+                for(int xx=x-1;xx<=x+1;xx++)
+                {
+                    Point foot=new Point(xx+.5f,y+.5f);
+                    Check(g.Map.rows[y][xx]=='='&&g.CanStand(foot),
+                        "Cut is walkable terrain, not a fake minimap shortcut: "+room);
+                    foreach(WorldObject obj in g.Map.objects)
+                        Check((foot-new Point(obj.x,obj.y)).Length>=2.5f,
+                            "New passage must not cover a quest E source: "+room+"/"+obj.id);
+                }
+                var path=g.NavigationPathFrom(north,south,true);
+                Check(path.Count>0&&path.Count<=5,
+                    "Actual collision navigation must cross the new 3-step passage: "+room);
+                Check(g.save.version==2,
+                    "New terrain changes no quest flag or save schema");
+            }
+        }
+
         public static void ProceduralAbyssQuestFramesKeepSixFloorsPlayable(Campaign data)
         {
             var generate=typeof(GameCore).GetMethod("GenerateAbyss",
