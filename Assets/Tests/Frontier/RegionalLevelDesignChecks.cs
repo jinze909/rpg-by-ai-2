@@ -444,6 +444,8 @@ namespace Starfall.Tests
             {
                 GameCore g=Fresh(data);g.save.stage=3;
                 g.save.flags.Add("exp_intro");
+                g.save.flags.Add("harbor_report");
+                g.save.flags.Add("desert_report");
                 g.Enter(room);g.enemies.Clear();
                 WorldObject device=Array.Find(g.Map.objects,
                     o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
