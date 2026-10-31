@@ -2179,11 +2179,24 @@ namespace Starfall
                 // the earlier ridge/story pips and original Sprite unchanged.
                 if(Game.RemoteRoadActiveDistrict==district)
                 {
-                    Ring(new Point(o.x,o.y),.94f,gold,28);
-                    WorldObjectLabel(p.x-96,p.y-135,192,19,
-                        Game.L("远路拦截 · 尚余"+Game.RemoteRoadRemaining+"名",
-                            "OUTER AMBUSH · "+Game.RemoteRoadRemaining+" LEFT"),
-                        10,gold,TextAnchor.MiddleCenter);
+                    int visible=Game.RemoteRoadSignalThreatCount(o);
+                    bool used=Game.RemoteRoadSignalUsed;
+                    // The signal belongs to this authentic in-combat
+                    // marker, not to distant copies or a fictional prop.
+                    // Keep the original enemy countdown when the terrain
+                    // has no valid counter target.
+                    Color encounterInk=used?muted:visible>0?gold:muted;
+                    Ring(new Point(o.x,o.y),.94f,encounterInk,28);
+                    WorldObjectLabel(p.x-118,p.y-135,236,20,
+                        used?
+                            Game.L("路标反制已用 · 尚余"+Game.RemoteRoadRemaining+"名",
+                                "SIGNAL SPENT · "+Game.RemoteRoadRemaining+" LEFT"):
+                        visible>0?
+                            Game.L("路标反制可用 · 按 E · 尚余"+Game.RemoteRoadRemaining+"名",
+                                "COUNTER READY · E · "+Game.RemoteRoadRemaining+" LEFT"):
+                            Game.L("远路拦截 · 尚余"+Game.RemoteRoadRemaining+"名",
+                                "OUTER AMBUSH · "+Game.RemoteRoadRemaining+" LEFT"),
+                        10,encounterInk,TextAnchor.MiddleCenter);
                 }
                 else if(Game.RemoteRoadCleared(Game.save.room,district))
                 {
