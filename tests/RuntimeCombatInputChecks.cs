@@ -1357,6 +1357,71 @@ public static class RuntimeCombatInputChecks
     // Exercise the actual regional-attack-slot decision as well as the
     // live footprint. A queued melee attacker should use the OPEN flank
     // when its stable preferred direction is walled off.
+    private static void AllThreeEncounterFamiliesPreferRealBowFlightOverFalseSight(FrontierRuntime app)
+    {
+        Prepare(app,0);
+        GameCore g=app.Game;
+        var actualSight=typeof(GameCore).GetMethod("ClearAttackPath",Private);
+        var flight=typeof(GameCore).GetMethod("PhysicalBowLaneFromFoot",Private);
+        Check(actualSight!=null&&flight!=null,
+            "Encounter scoring must use the same real projectile collision");
+        int row=-1,col=-1;
+        Point bow=new Point(),hero=new Point();
+        for(int y=4;y<g.Map.rows.Length-5&&row<0;y++)
+        for(int x=4;x<g.Map.rows[y].Length-9&&row<0;x++)
+        {
+            bool clear=true;
+            for(int k=0;k<=6;k++)
+                if(g.Map.rows[y][x+k]!='.'||
+                   g.Map.rows[y+1][x+k]!='.')
+                {clear=false;break;}
+            if(!clear)continue;
+            Point from=new Point(x+.5f,y+.88f);
+            Point target=from+new Point(5f,0f);
+            if(!g.CanStand(from)||!g.CanStand(target)||
+               !(bool)flight.Invoke(g,new object[]{from,target}))
+                continue;
+            string original=g.Map.rows[y+1];
+            char[] wall=original.ToCharArray();wall[x+2]='#';
+            g.Map.rows[y+1]=new string(wall);
+            bool falseSight=(bool)actualSight.Invoke(g,new object[]{from,target})&&
+                !(bool)flight.Invoke(g,new object[]{from,target});
+            g.Map.rows[y+1]=original;
+            if(falseSight){row=y+1;col=x+2;bow=from;hero=target;}
+        }
+        Check(row>=0,
+            "Shipped map lacks real sidewall collision with deceptive clear bow centerline");
+        string restore=g.Map.rows[row];
+        try
+        {
+            g.save.x=hero.x;g.save.y=hero.y;
+            var assigned=new List<Point>();
+            float openingClear=(float)CallCore(g,"RegionalOpeningPadScore",
+                bow,bow,1);
+            float surveyClear=(float)CallCore(g,"RegionalScoutTacticalPadScore",
+                bow,hero,1,assigned,0);
+            float roadClear=(float)CallCore(g,"RemoteRoadPadScore",
+                bow,hero,1,0,assigned);
+            char[] wall=restore.ToCharArray();wall[col]='#';
+            g.Map.rows[row]=new string(wall);
+            Check((bool)actualSight.Invoke(g,new object[]{bow,hero})&&
+                !(bool)flight.Invoke(g,new object[]{bow,hero}),
+                "Test must close true projectile flight without closing centerline");
+            float openingBlocked=(float)CallCore(g,"RegionalOpeningPadScore",
+                bow,bow,1);
+            float surveyBlocked=(float)CallCore(g,"RegionalScoutTacticalPadScore",
+                bow,hero,1,assigned,0);
+            float roadBlocked=(float)CallCore(g,"RemoteRoadPadScore",
+                bow,hero,1,0,assigned);
+            Check(openingClear>openingBlocked+10f&&
+                surveyClear>surveyBlocked+10f&&
+                roadClear>roadBlocked+10f,
+                "Opening, field-survey and roadside bow stations must all penalize swept-radius arrow cover");
+            Console.WriteLine("PASS three real encounter scoring systems favor physically shootable bow feet over open-looking wall-collision lanes");
+        }
+        finally{g.Map.rows[row]=restore;}
+    }
+
     private static void NearbyPatrolInvestigatesRealAllyHitAroundOpenCover(FrontierRuntime app)
     {
         Prepare(app,0);
@@ -13411,7 +13476,7 @@ public static class RuntimeCombatInputChecks
         var app = new FrontierRuntime(); Call(app, "Awake");
         if (app.Game == null) { Console.WriteLine("FAIL Runtime Awake did not load the shipped campaign"); return 1; }
         Action<FrontierRuntime>[] cases = { ShiftOFocusesActualCrowdedQuestSourceWithoutAutoInteracting, RealSilentTrainChapterRendersFourWorldSitesAndEStartsActualRailBattle, LiveEngineeringEmergencySurvivesCombatAndShowsRealAtlasDestinations, RealBiomesRenderAndOperateOriginalRegionalEngineeringDevices, LiveEightDistrictRescueUsesActualGameViewHudAndRegionalAtlas, LiveAtlasDisplaysOnlyEarnedBiomeMonumentMilestones, LiveBiomesDrawActualDistantWitnessAndInterpretUsingE, LiveHearthInnSeventhBedUsesRealEAndGameViewEvidence, LiveSeventhBedMidnightSupperUsesRealCookAnnexEAndGameView, ActualCitadelBridgeEliteDisplaysTwoForksAndEOpensOwnConversation, RealDesertWaterLedgerWatchRendersAndEOpensCorrectOriginalEvidence, RealUnsentRelayPropHudAndKeyboardConversationFollowActualMap, RealSnareBindInputHasActualLiveActorAndWorldCue, RuntimePolishChecks.RunAudio, RuntimePolishChecks.PortableSaveFallbackPreservesRecoveredPrecommit, LiveWayfarerLKeyDrawsRealRaidersWithoutDialoguePause, LiveRidgeWhistleReportShowsOnlyActualSealedWorldRoute, GenuineCompanionMissionBoardWorksThroughLiveGameView, ActualDialogueReviewSurvivesNpcExitWithoutReplayingChoices, RealMouseEnemyHoverLeadsBowButGroundClicksStayUnchanged, PhysicalEnemyMotionLeadsActualRangedAttackWithoutFakingHits, WorldQuickEquipUsesRealUnlockedWeaponsAndSameFrameCombat, WorldMouseWheelCyclesOnlyOwnedWeaponsOutsideHud, RightStickClickPinsRealLiveEnemyUntilUnpinnedOrInvalid, ControllerRightStickAimsAwayFromActualMovement, ControllerRangedAimTracksPhysicalEnemyAndRespectsCover, TacticalCompanionPostMouseClickDoesNotOverwritePersonalPin, CompanionMenuOpensPhysicalPostSelectorWithoutAlteringParty, TacticalCompanionPostMapControlsRespectRealPhysicalOrders, MapKeyboardPadCanRepositionSavedPinWithoutClearingOrLongWalk, LiveMapTilePreviewUsesPhysicalRouteAndRepaintCache, LocalMapClickPinDrawsRealWorldRouteAndCanClear, LiveSprintKeyAndL3MaintainPhysicalHudAndFatigue, LiveRunningFootstepsTriggerVisiblePatrolSearch, LiveCtrlQuietStepModulatesPhysicalTravelAndHud, LiveQuietRearOpenerUsesActualWorldAimSpriteAndSword, RealUKeyAndPebbleHudLaunchOnlyActualWorldLure, RealPebbleHudUsesPhysicalLaunchListenerCount, LiveSoundInvestigationSearchesAroundWalkableCorners, ReturningStoneSentryWaitsAtFloodedPostAndResumes, RealSentryWhistleCarriesAroundShortOpenCoverOnly, LiveAudibleCorridorsRespectWallsAndActualSentrySearch, LivePatrolLastFootCueMatchesActualOccludedScene, LastSeenPatrolSearchNavigatesAndReplansLiveTerrain, RealWayfarerCoverIsVisibleInWorldAndJournal, InnTravelerOffersSourceBoundRoadTopicsAndPreservesChronicle, InnTravelerJobBoardTracksOnlyOpenUnfinishedCampaignWork, JournalRemoteQuestFollowsRealRegionTransition, RealOuterShoreNavigationFollowsActualTransitLegs, WorldAtlasTrackAndFollowIsExplicitAndAtomic, InspectedRemoteMapQuestCanAcquireRealCrossRegionRoute, SealedArrivalNeverPretendsRemoteQuestIsReachable, SwitchingTrackedQuestImmediatelyRetiresRemoteRoute, NearbyNpcHudMatchesRealKeyboardInteraction, WorldRightClickTargetsActualCrowdedNpc, CrowdedWorldWheelScrollsRealPeopleNotWeapons, LiveWorldFollowNextAdventureIsPhysicalAndExplicit, JournalActionableBoardPrioritizesRealLocalWork, ShiftTabFollowsActualNextQuestWithoutOpeningJournal, QuietFieldworkCannotBeOverriddenByQuestShortcut, ScoutDefenseIsNeverAbandonedByNextAdventureShortcut, BrightHighlandServiceHasHonestWorldVisual, BankedFrostEmberMovesWorldIndicatorToHearth, ManualCompanionFocusDisplaysAndRetiresRealWorldMarker, LiveSpecialistClassTrialUsesActualTargetAndGameView, RemoteSoupRouteDrawsLiveShelterDeliveryInRealWorld, GardenMedicConversationFollowsClinicAndCropState, ForgeDialogueAcknowledgesPumpRepairAndVeteranTraining, ActualTownCommissionHandoffStaysWithOriginalSpeaker, PublicKitchenRealNpcAndBilingualFoodInventory, PrecisionFishingInLiveGameViewDistinguishesBothRealRules, LiveFrostCompanionEmberScreenIsVisibleInCombatHud, LiveMinecartBodyguardIsVisibleInRealWorldHud, RealChapterBossVictoryRemainsVisibleThroughBodyFade, SkywatchOptionalGuardianUsesAuthenticBossHudAndCorpseCue, ActualMedicalParcelKeepsRoadThreatVisibleRegardlessOfTrackedQuest, DroppedCourierMedicineStaysVisibleUntilRealPhysicalPickup, LiveTideSalvageCombatHudPreservesMissionAndThreat, MineConvoySafeArrivalHoldsUntilPhysicalHandoff, CompanionBlockedRouteCueIsWorldBoundAndBilingual, PublishedCivicFieldAidHasAnHonestWorldMarker, StewCooldownAndAttackBuffAreVisibleInActualBilingualHud, LiveCourierMedicineQualityShowsWithoutCoveringWard, LiveCourierAmbushNeverSpawnsOnCompanion, CourierRaidersRequireReachableLiveSpawn, SealedEscortRouteRejectsFalseNearSideDestination, CivilianEscortNavigatesRealWallDetour, EscortDodgeChoosesFarSideOfLivingAttacker, SealedEscortDodgeCannotSpendEnergyOrTeleport, CivilianEvadeUsesRealContactAndCostsOnlyWhenMoved, LivingEscortStallWarnsOnlyOnRealBlockedMovement, EvacuationFinalHandoffRequiresBothLivingActorsOnOpenSide, NoPhantomRescueMarkersWithoutMission, ActorOriginNavigationPreservesHeroAndCollision, LowSafetyEscortUsesReachableShelterBeforeReturn, TimedRescueCompassOverridesPinnedQuestWithoutMutatingIt, ShelterRestCommandHealsRealEscortOnlyWhenSecure, ActualCivilianClimateSheltersCannotPassThroughWalls, RepairedClimateStationProtectsOnlyItsPhysicalSide, LiveOasisShadeRestIsPhysicalAndSafe, CriticalDesertHeatGuidesActualReachableShade, CriticalAlpineColdGuidesReachablePhysicalBrazier, RealAlpineBrazierRestRequiresSafePhysicalContact, LitAlpineBraziersGivePhysicalSafeRest, LiveAffordableWardUsesActualCaveNavigation, LiveWardRestoresEnergyOnlyFromPhysicalAmbientImpact, LiveTunedAbyssPylonShowsPhysicalShelterAndExit, LiveAbyssRouteMenusBackToGateWithoutBanking, LiveSevenChoiceAbyssGateBanksFromSecondKeyboardPage, LateChronicleChoicePagesRemainPlayable, ThreePageChronicleSupportsPointerHomeEndAndRealBack, ChronicleBackReturnsThroughActualUnlockedChapters, ControllerShouldersPageRealChronicleAndSelectVisibleItem, DialogueChoiceFocusMatchesActualRenderedButton, DialogueReaderCanStepBackwardWithoutTriggeringChoices, ControllerBRewindsLongPhysicalStoryWithoutClosingOrChoosing, DialoguePaginationPreservesBilingualStoryAndChoice, LongFieldGuideReadsAllInstructionsInProduction, LiveYKeyOrdersPhysicalCompanionWatchAndRestoresFollow, LivePKeyHoldsAndReleasesPhysicalCompanion, LiveRBButtonTapAndHoldCompanionOrders, LiveXKeyPatchCannotRepairRemoteOrTwice, LiveVKeyBarricadeUsesRealOutpostGuard, AtomicHeroContactImportRecovery, FreshTechniqueWinsHeldAttack, QueuedTechniqueKeepsAimAndRunsOnce,
-            DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, NearbyPatrolInvestigatesRealAllyHitAroundOpenCover, WaitingFrontlineChoosesOpenFlankAtRealWall, PinnedArcherEscapesAlongRealWallWithoutPhasing, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, BossSupportCannotSpawnAcrossAnIsolatedArena, NearWallBossSummonDoesNotBypassPhysicalArenaIsolation, SealedBossReleaseCannotPlantHazardsAcrossNewWalls, LockedFrostBossStrikeRemainsDodgeableAfterPlayerMoves, BossSecondaryStrikesStayOnCasterSideOfLiveCover, CompanionAutoDefenseDistinguishesSealedFromLiveBossAttacks, MalformedBossIntentCancelsAndRecoversRealCombat, RealGroundHazardsRejectCorruptTransientContacts, DefeatedBossRetiresOnlyItsOwnDelayedGroundAttacks, SpawnAndRecoveredAbyssEnemiesDoNotStackOnOneFoot, AbyssSaveRecoveryAvoidsHeroAndCompanionMaterialization, RisingMistportTideSeparatesLiveCombatantsOnDryBanks, FloodRescueCivilianEvacuatesWithoutMaterializingInsideCombatants, LiveEscortResidentOwnsFootAgainstFreshFoesAndBossSupport, CrowdedCombatCorridorFindsDistantConnectedFootWithoutWallTeleport, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
+            DashAndTechniqueShareAFrame, HudQLateCooldownInputTriggersOneRealSkill, HudTechniqueCanQueue, ReducedMotionHeroInvulnerabilityStaysVisibleWithoutStrobing, CanonicalHeroHitRecoversOnSameWholeBody, CanonicalCombatRecoverySettlesWithoutExtraBody, CombatSettleNeverMasksNewPhysicalAction, InvalidPhysicalContactCannotFakeHeroSettle, QueuedAreaPreviewDrawsRealWorldRadius, QueuedAreaTagsOnlyPhysicalLivingEnemies, RealProfessionQHitsTintOnlyDamageConfirmedContact, RealBasicWeaponHitsRetainFlightElementAfterEquipmentSwap, MeleeSwordContactStopsAtRealSolidCover, ProjectileWallContactKeepsOriginalSourceLight, AllThreeEncounterFamiliesPreferRealBowFlightOverFalseSight, NearbyPatrolInvestigatesRealAllyHitAroundOpenCover, WaitingFrontlineChoosesOpenFlankAtRealWall, PinnedArcherEscapesAlongRealWallWithoutPhasing, EnemyArcherRepositionsForTrueArrowRadiusAndCancelsNewCover, ReleasedAreaVfxStopsAtActualWorldCover, ExplosiveWallSplashDrawsOnlyPhysicalNearSide, QueuedRangerVolleyMarksLiveObstructedTarget, RiposteHudFollowsRealParryIntentAndUnreleasedContact, RepairedReliefSignalShowsOnlyGenuineWorldRest, UrgentRoadwardenDeliveryUsesOriginalWorldWaypointsAndLabels, RealSignalSideCampCueRequiresMaterialSafeAndReachableMast, ActualRepairedSignalRoadOnlyShowsAtSafeLinkedWorldMast, ActualBossSupportCallIsVisibleAndRetractsAfterCombatBreak, BossSupportCannotSpawnAcrossAnIsolatedArena, NearWallBossSummonDoesNotBypassPhysicalArenaIsolation, SealedBossReleaseCannotPlantHazardsAcrossNewWalls, LockedFrostBossStrikeRemainsDodgeableAfterPlayerMoves, BossSecondaryStrikesStayOnCasterSideOfLiveCover, CompanionAutoDefenseDistinguishesSealedFromLiveBossAttacks, MalformedBossIntentCancelsAndRecoversRealCombat, RealGroundHazardsRejectCorruptTransientContacts, DefeatedBossRetiresOnlyItsOwnDelayedGroundAttacks, SpawnAndRecoveredAbyssEnemiesDoNotStackOnOneFoot, AbyssSaveRecoveryAvoidsHeroAndCompanionMaterialization, RisingMistportTideSeparatesLiveCombatantsOnDryBanks, FloodRescueCivilianEvacuatesWithoutMaterializingInsideCombatants, LiveEscortResidentOwnsFootAgainstFreshFoesAndBossSupport, CrowdedCombatCorridorFindsDistantConnectedFootWithoutWallTeleport, CivicReserveCombatHudTracksGenuineReceiverObjective, LiveRescueCombatHudKeepsSafetyThreatAndAllyCareVisible, PlantedAllyRescueArrowGuardHasHonestBilingualWorldCue, MenuAndApplicationPauseDiscardIntent,
             ReleasedTechniqueDrawsContactFrame,
             DirectionalLmbAndSkillContactNeverFlashBeforeRelease,
             ActorRegistrationChecks.VerifyUnifiedGaitPixelComposites,

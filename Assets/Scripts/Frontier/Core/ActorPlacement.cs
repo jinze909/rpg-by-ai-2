@@ -249,7 +249,11 @@ namespace Starfall
             float desired=kind==1?11f:kind==2?7.8f:6.8f;
             float score=40f-anchorDrift*3f-
                 Math.Abs(heroDistance-desired)*(kind==1?1.3f:.8f);
-            if(kind==1)score+=clearLine?18f:-14f;
+            // The attack's swept arrow radius is wider than the center
+            // sight ray. Do not give an opening bowman a premier station
+            // whose first honest projectile clips a ruin sidewall.
+            if(kind==1)score+=!clearLine?-14f:
+                PhysicalBowLaneFromFoot(foot,Position)?22f:-12f;
             else score+=clearLine?4f:0f;
             foreach(Enemy existing in enemies)
             {
@@ -621,6 +625,11 @@ namespace Starfall
             float score=-Math.Abs(distance-preferred)*1.65f;
             if((foot-marker).Length<=8.6f&&
                 ClearAttackPath(marker,foot))score+=2.75f;
+            // Both slots can contain a bow. Favor a real unobstructed
+            // arrow sweep, not a visually open centerline whose muzzle
+            // or flight radius hits nearby masonry.
+            if(kind==1&&ClearAttackPath(foot,Position))
+                score+=PhysicalBowLaneFromFoot(foot,Position)?12f:-10f;
             if(slot==1&&already.Count>0)
             {
                 Point first=(already[0]-Position).Normalized;
@@ -1020,10 +1029,15 @@ namespace Starfall
             bool playerLine=ClearAttackPath(foot,Position);
             if(kind==1)
             {
-                // A real ranged enemy cannot create crossfire through a
-                // ruin, tree, flooded wall or sealed mine gate.
-                score+=sourceLine?19f:-17f;
-                score+=playerLine?11f:-11f;
+                // The survey marker is an anchor, not a damageable actor.
+                // Preserve its route visibility, but reward a real firing
+                // lane to the player, including projectile width and muzzle.
+                // An obstructed candidate is still legal fallback ground;
+                // no enemy is deleted when every approach has bad cover.
+                score+=sourceLine?11f:-8f;
+                score+=playerLine?
+                    (PhysicalBowLaneFromFoot(foot,Position)?23f:-21f):
+                    -13f;
             }
             else if(kind==2)
             {
