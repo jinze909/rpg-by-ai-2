@@ -88,13 +88,62 @@ namespace Starfall
                 System.Globalization.CultureInfo.InvariantCulture);
             return english?
                 "\n\nNext real road marker: "+(TrailCircuitProgress(room)+1)+
-                "/3 at ("+coordinates+"). Open the local world map to pin a verified walking approach.":
+                "/3 at ("+coordinates+"). Choose a verified walking route here, or pin it from the local map.":
                 "\n\n下一处真实路碑："+(TrailCircuitProgress(room)+1)+
-                "/3，坐标（"+coordinates+"）。打开本地区地图，可选择经实际道路前往下一站。";
+                "/3，坐标（"+coordinates+"）。可在此选择真实步行引导，也可从本地区地图设定路线。";
         }
         public int TrailCircuitCount
         {
             get { int total=0;for(int i=0;i<8;i++)if(TrailCircuitComplete(i))total++;return total; }
+        }
+        // Authentic on-site bearings, not relocated quest props, own the
+        // optional route. Reading lore never steals an existing personal pin.
+        private Choice[] TrailCircuitChoices(int room,string closeZh,string closeEn)
+        {
+            Choice leave=C(closeZh,closeEn,"close");
+            if(NextTrailCircuitMarker(room)==null)return new Choice[]{leave};
+            return new Choice[]{
+                C("沿真实道路引导至下一处路碑",
+                  "Guide me to the next real marker","trail_circuit_follow"),
+                leave
+            };
+        }
+        private bool ChooseTrailCircuit(string action)
+        {
+            if(action!="trail_circuit_follow")return false;
+            // Choose() captures the source BEFORE closing its dialogue.
+            // Recheck that same physical actor, map and reach before changing
+            // navigation. Never trust a stale, removed or mismatched speaker.
+            int room=save.room;
+            WorldObject source=pendingDialogueSource;
+            if(mode!="world"||Dying||practicing||
+               room<0||room>7||source==null||
+               pendingDialogueSourceRoom!=room||
+               source.kind!="trailcircuit"||
+               !SourceBelongsToActiveMap(source)||
+               !IsObjectPresent(source)||
+               !HasPhysicalInteractionReach(source)||
+               !CanStand(Position))return true;
+            bool authentic=false;
+            for(int stage=1;stage<=3;stage++)
+                if(source.id=="trailcircuit_"+room+"_"+stage)
+                {authentic=true;break;}
+            if(!authentic)return true;
+            WorldObject next=NextTrailCircuitMarker(room);
+            if(next==null||!SourceBelongsToActiveMap(next)||
+               !IsObjectPresent(next))return true;
+            Point contact;
+            if(!TryQuestApproachFoot(new Point(next.x,next.y),
+                out contact))
+            {
+                Notify("下一处路碑没有可验证的步行路线，原个人导航保留。",
+                    "The next marker has no verified walking approach. Your previous pin stays.");
+                return true;
+            }
+            CommitLocalWaymark(contact,null);
+            Notify("已规划至下一处真实路碑的步行路线。抵达后按 E 核对。",
+                "Real walking route pinned. Reach the next bearing and press E.");
+            return true;
         }
         private bool TalkTrailCircuit(WorldObject o)
         {
@@ -125,7 +174,7 @@ namespace Starfall
                     "\n\nBearing "+stage+" of "+routeEn[room]+
                     " is filed and may be reread."+
                     TrailCircuitNextBearingHint(room,true),
-                    C("继续行路","Continue","close"));
+                    TrailCircuitChoices(room,"继续行路","Continue"));
                 return true;
             }
             if(stage!=progress+1)
@@ -134,7 +183,7 @@ namespace Starfall
                     TrailCircuitNextBearingHint(room,false),
                     "This marker relies on earlier field bearings. Visit the stops in order ("+progress+"/3)."+
                     TrailCircuitNextBearingHint(room,true),
-                    C("寻找上一处路标","Find the earlier bearing","close"));
+                    TrailCircuitChoices(room,"寻找上一处路标","Find the earlier bearing"));
                 return true;
             }
             Flag("trail_circuit_"+room+"_"+stage);
@@ -160,7 +209,7 @@ namespace Starfall
                 (done?"\n\nFull circuit complete: +24 coins, +2 shards and +35 XP. New paths in this region now restore an extra 2 stamina per second.":
                 "\n\nContinue along the route. +8 XP."+
                     TrailCircuitNextBearingHint(room,true)),
-                C("记下新坐标","Record the new bearing","close"));
+                TrailCircuitChoices(room,"记下新坐标","Record the new bearing"));
             return true;
         }
     }

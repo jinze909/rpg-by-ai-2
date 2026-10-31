@@ -5345,6 +5345,7 @@ namespace Starfall
             if (ChooseRootsong(action)) return;
             if (ChooseFieldTactics(action)) return;
             if (ChooseFieldTacticTrial(action)) return;
+            if (ChooseTrailCircuit(action)) return;
             if (ChooseScoutRescue(action)) return;
             if (ChoosePolish(action)) return;
             if (ChooseExpansion(action)) return;
