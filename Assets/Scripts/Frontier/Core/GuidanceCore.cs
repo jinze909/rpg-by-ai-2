@@ -1184,6 +1184,14 @@ namespace Starfall
                 // Present that exact battle's CURRENT stage throughout the
                 // HUD, map and journal without rewriting trackedQuest.
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
+                // An accepted patrol owns real living enemies and a return
+                // receipt. Showing an unrelated old tracked quest during
+                // combat strands players after the final raider falls.
+                // This only chooses HUD guidance; manual tracking and
+                // serialized quest state remain untouched.
+                if(FieldPatrolActive)
+                    return GetQuest(FieldPatrolVeteranActive?
+                        "veteran_patrols":"field_patrols");
                 // Once the player deliberately starts a physical ridge
                 // battle, its living actors are the immediate objective
                 // even if the saved tracked quest remains somewhere else.
