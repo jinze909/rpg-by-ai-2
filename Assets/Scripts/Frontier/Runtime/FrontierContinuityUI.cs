@@ -351,10 +351,10 @@ namespace Starfall
                 guide.title,12,gold);
             Text(1041,56,136,23,crossingCombat?
                 Game.L("剩余"+Game.CrossingWatchRemaining+"名 · 可撤离",
-                    Game.CrossingWatchRemaining+" RAIDERS · MAY WITHDRAW"):
+                    Game.CrossingWatchRemaining+" RAIDERS · LEAVE OK"):
                 Game.FieldOutpostActive?
                     Game.L("尚余"+Game.FieldOutpostRemaining+"名 · 返回建站",
-                        Game.FieldOutpostRemaining+" RAIDERS · BUILD AFTER"):
+                        Game.FieldOutpostRemaining+" LEFT · RETURN TO KIT"):
                 Game.FieldDispatchActive?
                     Game.L("运送第"+Game.FieldDispatchStage+"/2站",
                         "DELIVERY LEG "+Game.FieldDispatchStage+"/2"):

@@ -1410,7 +1410,7 @@ public static class RuntimeContinuityChecks
         bool battleTitle=GUI.commands.Exists(x=>
             x.Contains("OPTIONAL CROSSING AMBUSH"));
         bool battleHint=GUI.commands.Exists(x=>
-            x.Contains("2 RAIDERS")&&x.Contains("MAY WITHDRAW"));
+            x.Contains("2 RAIDERS")&&x.Contains("LEAVE OK"));
         bool originalTrack=g.save.trackedQuest=="main";
         Check(battleTitle&&battleHint&&originalTrack,
             "Battle HUD mismatch: title="+battleTitle+
