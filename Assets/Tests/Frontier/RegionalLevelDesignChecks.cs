@@ -19,6 +19,54 @@ namespace Starfall.Tests
 
 
 
+
+        public static void HumaneCrossingWatchRestoresAuthenticRidgeTravel(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.stage=4;
+            g.save.room=1;g.enemies.Clear();g.invulnerable=200f;
+            g.save.maxHealth=g.save.health=1000f;
+            g.save.inventory[0]=12;g.save.inventory[4]=12;
+            g.save.x=49.5f;g.save.y=34.5f;
+            g.save.flags.Add("boss_1");
+            int originalCost=g.RidgePassageEnergyCost(1);
+            int unrelatedCost=g.RidgePassageEnergyCost(2);
+            for(int i=0;i<80&&!g.CrossingWatchActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.CrossingWatchActive&&g.enemies.Count==2,
+                "A real physical canopy watch must first produce its own two raiders");
+            var raiders=new List<Enemy>(g.enemies);
+            int kills=g.save.kills[1],coins=g.save.coins;
+            for(int i=0;i<2;i++)
+            {
+                Point trap=PutRealSnare(g);
+                Enemy foe=raiders[i];
+                foe.x=trap.x;foe.y=trap.y;foe.hitTime=5f;
+                for(int step=0;step<11;step++)g.Tick(.05f,new Point());
+                Check(g.CanBindSnaredEnemy&&
+                    System.Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                    "Original physical trap must catch the real owned crossing raider");
+                g.save.energy=100f;
+                Check(g.BindSnaredEnemy()&&g.CrossingWatchRemaining==1-i,
+                    "A living captive counts only after actual paid snare restraint");
+            }
+            for(int i=0;i<6&&g.CrossingWatchActive;i++)
+                g.Tick(.05f,new Point());
+            Check(g.CrossingWatchSecured(1)&&
+                g.CrossingWatchHumane(1)&&
+                !g.CrossingWatchActive&&
+                g.save.kills[1]==kills&&
+                g.save.coins==coins+27&&
+                g.RidgePassageEnergyCost(1)==Math.Max(2,originalCost-2)&&
+                g.RidgePassageEnergyCost(2)==unrelatedCost,
+                "Two actual live captures create a one-time, region-only civilian chart benefit");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.CrossingWatchHumane(1)&&
+                restored.RidgePassageEnergyCost(1)==Math.Max(2,originalCost-2)&&
+                restored.save.version==2&&!restored.CrossingWatchActive,
+                "Old v2 saves preserve humane route improvement without ghost raiders");
+        }
+
         public static void NewCrossingWatchAmbushesAreOptionalPhysicalFights(Campaign data)
         {
             int[] rooms={1,3,6};

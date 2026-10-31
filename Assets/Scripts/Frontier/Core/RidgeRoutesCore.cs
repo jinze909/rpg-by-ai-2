@@ -36,7 +36,13 @@ namespace Starfall
             // minimum or unlock an unvisited ridge marker.
             int civicWatchwalk=room==4&&
                 Has("citadel_watchwalk_connected")?2:0;
-            return Math.Max(2,baseCost-relief-saferRoads-civicWatchwalk);
+            // Bringing BOTH roadside raiders back alive restores their
+            // stolen civilian trail charts. This is a genuine optional
+            // combat-and-restraint outcome, not a global perk or a new
+            // chapter kill gate. Victory by force still secures the route.
+            int humaneCharts=room>=1&&room<=7&&
+                CrossingWatchHumane(room)?2:0;
+            return Math.Max(2,baseCost-relief-saferRoads-civicWatchwalk-humaneCharts);
         }
         private bool TalkRidge(WorldObject o)
         {

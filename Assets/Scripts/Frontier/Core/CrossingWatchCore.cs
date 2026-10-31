@@ -46,6 +46,9 @@ namespace Starfall
         public bool CrossingWatchSecured(int room)
         {return room==1||room==3||room==6?
             Has("crossing_watch_secured_"+room):false;}
+        public bool CrossingWatchHumane(int room)
+        {return CrossingWatchSecured(room)&&
+            Has("crossing_watch_humane_"+room);}
         public bool IsCrossingWatchEnemy(Enemy e)
         {return e!=null&&CrossingWatchActive&&crossingWatchFoes.Contains(e);}
         private void OnCrossingWatchEnemyDefeated(Enemy e)
@@ -181,18 +184,28 @@ namespace Starfall
                     if(!CrossingWatchSecured(room))
                     {
                         Flag("crossing_watch_secured_"+room);
+                        // A genuinely restrained FULL pair knows the old
+                        // evacuation paths and can help the local
+                        // ridge-watch rebuild. The merciful result changes
+                        // the actual existing crossing travel economy,
+                        // not only a diary line or decorative reputation.
+                        if(nonlethal)Flag("crossing_watch_humane_"+room);
                         CreditCoins(24+room*3);AddXp(28+room*3);
                         revision++;sound="reward";
-                        RecordMoment(room==1?
+                        RecordMoment(nonlethal?
+                            "两名拦路者活着带回了被扣押的巡路图。他们协助居民开通本区高地路，穿行耐力降低两点。":
+                            room==1?
                             "荆棘根桥上的拦路者退去，居民不用再在林道间冒险绕行。":
                             room==3?"矿工重新控制了通风矿道，运料车不再被拦截。":
                             "沙海岩峡的遮荫通路得到保护，过路旅人不必再交给巡兵水钱。",
+                            nonlethal?
+                            "Two living captives returned stolen route charts and helped reopen the local ridge road, reducing passage stamina by two.":
                             room==1?"The root crossing is safe for civilians again.":
                             room==3?"Miners reclaim the haul route from armed extortion.":
                             "Travelers can cross the shaded canyon without paying armed sentries.");
-                        Notify(nonlethal?"双方袭击者被活捉，安全通路已恢复。":
+                        Notify(nonlethal?"双方袭击者被活捉，交回旧地图。本区高地穿行耐力减少 2。":
                             "截击威胁解除，居民通道恢复安全。",
-                            nonlethal?"Both raiders were restrained alive. Civilian route secured.":
+                            nonlethal?"Both raiders returned the stolen route charts. Local ridge passage costs 2 less stamina.":
                             "Crossing threat defeated. Civilian route secured.");
                     }
                     return;
