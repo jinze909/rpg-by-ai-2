@@ -265,8 +265,12 @@ namespace Starfall.Tests
                 g.TrailCircuitProgress(1)==1,
                 "Leaving speaking range cannot overwrite a previous valid route");
             g.Talk(second);
-            Check(g.TrailCircuitProgress(1)==2,
-                "Second marker is reached before testing missing next source");
+            Check(g.TrailCircuitProgress(1)==2&&
+                g.TrailCircuitAutoFollowActive,
+                "Second physical E automatically hands off to its verified third bearing");
+            Point nextPin=g.LocalWaymark.Value;
+            Check((nextPin-new Point(third.x,third.y)).Length<2f,
+                "The new route belongs to the genuine third source, not the completed second");
             choice=Array.FindIndex(g.conversation.choices,
                 c=>c.action=="trail_circuit_follow");
             WorldObject[] original=g.Map.objects;
@@ -276,9 +280,9 @@ namespace Starfall.Tests
                     o=>!System.Object.ReferenceEquals(o,third));
                 g.Choose(choice);
                 Check(g.HasLocalWaymark&&
-                    (g.LocalWaymark.Value-previous).Length<.001f&&
+                    (g.LocalWaymark.Value-nextPin).Length<.001f&&
                     g.TrailCircuitProgress(1)==2,
-                    "Removed next landmark cannot steal the personal pin");
+                    "Stale choice with removed next landmark cannot rewrite an existing route");
             }
             finally {g.Map.objects=original;}
         }
