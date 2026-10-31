@@ -516,6 +516,18 @@ namespace Starfall
                     Game.TideSalvageActive ? Game.GetQuest("tide_salvage") :
                     Game.FrostSignalActive ? Game.GetQuest("frost_signal") :
                     Game.CivicResponseActive ? Game.GetQuest("civic_services") : Game.RecommendedContinuationGuide;
+                // The main story actually ENDS at the chosen starcore
+                // resolution. Keep optional afterstory suggested only behind
+                // the player's deliberate follow button, not painted as an
+                // obligatory "next chapter" in the world's persistent HUD.
+                // Emergency combat, explicitly tracked side work, and
+                // manually pinned navigation remain authoritative.
+                bool postgameIdle=!Game.practicing&&Game.save.ending>0&&
+                    Game.save.trackedQuest=="main"&&
+                    !Game.FieldWorkPreventsRest&&
+                    q.id==Game.RecommendedContinuationGuide.id&&
+                    !Game.NavigationTarget().HasValue;
+                if(postgameIdle)q=Game.GetQuest("main");
                 // The moment the next physical quest source enters E reach,
                 // its actionable identity should be visible on the MAIN
                 // world objective card, not hidden in a crowded-world list
@@ -573,6 +585,9 @@ namespace Starfall
                     questCrowded?
                         Game.L("Shift+O · 聚焦任务目标",
                             "SHIFT+O · FOCUS QUEST SOURCE"):
+                    postgameIdle?
+                        Game.L("Shift+Tab · 自愿开始后日谈",
+                            "SHIFT+TAB · OPTIONAL AFTERSTORY"):
                     Game.HasLocalWaymark||Game.QuestApproachTravelHandoffPending?
                         Game.L("Shift+Tab · 替换旧路线",
                             "SHIFT+TAB · REPLACE ROUTE"):
@@ -580,7 +595,8 @@ namespace Starfall
                             "SHIFT+TAB · FOLLOW NEXT"),
                     false,questCrowded||
                         (Game.CanFollowRecommendedAdventure&&
-                          q.id==Game.RecommendedContinuationGuide.id)))
+                          (postgameIdle||
+                           q.id==Game.RecommendedContinuationGuide.id))))
                 {
                     if(questCrowded)Game.FocusNearbyQuestInteraction();
                     else Game.FollowRecommendedAdventure();
