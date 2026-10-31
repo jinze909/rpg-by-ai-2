@@ -4212,7 +4212,10 @@ namespace Starfall
             var cluster=new List<int>();
             foreach(var candidate in scored)
             {
-                if(candidate.Value>scored[0].Value+.20f)continue;
+                // Every candidate already passed the actual on-screen
+                // silhouette hitbox. Do not discard a second overlapping
+                // NPC merely because its painted foot is slightly farther
+                // from the click: repeated clicks must reach that actor too.
                 WorldObject member=options[candidate.Key];
                 Point foot=member==null?reliefFollowerPosition:
                     new Point(member.x,member.y);
