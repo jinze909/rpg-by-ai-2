@@ -1361,8 +1361,14 @@ public static class RuntimeContinuityChecks
             c=>c.action=="field_dispatch_checkpoint");
         Check(sign>=0,"The actual machine owns its registered cargo choice");
         g.Choose(sign);
+        Check(g.FieldDispatchAmbushWarningSeconds>3f&&
+            g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0,
+            "Production encounter shows an interruptible warning before any raider exists");
+        g.Close();
+        for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
+            g.Tick(.05f,new Point());
         Check(g.FieldDispatchLivingRaiders>0&&g.enemies.Count>0,
-            "An actual enemy appears only after signing the first field checkpoint");
+            "An actual enemy reaches the courier only after the physical warning window");
         Enemy raider=g.enemies[0];
         Check(g.IsLiveFieldDispatchRaider(raider),
             "World drawing identifies the same exact live enemy instance");
