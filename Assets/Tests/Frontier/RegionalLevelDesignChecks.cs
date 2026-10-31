@@ -2192,7 +2192,14 @@ namespace Starfall.Tests
                         g.save.coins==prior+28+room*4&&
                         g.save.xp>xp&&
                         g.RidgePassageEnergyCost(room)==fare,
-                        "First true elite kills sign a separate receipt without revoking safe travel");
+                        "First true elite kills sign a separate receipt without revoking safe travel."+
+                        " room="+room+" side="+side+
+                        " active="+g.RemoteRoadEncounterActive+
+                        " veteran="+g.RemoteRoadVeteranDone(room,side)+
+                        " cleared="+g.RemoteRoadCleared(room,side)+
+                        " coins="+g.save.coins+" expected="+(prior+28+room*4)+
+                        " xp="+g.save.xp+" initial="+xp+
+                        " fare="+g.RidgePassageEnergyCost(room)+" initial="+fare);
                     Check(g.GetQuest("road_veterans").steps[(room-1)*2+side].done,
                         "New veteran journal follows the real signed source");
                     // Revisit the same authentic marker. It remains
