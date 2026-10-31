@@ -989,8 +989,13 @@ namespace Starfall
                 if(e!=null&&e.hp>0&&(e.Position-p).Length<5f)
                     return false;
             if(selected.Exists(q=>(q-p).Length<5f))return false;
-            return requireFull?ActorHasLocalRoute(Position,p,16):
-                ClearAttackPath(source,p);
+            // A clear projectile line from the survey board does not mean
+            // that a raider can actually walk to the player. Flood islands
+            // and sealed quarry pockets must never spawn unreachable melee.
+            // Keep the old field-contract LOS rule for optional patrols,
+            // but require a genuine local walking approach in both modes.
+            return ActorHasLocalRoute(Position,p,16)&&
+                (requireFull||ClearAttackPath(source,p));
         }
         // Different field contracts should play differently on the actual
         // regional ground, rather than reusing a rotating generic roster.
