@@ -16,6 +16,69 @@ namespace Starfall.Tests
 
 
 
+
+        public static void MistportRaisedGangwaysRemainUsefulAtHighTide(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=5;
+            g.save.stage=4;g.enemies.Clear();
+            g.save.tideHeldUntil=0f;g.save.totalTime=30f;
+            MapData map=g.Map;
+            int[,] raised={
+                {75,61,75,64,74,75,62,63,30},
+                {97,69,97,72,96,97,70,71,50}
+            };
+            int beforeShards=g.save.shards;
+            Check(!g.LowTide&&g.MistportGangwayCount==0,
+                "Actual harbor high tide begins without invented bridge discoveries");
+            for(int k=0;k<2;k++)
+            {
+                Point a=new Point(raised[k,0]+.5f,raised[k,1]+.5f);
+                Point b=new Point(raised[k,2]+.5f,raised[k,3]+.5f);
+                Check(g.CanStand(a)&&g.CanStand(b),
+                    "Both historic high-water banks remain collision-valid");
+                string[] oldRows=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=raised[k,6];y<=raised[k,7];y++)
+                    {
+                        char[] chars=map.rows[y].ToCharArray();
+                        for(int x=raised[k,4];x<=raised[k,5];x++)
+                        {
+                            Check(chars[x]=='='&&
+                                g.CanStand(new Point(x+.5f,y+.5f)),
+                                "Each actual raised board stays dry and walkable at high tide");
+                            chars[x]='~';
+                        }
+                        map.rows[y]=new string(chars);
+                    }
+                    Check(g.NavigationPathFrom(a,b,true).Count>=raised[k,8],
+                        "Without the new gangway high water imposes the genuine long detour");
+                }
+                finally{map.rows=oldRows;}
+                int direct=g.NavigationPathFrom(a,b,true).Count;
+                Check(direct>0&&direct<=8,
+                    "Normal high-tide navigation walks the raised boards instead of teleporting");
+                g.save.x=(raised[k,4]+raised[k,5])*.5f+.5f;
+                g.save.y=(raised[k,6]+raised[k,7])*.5f+.5f;
+                g.Tick(.02f,new Point());
+                Check(g.Has("mistport_gangway_"+k)&&
+                    g.MistportGangwayCount==k+1,
+                    "Player walking across a physical gangway saves each unique discovery");
+            }
+            Check(g.Has("mistport_gangways_charted")&&
+                g.save.shards==beforeShards+1&&g.save.version==2,
+                "Both true sea crossings give a one-time old-save-compatible chart reward");
+            g.Tick(.02f,new Point());
+            Check(g.save.shards==beforeShards+1,
+                "Visiting the raised route again cannot duplicate its reward");
+            int originalTidalCells=0;
+            foreach(string row in map.rows)
+                foreach(char tile in row)
+                    if(tile=='%')originalTidalCells++;
+            Check(originalTidalCells==125,
+                "Original changing-tide cells and harbor sluice puzzle remain intact");
+        }
+
         public static void FrostWindbreakPassagesShieldOnlyTheirRealStoneLee(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=7;

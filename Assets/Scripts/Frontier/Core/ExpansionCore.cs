@@ -2729,6 +2729,44 @@ namespace Starfall
                 Notify("高处的岩脊挡住了最强的山风，石缝中留有避难者的脚印。",
                     "The upper ridge stops the worst wind. Travelers once sheltered in its lee.");
         }
+
+        // Mistport's raised footbridges remain walkable at genuine high
+        // tide; the original % tidal flats, sluice, fishing and dock
+        // systems are untouched. Discovering them requires stepping on
+        // their physical boards, not accepting another task.
+        public int MistportGangwayCount
+        {
+            get{return (Has("mistport_gangway_0")?1:0)+
+                       (Has("mistport_gangway_1")?1:0);}
+        }
+        private void TickMistportGangways()
+        {
+            if(save.room!=5||Dying||practicing||racing||
+               !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int gangway=x>=74&&x<=75&&y>=62&&y<=63?0:
+                        x>=96&&x<=97&&y>=70&&y<=71?1:-1;
+            if(gangway<0||Has("mistport_gangway_"+gangway))return;
+            Flag("mistport_gangway_"+gangway);revision++;sound="ui";
+            if(MistportGangwayCount==2&&!Has("mistport_gangways_charted"))
+            {
+                Flag("mistport_gangways_charted");
+                AddXp(23);CreditShards(1);revision++;sound="reward";
+                Notify("旧港两段高水位步桥连成了安全归航路。经验 +23，碎片 +1。",
+                    "Two raised harbor gangways reconnect a safe high-tide return path. +23 XP, +1 shard.");
+                RecordMoment(
+                    "旧港远岸的高水位脚桥还在。你沿搬运人的脚印把两座桥重新标上民用航图，失去渡船的家庭从此有了不必等退潮的归途。",
+                    "Two high-tide footbridges survive along Mistport's remote coast. Marking both restores a civilian return route that does not wait for the ebb.");
+            }
+            else if(gangway==0)
+                Notify("第一道石架桥还留着港工修缮的缆绳，它高于涨潮线。",
+                    "The first gangway still bears harbor workers' repair rope, well above the high-water mark.");
+            else
+                Notify("第二道木石桥越过深水，旧木桩上的箭头指向居民的归家路。",
+                    "The second raised bridge crosses deep water; old post arrows point civilians home.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2756,6 +2794,7 @@ namespace Starfall
             TickIronMineHaulageCuts();
             TickCitadelWatchwalks();
             TickFrostWindbreakPasses();
+            TickMistportGangways();
             if(!practicing&&!racing&&!FieldWorkPreventsRest&&
                IronMineBreathingShaft&&SafeTravel)
                 save.energy=Math.Min(100f,save.energy+dt*4f);
