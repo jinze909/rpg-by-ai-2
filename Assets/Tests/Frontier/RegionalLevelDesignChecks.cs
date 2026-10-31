@@ -15,6 +15,71 @@ namespace Starfall.Tests
 
 
 
+
+        public static void FrostWindbreakPassagesShieldOnlyTheirRealStoneLee(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=7;
+            g.save.stage=4;g.enemies.Clear();
+            MapData map=g.Map;
+            int[,] passages={
+                {70,53,70,56,69,70,54,55,45},
+                {96,69,96,72,95,96,70,71,45}
+            };
+            int beforeCoins=g.save.coins;
+            Check(g.FrostWindbreakPassCount==0&&!g.FrostWindbreakActive,
+                "Unwalked alpine passes have no global protection");
+            for(int k=0;k<2;k++)
+            {
+                Point a=new Point(passages[k,0]+.5f,passages[k,1]+.5f);
+                Point b=new Point(passages[k,2]+.5f,passages[k,3]+.5f);
+                Check(g.CanStand(a)&&g.CanStand(b),
+                    "Existing alpine banks are reachable player footing");
+                string[] savedRows=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=passages[k,6];y<=passages[k,7];y++)
+                    {
+                        char[] chars=map.rows[y].ToCharArray();
+                        for(int x=passages[k,4];x<=passages[k,5];x++)
+                        {
+                            Check(chars[x]=='='&&
+                                g.CanStand(new Point(x+.5f,y+.5f)),
+                                "Each physical windbreak tile actually holds the hero");
+                            chars[x]='#';
+                        }
+                        map.rows[y]=new string(chars);
+                    }
+                    Check(g.NavigationPathFrom(a,b,true).Count>=passages[k,8],
+                        "The uncut alpine ridge forces a genuine long detour");
+                }
+                finally{map.rows=savedRows;}
+                int direct=g.NavigationPathFrom(a,b,true).Count;
+                Check(direct>0&&direct<=8,
+                    "Original navigation walks each genuine leeward shortcut");
+                g.save.x=(passages[k,4]+passages[k,5])*.5f+.5f;
+                g.save.y=(passages[k,6]+passages[k,7])*.5f+.5f;
+                Check(!g.FrostWindbreakActive,
+                    "One discovered pass alone cannot shield an unfinished route");
+                g.Tick(.02f,new Point());
+                Check(g.FrostWindbreakPassCount==k+1&&
+                    g.Has("frost_windbreak_"+k),
+                    "The real walked route is recorded in SaveData v2");
+            }
+            Check(g.FrostWindbreakActive&&
+                g.Has("frost_windbreak_linked")&&
+                g.save.coins==beforeCoins+24&&g.save.version==2,
+                "Two walkable alpine shortcuts unlock only their local wind shelter");
+            g.Tick(.02f,new Point());
+            Check(g.save.coins==beforeCoins+24,
+                "Repeating the real alpine crossing cannot farm its award");
+            g.save.x=10.5f;g.save.y=14.5f;
+            Check(!g.FrostWindbreakActive,
+                "The earned wind shadow does not shield a distant highland hero");
+            g.save.room=6;
+            Check(!g.FrostWindbreakActive,
+                "Highland shelter must not become a cross-biome immunity");
+        }
+
         public static void CitadelOuterWatchwalksImproveGenuineRidgePassage(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=4;

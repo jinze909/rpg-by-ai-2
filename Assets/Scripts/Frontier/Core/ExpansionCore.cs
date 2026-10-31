@@ -2680,6 +2680,55 @@ namespace Starfall
                 Notify("远哨旧灯把东面的通路照得很清楚；守门人曾默许平民经过。",
                     "An old watchlight marks the eastern approach. Gatekeepers once quietly allowed civilians past.");
         }
+
+        // These wind-scoured cuts are true walkable routes through the
+        // original highland rock, not a task marker or invisible teleport.
+        // Only standing within the earned stone lee cancels frost exposure.
+        public int FrostWindbreakPassCount
+        {
+            get{return (Has("frost_windbreak_0")?1:0)+
+                       (Has("frost_windbreak_1")?1:0);}
+        }
+        public bool FrostWindbreakActive
+        {
+            get
+            {
+                if(save.room!=7||!Has("frost_windbreak_linked")||
+                   !CanStand(Position))return false;
+                int x=(int)Math.Floor(Position.x),
+                    y=(int)Math.Floor(Position.y);
+                return (x>=69&&x<=70&&y>=54&&y<=55)||
+                    (x>=95&&x<=96&&y>=70&&y<=71);
+            }
+        }
+        private void TickFrostWindbreakPasses()
+        {
+            if(save.room!=7||Dying||practicing||racing||
+               !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int passage=x>=69&&x<=70&&y>=54&&y<=55?0:
+                        x>=95&&x<=96&&y>=70&&y<=71?1:-1;
+            if(passage<0||Has("frost_windbreak_"+passage))return;
+            Flag("frost_windbreak_"+passage);revision++;sound="ui";
+            if(FrostWindbreakPassCount==2&&!Has("frost_windbreak_linked"))
+            {
+                Flag("frost_windbreak_linked");
+                AddXp(25);CreditCoins(24);revision++;sound="reward";
+                Notify("两道雪岭石壁背后的避风道重新连通；站在石壁背风处可抵御严寒。经验 +25，硬币 +24。",
+                    "Both leeward highland paths are open. Standing in their shelter protects against cold. +25 XP, +24 coins.");
+                RecordMoment(
+                    "霜钟高原石壁后藏着巡钟人留下的避风通道。两处旧刻痕在雪下连成路，供迷路的行人临时躲避山风。",
+                    "Behind the frost ridges, two bellkeepers' leeward crossings form a sheltered path for travelers caught in a storm.");
+            }
+            else if(passage==0)
+                Notify("这面石壁上残留着巡钟人的风向刻痕；背风的小路仍然通行。",
+                    "Old bellkeeper wind marks survive along this sheltered pass.");
+            else
+                Notify("高处的岩脊挡住了最强的山风，石缝中留有避难者的脚印。",
+                    "The upper ridge stops the worst wind. Travelers once sheltered in its lee.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2706,6 +2755,7 @@ namespace Starfall
             TickRuinsCauseways();
             TickIronMineHaulageCuts();
             TickCitadelWatchwalks();
+            TickFrostWindbreakPasses();
             if(!practicing&&!racing&&!FieldWorkPreventsRest&&
                IronMineBreathingShaft&&SafeTravel)
                 save.energy=Math.Min(100f,save.energy+dt*4f);
@@ -2771,7 +2821,7 @@ namespace Starfall
             bool emberCarry=save.room==7 && !brazierWarmth &&
                 brazierEmberSeconds>0f;
             bool warm = FrostSignalRefuge || brazierWarmth ||
-                safeRescueLight;
+                safeRescueLight || FrostWindbreakActive;
             if (SkywatchRefuge || SkywatchEchoRefuge || safeReliefShelter) warm = true;
             // Residual heat holds the cold meter steady during one short
             // crossing; it is NOT another permanent heater or HP immunity.
