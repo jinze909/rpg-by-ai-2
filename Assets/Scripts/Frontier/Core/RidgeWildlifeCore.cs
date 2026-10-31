@@ -484,6 +484,47 @@ namespace Starfall
         // a player approaches, an attack begins, or the actor is interrupted.
         // Use the accepted moveTime / moving / facing presentation path so
         // SpriteRenderer and the existing fallback show real walking art.
+        // The old +/-1.6 tile sine wobble made distant watchers look
+        // stationary. Find a real corridor on the LIVE regional topology
+        // and patrol a 5-7 tile stretch of it, without moving a gate,
+        // creating any actor, or storing a route in SaveData. If one end
+        // floods/seals, shrink that end rather than walking into a wall.
+        // First and last guards prefer the horizontal ridge, the middle
+        // sentry prefers the vertical side path when both are comparable.
+        private Point RidgeWatchMarchTarget(int index,Point anchor)
+        {
+            Point[] axes={new Point(1f,0f),new Point(0f,1f)};
+            Point chosen=new Point();float low=0f,high=0f;
+            float quality=float.NegativeInfinity;
+            for(int axis=0;axis<2;axis++)
+            {
+                Point direction=axes[axis];
+                float negative=0f,positive=0f;
+                for(int sign=-1;sign<=1;sign+=2)
+                {
+                    for(int step=1;step<=12;step++)
+                    {
+                        float span=step*.30f;
+                        Point foot=anchor+direction*(span*sign);
+                        if(!CanStand(foot))break;
+                        if(sign<0)negative=span;
+                        else positive=span;
+                    }
+                }
+                float length=negative+positive;
+                float rank=length+
+                    (axis==(index==1?1:0)?.12f:0f);
+                if(length<1.35f||rank<=quality)continue;
+                chosen=direction;low=-negative;high=positive;
+                quality=rank;
+            }
+            if(quality==float.NegativeInfinity)return anchor;
+            float phase=(float)Math.Sin(save.totalTime*.45f+
+                index*.72f);
+            float offset=low+(high-low)*(.5f+.5f*phase);
+            return anchor+chosen*offset;
+        }
+
         private void TickRidgeWatchPatrols(float dt)
         {
             if(mode!="world"||ridgeWatchRoom!=save.room||
@@ -536,25 +577,31 @@ namespace Starfall
                     enemy.stun>.0001f||enemy.hitTime>.0001f||
                     enemy.releaseTime>.0001f||
                     RidgeWatchRespondsToAlarm(enemy)||
+                    // An actual sighting or audible injury outranks idle
+                    // sweeping. Never drag a searching sentry away from
+                    // the last legitimate contact after the hero retreats.
+                    patrolsThatSawHero.Contains(enemy)||
+                    IsEnemyInvestigatingImpact(enemy)||
+                    IsEnemyReturningFromImpact(enemy)||
                     (Position-enemy.Position).Length<9f)continue;
                 Point anchor=RidgeWatchSite(save.room,index);
                 // Returning combat enemies cannot be silently dragged across
                 // walls or snapped back to the authored anchor.
-                if((enemy.Position-anchor).Length>2.5f)continue;
-                float phase=save.totalTime*.45f+index*.8f;
-                float offset=(float)Math.Sin(phase)*1.6f;
-                Point desired=index==1?
-                    new Point(anchor.x,anchor.y+offset):
-                    new Point(anchor.x+offset,anchor.y);
+                if((enemy.Position-anchor).Length>4.3f)continue;
+                Point desired=RidgeWatchMarchTarget(index,anchor);
                 Point delta=desired-enemy.Position;
                 if(delta.Length<.02f)continue;
                 Point before=enemy.Position;
-                Point stepped=SweepActor(before,delta.Normalized*
-                    Math.Min(delta.Length,1.05f*dt));
+                // Patrol motion must obey both terrain and ACTUAL ally
+                // bodies. A scenic watch cannot phase through the other
+                // soldier while both hold their original district.
+                Point stepped=SweepOrdinaryEnemyWithCrowd(enemy,
+                    delta.Normalized*Math.Min(delta.Length,1.10f*dt));
                 Point traveled=stepped-before;
                 if(traveled.Length<.001f)continue;
                 enemy.x=stepped.x;enemy.y=stepped.y;
                 enemy.moving=true;
+                enemy.moveVelocity=traveled*(1f/dt);
                 enemy.moveTime+=traveled.Length;
                 enemy.Face(traveled);
             }
