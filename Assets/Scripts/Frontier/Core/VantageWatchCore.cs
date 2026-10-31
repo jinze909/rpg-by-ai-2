@@ -92,24 +92,30 @@ namespace Starfall
             vantageSource=null;vantageFoes.Clear();
             vantageKills.Clear();vantageCaptures.Clear();
         }
-        private bool SpawnVantageWatchWave(WorldObject source)
+        // Use eight real compass sectors rather than accepting the first
+        // north-west cells encountered by a row-major perimeter scan. The
+        // enemy route and collision gates below still make the final choice.
+        private static int WatchApproachOctant(int dx,int dy)
         {
-            int count=save.room==2||save.room==3||save.room==6?3:2;
-            Point start=Position;
-            int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
-            var feet=new List<Point>();
-            // Diverse angles around the actual original lookout, not one
-            // row of enemies or an inaccessible island behind a tidegate.
-            for(int radius=7;radius<=14&&feet.Count<count;radius++)
-            for(int dy=-radius;dy<=radius&&feet.Count<count;dy++)
-            for(int dx=-radius;dx<=radius&&feet.Count<count;dx++)
+            double angle=Math.Atan2(dy,dx);
+            if(angle<0d)angle+=2d*Math.PI;
+            return ((int)Math.Floor((angle+Math.PI/8d)/(Math.PI/4d)))%8;
+        }
+        private bool TryWatchApproachFoot(int sx,int sy,Point start,
+            List<Point> already,int sector,out Point chosen)
+        {
+            chosen=new Point();
+            for(int radius=7;radius<=14;radius++)
+            for(int dy=-radius;dy<=radius;dy++)
+            for(int dx=-radius;dx<=radius;dx++)
             {
                 if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                    Math.Abs(dx)+Math.Abs(dy)>20)continue;
+                    Math.Abs(dx)+Math.Abs(dy)>20||
+                    WatchApproachOctant(dx,dy)!=sector)continue;
                 Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
                 if(!CanStand(foot)||(foot-start).Length<5f)continue;
                 bool clear=true;
-                foreach(Point earlier in feet)
+                foreach(Point earlier in already)
                     if((foot-earlier).Length<6f){clear=false;break;}
                 if(!clear)continue;
                 foreach(Enemy e in enemies)
@@ -121,9 +127,37 @@ namespace Starfall
                         {clear=false;break;}
                 if(!clear||NavigationPathFrom(start,foot,true).Count==0)
                     continue;
-                feet.Add(foot);
+                chosen=foot;
+                return true;
             }
-            if(feet.Count!=count)return false;
+            return false;
+        }
+        private bool SpawnVantageWatchWave(WorldObject source)
+        {
+            int count=save.room==2||save.room==3||save.room==6?3:2;
+            Point start=Position;
+            int sx=(int)Math.Floor(source.x),sy=(int)Math.Floor(source.y);
+            var feet=new List<Point>();
+            // Each raider seeks a different approach around the same
+            // authored lookout: opposite sides for two foes, and roughly
+            // one-third-circle spacing for three. Blocked routes fall back
+            // through adjacent compass sectors before giving up. No spawn
+            // may cut across a wall, materialize near an NPC, or overlap
+            // another living fighter merely to satisfy the formation.
+            for(int i=0;i<count;i++)
+            {
+                int preferred=(save.room*3+i*8/count)%8;
+                bool found=false;
+                for(int attempt=0;attempt<8&&!found;attempt++)
+                {
+                    int shift=attempt%2==0?attempt/2:-(attempt+1)/2;
+                    int sector=(preferred+shift+8)%8;
+                    Point foot;
+                    if(TryWatchApproachFoot(sx,sy,start,feet,sector,out foot))
+                    {feet.Add(foot);found=true;}
+                }
+                if(!found)return false;
+            }
             for(int i=0;i<count;i++)
             {
                 int kind=(save.room+i*2+1)%3;

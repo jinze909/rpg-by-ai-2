@@ -9,6 +9,17 @@ namespace Starfall.Tests
         // actual world combat and signs its durable project in the same room.
         public static void EightRealFarLookoutsOfferDistinctPhysicalDefenseAndPermanentServices(Campaign data)
         {
+            // The production wave chooser rotates eight compass approaches;
+            // raw row-major order formerly crowded the same edge of a lookout.
+            var octant=typeof(GameCore).GetMethod("WatchApproachOctant",
+                BindingFlags.NonPublic|BindingFlags.Static);
+            Check(octant!=null,"Lookout waves have a compass-aware spawn chooser");
+            int[,] directions={{1,0},{1,1},{0,1},{-1,1},
+                {-1,0},{-1,-1},{0,-1},{1,-1}};
+            for(int i=0;i<8;i++)
+                Check((int)octant.Invoke(null,new object[]{
+                    directions[i,0],directions[i,1]})==i,
+                    "Compass-sector assignment preserves all eight genuine approach directions: "+i);
             var hit=typeof(GameCore).GetMethod("Hit",
                 BindingFlags.NonPublic|BindingFlags.Instance);
             Check(hit!=null,"Production melee/projectile damage transaction is present");
@@ -39,6 +50,10 @@ namespace Starfall.Tests
                     g.VantageWatchRemaining==count&&g.enemies.Count==count,
                     "Authentic live full defense roster spawned at original map source "+room);
                 Enemy[] wave=g.enemies.ToArray();
+                for(int a=0;a<wave.Length;a++)
+                    for(int b=a+1;b<wave.Length;b++)
+                        Check((wave[a].Position-wave[b].Position).Length>=5.95f,
+                            "A directional lookout wave must not stack hostile bodies on one spawn pad");
                 foreach(Enemy foe in wave)
                 {
                     Check(g.CanStand(foe.Position)&&
