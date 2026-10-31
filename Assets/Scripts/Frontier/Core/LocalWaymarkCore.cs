@@ -377,6 +377,22 @@ namespace Starfall
                     q.room>=0&&q.room<data.maps.Length&&CanEnter(q.room);
             }
         }
+        // "Region unlocked" is not the same as "there is a usable
+        // crossing FROM HERE". Check the next authentic door/courier
+        // using a strict walking finish before an explicit follow action
+        // destroys a manual pin or rewrites the tracked quest. A newly
+        // flooded gate may reopen later; this is a request-time preflight,
+        // not a persistent failed-quest flag or a teleport.
+        private bool QuestRemoteExitWalkable(QuestGuide quest)
+        {
+            if(quest==null||quest.locked||quest.complete||
+               quest.room==save.room||!CanStand(Position))return false;
+            Point? exit=QuestRegionExitTarget(quest);
+            if(!exit.HasValue)return false;
+            if(HasPhysicalInteractionReach(exit.Value))return true;
+            return NavigationPathFrom(Position,exit.Value,true).Count>0;
+        }
+
         public bool FollowRecommendedAdventure()
         {
             if(!CanFollowRecommendedAdventure)return false;
@@ -396,6 +412,12 @@ namespace Starfall
                     "Following the next adventure with a verified walking approach.");
                 return true;
             }
+            if(!QuestRemoteExitWalkable(next))
+            {
+                Notify("下一处真实地区入口暂时无法步行抵达。原有任务和手动导航已保留。",
+                    "The next real crossing cannot be reached on foot. Your previous quest and pin are preserved.");
+                return false;
+            }
             TrackQuest(next.id);
             QueueTravelQuestApproach(next.id);
             Notify("已追踪下一段冒险。先到开放的地区通道，抵达后会验证当地步行路线。",
@@ -412,6 +434,14 @@ namespace Starfall
                 candidate.room==save.room||candidate.room<0||
                 candidate.room>=data.maps.Length||
                 !CanEnter(candidate.room))return false;
+            // This combined TRACK+FOLLOW action must be atomic. Test the
+            // real source-side crossing BEFORE TrackQuest mutates SaveData.
+            if(!QuestRemoteExitWalkable(candidate))
+            {
+                Notify("任务所在地区虽已开放，但下一处路口目前无法步行抵达；原任务与地图标记不变。",
+                    "The region is unlocked but its next crossing is unreachable. Current tracking and pin are unchanged.");
+                return false;
+            }
             TrackQuest(questId);
             // Route selection below uses the exact same authenticated
             // quest ID and physical arrival checks as journal routing.
@@ -433,6 +463,12 @@ namespace Starfall
                 if(save.trackedQuest!=questId||
                     quest.room<0||quest.room>=data.maps.Length||
                     !CanEnter(quest.room))return false;
+                if(!QuestRemoteExitWalkable(quest))
+                {
+                    Notify("下一处地区路口暂时不通。原有个人标记不会被清除。",
+                        "The next regional crossing is blocked. Your existing map pin is preserved.");
+                    return false;
+                }
                 QueueTravelQuestApproach(questId);
                 Notify("已接续跨地区任务路线。先经过开放的路口，抵达目标地区后再核验步行接近点。",
                     "Remote quest route selected. Take an open crossing; a walkable approach will be checked on arrival.");
