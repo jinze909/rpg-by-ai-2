@@ -343,7 +343,11 @@ namespace Starfall
                 // quest as soon as enemies approach.
                 Game.FieldDispatchActive?Game.GetQuest("field_dispatches"):
                 Game.FieldOutpostActive?Game.GetQuest("field_outposts"):
-                Game.RecommendedContinuationGuide;
+                // Outside a protected live mission, retain the player's
+                // chosen quest even during ordinary fights or free
+                // exploration after the ending. Suggestions must never
+                // become implicit mandatory postgame chapters.
+                Game.CurrentGuide;
             bool crossingCombat=Game.CrossingWatchActive;
             Panel(1030,22,230,70,new Color(.045f,.08f,.13f,.45f),new Color(gold.r,gold.g,gold.b,.4f));
             Text(1041,27,208,27,Game.practicing ? Game.L("实战教学","COMBAT PRACTICE") :
