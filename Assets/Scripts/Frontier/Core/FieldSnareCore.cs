@@ -213,6 +213,7 @@ namespace Starfall
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             bool roadRestraint=OnRemoteRoadEnemyRestrained(target);
             bool crossingRestraint=OnCrossingWatchEnemyRestrained(target);
+            bool dispatchRestraint=OnFieldDispatchEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
             bool watchRestraint=OnVantageWatchEnemyRestrained(target);
             bool chapterRestraint=OnChapterRoadEnemyRestrained(target);
@@ -240,6 +241,9 @@ namespace Starfall
             else if(courierRestraint)
                 Notify("真实劫匪已被绊索活捉。必须亲手将救援包交给守棚人，才能登记安全与治疗奖励。",
                     "Original parcel raider restrained alive. Complete the real delivery to earn security and care rewards.");
+            else if(dispatchRestraint)
+                Notify("民间补给护送：真实路匪已活捉，须完成原调查石签收才能真正保障返程道路。",
+                    "Civilian courier: real raider restrained alive. Finish the survey handoff to secure the road.");
             else if(crossingRestraint)
                 Notify("新的民用通路：真实拦路者已被活捉。",
                     "Crossing watch: an actual raider was restrained alive.");

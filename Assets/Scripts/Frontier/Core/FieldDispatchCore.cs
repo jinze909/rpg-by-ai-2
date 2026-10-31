@@ -44,6 +44,35 @@ namespace Starfall
         // choice (fight, snare or evade), not an empty timer. They never
         // survive a failed/signed dispatch or serialize to a save.
         private readonly List<Enemy> dispatchRaiders=new List<Enemy>();
+        private readonly HashSet<Enemy> dispatchRaidersDefeated=new HashSet<Enemy>();
+        private readonly HashSet<Enemy> dispatchRaidersCaptured=new HashSet<Enemy>();
+        private void OnFieldDispatchEnemyDefeated(Enemy e)
+        {if(IsFieldDispatchEnemy(e)&&e.hp<=0f)dispatchRaidersDefeated.Add(e);}
+        private bool OnFieldDispatchEnemyRestrained(Enemy e)
+        {
+            if(!IsFieldDispatchEnemy(e)||e.hp<=0f||enemies.Contains(e))
+                return false;
+            dispatchRaidersCaptured.Add(e);
+            return true;
+        }
+        private bool FieldDispatchAmbushFullySecured
+        {
+            get
+            {
+                if(!FieldDispatchActive||!dispatchAmbushDeployed||
+                   dispatchRaiders.Count==0)return false;
+                foreach(Enemy foe in dispatchRaiders)
+                {
+                    if(foe==null||enemies.Contains(foe))return false;
+                    if(dispatchRaidersDefeated.Contains(foe)&&foe.hp<=0f)
+                        continue;
+                    if(dispatchRaidersCaptured.Contains(foe)&&foe.hp>0f)
+                        continue;
+                    return false;
+                }
+                return true;
+            }
+        }
         public int FieldDispatchLivingRaiders
         {get{int n=0;if(FieldDispatchActive)foreach(Enemy e in dispatchRaiders)
             if(e!=null&&e.hp>0f&&enemies.Contains(e))n++;return n;}}
@@ -191,6 +220,7 @@ namespace Starfall
                 enemies.Remove(e);
             }
             dispatchRaiders.Clear();
+            dispatchRaidersDefeated.Clear();dispatchRaidersCaptured.Clear();
             dispatchAmbushEvaded=dispatchAmbushDeployed=false;
             dispatchRoom=-1;dispatchStage=dispatchIntegrity=0;
             dispatchSeconds=0f;dispatchAmbushWarningSeconds=0f;
@@ -382,7 +412,7 @@ namespace Starfall
             // loot or changes the established SaveData v2 contracts.
             bool escaped=dispatchAmbushEvaded;
             bool contested=dispatchAmbushDeployed;
-            bool cleared=contested&&FieldDispatchLivingRaiders==0;
+            bool cleared=FieldDispatchAmbushFullySecured;
             ResetFieldDispatch();
             Flag("field_dispatch_done_"+room);
             if(cleared)Flag("field_dispatch_route_secured_"+room);

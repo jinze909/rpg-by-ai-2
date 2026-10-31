@@ -1830,6 +1830,7 @@ namespace Starfall
             OnFieldPatrolEnemyDefeated(e);
             OnRemoteRoadEnemyDefeated(e);
             OnCrossingWatchEnemyDefeated(e);
+            OnFieldDispatchEnemyDefeated(e);
             OnFieldOutpostEnemyDefeated(e);
             OnVantageWatchEnemyDefeated(e);
             OnChapterRoadEnemyDefeated(e);

@@ -994,6 +994,57 @@ namespace Starfall.Tests
                 "Cleared public road survives original v2 save without live raiders");
         }
 
+        public static void DisappearedCourierEnemyNeverForgedPublicRoadSecurity(Campaign data)
+        {
+            GameCore g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=4;g.enemies.Clear();
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+            Check(kit!=null&&survey!=null&&PlaceWithinTalkReach(g,kit),
+                "Authentic physical courier sources are required");
+            g.save.inventory[2]=4;g.save.energy=100f;
+            g.Talk(kit);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_start"));
+            Point checkpoint=g.FieldDispatchTarget;
+            WorldObject machine=Array.Find(g.Map.objects,o=>
+                o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-checkpoint).Length<.01f);
+            Check(machine!=null,"Authentic physical intermediate handoff exists");
+            g.Close();g.save.x=machine.x;g.save.y=machine.y;
+            g.Talk(machine);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_checkpoint"));
+            g.Close();
+            for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
+                g.Tick(.05f,new Point());
+            Check(g.FieldDispatchLivingRaiders>0&&g.enemies.Count>0,
+                "Genuine ambush has registered living actor ownership");
+            // Direct enemy-list disappearance is NOT an authored defeat,
+            // nonlethal field-snare capture, or legitimate safety receipt.
+            Enemy lost=g.enemies[0];g.enemies.Remove(lost);
+            Check(g.FieldDispatchLivingRaiders==0,
+                "An externally removed actor falsely looks defeated to a naive live-count test");
+            g.save.x=survey.x;g.save.y=survey.y;
+            g.Talk(survey);
+            int finish=Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_finish");
+            Check(finish>=0,"The original handoff is still available");
+            g.Choose(finish);
+            Check(g.FieldDispatchDone(1)&&
+                !g.FieldDispatchRouteSecured(1)&&
+                g.FieldOutpostReturnFare(1)==2&&
+                g.FieldOutpostReturnEnergy(1)==6&&
+                g.enemies.Count==0,
+                "An unverified lost enemy cannot mint a permanent secure-road benefit");
+            g.PrepareSave();var reload=new GameCore(data,CloneSave(g.save));
+            Check(reload.save.version==2&&!reload.FieldDispatchRouteSecured(1),
+                "Legacy saves cannot inherit a forged victory flag");
+        }
+
         public static void CourierAmbushCombatCannotBeFarmedAndWithdrawsWithoutGhosts(Campaign data)
         {
             GameCore g=Fresh(data);
