@@ -2500,6 +2500,65 @@ namespace Starfall
             }
             return best;
         }
+        // Plated guards now play a different overworld role from hunters.
+        // When an allied bowman is pressured, they occupy a walkable SIDE
+        // screen ahead of the bow without plugging the bow's flight lane.
+        // The chosen side follows the real guard's approach, not an RNG
+        // teleport; at the screen the shield still faces the live hero.
+        // No change to scripted civilian/Boss targets or saved EnemyRecord.
+        private Point ArmoredBowScreenPursuit(Enemy guard,Point fallback)
+        {
+            if(guard==null||guard.boss||guard.kind!=2||
+               !regionalAmbientEnemies.Contains(guard)||
+               !CanStand(guard.Position)||!CanStand(Position)||
+               !ClearAttackPath(guard.Position,Position))return fallback;
+            float heroRange=(guard.Position-Position).Length;
+            if(!Finite(heroRange)||heroRange<=1.9f||heroRange>=7.2f)
+                return fallback;
+            Enemy bow=null;float nearest=float.MaxValue;
+            foreach(Enemy ally in enemies)
+            {
+                if(ally==null||ally.hp<=0f||ally.boss||ally.kind!=1||
+                   !regionalAmbientEnemies.Contains(ally)||
+                   !CanStand(ally.Position))continue;
+                float pressure=(Position-ally.Position).Length;
+                float separation=(guard.Position-ally.Position).Length;
+                if(pressure<2.3f||pressure>4.4f||separation>4.8f||
+                   !ClearAttackPath(ally.Position,Position)||
+                   pressure>=nearest)continue;
+                bow=ally;nearest=pressure;
+            }
+            if(bow==null)return fallback;
+            Point ray=(Position-bow.Position).Normalized;
+            Point side=new Point(-ray.y,ray.x);
+            Point offset=guard.Position-bow.Position;
+            float signed=offset.x*side.x+offset.y*side.y;
+            int preferred=Math.Abs(signed)>.15f?
+                (signed>0f?1:-1):((guard.id&1)==0?1:-1);
+            for(int i=0;i<2;i++)
+            {
+                int sign=i==0?preferred:-preferred;
+                Point foot=bow.Position+ray*1.35f+side*(sign*.95f);
+                Point travel=foot-guard.Position;
+                float reach=travel.Length;
+                if(!CanStand(foot)||!Finite(reach)||reach>4.75f||
+                   (foot-Position).Length<.9f)continue;
+                int samples=Math.Max(1,(int)Math.Ceiling(reach/.12f));
+                bool walkable=true;
+                for(int step=1;step<=samples;step++)
+                    if(!CanStand(guard.Position+
+                        travel*(step/(float)samples)))
+                    {walkable=false;break;}
+                if(!walkable)continue;
+                if(reach<.3f)
+                {
+                    guard.Face(Position-guard.Position);
+                    return guard.Position;
+                }
+                return foot;
+            }
+            return fallback;
+        }
         private Point OpenMeleeFlankHeading(Enemy enemy,Point target,float stride)
         {
             Point from=enemy.Position, toward=target-from;
@@ -2985,6 +3044,21 @@ namespace Starfall
                     if(FieldPatrolActive&&fieldPatrolEnemies.Contains(e))
                         e.timer=Math.Max(0f,e.timer-freeDt);
                     continue;
+                }
+                // Guard-type locals can screen a real threatened bowman
+                // instead of joining a featureless head-on queue. Only an
+                // ordinary visible engagement may reprioritize this foot:
+                // searches, named defenses, stealth and locked strikes win.
+                if(ordinaryPatrol&&e.kind==2&&e.state==0&&
+                   !QuietStepping&&!trackingOrdinaryFoot&&
+                   !playerHitProvoked&&!RidgeWatchRespondsToAlarm(e)&&
+                   !IsEnemyInvestigatingImpact(e)&&
+                   !IsEnemyReturningFromImpact(e)&&
+                   (pursuit-Position).Length<.1f)
+                {
+                    pursuit=ArmoredBowScreenPursuit(e,pursuit);
+                    delta=pursuit-e.Position;
+                    distance=delta.Length;
                 }
                 e.timer -= freeDt;
                 // A rescue archer is a ranged threat, not another melee saboteur.
