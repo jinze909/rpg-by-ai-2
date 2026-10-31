@@ -1030,6 +1030,13 @@ namespace Starfall
             float distance=(foot-source).Length;
             float preferred=kind==1?10.0f:kind==2?8.2f:7.6f;
             float score=28f-Math.Abs(distance-preferred)*2f;
+            // The survey post is not the combat target. Reward formation
+            // roles relative to the actual hero: bow units need separation,
+            // while fast melee should threaten a reachable approach sooner.
+            // Keep the existing route checks and minimum spawn clearance.
+            float heroDistance=(foot-Position).Length;
+            float heroPreferred=kind==1?10.5f:kind==2?8.5f:6.8f;
+            score-=Math.Abs(heroDistance-heroPreferred)*2.2f;
             bool sourceLine=ClearAttackPath(foot,source);
             bool playerLine=ClearAttackPath(foot,Position);
             if(kind==1)
