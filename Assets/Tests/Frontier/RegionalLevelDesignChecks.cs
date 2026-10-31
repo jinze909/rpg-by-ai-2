@@ -3006,6 +3006,44 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void MeleeScoutStagingValuesHeroVisibilityOverSurveyMarker(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                string[] rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] line=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                char[] blocked=rows[15].ToCharArray();
+                blocked[17]='#';rows[15]=new string(blocked);
+                data.maps[1]=new MapData{id=1,spawnX=20.5f,
+                    spawnY=15.5f,rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.x=20.5f;g.save.y=15.5f;
+                var score=typeof(GameCore).GetMethod(
+                    "RegionalScoutTacticalPadScore",
+                    System.Reflection.BindingFlags.Instance|
+                    System.Reflection.BindingFlags.NonPublic);
+                Check(score!=null,"Live regional staging scorer exists");
+                Point source=new Point(20.5f,15.5f);
+                Point visible=new Point(26.5f,15.5f);
+                Point behindWall=new Point(14.5f,15.5f);
+                float open=(float)score.Invoke(g,new object[]{
+                    visible,source,0,new List<Point>(),0});
+                float hidden=(float)score.Invoke(g,new object[]{
+                    behindWall,source,0,new List<Point>(),0});
+                Check(open>hidden+8f,
+                    "Melee scouts prefer seeing the real hero rather than staging behind cover");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
         {
             MapData original=data.maps[1];
