@@ -2438,6 +2438,30 @@ namespace Starfall
             // a real opening instead of walking through the blocking actor.
             return from;
         }
+        // A ranged enemy pinned against solid cover must not freeze at the
+        // hero's sword reach. Try a short physical tangent in stable ID order
+        // when a backward sweep found no clearance. This never teleports,
+        // crosses living bodies or moves closer to the threat; the usual
+        // timed bow windup still owns attacks after the escape step.
+        private Point ArcherPinnedEscapeStep(Enemy enemy,Point threat,float stride)
+        {
+            Point from=enemy.Position, toward=threat-from;
+            float range=toward.Length;
+            if(!Finite(range)||range<.1f||!Finite(stride)||
+               stride<=0f||!CanStand(from))return from;
+            Point side=new Point(-toward.y,toward.x)*(stride/range);
+            int preferred=(enemy.id&1)==0?1:-1;
+            for(int attempt=0;attempt<2;attempt++)
+            {
+                Point candidate=SweepActor(from,
+                    side*(attempt==0?preferred:-preferred));
+                if((candidate-from).Length<.01f||
+                   !EnemyCrowdStepClear(enemy,from,candidate)||
+                   (candidate-threat).Length+.0001f<range)continue;
+                return candidate;
+            }
+            return from;
+        }
         private void UpdateEnemies(float dt)
         {
             tickingEnemies.Clear();tickingEnemies.AddRange(enemies);
@@ -2931,6 +2955,12 @@ namespace Starfall
                     // Preserve the existing facing-to-hero and cooldown
                     // rules; only the swept foot selects a legal flank.
                     Point back = SweepOrdinaryEnemyWithCrowd(e,away);
+                    // A solid rear wall can stop the entire backward sweep,
+                    // unlike an allied body (which already yields a flank).
+                    // Keep archers mobile under genuine close-range pressure.
+                    if((back-e.Position).Length<.01f)
+                        back=ArcherPinnedEscapeStep(e,pursuit,
+                            freeDt*(reliefAttacker||escortPatrol?2.2f:1.6f));
                     e.backpedaling = (back - e.Position).Length > .001f;
                     e.x = back.x; e.y = back.y;
                 }
