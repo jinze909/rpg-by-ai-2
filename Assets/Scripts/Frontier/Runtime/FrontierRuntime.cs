@@ -1226,7 +1226,7 @@ namespace Starfall
                     new Point(obj.x,obj.y);
                 bool chosen=slot==0;
                 Color ink=chosen?mint:
-                    System.Object.ReferenceEquals(obj,objective)?gold:
+                    objective!=null&&System.Object.ReferenceEquals(obj,objective)?gold:
                     PixelArt.C("#9aaeb4");
                 Ring(foot,chosen?.62f:.44f,ink,chosen?22:16);
                 Point screen=ScreenPoint(foot);
@@ -1259,7 +1259,7 @@ namespace Starfall
                     Game.L(target.name,target.en);
                 if(Button(x+18,y+34+row*25,width-32,23,
                     (chosen?"◆  ":"   ")+
-                    (System.Object.ReferenceEquals(target,objective)?"★  ":"")+label,chosen))
+                    (objective!=null&&System.Object.ReferenceEquals(target,objective)?"★  ":"")+label,chosen))
                     Game.FocusNearbyInteraction(index);
             }
             if(objective!=null&&
