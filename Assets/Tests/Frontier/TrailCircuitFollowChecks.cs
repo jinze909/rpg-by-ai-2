@@ -6,6 +6,48 @@ namespace Starfall.Tests
     // No synthetic landmarks, plot-coordinate moves or SaveData extensions.
     public static partial class CoreChecks
     {
+        public static void GuidedTrailSourceWinsAmbiguousNearbyEWithoutHijackingManualFocus(Campaign data)
+        {
+            var g=Fresh(data);g.save.room=1;g.save.stage=3;g.mode="world";
+            WorldObject first=Array.Find(g.Map.objects,
+                o=>o.id=="trailcircuit_1_1");
+            WorldObject second=Array.Find(g.Map.objects,
+                o=>o.id=="trailcircuit_1_2");
+            g.save.x=first.x;g.save.y=first.y;g.Talk(first);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="trail_circuit_follow"));
+            Check(g.TrailCircuitAutoFollowActive&&
+                g.TrailCircuitIsCurrentFollowTarget(second),
+                "Only exact authentic next E source is the accepted trail target");
+            WorldObject decoy=new WorldObject{
+                id="overlapping_prop",kind="herb",
+                name="Local herbs",en="Local herbs",
+                x=second.x,y=second.y};
+            WorldObject[] original=g.Map.objects;
+            try
+            {
+                var crowded=new WorldObject[original.Length+1];
+                crowded[0]=decoy;
+                Array.Copy(original,0,crowded,1,original.Length);
+                g.Map.objects=crowded;
+                g.save.x=second.x;g.save.y=second.y;
+                Check(System.Object.ReferenceEquals(g.Nearest(),second),
+                    "On arrival, explicit trail follow chooses original route source, not same-foot prop");
+                int selected=g.NearbyInteractionChoices().FindIndex(
+                    x=>System.Object.ReferenceEquals(x,decoy));
+                Check(selected>=0&&g.FocusNearbyInteraction(selected)&&
+                    System.Object.ReferenceEquals(g.Nearest(),decoy),
+                    "Explicit user O/click selection always outranks trail shortcut");
+                // Enter the same genuine stage via direct source-bound Talk;
+                // no synthetic herb is allowed to advance the receipt.
+                g.Talk(second);
+                Check(g.TrailCircuitProgress(1)==2&&
+                    g.TrailCircuitAutoFollowActive,
+                    "Real source interaction still advances continuous walk");
+            }
+            finally{g.Map.objects=original;}
+        }
+
         public static void EightRealTrailExpeditionsAutoAdvanceOnlyAfterPhysicalESurvey(Campaign data)
         {
             for(int room=0;room<8;room++)

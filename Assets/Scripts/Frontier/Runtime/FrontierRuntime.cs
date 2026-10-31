@@ -2406,6 +2406,17 @@ namespace Starfall
                     stage==progress+1?gold:muted,12);
                 if(!read)WorldObjectLabel(p.x-26,p.y-84,52,20,stage.ToString(),16,
                     stage==progress+1?gold:muted,TextAnchor.MiddleCenter);
+                // The world actor, not a navigation-only map popup, tells
+                // the player which real E step is currently owned by their
+                // deliberately accepted three-stop walking expedition.
+                if(Game.TrailCircuitIsCurrentFollowTarget(o))
+                {
+                    Ring(new Point(o.x,o.y),.76f,gold,20);
+                    WorldObjectLabel(p.x-114,p.y-115,228,20,
+                        Game.L("连续巡路目标 · 按 E 核对",
+                            "GUIDED TRAIL · PRESS E TO SURVEY"),
+                        10,gold,TextAnchor.MiddleCenter);
+                }
                 return;
             }
             if(kind=="annexcache")

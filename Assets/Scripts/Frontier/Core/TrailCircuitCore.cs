@@ -48,6 +48,24 @@ namespace Starfall
             trailFollowArrivalNotified=false;
         }
 
+        public bool TrailCircuitIsCurrentFollowTarget(WorldObject source)
+        {
+            return TrailFollowOwnsCurrentPin()&&
+                System.Object.ReferenceEquals(trailFollowSource,source);
+        }
+
+        private WorldObject ArrivedTrailInteractionSource()
+        {
+            // Deliberate E guidance may disambiguate a crowded roadside,
+            // but NEVER override the player's own O/click focus or a
+            // higher-priority live quest approach. The source remains the
+            // actual physical map member and must be within genuine reach.
+            return mode=="world"&&!Dying&&SafeTravel&&
+                TrailCircuitAtFollowPin()&&
+                HasPhysicalInteractionReach(trailFollowSource)?
+                trailFollowSource:null;
+        }
+
         private bool TrailCircuitAtFollowPin()
         {
             return TrailFollowOwnsCurrentPin()&&

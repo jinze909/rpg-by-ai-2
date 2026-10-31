@@ -4013,6 +4013,8 @@ namespace Starfall
             if(InteractionFocusIsValid())return interactionFocus;
             WorldObject arrivedQuest=ArrivedQuestInteractionSource();
             if(arrivedQuest!=null)return arrivedQuest;
+            WorldObject arrivedTrail=ArrivedTrailInteractionSource();
+            if(arrivedTrail!=null)return arrivedTrail;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;
