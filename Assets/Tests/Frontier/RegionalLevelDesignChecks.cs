@@ -428,6 +428,84 @@ namespace Starfall.Tests
                 "Authored combat consequences persist in ordinary v2 save flags");
         }
 
+        // Exercise the SAME E/Shift+G activation that players use in all
+        // seven authored scenes. A device used during an almost-complete
+        // enemy attack must CANCEL that original strike and its owner-tagged
+        // ground warning, rather than delaying a 20ms contact until stun ends.
+        public static void AllSevenDevicesInterruptActualCommittedWindups(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var warningField=typeof(GameCore).GetField("rescueWindupEffects",flags);
+            var lane=typeof(GameCore).GetMethod("ClearAttackPath",flags);
+            Check(warningField!=null&&lane!=null,
+                "Test the real actor-owned combat-warning and terrain pipelines");
+            for(int room=1;room<=7;room++)
+            {
+                GameCore g=Fresh(data);g.save.stage=3;
+                g.save.flags.Add("exp_intro");
+                g.Enter(room);g.enemies.Clear();
+                WorldObject device=Array.Find(g.Map.objects,
+                    o=>o.kind=="fielddevice"&&o.id=="field_tactic_"+room);
+                Check(device!=null&&PlaceWithinTalkReach(g,device),
+                    "Every region exposes its authentic physical tactical device");
+                Point origin=new Point(device.x,device.y),foot=new Point();
+                bool found=false;
+                for(int dy=-5;dy<=5&&!found;dy++)
+                for(int dx=-5;dx<=5&&!found;dx++)
+                {
+                    Point candidate=new Point(origin.x+dx,origin.y+dy);
+                    float dist=(candidate-origin).Length;
+                    if(dist<2.5f||dist>5.7f||!g.CanStand(candidate)||
+                       !(bool)lane.Invoke(g,new object[]{origin,candidate}))
+                        continue;
+                    foot=candidate;found=true;
+                }
+                Check(found,"The original field device has a real, exposed attack lane");
+                Enemy attacker=new Enemy(94000+room,room%3,
+                    foot.x,foot.y,120f);
+                g.enemies.Add(attacker);
+                attacker.state=1;attacker.timer=.02f;
+                attacker.windupDuration=.65f;attacker.target=g.Position;
+                attacker.targetingWayfarer=true;
+                attacker.targetingReliefCivilian=true;
+                attacker.targetingAfterlightStock=true;
+                attacker.targetingOuterPatrolStock=true;
+                attacker.targetingSagaGuardEvidence=true;
+                var ownerWarnings=(System.Runtime.CompilerServices.
+                    ConditionalWeakTable<Enemy,Effect>)warningField.GetValue(g);
+                Effect warning=new Effect("danger",attacker.target,.65f)
+                    {radius=1.2f};
+                g.effects.Add(warning);ownerWarnings.Add(attacker,warning);
+                Effect unrelated=new Effect("danger",origin,.65f){radius=1f};
+                g.effects.Add(unrelated);
+                g.mode="world";g.save.energy=100f;
+                Check(g.QuickActivateFieldTactic()&&g.save.energy==86f&&
+                    g.FieldTacticCooldown(device)>23f,
+                    "The actual live device executes one paid, in-range counter");
+                Effect stillOwned;
+                Check(attacker.state==0&&attacker.stun>=.54f&&
+                    attacker.timer>=.45f&&
+                    !ownerWarnings.TryGetValue(attacker,out stillOwned)&&
+                    !g.effects.Contains(warning)&&g.effects.Contains(unrelated),
+                    "Device counter cancels the exact unspent strike and warning, without erasing another effect");
+                Check(!attacker.targetingWayfarer&&
+                    !attacker.targetingReliefCivilian&&
+                    !attacker.targetingAfterlightStock&&
+                    !attacker.targetingOuterPatrolStock&&
+                    !attacker.targetingSagaGuardEvidence,
+                    "Old mission targets cannot survive an interrupted attack");
+                Check(g.effects.Exists(e=>e.kind=="number"&&
+                    e.text==g.L("攻击中断！","ATTACK INTERRUPTED")),
+                    "The actual combat HUD receives an explicit interruption cue");
+                float hp=g.save.health;
+                for(int frame=0;frame<12;frame++)g.Tick(.05f,new Point());
+                Check(g.save.health==hp&&g.projectiles.Count==0&&
+                    attacker.state==0,
+                    "The delayed pre-counter strike cannot fire when the stun ends");
+            }
+        }
+
         // A mechanism can be reachable yet useless if every actual campaign
         // soldier spawns in a different encounter district. Exercise the
         // unchanged 6/8-enemy rosters, not a hand-placed test enemy.

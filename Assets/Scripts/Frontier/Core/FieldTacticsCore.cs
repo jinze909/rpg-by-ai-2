@@ -500,8 +500,13 @@ namespace Starfall
             }
             foreach(Enemy e in targets)
             {
+                // All seven devices are genuine windup COUNTERS, not merely
+                // a freeze of the old 10ms attack clock. The shared combat
+                // interrupt retires enemy-owned danger cues, mission attack
+                // targeting and the still-unreleased strike before stun.
+                bool interrupted=e.state==1;
                 if(room==1)
-                {e.stun=Math.Max(e.stun,2.3f);e.stagger=Math.Max(e.stagger,1.1f);}
+                {ApplyEnemyControl(e,2.3f);e.stagger=Math.Max(e.stagger,1.1f);}
                 else if(room==2)
                 {
                     Point dir=(e.Position-origin).Normalized;
@@ -509,35 +514,38 @@ namespace Starfall
                     if(dir.Length>.1f&&CanStand(displaced)&&
                         ClearAttackPath(e.Position,displaced))
                     {e.x=displaced.x;e.y=displaced.y;}
-                    e.stun=Math.Max(e.stun,.9f);
+                    ApplyEnemyControl(e,.9f);
                 }
                 else if(room==3)
                 {
                     if(e.kind==2)e.armorOpenTime=Math.Max(e.armorOpenTime,3.5f);
-                    e.stun=Math.Max(e.stun,e.kind==2?1.4f:.7f);
+                    ApplyEnemyControl(e,e.kind==2?1.4f:.7f);
                 }
                 else if(room==4)
                 {
-                    e.stun=Math.Max(e.stun,e.kind==1?2.4f:.8f);
+                    ApplyEnemyControl(e,e.kind==1?2.4f:.8f);
                     e.stagger=Math.Max(e.stagger,.8f);
                 }
                 else if(room==5)
                 {
-                    e.stun=Math.Max(e.stun,e.kind==1?2.8f:.55f);
+                    ApplyEnemyControl(e,e.kind==1?2.8f:.55f);
                     e.stagger=Math.Max(e.stagger,e.kind==1?1.1f:.35f);
                 }
                 else if(room==6)
                 {
                     if(e.kind==2)
                         e.armorOpenTime=Math.Max(e.armorOpenTime,4f);
-                    e.stun=Math.Max(e.stun,e.kind==2?1.9f:
+                    ApplyEnemyControl(e,e.kind==2?1.9f:
                         e.kind==1?1.5f:.7f);
                 }
                 else
                 {
-                    e.stun=Math.Max(e.stun,e.kind==0?2.7f:1.2f);
+                    ApplyEnemyControl(e,e.kind==0?2.7f:1.2f);
                     e.stagger=Math.Max(e.stagger,e.kind==0?1.7f:.6f);
                 }
+                if(interrupted)
+                    effects.Add(new Effect("number",e.Position+.5f*new Point(0,1),.75f,
+                        L("攻击中断！","ATTACK INTERRUPTED")));
                 effects.Add(new Effect("number",e.Position,.65f,
                     (room==3||room==6)&&e.kind==2?L("护甲暴露","ARMOR OPEN"):
                     room==2?L("击退","SWEPT"):

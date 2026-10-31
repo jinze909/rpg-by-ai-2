@@ -1919,6 +1919,7 @@ namespace Starfall
             enemy.targetingWayfarer=false;
             enemy.targetingReliefCivilian=false;
             enemy.targetingAfterlightStock = enemy.targetingOuterPatrolStock = false;
+            enemy.targetingSagaGuardEvidence=false;
             RemoveEnemyPendingWarning(enemy);
         }
         // Repair transient reaction clocks before deriving lock/free time. A NaN
