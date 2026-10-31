@@ -44,7 +44,7 @@ namespace Starfall
             }
         }
         public bool CrossingWatchSecured(int room)
-        {return room==1||room==3||room==6?
+        {return room==1||room==2||room==3?
             Has("crossing_watch_secured_"+room):false;}
         public bool CrossingWatchHumane(int room)
         {return CrossingWatchSecured(room)&&
@@ -65,16 +65,16 @@ namespace Starfall
         private static Point CrossingWatchSite(int room)
         {
             if(room==1)return new Point(49.5f,34.5f);
+            if(room==2)return new Point(63.5f,54.5f);
             if(room==3)return new Point(88.5f,62.5f);
-            if(room==6)return new Point(55.5f,70.5f);
             return new Point(-1000f,-1000f);
         }
         private bool CrossingWatchAvailable(int room)
         {
-            if(room!=1&&room!=3&&room!=6)return false;
+            if(room!=1&&room!=2&&room!=3)return false;
             if(CrossingWatchSecured(room)||!Has("boss_"+room))return false;
             return Has(room==1?"thorn_canopy_cut_0":
-                       room==3?"iron_haulage_1":"desert_canyon_shelter");
+                       room==2?"ruins_step_0":"iron_haulage_1");
         }
         private void ResetCrossingWatch(bool retry=false)
         {
@@ -99,8 +99,8 @@ namespace Starfall
         }
         private bool BeginCrossingWatchFight()
         {
-            int room=save.room,kindA=room==1?0:room==3?2:1;
-            int kindB=room==1?1:room==3?0:2;
+            int room=save.room,kindA=room==1?0:room==2?1:2;
+            int kindB=room==1?1:room==2?2:0;
             Point source=CrossingWatchSite(room);
             var feet=new List<Point>(2);
             // Build the ENTIRE pair on authentic, reachable terrain,
@@ -154,10 +154,10 @@ namespace Starfall
             revision++;sound="alert";
             Notify(room==1?"密林截击：猎手从树根两侧接近！":
                    room==3?"矿道截击：重甲守卫和游击者正在合围！":
-                   "岩峡截击：弓手和重甲巡兵占据两侧！",
+                   "遗迹截击：弓手和甲兵控制了古代石道！",
                    room==1?"Root crossing: hunters approach from opposite flanks!":
                    room==3?"Mine crossing: a plated guard and a skirmisher converge!":
-                   "Canyon crossing: an archer and armored soldier take opposite sides!");
+                   "Ruins crossing: an archer and armored guard hold the raised causeway!");
             return true;
         }
         private void TickCrossingWatch(float dt)
@@ -196,13 +196,13 @@ namespace Starfall
                             "两名拦路者活着带回了被扣押的巡路图。他们协助居民开通本区高地路，穿行耐力降低两点。":
                             room==1?
                             "荆棘根桥上的拦路者退去，居民不用再在林道间冒险绕行。":
-                            room==3?"矿工重新控制了通风矿道，运料车不再被拦截。":
-                            "沙海岩峡的遮荫通路得到保护，过路旅人不必再交给巡兵水钱。",
+                            room==2?"沉没遗迹的石道重新交还渡工，归乡的人不必再缴纳路税。":
+                            "矿工重新控制了通风矿道，运料车不再被拦截。",
                             nonlethal?
                             "Two living captives returned stolen route charts and helped reopen the local ridge road, reducing passage stamina by two.":
                             room==1?"The root crossing is safe for civilians again.":
-                            room==3?"Miners reclaim the haul route from armed extortion.":
-                            "Travelers can cross the shaded canyon without paying armed sentries.");
+                            room==2?"Ferrymen reclaim the raised ruins causeway from extortion.":
+                            "Miners reclaim the haul route from armed extortion.");
                         Notify(nonlethal?"双方袭击者被活捉，交回旧地图。本区高地穿行耐力减少 2。":
                             "截击威胁解除，居民通道恢复安全。",
                             nonlethal?"Both raiders returned the stolen route charts. Local ridge passage costs 2 less stamina.":

@@ -69,11 +69,11 @@ namespace Starfall.Tests
 
         public static void NewCrossingWatchAmbushesAreOptionalPhysicalFights(Campaign data)
         {
-            int[] rooms={1,3,6};
+            int[] rooms={1,2,3};
             Point[] centers={new Point(49.5f,34.5f),
-                new Point(88.5f,62.5f),new Point(55.5f,70.5f)};
+                new Point(63.5f,54.5f),new Point(88.5f,62.5f)};
             string[] discovery={"thorn_canopy_cut_0",
-                "iron_haulage_1","desert_canyon_shelter"};
+                "ruins_step_0","iron_haulage_1"};
             for(int index=0;index<rooms.Length;index++)
             {
                 int room=rooms[index];
