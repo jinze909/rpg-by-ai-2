@@ -1571,11 +1571,19 @@ namespace Starfall
                     L((FieldDispatchStage==1?"第一站：去工程装置登记真实物资。":
                                                "第二站：步行去原调查地标交货。")+
                       "剩余"+(int)FieldDispatchSeconds+"秒，货物完整度"+
-                      FieldDispatchIntegrity+"。",
+                      FieldDispatchIntegrity+"。"+
+                      (FieldDispatchAmbushWarningSeconds>0f?
+                          " 伏击将在"+(int)Math.Ceiling(
+                              FieldDispatchAmbushWarningSeconds)+
+                          "秒内接近；立刻远离中继站可规避战斗。":""),
                       (FieldDispatchStage==1?"Visit the real engineering checkpoint. ":
                                                "Deliver at the original survey post. ")+
                       (int)FieldDispatchSeconds+"s left, integrity "+
-                      FieldDispatchIntegrity+"."):
+                      FieldDispatchIntegrity+"."+
+                      (FieldDispatchAmbushWarningSeconds>0f?
+                          " Raiders arrive in "+(int)Math.Ceiling(
+                              FieldDispatchAmbushWarningSeconds)+
+                          "s; leave the station to evade.":"")):
                     q.complete?
                         L("七地民间接力全部签收，所有据点的补给与返程已改善。",
                           "All seven physically delivered civilian routes are signed. Every field facility now offers better supplies and return travel."):

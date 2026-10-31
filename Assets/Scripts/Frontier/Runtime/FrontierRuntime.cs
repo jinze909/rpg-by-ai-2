@@ -1130,6 +1130,28 @@ namespace Starfall
                             Ring(watchFoe.Position,.52f,
                                 new Color(1f,.61f,.40f,.76f),16);
             }
+            // Courier attackers are never allowed to materialize during
+            // the scouting beat. Surface its real checkpoint footprint so
+            // players can read the danger and choose a physical retreat.
+            if(Game.mode=="world"&&
+               Game.FieldDispatchAmbushWarningSeconds>0f)
+            {
+                Point station=Game.FieldDispatchAmbushOrigin;
+                if((station-Game.Position).Length<16f)
+                {
+                    Color warn=new Color(1f,.69f,.34f,.87f);
+                    Ring(station,1.3f,warn,28);
+                    Point p=ScreenPoint(station);
+                    Text(p.x-108f,p.y-85f,216f,18f,
+                        Game.L("伏击将至 · 远离中继站",
+                            "RAID INBOUND · LEAVE THE STATION"),
+                        10,warn,TextAnchor.MiddleCenter);
+                    Text(p.x-50f,p.y-67f,100f,16f,
+                        (int)Math.Ceiling(Game.FieldDispatchAmbushWarningSeconds)+
+                            Game.L(" 秒"," SEC"),
+                        10,warn,TextAnchor.MiddleCenter);
+                }
+            }
             // A restrained world-space sight ring tells gamepad users which
             // actual foe will receive the snapped projectile. It follows a
             // live actor reference, never a reused spawn ID or stored flag.
