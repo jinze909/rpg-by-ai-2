@@ -8637,11 +8637,17 @@ public static class RuntimeCombatInputChecks
     {
         Prepare(app);
         GameCore g=app.Game;
+        // BeginVisualReview may seed mid-story rescue flags for art frames.
+        // Reproduce a genuine new-game chapter-one quest before asserting
+        // the live current objective: the old preview is not a fresh scout.
+        g.NewGame(1);g.Close();
         g.save.stage=0;g.Enter(1);g.enemies.Clear();
         g.mode="world";g.save.english=true;g.TrackQuest("main");
         WorldObject scout=Array.Find(g.Map.objects,
             o=>o.kind=="scout"&&g.IsObjectPresent(o));
-        Check(scout!=null,"World Shift+O uses a genuine main quest scout");
+        Check(scout!=null&&
+            (g.GetQuest("main").target-new Point(scout.x,scout.y)).Length<.01f,
+            "World Shift+O uses the actual first-chapter scout, not a seeded art-review objective");
         g.save.x=scout.x;g.save.y=scout.y;
         MapData room=g.Map;WorldObject[] before=room.objects;
         var distraction=new WorldObject{
