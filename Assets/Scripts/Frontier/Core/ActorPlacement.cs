@@ -1191,9 +1191,12 @@ namespace Starfall
                     }
                 }
             }
-            // Paid-off patrol contracts require a FULL wave. Check all feet
-            // before touching enemies or actor IDs; no partial free reward.
-            if(requireFull&&pads.Count!=count)return 0;
+            // Never launch an incomplete optional patrol either. A partial
+            // two-of-three roster silently weakens the actual encounter and
+            // leaves the player with an unintended number of threats.
+            // No actor IDs, resources, mission flags or rewards have been
+            // committed yet, so the caller can safely retry later.
+            if(pads.Count!=count)return 0;
             foreach(Point p in pads)
             {
                 int slot=pads.IndexOf(p);
