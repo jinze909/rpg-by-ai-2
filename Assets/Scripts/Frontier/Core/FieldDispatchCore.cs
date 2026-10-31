@@ -40,26 +40,80 @@ namespace Starfall
         // kind or reused numeric ID; fake/retired raiders never get a quest cue.
         public bool IsLiveFieldDispatchRaider(Enemy e)
         {return IsFieldDispatchEnemy(e)&&e.hp>0f&&enemies.Contains(e);}
+        // Rank genuine connected approaches rather than taking the first
+        // north-edge tile found by the scan. A bow gets a physical firing
+        // lane; a brawler may exploit nearby cover. The optional second
+        // raider should pressure a different approach, not stack behind
+        // the first. No actor is created until the whole selection ends.
+        private float FieldDispatchPadScore(Point foot,int kind)
+        {
+            float range=(foot-Position).Length;
+            float preferred=kind==1?8f:kind==2?7.2f:6.8f;
+            float score=-(float)Math.Abs(range-preferred)*2f;
+            bool sight=ClearAttackPath(foot,Position);
+            if(kind==1)
+                score+=sight?
+                    (PhysicalBowLaneFromFoot(foot,Position)?12f:-6f):-9f;
+            else if(sight)score+=2f;
+            return score;
+        }
         private int SpawnFieldDispatchAmbush()
         {
             if(!FieldDispatchActive||dispatchStage!=2)return 0;
             Point center=new Point(dispatchCheckpoint.x,dispatchCheckpoint.y);
             int sx=(int)Math.Floor(center.x),sy=(int)Math.Floor(center.y);
-            var pads=new List<Point>();
-            // One highland/forest scout or a paired ruinside raiding unit;
-            // leave every original NPC pad and foot route readable.
             int count=dispatchRoom==2||dispatchRoom==3||
                 dispatchRoom==6?2:1;
-            for(int radius=7;radius<=12&&pads.Count<count;radius++)
-            for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
-            for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+            var candidates=new List<Point>();
+            var none=new List<Point>(0);
+            // Preserve the authentic route, NPC pads and distance limits
+            // of the original courier encounter, including the fallback
+            // to one raider where the actual terrain cannot fit a pair.
+            for(int radius=7;radius<=12;radius++)
+            for(int dy=-radius;dy<=radius;dy++)
+            for(int dx=-radius;dx<=radius;dx++)
             {
                 if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                     Math.Abs(dx)+Math.Abs(dy)>16)continue;
                 Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
-                if(RegionalScoutFootClear(foot,center,true,pads))
-                    pads.Add(foot);
+                if(RegionalScoutFootClear(foot,center,true,none))
+                    candidates.Add(foot);
             }
+            if(candidates.Count==0)return 0;
+            int firstKind=dispatchRoom%3,secondKind=(dispatchRoom+1)%3;
+            int firstIndex=-1,secondIndex=-1;
+            float bestOne=float.NegativeInfinity;
+            for(int a=0;a<candidates.Count;a++)
+            {
+                float score=FieldDispatchPadScore(candidates[a],firstKind);
+                if(firstIndex<0||score>bestOne+.0001f)
+                {firstIndex=a;bestOne=score;}
+            }
+            // Evaluate both roles jointly so a tempting lone bow perch
+            // cannot prevent the full pair from reaching the courier.
+            if(count==2)
+            {
+                float bestPair=float.NegativeInfinity;
+                bool foundPair=false;
+                for(int a=0;a<candidates.Count;a++)
+                for(int b=0;b<candidates.Count;b++)
+                {
+                    Point first=candidates[a],second=candidates[b];
+                    if((first-second).Length<5f)continue;
+                    Point f=(first-Position).Normalized;
+                    Point t=(second-Position).Normalized;
+                    float spread=1f-f.x*t.x-f.y*t.y;
+                    float score=FieldDispatchPadScore(first,firstKind)+
+                        FieldDispatchPadScore(second,secondKind)+spread*9f;
+                    if(!foundPair||score>bestPair+.0001f)
+                    {
+                        firstIndex=a;secondIndex=b;
+                        bestPair=score;foundPair=true;
+                    }
+                }
+            }
+            var pads=new List<Point>(2){candidates[firstIndex]};
+            if(secondIndex>=0)pads.Add(candidates[secondIndex]);
             foreach(Point foot in pads)
             {
                 int kind=(dispatchRoom+dispatchRaiders.Count)%3;

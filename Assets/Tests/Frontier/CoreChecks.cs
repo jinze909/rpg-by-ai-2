@@ -863,6 +863,9 @@ namespace Starfall.Tests
                         g.NavigationPathFrom(checkpoint,foe.Position,true).Count>0&&
                         (foe.Position-checkpoint).Length>=5f,
                         "The courier's nonmandatory ambush uses actual connected combat feet");
+                if(g.enemies.Count==2)
+                    Check((g.enemies[0].Position-g.enemies[1].Position).Length>=5f,
+                        "Two courier attackers hold separate, genuinely navigable attack lanes");
                 g.Close();
                 g.save.x=original.x;g.save.y=original.y;
                 g.Talk(original);
