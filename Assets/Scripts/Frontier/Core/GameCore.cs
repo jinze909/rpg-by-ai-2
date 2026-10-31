@@ -3966,6 +3966,36 @@ namespace Starfall
             }
             return FocusNearbyInteraction(selected);
         }
+        // When the player DELIBERATELY follows a quest's actual walking
+        // approach, reaching the verified contact side makes that exact
+        // physical source the default E target. Do not make merely opening
+        // the journal, accepting a quest, or receiving a recommendation
+        // silently take away the nearest ordinary NPC. Manual O/R3/click
+        // focus remains higher priority, as does the moving rescue actor.
+        // A stage change, closed wall, relocated source or ambiguous set
+        // of colocated objects immediately invalidates this shortcut.
+        private WorldObject ArrivedQuestInteractionSource()
+        {
+            if(mode!="world"||Dying||!SafeTravel||
+               string.IsNullOrEmpty(localWaymarkQuestId)||
+               save.trackedQuest!=localWaymarkQuestId||
+               !QuestApproachAwaitingInteraction||Map.objects==null)
+                return null;
+            QuestGuide quest=GetQuest(localWaymarkQuestId);
+            if(quest.locked||quest.complete||quest.room!=save.room)
+                return null;
+            WorldObject unique=null;
+            foreach(WorldObject candidate in Map.objects)
+            {
+                if(candidate==null||!SourceBelongsToActiveMap(candidate)||
+                   !IsObjectPresent(candidate)||
+                   (new Point(candidate.x,candidate.y)-quest.target).Length>.35f||
+                   !HasPhysicalInteractionReach(candidate))continue;
+                if(unique!=null)return null;
+                unique=candidate;
+            }
+            return unique;
+        }
         public WorldObject Nearest()
         {
             // Revalidate non-map mission actors even when the renderer
@@ -3978,6 +4008,8 @@ namespace Starfall
             if (objects == null) return null;
             if (objects.Length == 0) { ClearInteractionFocus(); return null; }
             if(InteractionFocusIsValid())return interactionFocus;
+            WorldObject arrivedQuest=ArrivedQuestInteractionSource();
+            if(arrivedQuest!=null)return arrivedQuest;
             WorldObject best=null;
             float bestScore=float.MaxValue;
             Point facing=aim.Normalized;

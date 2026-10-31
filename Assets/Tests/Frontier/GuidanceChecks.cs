@@ -3,6 +3,66 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+        // Real production quest, real original forest scout and exact live
+        // E resolver. A denser incidental map object should not steal the
+        // destination AFTER the player explicitly walks a quest approach.
+        public static void ExplicitQuestArrivalPrioritizesAuthenticInteraction(Campaign data)
+        {
+            var map=data.maps[1];
+            WorldObject[] originals=map.objects;
+            try
+            {
+                var g=Fresh(data);g.mode="world";
+                WorldObject scout=Array.Find(originals,
+                    o=>o.kind=="scout");
+                Check(scout!=null,"Original story contains its living scout");
+                g.Enter(1);g.enemies.Clear();
+                Check(PlaceWithinTalkReach(g,scout),
+                    "The main story scout has a real reachable contact side");
+                // A nearby unrelated prop normally wins E by distance.
+                Point hero=g.Position;
+                var bystander=new WorldObject{
+                    id="incidental_near_scout",kind="lore",
+                    name="Incidental Note",en="Incidental Note",
+                    x=hero.x,y=hero.y};
+                map.objects=new WorldObject[originals.Length+1];
+                Array.Copy(originals,map.objects,originals.Length);
+                map.objects[originals.Length]=bystander;
+                g.SetAim(new Point(1f,0f));
+                Check(Object.ReferenceEquals(g.Nearest(),bystander),
+                    "Without deliberate follow, the ordinary nearest source retains E");
+                g.save.trackedQuest="main";
+                g.mode="journal";
+                Check(g.PlaceQuestApproachWaymark("main"),
+                    "Explicit player follow uses the authentic main story guide");
+                Point? mark=g.LocalWaymark;
+                Check(mark.HasValue,
+                    "A verified physical approach exists for the original scout");
+                g.Close();
+                g.save.x=mark.Value.x;g.save.y=mark.Value.y;
+                g.Tick(.05f,new Point());
+                Check(g.QuestApproachAwaitingInteraction&&
+                    Object.ReferenceEquals(g.Nearest(),scout),
+                    "After reaching the opted-in quest, E selects its real original source");
+                // An explicit player alternative always overrides automatic
+                // quest preference until the focus is physically invalid.
+                var options=g.NearbyInteractionChoices();
+                int incidental=options.IndexOf(bystander);
+                Check(incidental>=0&&g.FocusNearbyInteraction(incidental)&&
+                    Object.ReferenceEquals(g.Nearest(),bystander),
+                    "Manual selection remains authoritative even beside a quest");
+                // A fresh quest stage invalidates the old contact immediately.
+                g.save.flags.Add("scout_saved");
+                Check(!g.QuestApproachAwaitingInteraction,
+                    "Changed story ownership invalidates the reached old waypoint");
+                g.PrepareSave();
+                var loaded=new GameCore(data,CloneSave(g.save));
+                Check(!loaded.QuestApproachNavigationActive&&loaded.save.version==2,
+                    "No transient quest interaction focus is serialized into old v2 slots");
+            }
+            finally {map.objects=originals;}
+        }
+
         public static void CrowdedTownInteractionsHaveRankedVisibleCycling(Campaign data)
         {
             MapData saved=data.maps[0];
