@@ -32,6 +32,14 @@ namespace Starfall.Tests
                         Check((foot-new Point(obj.x,obj.y)).Length>=2.5f,
                             "New passage must not cover a quest E source: "+room+"/"+obj.id);
                 }
+                // The new passage must visually join BOTH walkable
+                // approach roads. The existing '=' path tile is rendered by
+                // the shipped biome terrain palette; blank isolated cuts
+                // would be navigable yet invisible to the player.
+                for(int dx=-1;dx<=1;dx++)
+                    Check(g.Map.rows[45][x+dx]=='='&&
+                        g.Map.rows[48][x+dx]=='=',
+                        "Regional shortcut has legible paved mouths on both banks: "+room);
                 var path=g.NavigationPathFrom(north,south,true);
                 Check(path.Count>0&&path.Count<=5,
                     "Actual collision navigation must cross the new 3-step passage: "+room);
