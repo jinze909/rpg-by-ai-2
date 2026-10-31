@@ -59,7 +59,7 @@ namespace Starfall.Tests
                     (g.NavigationTarget().Value-last.Position).Length<.01f,
                     "During a spread watch, the world compass follows the closest real live raider");
                 g.save.x=start.x;g.save.y=start.y;
-                for(int a=0;a<wave.Length;a++
+                for(int a=0;a<wave.Length;a++)
                     for(int b=a+1;b<wave.Length;b++)
                         Check((wave[a].Position-wave[b].Position).Length>=5.95f,
                             "A directional lookout wave must not stack hostile bodies on one spawn pad");
