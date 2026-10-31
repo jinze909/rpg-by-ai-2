@@ -11,6 +11,47 @@ namespace Starfall.Tests
         // The seven original 120x80 landscapes had opposite banks
         // three tiles apart but 37-45 real walking steps apart. These
         // biome-specific cuts change real terrain, not the UI or save flags.
+        // The second district passage is a true, local alternate route
+        // in each biome. It must work with the live actor collision graph,
+        // remain reachable from the original west gate, and never overlap
+        // an existing quest object or require new save fields.
+        public static void SevenFarDistrictAlternativePassagesStayWalkable(Campaign data)
+        {
+            int[,] sites={{82,52,1},{87,62,0},{76,54,0},
+                {82,45,1},{75,54,0},{25,54,0},{88,62,0}};
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                int x=sites[room-1,0],y=sites[room-1,1];
+                bool sideways=sites[room-1,2]==1;
+                Point entry=sideways?new Point(x-.5f,y+.5f):
+                    new Point(x+.5f,y-.5f);
+                Point exit=sideways?new Point(x+2.5f,y+.5f):
+                    new Point(x+.5f,y+2.5f);
+                Check(g.CanStand(entry)&&g.CanStand(exit),
+                    "Original biome path has walkable sides: "+room);
+                for(int yy=y;yy<=y+1;yy++)
+                for(int xx=x;xx<=x+1;xx++)
+                {
+                    Point foot=new Point(xx+.5f,yy+.5f);
+                    Check(g.Map.rows[yy][xx]=='='&&g.CanStand(foot),
+                        "Second passage exists in actual level collision: "+room);
+                    foreach(WorldObject prop in g.Map.objects)
+                        Check((foot-new Point(prop.x,prop.y)).Length>=3f,
+                            "Second passage leaves real quest objects clear: "+
+                            room+"/"+prop.id);
+                }
+                var crossing=g.NavigationPathFrom(entry,exit,true);
+                Check(crossing.Count>0&&crossing.Count<=5,
+                    "A genuine short route now crosses the distant district: "+room);
+                Check(g.NavigationPathFrom(new Point(5.5f,14.5f),
+                    entry,true).Count>0,
+                    "An ordinary hero can walk to the alternate entry: "+room);
+                Check(g.save.version==2,
+                    "Terrain pathways never change quest or save format");
+            }
+        }
+
         public static void SevenRegionalTerrainShortcutsCreatePhysicalWalkingLoops(Campaign data)
         {
             int[] centers={0,60,60,61,64,63,59,61};
