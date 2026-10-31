@@ -63,6 +63,78 @@ namespace Starfall.Tests
             finally {map.objects=originals;}
         }
 
+        // An identical-foot pair must not commit arbitrary authored
+        // dialogue on the first blind E. Only the second physical press
+        // or an intentional exact list selection may enter the real
+        // story handler. No v2 flag or transient pointer survives loading.
+        public static void CoincidentWorldSourcesRequireExplicitEConfirmation(Campaign data)
+        {
+            MapData original=data.maps[0];
+            try
+            {
+                var rows=new string[25];
+                for(int y=0;y<25;y++)
+                {
+                    char[] cells=new string('.',25).ToCharArray();
+                    for(int x=0;x<25;x++)
+                        if(x<2||x>=23||y<2||y>=23)cells[x]='#';
+                    rows[y]=new string(cells);
+                }
+                WorldObject a=new WorldObject{ id="duplicateA",kind="lore",
+                    name="Archive A",en="Archive A",x=12.5f,y=12.5f};
+                WorldObject b=new WorldObject{ id="duplicateB",kind="lore",
+                    name="Archive B",en="Archive B",x=12.5f,y=12.5f};
+                data.maps[0]=new MapData{
+                    id=0,spawnX=12.5f,spawnY=13.5f,rows=rows,
+                    objects=new[]{a,b},decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";
+                g.save.x=12.5f;g.save.y=13.5f;
+                Check(g.NearbyInteractionCount()==2&&
+                    g.Nearest()==a&&g.CanStand(g.Position),
+                    "Two real distinct sources have identical reachable feet");
+                int tutorial=g.save.tutorialBits;
+                g.Interact();
+                Check(g.mode=="world"&&g.conversation==null&&
+                    g.CrowdedInteractionConfirmationPending&&
+                    g.Nearest()==a&&g.save.tutorialBits==tutorial,
+                    "First blind E safely locks source A without opening a dialogue or credit");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==a&&
+                    !g.CrowdedInteractionConfirmationPending,
+                    "Second E opens exactly the source named by the first preview");
+                g.Close();
+                // Explicit player input is authoritative and immediately
+                // overrides prior default preview without a third press.
+                g.save.x=12.5f;g.save.y=13.5f;
+                Check(g.CycleNearbyInteraction()&&
+                    g.Nearest()==b&&!g.CrowdedInteractionConfirmationPending,
+                    "O/R3 can choose a coincident alternate directly");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==b,
+                    "One E on manually selected B opens B and never A");
+                g.Close();
+                g.save.x=12.5f;g.save.y=13.5f;
+                Check(g.FocusNearbyInteraction(0)&&g.Nearest()==a,
+                    "Exact selector row can independently recover source A");
+                g.Interact();
+                Check(g.mode=="dialog"&&g.conversationSource==a,
+                    "Clicked source needs no extra E confirmation");
+                g.Close();
+                g.save.x=20.5f;g.save.y=20.5f;
+                Check(g.Nearest()==null&&!g.CrowdedInteractionConfirmationPending,
+                    "Moving beyond actual reach retires preview and manual selection");
+                g.save.x=12.5f;g.save.y=13.5f;
+                g.Interact();
+                Check(g.CrowdedInteractionConfirmationPending,
+                    "Fresh ordinary E re-arms the exact co-location preview");
+                g.Load(CloneSave(g.save));g.mode="world";
+                Check(!g.CrowdedInteractionConfirmationPending&&
+                    g.save.version==2,
+                    "A restored save never remembers the transient overlap choice");
+            }
+            finally{data.maps[0]=original;}
+        }
+
         public static void CrowdedTownInteractionsHaveRankedVisibleCycling(Campaign data)
         {
             MapData saved=data.maps[0];

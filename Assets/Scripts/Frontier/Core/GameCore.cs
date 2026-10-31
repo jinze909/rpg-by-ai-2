@@ -186,6 +186,11 @@ namespace Starfall
         // an entry in Map.objects. Null in the candidate ring represents
         // THIS active mission actor, not an invented persistent WorldObject.
         private bool interactionFocusRelief;
+        // One ordinary E is a preview, not a story commit, when two
+        // physically authentic objects occupy the same world foot. A
+        // second E confirms the exact instance; an explicit O/click
+        // selection remains an immediate interaction. Never serialized.
+        private bool interactionFocusNeedsConfirmation;
         private MapData interactionFocusMap;
         private SaveData interactionFocusSave;
         // Dialogue is bound to BOTH the real source object and the map in
@@ -3753,8 +3758,14 @@ namespace Starfall
         {
             interactionFocus=null;
             interactionFocusRelief=false;
+            interactionFocusNeedsConfirmation=false;
             interactionFocusMap=null;
             interactionFocusSave=null;
+        }
+        public bool CrowdedInteractionConfirmationPending
+        {
+            get { return mode=="world"&&
+                interactionFocusNeedsConfirmation&&InteractionFocusIsValid(); }
         }
         private bool InteractionReliefFocusIsValid()
         {
@@ -3866,6 +3877,9 @@ namespace Starfall
         }
         private bool SetNearbyInteractionChoice(WorldObject selected)
         {
+            // O/R3 and actual pointed row/click are deliberate source
+            // selections; they do not need the E preview safety step.
+            interactionFocusNeedsConfirmation=false;
             interactionFocus=selected;
             interactionFocusRelief=selected==null;
             interactionFocusMap=Map;
@@ -4110,6 +4124,12 @@ namespace Starfall
             // foot, never an invisible remote inventory toggle. Resolve it
             // before overlapping NPCs, using the same terrain-checked E.
             if(TryRecoverOuterDeliveryParcel())return;
+            // The visible selection and real E must authenticate the
+            // SAME exact object. Nearby props can have an identical
+            // authored foot, so a default nearest-only E would resolve
+            // by array order and silently execute the wrong source.
+            // Preserve manual O/R3/click and source-owned quest/route E.
+            bool wasFocused=InteractionFocusIsValid();
             WorldObject o = Nearest();
             if(ReliefCivilianIsInteractionTarget(o))
             {
@@ -4120,6 +4140,35 @@ namespace Starfall
                 return;
             }
             if (o == null) { Notify("靠近居民、路牌或发光物，再按 E。", "Approach a resident, sign or glowing object, then press E."); return; }
+            if(!wasFocused&&
+                ArrivedQuestInteractionSource()==null&&
+                ArrivedTrailInteractionSource()==null&&
+                SourceBelongsToActiveMap(o)&&Map.objects!=null)
+            {
+                foreach(WorldObject other in Map.objects)
+                {
+                    if(other==null||System.Object.ReferenceEquals(other,o)||
+                        !IsObjectPresent(other)||
+                        !HasPhysicalInteractionReach(other)||
+                        (new Point(o.x,o.y)-new Point(other.x,other.y)).Length>.17f)
+                        continue;
+                    // First E names/locks the authentic winning instance.
+                    // No quest flag, reward, tutorial bit or dialogue is
+                    // committed. Existing crowded panel and O/R3 can
+                    // explicitly select the other speaker instead.
+                    interactionFocus=o;
+                    interactionFocusRelief=false;
+                    interactionFocusMap=Map;
+                    interactionFocusSave=save;
+                    interactionFocusNeedsConfirmation=true;
+                    Notify("两个交互目标重叠：已选 "+o.name+
+                        "。再按 E 确认，或按 O / R3 切换。",
+                        "Overlapping sources: selected "+o.en+
+                        ". Press E again to confirm, or O / R3 to change.");
+                    return;
+                }
+            }
+            interactionFocusNeedsConfirmation=false;
             TutorialAction(1); Talk(o);
         }
 
