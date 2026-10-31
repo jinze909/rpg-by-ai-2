@@ -1376,6 +1376,56 @@ public static class RuntimeContinuityChecks
         Console.WriteLine("PASS outpost raider bodies and owned live tactical warning without ghosts");
     }
 
+    public static void OptionalCrossingAmbushOwnsTheLiveWorldHud(FrontierRuntime app)
+    {
+        Prepare(app);
+        GameCore g=app.Game;
+        g.save.stage=4;g.save.english=true;
+        g.save.flags.Add("scout_saved");
+        g.Enter(1);g.mode="world";g.enemies.Clear();
+        g.save.trackedQuest="main";g.save.showGuidance=true;
+        g.save.x=49.5f;g.save.y=34.5f;
+        g.invulnerable=100f;g.save.maxHealth=g.save.health=1000f;
+        g.Tick(.02f,new Point());
+        g.save.flags.Add("boss_1");
+        g.Tick(.02f,new Point());
+        Check(g.CrossingWatchPending&&g.enemies.Count==0,
+            "A real discovered optional crossing warns before any combat");
+        Set(app,"camera",g.Position);
+        ClearDraw();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("LOCAL EVENT")&&x.Contains("OPTIONAL"))&&
+            GUI.commands.Exists(x=>x.Contains("CROSSING AMBUSH")&&
+                x.Contains("FIGHT OR WITHDRAW"))&&
+            g.save.trackedQuest=="main",
+            "Original in-world objective card must name the optional physical danger, not the old tracked quest");
+        for(int i=0;i<90&&!g.CrossingWatchActive;i++)
+            g.Tick(.05f,new Point());
+        Check(g.CrossingWatchActive&&g.CrossingWatchRemaining==2,
+            "Real encounter begins after warning and owns two actors");
+        Set(app,"camera",g.Position);
+        ClearDraw();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("CROSSING AMBUSH")&&
+            x.Contains("FIGHT OR WITHDRAW"))&&
+            GUI.commands.Exists(x=>x.Contains("2 raiders remain"))&&
+            g.save.trackedQuest=="main",
+            "Battle-stage HUD follows actual raider ownership without rewriting saved quest");
+        var hit=typeof(GameCore).GetMethod("Hit",
+            BindingFlags.Instance|BindingFlags.NonPublic);
+        Check(hit!=null,"Actual combat hit transaction is available");
+        Enemy[] foes=g.enemies.ToArray();
+        foreach(Enemy foe in foes)
+            hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+        for(int i=0;i<5&&g.CrossingWatchActive;i++)
+            g.Tick(.05f,new Point());
+        Check(!g.CrossingWatchActive&&g.CrossingWatchSecured(1),
+            "Two actual combat contacts clear only the optional crossing");
+        ClearDraw();Call(app,"OnGUI");
+        Check(!GUI.commands.Exists(x=>x.Contains("FIGHT OR WITHDRAW"))&&
+            g.save.trackedQuest=="main",
+            "Completing the skirmish relinquishes HUD priority to the unchanged tracked quest");
+        Console.WriteLine("PASS optional crossing world HUD warning, real raiders and post-event focus");
+    }
+
     public static void ActualCourierAmbushPaintsOnlyOwnedLivingEnemy(FrontierRuntime app)
     {
         Prepare(app);
