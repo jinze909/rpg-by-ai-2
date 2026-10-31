@@ -44,6 +44,10 @@ namespace Starfall.Tests
                 g.GhostTrainSeconds==180f&&
                 (g.GhostTrainTarget-new Point(switcher.x,switcher.y)).Length<.01f,
                 "New chapter launches an actual timed three-soldier rail blockade in its real locale");
+            g.save.trackedQuest="main";
+            Check(g.RecommendedContinuationGuide.id=="ghost_train"&&
+                g.GuidanceHint().Contains(g.GetQuest("ghost_train").next),
+                "Live rail blockade owns the actual HUD objective despite stale main tracking");
             var wave=new List<Enemy>(g.enemies);
             Check(wave.Count==3,"The authored ambush owns exactly three independent living actors");
             var hit=typeof(GameCore).GetMethod("Hit",
