@@ -8,6 +8,100 @@ namespace Starfall
     public sealed partial class GameCore
     {
         private Choice StoryChoice(string zh, string en, string action) { return C(zh, en, action); }
+
+        // Optional canal-side mystery. Evidence is found in either order;
+        // only a physically reached, original lantern can settle the choice.
+        // All progress is in existing v2 flags, independent of the main saga.
+        private bool TalkAshbankSignal(WorldObject o)
+        {
+            if(o.kind!="ashbanksignal"||save.room!=0)return false;
+            if(!EnsurePhysicalInteractionReach(o))return true;
+            if(o.id=="ashbank_dispatch")
+            {
+                if(!Has("ashbank_dispatch")){Flag("ashbank_dispatch");revision++;}
+                Dialog(o.name,o.en,
+                    "折断的船橹压着一张巡路单。\n\n“封航的那个夜晚，渡工沿东岸木桩记下了被拒绝的人名。北岸水尺记录的潮位，却与公会公告相矛盾。请把两份实物证据带到北渠信号灯；任何新的通航决定都不能再凭一纸命令。”",
+                    "A broken oar pins down a roadwarden's note.\n\n'The ferryman recorded the people refused passage at the eastern timber post. The tide level on the northern bank disagrees with the official order. Compare both records at the north canal lantern; no one should close the crossing with a piece of paper again.'",
+                    C("收起路单","Leave the dispatch","close"));
+                return true;
+            }
+            if(o.id=="ashbank_tracks")
+            {
+                if(!Has("ashbank_tracks")){Flag("ashbank_tracks");revision++;}
+                Dialog(o.name,o.en,
+                    "木桩背面刻着十一名被拒绝登船的人。最浅的一道划痕旁写着“阿梨，七岁”。渡工偷偷替她留了座位，后来有人用红墨划掉了名字。\n\n名单说明谁需要路。接下来，去北侧高地核对是谁下令停航。",
+                    "Eleven names were carved into the timber. The smallest reads 'Ali, seven'. The ferryman secretly saved her a seat; someone later struck her name out in red.\n\nThe names show who needed the crossing. The high-bank gauge may show who ordered it closed.",
+                    C("记下名单","Record the names","close"));
+                return true;
+            }
+            if(o.id=="ashbank_inscription")
+            {
+                if(!Has("ashbank_inscription")){Flag("ashbank_inscription");revision++;}
+                Dialog(o.name,o.en,
+                    "两条水位线错开了半夜。官方写着“高水位封航”，渡工标下的真实水位却仍可通行。\n\n停航是人为决定，不是天灾。把这份拓印和东岸人名带去北渠灯台，决定如何公开。",
+                    "The official flood line is half a night early. The ferryman's measured waterline still permitted a crossing.\n\nThe closure was a decision, not a natural disaster. Take this rubbing and the eastern names to the canal lantern.",
+                    C("拓下水位","Copy the tide marks","close"));
+                return true;
+            }
+            if(o.id!="ashbank_lantern")return false;
+            if(Has("ashbank_settled"))
+            {
+                bool pub=Has("ashbank_public");
+                Dialog(o.name,o.en,
+                    pub?"归航信号灯照亮两岸，水位证据与被拒的名字一同刻在灯座上。任何人都能看见那晚的真相。":
+                        "归航信号灯仍按旧渡工的节奏亮着。伪造的潮位记录已公开，获救孩子的名字交由家属保管。",
+                    pub?"The lit beacon records the tide evidence alongside the refused passengers. Anyone can read the truth.":
+                        "The beacon burns in the ferryman's old rhythm. The false tide report is public; the children's identities remain with their families.",
+                    C("继续赶路","Return to the road","close"));
+                return true;
+            }
+            if(!Has("ashbank_tracks")||!Has("ashbank_inscription"))
+            {
+                Dialog(o.name,o.en,
+                    "灯台还有两处空槽：东岸木桩的登船名单与高地水尺的拓印。\n\n"+
+                    (!Has("ashbank_tracks")?"沿旧路向东找木桩。\n":"")+
+                    (!Has("ashbank_inscription")?"再到北侧高地核实潮位。":""),
+                    "Two records belong beneath this lantern: names at the eastern timber post and a tide rubbing on the high bank. "+
+                    (!Has("ashbank_tracks")?"Follow the old east road to the post. ":"")+
+                    (!Has("ashbank_inscription")?"Examine the northern gauge.":""),
+                    C("继续查找","Keep searching","close"));
+                return true;
+            }
+            Dialog(o.name,o.en,
+                "证据终于相互印证。渡工在禁令下救了人，但公开姓名可能再次伤害他们。\n\n你会将路线与全名公开，还是公开伪造的水位报告、把孩子们的名字留给家属？",
+                "The records agree: a ferryman rescued people in defiance of a false closure. Publishing the names might expose survivors again.\n\nWill you publish the entire route and roll, or expose the false tide order while returning the names to the families?",
+                C("公开路线与全部名单","Publish the route and full roll","ashbank_publish"),
+                C("公开真相，保护姓名","Reveal the closure, protect the names","ashbank_protect"),
+                C("再想一想","Decide later","close"));
+            return true;
+        }
+        private bool ChooseAshbankSignal(string action)
+        {
+            if(action!="ashbank_publish"&&action!="ashbank_protect")return false;
+            WorldObject source=pendingDialogueSource;
+            if(source==null||source.id!="ashbank_lantern"||
+                source.kind!="ashbanksignal"||save.room!=0||
+                pendingDialogueSourceRoom!=save.room||
+                !SourceBelongsToActiveMap(source)||
+                !HasPhysicalInteractionReach(source)||
+                !Has("ashbank_tracks")||!Has("ashbank_inscription"))
+                return true;
+            if(!Has("ashbank_settled"))
+            {
+                Flag("ashbank_settled");
+                Flag(action=="ashbank_publish"?"ashbank_public":"ashbank_protected");
+                CreditCoins(36);CreditShards(2);revision++;
+                sound="reward";
+            }
+            bool pub=Has("ashbank_public");
+            Dialog(source.name,source.en,
+                pub?"信号灯重新点亮，航路和遇难者名单成为所有人可以查阅的公共记录。\n\n调查完成：硬币 +36，碎片 +2。":
+                    "灯火重新照到旧石阶。居民们公开伪造的停航令，把获救者的名字交回家属。\n\n调查完成：硬币 +36，碎片 +2。",
+                pub?"The relit signal makes the road and passenger list an enduring public record.\n\nInvestigation complete: +36 coins, +2 shards.":
+                    "The light reaches the stone steps again. The false order is exposed, while survivors' names return to their families.\n\nInvestigation complete: +36 coins, +2 shards.",
+                C("回到路上","Back to the road","close"));
+            return true;
+        }
         private bool TalkWorldChronicle(WorldObject o)
         {
             if (o.kind != "worldchronicle") return false;

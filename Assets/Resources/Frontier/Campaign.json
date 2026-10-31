@@ -643,6 +643,38 @@
           "x": 69.5,
           "y": 48.5,
           "lore": -1
+        },
+        {
+          "id": "ashbank_dispatch",
+          "kind": "ashbanksignal",
+          "name": "引水渠 · 折断的船橹",
+          "en": "Canal · Broken Ferryman's Oar",
+          "x": 23.5,
+          "y": 30.5
+        },
+        {
+          "id": "ashbank_tracks",
+          "kind": "ashbanksignal",
+          "name": "东岸 · 被划掉的登船名单",
+          "en": "East Bank · Crossed-Out Passenger Roll",
+          "x": 52.5,
+          "y": 41.5
+        },
+        {
+          "id": "ashbank_inscription",
+          "kind": "ashbanksignal",
+          "name": "高地 · 失真的水位刻度",
+          "en": "High Bank · Altered Tide Marks",
+          "x": 80.5,
+          "y": 38.5
+        },
+        {
+          "id": "ashbank_lantern",
+          "kind": "ashbanksignal",
+          "name": "北渠 · 归航信号灯",
+          "en": "North Canal · Homeward Signal Lantern",
+          "x": 69.5,
+          "y": 34.5
         }
       ],
       "decor": [

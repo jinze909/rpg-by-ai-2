@@ -4856,6 +4856,7 @@ namespace Starfall
         }
         private void TalkCore(WorldObject o)
         {
+            if(TalkAshbankSignal(o))return;
             if (TalkNightShift(o)) return;
             if (TalkFieldTactics(o)) return;
             if (TalkScoutRescue(o)) return;
@@ -5448,7 +5449,8 @@ namespace Starfall
             // rest and any other world-changing operation.
             if(action.StartsWith("outer_signal_",StringComparison.Ordinal)||
                action=="outer_repair")return true;
-            if(action.StartsWith("inn_",StringComparison.Ordinal))return true;
+            if(action.StartsWith("inn_",StringComparison.Ordinal)||
+               action.StartsWith("ashbank_",StringComparison.Ordinal))return true;
             // Choices whose handlers do not independently validate their target.
             if (action.StartsWith("goto") || action == "routes" ||
                 action == "rest" || action == "scout" ||
@@ -5643,6 +5645,7 @@ namespace Starfall
                 }
                 return;
             }
+            if (ChooseAshbankSignal(action)) return;
             if (ChooseChapterRoad(action)) return;
             if (ChooseVantageWatch(action)) return;
             if (ChooseGhostTrain(action)) return;

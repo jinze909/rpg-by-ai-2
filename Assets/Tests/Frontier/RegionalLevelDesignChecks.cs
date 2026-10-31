@@ -5,6 +5,55 @@ namespace Starfall.Tests
 {
     public static partial class CoreChecks
     {
+
+        public static void AshbankCanalEvidenceIsPhysicalAndSourceBound(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=0;g.enemies.Clear();
+            string[] ids={"ashbank_dispatch","ashbank_tracks",
+                "ashbank_inscription","ashbank_lantern"};
+            WorldObject[] sites=new WorldObject[4];
+            for(int i=0;i<4;i++)
+            {
+                sites[i]=Array.Find(g.Map.objects,o=>o.id==ids[i]);
+                Check(sites[i]!=null&&sites[i].kind=="ashbanksignal"&&
+                    g.CanStand(new Point(sites[i].x,sites[i].y)),
+                    "New original canal sources have real standing feet");
+                Check(g.NavigationPathFrom(new Point(18,15),
+                    new Point(sites[i].x,sites[i].y),true).Count>0,
+                    "New canal landmarks are reachable on actual terrain");
+            }
+            int coins=g.save.coins,shards=g.save.shards;
+            TalkNearObject(g,sites[3]);
+            Check(Array.FindIndex(g.conversation.choices,c=>c.action=="ashbank_publish")<0,
+                "The final decision is blocked until evidence is physically found");
+            g.Close();
+            // Evidence can be investigated in either order.
+            TalkNearObject(g,sites[2]);g.Close();
+            TalkNearObject(g,sites[1]);g.Close();
+            TalkNearObject(g,sites[0]);g.Close();
+            Check(g.Has("ashbank_tracks")&&g.Has("ashbank_inscription"),
+                "Independent contradictory clues persist in SaveData v2 flags");
+            TalkNearObject(g,sites[3]);
+            int choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ashbank_protect");
+            Check(choice>=0,"The actual lantern presents a real choice");
+            g.save.x=sites[3].x+4f;g.save.y=sites[3].y;
+            g.Choose(choice);
+            Check(!g.Has("ashbank_settled")&&g.save.coins==coins,
+                "A stale faraway dialogue cannot award a civic outcome");
+            g.Close();
+            TalkNearObject(g,sites[3]);
+            choice=Array.FindIndex(g.conversation.choices,c=>c.action=="ashbank_protect");
+            Check(choice>=0,"Physical return re-enables the exact-source dialogue");
+            g.Choose(choice);
+            Check(g.Has("ashbank_settled")&&g.Has("ashbank_protected")&&
+                !g.Has("ashbank_public")&&g.save.coins==coins+36&&
+                g.save.shards==shards+2&&g.save.version==2,
+                "A valid conclusion saves one civic choice and one reward");
+            g.Close();TalkNearObject(g,sites[3]);
+            Check(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="ashbank_publish"||c.action=="ashbank_protect")<0,
+                "Relit lamp never reopens the once-only reward choices");
+        }
         // Original map props and existing SaveData v2 are deliberately
         // untouched. Only pre-existing walkable floor ('.') becomes
         // continuous visible '=' road: tests use the LIVE hero collision
@@ -419,11 +468,19 @@ namespace Starfall.Tests
                 // for a named, authentic renewable resource interaction.
                 // Legacy maps and the safe town/Inn remain unchanged.
                 int[] originalSourceCounts={68,66,69,80,76,73,69,66,2,15};
-                int expectedAdditions=room>=1&&room<=7?3:0;
+                int expectedAdditions=room==0?4:room>=1&&room<=7?3:0;
                 Check(map.objects.Length==
                     originalSourceCounts[room]+expectedAdditions,
                     "Original authored source roster and exactly three regional discoveries must survive");
-                if(expectedAdditions>0)
+                if(room==0)
+                {
+                    foreach(string id in new[]{"ashbank_dispatch","ashbank_tracks",
+                        "ashbank_inscription","ashbank_lantern"})
+                        Check(Array.Exists(map.objects,o=>o.id==id&&
+                            o.kind=="ashbanksignal"),
+                            "The four original-canal investigation sources must survive");
+                }
+                if(room>=1&&room<=7)
                 {
                     for(int slot=0;slot<3;slot++)
                     {

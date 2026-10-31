@@ -2483,6 +2483,25 @@ namespace Starfall
                 if(!seen)Diamond(p.x,p.y-75,5,gold);
                 return;
             }
+
+            if(kind=="ashbanksignal")
+            {
+                // Existing authored pixel props, no placeholder assets.
+                bool dispatch=o.id=="ashbank_dispatch";
+                bool tracks=o.id=="ashbank_tracks";
+                bool gauge=o.id=="ashbank_inscription";
+                bool finished=Game.Has("ashbank_settled");
+                bool read=dispatch?Game.Has("ashbank_dispatch"):
+                    tracks?Game.Has("ashbank_tracks"):
+                    gauge?Game.Has("ashbank_inscription"):finished;
+                PropImage(dispatch?"barrel":tracks?"post":gauge?"obelisk":"lamp",
+                    0,p.x-32,p.y-77,64,79,
+                    read?new Color(.74f,.90f,.82f,.93f):Color.white);
+                Ring(new Point(o.x,o.y),.43f,
+                    read?mint:gold,12);
+                if(!read)Diamond(p.x,p.y-81,5,gold);
+                return;
+            }
             if (kind == "waytrail")
             {
                 // Preserve the original survey's per-marker checkmark. The
