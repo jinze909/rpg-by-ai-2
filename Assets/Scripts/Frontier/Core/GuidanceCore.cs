@@ -1224,7 +1224,7 @@ namespace Starfall
             // keep their ordinary immediate instructions.
             if(save.ending>0&&save.trackedQuest=="main"&&
                !FieldWorkPreventsRest&&!FieldTacticTrialActive&&
-               !RemoteRoadEncounterActive)
+               !FieldPatrolActive&&!RemoteRoadEncounterActive)
                 return GetQuest("main").next;
             QuestGuide q=RecommendedContinuationGuide;
             if(q.complete||q.locked)
