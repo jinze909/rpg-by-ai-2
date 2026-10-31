@@ -12819,7 +12819,7 @@ public static class RuntimeCombatInputChecks
                     g.NavigationPathFrom(g.Position,foot,true).Count>0,
                     "Remote resource must have a true full walking path from original spawn "+id);
                 foreach(WorldObject existing in g.Map.objects)
-                    if(existing!=null&&!Object.ReferenceEquals(existing,cache)&&
+                    if(existing!=null&&!System.Object.ReferenceEquals(existing,cache)&&
                        (new Point(existing.x,existing.y)-foot).Length<2.5f)
                         throw new Exception("Field cache overlaps an existing quest/NPC/interaction "+id);
                 visited++;
@@ -12832,7 +12832,7 @@ public static class RuntimeCombatInputChecks
                 if(cache.kind=="ore")g.save.inventory[4]=0;
                 g.save.x=cache.x;g.save.y=cache.y;
                 Check(g.Nearest()!=null&&
-                    Object.ReferenceEquals(g.Nearest(),cache),
+                    System.Object.ReferenceEquals(g.Nearest(),cache),
                     "Actual in-world E must target the authored cache foot "+id);
                 g.Interact();
                 Check(g.Has("node_"+id)&&g.save.inventory[item]==3&&
