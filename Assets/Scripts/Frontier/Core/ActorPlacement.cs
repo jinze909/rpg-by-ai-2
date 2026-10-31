@@ -570,6 +570,32 @@ namespace Starfall
                 (slot!=0||ClearAttackPath(Position,foot))&&
                 RegionalScoutFootClear(foot,source,true,selected);
         }
+        // Rank only physically valid positions. A ranged scout pressures
+        // from a readable 6-7 tile shooting lane while plated infantry takes
+        // a shorter approach; a second opponent seeks an opposing route.
+        // Both can exploit the authentic ridge's counter LOS when the
+        // real terrain allows it. Never create a spawn via score alone.
+        private float RemoteRoadPadScore(Point foot,Point marker,
+            int kind,int slot,List<Point> already)
+        {
+            float distance=(foot-Position).Length;
+            float preferred=kind==1?6.75f:kind==2?5.8f:5.3f;
+            float score=-Math.Abs(distance-preferred)*1.65f;
+            if((foot-marker).Length<=8.6f&&
+                ClearAttackPath(marker,foot))score+=2.75f;
+            if(slot==1&&already.Count>0)
+            {
+                Point first=(already[0]-Position).Normalized;
+                Point second=(foot-Position).Normalized;
+                float dot=first.x*second.x+first.y*second.y;
+                score+=(1f-dot)*10f+
+                    Math.Min(16f,(foot-already[0]).Length)*.15f;
+                // A visible archer can establish crossfire; a hidden one
+                // may still walk out from physically reachable cover.
+                if(kind==1&&ClearAttackPath(foot,Position))score+=1.8f;
+            }
+            return score;
+        }
         // These are authentic map objects, not fabricated markers or an
         // automatic world teleport. A whole two-enemy wave must fit BEFORE
         // either opponent is created. Both candidates must have a complete
@@ -586,13 +612,20 @@ namespace Starfall
             var pads=new List<Point>();
             int[,] dirs={{1,0},{0,1},{-1,0},{0,-1},
                          {1,1},{-1,1},{-1,-1},{1,-1}};
+            // Score the FULL nearby physical ring rather than taking the
+            // first valid compass ray. Formation is selected as a WHOLE,
+            // before either raider is created. Hero approach, walls, allies,
+            // quest props and 16-tile walkability still veto each candidate.
             for(int slot=0;slot<2;slot++)
             {
+                int kind=veteran?
+                    remoteRoadVeteranKinds[save.room-1,district*2+slot]:
+                    remoteRoadKinds[save.room-1,district*2+slot];
+                Point bestFoot=new Point();
+                float bestScore=float.NegativeInfinity;
                 bool found=false;
-                Point bestFlank=new Point();
-                float bestFlankScore=float.NegativeInfinity;
-                for(int radius=5;radius<=8&&(slot!=0||!found);radius++)
-                for(int offset=0;offset<8&&(slot!=0||!found);offset++)
+                for(int radius=5;radius<=8;radius++)
+                for(int offset=0;offset<8;offset++)
                 {
                     int d=(save.room*3+district*5+slot*4+offset)%8;
                     Point foot=new Point(
@@ -602,44 +635,43 @@ namespace Starfall
                             dirs[d,1]*radius);
                     if(!RemoteRoadCombatFootClear(foot,center,slot,pads))
                         continue;
-                    if(slot==0)
-                    {
-                        // The opening warning comes from an actually
-                        // visible, original physical attacker. Keep the
-                        // proven first-foe sector and near-first fallback.
-                        pads.Add(foot);found=true;break;
-                    }
-                    // Rank all live reachable candidates instead of
-                    // accepting the first coordinate. A second raider
-                    // approaching from the far side creates legible
-                    // cross-pressure rather than overlapping silhouettes.
-                    // A wall or sealed gate STILL vetoes every pad through
-                    // RemoteRoadCombatFootClear before any score is read.
-                    Point first=(pads[0]-Position).Normalized;
-                    Point other=(foot-Position).Normalized;
-                    float dot=first.x*other.x+first.y*other.y;
-                    float spread=(foot-pads[0]).Length;
-                    float score=(1f-dot)*10f+
-                        Math.Min(16f,spread)*.15f-
-                        (foot-Position).Length*.015f;
-                    if(score>bestFlankScore)
-                    {bestFlankScore=score;bestFlank=foot;found=true;}
+                    float score=RemoteRoadPadScore(foot,center,
+                        kind,slot,pads);
+                    if(!found||score>bestScore+.0001f)
+                    {bestFoot=foot;bestScore=score;found=true;}
                 }
-                if(slot==1&&found)pads.Add(bestFlank);
+                if(found)pads.Add(bestFoot);
+                else break;
             }
-            if(pads.Count!=2)
+            // Odd original map corridors may lack the main compass pads.
+            // Keep the exhaustive 5-9-tile bounded fallback, but pick the
+            // actual best legal approach, not the first x/y scan tile.
+            // A blocked second actor cancels the ENTIRE optional encounter.
+            for(int slot=pads.Count;slot<2;slot++)
             {
+                int kind=veteran?
+                    remoteRoadVeteranKinds[save.room-1,district*2+slot]:
+                    remoteRoadKinds[save.room-1,district*2+slot];
                 int sx=(int)Math.Floor(marker.x),sy=(int)Math.Floor(marker.y);
-                for(int radius=5;radius<=9&&pads.Count<2;radius++)
-                for(int dy=-radius;dy<=radius&&pads.Count<2;dy++)
-                for(int dx=-radius;dx<=radius&&pads.Count<2;dx++)
+                Point bestFoot=new Point();
+                float bestScore=float.NegativeInfinity;
+                bool found=false;
+                for(int radius=5;radius<=9;radius++)
+                for(int dy=-radius;dy<=radius;dy++)
+                for(int dx=-radius;dx<=radius;dx++)
                 {
                     if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
                        Math.Abs(dx)+Math.Abs(dy)>18)continue;
                     Point foot=new Point(sx+dx+.5f,sy+dy+.5f);
-                    if(RemoteRoadCombatFootClear(foot,center,pads.Count,pads))
-                        pads.Add(foot);
+                    if(!RemoteRoadCombatFootClear(foot,center,slot,pads))
+                        continue;
+                    float score=RemoteRoadPadScore(foot,center,
+                        kind,slot,pads);
+                    if(!found||score>bestScore+.0001f)
+                    {bestFoot=foot;bestScore=score;found=true;}
                 }
+                if(!found)break;
+                pads.Add(bestFoot);
             }
             if(pads.Count!=2)return false;
             remoteRoadRoom=save.room;remoteRoadDistrict=district;

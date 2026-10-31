@@ -2221,6 +2221,58 @@ namespace Starfall.Tests
                 "Canal town crossing cost is not mistakenly changed by seven outer-road rewards");
         }
 
+        // On deliberately open, unobstructed battle ground, archers must
+        // take a readable *ranged* lane rather than blindly spawning at the
+        // first melee-distance tile. Heavy infantry advances from closer.
+        // This exercises actual BeginRemoteRoadEncounter with its original
+        // enemy roles and 4-way map collision, not a pure scoring helper.
+        public static void RoadwatchSquadsSelectRoleAwarePhysicalApproaches(Campaign data)
+        {
+            for(int region=2;region<=3;region++)
+            {
+                MapData old=data.maps[region];
+                try
+                {
+                    var rows=new string[55];
+                    for(int y=0;y<55;y++)
+                    {
+                        char[] tiles=new string('.',55).ToCharArray();
+                        for(int x=0;x<55;x++)
+                            if(x<2||x>=53||y<2||y>=53)tiles[x]='#';
+                        rows[y]=new string(tiles);
+                    }
+                    WorldObject marker=new WorldObject{
+                        id="ridge_route_"+region+"_0",kind="ridgemarker",
+                        name="Open road",en="Open road",x=27.5f,y=27.5f};
+                    data.maps[region]=new MapData{
+                        id=region,spawnX=27.5f,spawnY=27.5f,
+                        rows=rows,objects=new[]{marker},
+                        decor=new Decoration[0]};
+                    GameCore game=Fresh(data);game.mode="world";
+                    game.save.stage=3;game.save.room=region;
+                    game.save.x=marker.x;game.save.y=marker.y;
+                    game.enemies.Clear();
+                    game.Tick(.02f,new Point());
+                    Check(game.RemoteRoadEncounterActive&&game.enemies.Count==2,
+                        "Role-aware formation must commit a real complete two-actor wave");
+                    Enemy first=game.enemies[0],other=game.enemies[1];
+                    float distance=(first.Position-game.Position).Length;
+                    Check(region==2?first.kind==1&&distance>=6.5f:
+                        first.kind==2&&distance<6.5f,
+                        "A longbow holds a true 6-7 tile lane while a plated guard closes in");
+                    Point a=(first.Position-game.Position).Normalized;
+                    Point b=(other.Position-game.Position).Normalized;
+                    Check(a.x*b.x+a.y*b.y<-.2f&&
+                        game.CanStand(first.Position)&&game.CanStand(other.Position)&&
+                        game.NavigationPathFrom(game.Position,first.Position,true).Count>0&&
+                        game.NavigationPathFrom(game.Position,other.Position,true).Count>0&&
+                        game.RemoteRoadSignalThreatCount(marker)>0,
+                        "Both flanks stay on distinct reachable real ground with a visible ridge counter");
+                }
+                finally{data.maps[region]=old;}
+            }
+        }
+
         // On open authentic walkable terrain, the visible first raider
         // and its companion must NOT stack into an identical approach.
         // This runs the original remote-road event transaction and exact
