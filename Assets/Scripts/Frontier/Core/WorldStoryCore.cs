@@ -12,6 +12,24 @@ namespace Starfall
         // Optional canal-side mystery. Evidence is found in either order;
         // only a physically reached, original lantern can settle the choice.
         // All progress is in existing v2 flags, independent of the main saga.
+
+        // The relit signal is an actual civilian stop, not a global
+        // buff. Only the exact original lantern has this service.
+        // Use the existing wall-aware refuge reach and persistent v2 flags.
+        public bool AshbankLanternRefuge
+        {
+            get
+            {
+                if(save.room!=0||!Has("ashbank_settled")||
+                   Map.objects==null||!CanStand(Position))return false;
+                foreach(WorldObject o in Map.objects)
+                    if(o!=null&&o.kind=="ashbanksignal"&&
+                       o.id=="ashbank_lantern"&&IsObjectPresent(o)&&
+                       PhysicalRefugeReach(new Point(o.x,o.y),2.6f))
+                        return true;
+                return false;
+            }
+        }
         private bool TalkAshbankSignal(WorldObject o)
         {
             if(o.kind!="ashbanksignal"||save.room!=0)return false;
@@ -48,10 +66,10 @@ namespace Starfall
             {
                 bool pub=Has("ashbank_public");
                 Dialog(o.name,o.en,
-                    pub?"归航信号灯照亮两岸，水位证据与被拒的名字一同刻在灯座上。任何人都能看见那晚的真相。":
-                        "归航信号灯仍按旧渡工的节奏亮着。伪造的潮位记录已公开，获救孩子的名字交由家属保管。",
-                    pub?"The lit beacon records the tide evidence alongside the refused passengers. Anyone can read the truth.":
-                        "The beacon burns in the ferryman's old rhythm. The false tide report is public; the children's identities remain with their families.",
+                    pub?"归航信号灯照亮两岸，水位证据与被拒的名字一同刻在灯座上。任何人都能看见那晚的真相。沿灯塔的安全通路休息，可以更快恢复体力。":
+                        "归航信号灯仍按旧渡工的节奏亮着。伪造的潮位记录已公开，获救孩子的名字交由家属保管。守灯的家属在此提供短暂的安全疗伤。",
+                    pub?"The lit beacon records the tide evidence alongside the refused passengers. The safe crossing restores stamina while you rest beside the light.":
+                        "The beacon burns in the ferryman's old rhythm. The children's identities remain with their families, who offer safe first aid beside the light.",
                     C("继续赶路","Return to the road","close"));
                 return true;
             }
@@ -95,10 +113,10 @@ namespace Starfall
             }
             bool pub=Has("ashbank_public");
             Dialog(source.name,source.en,
-                pub?"信号灯重新点亮，航路和遇难者名单成为所有人可以查阅的公共记录。\n\n调查完成：硬币 +36，碎片 +2。":
-                    "灯火重新照到旧石阶。居民们公开伪造的停航令，把获救者的名字交回家属。\n\n调查完成：硬币 +36，碎片 +2。",
-                pub?"The relit signal makes the road and passenger list an enduring public record.\n\nInvestigation complete: +36 coins, +2 shards.":
-                    "The light reaches the stone steps again. The false order is exposed, while survivors' names return to their families.\n\nInvestigation complete: +36 coins, +2 shards.",
+                pub?"信号灯重新点亮，航路和遇难者名单成为所有人可以查阅的公共记录。安全时在灯塔附近恢复体力更快。\n\n调查完成：硬币 +36，碎片 +2。":
+                    "灯火重新照到旧石阶。居民们公开伪造的停航令，把获救者的名字交回家属。安全时可以在灯塔附近接受疗伤。\n\n调查完成：硬币 +36，碎片 +2。",
+                pub?"The relit signal makes the road and passenger list an enduring public record. Safe rest at the lantern now restores additional stamina.\n\nInvestigation complete: +36 coins, +2 shards.":
+                    "The light reaches the stone steps again. The false order is exposed, while survivors' names return to their families. Safe rest at the lantern now restores health.\n\nInvestigation complete: +36 coins, +2 shards.",
                 C("回到路上","Back to the road","close"));
             return true;
         }

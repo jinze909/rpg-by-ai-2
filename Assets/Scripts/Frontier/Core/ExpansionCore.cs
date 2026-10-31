@@ -2486,6 +2486,21 @@ namespace Starfall
             TickCompanion(dt);
             TickFrost(dt);
             if(Dying||mode!="world")return;
+
+            // The Ashbank choice has a local, playable consequence:
+            // publishing the crossing supports weary walkers; protecting
+            // survivors turns their homeward lamp into a first-aid stop.
+            // Neither effect works remotely or during live danger/missions.
+            if(!practicing&&!racing&&!FieldWorkPreventsRest&&
+                SafeTravel&&AshbankLanternRefuge)
+            {
+                if(Has("ashbank_public"))
+                    save.energy=Math.Min(100f,save.energy+dt*4f);
+                else if(Has("ashbank_protected")&&
+                    save.health>0f&&save.health<save.maxHealth)
+                    save.health=Math.Min(save.maxHealth,
+                        save.health+dt*1.75f);
+            }
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
             if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)

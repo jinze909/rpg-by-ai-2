@@ -6,6 +6,38 @@ namespace Starfall.Tests
     public static partial class CoreChecks
     {
 
+
+        public static void AshbankLanternRestReallyDependsOnTheSavedCivicChoice(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=0;g.enemies.Clear();
+            WorldObject light=Array.Find(g.Map.objects,
+                o=>o.id=="ashbank_lantern"&&o.kind=="ashbanksignal");
+            Check(light!=null&&g.CanStand(new Point(light.x,light.y)),
+                "The actual lantern stands on old navigable canal terrain");
+            g.save.x=light.x;g.save.y=light.y;
+            Check(!g.AshbankLanternRefuge,
+                "An unsolved side investigation cannot grant physical rest");
+            g.save.flags.Add("ashbank_settled");
+            g.save.flags.Add("ashbank_protected");
+            Check(g.AshbankLanternRefuge,
+                "A settled, physically approached lantern offers a real refuge");
+            g.save.health=40f;
+            g.Tick(.1f,new Point());
+            Check(g.save.health>40f,
+                "Protecting the passengers offers actual healing at their local signal light");
+            g.save.x=light.x+10f;
+            g.save.y=light.y;
+            Check(!g.AshbankLanternRefuge,
+                "The respite cannot heal through a distant wall or across the map");
+            g.save.x=light.x;g.save.y=light.y;
+            g.save.flags.Remove("ashbank_protected");
+            g.save.flags.Add("ashbank_public");
+            Check(g.AshbankLanternRefuge&&g.Has("ashbank_public"),
+                "Publishing preserves the same physical station with a distinct outcome");
+            g.save.room=1;
+            Check(!g.AshbankLanternRefuge&&g.save.version==2,
+                "Neither outcome becomes a global or incompatible saved power");
+        }
         public static void AshbankCanalEvidenceIsPhysicalAndSourceBound(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=0;g.enemies.Clear();
