@@ -7,6 +7,77 @@ namespace Starfall.Tests
     {
 
 
+
+        // Three separate open-air root cuts shorten actual walking detours.
+        // The obstructed baseline is measured on the SAME map with only
+        // these new pass tiles temporarily sealed; no old story gate,
+        // '?' bridge, scripted breach or map-object coordinate is altered.
+        public static void ThornwoodThreeRootCutsArePhysicalShortcutsAndExploration(Campaign data)
+        {
+            MapData map=data.maps[1];
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=3;g.enemies.Clear();
+            int[,] sites={
+                {49,33,49,36,49,50,34,35,30},
+                {68,53,68,56,67,69,54,55,30},
+                {88,61,88,64,87,89,62,63,40}
+            };
+            // A fresh save has not magically discovered a route.
+            int coins=g.save.coins,oldXp=g.save.xp;
+            Check(g.ThornwoodCanopyCutCount==0&&!g.Has("thorn_canopy_complete"),
+                "The discoveries begin unknown without a forced task");
+            for(int cut=0;cut<3;cut++)
+            {
+                int ax=sites[cut,0],ay=sites[cut,1],
+                    bx=sites[cut,2],by=sites[cut,3];
+                Point start=new Point(ax+.5f,ay+.5f),
+                      finish=new Point(bx+.5f,by+.5f);
+                Check(g.CanStand(start)&&g.CanStand(finish),
+                    "The approach and landing are collision-valid forest feet: "+cut);
+                string[] prior=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=sites[cut,6];y<=sites[cut,7];y++)
+                    {
+                        char[] chars=map.rows[y].ToCharArray();
+                        for(int x=sites[cut,4];x<=sites[cut,5];x++)
+                        {
+                            Check(chars[x]=='='&&g.CanStand(new Point(x+.5f,y+.5f)),
+                                "Every new crossing tile is actual, physically standable road");
+                            chars[x]='#';
+                        }
+                        map.rows[y]=new string(chars);
+                    }
+                    int blockedWalk=g.NavigationPathFrom(start,finish,true).Count;
+                    Check(blockedWalk>=sites[cut,8],
+                        "Without the new opening the authentic forest requires a long detour: "+cut);
+                }
+                finally{map.rows=prior;}
+                int shortWalk=g.NavigationPathFrom(start,finish,true).Count;
+                Check(shortWalk>0&&shortWalk<=9,
+                    "Actual world navigation follows the new root bridge, not a teleport: "+cut);
+                g.save.x=start.x;g.save.y=start.y;
+                // Step to the first cut tile with the real world tick; do
+                // not award a hidden route merely from inspecting the map.
+                Check(!g.Has("thorn_canopy_cut_"+cut),
+                    "Map preview alone never claims a crossing receipt");
+                g.save.x=(sites[cut,4]+sites[cut,5])*.5f+.5f;
+                g.save.y=(sites[cut,6]+sites[cut,7])*.5f+.5f;
+                g.Tick(.02f,new Point());
+                Check(g.Has("thorn_canopy_cut_"+cut)&&
+                    g.ThornwoodCanopyCutCount==cut+1,
+                    "Visiting the physical root passage records a distinct optional discovery");
+            }
+            Check(g.Has("thorn_canopy_complete")&&
+                g.save.coins==coins+28&&g.save.version==2,
+                "Three genuine root shortcuts yield one saved civilian route and reward");
+            int paid=g.save.coins;
+            g.Tick(.02f,new Point());
+            Check(g.save.coins==paid&&g.ThornwoodCanopyCutCount==3&&
+                g.Has("thorn_canopy_complete"),
+                "The optional walking-route reward cannot be farmed");
+        }
+
         public static void AshbankLanternRestReallyDependsOnTheSavedCivicChoice(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=0;g.enemies.Clear();

@@ -2489,6 +2489,59 @@ namespace Starfall
                     return true;
             return false;
         }
+
+        // An optional, physical three-cut forest walk. The original
+        // authored map now provides these traversable root passages; no
+        // signboard, journal acceptance, combat flag or new save field is
+        // needed. A passing hero discovers the route naturally, even if the
+        // three approaches are taken in a different order.
+        public int ThornwoodCanopyCutCount
+        {
+            get
+            {
+                int n=0;
+                for(int i=0;i<3;i++)
+                    if(Has("thorn_canopy_cut_"+i))n++;
+                return n;
+            }
+        }
+        private void TickThornwoodCanopyCuts()
+        {
+            if(save.room!=1||Dying||practicing||racing||
+               !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int cut=x>=49&&x<=50&&y>=34&&y<=35?0:
+                x>=67&&x<=69&&y>=54&&y<=55?1:
+                x>=87&&x<=89&&y>=62&&y<=63?2:-1;
+            if(cut<0||Has("thorn_canopy_cut_"+cut))return;
+            Flag("thorn_canopy_cut_"+cut);
+            revision++;sound="ui";
+            string[] zh={
+                "你沿树根上的旧刀痕跨过断脊；这不是兽径，而是曾有孩子走过的路。",
+                "枝冠下露出一列不显眼的石头。它们让人绕开原本漫长的密林回路。",
+                "高地根系间藏着一条仍能承重的窄道，远处的守路灯终于在同一条线上。"
+            };
+            string[] en={
+                "Cut marks lead across the fallen roots. Children once used this passage; it is no animal track.",
+                "Quiet stepping stones beneath the canopy bypass the forest's long outer detour.",
+                "A sheltered root crossing reaches the high ground. The far watch lights finally align."
+            };
+            if(ThornwoodCanopyCutCount==3&&!Has("thorn_canopy_complete"))
+            {
+                Flag("thorn_canopy_complete");
+                CreditCoins(28);AddXp(32);sound="reward";revision++;
+                Notify("三条旧林路连成了新的避难路线。硬币 +28，经验 +32。",
+                    "Three old root paths form a new civilian escape route. +28 coins, +32 XP.");
+                RecordMoment(
+                    "穿过荆棘密林三道隐蔽的根桥后，你发现居民留给孩子和失踪旅人的备用归乡线。它绕开了漫长的危险旧路。",
+                    "Three hidden Thornwood crossings reveal a civilian escape path for children and lost travelers, bypassing the old dangerous detours.");
+            }
+            else
+                Notify(zh[cut]+"（已发现 "+ThornwoodCanopyCutCount+"/3）",
+                    en[cut]+" ("+ThornwoodCanopyCutCount+"/3 found)");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2511,6 +2564,7 @@ namespace Starfall
                     save.health=Math.Min(save.maxHealth,
                         save.health+dt*1.75f);
             }
+            TickThornwoodCanopyCuts();
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
             if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
