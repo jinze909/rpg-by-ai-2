@@ -2162,7 +2162,7 @@ namespace Starfall.Tests
                     Check(!g.RemoteRoadEncounterActive&&
                         g.RemoteRoadCleared(room,side),
                         "Cleared civilian roads never auto-spawn elite revenge waves");
-                    int prior=g.save.coins, xp=g.save.xp;
+                    int prior=g.save.coins, xp=g.save.xp, level=g.save.level;
                     g.Talk(marker);
                     int begin=Array.FindIndex(g.conversation.choices,
                         choice=>choice.action=="remote_road_veteran");
@@ -2190,7 +2190,8 @@ namespace Starfall.Tests
                         g.RemoteRoadVeteranDone(room,side)&&
                         g.RemoteRoadCleared(room,side)&&
                         g.save.coins==prior+28+room*4&&
-                        g.save.xp>xp&&
+                        (g.save.level>level||
+                         g.save.level==level&&g.save.xp>xp)&&
                         g.RidgePassageEnergyCost(room)==fare,
                         "First true elite kills sign a separate receipt without revoking safe travel."+
                         " room="+room+" side="+side+
@@ -2198,6 +2199,7 @@ namespace Starfall.Tests
                         " veteran="+g.RemoteRoadVeteranDone(room,side)+
                         " cleared="+g.RemoteRoadCleared(room,side)+
                         " coins="+g.save.coins+" expected="+(prior+28+room*4)+
+                        " level="+g.save.level+" initial="+level+
                         " xp="+g.save.xp+" initial="+xp+
                         " fare="+g.RidgePassageEnergyCost(room)+" initial="+fare);
                     Check(g.GetQuest("road_veterans").steps[(room-1)*2+side].done,
