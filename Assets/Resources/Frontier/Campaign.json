@@ -1628,6 +1628,30 @@
           "y": 68.5
         },
         {
+          "id": "fartrail_supply_1_0",
+          "kind": "herb",
+          "name": "根径急救草篓",
+          "en": "Rootway first-aid herbs",
+          "x": 54.5,
+          "y": 28.5
+        },
+        {
+          "id": "fartrail_supply_1_1",
+          "kind": "wood",
+          "name": "断桥修理木料",
+          "en": "Ravine bridge repair timber",
+          "x": 81.5,
+          "y": 56.5
+        },
+        {
+          "id": "fartrail_supply_1_2",
+          "kind": "herb",
+          "name": "远岭晨露药草",
+          "en": "Far-canopy dew herbs",
+          "x": 105.5,
+          "y": 33.5
+        },
+        {
           "id": "outer_1_0",
           "kind": "outerlog",
           "name": "树根避难名单",
@@ -3291,6 +3315,30 @@
           "y": 56.5
         },
         {
+          "id": "fartrail_supply_2_0",
+          "kind": "wood",
+          "name": "高渠浮木捆",
+          "en": "High-channel driftwood bundle",
+          "x": 54.5,
+          "y": 28.5
+        },
+        {
+          "id": "fartrail_supply_2_1",
+          "kind": "herb",
+          "name": "退潮石阶药草",
+          "en": "Ebb-step medicinal herbs",
+          "x": 66.5,
+          "y": 51.5
+        },
+        {
+          "id": "fartrail_supply_2_2",
+          "kind": "wood",
+          "name": "东滩旧桥板",
+          "en": "Eastern floodplain bridge planks",
+          "x": 102.5,
+          "y": 32.5
+        },
+        {
           "id": "outer_2_0",
           "kind": "outerlog",
           "name": "潮桥失事报表",
@@ -4834,6 +4882,30 @@
           "en": "Cooled forge crystals",
           "x": 21.5,
           "y": 68.5
+        },
+        {
+          "id": "fartrail_supply_3_0",
+          "kind": "ore",
+          "name": "旧轨旁的星晶碎屑",
+          "en": "Old-rail starcrystal fragments",
+          "x": 54.5,
+          "y": 28.5
+        },
+        {
+          "id": "fartrail_supply_3_1",
+          "kind": "wood",
+          "name": "矿工退路支架",
+          "en": "Quarry escape-route braces",
+          "x": 72.5,
+          "y": 56.5
+        },
+        {
+          "id": "fartrail_supply_3_2",
+          "kind": "ore",
+          "name": "东矿风道结晶",
+          "en": "Eastern ventilation crystals",
+          "x": 97.5,
+          "y": 36.5
         },
         {
           "id": "outer_3_0",
@@ -6498,6 +6570,30 @@
           "en": "Clinic window herbs",
           "x": 41.5,
           "y": 52.5
+        },
+        {
+          "id": "fartrail_supply_4_0",
+          "kind": "herb",
+          "name": "避难墙根救护草",
+          "en": "Evacuation-wall aid herbs",
+          "x": 38.5,
+          "y": 31.5
+        },
+        {
+          "id": "fartrail_supply_4_1",
+          "kind": "wood",
+          "name": "军民通道拆旧木",
+          "en": "Public passage salvage timber",
+          "x": 74.5,
+          "y": 64.5
+        },
+        {
+          "id": "fartrail_supply_4_2",
+          "kind": "ore",
+          "name": "外城卫塔星晶",
+          "en": "Outer watchtower starcrystal",
+          "x": 111.5,
+          "y": 29.5
         },
         {
           "id": "outer_4_0",
@@ -8211,6 +8307,30 @@
           "y": 52.5
         },
         {
+          "id": "fartrail_supply_5_0",
+          "kind": "wood",
+          "name": "双灯堤岸漂木",
+          "en": "Twin-beacon tidal driftwood",
+          "x": 56.5,
+          "y": 27.5
+        },
+        {
+          "id": "fartrail_supply_5_1",
+          "kind": "herb",
+          "name": "雾潮外沿盐草",
+          "en": "Fog-tide shoreline herbs",
+          "x": 71.5,
+          "y": 52.5
+        },
+        {
+          "id": "fartrail_supply_5_2",
+          "kind": "wood",
+          "name": "东港维修木料",
+          "en": "East-harbor repair boards",
+          "x": 103.5,
+          "y": 30.5
+        },
+        {
           "id": "outer_5_0",
           "kind": "outerlog",
           "name": "雾港船难手记",
@@ -9722,6 +9842,30 @@
           "en": "Crystals near the false tower",
           "x": 31.5,
           "y": 73.5
+        },
+        {
+          "id": "fartrail_supply_6_0",
+          "kind": "ore",
+          "name": "旧影尺散落晶矿",
+          "en": "Abandoned shadow-gauge crystals",
+          "x": 54.5,
+          "y": 28.5
+        },
+        {
+          "id": "fartrail_supply_6_1",
+          "kind": "herb",
+          "name": "背风沙凹星薄荷",
+          "en": "Leeward dune star mint",
+          "x": 79.5,
+          "y": 60.5
+        },
+        {
+          "id": "fartrail_supply_6_2",
+          "kind": "ore",
+          "name": "热雾谷星晶",
+          "en": "Heat-mirage valley crystals",
+          "x": 102.5,
+          "y": 33.5
         },
         {
           "id": "outer_6_0",
@@ -11319,6 +11463,30 @@
           "en": "Warming shelter herbs",
           "x": 85.5,
           "y": 17.5
+        },
+        {
+          "id": "fartrail_supply_7_0",
+          "kind": "herb",
+          "name": "低钟旁的防寒草",
+          "en": "Low-bell warming herbs",
+          "x": 54.5,
+          "y": 28.5
+        },
+        {
+          "id": "fartrail_supply_7_1",
+          "kind": "wood",
+          "name": "风雪救援木架",
+          "en": "Blizzard rescue timber",
+          "x": 88.5,
+          "y": 60.5
+        },
+        {
+          "id": "fartrail_supply_7_2",
+          "kind": "herb",
+          "name": "东岭背风药草",
+          "en": "Eastern leeward medicinal herbs",
+          "x": 103.5,
+          "y": 33.5
         },
         {
           "id": "outer_7_0",
