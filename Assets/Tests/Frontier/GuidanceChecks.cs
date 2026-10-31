@@ -131,6 +131,17 @@ namespace Starfall.Tests
                 g.Interact();
                 Check(g.CrowdedInteractionConfirmationPending,
                     "Fresh ordinary E re-arms the exact co-location preview");
+                int safeBits=g.save.tutorialBits;
+                data.maps[0].objects=new[]{b};
+                g.Interact();
+                Check(g.mode=="world"&&g.conversation==null&&
+                    !g.CrowdedInteractionConfirmationPending&&
+                    g.save.tutorialBits==safeBits&&g.Nearest()==b,
+                    "Removing the previewed real source cannot turn the second E into a different speaker's action");
+                data.maps[0].objects=new[]{a,b};
+                g.Interact();
+                Check(g.CrowdedInteractionConfirmationPending,
+                    "A changed physical source ring requires a fresh confirmation");
                 g.Load(CloneSave(g.save));g.mode="world";
                 Check(!g.CrowdedInteractionConfirmationPending&&
                     g.save.version==2,

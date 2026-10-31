@@ -4137,7 +4137,17 @@ namespace Starfall
             // authored foot, so a default nearest-only E would resolve
             // by array order and silently execute the wrong source.
             // Preserve manual O/R3/click and source-owned quest/route E.
+            bool previewWasPending=interactionFocusNeedsConfirmation;
             bool wasFocused=InteractionFocusIsValid();
+            // If the exact previously previewed source was removed, a
+            // second E must not silently launch the NEXT nearby speaker.
+            // Require a fresh press after the invalid selection retires.
+            if(previewWasPending&&!wasFocused)
+            {
+                Notify("刚才选中的交互对象已不在原位。请重新选择。",
+                    "The previously selected source is no longer reachable. Choose again.");
+                return;
+            }
             WorldObject o = Nearest();
             if(ReliefCivilianIsInteractionTarget(o))
             {
