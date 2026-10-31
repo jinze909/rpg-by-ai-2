@@ -360,7 +360,17 @@ namespace Starfall
                     // A zero/negative timer is a pending contact, not a
                     // retired warning: TickExpansion removes it only after
                     // delivering its real area hit on the next world step.
-                    if (warning.damage <= 0) continue;
+                    // The HUD, rest and fast-travel all query SafeTravel
+                    // BEFORE TickExpansion can sanitize its transient roster.
+                    // A malformed warning (including null) has no valid
+                    // physical damage contact and must not block travel or
+                    // crash when checking a nearby player.
+                    if (warning==null ||
+                        !Finite(warning.position.x)||!Finite(warning.position.y)||
+                        !Finite(warning.timer)||!Finite(warning.radius)||
+                        warning.radius<=0f||
+                        !Finite(warning.damage)||warning.damage<=0f||
+                        string.IsNullOrEmpty(warning.kind)) continue;
                     float dx = warning.position.x - x, dy = warning.position.y - y;
                     float reach = dangerRadius + Math.Max(0, warning.radius);
                     // A wall can close after a delayed blast warning.
