@@ -23,6 +23,10 @@ namespace Starfall
                 Object.ReferenceEquals(crossingWatchMap,Map)&&
                 Object.ReferenceEquals(crossingWatchSave,save);}
         }
+        public Point CrossingWatchGroundFoot
+        {get{return CrossingWatchSite(save.room);}}
+        public float CrossingWatchWarningSecondsLeft
+        {get{return CrossingWatchPending?crossingWatchWarningSeconds:0f;}}
         public bool CrossingWatchPending
         {get{return crossingWatchWarningSeconds>0f&&
                     crossingWatchRoom==save.room&&

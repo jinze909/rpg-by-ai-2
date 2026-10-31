@@ -1099,6 +1099,37 @@ namespace Starfall
             // decoration. Render their lean outlines after solid scenery
             // and actor bodies, before flying projectiles and impacts.
             DrawHazardWarnings();
+            // A forewarned OPTIONAL crossing raid must have a visible,
+            // motion-safe world-space warning, not just a fading toast.
+            // The ring is tied to the real field cut and existing enemy
+            // objects; no fake silhouette or HUD-only combat target.
+            if(Game.mode=="world"&&
+                (Game.CrossingWatchPending||Game.CrossingWatchActive))
+            {
+                Point watchFoot=Game.CrossingWatchGroundFoot;
+                if((watchFoot-Game.Position).Length<15f)
+                {
+                    Color tone=Game.CrossingWatchPending?
+                        new Color(1f,.77f,.39f,.85f):
+                        new Color(1f,.48f,.40f,.83f);
+                    Ring(watchFoot,Game.CrossingWatchPending?1.45f:1.9f,
+                        tone,28);
+                    Point marker=ScreenPoint(watchFoot);
+                    Text(marker.x-86f,marker.y-76f,172f,18f,
+                        Game.CrossingWatchPending?
+                            Game.L("伏击预警 · 可后撤",
+                                "AMBUSH WARNING · WITHDRAW"):
+                            Game.L("拦路者 "+Game.CrossingWatchRemaining+
+                                " 名","CROSSING RAIDERS "+Game.CrossingWatchRemaining),
+                        10,tone,TextAnchor.MiddleCenter);
+                }
+                if(Game.CrossingWatchActive)
+                    foreach(Enemy watchFoe in Game.enemies)
+                        if(watchFoe!=null&&watchFoe.hp>0f&&
+                            Game.IsCrossingWatchEnemy(watchFoe))
+                            Ring(watchFoe.Position,.52f,
+                                new Color(1f,.61f,.40f,.76f),16);
+            }
             // A restrained world-space sight ring tells gamepad users which
             // actual foe will receive the snapped projectile. It follows a
             // live actor reference, never a reused spawn ID or stored flag.
