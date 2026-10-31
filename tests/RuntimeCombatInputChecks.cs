@@ -9066,26 +9066,22 @@ public static class RuntimeCombatInputChecks
         g.enemies.Clear();g.hazards.Clear();g.projectiles.Clear();
         MapData map=g.Map;
         WorldObject[] original=map.objects;
-        Point hero=new Point(),firstFoot=new Point(),secondFoot=new Point();
-        bool found=false;
-        for(int y=5;y<map.rows.Length-5&&!found;y++)
-        for(int x=5;x<map.rows[y].Length-5&&!found;x++)
-        {
-            Point h=new Point(x+.5f,y+1.4f);
-            Point a=new Point(x+.5f,y+.5f);
-            Point b=new Point(x+.91f,y+.5f);
-            if(!g.CanStand(h)||!g.CanStand(a)||!g.CanStand(b))
-                continue;
-            g.save.x=h.x;g.save.y=h.y;
-            // The same live interaction reach/LOS must authenticate both
-            // differently placed bodies on original shipped town terrain.
-            var ray=typeof(GameCore).GetMethod("HasPhysicalInteractionReach",
-                Private,null,new[]{typeof(Point)},null);
-            if(!(bool)ray.Invoke(g,new object[]{a})||
-               !(bool)ray.Invoke(g,new object[]{b}))continue;
-            hero=h;firstFoot=a;secondFoot=b;found=true;
-        }
-        Check(found,"Original town has no reachable open NPC pair with overlapping silhouettes");
+        // Use the exact central-town interaction position already proven
+        // by the production archivist/witness right-click regression.
+        // An arbitrary FIRST open tile can be OFF CAMERA after the
+        // presentation clamps its view. The default nearest NPC would
+        // then falsely look like a successful first mouse selection.
+        Point hero=new Point(14,11);
+        Point firstFoot=new Point(14.5f,11.5f);
+        Point secondFoot=new Point(14.91f,11.5f);
+        g.save.x=hero.x;g.save.y=hero.y;
+        var ray=typeof(GameCore).GetMethod("HasPhysicalInteractionReach",
+            Private,null,new[]{typeof(Point)},null);
+        Check(g.CanStand(hero)&&g.CanStand(firstFoot)&&
+            g.CanStand(secondFoot)&&
+            (bool)ray.Invoke(g,new object[]{firstFoot})&&
+            (bool)ray.Invoke(g,new object[]{secondFoot}),
+            "Original playable Emberfall town offers two authentic, reachable painted feet");
         var left=new WorldObject{id="overlap_left",kind="resident",
             name="甲",en="Front resident",x=firstFoot.x,y=firstFoot.y};
         var right=new WorldObject{id="overlap_right",kind="resident",
@@ -9093,7 +9089,12 @@ public static class RuntimeCombatInputChecks
         try
         {
             map.objects=new[]{left,right};
+            // The first world input occurs AFTER UpdatePresentation, which
+            // may clamp a previous test's camera to the real scene bounds.
+            // Stabilize that camera BEFORE projecting the test pointer.
             Set(app,"camera",hero);
+            Update(app);
+            Set(app,"camera",(Point)Call(app,"CameraTarget"));
             Point pixel=new Point(firstFoot.x+.16f,firstFoot.y-.35f);
             Check(!GameCore.WorldInteractionFeetCoincide(firstFoot,secondFoot)&&
                 GameCore.WorldInteractionSilhouettesOverlap(firstFoot,secondFoot)&&

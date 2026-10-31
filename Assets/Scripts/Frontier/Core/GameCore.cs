@@ -4235,7 +4235,8 @@ namespace Starfall
                     WorldObject member=options[cluster[i]];
                     if(Object.ReferenceEquals(member,lastInteractionClickTarget)&&
                        (member==null)==lastInteractionClickRelief&&
-                       Object.ReferenceEquals(member,Nearest()))
+                       (member==null?InteractionReliefFocusIsValid():
+                           Object.ReferenceEquals(member,Nearest())))
                     {
                         selected=cluster[(i+1)%cluster.Count];
                         break;
