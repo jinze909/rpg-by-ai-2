@@ -2932,6 +2932,43 @@ namespace Starfall.Tests
             finally {data.maps[1]=original;}
         }
 
+        public static void ScoutFlankingIsMeasuredAroundTheHero(Campaign data)
+        {
+            var original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    char[] line=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                data.maps[1]=new MapData{id=1,spawnX=20.5f,
+                    spawnY=15.5f,rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);g.mode="world";g.save.room=1;
+                g.save.x=20.5f;g.save.y=15.5f;
+                var method=typeof(GameCore).GetMethod(
+                    "RegionalScoutTacticalPadScore",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(method!=null,"Live patrol flanking scorer exists");
+                Point survey=new Point(15.5f,15.5f);
+                Point candidate=new Point(26.5f,15.5f);
+                var sameLane=new List<Point>{new Point(29.5f,15.5f)};
+                var oppositeLane=new List<Point>{new Point(11.5f,15.5f)};
+                float crowded=(float)method.Invoke(g,new object[]{
+                    candidate,survey,0,sameLane,0});
+                float flank=(float)method.Invoke(g,new object[]{
+                    candidate,survey,0,oppositeLane,0});
+                Check(flank>crowded+8f,
+                    "Distinct approach bearings around the hero reward a true flank");
+            }
+            finally {data.maps[1]=original;}
+        }
+
         public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
         {
             MapData original=data.maps[1];
