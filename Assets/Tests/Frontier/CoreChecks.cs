@@ -881,6 +881,9 @@ namespace Starfall.Tests
                     "Only original physical survey offers final public handoff");
                 g.Choose(finish);
                 Check(!g.FieldDispatchActive&&g.FieldDispatchDone(room)&&
+                    !g.FieldDispatchRouteSecured(room)&&
+                    g.FieldOutpostReturnFare(room)==2&&
+                    g.FieldOutpostReturnEnergy(room)==6&&
                     g.FieldDispatchWins==1&&g.enemies.Count==0&&
                     g.Has("field_dispatch_intact_"+room)&&
                     g.save.shards==shards+2,
@@ -923,6 +926,72 @@ namespace Starfall.Tests
                         "A signed repairs delivery really cuts paid field trap supplies to 8 coins");
                 }
             }
+        }
+
+        public static void SecuredCourierCombatMakesRealReturnFareCheaperAndSurvivesSave(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=4;g.enemies.Clear();g.invulnerable=100f;
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+            Check(kit!=null&&survey!=null&&PlaceWithinTalkReach(g,kit),
+                "Physical supply start and final delivery survive the shipped map");
+            g.save.inventory[2]=5;g.save.energy=100f;
+            g.Talk(kit);
+            int start=Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_start");
+            Check(start>=0&&g.FieldOutpostReturnFare(1)==4&&
+                g.FieldOutpostReturnEnergy(1)==8,
+                "Old built camp retains its original fare until a real delivery");
+            g.Choose(start);
+            Point station=g.FieldDispatchTarget;
+            WorldObject machine=Array.Find(g.Map.objects,o=>
+                o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-station).Length<.01f);
+            Check(machine!=null,"Authentic courier machine exists");
+            g.Close();g.save.x=station.x;g.save.y=station.y;
+            g.Talk(machine);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_checkpoint"));
+            g.Close();
+            for(int step=0;step<80&&g.FieldDispatchAmbushWarningSeconds>0f;step++)
+                g.Tick(.05f,new Point());
+            Check(g.FieldDispatchLivingRaiders>0,
+                "A genuine staged ambush has living, owned combat targets");
+            var foes=new System.Collections.Generic.List<Enemy>(g.enemies);
+            var hit=typeof(GameCore).GetMethod("Hit",
+                System.Reflection.BindingFlags.NonPublic|
+                System.Reflection.BindingFlags.Instance);
+            Check(hit!=null,"Production damage owns combat defeat");
+            int beforeCoins=g.save.coins,beforeKills=g.save.kills[1];
+            foreach(Enemy foe in foes)
+                hit.Invoke(g,new object[]{foe,9999f,true,null,null});
+            Check(g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0&&
+                g.save.coins==beforeCoins&&g.save.kills[1]==beforeKills,
+                "Only actual defeats clear every owned raider without ordinary loot");
+            g.Close();g.save.x=survey.x;g.save.y=survey.y;
+            g.Talk(survey);
+            int finish=Array.FindIndex(g.conversation.choices,
+                o=>o.action=="field_dispatch_finish");
+            Check(finish>=0,"Only real original survey can sign victory");
+            g.Choose(finish);
+            Check(g.FieldDispatchRouteSecured(1)&&g.FieldDispatchDone(1)&&
+                g.FieldOutpostReturnFare(1)==1&&
+                g.FieldOutpostReturnEnergy(1)==4&&
+                g.FieldOutpostReturnFare(2)==4&&
+                !g.FieldDispatchRouteSecured(2),
+                "Fully defeated raiders permanently discount only this actual region's return");
+            g.PrepareSave();
+            var restored=new GameCore(data,CloneSave(g.save));
+            Check(restored.save.version==2&&
+                restored.FieldDispatchRouteSecured(1)&&
+                restored.FieldOutpostReturnFare(1)==1&&
+                restored.FieldOutpostReturnEnergy(1)==4&&
+                !restored.FieldDispatchActive,
+                "Cleared public road survives original v2 save without live raiders");
         }
 
         public static void CourierAmbushCombatCannotBeFarmedAndWithdrawsWithoutGhosts(Campaign data)

@@ -27,6 +27,13 @@ namespace Starfall
         {return FieldOutpostWard(room)||FieldOutpostForge(room);}
         public int FieldOutpostWins
         {get{int n=0;for(int r=1;r<=7;r++)if(FieldOutpostBuilt(r))n++;return n;}}
+        // One authoritative fare is used by the actual paid physical
+        // shuttle and UI/test readers. Existing cleared delivery remains
+        // 2 coins / 6 stamina; fully secured courier roads improve further.
+        public int FieldOutpostReturnFare(int room)
+        {return FieldDispatchRouteSecured(room)?1:FieldDispatchDone(room)?2:4;}
+        public int FieldOutpostReturnEnergy(int room)
+        {return FieldDispatchRouteSecured(room)?4:FieldDispatchDone(room)?6:8;}
         private bool IsFieldOutpostEnemy(Enemy e)
         {return e!=null&&FieldOutpostActive&&outpostFoes.Contains(e);}
         private void OnFieldOutpostEnemyDefeated(Enemy e)
@@ -211,8 +218,8 @@ namespace Starfall
                 BlockTravelForProtectedFieldMission(true))return true;
             if(action=="field_outpost_return")
             {
-                int fare=FieldDispatchDone(room)?2:4;
-                int energy=FieldDispatchDone(room)?6:8;
+                int fare=FieldOutpostReturnFare(room);
+                int energy=FieldOutpostReturnEnergy(room);
                 if(save.coins<fare||save.energy<energy)
                 {
                     Notify("返程接驳需要"+fare+"枚硬币和"+energy+"点耐力。",

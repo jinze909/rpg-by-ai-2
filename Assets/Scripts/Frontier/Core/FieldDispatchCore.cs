@@ -160,6 +160,13 @@ namespace Starfall
         public bool FieldDispatchDone(int room)
         {return room>=1&&room<=7&&FieldOutpostBuilt(room)&&
             Has("field_dispatch_done_"+room);}
+        // The authentic courier squad must be fully defeated/restained
+        // BEFORE the final physical receipt. Evading the scouts still
+        // completes the delivery, but cannot claim a cleared public road.
+        // Existing v2 flags persist this outcome without a save migration.
+        public bool FieldDispatchRouteSecured(int room)
+        {return FieldDispatchDone(room)&&
+            Has("field_dispatch_route_secured_"+room);}
         public int FieldDispatchWins
         {get{int n=0;for(int i=1;i<=7;i++)if(FieldDispatchDone(i))n++;return n;}}
         public int FieldDispatchStage {get{return FieldDispatchActive?dispatchStage:0;}}
@@ -378,24 +385,27 @@ namespace Starfall
             bool cleared=contested&&FieldDispatchLivingRaiders==0;
             ResetFieldDispatch();
             Flag("field_dispatch_done_"+room);
+            if(cleared)Flag("field_dispatch_route_secured_"+room);
             if(perfect)Flag("field_dispatch_intact_"+room);
             CreditCoins(20+room*3);CreditShards(perfect?2:1);
             AddXp(65+room*8);
             RecordMoment(dispatchZh[room]+
                 " 货物经真实工程装置抵达旧探路石，公开道路终于有了可核实的交接记录。"+
                 (escaped?" 我们赶在伏击者合围前沿侧路脱身，救命物资没有落进他们手里。":
-                 cleared?" 袭击者被击退或活捉，这条路终于可以安全运货。":
+                 cleared?" 袭击者被击退或活捉，返程接驳现在只需1枚硬币与4点耐力。":
                  contested?" 护送者没有停下争战，带着尚未散去的追兵完成了交付。":""),
                 dispatchEn[room]+
                 " Supplies traveled through the physical mechanism and original survey post. The public route has its first signed handoff."+
                 (escaped?" We escaped along the side road before the trap closed; the supplies arrived safely.":
-                 cleared?" The raiders were defeated or restrained, leaving a safer civilian lane.":
+                 cleared?" The raiders were defeated or restrained. Return shuttles now cost one coin and four stamina.":
                  contested?" Pursuers remained nearby when the supplies reached their neighbors.":""));
             revision++;sound="reward";
             Notify("民间接力完成！本区医疗或工坊补给永久改善，返程路费下降。"+
-                (perfect?"货物完好，额外获得1碎片。":""),
+                (perfect?"货物完好，额外获得1碎片。":"")+
+                (cleared?" 清除了真正的路匪，返程接驳降至1硬币、4耐力。":""),
                 "Courier completed! Local supplies and return fare improve permanently."+
-                (perfect?" Intact cargo earns an extra shard.":""));
+                (perfect?" Intact cargo earns an extra shard.":"")+
+                (cleared?" Cleared raiders: return costs 1 coin and 4 stamina.":""));
             return true;
         }
     }
