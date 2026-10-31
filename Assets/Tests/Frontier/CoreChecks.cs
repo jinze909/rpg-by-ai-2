@@ -855,6 +855,12 @@ namespace Starfall.Tests
                 Check(g.FieldDispatchActive&&g.FieldDispatchStage==2&&
                     (g.FieldDispatchTarget-new Point(original.x,original.y)).Length<.01f,
                     "Signed intermediate source advances the live compass to original survey");
+                Check(g.FieldDispatchAmbushWarningSeconds>3f&&
+                    g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0,
+                    "Signing a real delivery station gives a visible safe preparation window");
+                g.Close();
+                for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
+                    g.Tick(.05f,new Point());
                 int liveRaiders=g.FieldDispatchLivingRaiders;
                 Check(liveRaiders>=1&&liveRaiders<=(room==2||room==3||room==6?2:1),
                     "An authentic local ambush appears on the second physical supply leg");
@@ -948,9 +954,15 @@ namespace Starfall.Tests
                 c=>c.action=="field_dispatch_checkpoint");
             Check(sign>=0,"Actual machine offers its own source-bound receipt");
             g.Choose(sign);
+            Check(g.FieldDispatchStage==2&&g.FieldDispatchAmbushWarningSeconds>3f&&
+                g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0,
+                "Courier receives a scouting warning before a single actor appears");
+            g.Close();
+            for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
+                g.Tick(.05f,new Point());
             Check(g.FieldDispatchStage==2&&g.FieldDispatchLivingRaiders>0&&
                 g.enemies.Count==g.FieldDispatchLivingRaiders,
-                "The second leg creates distinct real encounter actors");
+                "Only after the scouting window do distinct ambush actors attack");
             Enemy raider=g.enemies[0];
             int coins=g.save.coins,kills=g.save.kills[1],shards=g.save.shards,
                 xp=g.save.xp,level=g.save.level;
@@ -980,6 +992,70 @@ namespace Starfall.Tests
             Check(Array.FindIndex(g.conversation.choices,
                     c=>c.action=="field_dispatch_start")>=0,
                 "Aborted dispatch leaves the authentic route available for one paid retry");
+        }
+
+        public static void CourierWarningPermitsPhysicalEscapeAndNeverSpawnsLateRaiders(Campaign data)
+        {
+            GameCore g=Fresh(data);
+            g.mode="world";g.save.room=1;g.enemies.Clear();
+            g.invulnerable=100f;
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            WorldObject end=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+            Check(kit!=null&&end!=null&&PlaceWithinTalkReach(g,kit),
+                "Physical courier origin and destination exist");
+            g.save.inventory[2]=3;g.save.energy=100f;
+            g.Talk(kit);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start"));
+            Point station=g.FieldDispatchTarget;
+            WorldObject machine=Array.Find(g.Map.objects,o=>
+                o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-station).Length<.01f);
+            Check(machine!=null,"Authentic middle station exists");
+            g.Close();g.save.x=station.x;g.save.y=station.y;
+            g.Talk(machine);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_checkpoint"));
+            Check(g.FieldDispatchAmbushWarningSeconds>3f&&
+                g.FieldDispatchLivingRaiders==0,
+                "Warning begins without teleporting an attacking enemy");
+            g.Close();
+            Point escape=new Point();bool found=false;
+            // A legal retreat must be reachable from the actual checkpoint,
+            // not a fabricated off-map position. Only temporary hero travel
+            // state is altered by this offline route fixture.
+            for(int y=2;y<g.Map.rows.Length&&!found;y++)
+            for(int x=2;x<g.Map.rows[y].Length&&!found;x++)
+            {
+                Point p=new Point(x+.5f,y+.5f);
+                if((p-station).Length>9f&&
+                    (p-station).Length<14f&&g.CanStand(p)&&
+                    g.NavigationPathFrom(station,p,true).Count>0)
+                {escape=p;found=true;}
+            }
+            Check(found,"Regional terrain has an actual walkable escape lane");
+            g.save.x=escape.x;g.save.y=escape.y;
+            g.Tick(.05f,new Point());
+            Check(g.FieldDispatchStage==2&&
+                g.FieldDispatchAmbushWarningSeconds==0f&&
+                g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0&&
+                !g.FieldDispatchDone(1),
+                "Legitimate distance evades combat but does not sign or waive delivery");
+            for(int n=0;n<100;n++)g.Tick(.05f,new Point());
+            Check(g.FieldDispatchStage==2&&g.enemies.Count==0,
+                "An evaded ambush never respawns after its expired warning");
+            g.save.x=end.x;g.save.y=end.y;
+            g.Talk(end);
+            int finish=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_finish");
+            Check(finish>=0,"Evading combat preserves real handoff interaction");
+            g.Choose(finish);
+            Check(g.FieldDispatchDone(1)&&!g.FieldDispatchActive&&
+                g.FieldDispatchAmbushWarningSeconds==0f&&g.enemies.Count==0,
+                "A physical bypass still requires signed delivery and leaves no ghosts");
         }
 
         public static void FieldDispatchFailureAndSourceIsolationRejectFalseReceipts(Campaign data)

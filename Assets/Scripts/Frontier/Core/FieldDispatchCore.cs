@@ -27,6 +27,18 @@ namespace Starfall
         };
         private int dispatchRoom=-1,dispatchStage,dispatchIntegrity;
         private float dispatchSeconds;
+        // Transient scouting window after a signed physical checkpoint.
+        // The player can stand and intercept the approach, set a snare,
+        // or gain distance before any raider is actually spawned.
+        private float dispatchAmbushWarningSeconds;
+        private const float DispatchAmbushWarningDuration=3.5f;
+        private const float DispatchAmbushEscapeDistance=8.5f;
+        public float FieldDispatchAmbushWarningSeconds
+        {get{return FieldDispatchActive&&dispatchStage==2?
+            Math.Max(0f,dispatchAmbushWarningSeconds):0f;}}
+        public Point FieldDispatchAmbushOrigin
+        {get{return FieldDispatchActive?
+            new Point(dispatchCheckpoint.x,dispatchCheckpoint.y):Position;}}
         // Temporary local ambushers make the second physical leg a tactical
         // choice (fight, snare or evade), not an empty timer. They never
         // survive a failed/signed dispatch or serialize to a save.
@@ -172,7 +184,8 @@ namespace Starfall
             }
             dispatchRaiders.Clear();
             dispatchRoom=-1;dispatchStage=dispatchIntegrity=0;
-            dispatchSeconds=0f;dispatchMap=null;dispatchSave=null;
+            dispatchSeconds=0f;dispatchAmbushWarningSeconds=0f;
+            dispatchMap=null;dispatchSave=null;
             dispatchOrigin=dispatchCheckpoint=dispatchFinal=null;
         }
         private void TickFieldDispatch(float dt)
@@ -185,6 +198,43 @@ namespace Starfall
                 ResetFieldDispatch();revision++;sound="alert";
                 Notify("限时补给接力失败，已消耗的物资没有得到签收。",
                     "Courier timed out. Spent supplies cannot become a receipt.");
+                return;
+            }
+            if(dispatchStage!=2||dispatchAmbushWarningSeconds<=0f||dt<=0f)
+                return;
+            // Fleeing uses real navigable footing, not a dialogue click or
+            // a remote receipt. A courier who reaches cover or a side road
+            // before the attackers arrive has actually avoided this fight,
+            // but still must finish the full paid two-leg delivery on time.
+            Point checkpoint=new Point(dispatchCheckpoint.x,dispatchCheckpoint.y);
+            if(CanStand(Position)&&
+                (Position-checkpoint).Length>DispatchAmbushEscapeDistance)
+            {
+                dispatchAmbushWarningSeconds=0f;
+                revision++;sound="quest";
+                Notify("你趁伏击者尚未合围离开中继站。货物仍须送抵原调查石。",
+                    "You slipped past the raiders before their encirclement. The cargo still needs delivery.");
+                return;
+            }
+            dispatchAmbushWarningSeconds=Math.Max(0f,
+                dispatchAmbushWarningSeconds-dt);
+            if(dispatchAmbushWarningSeconds>0f)return;
+            int raiders=SpawnFieldDispatchAmbush();
+            if(raiders>0)
+            {
+                // Even a successfully ambushing squad has a visible reaction
+                // beat before its first attack; snare and dodge remain viable.
+                foreach(Enemy foe in dispatchRaiders)
+                    foe.stun=Math.Max(foe.stun,.65f);
+                revision++;sound="alert";
+                Notify("有人从道路两侧逼近！"+raiders+"名拦路者进入战斗，可战斗、活捉或绕开。",
+                    raiders+" raiders emerge from the roadside! Fight, snare, or evade.");
+            }
+            else
+            {
+                revision++;
+                Notify("脚步声渐远，袭击者没有找到可通行的接近道路。",
+                    "Footsteps fade; the raiders found no navigable approach.");
             }
         }
         private void DamageFieldDispatchCargo(float damage)
@@ -283,6 +333,7 @@ namespace Starfall
                 dispatchOrigin=source;dispatchCheckpoint=middle;
                 dispatchFinal=end;dispatchStage=1;dispatchIntegrity=3;
                 dispatchSeconds=room==2||room==5?300f:260f;
+                dispatchAmbushWarningSeconds=0f;
                 revision++;sound="quest";
                 Notify("补给接力开始。先沿真实道路抵达"+middle.name+
                     "，再走到最初调查石；受伤会损坏货物，不能使用捷径。",
@@ -305,12 +356,10 @@ namespace Starfall
                 if(dispatchStage!=1||
                     !Object.ReferenceEquals(source,dispatchCheckpoint))return true;
                 dispatchStage=2;
-                int raiders=SpawnFieldDispatchAmbush();
-                revision++;sound="quest";
-                Notify("第一站已登记，前往本区原调查地标交货。"+
-                    (raiders>0?"附近出现"+raiders+"名真正的袭击者；可战斗、活捉或绕开。":""),
-                    "Checkpoint signed. Walk to the authentic survey post."+
-                    (raiders>0?" "+raiders+" genuine raiders are approaching; fight, snare or evade.":""));
+                dispatchAmbushWarningSeconds=DispatchAmbushWarningDuration;
+                revision++;sound="alert";
+                Notify("第一站已登记。附近传来呼哨声；伏击者正在接近！可以提前设陷阱或立刻离开中继站。继续前往原调查石。",
+                    "Checkpoint signed. You hear ambush whistles: set a snare or move away before the raiders arrive. Deliver to the original survey post.");
                 return true;
             }
             if(dispatchStage!=2||!Object.ReferenceEquals(source,dispatchFinal)||
