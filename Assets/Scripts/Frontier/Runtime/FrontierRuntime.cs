@@ -205,9 +205,9 @@ namespace Starfall
                 // this same rendered frame's attack or Q starts. Equip() is
                 // the single authoritative unlock/action/combination guard.
                 // Dialogue numbers remain scoped to their original choices.
-                bool selectingNearbyWithAlt=
-                    (Input.GetKey(KeyCode.LeftAlt)||
-                     Input.GetKey(KeyCode.RightAlt))&&
+                bool holdingAlt=Input.GetKey(KeyCode.LeftAlt)||
+                    Input.GetKey(KeyCode.RightAlt);
+                bool selectingNearbyWithAlt=holdingAlt&&
                     Game.SafeTravel&&Game.NearbyInteractionCount()>1;
                 if(selectingNearbyWithAlt)
                 {
@@ -218,8 +218,11 @@ namespace Starfall
                         if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+row)))
                         {Game.FocusCrowdedInteractionRow(row);break;}
                 }
-                else
+                else if(!holdingAlt)
                 {
+                    // Releasing a nearby list or entering combat cannot
+                    // turn a held Alt+number into an unintended loadout
+                    // swap. Plain 1/2/3 retain their existing meaning.
                     for(int slot=0;slot<3;slot++)
                         if(Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1+slot)))
                         {Game.Equip(slot);break;}
