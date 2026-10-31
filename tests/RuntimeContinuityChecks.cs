@@ -1404,11 +1404,18 @@ public static class RuntimeContinuityChecks
             "Real encounter begins after warning and owns two actors");
         Set(app,"camera",g.Position);
         ClearDraw();Call(app,"OnGUI");
-        Check(GUI.commands.Exists(x=>x.Contains("CROSSING AMBUSH")&&
-            x.Contains("FIGHT OR WITHDRAW"))&&
-            GUI.commands.Exists(x=>x.Contains("2 raiders remain"))&&
-            g.save.trackedQuest=="main",
-            "Battle-stage HUD follows actual raider ownership without rewriting saved quest");
+        bool battleTitle=GUI.commands.Exists(x=>x.Contains("CROSSING AMBUSH")&&
+            x.Contains("FIGHT OR WITHDRAW"));
+        bool battleHint=GUI.commands.Exists(x=>x.Contains("2 raiders remain"));
+        bool originalTrack=g.save.trackedQuest=="main";
+        Check(battleTitle&&battleHint&&originalTrack,
+            "Battle HUD mismatch: title="+battleTitle+
+            ", hint="+battleHint+", originalTrack="+originalTrack+
+            ", liveHint="+g.GuidanceHint()+
+            ", mode="+g.mode+
+            ", emitted="+String.Join(" | ",GUI.commands.FindAll(
+                x=>x.Contains("AMBUSH")||x.Contains("raiders")||
+                    x.Contains("WITHDRAW")||x.Contains("OPTIONAL")).ToArray()));
         var hit=typeof(GameCore).GetMethod("Hit",
             BindingFlags.Instance|BindingFlags.NonPublic);
         Check(hit!=null,"Actual combat hit transaction is available");
