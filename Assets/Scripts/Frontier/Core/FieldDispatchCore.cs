@@ -31,6 +31,7 @@ namespace Starfall
         // The player can stand and intercept the approach, set a snare,
         // or gain distance before any raider is actually spawned.
         private float dispatchAmbushWarningSeconds;
+        private bool dispatchAmbushEvaded,dispatchAmbushDeployed;
         private const float DispatchAmbushWarningDuration=3.5f;
         private const float DispatchAmbushEscapeDistance=8.5f;
         public float FieldDispatchAmbushWarningSeconds
@@ -183,6 +184,7 @@ namespace Starfall
                 enemies.Remove(e);
             }
             dispatchRaiders.Clear();
+            dispatchAmbushEvaded=dispatchAmbushDeployed=false;
             dispatchRoom=-1;dispatchStage=dispatchIntegrity=0;
             dispatchSeconds=0f;dispatchAmbushWarningSeconds=0f;
             dispatchMap=null;dispatchSave=null;
@@ -211,6 +213,7 @@ namespace Starfall
                 (Position-checkpoint).Length>DispatchAmbushEscapeDistance)
             {
                 dispatchAmbushWarningSeconds=0f;
+                dispatchAmbushEvaded=true;
                 revision++;sound="quest";
                 Notify("你趁伏击者尚未合围离开中继站。货物仍须送抵原调查石。",
                     "You slipped past the raiders before their encirclement. The cargo still needs delivery.");
@@ -222,6 +225,7 @@ namespace Starfall
             int raiders=SpawnFieldDispatchAmbush();
             if(raiders>0)
             {
+                dispatchAmbushDeployed=true;
                 // Even a successfully ambushing squad has a visible reaction
                 // beat before its first attack; snare and dodge remain viable.
                 foreach(Enemy foe in dispatchRaiders)
@@ -334,6 +338,7 @@ namespace Starfall
                 dispatchFinal=end;dispatchStage=1;dispatchIntegrity=3;
                 dispatchSeconds=room==2||room==5?300f:260f;
                 dispatchAmbushWarningSeconds=0f;
+                dispatchAmbushEvaded=dispatchAmbushDeployed=false;
                 revision++;sound="quest";
                 Notify("补给接力开始。先沿真实道路抵达"+middle.name+
                     "，再走到最初调查石；受伤会损坏货物，不能使用捷径。",
@@ -365,15 +370,27 @@ namespace Starfall
             if(dispatchStage!=2||!Object.ReferenceEquals(source,dispatchFinal)||
                FieldDispatchDone(room))return true;
             bool perfect=dispatchIntegrity==3;
+            // The handoff remembers the actual route: evasion, a cleared
+            // blockade, or a delivery under pursuit. None mints additional
+            // loot or changes the established SaveData v2 contracts.
+            bool escaped=dispatchAmbushEvaded;
+            bool contested=dispatchAmbushDeployed;
+            bool cleared=contested&&FieldDispatchLivingRaiders==0;
             ResetFieldDispatch();
             Flag("field_dispatch_done_"+room);
             if(perfect)Flag("field_dispatch_intact_"+room);
             CreditCoins(20+room*3);CreditShards(perfect?2:1);
             AddXp(65+room*8);
             RecordMoment(dispatchZh[room]+
-                " 货物经真实工程装置抵达旧探路石，公开道路终于有了可核实的交接记录。",
+                " 货物经真实工程装置抵达旧探路石，公开道路终于有了可核实的交接记录。"+
+                (escaped?" 我们赶在伏击者合围前沿侧路脱身，救命物资没有落进他们手里。":
+                 cleared?" 袭击者被击退或活捉，这条路终于可以安全运货。":
+                 contested?" 护送者没有停下争战，带着尚未散去的追兵完成了交付。":""),
                 dispatchEn[room]+
-                " Supplies traveled through the physical mechanism and original survey post. The public route has its first signed handoff.");
+                " Supplies traveled through the physical mechanism and original survey post. The public route has its first signed handoff."+
+                (escaped?" We escaped along the side road before the trap closed; the supplies arrived safely.":
+                 cleared?" The raiders were defeated or restrained, leaving a safer civilian lane.":
+                 contested?" Pursuers remained nearby when the supplies reached their neighbors.":""));
             revision++;sound="reward";
             Notify("民间接力完成！本区医疗或工坊补给永久改善，返程路费下降。"+
                 (perfect?"货物完好，额外获得1碎片。":""),
