@@ -1247,6 +1247,75 @@ namespace Starfall.Tests
                 "Distant input cannot operate a mechanism through a false remote target");
         }
 
+        // A congested chapter source is not permission to pick the closest
+        // prop and accidentally advance the wrong story. The original
+        // campaign scout is the authoritative guide target: a neighbor may
+        // crowd the same physical foot, but Shift+O only focuses the unique
+        // matching quest object and leaves E as a separate deliberate press.
+        public static void NearbyQuestFocusSelectsUniqueReachableStorySource(Campaign data)
+        {
+            GameCore g=Fresh(data);g.save.stage=0;g.Enter(1);
+            g.enemies.Clear();g.mode="world";g.TrackQuest("main");
+            WorldObject scout=Array.Find(g.Map.objects,
+                o=>o.kind=="scout"&&g.IsObjectPresent(o));
+            Check(scout!=null&&PlaceWithinTalkReach(g,scout),
+                "The authentic first-chapter scout is physically reachable");
+            QuestGuide guide=g.RecommendedContinuationGuide;
+            Check(guide.id=="main"&&guide.room==1&&
+                (guide.target-new Point(scout.x,scout.y)).Length<.01f,
+                "Current main quest points to the original living scout");
+            MapData region=g.Map;
+            WorldObject[] original=region.objects;
+            WorldObject decoy=new WorldObject{
+                kind="campfire",id="nearby_nonquest_source",
+                name="相邻路边火盆",en="Adjacent fire",
+                x=g.Position.x,y=g.Position.y
+            };
+            WorldObject impostor=new WorldObject{
+                kind="campfire",id="coincident_quest_spoof",
+                name="伪造的同坐标来源",en="Co-located impostor",
+                x=scout.x,y=scout.y
+            };
+            try
+            {
+                WorldObject[] expanded=new WorldObject[original.Length+1];
+                Array.Copy(original,expanded,original.Length);
+                expanded[expanded.Length-1]=decoy;region.objects=expanded;
+                Check(g.NearbyInteractionCount()>=2&&
+                    g.NearbyInteractionChoices().Contains(decoy)&&
+                    Object.ReferenceEquals(g.NearbyQuestInteraction(),scout),
+                    "Only the real current quest source is eligible in a reachable NPC crowd");
+                int decoyIndex=g.NearbyInteractionChoices().IndexOf(decoy);
+                Check(decoyIndex>=0&&g.FocusNearbyInteraction(decoyIndex)&&
+                    Object.ReferenceEquals(g.Nearest(),decoy),
+                    "Manual selection can still deliberately choose the neighbor");
+                Check(g.FocusNearbyQuestInteraction()&&
+                    Object.ReferenceEquals(g.Nearest(),scout),
+                    "One deliberate focus switches E to the authenticated current quest source");
+                Check(g.save.version==2&&!g.Has("scout_saved"),
+                    "Focusing never opens dialogue or silently awards quest progress");
+                g.FocusNearbyInteraction(decoyIndex);
+                expanded=new WorldObject[original.Length+2];
+                Array.Copy(original,expanded,original.Length);
+                expanded[expanded.Length-2]=decoy;
+                expanded[expanded.Length-1]=impostor;region.objects=expanded;
+                Check(g.NearbyQuestInteraction()==null&&
+                    !g.FocusNearbyQuestInteraction()&&
+                    Object.ReferenceEquals(g.Nearest(),decoy),
+                    "Two overlapping plausible targets are ambiguous and cannot steal an explicit player focus");
+                region.objects=original;
+                g.save.x+=12f;
+                Check(g.NearbyQuestInteraction()==null&&
+                    !g.FocusNearbyQuestInteraction(),
+                    "Cannot focus a remote quest source through scene distance");
+                g.save.x=scout.x;g.save.y=scout.y;
+                g.save.flags.Add("scout_saved");
+                Check(g.NearbyQuestInteraction()==null,
+                    "Completed/disappeared scout cannot reappear as a stale quest selection");
+            }
+            finally{region.objects=original;}
+        }
+
         // Crowded NPC interaction is deliberately independent of the
         // dedicated field-device shortcut. A focused NPC must not hide an
         // authentic reachable contraption or have its E selection stolen.

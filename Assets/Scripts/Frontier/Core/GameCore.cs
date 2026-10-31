@@ -3875,6 +3875,42 @@ namespace Starfall
             return true;
         }
 
+        // Deliberate quest focus is a safe alternative to cycling blindly
+        // through overlapping NPCs. Only an authenticated, currently
+        // actionable quest's EXACT present-world source can be suggested.
+        // Merely sharing a name, room or being near a quest pin is not
+        // sufficient. Ambiguous same-foot sources deliberately require the
+        // existing manual O/R3/click selector instead.
+        public WorldObject NearbyQuestInteraction()
+        {
+            if(mode!="world"||Dying||!SafeTravel||!CanStand(Position)||
+               Map==null||Map.objects==null)return null;
+            QuestGuide quest=RecommendedContinuationGuide;
+            if(quest==null||quest.complete||quest.locked||
+               quest.room!=save.room||!Finite(quest.target.x)||
+               !Finite(quest.target.y))return null;
+            WorldObject result=null;
+            foreach(WorldObject candidate in Map.objects)
+            {
+                if(candidate==null||!SourceBelongsToActiveMap(candidate)||
+                   !IsObjectPresent(candidate)||
+                   (new Point(candidate.x,candidate.y)-quest.target).Length>.35f||
+                   !HasPhysicalInteractionReach(candidate))continue;
+                if(result!=null)return null; // Cannot infer which co-located prop advances the stage.
+                result=candidate;
+            }
+            return result;
+        }
+        // Only selects an E source. All original physical Talk/Choose
+        // authentication, civilian priority and quest rewards remain under
+        // their existing separate input transactions.
+        public bool FocusNearbyQuestInteraction()
+        {
+            WorldObject objective=NearbyQuestInteraction();
+            if(objective==null)return false;
+            return SetNearbyInteractionChoice(objective);
+        }
+
         // Secondary-click focuses the visible world actor under the pointer,
         // never a nearer but different speaker. A body-shaped hit area lets
         // players click an NPC's torso instead of a tiny ground-coordinate

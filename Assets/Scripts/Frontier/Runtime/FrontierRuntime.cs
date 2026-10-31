@@ -242,7 +242,15 @@ namespace Starfall
                     }
                 }
                 if(Input.GetKeyDown(KeyCode.O))
-                    Game.CycleNearbyInteraction();
+                {
+                    // Shift+O selects the ONE reachable, authenticated
+                    // current quest source, never pressing E on the player's
+                    // behalf. Plain O keeps its existing crowd cycle.
+                    if(Input.GetKey(KeyCode.LeftShift)||
+                       Input.GetKey(KeyCode.RightShift))
+                        Game.FocusNearbyQuestInteraction();
+                    else Game.CycleNearbyInteraction();
+                }
                 // Explicit field continuation shortcut. Shift+Tab is
                 // consumed HERE in world mode; plain Tab still opens the
                 // complete journal. The same GameCore physical preflight
@@ -1193,6 +1201,7 @@ namespace Starfall
             List<WorldObject> options=Game.NearbyInteractionChoices();
             if(options.Count<2)return;
             WorldObject current=Game.Nearest();
+            WorldObject objective=Game.NearbyQuestInteraction();
             bool civilian=Game.ReliefCivilianIsInteractionTarget(current);
             int at=civilian?options.IndexOf(null):options.IndexOf(current);
             if(at<0)at=0;
@@ -1203,6 +1212,11 @@ namespace Starfall
             // of visual clutter in an already crowded district. The
             // original sprite pixels, map objects and E authority remain
             // untouched. A moving civilian uses its actual live foot.
+            // A single authored objective glows in the crowded field even
+            // when it falls beyond the visible four-row selector. Never
+            // highlight a guess, an inaccessible source or a retired prop.
+            if(objective!=null)
+                Ring(new Point(objective.x,objective.y),.76f,gold,24);
             int visiblePips=Math.Min(6,options.Count);
             for(int slot=0;slot<visiblePips;slot++)
             {
@@ -1211,7 +1225,9 @@ namespace Starfall
                 Point foot=obj==null?Game.reliefFollowerPosition:
                     new Point(obj.x,obj.y);
                 bool chosen=slot==0;
-                Color ink=chosen?mint:PixelArt.C("#9aaeb4");
+                Color ink=chosen?mint:
+                    System.Object.ReferenceEquals(obj,objective)?gold:
+                    PixelArt.C("#9aaeb4");
                 Ring(foot,chosen?.62f:.44f,ink,chosen?22:16);
                 Point screen=ScreenPoint(foot);
                 // Keep the numbered label small and offset from the
@@ -1224,7 +1240,8 @@ namespace Starfall
             }
             int displayed=Math.Min(4,options.Count);
             float x=56f,y=516f,width=366f;
-            Panel(x,y,width,49f+displayed*25f,
+            Panel(x,y,width,49f+displayed*25f+
+                (objective==null?0f:26f),
                 new Color(.045f,.08f,.13f,.92f),PixelArt.C("#637d82"));
             Text(x+12,y+7,width-24,25,
                 Game.L("附近交互 · 点击 / 面板滚轮 / 世界Shift+滚轮 / O/R3",
@@ -1241,9 +1258,16 @@ namespace Starfall
                     Game.L("移动中的获救居民","Moving rescued civilian"):
                     Game.L(target.name,target.en);
                 if(Button(x+18,y+34+row*25,width-32,23,
-                    (chosen?"◆  ":"   ")+label,chosen))
+                    (chosen?"◆  ":"   ")+
+                    (System.Object.ReferenceEquals(target,objective)?"★  ":"")+label,chosen))
                     Game.FocusNearbyInteraction(index);
             }
+            if(objective!=null&&
+                Button(x+18,y+35+displayed*25,width-32,23,
+                    Game.L("Shift+O · 聚焦当前任务目标",
+                        "SHIFT+O · FOCUS QUEST OBJECTIVE"),
+                    System.Object.ReferenceEquals(current,objective)))
+                Game.FocusNearbyQuestInteraction();
             if(options.Count>displayed)
                 Text(x+width-54,y+10,45,20,"…",12,muted);
         }
