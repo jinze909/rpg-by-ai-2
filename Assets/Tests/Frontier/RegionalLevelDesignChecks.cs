@@ -138,6 +138,8 @@ namespace Starfall.Tests
                         g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
                         "Both actors can physically approach the real player's crossing");
                 }
+                Check((pair[0].Position-pair[1].Position).Length>=5f,
+                    "Jointly selected crossing threats must occupy distinct physical lanes");
                 var flags=System.Reflection.BindingFlags.NonPublic|
                     System.Reflection.BindingFlags.Instance;
                 var hit=typeof(GameCore).GetMethod("Hit",flags);

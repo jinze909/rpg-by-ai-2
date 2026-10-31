@@ -102,42 +102,60 @@ namespace Starfall
             int room=save.room,kindA=room==1?0:room==2?1:2;
             int kindB=room==1?1:room==2?2:0;
             Point source=CrossingWatchSite(room);
-            var feet=new List<Point>(2);
-            // Build the ENTIRE pair on authentic, reachable terrain,
-            // before creating any enemy. This avoids invisible wall
-            // spawns and preserves NPC interaction pads and visual props.
-            for(int slot=0;slot<2;slot++)
+            // Consider complete legal pairs before creating an actor. A
+            // tempting first bow lane can occupy the only support approach;
+            // choosing two feet jointly avoids an endless warning/retry
+            // loop on narrow, authentic crossings.
+            var free=new List<Point>(0);
+            var pads=new List<Point>[2]{new List<Point>(),new List<Point>()};
+            var ranks=new List<float>[2]{new List<float>(),new List<float>()};
+            for(int dy=-8;dy<=8;dy++)
+            for(int dx=-8;dx<=8;dx++)
             {
-                bool found=false;
-                Point chosen=new Point();float best=float.NegativeInfinity;
-                int kind=slot==0?kindA:kindB;
-                int cx=(int)Math.Floor(Position.x);
-                int cy=(int)Math.Floor(Position.y);
-                for(int dy=-8;dy<=8;dy++)
-                for(int dx=-8;dx<=8;dx++)
+                Point foot=new Point((float)Math.Floor(Position.x)+dx+.5f,
+                    (float)Math.Floor(Position.y)+dy+.5f);
+                float radius=(foot-Position).Length;
+                if(radius<5f||radius>8.4f||
+                    !RegionalScoutFootClear(foot,source,true,free))
+                    continue;
+                bool sight=ClearAttackPath(Position,foot);
+                for(int slot=0;slot<2;slot++)
                 {
-                    Point foot=new Point(cx+dx+.5f,cy+dy+.5f);
-                    float radius=(foot-Position).Length;
-                    if(radius<5f||radius>8.4f||
-                        slot==0&&!ClearAttackPath(Position,foot)||
-                        !RegionalScoutFootClear(foot,source,true,feet))
-                        continue;
-                    float target=kind==1?6.8f:kind==2?6.1f:5.6f;
-                    float score=-(float)Math.Abs(radius-target)*2f;
-                    if(kind==1&&ClearAttackPath(foot,Position))
-                        score+=PhysicalBowLaneFromFoot(foot,Position)?8f:-5f;
-                    if(slot==1)
+                    if(slot==0&&!sight)continue;
+                    int kind=slot==0?kindA:kindB;
+                    float preferred=kind==1?6.8f:kind==2?6.1f:5.6f;
+                    float score=-(float)Math.Abs(radius-preferred)*2f;
+                    if(kind==1)
                     {
-                        Point first=(feet[0]-Position).Normalized;
-                        Point second=(foot-Position).Normalized;
-                        score+=(1f-first.x*second.x-first.y*second.y)*6f;
+                        if(sight)
+                            score+=PhysicalBowLaneFromFoot(foot,Position)?8f:-5f;
+                        else score-=5f;
                     }
-                    if(!found||score>best+.0001f)
-                    {chosen=foot;best=score;found=true;}
+                    pads[slot].Add(foot);
+                    ranks[slot].Add(score);
                 }
-                if(!found)return false;
-                feet.Add(chosen);
             }
+            bool foundPair=false;
+            Point firstFoot=new Point(),secondFoot=new Point();
+            float bestPair=float.NegativeInfinity;
+            for(int a=0;a<pads[0].Count;a++)
+            for(int b=0;b<pads[1].Count;b++)
+            {
+                Point first=pads[0][a],second=pads[1][b];
+                if((first-second).Length<5f)continue;
+                Point firstDirection=(first-Position).Normalized;
+                Point secondDirection=(second-Position).Normalized;
+                float spread=1f-firstDirection.x*secondDirection.x-
+                    firstDirection.y*secondDirection.y;
+                float score=ranks[0][a]+ranks[1][b]+spread*6f;
+                if(!foundPair||score>bestPair+.0001f)
+                {
+                    firstFoot=first;secondFoot=second;
+                    bestPair=score;foundPair=true;
+                }
+            }
+            if(!foundPair)return false;
+            var feet=new List<Point>(2){firstFoot,secondFoot};
             for(int i=0;i<2;i++)
             {
                 int kind=i==0?kindA:kindB;
