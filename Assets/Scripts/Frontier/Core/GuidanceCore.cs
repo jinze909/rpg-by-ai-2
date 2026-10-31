@@ -1183,6 +1183,12 @@ namespace Starfall
                 // The player voluntarily began a live, unsigned encounter.
                 // Present that exact battle's CURRENT stage throughout the
                 // HUD, map and journal without rewriting trackedQuest.
+                // These vulnerable real civilians outrank elective fights,
+                // exactly as they already do in NavigationTarget().
+                if(WitnessDefenseRoom>0&&WitnessDefenseRoom==save.room)
+                    return GetQuest("campaign_witness");
+                if(CivicCourierActive&&CivicCourierOriginId(save.room)!=null)
+                    return GetQuest("civic_courier");
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
                 // Active physical road operations already own the world
                 // compass. Their journal/HUD objective must agree rather
@@ -1230,7 +1236,9 @@ namespace Starfall
             if(save.ending>0&&save.trackedQuest=="main"&&
                !FieldWorkPreventsRest&&!FieldTacticTrialActive&&
                !FieldPatrolActive&&!RemoteRoadEncounterActive&&
-               !ChapterRoadActive&&!GhostTrainBattleActive)
+               !ChapterRoadActive&&!GhostTrainBattleActive&&
+               !(WitnessDefenseRoom>0&&WitnessDefenseRoom==save.room)&&
+               !(CivicCourierActive&&CivicCourierOriginId(save.room)!=null))
                 return GetQuest("main").next;
             QuestGuide q=RecommendedContinuationGuide;
             if(q.complete||q.locked)
