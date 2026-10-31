@@ -50,7 +50,16 @@ namespace Starfall.Tests
                     g.VantageWatchRemaining==count&&g.enemies.Count==count,
                     "Authentic live full defense roster spawned at original map source "+room);
                 Enemy[] wave=g.enemies.ToArray();
-                for(int a=0;a<wave.Length;a++)
+                // Move only the test hero's transient foot to the farthest
+                // roster entry: the compass must favor the actual nearest
+                // living fighter, not a stale spawn-array index.
+                Enemy last=wave[wave.Length-1];
+                g.save.x=last.x;g.save.y=last.y;
+                Check((g.VantageWatchGuideTarget-last.Position).Length<.01f&&
+                    (g.NavigationTarget().Value-last.Position).Length<.01f,
+                    "During a spread watch, the world compass follows the closest real live raider");
+                g.save.x=start.x;g.save.y=start.y;
+                for(int a=0;a<wave.Length;a++
                     for(int b=a+1;b<wave.Length;b++)
                         Check((wave[a].Position-wave[b].Position).Length>=5.95f,
                             "A directional lookout wave must not stack hostile bodies on one spawn pad");
@@ -206,8 +215,13 @@ namespace Starfall.Tests
             Check(g.VantageWatchActive&&g.enemies.Count==2,
                 "Live watch creates exactly two original actual enemy actors");
             var guide=g.GetQuest("vantage_watches");
+            Enemy closest=g.enemies[0];
+            foreach(Enemy candidate in g.enemies)
+                if((candidate.Position-g.Position).Length<
+                   (closest.Position-g.Position).Length)
+                    closest=candidate;
             Check(guide.steps.Count==8&&guide.room==g.save.room&&
-                (guide.target-g.enemies[0].Position).Length<.01f&&
+                (guide.target-closest.Position).Length<.01f&&
                 (g.NavigationTarget().Value-guide.target).Length<.01f,
                 "Real journal and combat compass guide to an original living fighter");
             var hostile=g.enemies.ToArray();

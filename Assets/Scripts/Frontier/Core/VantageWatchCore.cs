@@ -62,10 +62,20 @@ namespace Starfall
         public Point VantageWatchGuideTarget
         {get{
             if(!VantageWatchActive)return Position;
+            // Scattered approaches should never send the hero across the
+            // whole battle to the first-created raider when another verified
+            // living foe is already beside them. Follow the closest genuine
+            // mission actor; once all are resolved, lead home to sign.
+            Point target=new Point(vantageSource.x,vantageSource.y);
+            float best=float.MaxValue;
             foreach(Enemy foe in vantageFoes)
-                if(foe!=null&&foe.hp>0&&enemies.Contains(foe))
-                    return foe.Position;
-            return new Point(vantageSource.x,vantageSource.y);
+            {
+                if(foe==null||foe.hp<=0||!enemies.Contains(foe))continue;
+                Point delta=foe.Position-Position;
+                float distance=delta.x*delta.x+delta.y*delta.y;
+                if(distance<best){best=distance;target=foe.Position;}
+            }
+            return target;
         }}
         public bool VantageWatchReady
         {get{
