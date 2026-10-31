@@ -18,6 +18,72 @@ namespace Starfall.Tests
 
 
 
+
+        public static void NewCrossingWatchAmbushesAreOptionalPhysicalFights(Campaign data)
+        {
+            int[] rooms={1,3,6};
+            Point[] centers={new Point(49.5f,34.5f),
+                new Point(88.5f,62.5f),new Point(55.5f,70.5f)};
+            string[] discovery={"thorn_canopy_cut_0",
+                "iron_haulage_1","desert_canyon_shelter"};
+            for(int index=0;index<rooms.Length;index++)
+            {
+                int room=rooms[index];
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=4;g.enemies.Clear();g.invulnerable=100f;
+                g.save.maxHealth=g.save.health=1000f;
+                g.save.x=centers[index].x;g.save.y=centers[index].y;
+                Check(g.CanStand(g.Position),
+                    "The actual new crossing has player-valid terrain");
+                g.Tick(.02f,new Point());
+                Check(!g.CrossingWatchActive&&!g.CrossingWatchPending,
+                    "Unfinished original boss route never spawns extra mandatory enemies");
+                g.save.flags.Add("boss_"+room);
+                g.Tick(.02f,new Point());
+                Check(!g.CrossingWatchPending&&!g.CrossingWatchActive,
+                    "Boss completion alone does not manufacture a field discovery");
+                g.save.flags.Add(discovery[index]);
+                g.Tick(.02f,new Point());
+                Check(g.CrossingWatchPending&&g.enemies.Count==0,
+                    "A legitimate physical crossing cues danger before real combat");
+                g.save.x+=9f;g.save.y+=0f;
+                for(int n=0;n<35;n++)g.Tick(.05f,new Point());
+                Check(!g.CrossingWatchPending&&!g.CrossingWatchActive&&
+                    g.enemies.Count==0&&!g.CrossingWatchSecured(room),
+                    "Walking out of the announced attack cannot be punished or paid remotely");
+                g.save.x=centers[index].x;g.save.y=centers[index].y;
+                for(int n=0;n<210&&!g.CrossingWatchActive;n++)
+                    g.Tick(.05f,new Point());
+                Check(g.CrossingWatchActive&&g.enemies.Count==2&&
+                    g.CrossingWatchRemaining==2,
+                    "Two distinct real biome-specific raiders take walkable attack pads at crossing "+room);
+                var pair=new List<Enemy>(g.enemies);
+                int kills=g.save.kills[room],coins=g.save.coins;
+                for(int n=0;n<pair.Count;n++)
+                {
+                    Enemy foe=pair[n];
+                    Check(g.CanStand(foe.Position)&&
+                        g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                        "Both actors can physically approach the real player's crossing");
+                }
+                var flags=System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance;
+                var hit=typeof(GameCore).GetMethod("Hit",flags);
+                Check(hit!=null,"Use genuine production damage contact to defeat crossing actors");
+                foreach(Enemy foe in pair)
+                    hit.Invoke(g,new object[]{foe,10000f,false,null,null});
+                for(int n=0;n<4;n++)g.Tick(.05f,new Point());
+                Check(g.CrossingWatchSecured(room)&&!g.CrossingWatchActive&&
+                    g.save.kills[room]==kills&&g.save.coins==coins+24+room*3&&
+                    g.save.version==2,
+                    "Only two actual defeated owned actors secure the civilian route without chapter kill inflation");
+                int earned=g.save.coins;
+                for(int n=0;n<40;n++)g.Tick(.05f,new Point());
+                Check(g.enemies.Count==0&&g.save.coins==earned,
+                    "One-time crossing combat does not respawn or repeatedly pay");
+            }
+        }
+
         public static void GlassDesertCanyonIsWalkableAndProvidesPhysicalShade(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=6;

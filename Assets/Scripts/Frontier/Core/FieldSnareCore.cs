@@ -212,6 +212,7 @@ namespace Starfall
             // Arbitrary actor removals still invalidate its signed receipt.
             bool patrolRestraint=OnFieldPatrolEnemyRestrained(target);
             bool roadRestraint=OnRemoteRoadEnemyRestrained(target);
+            bool crossingRestraint=OnCrossingWatchEnemyRestrained(target);
             bool outpostRestraint=OnFieldOutpostEnemyRestrained(target);
             bool watchRestraint=OnVantageWatchEnemyRestrained(target);
             bool chapterRestraint=OnChapterRoadEnemyRestrained(target);
@@ -239,6 +240,9 @@ namespace Starfall
             else if(courierRestraint)
                 Notify("真实劫匪已被绊索活捉。必须亲手将救援包交给守棚人，才能登记安全与治疗奖励。",
                     "Original parcel raider restrained alive. Complete the real delivery to earn security and care rewards.");
+            else if(crossingRestraint)
+                Notify("新的民用通路：真实拦路者已被活捉。",
+                    "Crossing watch: an actual raider was restrained alive.");
             else if(roadRestraint)
                 Notify("远路巡护：已非致命制服一名真实拦路者。",
                     "Far-road watch: one actual raider restrained alive.");
