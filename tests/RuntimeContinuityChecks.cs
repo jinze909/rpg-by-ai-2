@@ -1365,6 +1365,11 @@ public static class RuntimeContinuityChecks
             g.FieldDispatchLivingRaiders==0&&g.enemies.Count==0,
             "Production encounter shows an interruptible warning before any raider exists");
         g.Close();
+        Set(app,"camera",new Point(machine.x,machine.y));
+        ClearDraw();Call(app,"OnGUI");
+        Check(GUI.commands.Exists(x=>x.Contains("RAID INBOUND")&&
+            x.Contains("LEAVE THE STATION")),
+            "Actual production GameView draw path displays timed courier danger before enemy spawn");
         for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
             g.Tick(.05f,new Point());
         Check(g.FieldDispatchLivingRaiders>0&&g.enemies.Count>0,
