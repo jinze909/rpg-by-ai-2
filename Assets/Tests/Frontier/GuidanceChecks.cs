@@ -80,9 +80,9 @@ namespace Starfall.Tests
                         if(x<2||x>=23||y<2||y>=23)cells[x]='#';
                     rows[y]=new string(cells);
                 }
-                WorldObject a=new WorldObject{ id="duplicateA",kind="lore",
+                WorldObject a=new WorldObject{ id="duplicateA",kind="garden",
                     name="Archive A",en="Archive A",x=12.5f,y=12.5f};
-                WorldObject b=new WorldObject{ id="duplicateB",kind="lore",
+                WorldObject b=new WorldObject{ id="duplicateB",kind="garden",
                     name="Archive B",en="Archive B",x=12.5f,y=12.5f};
                 data.maps[0]=new MapData{
                     id=0,spawnX=12.5f,spawnY=13.5f,rows=rows,
@@ -90,8 +90,12 @@ namespace Starfall.Tests
                 var g=Fresh(data);g.mode="world";
                 g.save.x=12.5f;g.save.y=13.5f;
                 Check(g.NearbyInteractionCount()==2&&
-                    g.Nearest()==a&&g.CanStand(g.Position),
-                    "Two real distinct sources have identical reachable feet");
+                    g.Nearest()==a&&g.CanStand(g.Position)&&
+                    GameCore.WorldInteractionFeetCoincide(
+                        new Point(a.x,a.y),new Point(b.x,b.y))&&
+                    !GameCore.WorldInteractionFeetCoincide(
+                        new Point(a.x,a.y),new Point(b.x+.5f,b.y)),
+                    "Only identical physical sources share the preview/visual grouping, never ordinary nearby NPCs");
                 int tutorial=g.save.tutorialBits;
                 g.Interact();
                 Check(g.mode=="world"&&g.conversation==null&&

@@ -4148,7 +4148,7 @@ namespace Starfall
                 return;
             }
             if (o == null) { Notify("靠近居民、路牌或发光物，再按 E。", "Approach a resident, sign or glowing object, then press E."); return; }
-            if(!wasFocused&&
+            if(!wasFocused&&SafeTravel&&
                 ArrivedQuestInteractionSource()==null&&
                 ArrivedTrailInteractionSource()==null&&
                 SourceBelongsToActiveMap(o)&&Map.objects!=null)
