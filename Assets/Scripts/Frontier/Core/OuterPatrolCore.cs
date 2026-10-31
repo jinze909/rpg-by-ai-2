@@ -359,10 +359,14 @@ namespace Starfall
             if(room<0||room>=8||!HasPhysicalInteractionReach(o))return true;
             if(OuterPatrolActive)
             {
-                var choices=new List<Choice> {
-                    C("临时加固 · 木材和草药各1",
-                      "Emergency patch · timber + Moonherb","outer_watch_patch")
-                };
+                var choices=new List<Choice>();
+                // The action spends real materials and is strictly once per
+                // attempt. Never offer a dead button at full stock, after
+                // the only patch, or when either ingredient is missing.
+                if(OuterPatrolPatchAvailable)
+                    choices.Add(C("抢修物资 · 木材1、月光草1",
+                        "Patch supplies · 1 timber + 1 Moonherb",
+                        "outer_watch_patch"));
                 // A normal raid cannot build veteran cover, and an already
                 // deployed or unaffordable barricade is never an actionable
                 // choice. Keep abort visible regardless of combat resources.
@@ -380,10 +384,18 @@ namespace Starfall
                     (outerPatrolVeteran?"精英突袭正在威胁已守住的救援岗。三名敌人包括重甲撞击手。":"盗取物资的袭击者逼近哨岗。")+
                     (outerPatrolVeteran?" 路障耐久 "+Math.Ceiling(outerPatrolBrace)+"。":"")+
                     "剩余 "+Math.Ceiling(outerPatrolTime)+" 秒，物资耐久 "+
-                    Math.Ceiling(outerPatrolStock)+"%。木材和月光草可抢修一次。",
+                    Math.Ceiling(outerPatrolStock)+"%。"+
+                    (OuterPatrolPatchAvailable?"可消耗木材和月光草各1，抢修30点物资耐久。":
+                     outerPatrolPatched?"本轮已经抢修过物资。":
+                     outerPatrolStock>=100f?"物资完好，无需抢修。":
+                     "抢修需要木材和月光草各1。"),
                     (outerPatrolVeteran?"A veteran three-raider assault, including a heavy slammer, is underway.":"Raiders are attacking the relief stock.")+
                     " Time left "+Math.Ceiling(outerPatrolTime)+"s; integrity "+
-                    Math.Ceiling(outerPatrolStock)+"%. Timber and Moonherb patch it once.",
+                    Math.Ceiling(outerPatrolStock)+"%. "+
+                    (OuterPatrolPatchAvailable?"Spend 1 timber and 1 Moonherb to restore 30 stock integrity.":
+                     outerPatrolPatched?"This attempt's emergency patch was already used.":
+                     outerPatrolStock>=100f?"Supplies are intact; no patch needed.":
+                     "A patch needs 1 timber and 1 Moonherb."),
                     choices.ToArray());
                 return true;
             }
