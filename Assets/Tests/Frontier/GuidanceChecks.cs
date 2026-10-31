@@ -245,6 +245,25 @@ namespace Starfall.Tests
                     !System.Object.ReferenceEquals(g.Nearest(),three)&&
                     !g.CrowdedInteractionConfirmationPending,
                     "Empty world click dismisses stale explicit speaker focus");
+                // Three body hitboxes can overlap one click without the
+                // left and right actors overlapping each other's feet.
+                // The previous first-foot cluster clipped the third actor.
+                one.x=11.0f;two.x=11.6f;three.x=12.2f;
+                g.save.x=11.5f;g.save.y=10.5f;
+                bool sawA=false,sawB=false,sawC=false;
+                for(int click=0;click<3;click++)
+                {
+                    Check(g.FocusNearbyInteractionAt(new Point(11.6f,10.5f)),
+                        "Three individually reachable actor hitboxes accept world click");
+                    WorldObject picked=g.Nearest();
+                    sawA|=System.Object.ReferenceEquals(picked,one);
+                    sawB|=System.Object.ReferenceEquals(picked,two);
+                    sawC|=System.Object.ReferenceEquals(picked,three);
+                }
+                Check(sawA&&sawB&&sawC,
+                    "A common pointer cycles all three actors even when outer feet do not overlap");
+                one.x=11.5f;two.x=11.5f;three.x=12f;
+                g.save.x=10.5f;
                 // A closed wall must invalidate the stale explicit selection
                 // rather than allowing a dialogue to bleed across colliders.
                 char[] closed=rows[10].ToCharArray();closed[11]='#';
