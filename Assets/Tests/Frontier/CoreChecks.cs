@@ -1029,7 +1029,7 @@ namespace Starfall.Tests
             foe.x=trap.x;foe.y=trap.y;foe.hitTime=6f;
             for(int frame=0;frame<11;frame++)g.Tick(.05f,new Point());
             Check(g.CanBindSnaredEnemy&&
-                Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                System.Object.ReferenceEquals(g.SnaredBindTarget,foe),
                 "Only a physically armed snare catches the genuine living raider");
             g.save.energy=100f;
             Check(g.BindSnaredEnemy()&&foe.hp>0f&&
