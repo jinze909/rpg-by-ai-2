@@ -263,9 +263,13 @@ namespace Starfall
             }
             return score;
         }
-        private Point? RegionalBattleFoot(int rank,bool[] connected,int kind)
+        private Point? RegionalBattleFoot(int rank,bool[] connected)
         {
             int room=save.room;
+            int kind=room>=1&&room<=4?
+                chapterBattleKinds[room-1,rank]:
+                room>=5&&room<=7?
+                farshoreBattleKinds[room-5,rank]:rank%3;
             int ax=regionalBattleAnchors[room-1,rank,0],
                 ay=regionalBattleAnchors[room-1,rank,1];
             Point anchor=new Point(ax+.5f,ay+.5f);
@@ -356,7 +360,7 @@ namespace Starfall
                     chapterBattleKinds[save.room-1,i]:
                     save.room>=5&&save.room<=7?
                     farshoreBattleKinds[save.room-5,i]:i%3;
-                Point? foot=RegionalBattleFoot(i,connected,kind);
+                Point? foot=RegionalBattleFoot(i,connected);
                 if(!foot.HasValue)break;
                 Enemy staged=CreatePlacedEnemy(++enemyId,kind,
                     foot.Value,health);
