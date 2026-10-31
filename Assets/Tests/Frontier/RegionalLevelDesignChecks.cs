@@ -2735,6 +2735,95 @@ namespace Starfall.Tests
                 "Original V2 save keeps the completed elite chapter and exactly one skill reward");
         }
 
+        // Verify the new spawn path itself, not just the declared
+        // region-to-enemy type table. Compare its actual first combat foot
+        // to the first legacy compass ray that the same live clearance would
+        // accept. Ranged sightlines and flanks must be selected from real
+        // terrain while retaining the old exact contract rewards/count.
+        public static void SevenRegionalContractsRankRealTacticalApproachPads(Campaign data)
+        {
+            var flags=System.Reflection.BindingFlags.Instance|
+                System.Reflection.BindingFlags.NonPublic;
+            var footCheck=typeof(GameCore).GetMethod(
+                "RegionalScoutFootClear",flags);
+            var scoreMethod=typeof(GameCore).GetMethod(
+                "RegionalScoutTacticalPadScore",flags);
+            Check(footCheck!=null&&scoreMethod!=null,
+                "The live encounter has the real source/terrain scoring path");
+            int[,] bearings={
+                {1,0},{0,1},{-1,0},{0,-1},
+                {1,1},{-1,1},{-1,-1},{1,-1}
+            };
+            int[] firstKinds={0,1,2,2,0,0,1};
+            int improved=0,seenShots=0;
+            for(int room=1;room<=7;room++)
+            {
+                var g=Fresh(data);g.mode="world";g.save.room=room;
+                g.save.stage=3;g.enemies.Clear();
+                g.save.flags.Add("biome_field_done_"+room);
+                WorldObject marker=Array.Find(g.Map.objects,o=>
+                    o.id=="biomeSurvey"+room&&o.kind=="biomeSurvey");
+                Check(marker!=null&&PlaceWithinTalkReach(g,marker),
+                    "Every original live field post has a genuine E contact");
+                Point source=new Point(marker.x,marker.y);
+                Point? legacy=null;
+                for(int radius=7;radius<=12&&!legacy.HasValue;radius++)
+                for(int shift=0;shift<8&&!legacy.HasValue;shift++)
+                {
+                    int direction=(room*2+shift)%8;
+                    Point p=new Point(
+                        (float)Math.Floor(source.x)+.5f+
+                            bearings[direction,0]*radius,
+                        (float)Math.Floor(source.y)+.5f+
+                            bearings[direction,1]*radius);
+                    bool ok=(bool)footCheck.Invoke(g,new object[]{
+                        p,source,true,new List<Point>()});
+                    if(ok)legacy=p;
+                }
+                g.Talk(marker);
+                int begin=Array.FindIndex(g.conversation.choices,
+                    c=>c.action=="biome_patrol_begin");
+                Check(begin>=0,"Actual field contract must remain signed");
+                g.Choose(begin);
+                Check(g.FieldPatrolActive&&g.enemies.Count>=2,
+                    "The encounter must spawn real named living actors");
+                Enemy first=g.enemies[0];
+                Check(first.kind==firstKinds[room-1]&&
+                    g.CanStand(first.Position)&&
+                    g.NavigationPathFrom(g.Position,first.Position,true).Count>0,
+                    "First role occupies legal hero-reachable terrain");
+                float selectedScore=(float)scoreMethod.Invoke(g,
+                    new object[]{first.Position,source,first.kind,
+                        new List<Point>(),0});
+                if(legacy.HasValue)
+                {
+                    float naiveScore=(float)scoreMethod.Invoke(g,
+                        new object[]{legacy.Value,source,first.kind,
+                            new List<Point>(),0});
+                    Check(selectedScore>=naiveScore-.02f,
+                        "Real tactical first foot beats the legacy first-free compass ray: "+room);
+                    if(selectedScore>naiveScore+.2f)improved++;
+                }
+                var actorFeet=new List<Point>();
+                for(int slot=0;slot<g.enemies.Count;slot++)
+                {
+                    Enemy foe=g.enemies[slot];
+                    Check(g.CanStand(foe.Position)&&foe.hp>0f&&
+                        g.NavigationPathFrom(g.Position,foe.Position,true).Count>0,
+                        "All assigned real enemy roles stay within the local combat corridor");
+                    foreach(Point earlier in actorFeet)
+                        Check((foe.Position-earlier).Length>=5f,
+                            "A tactical squad cannot stack its physical attacker bodies");
+                    actorFeet.Add(foe.Position);
+                    if(foe.kind==1)seenShots++;
+                }
+                Check(g.save.version==2&&!g.FieldPatrolDone(room),
+                    "A tactical pad selection never signs a fake first-clear receipt");
+            }
+            Check(improved>=2&&seenShots>=5,
+                "Across seven authentic regional contracts the ranking improves multiple attack approaches");
+        }
+
         public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
         {
             int[][] expected={
