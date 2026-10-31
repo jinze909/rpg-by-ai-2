@@ -12,6 +12,59 @@ namespace Starfall.Tests
         // The obstructed baseline is measured on the SAME map with only
         // these new pass tiles temporarily sealed; no old story gate,
         // '?' bridge, scripted breach or map-object coordinate is altered.
+
+        public static void RuinsRaisedCausewaysCreateActualDryAlternateRoutes(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=2;
+            g.save.stage=3;g.enemies.Clear();
+            MapData map=g.Map;
+            int[,] cuts={
+                {63,53,63,56,62,64,54,55,24},
+                {79,51,79,56,78,79,52,55,30}
+            };
+            int initialShards=g.save.shards;
+            Check(g.RuinsCausewayCount==0,"Unexplored causeways do not grant credit");
+            for(int i=0;i<2;i++)
+            {
+                Point north=new Point(cuts[i,0]+.5f,cuts[i,1]+.5f);
+                Point south=new Point(cuts[i,2]+.5f,cuts[i,3]+.5f);
+                Check(g.CanStand(north)&&g.CanStand(south),
+                    "Both authored causeway banks have valid player footing");
+                string[] original=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=cuts[i,6];y<=cuts[i,7];y++)
+                    {
+                        char[] chars=map.rows[y].ToCharArray();
+                        for(int x=cuts[i,4];x<=cuts[i,5];x++)
+                        {
+                            Check(chars[x]=='='&&g.CanStand(new Point(x+.5f,y+.5f)),
+                                "Every elevated slab must actually support the hero");
+                            chars[x]='~';
+                        }
+                        map.rows[y]=new string(chars);
+                    }
+                    Check(g.NavigationPathFrom(north,south,true).Count>=cuts[i,8],
+                        "Closing the new slabs restores a real large water detour");
+                }
+                finally{map.rows=original;}
+                int shortPath=g.NavigationPathFrom(north,south,true).Count;
+                Check(shortPath>0&&shortPath<=10,
+                    "New dry slabs allow real navigation without remote transport");
+                g.save.x=(cuts[i,4]+cuts[i,5])*.5f+.5f;
+                g.save.y=(cuts[i,6]+cuts[i,7])*.5f+.5f;
+                g.Tick(.02f,new Point());
+                Check(g.Has("ruins_step_"+i)&&g.RuinsCausewayCount==i+1,
+                    "Only visiting actual navigable stone records the finding");
+            }
+            Check(g.Has("ruins_civilian_causeway")&&
+                g.save.shards==initialShards+1&&g.save.version==2,
+                "Original v2 flags persist the completed two-bank investigation");
+            g.Tick(.02f,new Point());
+            Check(g.save.shards==initialShards+1,
+                "Neither ancient causeway can farm its discovery reward");
+        }
+
         public static void ThornwoodThreeRootCutsArePhysicalShortcutsAndExploration(Campaign data)
         {
             MapData map=data.maps[1];

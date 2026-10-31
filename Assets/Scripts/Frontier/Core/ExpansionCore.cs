@@ -2542,6 +2542,41 @@ namespace Starfall
                 Notify(zh[cut]+"（已发现 "+ThornwoodCanopyCutCount+"/3）",
                     en[cut]+" ("+ThornwoodCanopyCutCount+"/3 found)");
         }
+
+        // Two open-air slate causeways now connect formerly separated
+        // ruins banks. They work by walking, not by signing up at a board.
+        public int RuinsCausewayCount
+        {
+            get{return (Has("ruins_step_0")?1:0)+(Has("ruins_step_1")?1:0);}
+        }
+        private void TickRuinsCauseways()
+        {
+            if(save.room!=2||Dying||practicing||racing||
+                !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int site=x>=62&&x<=64&&y>=54&&y<=55?0:
+                x>=78&&x<=79&&y>=52&&y<=55?1:-1;
+            if(site<0||Has("ruins_step_"+site))return;
+            Flag("ruins_step_"+site);revision++;sound="ui";
+            if(RuinsCausewayCount==2&&!Has("ruins_civilian_causeway"))
+            {
+                Flag("ruins_civilian_causeway");
+                CreditShards(1);AddXp(22);sound="reward";revision++;
+                Notify("两段古代踏石连成了穿越遗迹的归乡路。碎片 +1，经验 +22。",
+                    "The two raised crossings reconnect a civilian way home. +1 shard, +22 XP.");
+                RecordMoment(
+                    "你穿过沉没遗迹两处未被淹没的石阶，发现它们曾让失去渡船的家庭避开封航。",
+                    "Two surviving raised causeways once let families cross the flooded ruins after ferries were forbidden.");
+            }
+            else if(site==0)
+                Notify("旧石阶旁刻着担架搬运留下的深槽；这里曾是一条救援捷径。",
+                    "Stretcher grooves mark the first raised path, an old rescue shortcut.");
+            else
+                Notify("桥端的水位刻线表明，这座石道在深水时仍可安全通行。",
+                    "Tide marks show that this raised stone path remained passable in deep water.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2565,6 +2600,7 @@ namespace Starfall
                         save.health+dt*1.75f);
             }
             TickThornwoodCanopyCuts();
+            TickRuinsCauseways();
             // The tactical root pulse only cools down in the real world clock.
             RootsongPulseCooldown=Math.Max(0,RootsongPulseCooldown-dt);
             if(FrostSignalRefuge&&SafeTravel&&!practicing&&!racing)
