@@ -114,6 +114,13 @@ namespace Starfall.Tests
                 g.save.x=px;g.save.y=py;
                 Check(g.TrailRoadRecoveryBonus==2f,
                     "The same real marker resumes its intended travel recovery");
+                // A v2 save may legitimately stay in the farshore only
+                // after earning its actual original chapter-entry reports.
+                // Test a legal veteran slot, not an illicit room transfer:
+                // Load() correctly sends unauthorized room 5-7 saves home.
+                if(room>=5)g.save.flags.Add("exp_intro");
+                if(room>=6)g.save.flags.Add("harbor_report");
+                if(room>=7)g.save.flags.Add("desert_report");
                 g.PrepareSave();
                 var restored=new GameCore(data,CloneSave(g.save));
                 Check(restored.mode=="title"&&
@@ -121,9 +128,10 @@ namespace Starfall.Tests
                     "Loading a legacy save on the title screen must not grant world energy recovery");
                 restored.mode="world";
                 Check(restored.save.version==2&&
+                    restored.save.room==room&&
                     restored.TrailCircuitComplete(room)&&
                     restored.TrailRoadRecoveryBonus==2f,
-                    "Entering actual world mode derives paved recovery from existing v2 flags and terrain");
+                    "Legally unlocked old v2 slot stays in its region and derives paved recovery from real flags and terrain");
             }
         }
 
