@@ -29,7 +29,7 @@ namespace Starfall.Tests
                 System.Array.Copy(originals,map.objects,originals.Length);
                 map.objects[originals.Length]=bystander;
                 g.SetAim(new Point(1f,0f));
-                Check(Object.ReferenceEquals(g.Nearest(),bystander),
+                Check(System.Object.ReferenceEquals(g.Nearest(),bystander),
                     "Without deliberate follow, the ordinary nearest source retains E");
                 g.save.trackedQuest="main";
                 g.mode="journal";
@@ -42,14 +42,14 @@ namespace Starfall.Tests
                 g.save.x=mark.Value.x;g.save.y=mark.Value.y;
                 g.Tick(.05f,new Point());
                 Check(g.QuestApproachAwaitingInteraction&&
-                    Object.ReferenceEquals(g.Nearest(),scout),
+                    System.Object.ReferenceEquals(g.Nearest(),scout),
                     "After reaching the opted-in quest, E selects its real original source");
                 // An explicit player alternative always overrides automatic
                 // quest preference until the focus is physically invalid.
                 var options=g.NearbyInteractionChoices();
                 int incidental=options.IndexOf(bystander);
                 Check(incidental>=0&&g.FocusNearbyInteraction(incidental)&&
-                    Object.ReferenceEquals(g.Nearest(),bystander),
+                    System.Object.ReferenceEquals(g.Nearest(),bystander),
                     "Manual selection remains authoritative even beside a quest");
                 // A fresh quest stage invalidates the old contact immediately.
                 g.save.flags.Add("scout_saved");
