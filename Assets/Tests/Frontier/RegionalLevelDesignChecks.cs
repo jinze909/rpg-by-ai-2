@@ -105,6 +105,11 @@ namespace Starfall.Tests
                 var restGate=typeof(GameCore).GetProperty(
                     "FieldWorkPreventsRest",privateFlags);
                 bool fieldwork=restGate!=null&&(bool)restGate.GetValue(g,null);
+                Check(g.CrossingWatchPending&&g.enemies.Count==0&&
+                    g.GuidanceHint().Contains("路口伏击预警")&&
+                    g.NavigationTarget().HasValue&&
+                    (g.NavigationTarget().Value-centers[index]).Length<.001f,
+                    "The announced crossing takes over actionable local HUD and map danger without spawning actors");
                 Check(g.CrossingWatchPending&&g.enemies.Count==0,
                     "A legitimate physical crossing cues danger before real combat"+
                     " room="+g.save.room+" mode="+g.mode+
@@ -129,6 +134,12 @@ namespace Starfall.Tests
                 Check(g.CrossingWatchActive&&g.enemies.Count==2&&
                     g.CrossingWatchRemaining==2,
                     "Two distinct real biome-specific raiders take walkable attack pads at crossing "+room);
+                Point liveThreat=g.CrossingWatchGuideTarget;
+                Check(g.GuidanceHint().Contains("路口真实拦截")&&
+                    g.NavigationTarget().HasValue&&
+                    (g.NavigationTarget().Value-liveThreat).Length<.001f&&
+                    g.enemies.Exists(foe=>(foe.Position-liveThreat).Length<.001f),
+                    "Live crossing guidance pursues its closest authentic raider rather than a stale journal target");
                 var pair=new List<Enemy>(g.enemies);
                 int kills=g.save.kills[room],coins=g.save.coins;
                 for(int n=0;n<pair.Count;n++)

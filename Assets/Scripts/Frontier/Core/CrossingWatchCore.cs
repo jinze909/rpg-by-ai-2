@@ -32,6 +32,28 @@ namespace Starfall
                     crossingWatchRoom==save.room&&
                     Object.ReferenceEquals(crossingWatchMap,Map)&&
                     Object.ReferenceEquals(crossingWatchSave,save);}}
+        // The on-map ambush follows an actual, currently living
+        // registered opponent, never a stale enemy ID or another patrol.
+        // Once both attackers are defeated/captured, the source crossing
+        // remains the real place where the road is made safe.
+        public Point CrossingWatchGuideTarget
+        {
+            get
+            {
+                Point best=CrossingWatchGroundFoot;
+                if(!CrossingWatchActive)return best;
+                float distance=float.MaxValue;
+                foreach(Enemy foe in crossingWatchFoes)
+                {
+                    if(foe==null||foe.hp<=0f||!enemies.Contains(foe)||
+                       crossingWatchDefeated.Contains(foe)||
+                       crossingWatchCaptured.Contains(foe))continue;
+                    float d=(foe.Position-Position).Length;
+                    if(d<distance){distance=d;best=foe.Position;}
+                }
+                return best;
+            }
+        }
         public int CrossingWatchRemaining
         {
             get

@@ -1247,6 +1247,22 @@ namespace Starfall
         }
         public string GuidanceHint()
         {
+            // An optional crossing ambush is physical and time-sensitive,
+            // but it is not another mandatory chapter or tracked quest.
+            // Show the live danger before any stale journal hint, without
+            // rewriting an old completion or the player's quest selection.
+            if(CrossingWatchPending)
+                return L("路口伏击预警："+(int)Math.Ceiling(
+                             CrossingWatchWarningSecondsLeft)+
+                         "秒后敌人到来。可立即离开路口，或留下防守。",
+                         "CROSSING AMBUSH: raiders arrive in "+
+                         (int)Math.Ceiling(CrossingWatchWarningSecondsLeft)+
+                         "s. Withdraw now, or stay and defend.");
+            if(CrossingWatchActive)
+                return L("路口真实拦截：还有"+CrossingWatchRemaining+
+                         "名袭击者。击退、活捉，或撤离该区域。",
+                         "CROSSING AMBUSH: "+CrossingWatchRemaining+
+                         " raiders remain. Defeat, restrain, or withdraw.");
             // After the ending the player owns free exploration. A voluntary
             // afterstory recommendation stays available in the journal/HUD
             // follow action, but must not read as a mandatory fifth chapter.
@@ -5700,6 +5716,12 @@ namespace Starfall
             // guidance while its two registered enemies are physically
             // present. Never overwrite the user's pinned quest or v2 flags.
             if(RemoteRoadEncounterActive)return RemoteRoadGuideTarget;
+            // Authentic outdoor crossing enemies override an unrelated
+            // journal pin only WHILE the announced skirmish is live.
+            // During the warning the marked ground is a hazard to evade,
+            // not a fabricated NPC or another mandatory quest.
+            if(CrossingWatchPending)return CrossingWatchGroundFoot;
+            if(CrossingWatchActive)return CrossingWatchGuideTarget;
             // While actually carrying civilian aid, the live crossing, seal
             // check and shelter must outrank an unrelated pinned quest. The
             // player's original tracked quest is never modified.
