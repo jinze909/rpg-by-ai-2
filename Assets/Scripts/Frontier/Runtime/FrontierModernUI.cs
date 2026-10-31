@@ -536,13 +536,17 @@ namespace Starfall
                                 "SPRINT ×1.5 · footsteps may alert patrols")) :
                     Game.SprintFatigued ? Game.L("疾跑疲劳 · 耐力恢复至35后可再次使用",
                         "SPRINT TIRED · recover 35 energy") :
+                    Game.TrailRoadRecoveryBonus>0f?
+                        Game.L("实地巡路已完成 · 正沿铺装道路恢复额外2耐力/秒",
+                            "SURVEYED ROAD · +2 ENERGY/SEC ON PAVED GROUND"):
                         controllerUsed?
                             Game.L("按住左摇杆 L3 疾跑 · 松开恢复步行",
                                 "Hold L3 to sprint · release to walk"):
                             Game.L("按住 Shift 疾跑 / Ctrl 轻步潜行",
                                 "Hold SHIFT to sprint / CTRL for quiet steps"),
                     12,Game.QuietStepping?gold:
-                        Game.Sprinting?mint:muted,TextAnchor.MiddleCenter);
+                        Game.Sprinting||Game.TrailRoadRecoveryBonus>0f?mint:muted,
+                    TextAnchor.MiddleCenter);
                 if(Game.StewAttackBuffLeft>0)
                     Text(32,127,288,17,
                         Game.L("炖汤增伤 · 剩余 ","STEW ATTACK BOOST · ")+

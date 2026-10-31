@@ -360,12 +360,12 @@ namespace Starfall
             if(autoAdvance)AdvanceOwnedTrailCircuit(o,done);
             Dialog(o.name,o.en,trailEvidenceZh[room,stage-1]+
                 "\n\n你亲自核对"+routeZh[room]+"的第 "+stage+"/3 个路标。"+
-                (done?"\n\n完整线路确认：硬币 +24、碎片 +2、经验 +35。本区域的新探索地形额外恢复耐力 +2/秒。":
+                (done?"\n\n完整线路确认：硬币 +24、碎片 +2、经验 +35。新探索地形恢复耐力 +2/秒，走在已铺装公共道路上再额外恢复 +2/秒。":
                 "\n\n还有下一段路需要抵达。经验 +8。"+
                     TrailCircuitNextBearingHint(room,false)),
                 trailEvidenceEn[room,stage-1]+
                 "\n\nPersonally surveyed bearing "+stage+"/3 of "+routeEn[room]+"."+
-                (done?"\n\nFull circuit complete: +24 coins, +2 shards and +35 XP. New paths in this region now restore an extra 2 stamina per second.":
+                (done?"\n\nFull circuit complete: +24 coins, +2 shards and +35 XP. Remote exploration restores +2 energy/sec; actual paved roads restore another +2 energy/sec.":
                 "\n\nContinue along the route. +8 XP."+
                     TrailCircuitNextBearingHint(room,true)),
                 TrailCircuitChoices(room,"记下新坐标","Record the new bearing"));
