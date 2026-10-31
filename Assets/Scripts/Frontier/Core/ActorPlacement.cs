@@ -1112,6 +1112,48 @@ namespace Starfall
                 }
                 if(viable>0)pads.Add(best);
             }
+            // A greedy high-value bow pad can occupy the ONLY valid
+            // supporting melee approach in a narrow ruined lane. In that
+            // case do not quietly delete the rest of a real player-signed
+            // squad. Retry the entire unchanged historical first-fit
+            // placement, with the SAME actual collision/route restrictions.
+            // No enemies or actor IDs were created by the ranking phase.
+            if(pads.Count<count)
+            {
+                pads.Clear();
+                for(int i=0;i<count;i++)
+                {
+                    bool found=false;
+                    for(int radius=7;radius<=12&&!found;radius++)
+                    for(int shift=0;shift<8&&!found;shift++)
+                    {
+                        int direction=(room*2+i*3+shift)%8;
+                        Point p=new Point(
+                            (float)Math.Floor(source.x)+.5f+
+                                directions[direction,0]*radius,
+                            (float)Math.Floor(source.y)+.5f+
+                                directions[direction,1]*radius);
+                        if(!RegionalScoutFootClear(
+                            p,source,requireFull,pads))continue;
+                        pads.Add(p);found=true;
+                    }
+                }
+                if(pads.Count<count)
+                {
+                    int sx=(int)Math.Floor(source.x),
+                        sy=(int)Math.Floor(source.y);
+                    for(int radius=6;radius<=13&&pads.Count<count;radius++)
+                    for(int dy=-radius;dy<=radius&&pads.Count<count;dy++)
+                    for(int dx=-radius;dx<=radius&&pads.Count<count;dx++)
+                    {
+                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
+                            Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                        Point p=new Point(sx+dx+.5f,sy+dy+.5f);
+                        if(RegionalScoutFootClear(
+                            p,source,requireFull,pads))pads.Add(p);
+                    }
+                }
+            }
             // Paid-off patrol contracts require a FULL wave. Check all feet
             // before touching enemies or actor IDs; no partial free reward.
             if(requireFull&&pads.Count!=count)return 0;
