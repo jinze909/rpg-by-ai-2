@@ -1189,6 +1189,11 @@ namespace Starfall
                     return GetQuest("campaign_witness");
                 if(CivicCourierActive&&CivicCourierOriginId(save.room)!=null)
                     return GetQuest("civic_courier");
+                // Give a live supply delivery or frost evacuation the same
+                // urgent HUD priority as its existing physical compass.
+                // No tracked quest or save field is changed by this lookup.
+                if(OuterDeliveryActive)return GetQuest("outer_delivery");
+                if(FrostSignalActive)return GetQuest("frost_signal");
                 if(FieldTacticTrialActive)return GetQuest("tactic_trials");
                 // Active physical road operations already own the world
                 // compass. Their journal/HUD objective must agree rather
