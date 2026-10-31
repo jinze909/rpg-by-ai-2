@@ -13,7 +13,7 @@ namespace Starfall.Tests
             try
             {
                 var g=Fresh(data);g.mode="world";
-                WorldObject scout=Array.Find(originals,
+                WorldObject scout=System.Array.Find(originals,
                     o=>o.kind=="scout");
                 Check(scout!=null,"Original story contains its living scout");
                 g.Enter(1);g.enemies.Clear();
@@ -26,7 +26,7 @@ namespace Starfall.Tests
                     name="Incidental Note",en="Incidental Note",
                     x=hero.x,y=hero.y};
                 map.objects=new WorldObject[originals.Length+1];
-                Array.Copy(originals,map.objects,originals.Length);
+                System.Array.Copy(originals,map.objects,originals.Length);
                 map.objects[originals.Length]=bystander;
                 g.SetAim(new Point(1f,0f));
                 Check(Object.ReferenceEquals(g.Nearest(),bystander),
