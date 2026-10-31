@@ -1061,6 +1061,12 @@ namespace Starfall
                 score+=sourceLine?5f:0f;
                 score+=playerLine?5f:0f;
             }
+            // A melee flank around the hero should still be a practical
+            // approach, not a distant silhouette earning angle bonuses.
+            // Bows can pressure from farther out, but very remote positions
+            // should not outrank useful connected local combat lanes.
+            if(heroDistance>12f)
+                score-=(heroDistance-12f)*(kind==1?1.5f:4f);
             // Flanking is a relationship to the hero being threatened,
             // not to the inert survey post. Two raiders on opposite sides
             // of a sign can still occupy the same attack lane toward the
