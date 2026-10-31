@@ -563,6 +563,12 @@ namespace Starfall
                 // player's persistent tracked quest.
                 bool urgentMain=Game.SagaGuardActive||
                     Game.ScoutDefenseActive||Game.MainSagaRelayActive;
+                // A discovered roadside ambush is an optional local
+                // encounter, NOT a new mandatory story objective. The
+                // same live ownership drives compass, hint and HUD card;
+                // never make the old tracked quest look like this fight.
+                bool crossingEncounter=Game.CrossingWatchPending||
+                    Game.CrossingWatchActive;
                 DrawMinimap(); QuestGuide q = urgentMain ?
                     Game.GetQuest("main") :
                     Game.FieldTacticTrialActive ? Game.GetQuest("tactic_trials") :
@@ -595,15 +601,19 @@ namespace Starfall
                 // can enable the shortcut; emergency missions retain their
                 // own live objective and never advertise an unrelated NPC.
                 WorldObject nextQuestSource=!Game.practicing&&
+                    !crossingEncounter&&
                     q.id==Game.RecommendedContinuationGuide.id?
                     Game.NearbyQuestInteraction():null;
                 bool questCrowded=nextQuestSource!=null&&
                     Game.NearbyInteractionCount()>1;
                 Panel(1008, 233, 248, 209, new Color(.045f, .08f, .13f, .88f), PixelArt.C("#405970"));
                 Text(1025, 247, 214, 22, Game.practicing ? Game.L("实战教学", "COMBAT PRACTICE") :
+                    crossingEncounter?Game.L("实地事件 · 完全可选","LOCAL EVENT · OPTIONAL"):
                     Game.RemoteRoadEncounterActive?
                         Game.L("高地巡护交战中 · ","ROADWATCH IN COMBAT · ")+q.category:
-                    (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) : q.title, 17, paper);
+                    (q.id!=Game.save.trackedQuest ? Game.L("推荐下一步 · ", "NEXT ADVENTURE · ") : "") + q.category + "  /  " + ControlKey("TAB", "VIEW"), 11, gold); Text(1025, 277, 214, 48, Game.practicing ? Game.L(new[] { "命中目标", "观察与闪避", "职业战技" }[Game.practiceStage], new[] { "Hit the target", "Read & evade", "Class technique" }[Game.practiceStage]) :
+                    crossingEncounter?Game.L("路口伏击 · 可战斗或撤离",
+                        "CROSSING AMBUSH · FIGHT OR WITHDRAW"):q.title, 17, paper);
                 Text(1025, 334, 214, 65, Game.practicing ? PracticeInputHint :
                     urgentMain ? q.next :
                     Game.FieldTacticTrialActive ? q.next :
@@ -629,7 +639,11 @@ namespace Starfall
                 // document's real remaining safety, not unrelated quest
                 // checklist completion; normal HUD progress is restored on
                 // victory or failure.
-                float missionMeter=Game.SagaGuardActive?
+                float missionMeter=Game.CrossingWatchPending?
+                    Math.Max(0f,1f-Game.CrossingWatchWarningSecondsLeft/1.35f):
+                    Game.CrossingWatchActive?
+                    (2-Game.CrossingWatchRemaining)/2f:
+                    Game.SagaGuardActive?
                     Game.SagaGuardEvidenceSafety/100f:
                     Game.ScoutDefenseActive?Game.ScoutDefenseSafety/100f:
                     Game.MainSagaRelayActive?Game.MainSagaRelayIntegrity/100f:
@@ -649,6 +663,8 @@ namespace Starfall
                 // is not taken until a real local path or valid remote
                 // crossing has been verified by GameCore.
                 if(!Game.practicing&&Button(1015,488,234,30,
+                    crossingEncounter?Game.L("可选事件 · 迎战或离开",
+                        "OPTIONAL EVENT · FIGHT OR LEAVE"):
                     questCrowded?
                         Game.L("Shift+O · 聚焦任务目标",
                             "SHIFT+O · FOCUS QUEST SOURCE"):
@@ -660,10 +676,10 @@ namespace Starfall
                             "SHIFT+TAB · REPLACE ROUTE"):
                         Game.L("Shift+Tab · 跟随下一段",
                             "SHIFT+TAB · FOLLOW NEXT"),
-                    false,questCrowded||
+                    false,!crossingEncounter&&(questCrowded||
                         (Game.CanFollowRecommendedAdventure&&
                           (postgameIdle||
-                           q.id==Game.RecommendedContinuationGuide.id))))
+                           q.id==Game.RecommendedContinuationGuide.id)))))
                 {
                     if(questCrowded)Game.FocusNearbyQuestInteraction();
                     else Game.FollowRecommendedAdventure();
