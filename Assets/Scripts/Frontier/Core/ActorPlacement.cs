@@ -1132,12 +1132,19 @@ namespace Starfall
                     // corridors; an early-14 cutoff repeatedly biased
                     // every patrol toward one side of that corridor.
                     // Bound this fallback to 32 authenticated candidates.
+                    // Alternate cardinal edges while sweeping the ring;
+                    // row-major scanning could spend the 32-pad budget
+                    // entirely on one side of an open wilderness map.
                     for(int radius=6;radius<=13&&viable<32;radius++)
-                    for(int dy=-radius;dy<=radius&&viable<32;dy++)
-                    for(int dx=-radius;dx<=radius&&viable<32;dx++)
+                    for(int offset=0;offset<=radius*2&&viable<32;offset++)
+                    for(int edge=0;edge<4&&viable<32;edge++)
                     {
-                        if(Math.Max(Math.Abs(dx),Math.Abs(dy))!=radius||
-                            Math.Abs(dx)+Math.Abs(dy)>16)continue;
+                        int span=offset-radius;
+                        int dx=edge==0?span:edge==1?radius:
+                            edge==2?-span:-radius;
+                        int dy=edge==0?-radius:edge==1?span:
+                            edge==2?radius:-span;
+                        if(Math.Abs(dx)+Math.Abs(dy)>16)continue;
                         Point p=new Point(sx+dx+.5f,sy+dy+.5f);
                         if(!RegionalScoutFootClear(p,source,requireFull,pads))
                             continue;
