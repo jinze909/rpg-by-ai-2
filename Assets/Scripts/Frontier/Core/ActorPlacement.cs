@@ -579,8 +579,8 @@ namespace Starfall
                 bool found=false;
                 Point bestFlank=new Point();
                 float bestFlankScore=float.NegativeInfinity;
-                for(int radius=5;radius<=8;radius++)
-                for(int offset=0;offset<8;offset++)
+                for(int radius=5;radius<=8&&(slot!=0||!found);radius++)
+                for(int offset=0;offset<8&&(slot!=0||!found);offset++)
                 {
                     int d=(save.room*3+district*5+slot*4+offset)%8;
                     Point foot=new Point(
