@@ -8660,7 +8660,7 @@ public static class RuntimeCombatInputChecks
                 "The shipped physical E selector sees both sources at the scout");
             Check(g.FocusNearbyInteraction(
                 g.NearbyInteractionChoices().IndexOf(distraction))&&
-                Object.ReferenceEquals(g.Nearest(),distraction),
+                System.Object.ReferenceEquals(g.Nearest(),distraction),
                 "Deliberate nonquest focus starts on the nearby fire");
             Set(app,"camera",g.Position);
             GUI.commands.Clear();Call(app,"OnGUI");
@@ -8671,7 +8671,7 @@ public static class RuntimeCombatInputChecks
                 "Actual GameView and its main objective card show the same verified crowd focus");
             Input.Clear();Input.keys.Add(KeyCode.LeftShift);
             Input.keys.Add(KeyCode.O);Update(app);
-            Check(Object.ReferenceEquals(g.Nearest(),scout)&&
+            Check(System.Object.ReferenceEquals(g.Nearest(),scout)&&
                 g.mode=="world"&&!g.Has("scout_saved"),
                 "Production Shift+O retargets the real E source, without executing it");
             Input.Clear();Input.keys.Add(KeyCode.E);Update(app);
