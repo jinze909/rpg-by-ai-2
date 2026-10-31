@@ -1809,17 +1809,10 @@ namespace Starfall
                         "LOST KIT · "+Game.FieldKitTimber(room)+
                         " TIMBER / "+Game.FieldKitParts(room)+" PARTS"),
                     10,ink,TextAnchor.MiddleCenter);
-                // Do not hide the permanent tactical choice behind a
-                // one-time quest toast. Display the SAME charged return
-                // fare that the actual physical shuttle transaction uses.
-                // Keep the aid/workshop identity visible above this row.
-                if((ward||forge)&&Game.FieldDispatchDone(room))
-                    WorldObjectLabel(p.x-112,p.y-88,224,18,
-                        Game.L("返程 "+Game.FieldOutpostReturnFare(room)+
-                                "硬币 · "+Game.FieldOutpostReturnEnergy(room)+"耐力",
-                            "RETURN "+Game.FieldOutpostReturnFare(room)+
-                                "C / "+Game.FieldOutpostReturnEnergy(room)+"ST"),
-                        10,ink,TextAnchor.MiddleCenter);
+                // The label arbiter only has two slots for a focused
+                // original kit. Keep its equipment name AND the paid fare
+                // visible by using the already-accepted completion label,
+                // rather than losing a third caption to the density cap.
                 if(active)
                     Ring(new Point(o.x,o.y),.92f,gold,28);
                 else if(ward||forge)
@@ -1831,8 +1824,12 @@ namespace Starfall
                         10,gold,TextAnchor.MiddleCenter);
                 else if(Game.FieldDispatchDone(room))
                     WorldObjectLabel(p.x-112,p.y-139,224,18,
-                        Game.L("真实运送已签收 · 补给升级",
-                            "VERIFIED COURIER · STOCK UPGRADED"),
+                        Game.L("运送签收 · 返程"+
+                                Game.FieldOutpostReturnFare(room)+"币/"+
+                                Game.FieldOutpostReturnEnergy(room)+"耐",
+                            "VERIFIED COURIER · RETURN "+
+                                Game.FieldOutpostReturnFare(room)+"C/"+
+                                Game.FieldOutpostReturnEnergy(room)+"ST"),
                         10,mint,TextAnchor.MiddleCenter);
                 return;
             }

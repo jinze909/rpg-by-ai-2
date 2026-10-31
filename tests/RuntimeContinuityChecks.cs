@@ -1497,10 +1497,8 @@ public static class RuntimeContinuityChecks
             "This two-step runtime world interaction banks genuine cargo");
         ClearDraw();Call(app,"DrawObject",kit);
         Check(GUI.commands.Exists(x=>x.Contains("VERIFIED COURIER")&&
-            x.Contains("STOCK UPGRADED")),
-            "Original field object now visibly displays its earned persistent facility upgrade");
-        Check(GUI.commands.Exists(x=>x.Contains("RETURN 2C / 6ST")),
-            "Signed ordinary delivery shows the actual two-coin six-stamina shuttle fare");
+            x.Contains("RETURN 2C/6ST")),
+            "The accepted original field-kit status shows the actual paid return fare alongside the facility identity");
         Console.WriteLine("PASS real civilian courier in-world origin, machine, survey and upgraded return display");
     }
 
