@@ -2642,6 +2642,44 @@ namespace Starfall
                 Notify("南部石廊通向旧通风系统。三处巷道合拢后，风会重新流动。",
                     "The southern gallery leads toward the old ventilation system; linking all three cuts restores its draft.");
         }
+
+        // No fast-travel shortcut: the two civilian watchwalks really
+        // span shallow stone piers in the old citadel's outer floodplain.
+        // Their source tiles stay stable for legacy saves and story seals.
+        public int CitadelWatchwalkCount
+        {
+            get{return (Has("citadel_watchwalk_0")?1:0)+
+                        (Has("citadel_watchwalk_1")?1:0);}
+        }
+        private void TickCitadelWatchwalks()
+        {
+            if(save.room!=4||Dying||practicing||racing||
+                !CanStand(Position)||Map.rows==null)return;
+            int x=(int)Math.Floor(Position.x),
+                y=(int)Math.Floor(Position.y);
+            if(y<0||y>=Map.rows.Length||x<0||
+               x>=Map.rows[y].Length||Map.rows[y][x]!='=')return;
+            int id=x>=38&&x<=39&&y>=70&&y<=71?0:
+                x>=88&&x<=89&&y>=62&&y<=63?1:-1;
+            if(id<0||Has("citadel_watchwalk_"+id))return;
+            Flag("citadel_watchwalk_"+id);revision++;sound="ui";
+            if(CitadelWatchwalkCount==2&&!Has("citadel_watchwalk_connected"))
+            {
+                Flag("citadel_watchwalk_connected");
+                AddXp(27);CreditCoins(26);revision++;sound="reward";
+                Notify("两条堡垒旧巡路重新连通：本区高地穿行耐力减少 2。经验 +27，硬币 +26。",
+                    "Both civilian watchwalks are open: this region's ridge passage now costs 2 less stamina. +27 XP, +26 coins.");
+                RecordMoment(
+                    "堡垒外围的两段石桥重新归还行人。旧哨兵脚印指向一条不用再等开闸命令的民用绕城路。",
+                    "Two surviving stone watchwalks reconnect the old civilian outer ring; walkers no longer need an order from the garrison to make the detour.");
+            }
+            else if(id==0)
+                Notify("南面石板上密密刻着回家的时间；这座桥曾不是军用设施。",
+                    "Return-home times cover the southern slabs. The bridge was not built only for soldiers.");
+            else
+                Notify("远哨旧灯把东面的通路照得很清楚；守门人曾默许平民经过。",
+                    "An old watchlight marks the eastern approach. Gatekeepers once quietly allowed civilians past.");
+        }
         private void TickExpansion(float dt)
         {
             if (mode != "world" || Dying) return;
@@ -2667,6 +2705,7 @@ namespace Starfall
             TickThornwoodCanopyCuts();
             TickRuinsCauseways();
             TickIronMineHaulageCuts();
+            TickCitadelWatchwalks();
             if(!practicing&&!racing&&!FieldWorkPreventsRest&&
                IronMineBreathingShaft&&SafeTravel)
                 save.energy=Math.Min(100f,save.energy+dt*4f);

@@ -14,6 +14,69 @@ namespace Starfall.Tests
         // '?' bridge, scripted breach or map-object coordinate is altered.
 
 
+
+        public static void CitadelOuterWatchwalksImproveGenuineRidgePassage(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=4;
+            g.save.stage=4;g.enemies.Clear();
+            MapData map=g.Map;
+            int[,] piers={
+                {38,69,38,72,38,39,70,71,65},
+                {88,61,88,64,88,89,62,63,50}
+            };
+            int cost=g.RidgePassageEnergyCost(4);
+            int neighborCost=g.RidgePassageEnergyCost(3);
+            int coins=g.save.coins;
+            Check(g.CitadelWatchwalkCount==0&&
+                !g.Has("citadel_watchwalk_connected"),
+                "Old save starts with its existing costs and no fake route credit");
+            for(int site=0;site<2;site++)
+            {
+                Point begin=new Point(piers[site,0]+.5f,piers[site,1]+.5f);
+                Point end=new Point(piers[site,2]+.5f,piers[site,3]+.5f);
+                Check(g.CanStand(begin)&&g.CanStand(end),
+                    "Two original fortress banks provide real player footing");
+                string[] oldRows=(string[])map.rows.Clone();
+                try
+                {
+                    for(int y=piers[site,6];y<=piers[site,7];y++)
+                    {
+                        char[] row=map.rows[y].ToCharArray();
+                        for(int x=piers[site,4];x<=piers[site,5];x++)
+                        {
+                            Check(row[x]=='='&&
+                                g.CanStand(new Point(x+.5f,y+.5f)),
+                                "Each added citadel pier tile is genuinely traversable");
+                            row[x]='~';
+                        }
+                        map.rows[y]=new string(row);
+                    }
+                    Check(g.NavigationPathFrom(begin,end,true).Count>=piers[site,8],
+                        "Without the actual stone bridge the outer fortress detours");
+                }
+                finally{map.rows=oldRows;}
+                int direct=g.NavigationPathFrom(begin,end,true).Count;
+                Check(direct>0&&direct<=8,
+                    "The added piers are walked by normal collision-aware pathfinding");
+                g.save.x=(piers[site,4]+piers[site,5])*.5f+.5f;
+                g.save.y=(piers[site,6]+piers[site,7])*.5f+.5f;
+                Check(!g.Has("citadel_watchwalk_"+site),
+                    "The route must be physically visited before awarding its own record");
+                g.Tick(.02f,new Point());
+                Check(g.Has("citadel_watchwalk_"+site)&&
+                    g.CitadelWatchwalkCount==site+1,
+                    "Each true watchwalk walk records exactly its own v2 discovery");
+            }
+            Check(g.Has("citadel_watchwalk_connected")&&
+                g.RidgePassageEnergyCost(4)==Math.Max(2,cost-2)&&
+                g.RidgePassageEnergyCost(3)==neighborCost&&
+                g.save.coins==coins+26&&g.save.version==2,
+                "Genuine walks improve only the citadel's already existing ridge economy");
+            g.Tick(.02f,new Point());
+            Check(g.save.coins==coins+26,
+                "The watchwalk completion reward remains exactly once per save");
+        }
+
         public static void IronMineHaulageShortcutsOfferSafeLocalVentilation(Campaign data)
         {
             var g=Fresh(data);g.mode="world";g.save.room=3;

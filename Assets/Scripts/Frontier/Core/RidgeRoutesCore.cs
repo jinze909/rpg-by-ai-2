@@ -30,7 +30,13 @@ namespace Starfall
             int saferRoads=room>=1&&room<=7?
                 (RemoteRoadCleared(room,0)?2:0)+
                 (RemoteRoadCleared(room,1)?2:0):0;
-            return Math.Max(2,baseCost-relief-saferRoads);
+            // Mapping both genuine outside-citadel watchwalks makes the
+            // existing physical ridge route faster for civilians. The
+            // discount is specific to room 4 and cannot bypass the 2-point
+            // minimum or unlock an unvisited ridge marker.
+            int civicWatchwalk=room==4&&
+                Has("citadel_watchwalk_connected")?2:0;
+            return Math.Max(2,baseCost-relief-saferRoads-civicWatchwalk);
         }
         private bool TalkRidge(WorldObject o)
         {
