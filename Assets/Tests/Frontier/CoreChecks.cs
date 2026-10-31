@@ -994,6 +994,60 @@ namespace Starfall.Tests
                 "Cleared public road survives original v2 save without live raiders");
         }
 
+        public static void HumaneCourierCaptureSecuresActualReturnRoad(Campaign data)
+        {
+            var g=Fresh(data);g.mode="world";g.save.room=1;
+            g.save.stage=4;g.enemies.Clear();g.invulnerable=100f;
+            g.save.flags.Add("biome_field_done_1");
+            g.save.flags.Add("field_kit_recovered_1");
+            g.save.flags.Add("field_outpost_ward_1");
+            WorldObject kit=Array.Find(g.Map.objects,o=>o.id=="fieldKit1");
+            WorldObject survey=Array.Find(g.Map.objects,o=>o.id=="biomeSurvey1");
+            Check(kit!=null&&survey!=null&&PlaceWithinTalkReach(g,kit),
+                "Real original supply contract has physical kit and survey");
+            g.save.inventory[2]=4;g.save.inventory[0]=12;
+            g.save.inventory[4]=12;g.save.energy=100f;
+            g.Talk(kit);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_start"));
+            Point checkpoint=g.FieldDispatchTarget;
+            WorldObject machine=Array.Find(g.Map.objects,o=>
+                o.kind=="regionalMachine"&&
+                (new Point(o.x,o.y)-checkpoint).Length<.01f);
+            Check(machine!=null,"Original engineer waypoint is physically present");
+            g.Close();g.save.x=machine.x;g.save.y=machine.y;g.Talk(machine);
+            g.Choose(Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_checkpoint"));
+            g.Close();
+            for(int beat=0;beat<80&&g.FieldDispatchAmbushWarningSeconds>0f;beat++)
+                g.Tick(.05f,new Point());
+            Check(g.FieldDispatchLivingRaiders==1&&g.enemies.Count==1,
+                "Authentic forest ambush provides one live owned raider");
+            Enemy foe=g.enemies[0];
+            int kills=g.save.kills[1];
+            Point trap=PutRealSnare(g);
+            foe.x=trap.x;foe.y=trap.y;foe.hitTime=6f;
+            for(int frame=0;frame<11;frame++)g.Tick(.05f,new Point());
+            Check(g.CanBindSnaredEnemy&&
+                Object.ReferenceEquals(g.SnaredBindTarget,foe),
+                "Only a physically armed snare catches the genuine living raider");
+            g.save.energy=100f;
+            Check(g.BindSnaredEnemy()&&foe.hp>0f&&
+                g.FieldDispatchLivingRaiders==0&&g.save.kills[1]==kills,
+                "Paid nonlethal restraint clears a real raider without a chapter kill");
+            g.Close();g.save.x=survey.x;g.save.y=survey.y;
+            g.Talk(survey);
+            int finish=Array.FindIndex(g.conversation.choices,
+                c=>c.action=="field_dispatch_finish");
+            Check(finish>=0,"Humane route still requires original signed handoff");
+            g.Choose(finish);
+            Check(g.FieldDispatchRouteSecured(1)&&
+                g.FieldOutpostReturnFare(1)==1&&
+                g.FieldOutpostReturnEnergy(1)==4&&
+                g.save.kills[1]==kills,
+                "Living captivity wins the same permanent safe route without lethal combat");
+        }
+
         public static void DisappearedCourierEnemyNeverForgedPublicRoadSecurity(Campaign data)
         {
             GameCore g=Fresh(data);g.mode="world";g.save.room=1;
