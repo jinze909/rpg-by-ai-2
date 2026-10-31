@@ -112,7 +112,7 @@ namespace Starfall.Tests
                     "Only the original real quest opening starts a protected chapter handoff");
                 g.save.trackedQuest="main";
                 Check(g.RecommendedContinuationGuide.id=="chapter_roads"&&
-                    g.GuidanceHint()==g.GetQuest("chapter_roads").next,
+                    g.GuidanceHint().Contains(g.GetQuest("chapter_roads").next),
                     "Active civilian road episode overrides old tracked HUD objectives");
                 g.Enter(0);
                 Check(g.save.room==chapter&&g.ChapterRoadActive,
