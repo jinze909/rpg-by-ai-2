@@ -2449,6 +2449,57 @@ namespace Starfall
         // direction: a cliff, building or closed gate may occupy that side.
         // Probe both short physical flank strides before choosing a heading,
         // keeping existing crowd spacing and real movement physics intact.
+        // Ordinary local raiders no longer approach every fight in a
+        // single straight queue. When one ally already holds the near
+        // front, an uncommitted hunter tries a REAL side approach while
+        // still closing distance. This uses live actor bodies and terrain,
+        // not an invisible formation offset or a persistent enemy record.
+        private Point OrdinaryPackFlankHeading(Enemy hunter,Point target,float stride)
+        {
+            if(hunter==null||hunter.boss||hunter.kind!=0||
+               !regionalAmbientEnemies.Contains(hunter)||
+               !CanStand(hunter.Position)||!CanStand(target)||
+               !ClearAttackPath(hunter.Position,target))
+                return new Point();
+            Point to=target-hunter.Position;
+            float distance=to.Length;
+            if(!Finite(distance)||distance<2.8f||distance>6.5f||
+               !Finite(stride)||stride<=0f)return new Point();
+            Enemy anchor=null;
+            float bestRange=float.MaxValue;
+            foreach(Enemy other in enemies)
+            {
+                if(other==null||Object.ReferenceEquals(other,hunter)||
+                   other.hp<=0f||other.boss||
+                   !regionalAmbientEnemies.Contains(other)||
+                   !CanStand(other.Position))continue;
+                float allyRange=(other.Position-target).Length;
+                float separation=(other.Position-hunter.Position).Length;
+                if(allyRange>=2.55f||allyRange>=distance-.8f||
+                   separation>5f||!ClearAttackPath(other.Position,target)||
+                   allyRange>=bestRange)continue;
+                anchor=other;bestRange=allyRange;
+            }
+            if(anchor==null)return new Point();
+            Point forward=to*(1f/distance);
+            Point lateral=new Point(-forward.y,forward.x);
+            int preferred=(hunter.id&1)==0?1:-1;
+            Point best=new Point();
+            float bestSeparation=float.NegativeInfinity;
+            for(int i=0;i<2;i++)
+            {
+                int sign=i==0?preferred:-preferred;
+                Point direction=(forward*.62f+lateral*(.78f*sign)).Normalized;
+                Point candidate=SweepActor(hunter.Position,direction*stride);
+                if((candidate-hunter.Position).Length<stride*.4f||
+                   !EnemyCrowdStepClear(hunter,hunter.Position,candidate)||
+                   (candidate-target).Length>=distance-.015f)continue;
+                float separation=(candidate-anchor.Position).Length;
+                if(separation>bestSeparation+.0001f)
+                {best=direction;bestSeparation=separation;}
+            }
+            return best;
+        }
         private Point OpenMeleeFlankHeading(Enemy enemy,Point target,float stride)
         {
             Point from=enemy.Position, toward=target-from;
@@ -3019,6 +3070,23 @@ namespace Starfall
                     // committing pursuit: moving directly nearer simply
                     // repeats a blocked shot or eventually backpedals.
                     Point heading=DirectionTo(e.Position,pursuit);
+                    // A teammate at the front creates a readable second
+                    // approach rather than a single-file melee traffic jam.
+                    // Sound searches, civilian duties and fixed Boss moves
+                    // keep their own authoritative destinations.
+                    if(ordinaryPatrol&&e.kind==0&&e.state==0&&
+                       !trackingOrdinaryFoot&&!playerHitProvoked&&
+                       !IsEnemyInvestigatingImpact(e)&&
+                       !IsEnemyReturningFromImpact(e)&&
+                       !RidgeWatchRespondsToAlarm(e)&&
+                       (pursuit-Position).Length<.1f&&
+                       distance>2.8f&&distance<6.5f&&visible)
+                    {
+                        Point flank=OrdinaryPackFlankHeading(e,Position,
+                            freeDt*2.1f*
+                            (InAbyss&&save.abyssFloor%3==2?1.2f:1f));
+                        if(flank.Length>.5f)heading=flank;
+                    }
                     if(waitingForFlank)
                         heading=OpenMeleeFlankHeading(e,Position,
                             freeDt*(e.kind==0?2.1f:1.5f)*
