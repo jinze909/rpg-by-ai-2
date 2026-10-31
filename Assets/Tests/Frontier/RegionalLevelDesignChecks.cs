@@ -2824,6 +2824,70 @@ namespace Starfall.Tests
                 "Across seven authentic regional contracts the ranking improves multiple attack approaches");
         }
 
+        public static void OpeningBattleRangedSlotsTrulyPreferVisibleShotsOverWallFire(Campaign data)
+        {
+            MapData original=data.maps[1];
+            try
+            {
+                var rows=new string[32];
+                for(int y=0;y<32;y++)
+                {
+                    var line=new string('.',40).ToCharArray();
+                    for(int x=0;x<40;x++)
+                        if(x<2||x>=38||y<2||y>=30)line[x]='#';
+                    rows[y]=new string(line);
+                }
+                char[] wall=rows[15].ToCharArray();
+                wall[17]='#';
+                rows[15]=new string(wall);
+                data.maps[1]=new MapData{
+                    id=1,spawnX=20.5f,spawnY=15.5f,
+                    rows=rows,objects=new WorldObject[0],
+                    decor=new Decoration[0]};
+                var g=Fresh(data);
+                g.mode="world";g.save.room=1;g.save.stage=3;
+                g.save.x=20.5f;g.save.y=15.5f;
+                g.enemies.Clear();
+                var score=typeof(GameCore).GetMethod(
+                    "RegionalOpeningPadScore",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(score!=null,
+                    "Production opening encounters rank real role-aware feet");
+                Point clear=new Point(26.5f,15.5f),
+                    blocked=new Point(14.5f,15.5f),
+                    anchor=g.Position;
+                Check(g.CanStand(clear)&&g.CanStand(blocked)&&
+                    g.NavigationPathFrom(g.Position,blocked,true).Count>0,
+                    "Both candidates are physically reachable but only one has a straight firing line");
+                float visible=(float)score.Invoke(g,
+                    new object[]{clear,anchor,1});
+                float throughWall=(float)score.Invoke(g,
+                    new object[]{blocked,anchor,1});
+                Check(visible>throughWall+20f,
+                    "A ranged enemy must strongly prefer an actual shot over shooting through solid cover");
+                float meleeVisible=(float)score.Invoke(g,
+                    new object[]{clear,anchor,0});
+                float meleeBlocked=(float)score.Invoke(g,
+                    new object[]{blocked,anchor,0});
+                Check(visible-throughWall>
+                    meleeVisible-meleeBlocked+20f,
+                    "Ranged sightlines matter more than melee sightlines at otherwise equal positions");
+                var spawn=typeof(GameCore).GetMethod(
+                    "SpawnRegionalBaselineEnemies",
+                    System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance);
+                Check(spawn!=null,"Original mandatory roster spawner is still the real entry point");
+                spawn.Invoke(g,new object[]{6,100f});
+                Check(g.enemies.Count==6&&
+                    g.enemies.TrueForAll(e=>e.hp>0f&&
+                        g.CanStand(e.Position)&&
+                        g.NavigationPathFrom(g.Position,e.Position,true).Count>0),
+                    "Role-ranked opening still stages a full living six-actor squad on one physical component");
+            }
+            finally{data.maps[1]=original;}
+        }
+
         public static void SevenFieldPatrolRegionsHaveDifferentPhysicalCombatRoles(Campaign data)
         {
             int[][] expected={
