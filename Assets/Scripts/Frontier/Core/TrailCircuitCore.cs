@@ -69,8 +69,16 @@ namespace Starfall
 
         private void AdvanceOwnedTrailCircuit(WorldObject reached,bool complete)
         {
-            if(!TrailFollowOwnsCurrentPin()||
-                !System.Object.ReferenceEquals(trailFollowSource,reached))
+            // TalkTrailCircuit authenticated ownership BEFORE recording
+            // this stage. After Flag(), progress already points at the NEXT
+            // source; repeating the old-stage test here would reject every
+            // legitimate automatic handoff.
+            Point? committed=LocalWaymark;
+            if(!System.Object.ReferenceEquals(trailFollowSource,reached)||
+                trailFollowRoom!=save.room||
+                !System.Object.ReferenceEquals(trailFollowMap,Map)||
+                !committed.HasValue||
+                (committed.Value-trailFollowFoot).Length>.001f)
                 return;
             if(complete)
             {
