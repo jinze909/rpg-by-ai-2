@@ -100,8 +100,24 @@ namespace Starfall.Tests
                     "A remote boss receipt cannot trigger an undiscovered field event");
                 g.save.flags.Add("boss_"+room);
                 g.Tick(.02f,new Point());
+                var privateFlags=System.Reflection.BindingFlags.NonPublic|
+                    System.Reflection.BindingFlags.Instance;
+                var restGate=typeof(GameCore).GetProperty(
+                    "FieldWorkPreventsRest",privateFlags);
+                bool fieldwork=restGate!=null&&(bool)restGate.GetValue(g,null);
                 Check(g.CrossingWatchPending&&g.enemies.Count==0,
-                    "A legitimate physical crossing cues danger before real combat");
+                    "A legitimate physical crossing cues danger before real combat"+
+                    " room="+g.save.room+" mode="+g.mode+
+                    " position="+g.Position.x+","+g.Position.y+
+                    " discovered="+g.Has(discovery[index])+
+                    " boss="+g.Has("boss_"+room)+
+                    " safe="+g.SafeTravel+" fieldwork="+fieldwork+
+                    " canStand="+g.CanStand(g.Position)+
+                    " remote="+g.RemoteRoadEncounterActive+
+                    " patrol="+g.FieldPatrolActive+
+                    " hunt="+g.WildernessHuntActive+
+                    " pending="+g.CrossingWatchPending+
+                    " enemies="+g.enemies.Count);
                 g.save.x+=9f;g.save.y+=0f;
                 for(int n=0;n<35;n++)g.Tick(.05f,new Point());
                 Check(!g.CrossingWatchPending&&!g.CrossingWatchActive&&
