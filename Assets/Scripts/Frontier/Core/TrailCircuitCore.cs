@@ -225,7 +225,7 @@ namespace Starfall
             if(NextTrailCircuitMarker(room)==null)return new Choice[]{leave};
             return new Choice[]{
                 C("连续引导后续路碑 · 可随时取消",
-                  "Auto-guide remaining real markers · cancel anytime","trail_circuit_follow"),
+                  "Guide remaining real markers automatically · cancel anytime","trail_circuit_follow"),
                 leave
             };
         }
