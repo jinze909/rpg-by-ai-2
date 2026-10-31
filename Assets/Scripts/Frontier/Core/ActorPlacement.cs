@@ -1113,7 +1113,12 @@ namespace Starfall
                 // under painted cover or beside a mission NPC. Search
                 // alternate legal 4-way terrain pads, collecting enough
                 // real alternatives to rank a useful local tactical lane.
-                if(viable<8)
+                // Even eight clear compass rays can all lead along the
+                // same exposed road. Compare nearby traversable perimeter
+                // feet as well, so flood channels, quarry corners and
+                // ridge cover produce different actual battle approaches.
+                // The bounded candidate budget still limits route checks.
+                if(viable<32)
                 {
                     int sx=(int)Math.Floor(source.x),
                         sy=(int)Math.Floor(source.y);
