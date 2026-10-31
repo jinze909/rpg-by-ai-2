@@ -60,8 +60,13 @@ namespace Starfall
             // but NEVER override the player's own O/click focus or a
             // higher-priority live quest approach. The source remains the
             // actual physical map member and must be within genuine reach.
-            return mode=="world"&&!Dying&&SafeTravel&&
-                TrailCircuitAtFollowPin()&&
+            // The hero can approach the real marker from a slightly
+            // different foot than the path solver's preferred contact.
+            // Prioritize the authentic source whenever E can genuinely
+            // reach it; the pin itself is only a navigation hint.
+            // A nearby raider must not steal or fake the player's E source.
+            return mode=="world"&&!Dying&&CanStand(Position)&&
+                TrailFollowOwnsCurrentPin()&&
                 HasPhysicalInteractionReach(trailFollowSource)?
                 trailFollowSource:null;
         }
