@@ -497,7 +497,9 @@ namespace Starfall
                 // additional local encounter; passive map browsing or
                 // unrelated story progression never spawns extra monsters.
                 int scouts=SpawnRegionalScoutEncounter(site);
-                revision++;sound="quest";
+                // Preserve the threat cue for a real ambush: the quest
+                // pickup sound must not erase the patrol's alert sound.
+                revision++;sound=scouts>0?"alert":"quest";
                 if(scouts>0)
                     Notify("第一份实地线索已记录。巡兵已被惊动；守住这里，再去远端寻找证据。",
                         "First field clue recorded. A real patrol has mobilized; survive here, then seek the distant evidence.");
